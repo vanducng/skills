@@ -1,19 +1,43 @@
 # vanducng/skills
 
-Duc's personal [Claude Code skills](https://code.claude.com/docs/en/skills).
+Duc's personal [Claude Code skills](https://code.claude.com/docs/en/skills), packaged as the **`vd`** plugin so skills appear in the catalog as `vd:<name>` and never collide with other plugins.
 
 ![validate](https://github.com/vanducng/skills/actions/workflows/validate.yml/badge.svg)
 
-## Quick start
+## Install (recommended — plugin marketplace)
 
-```bash
-git clone https://github.com/vanducng/skills.git ~/skills
-bash ~/skills/scripts/install.sh
-# restart Claude Code, then:
-/skills   # should list every skill in this repo
+Inside Claude Code:
+
+```
+/plugin marketplace add vanducng/skills
+/plugin install vd@vanducng-skills
 ```
 
-`install.sh` symlinks each `skills/<name>/` folder into `~/.claude/skills/<name>`. Edits in the repo are live in Claude Code on next session.
+Skills become available as `vd:research`, `vd:computer-clean`, etc.
+
+To update later:
+
+```
+/plugin marketplace update vanducng-skills
+/plugin install vd@vanducng-skills   # re-installs current version
+```
+
+## Layout
+
+```
+.claude-plugin/
+  marketplace.json    # registers plugin "vd"
+  plugin.json         # plugin manifest (name: vd)
+skills/
+  research/SKILL.md         → vd:research
+  computer-clean/SKILL.md   → vd:computer-clean
+scripts/
+  install.sh          # symlink fallback (dev/local edits — see below)
+  uninstall.sh        # removes repo-owned symlinks
+  new-skill.sh        # scaffold a new skill
+  validate.sh         # frontmatter lint (CI)
+.github/workflows/validate.yml
+```
 
 ## Add a skill
 
@@ -25,35 +49,28 @@ bash scripts/validate.sh               # lint frontmatter
 git add skills/my-new-skill && git commit -m "feat: add my-new-skill" && git push
 ```
 
-The new skill is already symlinked (it lives inside the already-linked repo path under `~/skills/skills/`, but `install.sh` creates the per-skill symlink — re-run after adding).
+After pushing, users update via `/plugin marketplace update vanducng-skills`.
+
+## Symlink install (dev / local-edit fallback)
 
 ```bash
-bash scripts/install.sh   # idempotent, picks up the new skill
+git clone https://github.com/vanducng/skills.git ~/skills
+bash ~/skills/scripts/install.sh
 ```
 
-## Layout
+This symlinks each `skills/<name>/` into `~/.claude/skills/<name>`. **Skills installed this way appear without the `vd:` prefix** (e.g. just `research`, not `vd:research`) — useful for fast iteration on a clone, but use the plugin path for the namespaced experience.
 
-```
-skills/<name>/SKILL.md         # one folder per skill (kebab-case)
-scripts/install.sh             # per-skill symlinks → ~/.claude/skills/
-scripts/uninstall.sh           # removes only repo-owned symlinks
-scripts/new-skill.sh           # scaffold new skill
-scripts/validate.sh            # frontmatter lint (run by CI)
-.claude-plugin/marketplace.json # /plugin marketplace add vanducng/skills
-.github/workflows/validate.yml # CI
-```
-
-## Install via plugin marketplace (alternative)
-
-Inside Claude Code:
-
-```
-/plugin marketplace add vanducng/skills
-```
-
-Currently a stub (`plugins: []`); the symlink path above is the supported install method.
+Conflict note: if you've installed via plugin AND symlink, you'll see duplicates. Pick one. Run `bash scripts/uninstall.sh` to drop the symlinks.
 
 ## Uninstall
+
+Plugin install:
+
+```
+/plugin uninstall vd@vanducng-skills
+```
+
+Symlink install:
 
 ```bash
 bash ~/skills/scripts/uninstall.sh
@@ -61,7 +78,7 @@ bash ~/skills/scripts/uninstall.sh
 
 Removes only symlinks under `~/.claude/skills/` whose target resolves into this repo. Foreign files left untouched.
 
-## Why per-skill symlinks?
+## Why per-skill symlinks (for the dev fallback)?
 
 Top-level `~/.claude/skills/` symlinks have known bugs ([anthropics/claude-code#25367](https://github.com/anthropics/claude-code/issues/25367), [#14836](https://github.com/anthropics/claude-code/issues/14836)). Symlinking each skill folder individually works.
 
