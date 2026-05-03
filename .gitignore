@@ -4,3 +4,7 @@
 *~
 .idea/
 .vscode/
+
+# npm install output (skill ships package.json + package-lock.json only)
+node_modules/
+
