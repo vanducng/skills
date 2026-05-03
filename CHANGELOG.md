@@ -11,7 +11,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 
 ### Added
 - `.claude-plugin/plugin.json` — plugin manifest for `vd`.
-- `skills/research/` (skill v2.0.0) — technical research skill, rewritten from `ck:research`:
+- `skills/research/` (skill v2.0.0) — deep technical research skill:
   - WebSearch only (Gemini path removed).
   - **`--deep` flag** for high-stakes decisions: query budget 5 → 12, expanded report with failure-modes table, migration paths, operational war stories, performance-under-realistic-load, decision reversibility.
   - Multi-option evaluation is mandatory — single-option reports flagged as failure.
