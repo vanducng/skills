@@ -2,6 +2,16 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.3.0] - 2026-05-04
+
+### Added
+- `skills/excalidraw/` (v1.0.0) — Excalidraw MCP diagram skill for technical diagrams:
+  - Domain styling presets with hex palettes for **software architecture (C4 / microservices)**, **cloud architecture (AWS / GCP / Azure)**, **data pipelines / ETL / lakehouse**, **UML (sequence / ER / state / class)**, and **deployment (Kubernetes / Docker)**.
+  - Sizing formulas (rectangle / diamond / ellipse) accounting for Excalidraw font width, arrow visibility rules (≥120px gap), two-batch ordering (shapes → arrows), and the mandatory write-check-review verification loop.
+  - Quality checklist, anti-patterns table, MCP tool quick reference (32 tools), and edge-style conventions (batch / stream / async / lineage).
+  - `references/styling-presets.md` — full color tables, layout templates (3-tier, event-driven, Lambda architecture, ELT lakehouse, microservice mesh, C4 skeleton), accessibility palette, implementation checklist.
+  - `references/cheatsheet.md` — MCP vs REST format differences, element property reference, common recipes (arrow binding, translucent zones, cylinder approximation), verification loop.
+
 ## [0.2.0] - 2026-05-03
 
 ### Changed
