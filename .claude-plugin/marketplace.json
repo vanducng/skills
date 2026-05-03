@@ -1,8 +1,23 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "vanducng-skills",
+  "description": "Duc's personal Claude Code skills marketplace.",
   "owner": {
     "name": "vanducng",
     "url": "https://github.com/vanducng"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "vd",
+      "description": "Duc's personal skills. Includes computer-clean (macOS disk cleanup) and research (Gemini-backed technical research).",
+      "version": "0.2.0",
+      "author": {
+        "name": "vanducng",
+        "url": "https://github.com/vanducng"
+      },
+      "source": "./",
+      "category": "utilities",
+      "homepage": "https://github.com/vanducng/skills"
+    }
+  ]
 }
