@@ -1,0 +1,291 @@
+#!/usr/bin/env bash
+# open-design — fetch + search nexu-io/open-design skills & design-systems
+# Usage:
+#   open-design sync                       # clone or pull cache (auto-embeds if qmd installed)
+#   open-design list [skills|design-systems]
+#   open-design search "<prompt>"          # rank skills + design-systems (qmd if installed, else grep)
+#   open-design show <name>                # print absolute cache path
+#   open-design preview <file>             # open html artifact in browser
+set -euo pipefail
+
+REPO_URL="https://github.com/nexu-io/open-design.git"
+# Per-user cache namespace via $USER (avoids collisions on shared hosts).
+# Override with OPEN_DESIGN_CACHE.
+CACHE_DIR="${OPEN_DESIGN_CACHE:-$HOME/.cache/${USER:-shared}-open-design}"
+SKILLS_DIR="$CACHE_DIR/skills"
+DS_DIR="$CACHE_DIR/design-systems"
+
+# Optional dependency: tobi/qmd for hybrid (BM25 + vector + rerank) search.
+# Collections are namespaced "od-*" to avoid colliding with the user's own.
+QMD_COLL_SKILLS="od-skills"
+QMD_COLL_DS="od-design-systems"
+qmd_available() { command -v qmd >/dev/null 2>&1; }
+
+die() { echo "open-design: $*" >&2; exit 1; }
+need() { command -v "$1" >/dev/null || die "missing dependency: $1"; }
+
+ensure_cache() {
+  need git
+  if [ ! -d "$CACHE_DIR/.git" ]; then
+    echo "open-design: first-time clone of $REPO_URL → $CACHE_DIR" >&2
+    mkdir -p "$(dirname "$CACHE_DIR")"
+    git clone --depth=1 --filter=blob:none --sparse "$REPO_URL" "$CACHE_DIR" >&2
+    git -C "$CACHE_DIR" sparse-checkout set skills design-systems >&2
+  fi
+}
+
+# Pull latest if online; silent no-op on failure (works offline with cache)
+pull_quiet() {
+  if [ -d "$CACHE_DIR/.git" ]; then
+    git -C "$CACHE_DIR" pull --ff-only --quiet 2>/dev/null \
+      || echo "open-design: offline or pull failed, using cached copy" >&2
+  fi
+}
+
+# Register both collections in qmd (idempotent, instant — no model download).
+# Embeddings are NOT generated here; that requires `open-design embed` opt-in
+# (downloads ~334MB model). BM25 search via `qmd search` works without it.
+qmd_sync_collections() {
+  qmd_available || return 0
+  echo "open-design: qmd detected — registering 'od-skills' + 'od-design-systems' collections (BM25 ready, no model download)" >&2
+  qmd collection add "$SKILLS_DIR" --name "$QMD_COLL_SKILLS" >/dev/null 2>&1 || true
+  qmd collection add "$DS_DIR"     --name "$QMD_COLL_DS"     >/dev/null 2>&1 || true
+}
+
+cmd_sync() {
+  ensure_cache
+  pull_quiet
+  local n_s n_d
+  n_s=$(find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+  n_d=$(find "$DS_DIR"     -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+  echo "open-design: cache ready at $CACHE_DIR ($n_s skills, $n_d design-systems)"
+  qmd_sync_collections
+}
+
+cmd_list() {
+  ensure_cache; pull_quiet
+  local kind="${1:-both}"
+  case "$kind" in
+    skills)         ls -1 "$SKILLS_DIR" ;;
+    design-systems) ls -1 "$DS_DIR" ;;
+    both|"")        echo "# skills";         ls -1 "$SKILLS_DIR"
+                    echo; echo "# design-systems"; ls -1 "$DS_DIR" ;;
+    *) die "list: expected 'skills' or 'design-systems', got '$kind'" ;;
+  esac
+}
+
+# Stopwords kept out of scoring (common but uninformative). Keep short.
+STOPWORDS=" a an and the for of in on with to from by is it as or my our your this that page site app web ui design build make create generate render show give need want like style "
+
+# Extract the high-signal slice of a skill or design-system file:
+#   - SKILL.md   → YAML frontmatter (between the two `---`) + the H1 title line
+#   - DESIGN.md  → first 25 lines (H1 + Category + theme paragraph)
+extract_signal() {
+  local file="$1"
+  local base; base=$(basename "$file")
+  if [ "$base" = "SKILL.md" ]; then
+    awk 'BEGIN{f=0; n=0} /^---$/{n++; if(n>=2){f=0; next} f=1; next} f{print} /^# /{print}' "$file"
+  else
+    head -n 25 "$file"
+  fi
+}
+
+# Score = sum over tokens of: 5 × matches in NAME line + 3 × matches in
+# triggers/category/scenario lines + 1 × matches in remaining signal slice.
+# Skips stopwords and tokens shorter than 3 chars.
+score_file() {
+  local file="$1"; shift
+  local tokens="$*"
+  local signal name_line meta_lines body t score=0
+  signal=$(extract_signal "$file" 2>/dev/null | tr '[:upper:]' '[:lower:]')
+  [ -z "$signal" ] && { echo 0; return; }
+  name_line=$(printf '%s\n' "$signal" | { grep -E '^(name:|# )' || true; })
+  meta_lines=$(printf '%s\n' "$signal" | { grep -E '^(triggers:|scenario:|category:|platform:|mode:|>|  -)' || true; })
+  body="$signal"
+  for t in $tokens; do
+    [ ${#t} -lt 3 ] && continue
+    case "$STOPWORDS" in *" $t "*) continue ;; esac
+    local n_name n_meta n_body
+    n_name=$(printf '%s' "$name_line"  | { grep -oE "[^a-z]${t}[^a-z]|^${t}[^a-z]|[^a-z]${t}\$" || true; } | wc -l | tr -d ' ')
+    n_meta=$(printf '%s' "$meta_lines" | { grep -oE "[^a-z]${t}[^a-z]|^${t}[^a-z]|[^a-z]${t}\$" || true; } | wc -l | tr -d ' ')
+    n_body=$(printf '%s' "$body"       | { grep -oE "[^a-z]${t}[^a-z]|^${t}[^a-z]|[^a-z]${t}\$" || true; } | wc -l | tr -d ' ')
+    score=$(( score + 5*n_name + 3*n_meta + n_body ))
+  done
+  echo "$score"
+}
+
+# Print one-line rationale: first matching trigger or first sentence of description
+rationale() {
+  local file="$1"; shift
+  local tokens="$*"
+  local first_desc t
+  first_desc=$(awk '
+    /^description:/ {flag=1; sub(/^description:[[:space:]]*/,""); print; next}
+    flag && /^[[:space:]]/ {sub(/^[[:space:]]+/,""); print; next}
+    flag {exit}
+  ' "$file" 2>/dev/null | tr '\n' ' ' | cut -c1-140)
+  for t in $tokens; do
+    [ ${#t} -lt 3 ] && continue
+    case "$STOPWORDS" in *" $t "*) continue ;; esac
+    if grep -qiE "(^|[^a-z])${t}([^a-z]|$)" "$file" 2>/dev/null; then
+      echo "matches '$t' · ${first_desc:-no description}"
+      return
+    fi
+  done
+  echo "${first_desc:-no description}"
+}
+
+# qmd-powered search via `qmd search` (BM25 lexical, no model download, instant).
+# Deliberately not using `qmd vsearch`/`qmd query` — they download multi-GB models
+# for marginal gain on a 197-doc curated catalog (see levineam/qmd-skill guidance).
+# Output is post-processed: full file paths → bare folder names, deduped.
+# Extract folder names from qmd's `--files` output rows like:
+#   #c623b2,0.83,qmd://od-skills/html-ppt/references/full-decks.md
+# → "html-ppt"
+# Drop top-level files (e.g. "readme.md") since they aren't a skill/DS folder.
+qmd_extract_folders() {
+  sed -E 's|.*qmd://[^/]+/||; s|/.*||' | grep -vE '\.md$' | awk '!seen[$0]++'
+}
+
+# Vote-aggregate qmd results across single-token searches, then add a
+# name-match bonus so long files like `hyperframes` (broad vocab) don't
+# crowd out folders whose literal name matches the query (e.g. `dashboard`).
+#
+# Args: coll (qmd collection), base_dir (matching cache dir), tokens...
+# Per token (after stopword filter):
+#   - 1 vote per folder qmd's BM25 returns for the single-word search
+#   - 5 votes per folder whose literal name contains the token (substring)
+qmd_vote_search() {
+  local coll="$1" base_dir="$2"; shift 2
+  local tokens="$*"
+  local t all_folders
+  all_folders=$(ls "$base_dir" 2>/dev/null)
+  {
+    for t in $tokens; do
+      [ ${#t} -lt 3 ] && continue
+      case "$STOPWORDS" in *" $t "*) continue ;; esac
+      # 1× vote per BM25 hit, deduped by folder
+      qmd search "$t" -c "$coll" --files -n 10 2>/dev/null | qmd_extract_folders
+      # 5× name-match bonus
+      printf '%s\n' "$all_folders" | grep -iF -- "$t" 2>/dev/null \
+        | awk '{for (i=0; i<5; i++) print}'
+    done
+  } | awk '{c[$0]++} END {for (k in c) printf "%d\t%s\n", c[k], k}' \
+    | sort -rn -k1,1 -k2,2 | head -5 \
+    | awk -F'\t' '{printf "%-30s score=%d\n", $2, $1}'
+}
+
+qmd_search() {
+  local query="$1"
+  local tokens
+  tokens=$(printf '%s' "$query" | tr '[:upper:]' '[:lower:]' \
+           | tr -c 'a-z0-9' ' ' | tr -s ' ')
+  echo "## top skills (via qmd, name-boosted)"
+  qmd_vote_search "$QMD_COLL_SKILLS" "$SKILLS_DIR" $tokens
+  echo
+  echo "## top design-systems (via qmd, name-boosted)"
+  qmd_vote_search "$QMD_COLL_DS" "$DS_DIR" $tokens
+}
+
+cmd_search() {
+  # Loose mode inside this function: the scoring pipelines tolerate
+  # grep/head returning non-zero (no matches, SIGPIPE, etc.).
+  set +e +o pipefail
+  ensure_cache; pull_quiet
+  local query="${1:-}"
+  [ -z "$query" ] && die "search: missing query (e.g. \"pricing page for SaaS\")"
+
+  echo "# query: $query"
+  echo
+
+  # Prefer qmd if available — much better ranking.
+  if qmd_available; then
+    qmd_search "$query"
+    return 0
+  fi
+
+  # Lowercase + strip punctuation → tokens
+  local tokens
+  tokens=$(printf '%s' "$query" | tr '[:upper:]' '[:lower:]' \
+           | tr -c 'a-z0-9' ' ' | tr -s ' ')
+
+  echo "## top skills"
+  local f score
+  for f in "$SKILLS_DIR"/*/SKILL.md; do
+    [ -f "$f" ] || continue
+    score=$(score_file "$f" $tokens)
+    [ "$score" -gt 0 ] && printf '%s\t%s\n' "$score" "$f"
+  done | sort -rn -k1,1 | head -5 | while IFS=$'\t' read -r s f; do
+    local name; name=$(basename "$(dirname "$f")")
+    printf '%-30s score=%s · %s\n' "$name" "$s" "$(rationale "$f" $tokens)"
+  done
+
+  echo
+  echo "## top design-systems"
+  for f in "$DS_DIR"/*/DESIGN.md; do
+    [ -f "$f" ] || continue
+    score=$(score_file "$f" $tokens)
+    [ "$score" -gt 0 ] && printf '%s\t%s\n' "$score" "$f"
+  done | sort -rn -k1,1 | head -5 | while IFS=$'\t' read -r s f; do
+    local name; name=$(basename "$(dirname "$f")")
+    # First non-empty line after the H1, trimmed
+    local hint
+    hint=$(awk '/^>/{sub(/^>[[:space:]]*/,""); print; exit}' "$f" | cut -c1-120)
+    printf '%-30s score=%s · %s\n' "$name" "$s" "${hint:-(no tagline)}"
+  done
+}
+
+cmd_show() {
+  ensure_cache
+  local name="${1:-}"
+  [ -z "$name" ] && die "show: missing name"
+  if [ -d "$SKILLS_DIR/$name" ]; then
+    echo "$SKILLS_DIR/$name"
+  elif [ -d "$DS_DIR/$name" ]; then
+    echo "$DS_DIR/$name"
+  else
+    die "show: '$name' not found (try 'open-design list')"
+  fi
+}
+
+cmd_preview() {
+  local file="${1:-}"
+  [ -z "$file" ] && die "preview: missing file path"
+  [ -f "$file" ] || die "preview: file not found: $file"
+  case "$(uname -s)" in
+    Darwin) open "$file" ;;
+    Linux)  command -v xdg-open >/dev/null && xdg-open "$file" || die "preview: install xdg-open" ;;
+    *)      die "preview: unsupported OS — open '$file' manually" ;;
+  esac
+}
+
+usage() {
+  cat <<EOF
+open-design — search nexu-io/open-design skills + design-systems
+
+Commands:
+  sync                          Clone or pull the upstream cache
+  list [skills|design-systems]  List available items
+  search "<prompt>"             Rank top 5 skills + 5 design-systems for the prompt
+  show <name>                   Print absolute cache path of a skill or design-system
+  preview <file.html>           Open generated artifact in default browser
+
+Cache: $CACHE_DIR  (override with OPEN_DESIGN_CACHE)
+EOF
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+  case "$cmd" in
+    sync)    cmd_sync "$@" ;;
+    list)    cmd_list "$@" ;;
+    search)  cmd_search "$@" ;;
+    show)    cmd_show "$@" ;;
+    preview) cmd_preview "$@" ;;
+    -h|--help|help|"") usage ;;
+    *) usage; die "unknown command: $cmd" ;;
+  esac
+}
+
+main "$@"

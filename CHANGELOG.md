@@ -2,6 +2,22 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.5.0] - 2026-05-04
+
+### Added
+- `skills/open-design/` (v1.0.0) — generate single-file HTML design artifacts (landings, dashboards, mobile screens, decks/PPT, posters, social carousels, emails, e-guides, …) by composing 60 production skills × 137 brand-grade design systems sourced from [github.com/nexu-io/open-design](https://github.com/nexu-io/open-design).
+  - `open-design sync` — sparse-clone or `git pull` upstream into `~/.cache/$USER-open-design`. Offline-tolerant (falls back to cache silently). Per-user namespace via `$USER`.
+  - `open-design search "<prompt>"` — ranks top 5 skills + top 5 design systems for a free-form design brief. Auto-routes between two engines:
+    - **qmd path** (when `qmd` is on `PATH`): per-token `qmd search` (BM25, no model download) + 5× name-match bonus to overcome qmd's strict multi-token AND semantics; vote-aggregated across tokens.
+    - **grep fallback** (no qmd): frontmatter-weighted token overlap (5× name, 3× triggers/category, 1× body) with stopword filter — works for the curated 197-doc catalog without external deps.
+  - `open-design list / show / preview` — list catalog, resolve cache paths, open generated artifact in browser via `open`/`xdg-open`.
+  - SKILL.md prescribes a 6-step workflow: sync → search → resolve paths → read upstream SKILL.md + assets/template.html + references/layouts.md + DESIGN.md → compose → preview. Hard rules: never invent CSS classes, never write sections from scratch, never use off-palette tokens, single self-contained HTML file, no filler copy.
+  - Bash CLI is bundled inside the skill folder (291 lines) — works from dev clone, plugin cache, or user-level install. Zero hard dependencies beyond git/bash/grep/awk.
+- `skills/qmd/` (v1.0.0) — wrapper skill teaching Claude how to use the [tobi/qmd](https://github.com/tobi/qmd) Markdown search CLI properly. Approach guidance acknowledged from [levineam/qmd-skill](https://github.com/levineam/qmd-skill).
+  - Default to `qmd search` (BM25, instant, no model). Escalate to `qmd vsearch` only when keywords fail. Avoid `qmd query` unless user accepts a 1.28GB model download for marginal quality gain.
+  - Recipes for `--files`, `--json`, `--all --min-score`, multi-token vote-aggregation, `qmd get` / `multi-get`, maintenance via `qmd update`/`embed`.
+  - Composes with `vd:open-design` — open-design auto-detects qmd and routes through it for catalog search.
+
 ## [0.4.0] - 2026-05-04
 
 ### Added
