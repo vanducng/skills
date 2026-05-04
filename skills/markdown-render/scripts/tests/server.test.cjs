@@ -12,7 +12,7 @@ const http = require('http');
 const { isPortAvailable, findAvailablePort, DEFAULT_PORT } = require('../lib/port-finder.cjs');
 const { writePidFile, readPidFile, removePidFile, findRunningInstances } = require('../lib/process-mgr.cjs');
 const { getMimeType, MIME_TYPES, isPathSafe, sanitizeErrorMessage } = require('../lib/http-server.cjs');
-const { resolveImages, addHeadingIds, generateTOC, renderTOCHtml } = require('../lib/markdown-renderer.cjs');
+const { resolveImages, resolveLinkHref, renderMarkdownFile, addHeadingIds, generateTOC, renderTOCHtml } = require('../lib/markdown-renderer.cjs');
 const { detectPlan, parsePlanTable, getNavigationContext, generateNavSidebar } = require('../lib/plan-navigator.cjs');
 
 // Test utilities
@@ -164,6 +164,67 @@ test('resolveImages handles inline images with titles', () => {
   const resolved = resolveImages(md, '/base');
   // Path is URL-encoded; decode to verify
   assertIncludes(decodeURIComponent(resolved), '/base/image.png', 'Should resolve inline with title');
+});
+
+test('resolveLinkHref rewrites relative .md to /view?file=', () => {
+  const out = resolveLinkHref('./phase-01.md', '/base');
+  assertIncludes(out, '/view?file=', 'Should hit viewer route');
+  assertIncludes(decodeURIComponent(out), '/base/phase-01.md', 'Should resolve abs path');
+});
+
+test('resolveLinkHref preserves fragment on .md links', () => {
+  const out = resolveLinkHref('./x.md#sec', '/base');
+  assertIncludes(out, '#sec', 'Fragment preserved');
+  assertIncludes(decodeURIComponent(out), '/base/x.md', 'Path resolved');
+});
+
+test('resolveLinkHref leaves in-page anchors unchanged', () => {
+  assertEqual(resolveLinkHref('#section', '/base'), '#section', 'Anchor untouched');
+});
+
+test('resolveLinkHref leaves external URLs unchanged', () => {
+  assertEqual(resolveLinkHref('https://x.com/y', '/base'), 'https://x.com/y', 'External untouched');
+  assertEqual(resolveLinkHref('mailto:a@b.com', '/base'), 'mailto:a@b.com', 'mailto untouched');
+});
+
+test('resolveLinkHref routes non-md relatives to /file/', () => {
+  const out = resolveLinkHref('./report.pdf', '/base');
+  assertIncludes(out, '/file/', 'Should hit /file route');
+  assertIncludes(decodeURIComponent(out), '/base/report.pdf', 'Path resolved');
+});
+
+test('resolveLinkHref handles absolute .md paths', () => {
+  const out = resolveLinkHref('/abs/x.md', '/base');
+  assertIncludes(out, '/view?file=', 'Should hit viewer route');
+  assertIncludes(decodeURIComponent(out), '/abs/x.md', 'Absolute preserved');
+});
+
+test('resolveLinkHref leaves already-rewritten URLs alone', () => {
+  assertEqual(resolveLinkHref('/view?file=/x.md', '/base'), '/view?file=/x.md', 'No double-rewrite');
+  assertEqual(resolveLinkHref('/file/abc', '/base'), '/file/abc', 'No double-rewrite');
+});
+
+test('resolveImages skips .md reference defs (let link hook handle them)', () => {
+  const md = '[ref]: ./sibling.md';
+  const resolved = resolveImages(md, '/base');
+  assertEqual(resolved, md, 'Should leave .md ref defs untouched');
+});
+
+test('renderMarkdownFile rewrites sibling .md links end-to-end', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mdlink-'));
+  fs.writeFileSync(path.join(tmp, 'plan.md'),
+    '# P\nSee [Phase 1](./phase-01.md) and [P2][p2].\n\n[p2]: ./phase-02.md#go\n');
+  try {
+    const out = renderMarkdownFile(path.join(tmp, 'plan.md'));
+    assertIncludes(out.html, '/view?file=', 'Inline link rewritten to /view');
+    assertIncludes(decodeURIComponent(out.html), `${tmp}/phase-01.md`, 'Inline abs path');
+    assertIncludes(decodeURIComponent(out.html), `${tmp}/phase-02.md`, 'Ref-style abs path');
+    assertIncludes(out.html, '#go', 'Fragment preserved');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('addHeadingIds adds id attributes', () => {

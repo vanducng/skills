@@ -8,3 +8,6 @@
 # npm install output (skill ships package.json + package-lock.json only)
 node_modules/
 
+# Runtime artifacts produced by skills (brainstorm/plan/preview etc.)
+plans/
+
