@@ -2,6 +2,37 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.4.0] - 2026-05-04
+
+### Added
+- `skills/brainstorm/` (v1.0.0) — solution-space exploration skill, replaces `/ck:brainstorm`:
+  - Three-way distinction from `vd:research` (compare known options) and `vd:plan` (sequence steps).
+  - Modes: `--quick` (chat-only), default (decision brief), `--deep` (red-team round + failure-mode catalog + migration paths).
+  - 5-phase flow (Frame → Diverge → Stress-test → Converge → Brief) with mandatory scope-decomposition gate.
+  - Forced-divergence rule: 3+ options must violate each other's architectural assumptions; "X with Postgres / X with MySQL" counts as one option.
+  - Steel-man-before-strawman requirement; per-option dealbreaker scenario, hidden cost, reversibility cost.
+  - Concrete output template with TL;DR, comparison matrix, and Open Questions section.
+- `skills/plan/` (v1.0.0) — phased implementation planning skill, replaces `/ck:plan`:
+  - Self-contained — no ClaudeKit CLI dependency; standard Claude Code tools only (Agent, WebSearch, Read/Write).
+  - Modes: `--quick` (single inline-phases plan.md), default (plan.md + per-phase files), `--deep` (research dispatch + red-team review).
+  - `--tdd` composable flag — tests-first structure in every phase.
+  - 6-phase flow (Frame → Discover → Design → Write → Hand off → Red-team) with mandatory scope-decomposition gate.
+  - Hard rules: phases must be independently reviewable, files must be named, success criteria must be observable.
+  - Specials for migrations, breaking-change sequencing, performance baselines, refactors, library upgrades.
+- `skills/cook/` (v1.0.0) — phased implementation execution skill, replaces `/ck:cook`:
+  - Self-contained — no ClaudeKit CLI dependency, no Claude Tasks requirement; uses generic `Agent` subagent calls for testing/review.
+  - Modes simplified to 3: `--quick` (sub-plan tasks), default (per-phase review gates), `--auto` (continuous run).
+  - Composable: `--tdd` (failing tests before implementation), `--no-test` (loud-warn).
+  - Per-phase 7-step loop: Conform → Implement → Verify → Test → Review → Update status → Gate.
+  - Hard rules: one phase at a time, compile per file, plan-status-truthful per phase, no silent design decisions, kick back to `vd:plan` if plan is wrong.
+  - Specials for migrations, breaking changes, performance baselines, UI manual checks, library upgrades, bug-fix-with-failing-test-first.
+
+### Pipeline
+- The `vd` plugin now ships an end-to-end build pipeline: `vd:brainstorm` → `vd:plan` → `vd:cook`. Each skill cross-references the next and explicitly kicks back when the prior decision is wrong (e.g. cook → plan if plan is wrong; plan → brainstorm if approach is wrong).
+
+### Changed
+- `skills/markdown-render/` — added custom logo (`assets/logo.png`, 1024×1024) and `assets/favicon.png` (open-book + markdown hash, warm cream + saddle-brown palette). Includes `scripts/generate-logo.cjs` for regeneration via OpenRouter.
+
 ## [0.3.0] - 2026-05-04
 
 ### Added

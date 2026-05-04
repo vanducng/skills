@@ -9,8 +9,8 @@
   "plugins": [
     {
       "name": "vd",
-      "description": "Duc's personal skills. Includes computer-clean (macOS disk cleanup), research (Gemini-backed technical research), and markdown-render (book-like markdown viewer).",
-      "version": "0.3.0",
+      "description": "Duc's personal skills. Build pipeline: brainstorm → plan → cook. Plus research (deep tech research), excalidraw (diagrams), markdown-render (book-like viewer), and computer-clean (macOS disk cleanup).",
+      "version": "0.4.0",
       "author": {
         "name": "vanducng",
         "url": "https://github.com/vanducng"
