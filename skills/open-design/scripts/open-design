@@ -24,13 +24,35 @@ qmd_available() { command -v qmd >/dev/null 2>&1; }
 die() { echo "open-design: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null || die "missing dependency: $1"; }
 
+# Sparse-checkout list (cone mode — directories only), justified per entry:
+#   skills/          — the 60 SKILL.md catalogs we compose from (core)
+#   design-systems/  — the 137 DESIGN.md token sets we apply (core)
+#   assets/          — device frames (mobile-app reference) + community pet
+#                      sprites (required by hatch-pet skill); ~36 small blobs
+# Deliberately NOT pulled: apps/, docs/, e2e/, scripts/, tools/, packages/,
+#   templates/, prompt-templates/, story/, specs/, craft/, .github/ — none are
+#   referenced by any skill workflow we route to (audited 2026-05-04).
+# LICENSE is retained in cloned .git history (Apache-2.0 §4 obligation met
+# via `git show HEAD:LICENSE` even when not in the working tree).
+SPARSE_PATHS=(skills design-systems assets)
+
 ensure_cache() {
   need git
   if [ ! -d "$CACHE_DIR/.git" ]; then
     echo "open-design: first-time clone of $REPO_URL → $CACHE_DIR" >&2
     mkdir -p "$(dirname "$CACHE_DIR")"
     git clone --depth=1 --filter=blob:none --sparse "$REPO_URL" "$CACHE_DIR" >&2
-    git -C "$CACHE_DIR" sparse-checkout set skills design-systems >&2
+    git -C "$CACHE_DIR" sparse-checkout set "${SPARSE_PATHS[@]}" >&2
+  else
+    # Reconcile sparse-checkout with current expected list (idempotent).
+    # This catches caches cloned by older versions that pulled fewer paths.
+    local current expected
+    current=$(git -C "$CACHE_DIR" sparse-checkout list 2>/dev/null | sort | tr '\n' ' ')
+    expected=$(printf '%s\n' "${SPARSE_PATHS[@]}" | sort | tr '\n' ' ')
+    if [ "$current" != "$expected" ]; then
+      echo "open-design: reconciling sparse-checkout to: ${SPARSE_PATHS[*]}" >&2
+      git -C "$CACHE_DIR" sparse-checkout set "${SPARSE_PATHS[@]}" >&2
+    fi
   fi
 }
 
