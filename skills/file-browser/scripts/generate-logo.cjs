@@ -12,8 +12,8 @@ if (!apiKey) {
 
 const outPath = path.resolve(process.argv[2] || path.join(__dirname, '..', 'assets', 'logo.png'));
 
-const prompt = `A minimalist app icon logo for a markdown reader called "markdown-render".
-Concept: an open book combined with a subtle markdown hash symbol (#),
+const prompt = `A minimalist app icon logo for a local file browser called "file-browser".
+Concept: an open book combined with a subtle markdown hash symbol (#) and a small play triangle,
 warm cream background (#faf8f3) with saddle-brown (#8b4513) and warm-gold (#d4a574) accents,
 flat vector style, soft rounded corners, no text, centered composition,
 calm and book-like aesthetic, 1024x1024, transparent or warm-cream background, no gradients besides subtle.`;
@@ -25,7 +25,7 @@ async function main() {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
       'HTTP-Referer': 'https://github.com/vanducng/skills',
-      'X-Title': 'markdown-render logo'
+      'X-Title': 'file-browser logo'
     },
     body: JSON.stringify({
       model: 'openai/gpt-5.4-image-2',
