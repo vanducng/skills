@@ -102,6 +102,14 @@ Or call the script directly (see "Quick Start" above) and stop with `--stop`.
 - **Distraction-free**: Minimal UI that gets out of the way while reading
 - **Smooth transitions**: Gentle animations for header show/hide
 
+### Cross-File Markdown Links
+- Relative `.md` / `.markdown` links open in the same viewer (e.g. clicking `[Phase 1](./phase-01.md)` from `plan.md` opens the sibling phase file)
+- Fragments preserved: `[h](./x.md#section)` scrolls to the anchor in the target file
+- Absolute filesystem paths (`/abs/x.md`) supported the same way
+- Non-markdown relative links (`./report.pdf`, `./diagram.svg`) route through `/file/` so they render/download in place
+- External (`https://...`, `mailto:`), in-page (`#anchor`), and already-rewritten (`/view`, `/file/`, `/browse`) links pass through untouched
+- Middle-click / cmd-click → new tab works (rewriting happens server-side at render time)
+
 ### Plan Navigation
 - Auto-detects plan directory structure
 - Accordion sidebar with status badges (✓ complete, ⏳ in progress)

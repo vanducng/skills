@@ -11,6 +11,12 @@ let marked = null;
 let hljs = null;
 let matter = null;
 
+// basePath of the file currently being rendered. Set per renderMarkdownFile()
+// call so the marked walkTokens hook can rewrite relative link hrefs into
+// /view?file=<abs> (markdown) or /file/<abs> (other) URLs. Render is synchronous,
+// so a module-level slot is safe.
+let currentRenderBasePath = null;
+
 /**
  * Escape HTML entities to prevent XSS in mermaid content
  * @param {string} str - String to escape
@@ -74,6 +80,14 @@ function initDependencies() {
 
     // Use the renderer override approach for marked v17+
     marked.use({
+      // Rewrite relative link hrefs so clicking a sibling .md opens the same
+      // viewer, and clicking a non-md asset opens via /file/. Runs before the
+      // renderer, so the default link renderer emits the rewritten href.
+      walkTokens(token) {
+        if (token.type === 'link' && currentRenderBasePath) {
+          token.href = resolveLinkHref(token.href, currentRenderBasePath);
+        }
+      },
       renderer: {
         code(token) {
           const code = typeof token === 'string' ? token : (token.text || '');
@@ -116,10 +130,61 @@ function resolveImageSrc(src, basePath) {
   if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/file')) {
     return src;
   }
+  // Skip markdown paths — link reference definitions share syntax with image
+  // refs (`[label]: src`), so leave .md srcs alone here and let the link
+  // walkTokens hook rewrite them to /view?file=<abs> instead.
+  if (/\.(md|markdown)(?:#|$)/i.test(src)) {
+    return src;
+  }
   // Resolve relative path to absolute /file/ route
   // Use URL encoding to handle special chars and Windows paths (D:\...)
   const absolutePath = path.resolve(basePath, src);
   return `/file/${encodeURIComponent(absolutePath)}`;
+}
+
+/**
+ * Resolve a link href so clicks navigate within the viewer.
+ * - External (http/https/mailto/etc), in-page #anchor, and pre-resolved
+ *   /view, /browse, /file/ URLs are returned unchanged.
+ * - Relative or absolute filesystem paths ending in .md/.markdown become
+ *   `/view?file=<abs>{#frag}` so the same viewer renders the sibling file.
+ * - Other relative/absolute filesystem paths become `/file/<abs>{#frag}`
+ *   so PDFs/SVGs/etc. are served raw.
+ * @param {string} href - Original href from markdown
+ * @param {string} basePath - Directory of the file being rendered
+ * @returns {string} - Rewritten href
+ */
+function resolveLinkHref(href, basePath) {
+  if (!href || typeof href !== 'string') return href;
+
+  // Absolute URL or non-http protocol
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return href;
+  // Protocol-relative
+  if (href.startsWith('//')) return href;
+  // In-page anchor
+  if (href.startsWith('#')) return href;
+  // Already a viewer route
+  if (href.startsWith('/view') || href.startsWith('/file/') || href.startsWith('/browse')) {
+    return href;
+  }
+
+  // Split off fragment so we can preserve it through the rewrite
+  const hashIdx = href.indexOf('#');
+  const pathPart = hashIdx === -1 ? href : href.slice(0, hashIdx);
+  const fragPart = hashIdx === -1 ? '' : href.slice(hashIdx);
+
+  // Pure fragment (e.g. blank pathPart) — already handled by the `#` branch above,
+  // but guard for empty pathPart from edge cases like `?q=#frag`.
+  if (!pathPart) return href;
+
+  const absPath = path.isAbsolute(pathPart)
+    ? pathPart
+    : path.resolve(basePath, pathPart);
+
+  if (/\.(md|markdown)$/i.test(pathPart)) {
+    return `/view?file=${encodeURIComponent(absPath)}${fragPart}`;
+  }
+  return `/file/${encodeURIComponent(absPath)}${fragPart}`;
 }
 
 /**
@@ -279,8 +344,15 @@ function renderMarkdownFile(filePath, options = {}) {
   // Resolve image paths
   const resolvedContent = resolveImages(content, basePath);
 
-  // Render markdown to HTML
-  let html = marked.parse(resolvedContent);
+  // Make basePath available to the walkTokens hook so relative link hrefs
+  // get rewritten to /view?file=<abs> (md) or /file/<abs> (other).
+  currentRenderBasePath = basePath;
+  let html;
+  try {
+    html = marked.parse(resolvedContent);
+  } finally {
+    currentRenderBasePath = null;
+  }
 
   // Add IDs to headings
   html = addHeadingIds(html);
@@ -326,6 +398,7 @@ module.exports = {
   renderMarkdownFile,
   resolveImages,
   resolveImageSrc,
+  resolveLinkHref,
   generateTOC,
   addHeadingIds,
   addPhaseTableAnchors,

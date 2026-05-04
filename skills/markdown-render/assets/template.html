@@ -13,7 +13,7 @@
       var f=localStorage.getItem('novel-viewer-font');
       if(t)h.dataset.theme=t;
       else if(window.matchMedia('(prefers-color-scheme:dark)').matches)h.dataset.theme='dark';
-      if(f)h.dataset.fontSize=f;
+      h.dataset.fontSize=f||'S';
     })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">

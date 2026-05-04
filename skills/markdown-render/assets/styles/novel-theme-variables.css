@@ -27,15 +27,15 @@
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   /* Spacing */
-  --content-width: 720px;
+  --content-width: 1000px;
   --sidebar-width: 280px;
   --header-height: 56px;
 }
 
 /* Content width responsive to font size */
-html[data-font-size="S"] { --content-width: 640px; }
-html[data-font-size="M"] { --content-width: 720px; }
-html[data-font-size="L"] { --content-width: 800px; }
+html[data-font-size="S"] { --content-width: 1000px; }
+html[data-font-size="M"] { --content-width: 1240px; }
+html[data-font-size="L"] { --content-width: 1480px; }
 
 [data-theme="dark"] {
   --bg-primary: #1a1a1a;
