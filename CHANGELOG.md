@@ -2,6 +2,11 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.5.1] - 2026-05-04
+
+### Changed
+- `skills/excalidraw/` — Step 0 now auto-bootstraps `.mcp.json` at the project root (using the project folder name as `X-Tenant-Id`) when neither the Excalidraw MCP tools nor the REST fallback are available. Merges into existing `.mcp.json` without clobbering other servers.
+
 ## [0.5.0] - 2026-05-04
 
 ### Added
