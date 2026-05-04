@@ -1,7 +1,7 @@
 {
-  "name": "markdown-render",
-  "version": "1.0.0",
-  "description": "Background HTTP server rendering markdown files with calm, book-like reading experience",
+  "name": "file-browser",
+  "version": "0.2.0",
+  "description": "Local HTTP server rendering markdown, images, video, and audio in the browser - dispatches by file extension",
   "main": "scripts/server.cjs",
   "scripts": {
     "start": "node scripts/server.cjs",
