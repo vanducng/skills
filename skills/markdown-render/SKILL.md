@@ -205,6 +205,19 @@ Dark mode:
 --content-width: 720px;
 ```
 
+### Logo / Favicon
+
+The skill ships with a custom logo (`assets/logo.png`, 1024×1024) and `assets/favicon.png` (32×32). Both depict an open book with a markdown hash (#), in the warm cream + saddle-brown palette.
+
+To regenerate via OpenRouter (`openai/gpt-5.4-image-2`):
+
+```bash
+OPEN_ROUTER_KEY=sk-or-... node scripts/generate-logo.cjs assets/logo.png
+magick assets/logo.png -resize 32x32 assets/favicon.png
+```
+
+Edit the prompt at the top of `scripts/generate-logo.cjs` to adjust style, then re-run.
+
 ## Remote Access
 
 To access from another device on your network:
