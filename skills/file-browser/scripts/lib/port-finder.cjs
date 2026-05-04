@@ -1,18 +1,14 @@
 /**
  * Port finder utility - finds available port in range
- * Used by markdown-render server
+ * Sibling of markdown-render's port-finder. Uses 3556-3600 range
+ * to avoid colliding with markdown-render (3456-3500).
  */
 
 const net = require('net');
 
-const DEFAULT_PORT = 3456;
-const PORT_RANGE_END = 3500;
+const DEFAULT_PORT = 3556;
+const PORT_RANGE_END = 3600;
 
-/**
- * Check if a port is available
- * @param {number} port - Port to check
- * @returns {Promise<boolean>} - True if available
- */
 function isPortAvailable(port) {
   return new Promise((resolve) => {
     const server = net.createServer();
@@ -25,12 +21,6 @@ function isPortAvailable(port) {
   });
 }
 
-/**
- * Find first available port in range
- * @param {number} startPort - Starting port (default: 3456)
- * @returns {Promise<number>} - Available port
- * @throws {Error} - If no port available in range
- */
 async function findAvailablePort(startPort = DEFAULT_PORT) {
   for (let port = startPort; port <= PORT_RANGE_END; port++) {
     if (await isPortAvailable(port)) {
