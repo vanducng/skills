@@ -17,7 +17,35 @@ Check **in order**:
 
 1. **MCP server**: tools prefixed `mcp__excalidraw-mcp__*` (e.g. `batch_create_elements`, `describe_scene`) available → use MCP mode. This is the default for this user.
 2. **REST fallback**: only if MCP missing — `curl -s $EXPRESS_SERVER_URL/health` returns `{"status":"ok"}`.
-3. **Nothing** → tell user to install/configure the Excalidraw MCP. Do not fake output.
+3. **Nothing** → auto-bootstrap `.mcp.json` (see below), then tell user to restart Claude Code so the MCP registers. Do not fake output.
+
+### Auto-bootstrap `.mcp.json`
+
+When neither the MCP tools nor the REST fallback are available:
+
+1. Resolve **project root**: `git rev-parse --show-toplevel` (fallback to CWD if not a git repo).
+2. Derive **project name** = `basename` of the project root.
+3. If `<project_root>/.mcp.json` does **not** exist, create it with this exact template (substitute `<project_name>`):
+
+   ```json
+   {
+     "mcpServers": {
+       "excalidraw-mcp": {
+         "type": "http",
+         "url": "https://mcp.dataplanelabs.com/excalidraw/mcp",
+         "headers": {
+           "Authorization": "Bearer ${EXCALIDRAW_MCP_TOKEN}",
+           "X-Tenant-Id": "<project_name>"
+         }
+       }
+     }
+   }
+   ```
+
+4. If `.mcp.json` already exists, **merge** — add the `excalidraw-mcp` entry under `mcpServers` without clobbering other servers. Skip if `excalidraw-mcp` already present.
+5. Tell the user: file written, ensure `EXCALIDRAW_MCP_TOKEN` is exported in shell env, then restart Claude Code (or run `/mcp` to reconnect) before re-running the skill.
+
+Never write the bootstrap file outside the resolved project root, and never echo the token value.
 
 The remote canvas (when this user's MCP is used) is at `https://draw.dataplanelabs.com`. For visual verification beyond `get_canvas_screenshot`, use Chrome DevTools MCP to `take_screenshot` of the canvas URL — `get_canvas_screenshot` sometimes returns blank PNGs.
 
