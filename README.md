@@ -82,6 +82,23 @@ Removes only symlinks under `~/.claude/skills/` whose target resolves into this 
 
 Top-level `~/.claude/skills/` symlinks have known bugs ([anthropics/claude-code#25367](https://github.com/anthropics/claude-code/issues/25367), [#14836](https://github.com/anthropics/claude-code/issues/14836)). Symlinking each skill folder individually works.
 
+## Tools
+
+This repo also ships the **`vd` CLI** — a standalone Go binary for tracking, vendoring, and publishing Claude skills. Install it with a single command:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/vanducng/skills/main/install.sh | sh
+```
+
+Quick start:
+
+```sh
+vd init && vd add browserbase/skills/browser --as browser && vd sync && vd build
+```
+
+- [`tools/vd/README.md`](tools/vd/README.md) — install, quick-start, command summary
+- [`tools/vd/docs/`](tools/vd/docs/) — full command reference, config schema, FAQ, migration guide
+
 ## License
 
 [MIT](LICENSE)

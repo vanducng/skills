@@ -1,0 +1,44 @@
+[meta]
+  version = 1
+
+[sources.alpha]
+  type = "git"
+  url = "https://github.com/alpha/skills"
+  ref = "main"
+
+[sources.beta]
+  type = "git"
+  url = "https://github.com/beta/tools"
+
+[skills.bravo]
+  source = "beta"
+  path = "skills/bravo"
+  mode = "tracked"
+
+[skills.charlie]
+  source = "alpha"
+  path = "skills/charlie"
+  mode = "pinned"
+  pin = "deadbeef00112233445566778899aabbccddeeff"
+
+[skills.local-only]
+  mode = "detached"
+
+[targets.claude]
+  mode = "bundle"
+
+[targets.claude.bundle]
+  name = "vd"
+  version = "0.5.1"
+  description = "Test bundle"
+  source = "./"
+  category = "utilities"
+  homepage = "https://github.com/vanducng/skills"
+  license = "MIT"
+  version_strategy = "manual"
+
+[plugin.vd]
+  description = "My custom plugin"
+  version = "1.0.0"
+  category = "utilities"
+  homepage = "https://example.com"

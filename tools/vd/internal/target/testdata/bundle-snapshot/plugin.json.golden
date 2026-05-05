@@ -1,0 +1,11 @@
+{
+  "name": "vd",
+  "version": "0.5.1",
+  "description": "Duc's personal Claude Code skills. Skills are namespaced under `vd:` to avoid conflicts with other plugins.",
+  "author": {
+    "name": "vanducng",
+    "url": "https://github.com/vanducng"
+  },
+  "homepage": "https://github.com/vanducng/skills",
+  "license": "MIT"
+}
