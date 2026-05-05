@@ -72,8 +72,8 @@ Do not reference AI tools in commit messages.
 Releases are managed by [release-please](https://github.com/googleapis/release-please) with the `v*` tag prefix.
 
 1. Merge conventional commits to `main`.
-2. release-please opens a PR titled "chore(vd): release vd/vX.Y.Z" that bumps `CHANGELOG.md` and the version constant.
-3. Merge the release PR → release-please creates the `vd/vX.Y.Z` tag automatically.
+2. release-please opens a PR titled "chore(main): release vd X.Y.Z" that bumps `CHANGELOG.md` and the version constant.
+3. Merge the release PR → release-please creates the `vX.Y.Z` tag automatically.
 4. The tag triggers the GoReleaser GitHub Action (`.github/workflows/vd-release.yml`) which builds cross-platform binaries and publishes a GitHub Release.
 
 To cut a release manually (emergency only):
