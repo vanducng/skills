@@ -1,7 +1,7 @@
 name: vd Release Please
 
 # Opens a release PR when conventional commits with scope "vd" land on main.
-# Merging the PR bumps CHANGELOG.md and creates a vd/v* tag,
+# Merging the PR bumps CHANGELOG.md and creates a v* tag,
 # which then triggers vd-release.yml.
 
 on:

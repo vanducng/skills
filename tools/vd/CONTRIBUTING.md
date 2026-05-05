@@ -69,7 +69,7 @@ Do not reference AI tools in commit messages.
 
 ## Release flow
 
-Releases are managed by [release-please](https://github.com/googleapis/release-please) with the `vd/v*` tag prefix.
+Releases are managed by [release-please](https://github.com/googleapis/release-please) with the `v*` tag prefix.
 
 1. Merge conventional commits to `main`.
 2. release-please opens a PR titled "chore(vd): release vd/vX.Y.Z" that bumps `CHANGELOG.md` and the version constant.
@@ -78,18 +78,18 @@ Releases are managed by [release-please](https://github.com/googleapis/release-p
 
 To cut a release manually (emergency only):
 ```sh
-git tag vd/v0.2.0
-git push origin vd/v0.2.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
-The GoReleaser workflow fires on `vd/v*` tag pushes. It is path-filtered to `tools/vd/**` so pushing a skill-only change does not trigger it.
+The GoReleaser workflow fires on `v*` tag pushes. It is path-filtered to `tools/vd/**` so pushing a skill-only change does not trigger it.
 
 ## CI
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | `vd-test.yml` | Push / PR touching `tools/vd/**` | `go test ./... -race`, `golangci-lint run` |
-| `vd-release.yml` | Tag push `vd/v*` | GoReleaser cross-compile + GitHub Release |
+| `vd-release.yml` | Tag push `v*` | GoReleaser cross-compile + GitHub Release |
 | `vd-release-please.yml` | Push to `main` | release-please PR management |
 | `validate.yml` | Push / PR touching `skills/**` | Frontmatter lint on SKILL.md files |
 
