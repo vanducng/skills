@@ -20,6 +20,7 @@ from openrouter_chat import (
     classify_type,
     generate_svg,
     refine_prompt,
+    revise_svg,
 )
 from openrouter_image import DEFAULT_MODEL as IMAGE_MODEL
 from openrouter_image import find_api_key, generate_image
@@ -279,6 +280,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_PRESET,
         help="Visual style preset (default: warm).",
     )
+    parser.add_argument(
+        "--no-revise",
+        action="store_true",
+        help="Skip the SVG critique/revise pass (faster, lower quality).",
+    )
     return parser.parse_args(argv)
 
 
@@ -306,6 +312,7 @@ def _produce_image(
     aspect_ratio: str,
     output_path: Path,
     preset: str,
+    revise: bool = True,
 ) -> tuple[str, str]:
     """Return (refined_text_or_svg, image_model_or_none)."""
     refs = load_refs(diagram_type, want_svg=(fmt == "svg"), preset=preset)
@@ -315,7 +322,7 @@ def _produce_image(
         f"## Style foundations (theme-agnostic)\n{refs['style_foundations']}"
     )
     if fmt == "svg":
-        print(f"→ generating SVG (preset: {preset}, model: {REFINE_MODEL}, ~10–20s)…", flush=True)
+        print(f"→ generating SVG draft (preset: {preset}, model: {REFINE_MODEL}, ~10–20s)…", flush=True)
         svg_text = generate_svg(
             description=description,
             type_ref=refs["type_ref"],
@@ -323,6 +330,13 @@ def _produce_image(
             composition_rules=refs["composition_rules"],
             svg_contract=refs["svg_contract"],
         )
+        if revise:
+            print(f"→ critiquing + revising layout (~10–20s)…", flush=True)
+            svg_text = revise_svg(
+                draft_svg=svg_text,
+                description=description,
+                svg_contract=refs["svg_contract"],
+            )
         output_path.write_text(svg_text)
         return svg_text, None
     print(f"→ refining prompt (preset: {preset}, model: {REFINE_MODEL}, ~5–10s)…", flush=True)
@@ -399,6 +413,7 @@ def main(argv: list[str] | None = None) -> int:
             aspect_ratio=args.aspect_ratio,
             output_path=out_path,
             preset=preset,
+            revise=not args.no_revise,
         )
         append_iteration(
             session_dir,
@@ -442,6 +457,7 @@ def main(argv: list[str] | None = None) -> int:
         aspect_ratio=args.aspect_ratio,
         output_path=out_path,
         preset=args.preset,
+        revise=not args.no_revise,
     )
     print(f"→ saved {out_path}", flush=True)
 
