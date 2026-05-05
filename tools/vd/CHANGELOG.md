@@ -5,6 +5,13 @@ Repo-root `CHANGELOG.md` covers skill-bundle versioning.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## 1.0.0 (2026-05-05)
+
+
+### Features
+
+* **vd:** add CLI for vendoring + syncing skills ([#10](https://github.com/vanducng/skills/issues/10)) ([800da42](https://github.com/vanducng/skills/commit/800da420f110381ef310fdea72794ce5ce0423e2))
+
 ## [Unreleased]
 
 ### Added
