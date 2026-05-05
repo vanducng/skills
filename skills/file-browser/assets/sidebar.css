@@ -1,0 +1,488 @@
+/* Sidebar tree + layout. Loaded on every page-type (gallery, single-view,
+ * markdown reader). The two style systems use different variable names —
+ * styles.css ships --bg-elev/--fg, novel-theme ships --bg-secondary/--text-*.
+ * Fall back through both so the sidebar follows whichever theme owns the page. */
+
+:root {
+  --sidebar-width: 280px;
+  --sidebar-bg: var(--bg-elev, var(--bg-secondary, #232323));
+  --sidebar-fg: var(--fg, var(--text-primary, #e8e6e1));
+  --sidebar-muted: var(--fg-muted, var(--text-muted, #9b9890));
+  --sidebar-border: var(--border, #2e2e2e);
+  --sidebar-accent: var(--accent, #d4a574);
+  --sidebar-input-bg: var(--bg, var(--bg-primary, #1a1a1a));
+  --sidebar-cursor-bg: rgba(212, 165, 116, 0.18); /* matches --accent at 18% */
+  --sidebar-active-bg: rgba(212, 165, 116, 0.32);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.04);
+  --sidebar-row-h: 28px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --sidebar-cursor-bg: rgba(139, 69, 19, 0.12);
+    --sidebar-active-bg: rgba(139, 69, 19, 0.22);
+    --sidebar-hover-bg: rgba(0, 0, 0, 0.03);
+  }
+}
+:root[data-theme="light"] {
+  --sidebar-cursor-bg: rgba(139, 69, 19, 0.12);
+  --sidebar-active-bg: rgba(139, 69, 19, 0.22);
+  --sidebar-hover-bg: rgba(0, 0, 0, 0.03);
+}
+
+/* ---------- Layout: sidebar + main ----------
+ * Two-column grid with two explicit rows: header + content.
+ * Sidebar spans both rows (col 1). Topbar lives in row 1 col 2,
+ * main lives in row 2 col 2 with the remaining height.
+ */
+
+body.gallery,
+body.single {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-rows: var(--header-h) 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Markdown reader: file-browser sidebar lives in a fixed left column;
+ * the reader's existing TOC/plan-nav sidebar + content flow inside the right column.
+ * The reader's own layout is preserved untouched. */
+body.markdown.has-fb-sidebar {
+  margin-left: var(--sidebar-width);
+}
+body.markdown.has-fb-sidebar > .fb-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+}
+body.markdown.has-fb-sidebar.sidebar-collapsed {
+  margin-left: 36px;
+}
+body.markdown.has-fb-sidebar.sidebar-collapsed > .fb-sidebar {
+  width: 36px;
+}
+
+/* Push the markdown reader's own TOC/plan sidebar (.sidebar fixed at left:0)
+ * to sit beside the fb-sidebar instead of overlapping. */
+body.markdown.has-fb-sidebar aside#sidebar,
+body.markdown.has-fb-sidebar .reader-header {
+  left: var(--sidebar-width) !important;
+}
+body.markdown.has-fb-sidebar.sidebar-collapsed aside#sidebar,
+body.markdown.has-fb-sidebar.sidebar-collapsed .reader-header {
+  left: 36px !important;
+}
+
+body.sidebar-collapsed {
+  grid-template-columns: 36px 1fr;
+}
+body.sidebar-collapsed .fb-sidebar > :not(.fb-sidebar-header) {
+  display: none;
+}
+body.sidebar-collapsed .fb-sidebar-header {
+  padding: 10px 4px;
+  justify-content: center;
+}
+body.sidebar-collapsed .fb-sidebar-root-label,
+body.sidebar-collapsed .fb-sidebar-help {
+  display: none;
+}
+
+.fb-sidebar {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-fg);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  transition: transform 0.18s ease;
+}
+
+body.gallery > .topbar,
+body.single > .topbar {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+body.gallery > main,
+body.single > main {
+  grid-column: 2;
+  grid-row: 2;
+  min-height: 0;
+  overflow-y: auto;
+  height: 100%;
+  /* Force the grid cell to fill the column even though `.page` sets `margin: 0 auto`.
+   * Auto margins on a grid item normally collapse it to content width. */
+  width: 100%;
+  justify-self: stretch;
+}
+
+/* Image/video/audio single-view: lock overflow so the media element fills
+ * exactly. Text view (body.single.text) needs to scroll long files — let
+ * .text-stage own its own overflow there. */
+body.single:not(.text) > main.stage {
+  height: 100%;
+  overflow: hidden;
+}
+body.single.text > main.stage {
+  height: 100%;
+  overflow: auto;
+}
+
+/* ---------- Sidebar header ---------- */
+
+.fb-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--sidebar-border);
+  height: var(--header-h);
+  flex-shrink: 0;
+}
+
+.fb-sidebar-toggle,
+.fb-sidebar-help,
+.fb-sidebar-theme {
+  background: transparent;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-muted);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 13px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.fb-sidebar-toggle:hover,
+.fb-sidebar-help:hover,
+.fb-sidebar-theme:hover {
+  color: var(--sidebar-fg);
+  border-color: var(--sidebar-accent);
+}
+
+/* Theme button: show ☾ in light mode (will switch to dark), ☀ in dark mode (will switch to light). */
+.fb-sidebar-theme .theme-icon { display: none; }
+:root[data-theme="light"] .fb-sidebar-theme .theme-icon[data-icon="dark"] { display: inline; }
+:root[data-theme="dark"] .fb-sidebar-theme .theme-icon[data-icon="light"] { display: inline; }
+/* Fallback when data-theme not set yet (system preference): show one of them */
+:root:not([data-theme]) .fb-sidebar-theme .theme-icon[data-icon="dark"] { display: inline; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .fb-sidebar-theme .theme-icon[data-icon="dark"] { display: none; }
+  :root:not([data-theme]) .fb-sidebar-theme .theme-icon[data-icon="light"] { display: inline; }
+}
+
+.fb-sidebar-root-label {
+  font-weight: 600;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}
+
+/* Sidebar collapsed: only the toggle button remains visible */
+
+/* ---------- Toolbar (font + theme) ---------- */
+
+.fb-sidebar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--sidebar-border);
+  flex-shrink: 0;
+}
+body.sidebar-collapsed .fb-sidebar-toolbar { display: none; }
+
+.fb-sidebar-fontgroup {
+  display: inline-flex;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex: 1;
+}
+.fb-sidebar-font {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--sidebar-border);
+  color: var(--sidebar-muted);
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.fb-sidebar-font:last-child { border-right: 0; }
+.fb-sidebar-font:hover { color: var(--sidebar-fg); }
+.fb-sidebar-font.active {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-fg);
+}
+
+/* When fb-sidebar is present on the markdown reader, hide the reader's own
+ * font + theme controls — they're now owned by the sidebar. */
+body.markdown.has-fb-sidebar .reader-header .font-controls,
+body.markdown.has-fb-sidebar .reader-header #theme-toggle {
+  display: none !important;
+}
+
+/* Reader-header reduced when fb-sidebar present — was a 56px empty band;
+ * compact it to 40px and collapse the (now duplicated) doc-title.
+ * Keeps ← back, ≡ TOC, prev/next plan-nav functional. */
+body.markdown.has-fb-sidebar .reader-header {
+  height: 40px !important;
+  padding: 0 0.75rem !important;
+}
+body.markdown.has-fb-sidebar .reader-header .doc-title {
+  display: none;
+}
+body.markdown.has-fb-sidebar .layout {
+  margin-top: 40px !important;
+}
+body.markdown.has-fb-sidebar aside#sidebar {
+  top: 40px !important;
+}
+
+/* GitHub-style left-aligned reading flow when file-browser owns the page.
+ * Novel-theme defaults to centered "book" mode (margin: 0 auto, h1/h2/h3
+ * text-align: center, decorative dashes around h2). For a developer-oriented
+ * file browser, GitHub's left-aligned doc layout is the expected default. */
+body.markdown.has-fb-sidebar .content {
+  margin: 0;
+  max-width: 980px;
+  padding-left: 0;
+}
+body.markdown.has-fb-sidebar .content h1,
+body.markdown.has-fb-sidebar .content h2,
+body.markdown.has-fb-sidebar .content h3,
+body.markdown.has-fb-sidebar .content h4,
+body.markdown.has-fb-sidebar .content h5,
+body.markdown.has-fb-sidebar .content h6 {
+  text-align: left;
+  display: block;
+  justify-content: flex-start;
+}
+body.markdown.has-fb-sidebar .content h2::before,
+body.markdown.has-fb-sidebar .content h2::after {
+  content: none;
+  display: none;
+}
+
+/* Tables: left-align, fit within content width, scroll horizontally if wider.
+ * Novel-theme defaults to centered/auto-margin tables which combined with
+ * overflow can clip the leftmost column off-screen. */
+body.markdown.has-fb-sidebar .content table {
+  margin: 1rem 0 1.5rem 0;
+  max-width: 100%;
+  display: block;
+  overflow-x: auto;
+  width: max-content;
+}
+body.markdown.has-fb-sidebar .content table th,
+body.markdown.has-fb-sidebar .content table td {
+  text-align: left;
+}
+
+/* Code blocks: novel-theme uses `position: relative; left: 50%;
+ * transform: translateX(-50%)` to break wide code out and center it relative
+ * to the viewport. With our left-aligned + sidebar layout, this pushes the
+ * block's left edge UNDER the TOC navigator, hiding columns of code. Pin
+ * code blocks to the natural left edge and rely on their own overflow-x. */
+body.markdown.has-fb-sidebar .content pre {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  position: static;
+  left: auto;
+  transform: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* ---------- Filter ---------- */
+
+.fb-sidebar-filter-row {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--sidebar-border);
+  flex-shrink: 0;
+}
+.fb-sidebar-filter {
+  width: 100%;
+  background: var(--sidebar-input-bg);
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.fb-sidebar-filter:focus {
+  border-color: var(--sidebar-accent);
+}
+
+/* ---------- Tree ---------- */
+
+.fb-sidebar-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+  outline: none;
+}
+
+.fb-sidebar-tree ul,
+.fb-sidebar-tree ul.children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fb-sidebar-tree li.node {
+  user-select: none;
+}
+
+.fb-sidebar-tree li.node > .row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px 4px 6px;
+  height: var(--sidebar-row-h);
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  border-left: 2px solid transparent;
+}
+
+.fb-sidebar-tree li.node > .row:hover {
+  background: var(--sidebar-hover-bg);
+}
+
+.fb-sidebar-tree li.node.cursor > .row {
+  background: var(--sidebar-cursor-bg);
+  border-left-color: var(--sidebar-accent);
+}
+
+.fb-sidebar-tree li.node.active > .row {
+  background: var(--sidebar-active-bg);
+  font-weight: 600;
+}
+
+.fb-sidebar-tree .caret,
+.fb-sidebar-tree .caret-spacer {
+  width: 12px;
+  font-size: 9px;
+  color: var(--sidebar-muted);
+  flex-shrink: 0;
+  display: inline-block;
+  text-align: center;
+}
+
+.fb-sidebar-tree .icon {
+  width: 16px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.fb-sidebar-tree .label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fb-sidebar-tree li.dir > .row {
+  font-weight: 500;
+}
+
+.fb-sidebar-tree li.filter-hidden {
+  display: none;
+}
+.fb-sidebar-tree li.filter-match > .row {
+  background: rgba(212, 165, 116, 0.10);
+}
+
+.fb-sidebar-tree li.empty,
+.fb-sidebar-tree li.error {
+  font-size: 12px;
+  color: var(--sidebar-muted);
+  font-style: italic;
+  padding: 4px 12px;
+}
+
+/* ---------- Help overlay ---------- */
+
+.fb-sidebar-help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Beat novel-theme's reader-header (z=100) and any code-block stacking
+   * contexts created by transform/will-change/sticky on `pre`. */
+  z-index: 10000;
+}
+.fb-sidebar-help-overlay[hidden] {
+  display: none;
+}
+.cheatsheet {
+  background: var(--sidebar-bg);
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 12px;
+  padding: 22px 28px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  min-width: 320px;
+}
+.cheatsheet h3 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+.cheatsheet table {
+  border-collapse: collapse;
+}
+.cheatsheet td {
+  padding: 5px 12px 5px 0;
+  font-size: 13px;
+}
+.cheatsheet td:first-child {
+  white-space: nowrap;
+}
+.cheatsheet kbd {
+  background: var(--sidebar-input-bg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px;
+}
+
+/* ---------- Mobile ---------- */
+@media (max-width: 720px) {
+  body.gallery,
+  body.single {
+    grid-template-columns: 1fr;
+  }
+  .fb-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: var(--sidebar-width);
+    z-index: 150;
+    transform: translateX(-100%);
+  }
+  body:not(.sidebar-collapsed) .fb-sidebar {
+    transform: translateX(0);
+    box-shadow: var(--shadow);
+  }
+}
