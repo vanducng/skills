@@ -3,7 +3,7 @@
 ## Connection
 
 - **Remote MCP** (this user's setup): `https://mcp.dataplanelabs.com/excalidraw/mcp`. Auth via `Authorization: Bearer ${EXCALIDRAW_MCP_TOKEN}`. Tenant via `X-Tenant-Id` header.
-- **Canvas (visual)**: `https://draw.vanducng.dev` — open in browser or screenshot via Chrome DevTools MCP.
+- **Canvas (visual)**: `https://draw.dataplanelabs.com` — open in browser or screenshot via Chrome DevTools MCP.
 - **Local install** (fallback): `sanjibdevnathlabs/mcp-excalidraw-local`. Canvas at `http://localhost:3000`. Health: `GET /health`.
 - **Persistence**: server-side SQLite, scoped per tenant.
 
