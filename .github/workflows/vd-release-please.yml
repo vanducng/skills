@@ -1,0 +1,23 @@
+name: vd Release Please
+
+# Opens a release PR when conventional commits with scope "vd" land on main.
+# Merging the PR bumps CHANGELOG.md and creates a vd/v* tag,
+# which then triggers vd-release.yml.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release Please
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+        with:
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json

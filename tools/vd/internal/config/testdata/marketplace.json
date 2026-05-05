@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "test-marketplace",
+  "plugins": [
+    {
+      "name": "vd",
+      "description": "Test plugin description",
+      "version": "1.2.3",
+      "source": "./",
+      "category": "utilities",
+      "homepage": "https://github.com/test/skills"
+    }
+  ]
+}

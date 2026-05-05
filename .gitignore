@@ -10,6 +10,7 @@ node_modules/
 
 # Runtime artifacts produced by skills (brainstorm/plan/preview etc.)
 plans/
+docs/journals/
 
 # Python bytecode cache (skills with Python scripts)
 __pycache__/
@@ -18,3 +19,11 @@ __pycache__/
 
 
 .diagrams
+
+# vd CLI
+.vd-cache/
+tools/vd/vd
+tools/vd/dist/
+# GoReleaser output (run from repo root, dist/ lands here)
+/dist/
+.agents/

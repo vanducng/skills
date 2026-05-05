@@ -1,0 +1,21 @@
+[meta]
+version = 1
+name = "vanducng-skills"
+description = "Duc's personal Claude Code skills marketplace."
+owner_name = "vanducng"
+owner_url = "https://github.com/vanducng"
+homepage = "https://github.com/vanducng/skills"
+
+[targets.claude]
+mode = "bundle"
+
+[targets.claude.bundle]
+name = "vd"
+version = "0.5.1"
+description = "Duc's personal skills. Build pipeline: brainstorm → plan → cook. Plus research (deep tech research), excalidraw (diagrams), markdown-render (book-like viewer), open-design (HTML design artifacts from nexu-io/open-design catalog), qmd (local Markdown search), and computer-clean (macOS disk cleanup)."
+plugin_description = "Duc's personal Claude Code skills. Skills are namespaced under `vd:` to avoid conflicts with other plugins."
+source = "./"
+category = "utilities"
+homepage = "https://github.com/vanducng/skills"
+license = "MIT"
+version_strategy = "manual"

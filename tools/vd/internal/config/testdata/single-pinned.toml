@@ -1,0 +1,12 @@
+[meta]
+  version = 1
+
+[sources.upstream]
+  type = "git"
+  url = "https://github.com/example/skills"
+
+[skills.stagehand]
+  source = "upstream"
+  path = "skills/stagehand"
+  mode = "pinned"
+  pin = "abc1234def5678901234567890abcdef12345678"

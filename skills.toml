@@ -1,0 +1,45 @@
+[meta]
+version = 1
+name = ''
+description = ''
+owner_name = ''
+owner_url = ''
+homepage = ''
+
+[sources]
+[sources.browserbase]
+type = 'git'
+url = 'https://github.com/browserbase/skills'
+ref = ''
+
+[skills]
+[skills.browser]
+source = 'browserbase'
+path = 'skills/browser'
+mode = 'tracked'
+pin = ''
+
+[skills.browser-trace]
+source = 'browserbase'
+path = 'skills/browser-trace'
+mode = 'tracked'
+pin = ''
+
+[targets]
+[targets.claude]
+mode = 'bundle'
+
+[targets.claude.bundle]
+name = 'vd'
+version = '0.6.0'
+description = "Duc's personal skills. Build pipeline: brainstorm → plan → cook. Plus research (deep tech research), excalidraw (diagrams), markdown-render (book-like viewer), open-design (HTML design artifacts from nexu-io/open-design catalog), qmd (local Markdown search), and computer-clean (macOS disk cleanup)."
+plugin_description = ''
+source = './'
+category = 'utilities'
+homepage = 'https://github.com/vanducng/skills'
+license = 'MIT'
+version_strategy = 'manual'
+
+[targets.agents]
+
+[plugin]

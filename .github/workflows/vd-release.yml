@@ -1,0 +1,53 @@
+name: vd Release
+
+# Triggered when a vd/v* tag is pushed (e.g. vd/v1.2.3 or vd/v1.2.3-rc1).
+# Merging the release-please PR creates the tag automatically.
+#
+# Required secrets:
+#   GITHUB_TOKEN       — provided automatically by Actions
+#   HOMEBREW_TAP_GITHUB_TOKEN — PAT (repo scope) for vanducng/homebrew-tap
+#                               Create the repo first, add the secret, then
+#                               uncomment the brew stanza in .goreleaser.yaml
+#                               and remove --skip=brew from goreleaser args below.
+#
+# Note: GoReleaser OSS does not support the `monorepo:` block (Pro-only).
+# Tag prefix "vd/" is stripped here via GORELEASER_CURRENT_TAG so GoReleaser
+# sees a plain semver like "v1.2.3".
+
+on:
+  push:
+    tags:
+      - "vd/v*"
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for changelog)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.23"
+          cache-dependency-path: tools/vd/go.sum
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
+        with:
+          version: latest
+          # Config path is relative to workdir (repo root).
+          # --skip=brew: remove once vanducng/homebrew-tap exists and secret is set.
+          args: release --clean --config tools/vd/.goreleaser.yaml --skip=brew
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Strip "vd/" prefix so GoReleaser sees a plain semver tag (e.g. v1.2.3).
+          # OSS goreleaser does not support the monorepo.tag_prefix field.
+          GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
