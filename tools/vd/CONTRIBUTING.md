@@ -74,13 +74,8 @@ Releases are coordinated by [release-please](https://github.com/googleapis/relea
 1. Merge conventional commits to `main` (`feat(vd): ...`, `fix(vd): ...`).
 2. release-please opens a PR titled `chore(main): release vd X.Y.Z` that bumps `tools/vd/CHANGELOG.md` and `.release-please-manifest.json`.
 3. Merge the release PR.
-4. **Manually push the tag** (release-please cannot create the GitHub Release directly due to a v5 action limitation; we skip that step):
-   ```sh
-   git pull
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
-   ```
-5. The tag push triggers `vd-release.yml` → GoReleaser → cross-platform binaries published to a new GitHub Release, plus the Homebrew formula updated in `vanducng/homebrew-tap`.
+4. `vd-release-please.yml` detects `release_created` and pushes the `vX.Y.Z` tag automatically (no manual `git tag` needed). The release-please action itself still skips `createRelease` due to a v5 403 — GoReleaser creates the GitHub Release.
+5. The auto-pushed tag triggers `vd-release.yml` → GoReleaser → cross-platform binaries published to a new GitHub Release, plus the Homebrew formula updated in `vanducng/homebrew-tap`.
 
 ## CI
 
