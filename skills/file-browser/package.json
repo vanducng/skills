@@ -1,6 +1,6 @@
 {
   "name": "file-browser",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Local HTTP server rendering markdown, images, video, and audio in the browser - dispatches by file extension",
   "main": "scripts/server.cjs",
   "scripts": {

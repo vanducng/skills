@@ -248,6 +248,34 @@ async function main() {
     if (!/<embed[^>]*application\/pdf/.test(html)) throw new Error('embed missing');
   });
 
+  await test('?root= override rebases sidebar treeRoot', async () => {
+    // Default treeRoot is sandbox; override to subDir.
+    const v = await get(port, `/view?file=${encodeURIComponent(imgPath)}&root=${encodeURIComponent(subDir)}`);
+    if (v.status !== 200) throw new Error(`status ${v.status}`);
+    if (!v.body.toString().includes(`data-tree-root="${subDir}"`)) {
+      throw new Error('?root= override not reflected in sidebar');
+    }
+    // Invalid path falls back to default.
+    const bad = await get(port, `/view?file=${encodeURIComponent(imgPath)}&root=${encodeURIComponent('/etc')}`);
+    if (!bad.body.toString().includes(`data-tree-root="${sandbox}"`)) {
+      throw new Error('disallowed ?root= should fall back to default');
+    }
+  });
+
+  await test('?root= on /browse rebases sidebar', async () => {
+    const r = await get(port, `/browse?dir=${encodeURIComponent(sandbox)}&root=${encodeURIComponent(subDir)}`);
+    if (!r.body.toString().includes(`data-tree-root="${subDir}"`)) {
+      throw new Error('?root= override not applied on /browse');
+    }
+  });
+
+  await test('Sidebar exposes rebase-up button', async () => {
+    const r = await get(port, `/browse?dir=${encodeURIComponent(sandbox)}`);
+    if (!r.body.toString().includes('class="fb-sidebar-up"')) {
+      throw new Error('rebase-up button missing');
+    }
+  });
+
   await test('Gallery + single-view + markdown inject sidebar', async () => {
     const g = await get(port, `/browse?dir=${encodeURIComponent(sandbox)}`);
     if (!g.body.toString().includes('class="fb-sidebar"')) throw new Error('gallery missing fb-sidebar');

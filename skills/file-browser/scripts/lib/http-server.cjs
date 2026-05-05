@@ -149,12 +149,21 @@ function streamFile(req, res, filePath, skipValidation = false) {
   fs.createReadStream(filePath).pipe(res);
 }
 
+function resolveTreeRoot(query, defaultRoot) {
+  const override = query && query.root;
+  if (!override || typeof override !== 'string') return defaultRoot;
+  if (!isPathSafe(override)) return defaultRoot;
+  try {
+    if (!fs.statSync(override).isDirectory()) return defaultRoot;
+  } catch { return defaultRoot; }
+  return override;
+}
+
 function createHttpServer(options) {
   const { assetsDir, allowedDirs = [], treeRoot = null } = options;
   if (allowedDirs.length > 0) setAllowedDirs(allowedDirs);
 
   const cssHref = '/assets/styles.css';
-  const sidebarOpts = treeRoot ? { treeRoot } : null;
 
   const server = http.createServer((req, res) => {
     let parsedUrl;
@@ -188,7 +197,8 @@ function createHttpServer(options) {
       if (!isPathSafe(filePath)) return sendError(res, 403, 'Access denied');
       if (!fs.existsSync(filePath)) return sendError(res, 404, 'File not found');
       try {
-        const sidebarArg = sidebarOpts && { ...sidebarOpts, activePath: filePath };
+        const effectiveRoot = resolveTreeRoot(parsedUrl.query, treeRoot);
+        const sidebarArg = effectiveRoot ? { treeRoot: effectiveRoot, activePath: filePath } : null;
         const textKind = classifyText(filePath);
         // ?raw=1 forces source view for kinds with a richer renderer (html, pdf).
         const wantRaw = parsedUrl.query?.raw === '1';
@@ -225,7 +235,9 @@ function createHttpServer(options) {
       }
       if (!stats.isDirectory()) return sendError(res, 404, 'Not a directory');
       try {
-        sendHtml(res, 200, renderGallery(dirPath, cssHref, { sidebar: sidebarOpts && { ...sidebarOpts, activePath: dirPath } }));
+        const effectiveRoot = resolveTreeRoot(parsedUrl.query, treeRoot);
+        const sidebarArg = effectiveRoot ? { treeRoot: effectiveRoot, activePath: dirPath } : null;
+        sendHtml(res, 200, renderGallery(dirPath, cssHref, { sidebar: sidebarArg }));
       } catch (err) {
         console.error('[file-browser] browse error:', err.message);
         sendError(res, 500, 'Render error');

@@ -11,6 +11,7 @@
   const filterInput = sidebar.querySelector('.fb-sidebar-filter');
   const treeNav = sidebar.querySelector('.fb-sidebar-tree');
   const toggleBtn = sidebar.querySelector('.fb-sidebar-toggle');
+  const upBtn = sidebar.querySelector('.fb-sidebar-up');
   const themeBtn = sidebar.querySelector('.fb-sidebar-theme');
   const helpBtn = sidebar.querySelector('.fb-sidebar-help');
   const helpOverlay = sidebar.querySelector('.fb-sidebar-help-overlay');
@@ -31,7 +32,8 @@
   const SS_FILTER = 'fb-tree-filter';
   const SS_CURSOR = 'fb-tree-cursor';
 
-  if (localStorage.getItem(STORAGE_KEY) === '1') {
+  // Default to collapsed; user opens explicitly. '0' = open, anything else = collapsed.
+  if (localStorage.getItem(STORAGE_KEY) !== '0') {
     document.body.classList.add('sidebar-collapsed');
   }
 
@@ -331,6 +333,23 @@
     document.body.classList.toggle('sidebar-collapsed');
     localStorage.setItem(STORAGE_KEY, document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
   });
+
+  if (upBtn) {
+    upBtn.addEventListener('click', () => {
+      // Rebase to parent of current treeRoot. Server falls back to default
+      // root if the parent is outside allowedDirs, which is fine.
+      const parent = treeRoot.replace(/\/+$/, '').replace(/\/[^\/]+$/, '') || '/';
+      if (parent === treeRoot) return;
+      // Tree shape changes; clear stale per-tab state so old expansions don't bleed in.
+      try { sessionStorage.removeItem(SS_EXPANDED); } catch {}
+      try { sessionStorage.removeItem(SS_SCROLL); } catch {}
+      try { sessionStorage.removeItem(SS_FILTER); } catch {}
+      const u = new URL(location.href);
+      u.searchParams.set('root', parent);
+      location.href = u.toString();
+    });
+  }
+
   themeBtn.addEventListener('click', toggleTheme);
 
   // On markdown pages, defer to reader.js's hidden .font-btn so its
