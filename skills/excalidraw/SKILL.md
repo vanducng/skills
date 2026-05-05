@@ -47,7 +47,7 @@ When neither the MCP tools nor the REST fallback are available:
 
 Never write the bootstrap file outside the resolved project root, and never echo the token value.
 
-The remote canvas (when this user's MCP is used) is at `https://draw.dataplanelabs.com`. For visual verification beyond `get_canvas_screenshot`, use Chrome DevTools MCP to `take_screenshot` of the canvas URL — `get_canvas_screenshot` sometimes returns blank PNGs.
+The remote canvas (when this user's MCP is used) is at `https://draw.vanducng.dev`. For visual verification beyond `get_canvas_screenshot`, use Chrome DevTools MCP to `take_screenshot` of the canvas URL — `get_canvas_screenshot` sometimes returns blank PNGs.
 
 ## Step 1 — Tenant & Project Setup
 
