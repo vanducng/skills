@@ -87,26 +87,24 @@ release:
   # Tags matching vd/v*-rc* / vd/v*-alpha* become pre-releases automatically
   prerelease: auto
 
-# Homebrew tap configuration.
-# Prerequisites: create vanducng/homebrew-tap repo, add HOMEBREW_TAP_GITHUB_TOKEN
-# secret (PAT with repo scope), then uncomment and remove --skip=brew from the
-# vd-release.yml goreleaser args.
-#
-# brews:
-#   - name: vd
-#     repository:
-#       owner: vanducng
-#       name: homebrew-tap
-#       branch: main
-#       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-#     directory: Formula
-#     homepage: "https://github.com/vanducng/skills"
-#     description: "CLI tool for managing vd skills and tools"
-#     license: MIT
-#     commit_author:
-#       name: goreleaserbot
-#       email: bot@goreleaser.com
-#     install: |
-#       bin.install "vd"
-#     test: |
-#       system "#{bin}/vd", "--version"
+# Homebrew tap publication. Requires HOMEBREW_TAP_GITHUB_TOKEN secret
+# (PAT with repo scope on vanducng/homebrew-tap) supplied to the
+# release workflow's env.
+brews:
+  - name: vd
+    repository:
+      owner: vanducng
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/vanducng/skills"
+    description: "CLI for vendoring and syncing Claude Code skills"
+    license: MIT
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    install: |
+      bin.install "vd"
+    test: |
+      system "#{bin}/vd", "--version"
