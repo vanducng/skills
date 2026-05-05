@@ -15,6 +15,10 @@ var (
 	flagQuiet   bool
 	flagVerbose bool
 	flagRoot    string
+
+	// Background upstream version check; populated in PersistentPreRunE,
+	// consumed in PersistentPostRunE. nil if any gate disables the check.
+	pendingUpdateCheck *pendingCheck
 )
 
 // NewRootCmd constructs and returns the root Cobra command.
@@ -31,6 +35,15 @@ Run 'vd --help' on any subcommand for details.`,
 		SilenceUsage: true,
 		// Let Execute() surface the error string; we format it ourselves.
 		SilenceErrors: true,
+
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			pendingUpdateCheck = startUpdateCheck(cmd.Context())
+			return nil
+		},
+		PersistentPostRunE: func(cmd *cobra.Command, _ []string) error {
+			printUpdateNudge(pendingUpdateCheck, cmd.ErrOrStderr(), flagQuiet)
+			return nil
+		},
 	}
 
 	root.Version = version.Version

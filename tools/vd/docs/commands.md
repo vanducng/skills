@@ -4,6 +4,8 @@ One section per verb. All commands accept the global flags `--quiet` / `-q`, `--
 
 **Repo root resolution.** Order: `--root` flag → `VD_ROOT` env var → walk up from CWD to the first `.git/`. Set `VD_ROOT` in your shell to pin a default repo when invoking `vd` from arbitrary directories. Both `--root` and `VD_ROOT` are validated (must exist, must be a directory).
 
+**Upstream version check.** Each command runs a background lookup against the GitHub releases API, cached for 24 hours under `$XDG_CACHE_HOME/vd/version-check.json` (or `~/.cache/vd/version-check.json`). When a newer release exists, vd prints a single line to stderr: `vd 1.0.0 (latest: 1.1.0). Upgrade: brew upgrade vd`. The check is best-effort and silent on any failure. Disable globally with `VD_NO_UPDATE_CHECK=1`, suppress per-call with `--quiet`. Auto-disabled when `CI` is set, when the binary is a `dev` build, and when stderr is not a terminal.
+
 ---
 
 ## vd init
