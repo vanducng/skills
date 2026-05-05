@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[file-or-directory]"
 metadata:
   author: vanducng
-  version: "0.4.0"
+  version: "0.4.1"
 ---
 
 # file-browser

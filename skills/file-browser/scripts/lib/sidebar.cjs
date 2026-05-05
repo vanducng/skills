@@ -1,13 +1,4 @@
-/**
- * Sidebar HTML stub injected into every page (gallery, single-view, markdown).
- *
- * Renders:
- * - filter input (focus via "/")
- * - root tree node (lazy-loaded children via /api/tree)
- * - toggle button
- *
- * Behavior + vim keybindings live in /assets/sidebar.js.
- */
+// Behavior + vim keybindings live in /assets/sidebar.js.
 
 const path = require('path');
 
@@ -20,11 +11,6 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
-/**
- * @param {object} opts
- * @param {string} opts.treeRoot         absolute path that anchors the tree
- * @param {string|null} opts.activePath  absolute path of the currently-viewed file/dir (for highlighting + auto-expand)
- */
 function renderSidebar({ treeRoot, activePath }) {
   const rootName = path.basename(treeRoot) || treeRoot;
   return `
@@ -49,9 +35,7 @@ function renderSidebar({ treeRoot, activePath }) {
     <input class="fb-sidebar-filter" type="text" placeholder="/ to filter" autocomplete="off" spellcheck="false" />
   </div>
   <nav class="fb-sidebar-tree" tabindex="0">
-    <ul class="tree" data-path="${esc(treeRoot)}" data-loaded="false">
-      <!-- populated by sidebar.js on load -->
-    </ul>
+    <ul class="tree" data-path="${esc(treeRoot)}" data-loaded="false"></ul>
   </nav>
   <div class="fb-sidebar-help-overlay" hidden>
     <div class="cheatsheet">

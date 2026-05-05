@@ -1,11 +1,4 @@
-/**
- * Sidebar tree + vim keybindings.
- *
- * - Lazy-loads /api/tree?dir=<path> per folder expand.
- * - Cursor-driven nav in tree (j/k/h/l/Enter/o/O/gg/G).
- * - "/" focuses filter; n/N walks matches; "\\" toggles sidebar; "?" shows help.
- * - Auto-expands ancestors of the active path on load.
- */
+// Sidebar tree + vim keybindings. Companion to /scripts/lib/sidebar.cjs.
 (function () {
   'use strict';
 
@@ -21,32 +14,27 @@
   const themeBtn = sidebar.querySelector('.fb-sidebar-theme');
   const helpBtn = sidebar.querySelector('.fb-sidebar-help');
   const helpOverlay = sidebar.querySelector('.fb-sidebar-help-overlay');
-  // Lift the overlay to <body> so its `position: fixed` is anchored to the
-  // viewport, not trapped inside the sidebar's `overflow: hidden`. Otherwise
-  // the cheatsheet card overflows the 280px sidebar but the dimming backdrop
-  // gets clipped.
+  // Lift to <body> so the overlay's `position: fixed` anchors to the viewport
+  // rather than being clipped by the sidebar's `overflow: hidden`.
   if (helpOverlay && helpOverlay.parentElement !== document.body) {
     document.body.appendChild(helpOverlay);
   }
   const fontBtns = sidebar.querySelectorAll('.fb-sidebar-font');
   const STORAGE_KEY = 'fb-sidebar-collapsed';
-  // Shared with markdown reader (reader.js uses the same key) so toggling
-  // from either page surface stays in sync.
+  // Shared with reader.js so toggling from either surface stays in sync.
   const THEME_KEY = 'theme';
   const FONT_KEY = 'novel-viewer-font';
-  // Per-tab UX state — tree shape, scroll, filter — restored on every
-  // server-rendered nav within the same tab without leaking across windows.
+  // Per-tab UX state — sessionStorage so it survives nav within a tab
+  // but doesn't leak across windows.
   const SS_EXPANDED = 'fb-tree-expanded';
   const SS_SCROLL = 'fb-tree-scroll';
   const SS_FILTER = 'fb-tree-filter';
   const SS_CURSOR = 'fb-tree-cursor';
 
-  // ---- Restore collapsed state ----
   if (localStorage.getItem(STORAGE_KEY) === '1') {
     document.body.classList.add('sidebar-collapsed');
   }
 
-  // ---- Theme: read explicit choice, fall back to system preference ----
   function currentTheme() {
     const saved = localStorage.getItem(THEME_KEY);
     if (saved === 'light' || saved === 'dark') return saved;
@@ -56,8 +44,8 @@
     document.documentElement.dataset.theme = t;
   }
   function toggleTheme() {
-    // On markdown pages, delegate to reader.js's #theme-toggle so its full
-    // machinery runs (data-theme + hljs swap + mermaid re-render + storage).
+    // On markdown pages, defer to reader.js's toggle so its mermaid/hljs
+    // machinery runs alongside the data-theme swap.
     const readerToggle = document.getElementById('theme-toggle');
     if (readerToggle) {
       readerToggle.click();
@@ -69,14 +57,12 @@
   }
   applyTheme(currentTheme());
 
-  // Cross-tab sync: another tab toggling theme updates this tab's data-theme + icon.
   window.addEventListener('storage', (e) => {
     if (e.key === THEME_KEY && (e.newValue === 'dark' || e.newValue === 'light')) {
       applyTheme(e.newValue);
     }
   });
 
-  // ---- Tree fetcher ----
   async function fetchDir(dirPath) {
     const res = await fetch('/api/tree?dir=' + encodeURIComponent(dirPath));
     if (!res.ok) throw new Error('fetch failed: ' + res.status);
@@ -148,7 +134,6 @@
     }
   }
 
-  // ---- Expanded-folder set, persisted per tab ----
   function loadExpandedSet() {
     try {
       const raw = sessionStorage.getItem(SS_EXPANDED);
@@ -192,7 +177,6 @@
     else expand(li);
   }
 
-  // ---- Auto-expand ancestors of activePath ----
   async function revealActivePath() {
     if (!activePath || !activePath.startsWith(treeRoot)) return;
     const rest = activePath.slice(treeRoot.length).replace(/^\//, '');
@@ -223,7 +207,6 @@
     return s.replace(/[\s"\\#.:>~+*?$^=|!,()\[\]{}]/g, '\\$&');
   }
 
-  // ---- Cursor ----
   let cursor = null;
   function setCursor(li) {
     if (cursor) cursor.classList.remove('cursor');
@@ -234,16 +217,13 @@
     }
   }
 
-  // Build a flat list of currently-visible nodes, in display order.
   function visibleNodes() {
     return Array.from(treeEl.querySelectorAll('li.node')).filter((li) => {
-      // Walk up: every ancestor ul.children must NOT be hidden.
       let p = li.parentElement;
       while (p && p !== treeEl) {
         if (p.classList && p.classList.contains('children') && p.hidden) return false;
         p = p.parentElement;
       }
-      // Honor filter
       if (li.classList.contains('filter-hidden')) return false;
       return true;
     });
@@ -288,7 +268,6 @@
     }
   }
 
-  // ---- Filter ----
   let filterMatches = [];
   let filterIdx = -1;
 
@@ -324,7 +303,6 @@
     setCursor(filterMatches[filterIdx]);
   }
 
-  // ---- Reload current folder ----
   async function reloadCursorFolder() {
     if (!cursor) return;
     const li = cursor.dataset.kind === 'dir' ? cursor : cursor.parentElement.closest('li.dir');
@@ -336,7 +314,6 @@
     await loadInto(ul, parseInt(li.dataset.depth, 10) + 1);
   }
 
-  // ---- Click handlers ----
   treeEl.addEventListener('click', (e) => {
     const li = e.target.closest('li.node');
     if (!li) return;
@@ -356,9 +333,8 @@
   });
   themeBtn.addEventListener('click', toggleTheme);
 
-  // ---- Font size: shared key with reader.js. On markdown pages, click the
-  // reader's hidden .font-btn so its full machinery runs (data-fontSize,
-  // mermaid resize). On non-markdown pages, just persist the choice. ----
+  // On markdown pages, defer to reader.js's hidden .font-btn so its
+  // mermaid/font machinery runs. Elsewhere, just persist + apply.
   function currentFont() {
     return localStorage.getItem(FONT_KEY) || 'M';
   }
@@ -385,20 +361,8 @@
   });
   helpOverlay.addEventListener('click', () => { helpOverlay.hidden = true; });
 
-  // ---- Keyboard ----
-  // Ownership model:
-  //   - GLOBAL keys (always handled by sidebar): \, ?, / (filter), T (only when
-  //     no reader theme button), and Escape clears filter.
-  //   - TREE-NAV keys (j/k/h/l/g/G/Enter/o/O/n/N/r/-): only handled when the
-  //     sidebar "owns" focus. Otherwise we let the page below (markdown reader)
-  //     handle its own keys / let the browser scroll.
-  //
-  // Sidebar owns focus when:
-  //   - The page is NOT a markdown reader (no <article class="content">), OR
-  //   - document.activeElement is inside .fb-sidebar.
-  //
-  // Clicking inside the sidebar focuses .fb-sidebar-tree (tabindex=0) so
-  // tree-nav keys start working on markdown pages too.
+  // Global keys (\, ?, /, T) always fire. Tree-nav keys only fire when the
+  // sidebar owns focus, so reader.js can keep j/k/scroll on markdown pages.
   let lastKey = '';
   let lastKeyAt = 0;
   const TREE_NAV_KEYS = new Set([
@@ -406,16 +370,13 @@
   ]);
 
   function sidebarOwnsTreeKeys() {
-    // Non-markdown pages: always.
     if (!document.body.classList.contains('markdown')) return true;
-    // Markdown pages: only if focus is inside the fb-sidebar.
     return sidebar.contains(document.activeElement);
   }
 
-  // Focus the tree nav when the user clicks anywhere inside the sidebar so
-  // sidebarOwnsTreeKeys() flips true on markdown pages.
+  // Focus the tree on click so tree-nav keys engage on markdown pages.
   sidebar.addEventListener('mousedown', (e) => {
-    if (e.target.closest('.fb-sidebar-filter')) return; // filter focuses itself
+    if (e.target.closest('.fb-sidebar-filter')) return;
     treeNav.focus();
   });
 
@@ -423,7 +384,6 @@
     const inInput = e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName);
     const inFilter = e.target === filterInput;
 
-    // Filter input: Esc clears + blurs; Enter jumps to first match
     if (inFilter) {
       if (e.key === 'Escape') {
         filterInput.value = '';
@@ -441,14 +401,12 @@
     if (inInput) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-    // Help overlay: any key closes (only when sidebar's overlay is open)
     if (!helpOverlay.hidden) {
       helpOverlay.hidden = true;
       e.preventDefault();
       return;
     }
 
-    // ---- Global keys ----
     switch (e.key) {
       case '/':
         filterInput.focus(); filterInput.select();
@@ -458,14 +416,14 @@
         localStorage.setItem(STORAGE_KEY, document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
         e.preventDefault(); return;
       case '?':
-        // Defer to reader on markdown pages — it has its own shortcuts overlay.
+        // Reader.js has its own shortcuts overlay on markdown pages.
         if (!document.body.classList.contains('markdown')) {
           helpOverlay.hidden = !helpOverlay.hidden;
           e.preventDefault();
         }
         return;
       case 'T':
-        // On markdown pages, reader.js already binds T globally — let it handle.
+        // Reader.js owns T on markdown pages.
         if (!document.getElementById('theme-toggle')) {
           toggleTheme();
           e.preventDefault();
@@ -473,10 +431,7 @@
         return;
     }
 
-    // ---- Tree-nav keys: only when sidebar owns focus ----
-    if (TREE_NAV_KEYS.has(e.key) && !sidebarOwnsTreeKeys()) {
-      return; // let the page below handle / browser scroll
-    }
+    if (TREE_NAV_KEYS.has(e.key) && !sidebarOwnsTreeKeys()) return;
 
     switch (e.key) {
       case 'j': moveCursor(1); e.preventDefault(); break;
@@ -494,7 +449,6 @@
         e.preventDefault();
         break;
       case '-':
-        // oil.nvim parent-dir convention
         jumpToParent(); e.preventDefault(); break;
       case 'Enter':
       case 'o':
@@ -545,7 +499,6 @@
     }
   }
 
-  // ---- Filter rehydrate ----
   function rehydrateFilter() {
     try {
       const f = sessionStorage.getItem(SS_FILTER) || '';
@@ -556,7 +509,6 @@
     } catch {}
   }
 
-  // ---- Scroll position rehydrate / persist ----
   function rehydrateScroll() {
     try {
       const s = parseInt(sessionStorage.getItem(SS_SCROLL) || '0', 10);
@@ -567,12 +519,10 @@
     try { sessionStorage.setItem(SS_SCROLL, String(treeNav.scrollTop)); } catch {}
   }, { passive: true });
 
-  // Persist filter on every keystroke
   filterInput.addEventListener('input', () => {
     try { sessionStorage.setItem(SS_FILTER, filterInput.value); } catch {}
   });
 
-  // ---- Boot ----
   (async function boot() {
     await loadInto(treeEl, 0);
     await rehydrateExpansions();
@@ -582,13 +532,11 @@
       const nodes = visibleNodes();
       if (nodes.length > 0) setCursor(nodes[0]);
     }
-    // Defer scroll so layout settles after expansions inject DOM.
+    // Defer until layout settles after expansions inject DOM.
     requestAnimationFrame(rehydrateScroll);
   })();
 
-  // BFCache restore: pageshow with persisted=true means we came back from
-  // bfcache — DOM is intact, no need to re-rehydrate, just refresh state UI
-  // in case theme/font changed in another tab.
+  // bfcache: DOM is intact, just resync theme/font in case another tab changed them.
   window.addEventListener('pageshow', (e) => {
     if (e.persisted) {
       applyTheme(currentTheme());

@@ -1,14 +1,10 @@
-/* file-browser — calm, dark-first viewer matching the spirit of markdown-render */
-
-/* Tell the UA both schemes are supported. Lets the browser paint the correct
- * scrollbar/form-control colors on the very first frame, before our CSS vars
- * resolve — kills the white-flash on dark navigation. */
+/* Lets the UA paint scrollbar/form-control colors correctly on the first
+ * frame before our vars resolve — avoids white flash on dark navigation. */
 :root {
   color-scheme: light dark;
 }
 
-/* Cross-document smooth transitions where supported (Chrome 126+, Edge).
- * Non-supporting browsers ignore this rule entirely. */
+/* Cross-document smooth transitions (Chrome 126+, Safari 18.2+); ignored elsewhere. */
 @view-transition {
   navigation: auto;
 }
@@ -18,7 +14,7 @@
   --bg-elev: #232323;
   --fg: #e8e6e1;
   --fg-muted: #9b9890;
-  --accent: #d4a574;       /* warm gold (matches markdown-render dark theme) */
+  --accent: #d4a574;
   --border: #2e2e2e;
   --tile-bg: #111;
   --shadow: 0 2px 12px rgba(0, 0, 0, 0.45);

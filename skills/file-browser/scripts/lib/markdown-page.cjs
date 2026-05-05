@@ -1,8 +1,4 @@
-/**
- * Compose a full markdown viewer HTML page using the novel-theme template.
- * Extracted from markdown-render's server.cjs so http-server can dispatch
- * directly without dragging the whole boot sequence.
- */
+// Composes the novel-theme markdown viewer page.
 
 const fs = require('fs');
 const path = require('path');
@@ -22,7 +18,6 @@ function renderMarkdownPage(filePath, assetsDir, opts = {}) {
   const templatePath = path.join(assetsDir, 'template.html');
   let template = fs.readFileSync(templatePath, 'utf8');
 
-  // "Back to folder" button (top-left of header)
   const parentDir = path.dirname(filePath);
   const backButton = `
     <a href="/browse?dir=${encodeURIComponent(parentDir)}" class="icon-btn back-btn" title="Back to folder">
@@ -31,7 +26,6 @@ function renderMarkdownPage(filePath, assetsDir, opts = {}) {
       </svg>
     </a>`;
 
-  // Header prev/next for plan phase files
   let headerNav = '';
   if (navContext.prev || navContext.next) {
     const prevBtn = navContext.prev && fs.existsSync(navContext.prev.file)
@@ -68,7 +62,6 @@ function renderMarkdownPage(filePath, assetsDir, opts = {}) {
     .replace('{{header-nav}}', headerNav);
 
   if (fbSidebar) {
-    // Inject the file-browser sidebar + sidebar.css as the first body child.
     rendered = rendered
       .replace('</head>', '  <link rel="stylesheet" href="/assets/sidebar.css" />\n</head>')
       .replace(/<body([^>]*)>/, `<body$1>\n  ${fbSidebar}`);

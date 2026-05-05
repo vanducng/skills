@@ -357,7 +357,6 @@
   color: var(--accent);
 }
 
-/* Scroll-spy: highlight the section currently in the viewport. */
 .toc-list a.active {
   color: var(--accent);
   font-weight: 600;

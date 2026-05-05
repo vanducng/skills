@@ -1,15 +1,5 @@
-/**
- * HTTP server for file-browser.
- *
- * Routes:
- * - /                  Welcome page
- * - /view?file=<path>  Single media viewer (with prev/next)
- * - /browse?dir=<path> Folder gallery
- * - /file/*            Raw file streaming (Range-aware - critical for video seeking)
- * - /assets/*          Static assets (CSS)
- *
- * Security: paths must resolve under one of the allowedDirs (path-traversal guard).
- */
+// Routes: /, /view?file=, /browse?dir=, /file/*, /assets/*, /api/tree?dir=
+// Path traversal guard: resolved paths must live under an allowedDir.
 
 const http = require('http');
 const fs = require('fs');
@@ -38,14 +28,12 @@ function sanitizeErrorMessage(message) {
   return String(message).replace(/\/[^\s'"<>]+/g, '[path]');
 }
 
-// MIME type table - browsers know how to render all of these natively
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
-  // Images
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -59,14 +47,12 @@ const MIME_TYPES = {
   '.heif': 'image/heif',
   '.jxl': 'image/jxl',
   '.apng': 'image/apng',
-  // Video
   '.mp4': 'video/mp4',
   '.m4v': 'video/mp4',
   '.webm': 'video/webm',
   '.mov': 'video/quicktime',
   '.mkv': 'video/x-matroska',
   '.ogv': 'video/ogg',
-  // Audio
   '.mp3': 'audio/mpeg',
   '.m4a': 'audio/mp4',
   '.aac': 'audio/aac',
@@ -83,10 +69,7 @@ function getMimeType(filePath) {
 function sendHtml(res, statusCode, html) {
   res.writeHead(statusCode, {
     'Content-Type': 'text/html; charset=utf-8',
-    // bfcache-friendly: no-store / no-cache disqualifies a page from bfcache.
-    // max-age=0 + must-revalidate keeps the page bfcacheable while forcing a
-    // revalidation on a fresh navigation — what we want for a local server
-    // that never serves stale content.
+    // bfcache-friendly; no-store/no-cache would disqualify the page.
     'Cache-Control': 'max-age=0, must-revalidate'
   });
   res.end(html);
@@ -100,11 +83,8 @@ function sendError(res, statusCode, message) {
     <h1>Error ${statusCode}</h1><p>${safe}</p></body>`);
 }
 
-/**
- * Stream a file with HTTP Range support. Required for MP4/MKV seeking — without
- * this, browsers buffer the whole file before allowing the user to scrub, and
- * Safari refuses to play <video> at all unless Range is honored.
- */
+// HTTP Range support is required for video seeking; Safari refuses <video>
+// playback entirely without it.
 function streamFile(req, res, filePath, skipValidation = false) {
   if (!skipValidation && !isPathSafe(filePath)) {
     sendError(res, 403, 'Access denied');
@@ -128,7 +108,6 @@ function streamFile(req, res, filePath, skipValidation = false) {
   const range = req.headers.range;
 
   if (range) {
-    // bytes=START-END (END optional)
     const match = /^bytes=(\d+)-(\d*)$/.exec(range);
     if (!match) {
       res.writeHead(416, {
@@ -187,7 +166,6 @@ function createHttpServer(options) {
     }
     const pathname = decodeURIComponent(parsedUrl.pathname || '/');
 
-    // Static assets
     if (pathname.startsWith('/assets/')) {
       const rel = pathname.slice('/assets/'.length);
       if (rel.includes('..')) return sendError(res, 403, 'Access denied');
@@ -196,15 +174,14 @@ function createHttpServer(options) {
       return;
     }
 
-    // Raw file streaming (preserves leading slash from absolute path)
     if (pathname.startsWith('/file/')) {
-      const filePath = pathname.slice('/file'.length); // keeps leading '/'
+      // Slice keeps the leading '/' on the absolute path.
+      const filePath = pathname.slice('/file'.length);
       if (!isPathSafe(filePath)) return sendError(res, 403, 'Access denied');
       streamFile(req, res, filePath);
       return;
     }
 
-    // Unified file viewer — dispatches by extension
     if (pathname === '/view') {
       const filePath = parsedUrl.query?.file;
       if (!filePath) return sendError(res, 400, 'Missing ?file= parameter');
@@ -213,29 +190,20 @@ function createHttpServer(options) {
       try {
         const sidebarArg = sidebarOpts && { ...sidebarOpts, activePath: filePath };
         const textKind = classifyText(filePath);
-        // ?raw=1 forces text/source view even for kinds that have a richer
-        // renderer (currently html → iframe, pdf → embed).
+        // ?raw=1 forces source view for kinds with a richer renderer (html, pdf).
         const wantRaw = parsedUrl.query?.raw === '1';
         if (isMarkdown(filePath)) {
-          // Markdown → novel-theme reader (Mermaid, plan nav, ToC)
           sendHtml(res, 200, renderMarkdownPage(filePath, assetsDir, { sidebar: sidebarArg }));
         } else if (isMedia(filePath)) {
-          // Image / video / audio → media single-view (priority over text since
-          // .svg is technically both)
+          // Media before text: .svg is classifiable as both.
           sendHtml(res, 200, renderSingleView(filePath, cssHref, { sidebar: sidebarArg }));
         } else if (textKind === 'html' && !wantRaw) {
           sendHtml(res, 200, renderHtmlView(filePath, cssHref, { sidebar: sidebarArg }));
         } else if (textKind === 'pdf' && !wantRaw) {
           sendHtml(res, 200, renderPdfView(filePath, cssHref, { sidebar: sidebarArg }));
-        } else if (textKind === 'html' || textKind === 'pdf') {
-          // raw=1 with html/pdf falls through to text source view.
-          sendHtml(res, 200, renderTextView(filePath, cssHref, { sidebar: sidebarArg }));
-        } else if (textKind) {
-          // code, text, data → syntax-highlighted view
-          sendHtml(res, 200, renderTextView(filePath, cssHref, { sidebar: sidebarArg }));
         } else {
-          // Last resort: try text rendering anyway (binary check inside catches
-          // truly binary files and shows an "Open raw" card).
+          // Everything else (code/text/data, html|pdf with ?raw=1, unknown ext)
+          // routes through the text view; binary sniff inside shows a fallback card.
           sendHtml(res, 200, renderTextView(filePath, cssHref, { sidebar: sidebarArg }));
         }
       } catch (err) {
@@ -245,7 +213,6 @@ function createHttpServer(options) {
       return;
     }
 
-    // Folder gallery
     if (pathname === '/browse') {
       const dirPath = parsedUrl.query?.dir;
       if (!dirPath) return sendError(res, 400, 'Missing ?dir= parameter');
@@ -266,7 +233,6 @@ function createHttpServer(options) {
       return;
     }
 
-    // Tree API — one directory level for the sidebar
     if (pathname === '/api/tree') {
       const dirPath = parsedUrl.query?.dir;
       if (!dirPath) {

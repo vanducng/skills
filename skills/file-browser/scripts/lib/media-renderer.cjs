@@ -1,13 +1,9 @@
-/**
- * Media renderer - classify files and produce gallery / single-view HTML.
- * Browser renders the bytes; we just hand it the right element.
- */
+// Image/video/audio gallery + single-view renderer.
 
 const fs = require('fs');
 const path = require('path');
 const { renderSidebar } = require('./sidebar.cjs');
 
-// Extension → kind classification
 const IMAGE_EXTS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif',
   '.svg', '.bmp', '.ico', '.heic', '.heif', '.jxl', '.apng'
@@ -31,9 +27,6 @@ function isMedia(filePath) {
   return classify(filePath) !== null;
 }
 
-/**
- * Escape HTML-unsafe characters in a string.
- */
 function esc(s) {
   return String(s)
     .replace(/&/g, '&amp;')
@@ -43,9 +36,6 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
-/**
- * List media siblings (for prev/next navigation in single-view mode).
- */
 function listSiblings(filePath) {
   const dir = path.dirname(filePath);
   let entries;
@@ -70,9 +60,6 @@ function listSiblings(filePath) {
   return { siblings, index };
 }
 
-/**
- * Build single-media viewer HTML with keyboard nav.
- */
 function renderSingleView(filePath, cssHref, opts = {}) {
   const kind = classify(filePath);
   if (!kind) {
@@ -168,8 +155,6 @@ function renderGallery(dirPath, cssHref, opts = {}) {
       <h1>Cannot read directory</h1><p>${esc(err.message)}</p></body>`;
   }
 
-  // Markdown extensions are surfaced in their own "Documents" section so users
-  // can hop into the novel-theme reader from the same gallery as media files.
   const MD_EXTS = new Set(['.md', '.markdown', '.mdx']);
   const isDoc = (p) => MD_EXTS.has(path.extname(p).toLowerCase());
 
@@ -209,7 +194,6 @@ function renderGallery(dirPath, cssHref, opts = {}) {
   const parentDir = path.dirname(dirPath);
   const showParent = parentDir !== dirPath;
 
-  // Folders row
   let folderHtml = '';
   if (showParent || dirs.length > 0) {
     folderHtml += '<section class="folders"><h2 class="section-title">Folders</h2><div class="folder-grid">';
@@ -224,8 +208,6 @@ function renderGallery(dirPath, cssHref, opts = {}) {
     folderHtml += '</div></section>';
   }
 
-  // Documents (markdown) — list section linking to /view (which dispatches
-  // to the markdown renderer based on extension).
   let docsHtml = '';
   if (docs.length > 0) {
     docsHtml += '<section class="docs"><h2 class="section-title">Documents (' + docs.length + ')</h2><ul class="other-list">';
@@ -236,7 +218,6 @@ function renderGallery(dirPath, cssHref, opts = {}) {
     docsHtml += '</ul></section>';
   }
 
-  // Media grid
   let mediaHtml = '';
   if (media.length > 0) {
     mediaHtml += '<section class="media"><h2 class="section-title">Media (' + media.length + ')</h2><div class="media-grid">';
@@ -247,7 +228,7 @@ function renderGallery(dirPath, cssHref, opts = {}) {
       if (m.kind === 'image') {
         thumb = `<img loading="lazy" decoding="async" src="${esc(fileUrl)}" alt="${esc(m.name)}" />`;
       } else if (m.kind === 'video') {
-        // muted+preload=metadata yields a frame in most browsers without autoplay
+        // muted + preload=metadata renders a poster frame without autoplay.
         thumb = `<video preload="metadata" muted playsinline src="${esc(fileUrl)}#t=0.1"></video>
           <span class="kind-badge">▶</span>`;
       } else {
@@ -261,12 +242,14 @@ function renderGallery(dirPath, cssHref, opts = {}) {
     mediaHtml += '</div></section>';
   }
 
-  // Other files
+  // Route through /view so the dispatcher picks the right renderer; linking
+  // to /file directly would trigger a download for unrecognized MIME types.
   let otherHtml = '';
   if (others.length > 0) {
     otherHtml += '<section class="others"><h2 class="section-title">Other files</h2><ul class="other-list">';
     for (const o of others) {
-      otherHtml += `<li><a href="/file${esc(o.path)}" target="_blank">${esc(o.name)}</a></li>`;
+      const viewUrl = `/view?file=${encodeURIComponent(o.path)}`;
+      otherHtml += `<li><a href="${esc(viewUrl)}">${esc(o.name)}</a></li>`;
     }
     otherHtml += '</ul></section>';
   }
