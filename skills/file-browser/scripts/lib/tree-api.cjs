@@ -1,12 +1,4 @@
-/**
- * Lazy directory tree listing for the sidebar.
- *
- * Returns ONE level of children for a given path. Sidebar fetches more
- * via /api/tree?dir=<absolute-path> as the user expands folders.
- *
- * Classification mirrors media-renderer + markdown-page so the sidebar
- * can decorate files with the correct icon (📄 markdown, 🖼 image, ▶ video, ♪ audio, · other).
- */
+// One-level directory listing for the sidebar's lazy tree.
 
 const fs = require('fs');
 const path = require('path');
@@ -28,10 +20,6 @@ function classifyFile(filePath) {
   return 'other';
 }
 
-/**
- * List one level of a directory.
- * @returns {{path:string, entries: Array<{name, path, kind, fileType?}>}}
- */
 function listDir(dirPath) {
   let names;
   try {
@@ -45,7 +33,7 @@ function listDir(dirPath) {
   const dirs = [];
   const files = [];
   for (const name of names) {
-    if (name.startsWith('.')) continue; // hide dotfiles by default
+    if (name.startsWith('.')) continue;
     const full = path.join(dirPath, name);
     let stats;
     try {

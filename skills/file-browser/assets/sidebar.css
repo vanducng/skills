@@ -1,8 +1,5 @@
-/* Sidebar tree + layout. Loaded on every page-type (gallery, single-view,
- * markdown reader). The two style systems use different variable names —
- * styles.css ships --bg-elev/--fg, novel-theme ships --bg-secondary/--text-*.
- * Fall back through both so the sidebar follows whichever theme owns the page. */
-
+/* Tokens fall back through both styles.css (--bg-elev/--fg) and novel-theme
+ * (--bg-secondary/--text-*) so the sidebar follows whichever theme owns the page. */
 :root {
   --sidebar-width: 280px;
   --sidebar-bg: var(--bg-elev, var(--bg-secondary, #232323));
@@ -11,7 +8,7 @@
   --sidebar-border: var(--border, #2e2e2e);
   --sidebar-accent: var(--accent, #d4a574);
   --sidebar-input-bg: var(--bg, var(--bg-primary, #1a1a1a));
-  --sidebar-cursor-bg: rgba(212, 165, 116, 0.18); /* matches --accent at 18% */
+  --sidebar-cursor-bg: rgba(212, 165, 116, 0.18);
   --sidebar-active-bg: rgba(212, 165, 116, 0.32);
   --sidebar-hover-bg: rgba(255, 255, 255, 0.04);
   --sidebar-row-h: 28px;
@@ -30,12 +27,6 @@
   --sidebar-hover-bg: rgba(0, 0, 0, 0.03);
 }
 
-/* ---------- Layout: sidebar + main ----------
- * Two-column grid with two explicit rows: header + content.
- * Sidebar spans both rows (col 1). Topbar lives in row 1 col 2,
- * main lives in row 2 col 2 with the remaining height.
- */
-
 body.gallery,
 body.single {
   display: grid;
@@ -45,9 +36,8 @@ body.single {
   overflow: hidden;
 }
 
-/* Markdown reader: file-browser sidebar lives in a fixed left column;
- * the reader's existing TOC/plan-nav sidebar + content flow inside the right column.
- * The reader's own layout is preserved untouched. */
+/* Markdown reader: fixed left column for fb-sidebar; reader's own TOC + content
+ * flow within the remaining right column. */
 body.markdown.has-fb-sidebar {
   margin-left: var(--sidebar-width);
 }
@@ -65,8 +55,7 @@ body.markdown.has-fb-sidebar.sidebar-collapsed > .fb-sidebar {
   width: 36px;
 }
 
-/* Push the markdown reader's own TOC/plan sidebar (.sidebar fixed at left:0)
- * to sit beside the fb-sidebar instead of overlapping. */
+/* Push reader's fixed-position TOC sidebar (left:0) to sit beside the fb-sidebar. */
 body.markdown.has-fb-sidebar aside#sidebar,
 body.markdown.has-fb-sidebar .reader-header {
   left: var(--sidebar-width) !important;
@@ -123,9 +112,8 @@ body.single > main {
   justify-self: stretch;
 }
 
-/* Image/video/audio single-view: lock overflow so the media element fills
- * exactly. Text view (body.single.text) needs to scroll long files — let
- * .text-stage own its own overflow there. */
+/* Media single-view locks overflow so the element fills exactly; text view
+ * needs scroll for long files. */
 body.single:not(.text) > main.stage {
   height: 100%;
   overflow: hidden;
@@ -134,8 +122,6 @@ body.single.text > main.stage {
   height: 100%;
   overflow: auto;
 }
-
-/* ---------- Sidebar header ---------- */
 
 .fb-sidebar-header {
   display: flex;
@@ -170,11 +156,10 @@ body.single.text > main.stage {
   border-color: var(--sidebar-accent);
 }
 
-/* Theme button: show ☾ in light mode (will switch to dark), ☀ in dark mode (will switch to light). */
+/* Show the icon for the theme the click would switch TO. */
 .fb-sidebar-theme .theme-icon { display: none; }
 :root[data-theme="light"] .fb-sidebar-theme .theme-icon[data-icon="dark"] { display: inline; }
 :root[data-theme="dark"] .fb-sidebar-theme .theme-icon[data-icon="light"] { display: inline; }
-/* Fallback when data-theme not set yet (system preference): show one of them */
 :root:not([data-theme]) .fb-sidebar-theme .theme-icon[data-icon="dark"] { display: inline; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) .fb-sidebar-theme .theme-icon[data-icon="dark"] { display: none; }
@@ -189,10 +174,6 @@ body.single.text > main.stage {
   text-overflow: ellipsis;
   font-size: 13px;
 }
-
-/* Sidebar collapsed: only the toggle button remains visible */
-
-/* ---------- Toolbar (font + theme) ---------- */
 
 .fb-sidebar-toolbar {
   display: flex;
@@ -230,16 +211,14 @@ body.sidebar-collapsed .fb-sidebar-toolbar { display: none; }
   color: var(--sidebar-fg);
 }
 
-/* When fb-sidebar is present on the markdown reader, hide the reader's own
- * font + theme controls — they're now owned by the sidebar. */
+/* Reader's own font + theme controls are owned by the fb-sidebar now. */
 body.markdown.has-fb-sidebar .reader-header .font-controls,
 body.markdown.has-fb-sidebar .reader-header #theme-toggle {
   display: none !important;
 }
 
-/* Reader-header reduced when fb-sidebar present — was a 56px empty band;
- * compact it to 40px and collapse the (now duplicated) doc-title.
- * Keeps ← back, ≡ TOC, prev/next plan-nav functional. */
+/* Compact reader-header to 40px — duplicate doc-title hidden, but ← back,
+ * ≡ TOC, prev/next plan-nav stay functional. */
 body.markdown.has-fb-sidebar .reader-header {
   height: 40px !important;
   padding: 0 0.75rem !important;
@@ -279,9 +258,8 @@ body.markdown.has-fb-sidebar .content h2::after {
   display: none;
 }
 
-/* Tables: left-align, fit within content width, scroll horizontally if wider.
- * Novel-theme defaults to centered/auto-margin tables which combined with
- * overflow can clip the leftmost column off-screen. */
+/* Override novel-theme's centered/auto-margin tables which can clip leftmost
+ * columns off-screen under our two-sidebar layout. */
 body.markdown.has-fb-sidebar .content table {
   margin: 1rem 0 1.5rem 0;
   max-width: 100%;
@@ -294,11 +272,9 @@ body.markdown.has-fb-sidebar .content table td {
   text-align: left;
 }
 
-/* Code blocks: novel-theme uses `position: relative; left: 50%;
- * transform: translateX(-50%)` to break wide code out and center it relative
- * to the viewport. With our left-aligned + sidebar layout, this pushes the
- * block's left edge UNDER the TOC navigator, hiding columns of code. Pin
- * code blocks to the natural left edge and rely on their own overflow-x. */
+/* Override novel-theme's translateX(-50%) break-out trick which centers wide
+ * code on the viewport — with our two-sidebar layout that pushes code under
+ * the TOC. Pin to natural left edge and let pre's own overflow-x handle width. */
 body.markdown.has-fb-sidebar .content pre {
   width: 100%;
   max-width: 100%;
@@ -309,8 +285,6 @@ body.markdown.has-fb-sidebar .content pre {
   margin-left: 0;
   margin-right: 0;
 }
-
-/* ---------- Filter ---------- */
 
 .fb-sidebar-filter-row {
   padding: 8px 12px;
@@ -331,8 +305,6 @@ body.markdown.has-fb-sidebar .content pre {
 .fb-sidebar-filter:focus {
   border-color: var(--sidebar-accent);
 }
-
-/* ---------- Tree ---------- */
 
 .fb-sidebar-tree {
   flex: 1;
@@ -420,8 +392,6 @@ body.markdown.has-fb-sidebar .content pre {
   padding: 4px 12px;
 }
 
-/* ---------- Help overlay ---------- */
-
 .fb-sidebar-help-overlay {
   position: fixed;
   inset: 0;
@@ -429,8 +399,7 @@ body.markdown.has-fb-sidebar .content pre {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Beat novel-theme's reader-header (z=100) and any code-block stacking
-   * contexts created by transform/will-change/sticky on `pre`. */
+  /* Beat novel-theme stacking contexts (reader-header z=100, sticky pre, etc.). */
   z-index: 10000;
 }
 .fb-sidebar-help-overlay[hidden] {
@@ -468,7 +437,6 @@ body.markdown.has-fb-sidebar .content pre {
   font-size: 12px;
 }
 
-/* ---------- Mobile ---------- */
 @media (max-width: 720px) {
   body.gallery,
   body.single {
