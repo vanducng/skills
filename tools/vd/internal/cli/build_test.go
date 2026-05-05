@@ -14,9 +14,15 @@ func setupE2ERepo(t *testing.T) string {
 	t.Helper()
 	tmp := t.TempDir()
 
-	// Init git repo.
+	// Init git repo with local user config so commits work in CI without global git config.
 	if out, err := exec.Command("git", "-C", tmp, "init").CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("git", "-C", tmp, "config", "user.email", "test@vd.local").CombinedOutput(); err != nil {
+		t.Fatalf("git config user.email: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("git", "-C", tmp, "config", "user.name", "vd test").CombinedOutput(); err != nil {
+		t.Fatalf("git config user.name: %v\n%s", err, out)
 	}
 	if out, err := exec.Command("git", "-C", tmp, "commit", "--allow-empty", "-m", "init").CombinedOutput(); err != nil {
 		t.Fatalf("git commit: %v\n%s", err, out)
