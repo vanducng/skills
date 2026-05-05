@@ -17,6 +17,7 @@ function renderSidebar({ treeRoot, activePath }) {
 <aside class="fb-sidebar" data-tree-root="${esc(treeRoot)}" data-active-path="${esc(activePath || '')}">
   <header class="fb-sidebar-header">
     <button class="fb-sidebar-toggle" type="button" title="Toggle sidebar (\\)">≡</button>
+    <button class="fb-sidebar-up" type="button" title="Rebase tree to parent folder">↑</button>
     <span class="fb-sidebar-root-label" title="${esc(treeRoot)}">${esc(rootName)}</span>
     <button class="fb-sidebar-help" type="button" title="Keybindings (?)">?</button>
   </header>
