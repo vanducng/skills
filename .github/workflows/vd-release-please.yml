@@ -1,8 +1,17 @@
 name: vd Release Please
 
 # Opens a release PR when conventional commits with scope "vd" land on main.
-# Merging the PR bumps CHANGELOG.md and creates a v* tag,
-# which then triggers vd-release.yml.
+# Merging the PR bumps CHANGELOG.md and the manifest, but does NOT create
+# the GitHub Release or the tag — that's done manually by the maintainer:
+#
+#   git pull && git tag vX.Y.Z && git push origin vX.Y.Z
+#
+# The tag push then triggers vd-release.yml -> GoReleaser -> binaries +
+# Homebrew formula publish.
+#
+# Why skip-github-release: release-please-action v5 hits a 403 "Resource
+# not accessible by integration" on createRelease even with contents:write.
+# Skipping that step bypasses the bug; GoReleaser creates the release.
 
 on:
   push:
@@ -11,6 +20,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   release-please:
@@ -21,3 +31,4 @@ jobs:
         with:
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
+          skip-github-release: true

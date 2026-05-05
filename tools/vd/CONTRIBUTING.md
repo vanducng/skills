@@ -69,20 +69,18 @@ Do not reference AI tools in commit messages.
 
 ## Release flow
 
-Releases are managed by [release-please](https://github.com/googleapis/release-please) with the `v*` tag prefix.
+Releases are coordinated by [release-please](https://github.com/googleapis/release-please) (version PR) and shipped by GoReleaser (tag → binaries + Homebrew formula).
 
-1. Merge conventional commits to `main`.
-2. release-please opens a PR titled "chore(main): release vd X.Y.Z" that bumps `CHANGELOG.md` and the version constant.
-3. Merge the release PR → release-please creates the `vX.Y.Z` tag automatically.
-4. The tag triggers the GoReleaser GitHub Action (`.github/workflows/vd-release.yml`) which builds cross-platform binaries and publishes a GitHub Release.
-
-To cut a release manually (emergency only):
-```sh
-git tag v0.2.0
-git push origin v0.2.0
-```
-
-The GoReleaser workflow fires on `v*` tag pushes. It is path-filtered to `tools/vd/**` so pushing a skill-only change does not trigger it.
+1. Merge conventional commits to `main` (`feat(vd): ...`, `fix(vd): ...`).
+2. release-please opens a PR titled `chore(main): release vd X.Y.Z` that bumps `tools/vd/CHANGELOG.md` and `.release-please-manifest.json`.
+3. Merge the release PR.
+4. **Manually push the tag** (release-please cannot create the GitHub Release directly due to a v5 action limitation; we skip that step):
+   ```sh
+   git pull
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+5. The tag push triggers `vd-release.yml` → GoReleaser → cross-platform binaries published to a new GitHub Release, plus the Homebrew formula updated in `vanducng/homebrew-tap`.
 
 ## CI
 
