@@ -18,3 +18,11 @@ __pycache__/
 
 
 .diagrams
+
+# vd CLI
+.vd-cache/
+tools/vd/vd
+tools/vd/dist/
+# GoReleaser output (run from repo root, dist/ lands here)
+/dist/
+.agents/

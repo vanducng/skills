@@ -1,0 +1,11 @@
+[meta]
+  version = 1
+
+[sources.upstream]
+  type = "git"
+  url = "https://github.com/example/skills"
+
+[skills.stagehand]
+  source = "upstream"
+  path = "skills/stagehand"
+  mode = "tracked"

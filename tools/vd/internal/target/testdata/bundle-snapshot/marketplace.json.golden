@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "vanducng-skills",
+  "description": "Duc's personal Claude Code skills marketplace.",
+  "owner": {
+    "name": "vanducng",
+    "url": "https://github.com/vanducng"
+  },
+  "plugins": [
+    {
+      "name": "vd",
+      "description": "Duc's personal skills. Build pipeline: brainstorm → plan → cook. Plus research (deep tech research), excalidraw (diagrams), markdown-render (book-like viewer), open-design (HTML design artifacts from nexu-io/open-design catalog), qmd (local Markdown search), and computer-clean (macOS disk cleanup).",
+      "version": "0.5.1",
+      "author": {
+        "name": "vanducng",
+        "url": "https://github.com/vanducng"
+      },
+      "source": "./",
+      "category": "utilities",
+      "homepage": "https://github.com/vanducng/skills"
+    }
+  ]
+}

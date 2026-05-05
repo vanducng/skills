@@ -1,0 +1,20 @@
+version: 2
+
+updates:
+  # Go modules for the vd CLI
+  - package-ecosystem: gomod
+    directory: /tools/vd
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - go
+
+  # GitHub Actions (repo root)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - github-actions

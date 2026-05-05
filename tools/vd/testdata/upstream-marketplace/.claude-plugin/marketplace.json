@@ -1,0 +1,21 @@
+{
+  "name": "test-skills",
+  "version": "1.0.0",
+  "description": "Test skills marketplace",
+  "plugins": [
+    {
+      "name": "foo",
+      "description": "Foo skill for testing",
+      "path": "skills/foo",
+      "category": "utilities",
+      "version": "1.0.0"
+    },
+    {
+      "name": "bar",
+      "description": "Bar skill for testing",
+      "path": "skills/bar",
+      "category": "productivity",
+      "version": "1.0.0"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+version: "2"
+
+run:
+  go: "1.23"
+  timeout: 5m
+  tests: true
+
+linters:
+  # Standard set: errcheck, govet, ineffassign, staticcheck, unused
+  default: standard
+  enable:
+    - misspell
+    - unparam
+    - revive
+  settings:
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: exported
+  exclusions:
+    rules:
+      # Test files: relax errcheck and unparam (common false positives)
+      - path: "_test\\.go"
+        linters:
+          - errcheck
+          - unparam
+
+formatters:
+  enable:
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/vanducng/skills/tools/vd
