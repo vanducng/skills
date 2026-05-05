@@ -9,8 +9,9 @@ const path = require('path');
 
 const { renderMarkdownFile, renderTOCHtml } = require('./markdown-renderer.cjs');
 const { generateNavSidebar, generateNavFooter, detectPlan, getNavigationContext } = require('./plan-navigator.cjs');
+const { renderSidebar } = require('./sidebar.cjs');
 
-function renderMarkdownPage(filePath, assetsDir) {
+function renderMarkdownPage(filePath, assetsDir, opts = {}) {
   const { html, toc, frontmatter, title } = renderMarkdownFile(filePath);
   const tocHtml = renderTOCHtml(toc);
   const navSidebar = generateNavSidebar(filePath);
@@ -48,16 +49,31 @@ function renderMarkdownPage(filePath, assetsDir) {
     headerNav = `<div class="header-nav">${prevBtn}${nextBtn}</div>`;
   }
 
-  return template
+  const fbSidebar = opts.sidebar ? renderSidebar(opts.sidebar) : '';
+  const bodyClasses = [
+    planInfo.isPlan ? 'has-plan' : '',
+    'markdown',
+    fbSidebar ? 'has-fb-sidebar' : ''
+  ].filter(Boolean).join(' ');
+
+  let rendered = template
     .replace(/\{\{title\}\}/g, title)
     .replace('{{toc}}', tocHtml)
     .replace('{{nav-sidebar}}', navSidebar)
     .replace('{{nav-footer}}', navFooter)
     .replace('{{content}}', html)
-    .replace('{{has-plan}}', planInfo.isPlan ? 'has-plan' : '')
+    .replace('{{has-plan}}', bodyClasses)
     .replace('{{frontmatter}}', JSON.stringify(frontmatter || {}))
     .replace('{{back-button}}', backButton)
     .replace('{{header-nav}}', headerNav);
+
+  if (fbSidebar) {
+    // Inject the file-browser sidebar + sidebar.css as the first body child.
+    rendered = rendered
+      .replace('</head>', '  <link rel="stylesheet" href="/assets/sidebar.css" />\n</head>')
+      .replace(/<body([^>]*)>/, `<body$1>\n  ${fbSidebar}`);
+  }
+  return rendered;
 }
 
 const MARKDOWN_EXTS = new Set(['.md', '.markdown', '.mdx']);

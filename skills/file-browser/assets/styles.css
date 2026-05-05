@@ -1,5 +1,18 @@
 /* file-browser — calm, dark-first viewer matching the spirit of markdown-render */
 
+/* Tell the UA both schemes are supported. Lets the browser paint the correct
+ * scrollbar/form-control colors on the very first frame, before our CSS vars
+ * resolve — kills the white-flash on dark navigation. */
+:root {
+  color-scheme: light dark;
+}
+
+/* Cross-document smooth transitions where supported (Chrome 126+, Edge).
+ * Non-supporting browsers ignore this rule entirely. */
+@view-transition {
+  navigation: auto;
+}
+
 :root {
   --bg: #1a1a1a;
   --bg-elev: #232323;
@@ -13,8 +26,9 @@
   --header-h: 56px;
 }
 
+/* Light theme: explicit override via [data-theme="light"] OR system preference. */
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     --bg: #faf8f3;          /* warm cream */
     --bg-elev: #ffffff;
     --fg: #2b241b;
@@ -24,6 +38,17 @@
     --tile-bg: #fff;
     --shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   }
+}
+
+:root[data-theme="light"] {
+  --bg: #faf8f3;
+  --bg-elev: #ffffff;
+  --fg: #2b241b;
+  --fg-muted: #6b6358;
+  --accent: #8b4513;
+  --border: #e8e2d3;
+  --tile-bg: #fff;
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 
 * { box-sizing: border-box; }
@@ -68,8 +93,10 @@ code {
 }
 
 @media (prefers-color-scheme: light) {
-  .topbar { background: rgba(250, 248, 243, 0.85); }
+  :root:not([data-theme="dark"]) .topbar { background: rgba(250, 248, 243, 0.85); }
 }
+:root[data-theme="light"] .topbar { background: rgba(250, 248, 243, 0.85); }
+:root[data-theme="dark"] .topbar { background: rgba(26, 26, 26, 0.85); }
 
 .topbar .title {
   font-size: 0.95rem;

@@ -1,11 +1,11 @@
 ---
 name: file-browser
-description: "Local HTTP server that renders markdown, images, video, and audio in the browser. Dispatches by file extension - markdown gets the novel-theme reader (Mermaid, plan nav, ToC); images/video/audio get a gallery + single-view with Range-aware streaming. One server, one port, one CLI."
+description: "Local HTTP server that renders markdown, code, text, JSON, HTML, PDF, images, video, and audio in the browser. Persistent left tree sidebar with vim keybindings (j/k/h/l/gg/G/Enter/o), filter (/), theme toggle (T), and folder open/collapse persistence per tab. Markdown dispatches to a novel-theme reader (Mermaid, plan nav, ToC scroll-spy); code/text dispatches to a highlight.js view with line numbers + copy button; HTML renders in a sandboxed iframe; PDF uses native embed; images/video/audio get a gallery + single-view with Range-aware streaming. One server, one port, one CLI."
 license: MIT
 argument-hint: "[file-or-directory]"
 metadata:
   author: vanducng
-  version: "0.2.0"
+  version: "0.4.0"
 ---
 
 # file-browser
@@ -58,7 +58,8 @@ node $HOME/skills/skills/file-browser/scripts/server.cjs --stop
 | `/view?file=<abs-path>` | **Dispatches by extension.** `.md/.markdown/.mdx` → novel-theme markdown reader (Mermaid, plan nav, ToC). Image/video/audio → media single-view with arrow-key prev/next. |
 | `/browse?dir=<abs-path>` | Gallery: folders, Documents (markdown), Media (image/video/audio), Other files. |
 | `/file/<abs-path>` | Raw byte streaming with HTTP `Range` support (required for video seeking and Safari audio). |
-| `/assets/*` | Static assets (theme CSS, reader JS). |
+| `/api/tree?dir=<abs-path>` | Lazy directory listing (one level) for the sidebar tree. Returns JSON `{path, entries[]}` where each entry has `{name, path, kind: dir\|file, fileType?: markdown\|image\|video\|audio\|other}`. |
+| `/assets/*` | Static assets (theme CSS, reader JS, sidebar JS). |
 | `/` | Welcome / route reference. |
 
 ## Supported Formats
@@ -86,6 +87,38 @@ node $HOME/skills/skills/file-browser/scripts/server.cjs --stop
 - HTTP Range support — required for `<video>` scrubbing and Safari audio playback
 - Mixed media in same folder, sorted alphabetically
 
+## Sidebar Tree (gallery + single-view)
+
+A persistent left sidebar shows the directory tree anchored at the launch folder (`--dir`) or the file's parent (`--file`). Lazy-loaded — only the root level loads up front; folders fetch their children on expand.
+
+### Vim keybindings
+
+| Key | Action |
+| --- | --- |
+| `j` / `k` | Move cursor down / up |
+| `h` | Collapse open folder, or jump to parent |
+| `l` | Expand folder under cursor |
+| `Enter` / `o` | Open file or folder under cursor |
+| `O` | Open in a new tab |
+| `gg` / `G` | Jump to first / last visible node |
+| `/` | Focus filter input (substring match on visible names) |
+| `n` / `N` | Next / previous filter match |
+| `r` | Reload current folder's children |
+| `\` | Toggle sidebar visibility (state persisted in localStorage) |
+| `?` | Toggle keybinding cheatsheet overlay |
+| `Esc` | Clear filter / close help |
+
+Click also works — clicking a folder toggles expand, clicking a file opens it. The currently-viewed file is highlighted; on page load, the sidebar auto-expands ancestors of the active path so the file is always visible.
+
+The markdown reader has its own ToC + plan-nav sidebar, so the file-browser sidebar is intentionally NOT injected there. Press `← Folder` (or browser back) to return to the gallery and use the tree.
+
+### Customizing / extending
+
+- `assets/sidebar.js` — keybinding map and tree behavior. Add a binding by extending the `keydown` switch.
+- `assets/sidebar.css` — layout (CSS grid: `var(--sidebar-width) 1fr`), colors via `--sidebar-*` tokens.
+- `lib/sidebar.cjs` — HTML stub including filter input + cheatsheet markup.
+- `lib/tree-api.cjs` — server-side directory listing. Add a new file classification by extending `classifyFile`.
+
 ## Architecture
 
 ```
@@ -99,12 +132,16 @@ scripts/
 │   ├── markdown-renderer.cjs       # marked + highlight.js + gray-matter
 │   ├── plan-navigator.cjs          # Plan detection, sidebar, prev/next
 │   ├── plan-table-parser.cjs       # plan.md table → phases
-│   └── media-renderer.cjs          # Gallery + single-view for images/video/audio
+│   ├── media-renderer.cjs          # Gallery + single-view for images/video/audio
+│   ├── sidebar.cjs                 # Sidebar HTML stub injected into gallery + single-view
+│   └── tree-api.cjs                # /api/tree directory listing (lazy)
 └── tests/
     └── server.test.cjs             # Smoke tests for every dispatch path
 
 assets/
 ├── styles.css                      # Media gallery + single-view theme
+├── sidebar.css                     # Sidebar layout + tree styling
+├── sidebar.js                      # Sidebar tree + vim keybindings
 ├── novel-theme.css                 # Markdown theme entry (imports modules)
 ├── styles/                         # Modular markdown CSS (variables, base, content, mermaid, ...)
 ├── template.html                   # Markdown viewer template
@@ -132,7 +169,7 @@ assets/
 node $HOME/skills/skills/file-browser/scripts/tests/server.test.cjs
 ```
 
-Boots on a free port, hits every dispatch path (welcome, gallery, image view, markdown view, file streaming, Range, traversal guard, missing params, 404), cleans up. 11 tests.
+Boots on a free port, hits every dispatch path (welcome, gallery, image view, markdown view, file streaming, Range, traversal guard, missing params, 404, tree API, sidebar injection), cleans up. 13 tests.
 
 ## Security
 

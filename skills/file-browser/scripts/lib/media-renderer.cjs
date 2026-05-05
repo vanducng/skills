@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { renderSidebar } = require('./sidebar.cjs');
 
 // Extension → kind classification
 const IMAGE_EXTS = new Set([
@@ -72,7 +73,7 @@ function listSiblings(filePath) {
 /**
  * Build single-media viewer HTML with keyboard nav.
  */
-function renderSingleView(filePath, cssHref) {
+function renderSingleView(filePath, cssHref, opts = {}) {
   const kind = classify(filePath);
   if (!kind) {
     return `<!doctype html><meta charset="utf-8"><title>Unsupported</title>
@@ -112,15 +113,21 @@ function renderSingleView(filePath, cssHref) {
   const nextHref = next ? `/view?file=${encodeURIComponent(next)}` : '#';
   const browseHref = `/browse?dir=${encodeURIComponent(parent)}`;
 
+  const sidebarHtml = opts.sidebar ? renderSidebar(opts.sidebar) : '';
+
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <script>(function(){try{var h=document.documentElement;var t=localStorage.getItem('theme');var dark=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches);h.dataset.theme=dark?'dark':'light';h.style.colorScheme=dark?'dark':'light';h.style.background=dark?'#1a1a1a':'#faf8f3';}catch(e){}})();</script>
   <title>${esc(name)}</title>
   <link rel="stylesheet" href="${cssHref}" />
+  <link rel="stylesheet" href="/assets/sidebar.css" />
 </head>
 <body class="single">
+  ${sidebarHtml}
   <header class="topbar">
     <a class="btn" href="${esc(browseHref)}" title="Folder (Esc)">← Folder</a>
     <h1 class="title" title="${esc(filePath)}">${esc(name)}</h1>
@@ -152,7 +159,7 @@ function renderSingleView(filePath, cssHref) {
 /**
  * Build gallery grid HTML for a directory.
  */
-function renderGallery(dirPath, cssHref) {
+function renderGallery(dirPath, cssHref, opts = {}) {
   let entries;
   try {
     entries = fs.readdirSync(dirPath);
@@ -269,15 +276,21 @@ function renderGallery(dirPath, cssHref) {
       ? '<p class="empty">Empty directory.</p>'
       : '';
 
+  const sidebarHtml = opts.sidebar ? renderSidebar(opts.sidebar) : '';
+
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <script>(function(){try{var h=document.documentElement;var t=localStorage.getItem('theme');var dark=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches);h.dataset.theme=dark?'dark':'light';h.style.colorScheme=dark?'dark':'light';h.style.background=dark?'#1a1a1a':'#faf8f3';}catch(e){}})();</script>
   <title>📁 ${esc(path.basename(dirPath) || dirPath)}</title>
   <link rel="stylesheet" href="${cssHref}" />
+  <link rel="stylesheet" href="/assets/sidebar.css" />
 </head>
 <body class="gallery">
+  ${sidebarHtml}
   <header class="topbar">
     <h1 class="title" title="${esc(dirPath)}">📁 ${esc(path.basename(dirPath) || dirPath)}</h1>
     <span class="path">${esc(dirPath)}</span>

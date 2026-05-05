@@ -1,0 +1,45 @@
+/* Self-hosted webfonts — eliminates Google Fonts DNS+TLS+fetch chain
+ * (~300ms per cross-doc nav on typical home network). Files are subset to
+ * latin only; cross-tab cache friendly because they're on the local server. */
+
+/* Inter is a variable font — single file covers 100..900 weights. */
+@font-face {
+  font-family: 'Inter';
+  src: url('/assets/fonts/inter-400.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* JetBrains Mono variable font — covers regular through bold. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/assets/fonts/jetbrains-mono-400.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Libre Baskerville is static — three files: regular, italic, bold (uses
+ * the same upstream URL as regular; browser synthesizes bold weight). */
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('/assets/fonts/libre-baskerville-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('/assets/fonts/libre-baskerville-400-italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('/assets/fonts/libre-baskerville-400.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
