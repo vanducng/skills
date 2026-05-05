@@ -102,6 +102,19 @@ def refine_prompt(
     )
 
 
+def _strip_fences(raw: str) -> str:
+    svg = raw.strip()
+    for fence in ("```xml", "```svg", "```"):
+        if svg.startswith(fence):
+            svg = svg[len(fence) :].lstrip()
+            break
+    if svg.endswith("```"):
+        svg = svg[:-3].rstrip()
+    if not svg.lstrip().startswith("<svg"):
+        raise RuntimeError(f"LLM did not return SVG markup. Got: {svg[:200]}")
+    return svg
+
+
 def generate_svg(
     description: str,
     type_ref: str,
@@ -113,9 +126,12 @@ def generate_svg(
     system = (
         "You output ONLY valid SVG 1.1 markup. No preamble, no markdown fences, "
         "no explanation. Follow the SVG contract exactly: required root attributes, "
-        "layer ordering, class names, hard rules. Use the style tokens for colors "
-        "and typography, and composition rules for layout. Do not invent "
-        "components not in the description."
+        "layer ordering, class names, hard rules — especially the LAYOUT RULES "
+        "(boundary tiling, orthogonal routing, label-inside-parent, bidirectional "
+        "single-path with two markers, white-fill occlusion behind arrow labels). "
+        "Walk the pre-flight checklist mentally before emitting. Use the style "
+        "tokens for colors and typography, composition rules for layout. Do not "
+        "invent components not in the description."
     )
     user = (
         f"## User description\n{description}\n\n"
@@ -133,13 +149,47 @@ def generate_svg(
         temperature=0.3,
         timeout=120,
     )
-    svg = raw.strip()
-    for fence in ("```xml", "```svg", "```"):
-        if svg.startswith(fence):
-            svg = svg[len(fence) :].lstrip()
-            break
-    if svg.endswith("```"):
-        svg = svg[:-3].rstrip()
-    if not svg.lstrip().startswith("<svg"):
-        raise RuntimeError(f"LLM did not return SVG markup. Got: {svg[:200]}")
-    return svg
+    return _strip_fences(raw)
+
+
+def revise_svg(
+    draft_svg: str,
+    description: str,
+    svg_contract: str,
+    model: str = DEFAULT_MODEL,
+) -> str:
+    """Critique-and-revise pass. Send the draft back, ask the LLM to find layout
+    violations against the contract and emit a corrected SVG."""
+    system = (
+        "You are a layout critic for SVG diagrams. You will be given a draft SVG "
+        "and the layout contract it must satisfy. Walk every check in the "
+        "pre-flight checklist on the draft. Then output ONLY a corrected SVG 1.1 "
+        "document — no markdown fences, no preamble, no explanation. If the draft "
+        "is already perfect, re-emit it unchanged. Common defects to fix: "
+        "(a) boundary rects that overlap each other, "
+        "(b) text nodes outside their parent box, "
+        "(c) boundary captions placed ABOVE their boundary instead of inside it, "
+        "(d) connection lines that cross through a third box (replace with "
+        "orthogonal polyline routed through the gutter), "
+        "(e) two-arrow bidirectional pairs on the same line (collapse to one path "
+        "with marker-start AND marker-end), "
+        "(f) arrow labels missing the white-fill <rect> occluder behind them, "
+        "(g) elements closer than 24px to a sibling. "
+        "Preserve the original component set, palette, and class names — only fix "
+        "geometry."
+    )
+    user = (
+        f"## Original description\n{description}\n\n"
+        f"## SVG contract (the rules that the draft must satisfy)\n{svg_contract}\n\n"
+        f"## Draft SVG to revise\n{draft_svg}"
+    )
+    raw = chat(
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        model=model,
+        temperature=0.1,
+        timeout=120,
+    )
+    return _strip_fences(raw)
