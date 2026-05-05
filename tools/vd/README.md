@@ -81,6 +81,25 @@ After these steps:
 
 Repo root resolution order: `--root` flag → `VD_ROOT` env var → walk up from CWD to the first `.git/`. Both `--root` and `VD_ROOT` are validated (must exist, must be a directory) and error out on invalid values rather than silently falling through.
 
+## Environment variables
+
+| Var | Effect |
+|---|---|
+| `VD_ROOT` | Pin a default repo root |
+| `VD_NO_UPDATE_CHECK` | Disable the upstream version check |
+| `XDG_CACHE_HOME` | Override the cache directory (default `~/.cache`) |
+| `CI` | When set, the version check is auto-disabled |
+
+## Upstream version check
+
+`vd` checks GitHub for new releases at most once per 24 hours and prints a one-line nudge to stderr when a newer version is available:
+
+```
+vd 1.0.0 (latest: 1.1.0). Upgrade: brew upgrade vd
+```
+
+The check runs in the background and is silent on any failure (offline, rate-limited, parse error). It is disabled automatically for `dev` builds, when `CI` is set, and when stderr is not a terminal (so piped output is unaffected). Set `VD_NO_UPDATE_CHECK=1` to disable it explicitly, or pass `--quiet` / `-q` to suppress the nudge for a single invocation.
+
 ## Documentation
 
 - [Command reference](docs/commands.md) — flags, examples, exit codes per verb

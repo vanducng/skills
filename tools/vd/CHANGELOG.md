@@ -15,6 +15,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follo
 ## [Unreleased]
 
 ### Added
+- `VD_ROOT` env var as a repo-root source (between the `--root` flag and the `.git` walk-up). Both override sources validate that the path exists and is a directory; invalid values fail fast.
+- Passive upstream version check on every command — prints a one-line stderr nudge when a newer release is available. Cached 24h under `$XDG_CACHE_HOME/vd/version-check.json`. Gated by `VD_NO_UPDATE_CHECK`, `CI`, `--quiet`, `dev` builds, and non-TTY stderr. No telemetry, no opt-in, fully offline-safe.
 - Initial CLI: `init`, `add`, `list`, `sync`, `update`, `diff`, `doctor`, `pin`, `detach`, `remove`, `build`, `cache clean`.
 - Bundle and per-skill emitter modes for `marketplace.json` and `plugin.json`.
 - `.agents/` symlink emitter (relative symlinks; Windows falls back to directory copy).
