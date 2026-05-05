@@ -3,9 +3,7 @@ version: 2
 # GoReleaser config for the vd CLI living inside the vanducng/skills monorepo.
 #
 # The monorepo: block is GoReleaser Pro-only. This OSS config uses dir: in the
-# build entry and is run from the repo root. Tag prefix "vd/" is handled at the
-# CI level: vd-release.yml filters tags `vd/v*` and strips the prefix via
-#   GORELEASER_CURRENT_TAG="${GITHUB_REF_NAME#vd/}" goreleaser release ...
+# build entry and is run from the repo root. Tags are plain semver (v1.2.3).
 
 project_name: vd
 
@@ -84,7 +82,7 @@ changelog:
       - "^docs:"
 
 release:
-  # Tags matching vd/v*-rc* / vd/v*-alpha* become pre-releases automatically
+  # Tags matching v*-rc* / v*-alpha* become pre-releases automatically
   prerelease: auto
 
 # Homebrew tap publication. Requires HOMEBREW_TAP_GITHUB_TOKEN secret

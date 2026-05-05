@@ -22,6 +22,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follo
 - `skills.lock` for reproducible installs (SHA + TreeHash per skill).
 - Dirty-check ("refuse-on-dirty"): `vd sync` refuses to overwrite locally modified skills without `--force`.
 - Bundle emitter seeds defaults from live `marketplace.json` so first-run output is byte-equal to the existing file.
-- GoReleaser monorepo distribution with tag prefix `vd/v*`.
-- GitHub Actions path-filtered CI: `vd-test.yml` (test + lint on `tools/vd/**` changes), `vd-release.yml` (GoReleaser on `vd/v*` tags), `vd-release-please.yml` (automated release PR).
+- GoReleaser monorepo distribution with tag pattern `v*`.
+- GitHub Actions path-filtered CI: `vd-test.yml` (test + lint on `tools/vd/**` changes), `vd-release.yml` (GoReleaser on `v*` tags), `vd-release-please.yml` (automated release PR).
 - Dogfood: `browserbase/skills/browser` and `browserbase/skills/browser-trace` onboarded via `vd add` + `vd sync` with zero diff on `.claude-plugin/`.

@@ -1,21 +1,17 @@
 name: vd Release
 
-# Triggered when a vd/v* tag is pushed (e.g. vd/v1.2.3 or vd/v1.2.3-rc1).
+# Triggered when a v* tag is pushed (e.g. v1.2.3 or v1.2.3-rc1).
 # Merging the release-please PR creates the tag automatically.
 #
 # Required secrets:
 #   GITHUB_TOKEN              — provided automatically by Actions
 #   HOMEBREW_TAP_GITHUB_TOKEN — PAT (repo scope) for vanducng/homebrew-tap
 #                               GoReleaser uses this to push the Formula.
-#
-# Note: GoReleaser OSS does not support the `monorepo:` block (Pro-only).
-# Tag prefix "vd/" is stripped here via GORELEASER_CURRENT_TAG so GoReleaser
-# sees a plain semver like "v1.2.3".
 
 on:
   push:
     tags:
-      - "vd/v*"
+      - "v*"
 
 permissions:
   contents: write
@@ -36,12 +32,6 @@ jobs:
         with:
           go-version: "1.23"
           cache-dependency-path: tools/vd/go.sum
-
-      - name: Strip vd/ prefix from tag for GoReleaser
-        # GitHub Actions expressions don't slice strings — do the strip in shell.
-        # GORELEASER_CURRENT_TAG must be a plain semver (v1.2.3) since OSS
-        # GoReleaser doesn't support the monorepo.tag_prefix field.
-        run: echo "GORELEASER_CURRENT_TAG=${GITHUB_REF_NAME#vd/}" >> "$GITHUB_ENV"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
