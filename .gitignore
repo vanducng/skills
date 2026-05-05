@@ -10,6 +10,7 @@ node_modules/
 
 # Runtime artifacts produced by skills (brainstorm/plan/preview etc.)
 plans/
+docs/journals/
 
 # Python bytecode cache (skills with Python scripts)
 __pycache__/
