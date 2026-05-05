@@ -1,6 +1,6 @@
 {
   "name": "vd",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Duc's personal Claude Code skills. Skills are namespaced under `vd:` to avoid conflicts with other plugins.",
   "author": {
     "name": "vanducng",
