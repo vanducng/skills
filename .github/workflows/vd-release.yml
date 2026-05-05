@@ -4,11 +4,9 @@ name: vd Release
 # Merging the release-please PR creates the tag automatically.
 #
 # Required secrets:
-#   GITHUB_TOKEN       — provided automatically by Actions
+#   GITHUB_TOKEN              — provided automatically by Actions
 #   HOMEBREW_TAP_GITHUB_TOKEN — PAT (repo scope) for vanducng/homebrew-tap
-#                               Create the repo first, add the secret, then
-#                               uncomment the brew stanza in .goreleaser.yaml
-#                               and remove --skip=brew from goreleaser args below.
+#                               GoReleaser uses this to push the Formula.
 #
 # Note: GoReleaser OSS does not support the `monorepo:` block (Pro-only).
 # Tag prefix "vd/" is stripped here via GORELEASER_CURRENT_TAG so GoReleaser
@@ -44,10 +42,10 @@ jobs:
         with:
           version: latest
           # Config path is relative to workdir (repo root).
-          # --skip=brew: remove once vanducng/homebrew-tap exists and secret is set.
-          args: release --clean --config tools/vd/.goreleaser.yaml --skip=brew
+          args: release --clean --config tools/vd/.goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
           # Strip "vd/" prefix so GoReleaser sees a plain semver tag (e.g. v1.2.3).
           # OSS goreleaser does not support the monorepo.tag_prefix field.
           GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
