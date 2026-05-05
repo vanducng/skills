@@ -76,6 +76,7 @@ body.sidebar-collapsed .fb-sidebar-header {
   justify-content: center;
 }
 body.sidebar-collapsed .fb-sidebar-root-label,
+body.sidebar-collapsed .fb-sidebar-up,
 body.sidebar-collapsed .fb-sidebar-help {
   display: none;
 }
@@ -134,6 +135,7 @@ body.single.text > main.stage {
 }
 
 .fb-sidebar-toggle,
+.fb-sidebar-up,
 .fb-sidebar-help,
 .fb-sidebar-theme {
   background: transparent;
@@ -150,6 +152,7 @@ body.single.text > main.stage {
   justify-content: center;
 }
 .fb-sidebar-toggle:hover,
+.fb-sidebar-up:hover,
 .fb-sidebar-help:hover,
 .fb-sidebar-theme:hover {
   color: var(--sidebar-fg);
