@@ -76,8 +76,10 @@ After these steps:
 |------|-------|-------------|
 | `--quiet` | `-q` | Suppress non-error output |
 | `--verbose` | `-v` | Verbose output (reserved) |
-| `--root` | | Override repo root path |
+| `--root` | | Override repo root path (takes precedence over `VD_ROOT`) |
 | `--version` | | Print `vd <version>` |
+
+Repo root resolution order: `--root` flag → `VD_ROOT` env var → walk up from CWD to the first `.git/`. Both `--root` and `VD_ROOT` are validated (must exist, must be a directory) and error out on invalid values rather than silently falling through.
 
 ## Documentation
 

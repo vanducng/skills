@@ -18,7 +18,8 @@ func newInitCmd() *cobra.Command {
 		Use:   "init",
 		Short: "Create skills.toml at the repo root",
 		Long: `Walk up from the current directory to find .git/, then write a starter
-skills.toml there. Pass --root <path> to override the walk.`,
+skills.toml there. Pass --root <path> to override the walk, or set the
+VD_ROOT env var to point at a fixed repo root (--root takes precedence).`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			root, err := resolveRepoRoot(flagRoot)

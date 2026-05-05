@@ -40,7 +40,7 @@ Run 'vd --help' on any subcommand for details.`,
 	pf := root.PersistentFlags()
 	pf.BoolVarP(&flagQuiet, "quiet", "q", false, "Suppress non-error output")
 	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "Verbose output (reserved for future phases)")
-	pf.StringVar(&flagRoot, "root", "", "Override repo root path (must be an existing directory)")
+	pf.StringVar(&flagRoot, "root", "", "Override repo root path (must be an existing directory; takes precedence over VD_ROOT env var)")
 
 	root.AddCommand(newInitCmd())
 	root.AddCommand(newListCmd())
