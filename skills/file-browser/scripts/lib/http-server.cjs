@@ -187,6 +187,18 @@ function createHttpServer(options) {
       // Slice keeps the leading '/' on the absolute path.
       const filePath = pathname.slice('/file'.length);
       if (!isPathSafe(filePath)) return sendError(res, 403, 'Access denied');
+      // Top-level navigations (Accept includes text/html) get the wrapped
+      // /view page so the sidebar + chrome show up. Embedded media
+      // (<img>/<video>/<audio>, fetch) keep raw byte streaming.
+      const accept = String(req.headers['accept'] || '');
+      const dest = String(req.headers['sec-fetch-dest'] || '');
+      const isTopLevelNav = accept.includes('text/html') || dest === 'document';
+      if (isTopLevelNav) {
+        const target = '/view?file=' + encodeURIComponent(filePath);
+        res.writeHead(302, { Location: target });
+        res.end();
+        return;
+      }
       streamFile(req, res, filePath);
       return;
     }

@@ -134,6 +134,20 @@ async function main() {
       throw new Error('accept-ranges header missing');
   });
 
+  await test('GET /file with Accept: text/html redirects to /view (sidebar wrapper)', async () => {
+    const r = await get(port, '/file' + imgPath, { Accept: 'text/html,application/xhtml+xml' });
+    if (r.status !== 302) throw new Error(`expected 302 got ${r.status}`);
+    const loc = r.headers.location || '';
+    if (!loc.startsWith('/view?file=')) throw new Error(`bad location ${loc}`);
+    if (!loc.includes(encodeURIComponent(imgPath))) throw new Error(`location missing path: ${loc}`);
+  });
+
+  await test('GET /file with Sec-Fetch-Dest: document redirects to /view', async () => {
+    const r = await get(port, '/file' + imgPath, { Accept: '*/*', 'Sec-Fetch-Dest': 'document' });
+    if (r.status !== 302) throw new Error(`expected 302 got ${r.status}`);
+    if (!(r.headers.location || '').startsWith('/view?file=')) throw new Error('no redirect');
+  });
+
   await test('Range request returns 206 + Content-Range', async () => {
     const r = await get(port, '/file' + imgPath, { Range: 'bytes=0-9' });
     if (r.status !== 206) throw new Error(`expected 206 got ${r.status}`);
