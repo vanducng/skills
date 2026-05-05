@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light dark">
   <title>{{title}} - Novel Viewer</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png">
-  <!-- Apply stored preferences BEFORE CSS loads to prevent FOUC -->
+  <!-- Apply theme + font BEFORE external CSS loads to prevent FOUC. -->
   <script>
     (function(){
       var h=document.documentElement;
@@ -19,8 +19,6 @@
       h.dataset.fontSize=f||'S';
     })();
   </script>
-  <!-- Critical inline CSS: paints correct backdrop on the first frame, before
-       the external stylesheets parse. Eliminates white flash on dark→dark nav. -->
   <style>
     :root { color-scheme: light dark; }
     @view-transition { navigation: auto; }
@@ -29,7 +27,6 @@
   <link rel="stylesheet" href="/assets/novel-theme.css">
   <link rel="stylesheet" href="/assets/highlight-github.css" id="hljs-light">
   <link rel="stylesheet" href="/assets/highlight-github-dark.css" id="hljs-dark" disabled>
-  <!-- Mermaid.js for diagram rendering -->
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
     window.mermaidModule = mermaid;

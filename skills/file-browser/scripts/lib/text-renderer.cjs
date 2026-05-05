@@ -1,23 +1,10 @@
-/**
- * Text-file renderer — code (highlight.js), plain text, JSON pretty-print.
- *
- * Public surface mirrors media-renderer.cjs:
- *   - classify(p) → 'code' | 'text' | 'data' | 'pdf' | null
- *   - isText(p)
- *   - renderTextView(filePath, cssHref, opts) → HTML page
- *   - renderPdfView(filePath, cssHref, opts) → HTML page (native <embed>)
- *
- * No new deps: highlight.js is already in package.json (used by markdown
- * renderer for fenced blocks).
- */
+// Code/text/data/pdf/html renderer. Public surface mirrors media-renderer.cjs.
 
 const fs = require('fs');
 const path = require('path');
 const hljs = require('highlight.js');
 const { renderSidebar } = require('./sidebar.cjs');
 
-// Extension → highlight.js language id. Anything in this map renders with
-// syntax highlighting; anything missing but text falls through to plain.
 const LANG_BY_EXT = {
   '.js': 'javascript', '.mjs': 'javascript', '.cjs': 'javascript',
   '.jsx': 'javascript', '.ts': 'typescript', '.tsx': 'typescript',
@@ -76,10 +63,7 @@ function detectLanguage(filePath) {
   return LANG_BY_EXT[path.extname(filePath).toLowerCase()] || null;
 }
 
-/**
- * Sniff the first 1KB for a NUL byte. Catches binaries that slipped past the
- * extension classifier (e.g. unknown extension that the user clicked anyway).
- */
+// NUL byte in the first 1KB ≈ binary. Catches unknown extensions a user may click.
 function sniffBinary(buf) {
   const n = Math.min(buf.length, 1024);
   for (let i = 0; i < n; i++) if (buf[i] === 0) return true;
@@ -95,7 +79,7 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
-const MAX_RENDER_BYTES = 2 * 1024 * 1024; // 2 MB cap; bigger = "too large" notice
+const MAX_RENDER_BYTES = 2 * 1024 * 1024;
 
 function readFileForRender(filePath) {
   const buf = fs.readFileSync(filePath);
@@ -121,10 +105,8 @@ function prettyJson(content) {
 }
 
 function renderLineNumbers(highlighted) {
-  // hljs emits HTML; split on \n is safe because the highlighter doesn't
-  // wrap individual lines (it only spans tokens, none of which contain \n).
+  // hljs spans never contain \n, so a plain split is safe.
   const lines = highlighted.split('\n');
-  // Drop trailing empty line caused by file-ending newline.
   if (lines.length && lines[lines.length - 1] === '') lines.pop();
   let out = '';
   for (let i = 0; i < lines.length; i++) {
@@ -139,15 +121,12 @@ const HEAD_BOOTSTRAP = `
 `;
 
 const TEXT_VIEW_CSS = `
-/* Match the compact chrome we use on markdown pages so the file-browser
- * feels coherent across file types. The header-h var feeds the body grid. */
 body.single.text { --header-h: 40px; }
 body.single.text > .topbar { height: 40px; padding: 0 0.75rem; }
 body.single.text > .topbar .title { font-size: 0.85rem; }
-/* CRITICAL: .stage in styles.css is flex with align-items:center for media
- * centering. For text/code that's a bug — when content is taller than the
- * container, the top portion escapes upward and becomes unreachable by scroll.
- * Force block layout in text view so scroll origin sits at content top. */
+/* .stage in styles.css uses flex centering for media. With tall code, the
+ * top of the content escapes upward and becomes unreachable by scroll —
+ * force block layout here so scroll origin sits at content top. */
 body.single.text > main.stage {
   display: block;
   height: 100%;
@@ -155,8 +134,6 @@ body.single.text > main.stage {
   overflow: auto;
   padding: 1.25rem 1.5rem 3rem;
 }
-/* No bordered card — code sits directly on the page bg, like the markdown
- * reader. Matches the user's "color style should match" ask. */
 .text-card {
   background: transparent;
   border: 0;
@@ -239,7 +216,6 @@ function buildPage(name, filePath, cssHref, body, opts = {}) {
           navigator.clipboard.writeText(code.innerText).then(function(){flash('Copied');},legacy);
         }else{legacy();}
       });
-      // Toggle hljs dark sheet alongside data-theme.
       var light=document.getElementById('hljs-light');
       var dark=document.getElementById('hljs-dark');
       function syncHljs(){var d=document.documentElement.dataset.theme==='dark';if(light)light.disabled=d;if(dark)dark.disabled=!d;}
@@ -286,11 +262,8 @@ function renderTextView(filePath, cssHref, opts = {}) {
   return buildPage(name, filePath, cssHref, body, opts);
 }
 
-/**
- * Render an HTML file inside a sandboxed iframe so its scripts/styles can't
- * touch the file-browser chrome. `?raw=1` query (handled by dispatcher in
- * http-server.cjs) routes to text view instead, for inspecting source.
- */
+// Sandboxed iframe so the page's scripts/styles can't reach the chrome.
+// `?raw=1` (handled by the dispatcher) opens the source view instead.
 function renderHtmlView(filePath, cssHref, opts = {}) {
   const name = path.basename(filePath);
   const sidebarHtml = opts.sidebar ? renderSidebar(opts.sidebar) : '';
