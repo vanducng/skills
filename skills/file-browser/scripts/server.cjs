@@ -188,7 +188,8 @@ async function main() {
   const home = os.homedir();
   if (home && !allowedDirs.includes(home)) allowedDirs.push(home);
 
-  const server = createHttpServer({ assetsDir, allowedDirs });
+  const treeRoot = resolved.type === 'file' ? path.dirname(resolved.path) : resolved.path;
+  const server = createHttpServer({ assetsDir, allowedDirs, treeRoot });
 
   server.listen(port, args.host, () => {
     const { url, networkUrl } = buildUrl(args.host, port, resolved.type, resolved.path);

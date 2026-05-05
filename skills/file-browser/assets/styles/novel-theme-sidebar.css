@@ -356,3 +356,12 @@
 .toc-list a:hover {
   color: var(--accent);
 }
+
+/* Scroll-spy: highlight the section currently in the viewport. */
+.toc-list a.active {
+  color: var(--accent);
+  font-weight: 600;
+  border-left: 2px solid var(--accent);
+  padding-left: 0.5rem;
+  margin-left: -0.625rem;
+}

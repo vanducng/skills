@@ -15,8 +15,6 @@
   const hljsLight = document.getElementById('hljs-light');
   const hljsDark = document.getElementById('hljs-dark');
   const header = document.querySelector('.reader-header');
-  const progressBar = document.getElementById('progress-bar');
-  const progressFill = progressBar?.querySelector('.progress-bar-fill');
   const shortcutsToast = document.getElementById('shortcuts-toast');
   const shortcutsOverlay = document.getElementById('shortcuts-overlay');
 
@@ -28,7 +26,6 @@
 
   // Scroll state
   let lastScrollY = 0;
-  let scrollTicking = false;
 
   // Initialize theme
   function initTheme() {
@@ -244,52 +241,47 @@
 
   // Update sidebar active state based on anchor
   function updateSidebarActiveState(anchorId) {
+    // Plan nav (phase files only)
     const planNav = document.getElementById('plan-nav');
-    if (!planNav) return;
-
-    // Remove active from all items
-    planNav.querySelectorAll('.phase-item').forEach(item => {
-      item.classList.remove('active');
-    });
-
-    // Add active to matching item
-    const matchingItem = planNav.querySelector(`[data-anchor="${anchorId}"]`);
-    if (matchingItem) {
-      matchingItem.classList.add('active');
+    if (planNav) {
+      planNav.querySelectorAll('.phase-item').forEach(item => item.classList.remove('active'));
+      const matchingItem = planNav.querySelector(`[data-anchor="${anchorId}"]`);
+      if (matchingItem) matchingItem.classList.add('active');
     }
+    // TOC scroll-spy: highlight the link whose href matches the anchor.
+    document.querySelectorAll('.toc-list a').forEach(a => a.classList.remove('active'));
+    const tocLink = document.querySelector(`.toc-list a[href="#${CSS.escape(anchorId)}"]`);
+    if (tocLink) tocLink.classList.add('active');
   }
 
-  // Setup Intersection Observer for section tracking
+  // Setup Intersection Observer for section tracking. Watches anchors from
+  // both the plan-nav (phase files) and the TOC (every markdown file) so the
+  // active section highlight follows the user's scroll on any doc.
   function setupSectionObserver() {
     const planNav = document.getElementById('plan-nav');
-    if (!planNav) return;
+    const ids = new Set();
+    if (planNav) {
+      planNav.querySelectorAll('[data-anchor]').forEach(el => ids.add(el.dataset.anchor));
+    }
+    document.querySelectorAll('.toc-list a[href^="#"]').forEach(a => {
+      const id = a.getAttribute('href').slice(1);
+      if (id) ids.add(id);
+    });
+    if (ids.size === 0) return;
 
-    // Get all anchors from sidebar
-    const anchors = Array.from(planNav.querySelectorAll('[data-anchor]'))
-      .map(item => item.dataset.anchor);
-
-    if (anchors.length === 0) return;
-
-    // Find corresponding elements in content
-    const sections = anchors
+    const sections = Array.from(ids)
       .map(id => document.getElementById(id))
-      .filter(el => el !== null);
-
+      .filter(Boolean);
     if (sections.length === 0) return;
 
-    // Create observer
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          updateSidebarActiveState(entry.target.id);
-        }
+        if (entry.isIntersecting) updateSidebarActiveState(entry.target.id);
       });
     }, {
-      rootMargin: '-20% 0px -60% 0px', // Trigger when section is in upper portion of viewport
+      rootMargin: '-20% 0px -60% 0px',
       threshold: 0
     });
-
-    // Observe all sections
     sections.forEach(section => observer.observe(section));
   }
 
@@ -318,40 +310,13 @@
     };
   }
 
-  // Update progress bar based on scroll position
-  function updateProgressBar() {
-    if (!progressFill) return;
-
-    const scrollTop = window.scrollY;
-    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
-
-    progressFill.style.width = `${Math.min(progress, 100)}%`;
-  }
-
-  // Handle scroll for progress bar and fixed header shadow
+  // Handle scroll for fixed header shadow.
   function handleScroll() {
     if (!header) return;
-
     const currentScrollY = window.scrollY;
-
-    // Add fixed shadow when scrolled past header
-    if (currentScrollY > 60) {
-      header.classList.add('is-fixed');
-    } else {
-      header.classList.remove('is-fixed');
-    }
-
+    if (currentScrollY > 60) header.classList.add('is-fixed');
+    else header.classList.remove('is-fixed');
     lastScrollY = currentScrollY;
-
-    // Update progress bar using requestAnimationFrame
-    if (!scrollTicking) {
-      window.requestAnimationFrame(() => {
-        updateProgressBar();
-        scrollTicking = false;
-      });
-      scrollTicking = true;
-    }
   }
 
   // Initialize Mermaid diagrams
@@ -819,7 +784,6 @@
 
     // Initialize scroll state and handlers
     lastScrollY = window.scrollY;
-    updateProgressBar();
     window.addEventListener('scroll', throttle(handleScroll, 100), { passive: true });
 
     // Handle resize
