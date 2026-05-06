@@ -11,7 +11,7 @@ import (
 const cacheFile = "version-check.json"
 
 // ResolveCachePath returns the absolute path of the version-check cache
-// file. Honours XDG_CACHE_HOME first, then falls back to os.UserCacheDir.
+// file. Honors XDG_CACHE_HOME first, then falls back to os.UserCacheDir.
 // The directory is NOT created here — WriteCache MkdirAll's on demand.
 func ResolveCachePath() (string, error) {
 	if xdg := os.Getenv("XDG_CACHE_HOME"); xdg != "" {

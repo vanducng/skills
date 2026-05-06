@@ -44,13 +44,16 @@ vd add browserbase/skills/browser --as browser
 # 3. Vendor it into skills/
 vd sync
 
-# 4. Regenerate .claude-plugin/ (runs automatically after sync, explicit call optional)
+# 4. Regenerate .claude-plugin/ and Codex repo-scope links
 vd build
+
+# 5. Install local skills into Codex user scope
+vd install codex
 ```
 
 After these steps:
 - `skills/browser/` contains the vendored skill.
-- `.agents/browser` is a symlink (for agent context loading).
+- `.agents/skills/browser` is a repo-scoped Codex skill symlink.
 - `.claude-plugin/marketplace.json` and `plugin.json` are regenerated (byte-equal to current in bundle mode).
 
 ## Command summary
@@ -67,7 +70,8 @@ After these steps:
 | `vd pin <skill> <sha>` | Lock a skill to a specific commit SHA |
 | `vd detach <skill>` | Stop tracking a skill; leaves files on disk untouched |
 | `vd remove <skill>` | Remove a skill from manifest, lock, and (by default) disk |
-| `vd build [target...]` | Emit `marketplace.json`, `plugin.json`, and `.agents/` symlinks |
+| `vd build [target...]` | Emit `marketplace.json`, `plugin.json`, and `.agents/skills/` symlinks |
+| `vd install [agent] [skill...]` | Install local skills into Codex or Claude Code |
 | `vd cache clean` | Delete the `.vd-cache/` download cache |
 
 ## Global flags
