@@ -135,7 +135,7 @@ Only honored when `[targets.claude].mode = "bundle"`. Controls the metadata for 
 
 ## [targets.agents]
 
-Reserved for future agent-specific emission. Currently a no-op placeholder. The `.agents/` symlink directory is always emitted by `vd build` regardless of this section.
+Reserved for future agent-specific emission. Currently a no-op placeholder. The `.agents/skills/` symlink directory is always emitted by `vd build` regardless of this section.
 
 ---
 

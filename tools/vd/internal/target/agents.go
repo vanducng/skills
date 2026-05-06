@@ -15,7 +15,7 @@ func (e *agentsEmitter) Name() string { return "agents" }
 
 func (e *agentsEmitter) Emit(ctx Context) error {
 	skillsDir := filepath.Join(ctx.RepoRoot, "skills")
-	agentsDir := filepath.Join(ctx.RepoRoot, ".agents")
+	agentsDir := filepath.Join(ctx.RepoRoot, ".agents", "skills")
 
 	desired, err := discoverSkillNames(skillsDir)
 	if err != nil {
@@ -52,7 +52,7 @@ func (e *agentsEmitter) Emit(ctx Context) error {
 		}
 	}
 
-	// Remove stale entries.
+	// Remove stale entries from the managed Codex skills directory only.
 	desiredSet := make(map[string]struct{}, len(desired))
 	for _, n := range desired {
 		desiredSet[n] = struct{}{}
