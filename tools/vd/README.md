@@ -106,6 +106,7 @@ The check runs in the background and is silent on any failure (offline, rate-lim
 
 ## Documentation
 
+- [Usage guide](docs/usage.md) — core workflows, main features, and common commands
 - [Command reference](docs/commands.md) — flags, examples, exit codes per verb
 - [Config schema](docs/config-schema.md) — full `skills.toml` field reference
 - [FAQ](docs/faq.md) — naming, conflicts, dirty-refuse, and design decisions
