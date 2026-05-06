@@ -191,8 +191,11 @@ function createHttpServer(options) {
       // sidebar + chrome show up. Iframes, media (<img>/<video>/<audio>),
       // and fetch keep raw byte streaming — otherwise the HTML viewer's
       // own iframe (src=/file/...) would recursively reload the chrome.
+      // ?raw=1 is the escape hatch for the "Open raw" button so the user
+      // can land on the bare file even from a top-level click.
       const dest = String(req.headers['sec-fetch-dest'] || '');
-      const isTopLevelNav = dest === 'document';
+      const wantRaw = parsedUrl.query?.raw === '1';
+      const isTopLevelNav = !wantRaw && dest === 'document';
       if (isTopLevelNav) {
         const target = '/view?file=' + encodeURIComponent(filePath);
         res.writeHead(302, { Location: target });

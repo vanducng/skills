@@ -199,7 +199,7 @@ function buildPage(name, filePath, cssHref, body, opts = {}) {
     <h1 class="title" title="${esc(filePath)}">${esc(name)}</h1>
     <span class="spacer"></span>
     <button class="btn" id="copy-btn" type="button" title="Copy file contents">Copy</button>
-    <a class="btn" href="/file${esc(filePath)}" target="_blank" title="Open raw">Raw</a>
+    <a class="btn" href="/file${esc(filePath)}?raw=1" target="_blank" rel="noopener noreferrer" title="Open raw">Raw</a>
   </header>
   <main class="stage text-stage">${body}</main>
   <script>
@@ -240,7 +240,7 @@ function renderTextView(filePath, cssHref, opts = {}) {
   if (r.binary) {
     const body = `<div class="text-binary">
       <p><strong>${esc(name)}</strong> looks binary.</p>
-      <p><a href="/file${esc(filePath)}" target="_blank">Open raw</a></p>
+      <p><a href="/file${esc(filePath)}?raw=1" target="_blank" rel="noopener noreferrer">Open raw</a></p>
     </div>`;
     return buildPage(name, filePath, cssHref, body, opts);
   }
@@ -248,7 +248,7 @@ function renderTextView(filePath, cssHref, opts = {}) {
     const mb = (r.size / 1024 / 1024).toFixed(1);
     const body = `<div class="text-toolarge">
       <p><strong>${esc(name)}</strong> is ${mb} MB — too large to render.</p>
-      <p><a href="/file${esc(filePath)}" target="_blank">Open raw</a></p>
+      <p><a href="/file${esc(filePath)}?raw=1" target="_blank" rel="noopener noreferrer">Open raw</a></p>
     </div>`;
     return buildPage(name, filePath, cssHref, body, opts);
   }
@@ -275,6 +275,9 @@ function renderHtmlView(filePath, cssHref, opts = {}) {
   const treeRoot = opts.sidebar && opts.sidebar.treeRoot;
   const headPersist = opts.sidebar ? ROOT_PERSIST_HEAD_SCRIPT : '';
   const fileUrl = '/file' + filePath;
+  // ?raw=1 bypasses the /file/ → /view top-level redirect so the user
+  // actually lands on the bare HTML instead of re-rendering chrome.
+  const rawUrl = fileUrl + '?raw=1';
   const sourceUrl = withRoot(`/view?file=${encodeURIComponent(filePath)}&raw=1`, treeRoot);
   const folderHref = withRoot(`/browse?dir=${encodeURIComponent(path.dirname(filePath))}`, treeRoot);
   return `<!doctype html>
@@ -307,7 +310,7 @@ function renderHtmlView(filePath, cssHref, opts = {}) {
     <h1 class="title" title="${esc(filePath)}">${esc(name)}</h1>
     <span class="spacer"></span>
     <a class="btn" href="${esc(sourceUrl)}" title="Show HTML source">Source</a>
-    <a class="btn" href="${esc(fileUrl)}" target="_blank">Open raw</a>
+    <a class="btn" href="${esc(rawUrl)}" target="_blank" rel="noopener noreferrer">Open raw</a>
   </header>
   <main class="stage">
     <iframe class="html-frame" src="${esc(fileUrl)}" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
@@ -322,6 +325,7 @@ function renderPdfView(filePath, cssHref, opts = {}) {
   const treeRoot = opts.sidebar && opts.sidebar.treeRoot;
   const headPersist = opts.sidebar ? ROOT_PERSIST_HEAD_SCRIPT : '';
   const fileUrl = '/file' + filePath;
+  const rawUrl = fileUrl + '?raw=1';
   const folderHref = withRoot(`/browse?dir=${encodeURIComponent(path.dirname(filePath))}`, treeRoot);
   return `<!doctype html>
 <html lang="en">
@@ -341,7 +345,7 @@ function renderPdfView(filePath, cssHref, opts = {}) {
     <a class="btn" href="${esc(folderHref)}" title="Folder (Esc)">← Folder</a>
     <h1 class="title" title="${esc(filePath)}">${esc(name)}</h1>
     <span class="spacer"></span>
-    <a class="btn" href="${esc(fileUrl)}" target="_blank">Open raw</a>
+    <a class="btn" href="${esc(rawUrl)}" target="_blank" rel="noopener noreferrer">Open raw</a>
   </header>
   <main class="stage" style="overflow:hidden;padding:0">
     <embed src="${esc(fileUrl)}" type="application/pdf" style="width:100%;height:100%;border:0" />
