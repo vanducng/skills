@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parsePlanPhases, normalizeStatus, filenameToTitle } = require('./plan-table-parser.cjs');
+const { withRoot } = require('./url-helpers.cjs');
 
 /** Escape HTML special characters to prevent XSS */
 function escapeHtml(str) {
@@ -101,7 +102,7 @@ function getGroupBadge(phases) {
 }
 
 /** Render a single phase item as HTML */
-function renderPhaseItem(phase, index, currentIndex, normalizedCurrentPath) {
+function renderPhaseItem(phase, index, currentIndex, normalizedCurrentPath, root) {
   const isActive = index === currentIndex;
   const statusClass = phase.status.replace(/\s+/g, '-');
   const normalizedPhasePath = path.normalize(phase.file);
@@ -123,8 +124,8 @@ function renderPhaseItem(phase, index, currentIndex, normalizedCurrentPath) {
 
   let href, isInlineSection = false;
   if (isSameFile && safeAnchor) { href = `#${safeAnchor}`; isInlineSection = true; }
-  else if (safeAnchor) { href = `/view?file=${encodeURIComponent(phase.file)}#${safeAnchor}`; }
-  else { href = `/view?file=${encodeURIComponent(phase.file)}`; }
+  else if (safeAnchor) { href = withRoot(`/view?file=${encodeURIComponent(phase.file)}#${safeAnchor}`, root); }
+  else { href = withRoot(`/view?file=${encodeURIComponent(phase.file)}`, root); }
 
   const dataAnchor = safeAnchor ? `data-anchor="${safeAnchor}"` : '';
   const inlineSectionClass = isInlineSection ? 'inline-section' : '';
@@ -137,7 +138,8 @@ function renderPhaseItem(phase, index, currentIndex, normalizedCurrentPath) {
 }
 
 /** Generate navigation sidebar HTML */
-function generateNavSidebar(filePath) {
+function generateNavSidebar(filePath, opts = {}) {
+  const root = opts.root;
   const { planInfo, currentIndex, allPhases } = getNavigationContext(filePath);
   if (!planInfo.isPlan) return '';
 
@@ -146,7 +148,7 @@ function generateNavSidebar(filePath) {
 
   // Flat list when <= 15 phases (no accordion grouping needed)
   if (allPhases.length <= 15) {
-    const items = allPhases.map((phase, index) => renderPhaseItem(phase, index, currentIndex, normalizedCurrentPath)).join('');
+    const items = allPhases.map((phase, index) => renderPhaseItem(phase, index, currentIndex, normalizedCurrentPath, root)).join('');
     return `<nav class="plan-nav" id="plan-nav">
       <div class="plan-title"><span class="plan-icon">&#128214;</span><span>${escapeHtml(planName)}</span></div>
       <ul class="phase-list">${items}</ul></nav>`;
@@ -168,7 +170,7 @@ function generateNavSidebar(filePath) {
     const groupId = `phase-group-${group.start}-${group.end}`;
     const groupLabel = group.start === 0 ? 'Overview' : group.start === group.end ? `Phase ${group.start}` : `Phases ${group.start}-${group.end}`;
     const badge = getGroupBadge(group.phases.map(p => p.phase));
-    const items = group.phases.map(({ phase, index }) => renderPhaseItem(phase, index, currentIndex, normalizedCurrentPath)).join('');
+    const items = group.phases.map(({ phase, index }) => renderPhaseItem(phase, index, currentIndex, normalizedCurrentPath, root)).join('');
     return `<div class="phase-group" data-phase-id="${groupId}">
       <button class="phase-header" tabindex="0" aria-expanded="true" aria-controls="${groupId}-items">
         <span class="phase-chevron">&#9660;</span><span class="phase-name">${escapeHtml(groupLabel)}</span>${badge}
@@ -182,7 +184,8 @@ function generateNavSidebar(filePath) {
 }
 
 /** Generate prev/next navigation footer HTML */
-function generateNavFooter(filePath) {
+function generateNavFooter(filePath, opts = {}) {
+  const root = opts.root;
   const { prev, next } = getNavigationContext(filePath);
   if (!prev && !next) return '';
 
@@ -190,12 +193,12 @@ function generateNavFooter(filePath) {
   const nextExists = next && fs.existsSync(next.file);
 
   const prevHtml = prev ? (prevExists
-    ? `<a href="/view?file=${encodeURIComponent(prev.file)}" class="nav-prev"><span class="nav-arrow">&larr;</span><span class="nav-label">${escapeHtml(prev.name)}</span></a>`
+    ? `<a href="${withRoot(`/view?file=${encodeURIComponent(prev.file)}`, root)}" class="nav-prev"><span class="nav-arrow">&larr;</span><span class="nav-label">${escapeHtml(prev.name)}</span></a>`
     : `<span class="nav-prev nav-unavailable" title="Phase planned but not yet implemented"><span class="nav-arrow">&larr;</span><span class="nav-label">${escapeHtml(prev.name)}</span><span class="nav-badge">Planned</span></span>`)
     : '<span></span>';
 
   const nextHtml = next ? (nextExists
-    ? `<a href="/view?file=${encodeURIComponent(next.file)}" class="nav-next"><span class="nav-label">${escapeHtml(next.name)}</span><span class="nav-arrow">&rarr;</span></a>`
+    ? `<a href="${withRoot(`/view?file=${encodeURIComponent(next.file)}`, root)}" class="nav-next"><span class="nav-label">${escapeHtml(next.name)}</span><span class="nav-arrow">&rarr;</span></a>`
     : `<span class="nav-next nav-unavailable" title="Phase planned but not yet implemented"><span class="nav-label">${escapeHtml(next.name)}</span><span class="nav-badge">Planned</span><span class="nav-arrow">&rarr;</span></span>`)
     : '<span></span>';
 

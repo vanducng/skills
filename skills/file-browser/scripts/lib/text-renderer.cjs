@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const hljs = require('highlight.js');
 const { renderSidebar } = require('./sidebar.cjs');
+const { withRoot, ROOT_PERSIST_HEAD_SCRIPT } = require('./url-helpers.cjs');
 
 const LANG_BY_EXT = {
   '.js': 'javascript', '.mjs': 'javascript', '.cjs': 'javascript',
@@ -173,12 +174,16 @@ body.single.text > main.stage {
 
 function buildPage(name, filePath, cssHref, body, opts = {}) {
   const sidebarHtml = opts.sidebar ? renderSidebar(opts.sidebar) : '';
+  const treeRoot = opts.sidebar && opts.sidebar.treeRoot;
+  const headPersist = opts.sidebar ? ROOT_PERSIST_HEAD_SCRIPT : '';
+  const folderHref = withRoot(`/browse?dir=${encodeURIComponent(path.dirname(filePath))}`, treeRoot);
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
+  ${headPersist}
   ${HEAD_BOOTSTRAP}
   <title>${esc(name)}</title>
   <link rel="stylesheet" href="${cssHref}" />
@@ -190,7 +195,7 @@ function buildPage(name, filePath, cssHref, body, opts = {}) {
 <body class="single text">
   ${sidebarHtml}
   <header class="topbar">
-    <a class="btn" href="/browse?dir=${encodeURIComponent(path.dirname(filePath))}" title="Folder (Esc)">← Folder</a>
+    <a class="btn" href="${esc(folderHref)}" title="Folder (Esc)">← Folder</a>
     <h1 class="title" title="${esc(filePath)}">${esc(name)}</h1>
     <span class="spacer"></span>
     <button class="btn" id="copy-btn" type="button" title="Copy file contents">Copy</button>
@@ -267,14 +272,18 @@ function renderTextView(filePath, cssHref, opts = {}) {
 function renderHtmlView(filePath, cssHref, opts = {}) {
   const name = path.basename(filePath);
   const sidebarHtml = opts.sidebar ? renderSidebar(opts.sidebar) : '';
+  const treeRoot = opts.sidebar && opts.sidebar.treeRoot;
+  const headPersist = opts.sidebar ? ROOT_PERSIST_HEAD_SCRIPT : '';
   const fileUrl = '/file' + filePath;
-  const sourceUrl = `/view?file=${encodeURIComponent(filePath)}&raw=1`;
+  const sourceUrl = withRoot(`/view?file=${encodeURIComponent(filePath)}&raw=1`, treeRoot);
+  const folderHref = withRoot(`/browse?dir=${encodeURIComponent(path.dirname(filePath))}`, treeRoot);
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
+  ${headPersist}
   ${HEAD_BOOTSTRAP}
   <title>${esc(name)}</title>
   <link rel="stylesheet" href="${cssHref}" />
@@ -294,7 +303,7 @@ function renderHtmlView(filePath, cssHref, opts = {}) {
 <body class="single html-view">
   ${sidebarHtml}
   <header class="topbar">
-    <a class="btn" href="/browse?dir=${encodeURIComponent(path.dirname(filePath))}" title="Folder (Esc)">← Folder</a>
+    <a class="btn" href="${esc(folderHref)}" title="Folder (Esc)">← Folder</a>
     <h1 class="title" title="${esc(filePath)}">${esc(name)}</h1>
     <span class="spacer"></span>
     <a class="btn" href="${esc(sourceUrl)}" title="Show HTML source">Source</a>
@@ -310,13 +319,17 @@ function renderHtmlView(filePath, cssHref, opts = {}) {
 function renderPdfView(filePath, cssHref, opts = {}) {
   const name = path.basename(filePath);
   const sidebarHtml = opts.sidebar ? renderSidebar(opts.sidebar) : '';
+  const treeRoot = opts.sidebar && opts.sidebar.treeRoot;
+  const headPersist = opts.sidebar ? ROOT_PERSIST_HEAD_SCRIPT : '';
   const fileUrl = '/file' + filePath;
+  const folderHref = withRoot(`/browse?dir=${encodeURIComponent(path.dirname(filePath))}`, treeRoot);
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
+  ${headPersist}
   ${HEAD_BOOTSTRAP}
   <title>${esc(name)}</title>
   <link rel="stylesheet" href="${cssHref}" />
@@ -325,7 +338,7 @@ function renderPdfView(filePath, cssHref, opts = {}) {
 <body class="single">
   ${sidebarHtml}
   <header class="topbar">
-    <a class="btn" href="/browse?dir=${encodeURIComponent(path.dirname(filePath))}" title="Folder (Esc)">← Folder</a>
+    <a class="btn" href="${esc(folderHref)}" title="Folder (Esc)">← Folder</a>
     <h1 class="title" title="${esc(filePath)}">${esc(name)}</h1>
     <span class="spacer"></span>
     <a class="btn" href="${esc(fileUrl)}" target="_blank">Open raw</a>

@@ -137,10 +137,10 @@ hr {
   margin: 0;
 }
 
-.code-expand-btn {
+.code-expand-btn,
+.code-copy-btn {
   position: absolute;
   top: 0.5rem;
-  right: 0.5rem;
   z-index: 10;
   padding: 0.25rem 0.5rem;
   background: var(--bg-primary);
@@ -154,13 +154,27 @@ hr {
   opacity: 0;
 }
 
-.code-wrapper:hover .code-expand-btn {
+.code-expand-btn { right: 0.5rem; }
+/* Copy button sits to the left of expand when both exist; right edge otherwise. */
+.code-copy-btn { right: 0.5rem; }
+.code-wrapper:has(.code-expand-btn) .code-copy-btn { right: 2.5rem; }
+
+.code-wrapper:hover .code-expand-btn,
+.code-wrapper:hover .code-copy-btn {
   opacity: 1;
 }
 
-.code-expand-btn:hover {
+.code-expand-btn:hover,
+.code-copy-btn:hover {
   background: var(--bg-secondary);
   color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.code-copy-btn.flash {
+  opacity: 1;
+  background: var(--accent);
+  color: white;
   border-color: var(--accent);
 }
 

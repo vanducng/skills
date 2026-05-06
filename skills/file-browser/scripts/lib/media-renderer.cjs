@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { renderSidebar } = require('./sidebar.cjs');
+const { withRoot, ROOT_PERSIST_HEAD_SCRIPT } = require('./url-helpers.cjs');
 
 const IMAGE_EXTS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif',
@@ -96,11 +97,14 @@ function renderSingleView(filePath, cssHref, opts = {}) {
       ? `<span class="counter">${index + 1} / ${siblings.length}</span>`
       : '';
 
-  const prevHref = prev ? `/view?file=${encodeURIComponent(prev)}` : '#';
-  const nextHref = next ? `/view?file=${encodeURIComponent(next)}` : '#';
-  const browseHref = `/browse?dir=${encodeURIComponent(parent)}`;
+  const treeRoot = opts.sidebar && opts.sidebar.treeRoot;
+  const prevHref = prev ? withRoot(`/view?file=${encodeURIComponent(prev)}`, treeRoot) : '#';
+  const nextHref = next ? withRoot(`/view?file=${encodeURIComponent(next)}`, treeRoot) : '#';
+  const browseHref = withRoot(`/browse?dir=${encodeURIComponent(parent)}`, treeRoot);
+  const rootSuffix = treeRoot ? `&root=${encodeURIComponent(treeRoot)}` : '';
 
   const sidebarHtml = opts.sidebar ? renderSidebar(opts.sidebar) : '';
+  const headPersist = opts.sidebar ? ROOT_PERSIST_HEAD_SCRIPT : '';
 
   return `<!doctype html>
 <html lang="en">
@@ -108,6 +112,7 @@ function renderSingleView(filePath, cssHref, opts = {}) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
+  ${headPersist}
   <script>(function(){try{var h=document.documentElement;var t=localStorage.getItem('theme');var dark=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches);h.dataset.theme=dark?'dark':'light';h.style.colorScheme=dark?'dark':'light';h.style.background=dark?'#1a1a1a':'#faf8f3';}catch(e){}})();</script>
   <title>${esc(name)}</title>
   <link rel="stylesheet" href="${cssHref}" />
@@ -131,11 +136,12 @@ function renderSingleView(filePath, cssHref, opts = {}) {
       var prev = ${prev ? `'${encodeURIComponent(prev).replace(/'/g, "\\'")}'` : 'null'};
       var next = ${next ? `'${encodeURIComponent(next).replace(/'/g, "\\'")}'` : 'null'};
       var parent = '${encodeURIComponent(parent).replace(/'/g, "\\'")}';
+      var rootSuffix = '${rootSuffix.replace(/'/g, "\\'")}';
       document.addEventListener('keydown', function (e) {
         if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
-        if (e.key === 'ArrowLeft' && prev) location.href = '/view?file=' + prev;
-        else if (e.key === 'ArrowRight' && next) location.href = '/view?file=' + next;
-        else if (e.key === 'Escape') location.href = '/browse?dir=' + parent;
+        if (e.key === 'ArrowLeft' && prev) location.href = '/view?file=' + prev + rootSuffix;
+        else if (e.key === 'ArrowRight' && next) location.href = '/view?file=' + next + rootSuffix;
+        else if (e.key === 'Escape') location.href = '/browse?dir=' + parent + rootSuffix;
       });
     })();
   </script>
@@ -191,6 +197,7 @@ function renderGallery(dirPath, cssHref, opts = {}) {
   docs.sort(sortByName);
   others.sort(sortByName);
 
+  const treeRoot = opts.sidebar && opts.sidebar.treeRoot;
   const parentDir = path.dirname(dirPath);
   const showParent = parentDir !== dirPath;
 
@@ -198,11 +205,11 @@ function renderGallery(dirPath, cssHref, opts = {}) {
   if (showParent || dirs.length > 0) {
     folderHtml += '<section class="folders"><h2 class="section-title">Folders</h2><div class="folder-grid">';
     if (showParent) {
-      folderHtml += `<a class="folder" href="/browse?dir=${encodeURIComponent(parentDir)}">
+      folderHtml += `<a class="folder" href="${esc(withRoot(`/browse?dir=${encodeURIComponent(parentDir)}`, treeRoot))}">
         <div class="folder-icon">↩</div><div class="folder-name">..</div></a>`;
     }
     for (const d of dirs) {
-      folderHtml += `<a class="folder" href="/browse?dir=${encodeURIComponent(d.path)}">
+      folderHtml += `<a class="folder" href="${esc(withRoot(`/browse?dir=${encodeURIComponent(d.path)}`, treeRoot))}">
         <div class="folder-icon">📁</div><div class="folder-name">${esc(d.name)}</div></a>`;
     }
     folderHtml += '</div></section>';
@@ -212,7 +219,7 @@ function renderGallery(dirPath, cssHref, opts = {}) {
   if (docs.length > 0) {
     docsHtml += '<section class="docs"><h2 class="section-title">Documents (' + docs.length + ')</h2><ul class="other-list">';
     for (const d of docs) {
-      const viewUrl = `/view?file=${encodeURIComponent(d.path)}`;
+      const viewUrl = withRoot(`/view?file=${encodeURIComponent(d.path)}`, treeRoot);
       docsHtml += `<li><a href="${esc(viewUrl)}">📄 ${esc(d.name)}</a></li>`;
     }
     docsHtml += '</ul></section>';
@@ -223,7 +230,7 @@ function renderGallery(dirPath, cssHref, opts = {}) {
     mediaHtml += '<section class="media"><h2 class="section-title">Media (' + media.length + ')</h2><div class="media-grid">';
     for (const m of media) {
       const fileUrl = '/file' + m.path;
-      const viewUrl = `/view?file=${encodeURIComponent(m.path)}`;
+      const viewUrl = withRoot(`/view?file=${encodeURIComponent(m.path)}`, treeRoot);
       let thumb;
       if (m.kind === 'image') {
         thumb = `<img loading="lazy" decoding="async" src="${esc(fileUrl)}" alt="${esc(m.name)}" />`;
@@ -248,7 +255,7 @@ function renderGallery(dirPath, cssHref, opts = {}) {
   if (others.length > 0) {
     otherHtml += '<section class="others"><h2 class="section-title">Other files</h2><ul class="other-list">';
     for (const o of others) {
-      const viewUrl = `/view?file=${encodeURIComponent(o.path)}`;
+      const viewUrl = withRoot(`/view?file=${encodeURIComponent(o.path)}`, treeRoot);
       otherHtml += `<li><a href="${esc(viewUrl)}">${esc(o.name)}</a></li>`;
     }
     otherHtml += '</ul></section>';
@@ -260,6 +267,7 @@ function renderGallery(dirPath, cssHref, opts = {}) {
       : '';
 
   const sidebarHtml = opts.sidebar ? renderSidebar(opts.sidebar) : '';
+  const headPersist = opts.sidebar ? ROOT_PERSIST_HEAD_SCRIPT : '';
 
   return `<!doctype html>
 <html lang="en">
@@ -267,6 +275,7 @@ function renderGallery(dirPath, cssHref, opts = {}) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
+  ${headPersist}
   <script>(function(){try{var h=document.documentElement;var t=localStorage.getItem('theme');var dark=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches);h.dataset.theme=dark?'dark':'light';h.style.colorScheme=dark?'dark':'light';h.style.background=dark?'#1a1a1a':'#faf8f3';}catch(e){}})();</script>
   <title>📁 ${esc(path.basename(dirPath) || dirPath)}</title>
   <link rel="stylesheet" href="${cssHref}" />

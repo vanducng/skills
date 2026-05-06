@@ -6,12 +6,14 @@ const path = require('path');
 const { renderMarkdownFile, renderTOCHtml } = require('./markdown-renderer.cjs');
 const { generateNavSidebar, generateNavFooter, detectPlan, getNavigationContext } = require('./plan-navigator.cjs');
 const { renderSidebar } = require('./sidebar.cjs');
+const { withRoot, ROOT_PERSIST_HEAD_SCRIPT } = require('./url-helpers.cjs');
 
 function renderMarkdownPage(filePath, assetsDir, opts = {}) {
-  const { html, toc, frontmatter, title } = renderMarkdownFile(filePath);
+  const treeRoot = opts.sidebar && opts.sidebar.treeRoot;
+  const { html, toc, frontmatter, title } = renderMarkdownFile(filePath, { root: treeRoot });
   const tocHtml = renderTOCHtml(toc);
-  const navSidebar = generateNavSidebar(filePath);
-  const navFooter = generateNavFooter(filePath);
+  const navSidebar = generateNavSidebar(filePath, { root: treeRoot });
+  const navFooter = generateNavFooter(filePath, { root: treeRoot });
   const planInfo = detectPlan(filePath);
   const navContext = getNavigationContext(filePath);
 
@@ -19,8 +21,9 @@ function renderMarkdownPage(filePath, assetsDir, opts = {}) {
   let template = fs.readFileSync(templatePath, 'utf8');
 
   const parentDir = path.dirname(filePath);
+  const backHref = withRoot(`/browse?dir=${encodeURIComponent(parentDir)}`, treeRoot);
   const backButton = `
-    <a href="/browse?dir=${encodeURIComponent(parentDir)}" class="icon-btn back-btn" title="Back to folder">
+    <a href="${backHref}" class="icon-btn back-btn" title="Back to folder">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M19 12H5M12 19l-7-7 7-7"/>
       </svg>
@@ -29,13 +32,13 @@ function renderMarkdownPage(filePath, assetsDir, opts = {}) {
   let headerNav = '';
   if (navContext.prev || navContext.next) {
     const prevBtn = navContext.prev && fs.existsSync(navContext.prev.file)
-      ? `<a href="/view?file=${encodeURIComponent(navContext.prev.file)}" class="header-nav-btn prev" title="${navContext.prev.name}">
+      ? `<a href="${withRoot(`/view?file=${encodeURIComponent(navContext.prev.file)}`, treeRoot)}" class="header-nav-btn prev" title="${navContext.prev.name}">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
           <span>Prev</span>
         </a>`
       : '';
     const nextBtn = navContext.next && fs.existsSync(navContext.next.file)
-      ? `<a href="/view?file=${encodeURIComponent(navContext.next.file)}" class="header-nav-btn next" title="${navContext.next.name}">
+      ? `<a href="${withRoot(`/view?file=${encodeURIComponent(navContext.next.file)}`, treeRoot)}" class="header-nav-btn next" title="${navContext.next.name}">
           <span>Next</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </a>`
@@ -63,7 +66,7 @@ function renderMarkdownPage(filePath, assetsDir, opts = {}) {
 
   if (fbSidebar) {
     rendered = rendered
-      .replace('</head>', '  <link rel="stylesheet" href="/assets/sidebar.css" />\n</head>')
+      .replace('</head>', `  ${ROOT_PERSIST_HEAD_SCRIPT}\n  <link rel="stylesheet" href="/assets/sidebar.css" />\n</head>`)
       .replace(/<body([^>]*)>/, `<body$1>\n  ${fbSidebar}`);
   }
   return rendered;
