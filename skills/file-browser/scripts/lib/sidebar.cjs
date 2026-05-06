@@ -27,6 +27,7 @@ function renderSidebar({ treeRoot, activePath }) {
       <button class="fb-sidebar-font" data-size="M" type="button" title="Medium">M</button>
       <button class="fb-sidebar-font" data-size="L" type="button" title="Large">L</button>
     </div>
+    <button class="fb-sidebar-hidden" type="button" title="Show hidden files (.) " aria-label="Toggle hidden files" aria-pressed="false">·</button>
     <button class="fb-sidebar-theme" type="button" title="Toggle dark / light (T)" aria-label="Toggle theme">
       <span class="theme-icon" data-icon="dark">☾</span>
       <span class="theme-icon" data-icon="light">☀</span>
@@ -55,6 +56,7 @@ function renderSidebar({ treeRoot, activePath }) {
         <tr><td><kbd>n</kbd> / <kbd>N</kbd></td><td>next / prev match</td></tr>
         <tr><td><kbd>r</kbd></td><td>reload current folder</td></tr>
         <tr><td><kbd>T</kbd></td><td>toggle dark / light</td></tr>
+        <tr><td><kbd>.</kbd></td><td>toggle hidden files</td></tr>
         <tr><td><kbd>\\</kbd></td><td>toggle sidebar</td></tr>
         <tr><td><kbd>?</kbd></td><td>this help</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>clear filter / close help</td></tr>

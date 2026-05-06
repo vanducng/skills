@@ -1,0 +1,115 @@
+:root {
+  --pdf-bg: #f3f3f3;
+  --pdf-toolbar-bg: rgba(250, 248, 243, 0.95);
+  --pdf-toolbar-fg: #222;
+  --pdf-border: rgba(0, 0, 0, 0.12);
+  --pdf-input-bg: #fff;
+  --pdf-btn-hover: rgba(0, 0, 0, 0.06);
+  --pdf-toolbar-h: 40px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --pdf-bg: #1a1a1a;
+    --pdf-toolbar-bg: rgba(26, 26, 26, 0.95);
+    --pdf-toolbar-fg: #eee;
+    --pdf-border: rgba(255, 255, 255, 0.12);
+    --pdf-input-bg: #2a2a2a;
+    --pdf-btn-hover: rgba(255, 255, 255, 0.08);
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--pdf-bg);
+  color: var(--pdf-toolbar-fg);
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow: hidden;
+}
+
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--pdf-toolbar-h);
+  padding: 0 12px;
+  border-bottom: 1px solid var(--pdf-border);
+  background: var(--pdf-toolbar-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.tb-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tb-group.tb-end { margin-left: auto; }
+.tb-group.tb-search { flex: 1; max-width: 360px; }
+.tb-sep { opacity: 0.6; }
+
+.pdf-toolbar button,
+.pdf-toolbar select {
+  background: transparent;
+  color: inherit;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font: inherit;
+  min-width: 28px;
+}
+
+.pdf-toolbar button:hover,
+.pdf-toolbar select:hover { background: var(--pdf-btn-hover); }
+
+.pdf-toolbar button:active { transform: translateY(1px); }
+
+.pdf-toolbar input[type="number"],
+.pdf-toolbar input[type="search"] {
+  background: var(--pdf-input-bg);
+  color: inherit;
+  border: 1px solid var(--pdf-border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font: inherit;
+}
+
+.pdf-toolbar input[type="number"] { width: 48px; text-align: center; }
+.pdf-toolbar input[type="search"] { flex: 1; min-width: 80px; }
+
+.tb-status {
+  opacity: 0.7;
+  font-size: 11px;
+  min-width: 60px;
+  white-space: nowrap;
+}
+
+#viewerContainer {
+  position: absolute;
+  top: var(--pdf-toolbar-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: auto;
+  background: var(--pdf-bg);
+}
+
+#errorBanner {
+  position: fixed;
+  top: var(--pdf-toolbar-h);
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  background: #b00020;
+  color: #fff;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  white-space: pre-wrap;
+  z-index: 20;
+}

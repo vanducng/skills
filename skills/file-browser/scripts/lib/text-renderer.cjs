@@ -333,6 +333,9 @@ function renderPdfView(filePath, cssHref, opts = {}) {
   const fileUrl = '/file' + filePath;
   const rawUrl = fileUrl + '?raw=1';
   const folderHref = withRoot(`/browse?dir=${encodeURIComponent(path.dirname(filePath))}`, treeRoot);
+  const sourceUrl = withRoot(`/view?file=${encodeURIComponent(filePath)}&raw=1`, treeRoot);
+  // Custom minimal viewer wrapping pdfjs-dist's PDFViewer component.
+  const viewerSrc = `/assets/pdfjs-viewer/viewer.html?file=${encodeURIComponent(fileUrl)}`;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -344,17 +347,29 @@ function renderPdfView(filePath, cssHref, opts = {}) {
   <title>${esc(name)}</title>
   <link rel="stylesheet" href="${cssHref}" />
   <link rel="stylesheet" href="/assets/sidebar.css" />
+  <style>
+    body.single.pdf-view { --header-h: 40px; }
+    body.single.pdf-view > .topbar { height: 40px; padding: 0 0.75rem; }
+    body.single.pdf-view > main.stage {
+      display: block;
+      height: 100%;
+      overflow: hidden;
+      padding: 0;
+    }
+    .pdf-frame { width: 100%; height: 100%; border: 0; background: var(--bg, #1a1a1a); }
+  </style>
 </head>
-<body class="single">
+<body class="single pdf-view">
   ${sidebarHtml}
   <header class="topbar">
     <a class="btn" href="${esc(folderHref)}" title="Folder (Esc)">← Folder</a>
     <h1 class="title" title="${esc(filePath)}">${esc(name)}</h1>
     <span class="spacer"></span>
+    <a class="btn" href="${esc(sourceUrl)}" title="View raw bytes as text">Source</a>
     <a class="btn" href="${esc(rawUrl)}" target="_blank" rel="noopener noreferrer">Open raw</a>
   </header>
-  <main class="stage" style="overflow:hidden;padding:0">
-    <embed src="${esc(fileUrl)}" type="application/pdf" style="width:100%;height:100%;border:0" />
+  <main class="stage">
+    <iframe class="pdf-frame" src="${esc(viewerSrc)}" title="${esc(name)}"></iframe>
   </main>
 </body>
 </html>`;
