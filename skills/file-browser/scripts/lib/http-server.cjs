@@ -9,7 +9,7 @@ const url = require('url');
 const { renderSingleView, renderGallery, isMedia } = require('./media-renderer.cjs');
 const { renderMarkdownPage, isMarkdown } = require('./markdown-page.cjs');
 const { renderTextView, renderPdfView, renderHtmlView, classify: classifyText } = require('./text-renderer.cjs');
-const { listDir } = require('./tree-api.cjs');
+const { listDir, searchTree } = require('./tree-api.cjs');
 
 let allowedBaseDirs = [];
 
@@ -187,12 +187,12 @@ function createHttpServer(options) {
       // Slice keeps the leading '/' on the absolute path.
       const filePath = pathname.slice('/file'.length);
       if (!isPathSafe(filePath)) return sendError(res, 403, 'Access denied');
-      // Top-level navigations (Accept includes text/html) get the wrapped
-      // /view page so the sidebar + chrome show up. Embedded media
-      // (<img>/<video>/<audio>, fetch) keep raw byte streaming.
-      const accept = String(req.headers['accept'] || '');
+      // Top-level document navigations get the wrapped /view page so the
+      // sidebar + chrome show up. Iframes, media (<img>/<video>/<audio>),
+      // and fetch keep raw byte streaming — otherwise the HTML viewer's
+      // own iframe (src=/file/...) would recursively reload the chrome.
       const dest = String(req.headers['sec-fetch-dest'] || '');
-      const isTopLevelNav = accept.includes('text/html') || dest === 'document';
+      const isTopLevelNav = dest === 'document';
       if (isTopLevelNav) {
         const target = '/view?file=' + encodeURIComponent(filePath);
         res.writeHead(302, { Location: target });
@@ -253,6 +253,31 @@ function createHttpServer(options) {
       } catch (err) {
         console.error('[file-browser] browse error:', err.message);
         sendError(res, 500, 'Render error');
+      }
+      return;
+    }
+
+    if (pathname === '/api/search') {
+      const dirPath = parsedUrl.query?.dir;
+      const q = parsedUrl.query?.q;
+      const limit = parseInt(parsedUrl.query?.limit || '200', 10);
+      if (!dirPath || !q) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end('{"error":"Missing ?dir= or ?q="}');
+        return;
+      }
+      if (!isPathSafe(dirPath)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end('{"error":"Access denied"}');
+        return;
+      }
+      try {
+        const data = searchTree(dirPath, q, { limit });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(data));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: sanitizeErrorMessage(err.message) }));
       }
       return;
     }
