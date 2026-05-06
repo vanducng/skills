@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// CodexOptions controls how Codex installs skills into a Codex agent directory.
 type CodexOptions struct {
 	Scope  string
 	Dest   string
@@ -20,6 +21,7 @@ type CodexOptions struct {
 	DryRun bool
 }
 
+// Result describes a single skill install action performed by Codex.
 type Result struct {
 	Name   string
 	Source string
@@ -27,6 +29,8 @@ type Result struct {
 	Action string
 }
 
+// Codex installs the requested skills into the Codex agent skills directory
+// for the given repo, returning per-skill results in name order.
 func Codex(repoRoot string, opts CodexOptions) ([]Result, error) {
 	scope := opts.Scope
 	if scope == "" {

@@ -92,7 +92,7 @@ func (c *Checker) fetch(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, fmt.Errorf("github fetch: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return Result{}, fmt.Errorf("github status %d", resp.StatusCode)
