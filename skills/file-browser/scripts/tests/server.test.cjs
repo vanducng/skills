@@ -281,9 +281,19 @@ async function main() {
     const html = r.body.toString();
     if (!/<iframe[^>]*class="html-frame"/.test(html)) throw new Error('iframe missing');
     if (!/sandbox=/.test(html)) throw new Error('sandbox attr missing');
-    // raw=1 toggle returns source view
+    // raw=1 toggle returns source view with Render toggle, no Copy button
     const raw = await get(port, `/view?file=${encodeURIComponent(htmlPath)}&raw=1`);
-    if (!/class="ln"/.test(raw.body.toString())) throw new Error('raw=1 should show source with line numbers');
+    const rawHtml = raw.body.toString();
+    if (!/class="ln"/.test(rawHtml)) throw new Error('raw=1 should show source with line numbers');
+    if (!/href="\/view\?file=[^"]+"[^>]*>Render</.test(rawHtml)) throw new Error('Render toggle missing on HTML source view');
+    if (/id="copy-btn"/.test(rawHtml)) throw new Error('Copy button should be hidden on HTML source view');
+  });
+
+  await test('non-HTML source view keeps Copy button + omits Render toggle', async () => {
+    const r = await get(port, `/view?file=${encodeURIComponent(jsPath)}`);
+    const html = r.body.toString();
+    if (!/id="copy-btn"/.test(html)) throw new Error('Copy button missing for code view');
+    if (/>Render</.test(html)) throw new Error('Render toggle leaked into non-HTML view');
   });
 
   await test('GET /view renders PDF via <embed>', async () => {
