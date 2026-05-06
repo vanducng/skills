@@ -55,4 +55,65 @@ function listDir(dirPath) {
   return { path: dirPath, entries: [...dirs, ...files] };
 }
 
-module.exports = { listDir, classifyFile, MD_EXTS, IMAGE_EXTS, VIDEO_EXTS, AUDIO_EXTS };
+// Recursive substring search by basename. Walks `dir` BFS, skipping dot
+// entries, common heavy directories, and symlinks (cycle guard). Returns at
+// most `limit` matches, ordered by directory traversal. Capped by both result
+// count and node count so a misuse on a huge tree can't lock the server.
+const HEAVY_DIRS = new Set([
+  'node_modules', '.git', '.svn', '.hg', 'venv', '.venv', '__pycache__',
+  'dist', 'build', '.next', '.turbo', 'target', '.cache', '.idea', '.vscode'
+]);
+
+function searchTree(rootDir, query, opts = {}) {
+  const limit = Math.max(1, Math.min(opts.limit || 200, 1000));
+  const maxNodes = Math.max(limit * 50, 5000);
+  const lc = String(query || '').toLowerCase();
+  if (lc.length < 2) return { dir: rootDir, query, results: [], visited: 0, truncated: false };
+
+  const results = [];
+  const queue = [rootDir];
+  let visited = 0;
+  let truncated = false;
+
+  while (queue.length > 0) {
+    const dir = queue.shift();
+    if (visited >= maxNodes) { truncated = true; break; }
+    let names;
+    try {
+      names = fs.readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const name of names) {
+      if (name.startsWith('.')) continue;
+      visited++;
+      if (visited >= maxNodes) { truncated = true; break; }
+      const full = path.join(dir, name);
+      let stats;
+      try {
+        stats = fs.lstatSync(full);
+      } catch {
+        continue;
+      }
+      if (stats.isSymbolicLink()) continue;
+      const isDir = stats.isDirectory();
+      if (name.toLowerCase().includes(lc)) {
+        results.push({
+          name,
+          path: full,
+          kind: isDir ? 'dir' : 'file',
+          fileType: isDir ? null : classifyFile(full)
+        });
+        if (results.length >= limit) { truncated = true; break; }
+      }
+      if (isDir && !HEAVY_DIRS.has(name)) {
+        queue.push(full);
+      }
+    }
+    if (results.length >= limit) { truncated = true; break; }
+  }
+
+  return { dir: rootDir, query, results, visited, truncated };
+}
+
+module.exports = { listDir, searchTree, classifyFile, MD_EXTS, IMAGE_EXTS, VIDEO_EXTS, AUDIO_EXTS };

@@ -134,18 +134,28 @@ async function main() {
       throw new Error('accept-ranges header missing');
   });
 
-  await test('GET /file with Accept: text/html redirects to /view (sidebar wrapper)', async () => {
-    const r = await get(port, '/file' + imgPath, { Accept: 'text/html,application/xhtml+xml' });
+  await test('GET /file with Sec-Fetch-Dest: document redirects to /view (sidebar wrapper)', async () => {
+    const r = await get(port, '/file' + imgPath, {
+      Accept: 'text/html,application/xhtml+xml',
+      'Sec-Fetch-Dest': 'document'
+    });
     if (r.status !== 302) throw new Error(`expected 302 got ${r.status}`);
     const loc = r.headers.location || '';
     if (!loc.startsWith('/view?file=')) throw new Error(`bad location ${loc}`);
     if (!loc.includes(encodeURIComponent(imgPath))) throw new Error(`location missing path: ${loc}`);
   });
 
-  await test('GET /file with Sec-Fetch-Dest: document redirects to /view', async () => {
-    const r = await get(port, '/file' + imgPath, { Accept: '*/*', 'Sec-Fetch-Dest': 'document' });
-    if (r.status !== 302) throw new Error(`expected 302 got ${r.status}`);
-    if (!(r.headers.location || '').startsWith('/view?file=')) throw new Error('no redirect');
+  await test('GET /file from <iframe> streams raw (no recursive /view redirect)', async () => {
+    // Regression: HTML viewer's <iframe src=/file/...> sends Accept: text/html
+    // with Sec-Fetch-Dest: iframe. Redirecting on Accept alone caused the
+    // iframe to reload the chrome → infinite nesting.
+    const r = await get(port, '/file' + imgPath, {
+      Accept: 'text/html,application/xhtml+xml',
+      'Sec-Fetch-Dest': 'iframe'
+    });
+    if (r.status !== 200) throw new Error(`expected 200 got ${r.status}`);
+    if (r.headers['content-type'] !== 'image/png')
+      throw new Error(`expected raw stream, got ${r.headers['content-type']}`);
   });
 
   await test('Range request returns 206 + Content-Range', async () => {
@@ -323,6 +333,31 @@ async function main() {
         throw new Error(`head-blocking redirect script missing in ${url}`);
       }
     }
+  });
+
+  await test('GET /api/search recursively matches by basename', async () => {
+    // Create a nested file the basename-substring "needle" can find.
+    const deep = path.join(subDir, 'deep');
+    fs.mkdirSync(deep);
+    const target = path.join(deep, 'find-needle-here.md');
+    fs.writeFileSync(target, '# match');
+
+    const r = await get(port, `/api/search?dir=${encodeURIComponent(sandbox)}&q=needle&limit=10`);
+    if (r.status !== 200) throw new Error(`status ${r.status}`);
+    const data = JSON.parse(r.body.toString());
+    if (!Array.isArray(data.results) || data.results.length === 0) {
+      throw new Error('expected at least one result');
+    }
+    if (!data.results.some((x) => x.path === target)) {
+      throw new Error('did not find nested target');
+    }
+  });
+
+  await test('GET /api/search rejects disallowed dir + missing params', async () => {
+    const r1 = await get(port, `/api/search?dir=${encodeURIComponent('/etc')}&q=foo`);
+    if (r1.status !== 403) throw new Error(`expected 403, got ${r1.status}`);
+    const r2 = await get(port, `/api/search?dir=${encodeURIComponent(sandbox)}`);
+    if (r2.status !== 400) throw new Error(`expected 400 for missing q, got ${r2.status}`);
   });
 
   await test('?root= propagates into rendered links', async () => {

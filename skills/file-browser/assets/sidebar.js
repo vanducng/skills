@@ -232,6 +232,10 @@
   }
 
   function visibleNodes() {
+    // In recursive-search mode, the cursor walks the flat results list.
+    if (searchResultsEl && !searchResultsEl.hidden) {
+      return Array.from(searchResultsEl.querySelectorAll('li.node'));
+    }
     return Array.from(treeEl.querySelectorAll('li.node')).filter((li) => {
       let p = li.parentElement;
       while (p && p !== treeEl) {
@@ -285,31 +289,120 @@
 
   let filterMatches = [];
   let filterIdx = -1;
+  const searchResultsEl = sidebar.querySelector('.fb-search-results');
+  const searchStatusEl = sidebar.querySelector('.fb-search-status');
+  let searchSeq = 0;
+  let searchTimer = null;
+  const SEARCH_MIN = 2;
+  const SEARCH_DEBOUNCE = 250;
+
+  function clearLocalFilter() {
+    Array.from(treeEl.querySelectorAll('li.node')).forEach((li) => {
+      li.classList.remove('filter-hidden', 'filter-match');
+    });
+  }
+
+  function showTreeMode() {
+    treeEl.hidden = false;
+    searchResultsEl.hidden = true;
+    searchStatusEl.hidden = true;
+    searchResultsEl.innerHTML = '';
+  }
+
+  function showSearchMode(statusText) {
+    treeEl.hidden = true;
+    searchResultsEl.hidden = false;
+    searchStatusEl.hidden = !statusText;
+    if (statusText) searchStatusEl.textContent = statusText;
+  }
 
   function applyFilter(q) {
     const lc = q.toLowerCase().trim();
     filterMatches = [];
     filterIdx = -1;
-    Array.from(treeEl.querySelectorAll('li.node')).forEach((li) => {
-      if (!lc) {
-        li.classList.remove('filter-hidden', 'filter-match');
+
+    if (!lc) {
+      // Empty filter — restore tree, clear any prior local-filter classes.
+      clearLocalFilter();
+      showTreeMode();
+      return;
+    }
+
+    if (lc.length < SEARCH_MIN) {
+      // Too short for recursive search — keep tree visible with local filter only.
+      showTreeMode();
+      Array.from(treeEl.querySelectorAll('li.node')).forEach((li) => {
+        const label = li.querySelector(':scope > .row > .label');
+        const name = (label && label.textContent || '').toLowerCase();
+        if (name.includes(lc)) {
+          li.classList.remove('filter-hidden');
+          li.classList.add('filter-match');
+          filterMatches.push(li);
+        } else {
+          li.classList.add('filter-hidden');
+          li.classList.remove('filter-match');
+        }
+      });
+      if (filterMatches.length > 0) { filterIdx = 0; setCursor(filterMatches[0]); }
+      return;
+    }
+
+    // 2+ chars — debounced recursive search via /api/search.
+    showSearchMode('Searching…');
+    if (searchTimer) clearTimeout(searchTimer);
+    const seq = ++searchSeq;
+    searchTimer = setTimeout(() => runRecursiveSearch(lc, seq), SEARCH_DEBOUNCE);
+  }
+
+  async function runRecursiveSearch(q, seq) {
+    try {
+      const res = await fetch('/api/search?dir=' + encodeURIComponent(treeRoot)
+        + '&q=' + encodeURIComponent(q) + '&limit=200');
+      if (seq !== searchSeq) return; // stale response — newer query in flight
+      if (!res.ok) {
+        showSearchMode('Search failed (' + res.status + ')');
         return;
       }
-      const label = li.querySelector(':scope > .row > .label');
-      const name = (label && label.textContent || '').toLowerCase();
-      if (name.includes(lc)) {
-        li.classList.remove('filter-hidden');
-        li.classList.add('filter-match');
-        filterMatches.push(li);
-      } else {
-        li.classList.add('filter-hidden');
-        li.classList.remove('filter-match');
-      }
-    });
-    if (filterMatches.length > 0) {
-      filterIdx = 0;
-      setCursor(filterMatches[0]);
+      const data = await res.json();
+      if (seq !== searchSeq) return;
+      renderSearchResults(data);
+    } catch (err) {
+      if (seq !== searchSeq) return;
+      showSearchMode('Search error: ' + (err.message || 'fetch failed'));
     }
+  }
+
+  function renderSearchResults(data) {
+    const results = data.results || [];
+    searchResultsEl.innerHTML = '';
+    if (results.length === 0) {
+      showSearchMode('No matches');
+      return;
+    }
+    const rootLen = treeRoot.replace(/\/+$/, '').length;
+    for (const r of results) {
+      const li = document.createElement('li');
+      li.className = 'node ' + r.kind + ' search-hit';
+      li.dataset.path = r.path;
+      li.dataset.kind = r.kind;
+      if (r.fileType) li.dataset.fileType = r.fileType;
+      const rel = r.path.startsWith(treeRoot) ? r.path.slice(rootLen).replace(/^\//, '') : r.path;
+      const dirPart = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/') + 1) : '';
+      const namePart = rel.slice(dirPart.length);
+      li.innerHTML =
+        '<span class="row">' +
+          '<span class="icon">' + iconFor({ kind: r.kind, fileType: r.fileType }) + '</span>' +
+          '<span class="label"></span>' +
+          '<span class="search-relpath"></span>' +
+        '</span>';
+      li.querySelector('.label').textContent = namePart;
+      li.querySelector('.search-relpath').textContent = dirPart || './';
+      searchResultsEl.appendChild(li);
+    }
+    showSearchMode(data.truncated ? `${results.length}+ matches (truncated)` : `${results.length} matches`);
+    filterMatches = Array.from(searchResultsEl.querySelectorAll('li.node'));
+    filterIdx = 0;
+    if (filterMatches[0]) setCursor(filterMatches[0]);
   }
 
   function nextMatch(delta) {
@@ -340,6 +433,15 @@
       e.preventDefault();
       openCurrent(false);
     }
+  });
+
+  // Click in recursive-search results — opens directly (no expand on dirs).
+  searchResultsEl.addEventListener('click', (e) => {
+    const li = e.target.closest('li.node');
+    if (!li) return;
+    setCursor(li);
+    e.preventDefault();
+    openCurrent(false);
   });
 
   toggleBtn.addEventListener('click', () => {
