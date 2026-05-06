@@ -145,6 +145,27 @@ async function main() {
     if (!loc.includes(encodeURIComponent(imgPath))) throw new Error(`location missing path: ${loc}`);
   });
 
+  await test('GET /file?raw=1 streams raw even from a top-level click', async () => {
+    // "Open raw" buttons add ?raw=1 so the user actually lands on bytes
+    // instead of being redirected back to the chrome view.
+    const r = await get(port, '/file' + imgPath + '?raw=1', {
+      Accept: 'text/html,application/xhtml+xml',
+      'Sec-Fetch-Dest': 'document'
+    });
+    if (r.status !== 200) throw new Error(`expected 200 got ${r.status}`);
+    if (r.headers['content-type'] !== 'image/png')
+      throw new Error(`expected raw stream, got ${r.headers['content-type']}`);
+  });
+
+  await test('HTML view "Open raw" link includes ?raw=1 + rel="noopener"', async () => {
+    const htmlPath2 = path.join(sandbox, 'page2.html');
+    fs.writeFileSync(htmlPath2, '<!doctype html><h1>x</h1>');
+    const r = await get(port, `/view?file=${encodeURIComponent(htmlPath2)}`);
+    const body = r.body.toString();
+    const re = new RegExp(`href="/file${htmlPath2}\\?raw=1"[^>]*rel="noopener noreferrer"`);
+    if (!re.test(body)) throw new Error('Open raw link missing ?raw=1 or rel=noopener');
+  });
+
   await test('GET /file from <iframe> streams raw (no recursive /view redirect)', async () => {
     // Regression: HTML viewer's <iframe src=/file/...> sends Accept: text/html
     // with Sec-Fetch-Dest: iframe. Redirecting on Accept alone caused the
