@@ -7,6 +7,18 @@
 
   const treeRoot = sidebar.dataset.treeRoot;
   const activePath = sidebar.dataset.activePath || '';
+
+  // Persist the sidebar's tree root. The blocking <head> script (see
+  // url-helpers.cjs::ROOT_PERSIST_HEAD_SCRIPT) handles URL-less loads via
+  // location.replace before paint. Here we only reconcile: write the
+  // server-validated treeRoot back so a stale stored value (e.g. one the
+  // server rejected as outside allowedDirs) is self-correcting.
+  const ROOT_KEY = 'fb-tree-root';
+  try {
+    if (treeRoot && localStorage.getItem(ROOT_KEY) !== treeRoot) {
+      localStorage.setItem(ROOT_KEY, treeRoot);
+    }
+  } catch {}
   const treeEl = sidebar.querySelector('.tree');
   const filterInput = sidebar.querySelector('.fb-sidebar-filter');
   const treeNav = sidebar.querySelector('.fb-sidebar-tree');
@@ -250,13 +262,14 @@
 
   function openCurrent(newTab) {
     if (!cursor) return;
+    const rootSuffix = treeRoot ? '&root=' + encodeURIComponent(treeRoot) : '';
     if (cursor.dataset.kind === 'dir') {
-      const url = '/browse?dir=' + encodeURIComponent(cursor.dataset.path);
+      const url = '/browse?dir=' + encodeURIComponent(cursor.dataset.path) + rootSuffix;
       if (newTab) window.open(url, '_blank');
       else location.href = url;
       return;
     }
-    const url = '/view?file=' + encodeURIComponent(cursor.dataset.path);
+    const url = '/view?file=' + encodeURIComponent(cursor.dataset.path) + rootSuffix;
     if (newTab) window.open(url, '_blank');
     else location.href = url;
   }
