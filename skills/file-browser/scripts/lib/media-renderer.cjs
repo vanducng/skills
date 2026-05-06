@@ -161,8 +161,10 @@ function renderGallery(dirPath, cssHref, opts = {}) {
       <h1>Cannot read directory</h1><p>${esc(err.message)}</p></body>`;
   }
 
-  const MD_EXTS = new Set(['.md', '.markdown', '.mdx']);
-  const isDoc = (p) => MD_EXTS.has(path.extname(p).toLowerCase());
+  // Documents lane includes markdown + PDF. (Duplicates tree-api's MD_EXTS;
+  // kept inline to avoid a circular-ish refactor for one extra extension.)
+  const DOC_EXTS = new Set(['.md', '.markdown', '.mdx', '.pdf']);
+  const isDoc = (p) => DOC_EXTS.has(path.extname(p).toLowerCase());
 
   const dirs = [];
   const media = [];
@@ -220,14 +222,18 @@ function renderGallery(dirPath, cssHref, opts = {}) {
     docsHtml += '<section class="docs"><h2 class="section-title">Documents (' + docs.length + ')</h2><ul class="other-list">';
     for (const d of docs) {
       const viewUrl = withRoot(`/view?file=${encodeURIComponent(d.path)}`, treeRoot);
-      docsHtml += `<li><a href="${esc(viewUrl)}">📄 ${esc(d.name)}</a></li>`;
+      const icon = d.name.toLowerCase().endsWith('.pdf') ? '📕' : '📄';
+      docsHtml += `<li><a href="${esc(viewUrl)}">${icon} ${esc(d.name)}</a></li>`;
     }
     docsHtml += '</ul></section>';
   }
 
   let mediaHtml = '';
   if (media.length > 0) {
-    mediaHtml += '<section class="media"><h2 class="section-title">Media (' + media.length + ')</h2><div class="media-grid">';
+    // 16+ items: switch to dense tiles so the user isn't forced to scroll
+    // through a near-full-screen of 220px tiles before seeing folder peers.
+    const denseClass = media.length > 16 ? ' dense' : '';
+    mediaHtml += '<section class="media"><h2 class="section-title">Media (' + media.length + ')</h2><div class="media-grid' + denseClass + '">';
     for (const m of media) {
       const fileUrl = '/file' + m.path;
       const viewUrl = withRoot(`/view?file=${encodeURIComponent(m.path)}`, treeRoot);

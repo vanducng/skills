@@ -233,9 +233,21 @@ body.gallery { padding: 0; }
 
 /* media tiles */
 .media-grid {
+  --tile-min: 220px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr));
   gap: 0.85rem;
+}
+
+/* Dense mode: triggered server-side when media count > 16. Smaller tiles +
+ * tighter gap so a folder of 25+ items fits in roughly one screenful. */
+.media-grid.dense {
+  --tile-min: 150px;
+  gap: 0.5rem;
+}
+.media-grid.dense .tile-name {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.75rem;
 }
 
 .tile {

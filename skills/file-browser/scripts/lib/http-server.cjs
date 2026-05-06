@@ -32,8 +32,19 @@ const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.wasm': 'application/wasm',
   '.json': 'application/json; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
+  '.properties': 'text/plain; charset=utf-8',
+  '.pdf': 'application/pdf',
+  '.bcmap': 'application/octet-stream',
+  '.pfb': 'application/octet-stream',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.cur': 'image/x-icon',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -275,7 +286,8 @@ function createHttpServer(options) {
         return;
       }
       try {
-        const data = searchTree(dirPath, q, { limit });
+        const hidden = parsedUrl.query?.hidden === '1';
+        const data = searchTree(dirPath, q, { limit, hidden });
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(data));
       } catch (err) {
@@ -298,7 +310,8 @@ function createHttpServer(options) {
         return;
       }
       try {
-        const data = listDir(dirPath);
+        const hidden = parsedUrl.query?.hidden === '1';
+        const data = listDir(dirPath, { hidden });
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(data));
       } catch (err) {

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>PDF Viewer</title>
+  <link rel="stylesheet" href="./web/pdf_viewer.css" />
+  <link rel="stylesheet" href="./viewer.css" />
+</head>
+<body>
+  <header id="toolbar" class="pdf-toolbar">
+    <div class="tb-group">
+      <button id="prevPage" type="button" title="Previous page">◀</button>
+      <input id="pageInput" type="number" min="1" value="1" aria-label="Page number" />
+      <span class="tb-sep">/</span>
+      <span id="pageCount">–</span>
+      <button id="nextPage" type="button" title="Next page">▶</button>
+    </div>
+    <div class="tb-group">
+      <button id="zoomOut" type="button" title="Zoom out">−</button>
+      <select id="zoomSelect" aria-label="Zoom">
+        <option value="auto">Auto</option>
+        <option value="page-fit">Fit page</option>
+        <option value="page-width">Fit width</option>
+        <option value="0.5">50%</option>
+        <option value="0.75">75%</option>
+        <option value="1">100%</option>
+        <option value="1.25">125%</option>
+        <option value="1.5">150%</option>
+        <option value="2">200%</option>
+        <option value="3">300%</option>
+      </select>
+      <button id="zoomIn" type="button" title="Zoom in">+</button>
+    </div>
+    <div class="tb-group tb-search">
+      <input id="findInput" type="search" placeholder="Find in document…" aria-label="Find" />
+      <button id="findPrev" type="button" title="Previous match">↑</button>
+      <button id="findNext" type="button" title="Next match">↓</button>
+      <span id="findStatus" class="tb-status"></span>
+    </div>
+    <div class="tb-group tb-end">
+      <select id="spreadSelect" aria-label="Page layout" title="Page layout">
+        <option value="0">Single page</option>
+        <option value="1">Two pages (odd start)</option>
+        <option value="2">Two pages (even start)</option>
+      </select>
+      <button id="downloadBtn" type="button" title="Download">⬇</button>
+    </div>
+  </header>
+  <div id="viewerContainer">
+    <div id="viewer" class="pdfViewer"></div>
+  </div>
+  <div id="errorBanner" hidden></div>
+  <script type="module" src="./viewer.js"></script>
+</body>
+</html>

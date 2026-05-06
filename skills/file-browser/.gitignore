@@ -1,0 +1,6 @@
+node_modules/
+assets/pdfjs-viewer/build/
+assets/pdfjs-viewer/web/
+assets/pdfjs-viewer/cmaps/
+assets/pdfjs-viewer/standard_fonts/
+assets/pdfjs-viewer/wasm/

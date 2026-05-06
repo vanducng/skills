@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const MD_EXTS = new Set(['.md', '.markdown', '.mdx']);
+const PDF_EXTS = new Set(['.pdf']);
 const IMAGE_EXTS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif',
   '.svg', '.bmp', '.ico', '.heic', '.heif', '.jxl', '.apng'
@@ -14,13 +15,15 @@ const AUDIO_EXTS = new Set(['.mp3', '.m4a', '.aac', '.ogg', '.opus', '.wav', '.f
 function classifyFile(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   if (MD_EXTS.has(ext)) return 'markdown';
+  if (PDF_EXTS.has(ext)) return 'pdf';
   if (IMAGE_EXTS.has(ext)) return 'image';
   if (VIDEO_EXTS.has(ext)) return 'video';
   if (AUDIO_EXTS.has(ext)) return 'audio';
   return 'other';
 }
 
-function listDir(dirPath) {
+function listDir(dirPath, opts = {}) {
+  const showHidden = !!opts.hidden;
   let names;
   try {
     names = fs.readdirSync(dirPath);
@@ -33,7 +36,7 @@ function listDir(dirPath) {
   const dirs = [];
   const files = [];
   for (const name of names) {
-    if (name.startsWith('.')) continue;
+    if (!showHidden && name.startsWith('.')) continue;
     const full = path.join(dirPath, name);
     let stats;
     try {
@@ -67,6 +70,7 @@ const HEAVY_DIRS = new Set([
 function searchTree(rootDir, query, opts = {}) {
   const limit = Math.max(1, Math.min(opts.limit || 200, 1000));
   const maxNodes = Math.max(limit * 50, 5000);
+  const showHidden = !!opts.hidden;
   const lc = String(query || '').toLowerCase();
   if (lc.length < 2) return { dir: rootDir, query, results: [], visited: 0, truncated: false };
 
@@ -85,7 +89,7 @@ function searchTree(rootDir, query, opts = {}) {
       continue;
     }
     for (const name of names) {
-      if (name.startsWith('.')) continue;
+      if (!showHidden && name.startsWith('.')) continue;
       visited++;
       if (visited >= maxNodes) { truncated = true; break; }
       const full = path.join(dir, name);
@@ -116,4 +120,4 @@ function searchTree(rootDir, query, opts = {}) {
   return { dir: rootDir, query, results, visited, truncated };
 }
 
-module.exports = { listDir, searchTree, classifyFile, MD_EXTS, IMAGE_EXTS, VIDEO_EXTS, AUDIO_EXTS };
+module.exports = { listDir, searchTree, classifyFile, MD_EXTS, PDF_EXTS, IMAGE_EXTS, VIDEO_EXTS, AUDIO_EXTS };
