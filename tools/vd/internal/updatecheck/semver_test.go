@@ -28,7 +28,7 @@ func TestLess(t *testing.T) {
 		// Garbage → conservative false.
 		{"garbage", "1.0.0", false},
 		{"1.0.0", "garbage", false},
-		{"1.0", "1.0.0", false},   // not three parts
+		{"1.0", "1.0.0", false},     // not three parts
 		{"1.0.0.0", "1.0.0", false}, // four parts
 		{"", "1.0.0", false},
 	}
@@ -64,11 +64,11 @@ func TestEqual(t *testing.T) {
 
 func TestIsAllAlpha(t *testing.T) {
 	cases := map[string]bool{
-		"":     false,
-		"vd":   true,
-		"VD":   true,
-		"vd1":  false,
-		"v-d":  false,
+		"":      false,
+		"vd":    true,
+		"VD":    true,
+		"vd1":   false,
+		"v-d":   false,
 		"hello": true,
 	}
 	for in, want := range cases {

@@ -40,7 +40,7 @@ func TestAgentsEmitter_CreatesSymlinks(t *testing.T) {
 		t.Fatalf("emit: %v", err)
 	}
 
-	agentsDir := filepath.Join(tmp, ".agents")
+	agentsDir := filepath.Join(tmp, ".agents", "skills")
 	for _, name := range []string{"alpha", "beta", "gamma"} {
 		linkPath := filepath.Join(agentsDir, name)
 		target, err := os.Readlink(linkPath)
@@ -48,8 +48,8 @@ func TestAgentsEmitter_CreatesSymlinks(t *testing.T) {
 			t.Errorf("%s: expected symlink, got error: %v", name, err)
 			continue
 		}
-		// Should be a relative symlink pointing to ../skills/<name>.
-		wantTarget := filepath.Join("..", "skills", name)
+		// Should be a relative symlink pointing to ../../skills/<name>.
+		wantTarget := filepath.Join("..", "..", "skills", name)
 		if target != wantTarget {
 			t.Errorf("%s: symlink target = %q, want %q", name, target, wantTarget)
 		}
@@ -64,8 +64,8 @@ func TestAgentsEmitter_RemovesStaleEntries(t *testing.T) {
 	tmp := t.TempDir()
 	makeTestSkillDir(t, tmp, "keep")
 
-	// Pre-create a stale .agents/stale entry (a dir, not a skill).
-	agentsDir := filepath.Join(tmp, ".agents")
+	// Pre-create a stale .agents/skills/stale entry (a dir, not a skill).
+	agentsDir := filepath.Join(tmp, ".agents", "skills")
 	if err := os.MkdirAll(filepath.Join(agentsDir, "stale"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -115,13 +115,13 @@ func TestAgentsEmitter_Idempotent(t *testing.T) {
 	}
 
 	// Verify symlinks are still correct after second run.
-	agentsDir := filepath.Join(tmp, ".agents")
+	agentsDir := filepath.Join(tmp, ".agents", "skills")
 	for _, name := range []string{"foo", "bar"} {
 		target, err := os.Readlink(filepath.Join(agentsDir, name))
 		if err != nil {
 			t.Errorf("%s: readlink: %v", name, err)
 		}
-		want := filepath.Join("..", "skills", name)
+		want := filepath.Join("..", "..", "skills", name)
 		if target != want {
 			t.Errorf("%s: target = %q, want %q", name, target, want)
 		}

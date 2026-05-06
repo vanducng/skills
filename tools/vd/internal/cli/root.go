@@ -67,6 +67,7 @@ Run 'vd --help' on any subcommand for details.`,
 	root.AddCommand(newPinCmd())
 	root.AddCommand(newRemoveCmd())
 	root.AddCommand(newBuildCmd())
+	root.AddCommand(newInstallCmd())
 
 	return root
 }

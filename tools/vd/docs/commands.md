@@ -301,7 +301,7 @@ Emit plugin files for all configured targets. Reads `skills.toml` and `skills.lo
 
 **Targets:**
 - `claude` — writes `.claude-plugin/marketplace.json` and `.claude-plugin/plugin.json`.
-- `agents` — writes `.agents/<name>` symlinks pointing at `skills/<name>/`.
+- `agents` — writes `.agents/skills/<name>` symlinks pointing at `skills/<name>/`.
 
 With no arguments, both targets are built. Pass target names to build only those.
 
@@ -314,12 +314,59 @@ vd build [target...]
 ```sh
 vd build                  # build all targets (claude + agents)
 vd build claude           # regenerate marketplace.json and plugin.json only
-vd build agents           # regenerate .agents/ symlinks only
+vd build agents           # regenerate .agents/skills/ symlinks only
 ```
 
-**Side effects:** writes `.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json`, and `.agents/<name>` symlinks. In bundle mode, output is byte-equal to the live files when manifest is seeded correctly.
+**Side effects:** writes `.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json`, and `.agents/skills/<name>` symlinks. In bundle mode, output is byte-equal to the live files when manifest is seeded correctly.
 
 **Exit codes:** `0` success, `1` unknown target name, `1` `skills.toml` not found.
+
+---
+
+## vd install
+
+Install local skills into an agent environment. With no agent argument, `vd install` opens a terminal picker with these choices:
+
+1. Codex user skills — symlink to `$HOME/.agents/skills` (default recommendation)
+2. Codex repo skills — symlink to `.agents/skills`
+3. Codex snapshot copy — copy to `$HOME/.agents/skills`
+4. Claude Code plugin — marketplace/plugin install
+
+Passing the agent is recommended for scripts.
+
+**Agents:**
+- `codex` — installs local `skills/<name>/` directories into Codex discovery paths. Default scope is user, which writes symlinks to `$HOME/.agents/skills`. Use `--scope repo` to write `.agents/skills/<name>` in the current repo.
+- `claude` — runs `vd build claude`, registers this repo as a Claude Code marketplace, and installs the configured plugin bundle.
+
+**Signature:**
+```
+vd install [agent] [skill...]
+```
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--scope` | `codex`: `user` or `repo`; `claude`: `user`, `project`, or `local`. |
+| `--dest` | Override Codex destination directory. |
+| `--copy` | Copy Codex skills instead of symlinking. |
+| `--force` | Replace existing Codex destination entries. |
+| `--dry-run` | Print planned actions without changing files. |
+
+**Examples:**
+```sh
+vd install codex                         # symlink all skills into $HOME/.agents/skills
+vd install codex research plan           # install selected skills only
+vd install codex --scope repo            # symlink all skills into .agents/skills
+vd install codex --copy --force          # replace existing installs with copies
+vd install                               # open the install target picker
+vd install claude                        # install configured Claude Code plugin bundle
+vd install claude --dry-run              # print Claude plugin commands
+```
+
+**Side effects:** `codex` writes symlinks or copies under the destination skill directory. `claude` may mutate Claude Code marketplace and plugin installation state.
+
+**Exit codes:** `0` success, `1` invalid agent/scope, missing skill, existing destination without `--force`, or external Claude command failure.
 
 ---
 

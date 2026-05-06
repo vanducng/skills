@@ -167,7 +167,7 @@ func TestChecker_HTTPNon2xxBubbles(t *testing.T) {
 
 func TestChecker_ContextCanceled(t *testing.T) {
 	// Use a real http.Client with an immediately-canceled context — fake
-	// would not exercise the context path because it doesn't honour ctx.
+	// would not exercise the context path because it doesn't honor ctx.
 	c := newChecker(t, http.DefaultClient, "1.0.0")
 	c.Repo = "vanducng/skills"
 	// Point at a non-routable IP so even DNS doesn't matter; context
@@ -226,11 +226,11 @@ func TestResult_NeedsUpgrade(t *testing.T) {
 
 func TestNormalizeTag(t *testing.T) {
 	cases := map[string]string{
-		"v1.0.0":  "1.0.0",
-		"V1.0.0":  "1.0.0",
-		"1.0.0":   "1.0.0",
-		"v":       "v", // single char, leave alone
-		"":        "",
+		"v1.0.0": "1.0.0",
+		"V1.0.0": "1.0.0",
+		"1.0.0":  "1.0.0",
+		"v":      "v", // single char, leave alone
+		"":       "",
 	}
 	for in, want := range cases {
 		if got := normalizeTag(in); got != want {
@@ -238,4 +238,3 @@ func TestNormalizeTag(t *testing.T) {
 		}
 	}
 }
-

@@ -93,10 +93,10 @@ func TestBuildCmd_WritesOutputFiles(t *testing.T) {
 		t.Errorf("plugin.json missing: %v", err)
 	}
 
-	// .agents/foo symlink must exist.
-	agentFoo := filepath.Join(root, ".agents", "foo")
+	// .agents/skills/foo symlink must exist.
+	agentFoo := filepath.Join(root, ".agents", "skills", "foo")
 	if _, err := os.Lstat(agentFoo); err != nil {
-		t.Errorf(".agents/foo missing: %v", err)
+		t.Errorf(".agents/skills/foo missing: %v", err)
 	}
 }
 
@@ -112,8 +112,8 @@ func TestBuildCmd_ExplicitTarget(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, ".claude-plugin", "marketplace.json")); err != nil {
 		t.Error("marketplace.json missing after claude-only build")
 	}
-	if _, err := os.Lstat(filepath.Join(root, ".agents", "foo")); !os.IsNotExist(err) {
-		t.Error(".agents/foo should not exist after claude-only build")
+	if _, err := os.Lstat(filepath.Join(root, ".agents", "skills", "foo")); !os.IsNotExist(err) {
+		t.Error(".agents/skills/foo should not exist after claude-only build")
 	}
 }
 
