@@ -25,6 +25,7 @@
   const toggleBtn = sidebar.querySelector('.fb-sidebar-toggle');
   const upBtn = sidebar.querySelector('.fb-sidebar-up');
   const themeBtn = sidebar.querySelector('.fb-sidebar-theme');
+  const hiddenBtn = sidebar.querySelector('.fb-sidebar-hidden');
   const helpBtn = sidebar.querySelector('.fb-sidebar-help');
   const helpOverlay = sidebar.querySelector('.fb-sidebar-help-overlay');
   // Lift to <body> so the overlay's `position: fixed` anchors to the viewport
@@ -34,6 +35,7 @@
   }
   const fontBtns = sidebar.querySelectorAll('.fb-sidebar-font');
   const STORAGE_KEY = 'fb-sidebar-collapsed';
+  const HIDDEN_KEY = 'fb-show-hidden';
   // Shared with reader.js so toggling from either surface stays in sync.
   const THEME_KEY = 'theme';
   const FONT_KEY = 'novel-viewer-font';
@@ -77,8 +79,20 @@
     }
   });
 
+  let showHidden = false;
+  try { showHidden = localStorage.getItem(HIDDEN_KEY) === '1'; } catch {}
+
+  function reflectHiddenUI() {
+    if (hiddenBtn) hiddenBtn.setAttribute('aria-pressed', showHidden ? 'true' : 'false');
+  }
+  reflectHiddenUI();
+
+  function hiddenSuffix(prefix) {
+    return showHidden ? prefix + 'hidden=1' : '';
+  }
+
   async function fetchDir(dirPath) {
-    const res = await fetch('/api/tree?dir=' + encodeURIComponent(dirPath));
+    const res = await fetch('/api/tree?dir=' + encodeURIComponent(dirPath) + hiddenSuffix('&'));
     if (!res.ok) throw new Error('fetch failed: ' + res.status);
     return res.json();
   }
@@ -87,6 +101,7 @@
     if (entry.kind === 'dir') return '📁';
     switch (entry.fileType) {
       case 'markdown': return '📄';
+      case 'pdf': return '📕';
       case 'image': return '🖼';
       case 'video': return '▶';
       case 'audio': return '♪';
@@ -357,7 +372,7 @@
   async function runRecursiveSearch(q, seq) {
     try {
       const res = await fetch('/api/search?dir=' + encodeURIComponent(treeRoot)
-        + '&q=' + encodeURIComponent(q) + '&limit=200');
+        + '&q=' + encodeURIComponent(q) + '&limit=200' + hiddenSuffix('&'));
       if (seq !== searchSeq) return; // stale response — newer query in flight
       if (!res.ok) {
         showSearchMode('Search failed (' + res.status + ')');
@@ -467,6 +482,30 @@
 
   themeBtn.addEventListener('click', toggleTheme);
 
+  async function refreshTree() {
+    // Tree shape may change (dot entries appear/disappear) — wipe DOM, rerun
+    // the same boot path so expansions/cursor/filter all rehydrate.
+    treeEl.innerHTML = '';
+    treeEl.dataset.loaded = 'false';
+    cursor = null;
+    await loadInto(treeEl, 0);
+    await rehydrateExpansions();
+    await revealActivePath();
+    if (filterInput.value) applyFilter(filterInput.value);
+    if (!cursor) {
+      const nodes = visibleNodes();
+      if (nodes.length > 0) setCursor(nodes[0]);
+    }
+  }
+
+  function toggleHidden() {
+    showHidden = !showHidden;
+    try { localStorage.setItem(HIDDEN_KEY, showHidden ? '1' : '0'); } catch {}
+    reflectHiddenUI();
+    refreshTree();
+  }
+  if (hiddenBtn) hiddenBtn.addEventListener('click', toggleHidden);
+
   // On markdown pages, defer to reader.js's hidden .font-btn so its
   // mermaid/font machinery runs. Elsewhere, just persist + apply.
   function currentFont() {
@@ -562,6 +601,10 @@
           toggleTheme();
           e.preventDefault();
         }
+        return;
+      case '.':
+        toggleHidden();
+        e.preventDefault();
         return;
     }
 

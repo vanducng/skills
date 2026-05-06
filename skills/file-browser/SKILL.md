@@ -1,6 +1,6 @@
 ---
 name: file-browser
-description: "Local HTTP server that renders markdown, code, text, JSON, HTML, PDF, images, video, and audio in the browser. Persistent left tree sidebar with vim keybindings (j/k/h/l/gg/G/Enter/o), filter (/), theme toggle (T), and folder open/collapse persistence per tab. Markdown dispatches to a novel-theme reader (Mermaid, plan nav, ToC scroll-spy); code/text dispatches to a highlight.js view with line numbers + copy button; HTML renders in a sandboxed iframe; PDF uses native embed; images/video/audio get a gallery + single-view with Range-aware streaming. One server, one port, one CLI."
+description: "Local HTTP server that renders markdown, code, text, JSON, HTML, PDF, images, video, and audio in the browser. Persistent left tree sidebar with vim keybindings (j/k/h/l/gg/G/Enter/o), filter (/), theme toggle (T), and folder open/collapse persistence per tab. Markdown dispatches to a novel-theme reader (Mermaid, plan nav, ToC scroll-spy); code/text dispatches to a highlight.js view with line numbers + copy button; HTML renders in a sandboxed iframe; PDF dispatches to a custom minimal viewer built on the pdfjs-dist PDFViewer component (toolbar: prev/next, page input, zoom, search, download); images/video/audio get a gallery + single-view with Range-aware streaming. One server, one port, one CLI."
 license: MIT
 argument-hint: "[file-or-directory]"
 metadata:
@@ -18,7 +18,13 @@ One local HTTP server, one port, one CLI — handles markdown, images, video, an
 cd $HOME/skills/skills/file-browser && npm install
 ```
 
-**Dependencies:** `marked`, `highlight.js`, `gray-matter` (for markdown). Media rendering is zero-dep — browser does the work.
+**Dependencies:** `marked`, `highlight.js`, `gray-matter` (markdown), `pdfjs-dist` (PDF viewer). Media rendering is zero-dep — browser does the work.
+
+`npm install` runs a `postinstall` hook that copies pdfjs-dist runtime deps (worker, cmaps, fonts, wasm helpers) from `node_modules/pdfjs-dist/` into `assets/pdfjs-viewer/`. If you ran `npm install --ignore-scripts`, populate the assets manually:
+
+```bash
+node $HOME/skills/skills/file-browser/scripts/install-pdfjs-assets.cjs
+```
 
 ## Quick Start
 
@@ -55,16 +61,17 @@ node $HOME/skills/skills/file-browser/scripts/server.cjs --stop
 
 | Route | Description |
 |---|---|
-| `/view?file=<abs-path>` | **Dispatches by extension.** `.md/.markdown/.mdx` → novel-theme markdown reader (Mermaid, plan nav, ToC). Image/video/audio → media single-view with arrow-key prev/next. |
-| `/browse?dir=<abs-path>` | Gallery: folders, Documents (markdown), Media (image/video/audio), Other files. |
+| `/view?file=<abs-path>` | **Dispatches by extension.** `.md/.markdown/.mdx` → novel-theme markdown reader (Mermaid, plan nav, ToC). `.pdf` → custom PDF.js viewer iframe. Image/video/audio → media single-view with arrow-key prev/next. Append `?raw=1` to fall through to source view. |
+| `/browse?dir=<abs-path>` | Gallery: folders, Documents (markdown + PDF), Media (image/video/audio), Other files. |
 | `/file/<abs-path>` | Raw byte streaming with HTTP `Range` support (required for video seeking and Safari audio). |
-| `/api/tree?dir=<abs-path>` | Lazy directory listing (one level) for the sidebar tree. Returns JSON `{path, entries[]}` where each entry has `{name, path, kind: dir\|file, fileType?: markdown\|image\|video\|audio\|other}`. |
+| `/api/tree?dir=<abs-path>` | Lazy directory listing (one level) for the sidebar tree. Returns JSON `{path, entries[]}` where each entry has `{name, path, kind: dir\|file, fileType?: markdown\|pdf\|image\|video\|audio\|other}`. |
 | `/assets/*` | Static assets (theme CSS, reader JS, sidebar JS). |
+| `/assets/pdfjs-viewer/*` | Custom PDF viewer + pdfjs-dist runtime deps (populated by `postinstall`). |
 | `/` | Welcome / route reference. |
 
 ## Supported Formats
 
-**Documents:** `.md`, `.markdown`, `.mdx` (rendered with [marked](https://marked.js.org/) + `highlight.js` + Mermaid)
+**Documents:** `.md`, `.markdown`, `.mdx` (rendered with [marked](https://marked.js.org/) + `highlight.js` + Mermaid), `.pdf` (custom minimal viewer wrapping the pdfjs-dist `PDFViewer` component)
 **Images:** PNG, JPEG, GIF, WebP, AVIF, SVG, BMP, ICO, HEIC/HEIF (Safari only), JPEG XL, APNG
 **Video:** MP4, WebM, MOV, M4V, MKV*, OGV
 **Audio:** MP3, M4A, AAC, OGG, Opus, WAV, FLAC
@@ -149,8 +156,24 @@ assets/
 ├── novel-theme.css                 # Markdown theme entry (imports modules)
 ├── styles/                         # Modular markdown CSS (variables, base, content, mermaid, ...)
 ├── template.html                   # Markdown viewer template
-└── reader.js                       # Markdown client-side: Mermaid, sidebar, shortcuts
+├── reader.js                       # Markdown client-side: Mermaid, sidebar, shortcuts
+└── pdfjs-viewer/                   # Custom viewer.html + viewer.js + viewer.css; pdfjs-dist
+                                    # runtime deps (build/, web/, cmaps/, standard_fonts/, wasm/)
+                                    # populated by `postinstall` from node_modules/pdfjs-dist
 ```
+
+### Custom PDF viewer architecture
+
+`/assets/pdfjs-viewer/viewer.html` is custom — pdfjs-dist (npm) does NOT ship Mozilla's standalone `web/viewer.html`, only the embeddable `PDFViewer` component. Our viewer wraps that component with a minimal toolbar (~250 LOC across viewer.html / viewer.js / viewer.css). Settings: `enableScripting: false`, `isEvalSupported: false` (defense-in-depth against CVE-2024-4367; pdfjs-dist ≥4.2.67 already disables `isEvalSupported` at the component level). To extend: edit `viewer.html` (toolbar markup), `viewer.js` (component wiring), or `viewer.css` (styling). Component API: https://github.com/mozilla/pdf.js/wiki/Viewer-options
+
+### Upgrading pdfjs-dist
+
+1. Bump `pdfjs-dist` in `package.json`.
+2. Re-run `npm install` (postinstall repopulates `assets/pdfjs-viewer/`).
+3. Run tests (`node scripts/tests/server.test.cjs`).
+4. Re-read exports of `assets/pdfjs-viewer/web/pdf_viewer.mjs` — verify `PDFViewer`, `EventBus`, `PDFLinkService`, `PDFFindController`, `PDFHistory`, `DownloadManager`, `parseQueryString` are still present with compatible signatures vs `viewer.js`.
+5. Manual smoke: open a real multi-page PDF and exercise every toolbar control (prev/next, page input, zoom, search, download).
+6. Check the changelog for security advisories — pin minimum to ≥4.2.67 (CVE-2024-4367).
 
 ## Integration
 
@@ -175,7 +198,7 @@ The Hammerspoon URL always appends `&root=<computed>` (file's parent dir, or the
 node $HOME/skills/skills/file-browser/scripts/tests/server.test.cjs
 ```
 
-Boots on a free port, hits every dispatch path (welcome, gallery, image view, markdown view, file streaming, Range, traversal guard, missing params, 404, tree API, sidebar injection), cleans up. 13 tests.
+Boots on a free port, hits every dispatch path (welcome, gallery, image view, markdown view, PDF viewer iframe, raw passthrough, file streaming, Range, traversal guard, missing params, 404, tree API, sidebar injection), cleans up. 38 tests.
 
 ## Security
 
@@ -189,3 +212,7 @@ Boots on a free port, hits every dispatch path (welcome, gallery, image view, ma
 - HEIC works in Safari only. Should we add ImageMagick on-the-fly conversion for Chrome? (Requires native dep — breaks the zero-runtime-dep posture for media.)
 - Should the gallery prefetch markdown front matter (`title`, `status`) so plan dirs render with badges before clicking in? (Adds I/O cost per gallery hit.)
 - Worth adding a `/api/files?dir=<path>` JSON endpoint so the gallery could be a SPA later? (YAGNI for now.)
+- Should we render gallery thumbnails for PDFs (page-1 canvas, client-side, lazy via PDF.js)?
+- Should we add custom vim keybindings inside the PDF viewer iframe (postMessage bridge)?
+- Should we add an outline/bookmarks panel to the PDF viewer? (`PDFOutlineViewer` would need to be added to the component import set.)
+- Should we re-add a thumbnails sidebar to the PDF viewer? (`PDFThumbnailViewer` is not exported from `pdfjs-dist@5.7.0`'s `pdf_viewer.mjs`; would require re-implementing or upgrading to a future major.)

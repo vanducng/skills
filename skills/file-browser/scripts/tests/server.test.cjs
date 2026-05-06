@@ -118,11 +118,19 @@ async function main() {
     if (!html.includes('<em>italic</em>')) throw new Error('italic missing');
   });
 
-  await test('Gallery surfaces markdown in Documents section', async () => {
+  await test('Gallery surfaces markdown + pdf in Documents section', async () => {
     const r = await get(port, `/browse?dir=${encodeURIComponent(sandbox)}`);
     const html = r.body.toString();
-    if (!html.includes('Documents (1)')) throw new Error('docs section missing');
+    // sandbox contains note.md AND doc.pdf — both should land in Documents.
+    if (!html.includes('Documents (2)')) throw new Error('docs section count != 2');
     if (!html.includes('note.md')) throw new Error('note.md not listed');
+    if (!html.includes('doc.pdf')) throw new Error('doc.pdf not listed in Documents');
+    // PDF must be in Documents lane, not below "Other".
+    const docIdx = html.search(/Documents \(/);
+    const pdfIdx = html.indexOf('doc.pdf');
+    const otherIdx = html.search(/Other files \(/);
+    if (docIdx < 0 || pdfIdx < 0) throw new Error('missing markup');
+    if (otherIdx > 0 && pdfIdx > otherIdx) throw new Error('pdf grouped under Other');
   });
 
   await test('GET /file streams with correct mime', async () => {
@@ -296,11 +304,45 @@ async function main() {
     if (/>Render</.test(html)) throw new Error('Render toggle leaked into non-HTML view');
   });
 
-  await test('GET /view renders PDF via <embed>', async () => {
+  await test('GET /view renders PDF via PDF.js viewer iframe', async () => {
     const r = await get(port, `/view?file=${encodeURIComponent(pdfPath)}`);
     if (r.status !== 200) throw new Error(`status ${r.status}`);
     const html = r.body.toString();
-    if (!/<embed[^>]*application\/pdf/.test(html)) throw new Error('embed missing');
+    if (!/<iframe[^>]*\/assets\/pdfjs-viewer\/viewer\.html\?file=/.test(html)) {
+      throw new Error('viewer iframe missing');
+    }
+    if (/<embed[^>]*application\/pdf/.test(html)) throw new Error('legacy <embed> still present');
+  });
+
+  await test('GET /view?file=*.pdf&raw=1 bypasses the PDF viewer', async () => {
+    const r = await get(port, `/view?file=${encodeURIComponent(pdfPath)}&raw=1`);
+    if (r.status !== 200) throw new Error(`status ${r.status}`);
+    const html = r.body.toString();
+    if (/pdfjs-viewer\/viewer\.html/.test(html)) throw new Error('viewer leaked into raw view');
+    // raw=1 routes through renderTextView; for the synthetic fixture (no NUL
+    // bytes) that produces a hljs source view, real binary PDFs would show
+    // the binary fallback card. Either way the viewer must be absent — that's
+    // the actual contract.
+  });
+
+  await test('tree-api classifies pdf', () => {
+    const { classifyFile } = require('../lib/tree-api.cjs');
+    if (classifyFile('/tmp/foo.pdf') !== 'pdf') throw new Error('lowercase pdf missed');
+    if (classifyFile('/tmp/FOO.PDF') !== 'pdf') throw new Error('uppercase PDF missed');
+    if (classifyFile('/tmp/foo.pdfx') === 'pdf') throw new Error('false positive on .pdfx');
+    if (classifyFile('/tmp/foo.md') !== 'markdown') throw new Error('md regression');
+  });
+
+  await test('GET /assets/pdfjs-viewer/build/pdf.worker.mjs has javascript MIME', async () => {
+    const r = await get(port, '/assets/pdfjs-viewer/build/pdf.worker.mjs');
+    // Skip gracefully if postinstall hasn't populated assets (e.g. CI without npm install).
+    if (r.status === 404) {
+      console.log('  (skipped — assets not vendored; run `npm install` or postinstall)');
+      return;
+    }
+    if (r.status !== 200) throw new Error(`status ${r.status}`);
+    const ct = String(r.headers['content-type'] || '');
+    if (!/javascript/.test(ct)) throw new Error(`expected javascript MIME, got ${ct}`);
   });
 
   await test('?root= override rebases sidebar treeRoot', async () => {
@@ -381,6 +423,48 @@ async function main() {
     }
     if (!data.results.some((x) => x.path === target)) {
       throw new Error('did not find nested target');
+    }
+  });
+
+  await test('GET /api/tree hides dot entries by default; ?hidden=1 surfaces them', async () => {
+    const dotFile = path.join(sandbox, '.secret');
+    const dotDir = path.join(sandbox, '.config');
+    fs.writeFileSync(dotFile, 'shh');
+    fs.mkdirSync(dotDir, { recursive: true });
+
+    const def = await get(port, `/api/tree?dir=${encodeURIComponent(sandbox)}`);
+    const defNames = JSON.parse(def.body.toString()).entries.map((e) => e.name);
+    if (defNames.includes('.secret') || defNames.includes('.config')) {
+      throw new Error('dot entries leaked into default listing');
+    }
+
+    const shown = await get(port, `/api/tree?dir=${encodeURIComponent(sandbox)}&hidden=1`);
+    const shownNames = JSON.parse(shown.body.toString()).entries.map((e) => e.name);
+    if (!shownNames.includes('.secret')) throw new Error('.secret missing with hidden=1');
+    if (!shownNames.includes('.config')) throw new Error('.config missing with hidden=1');
+  });
+
+  await test('GET /api/search ?hidden=1 includes dot-prefixed matches', async () => {
+    const dotMatch = path.join(sandbox, '.secret-needle.txt');
+    fs.writeFileSync(dotMatch, '');
+
+    const off = await get(port, `/api/search?dir=${encodeURIComponent(sandbox)}&q=secret-needle`);
+    const offData = JSON.parse(off.body.toString());
+    if (offData.results.some((r) => r.path === dotMatch)) {
+      throw new Error('dot file leaked into default search');
+    }
+
+    const on = await get(port, `/api/search?dir=${encodeURIComponent(sandbox)}&q=secret-needle&hidden=1`);
+    const onData = JSON.parse(on.body.toString());
+    if (!onData.results.some((r) => r.path === dotMatch)) {
+      throw new Error('dot file missing with hidden=1');
+    }
+  });
+
+  await test('Sidebar exposes hidden-toggle button', async () => {
+    const r = await get(port, `/browse?dir=${encodeURIComponent(sandbox)}`);
+    if (!r.body.toString().includes('class="fb-sidebar-hidden"')) {
+      throw new Error('hidden-toggle button missing');
     }
   });
 
