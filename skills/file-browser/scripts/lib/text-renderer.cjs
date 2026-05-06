@@ -177,6 +177,11 @@ function buildPage(name, filePath, cssHref, body, opts = {}) {
   const treeRoot = opts.sidebar && opts.sidebar.treeRoot;
   const headPersist = opts.sidebar ? ROOT_PERSIST_HEAD_SCRIPT : '';
   const folderHref = withRoot(`/browse?dir=${encodeURIComponent(path.dirname(filePath))}`, treeRoot);
+  // HTML source view (raw=1) gets a "Render" toggle back to the iframe
+  // and drops the Copy button — copying markup isn't a common need there.
+  const renderHref = opts.htmlSource
+    ? withRoot(`/view?file=${encodeURIComponent(filePath)}`, treeRoot)
+    : null;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -198,7 +203,8 @@ function buildPage(name, filePath, cssHref, body, opts = {}) {
     <a class="btn" href="${esc(folderHref)}" title="Folder (Esc)">← Folder</a>
     <h1 class="title" title="${esc(filePath)}">${esc(name)}</h1>
     <span class="spacer"></span>
-    <button class="btn" id="copy-btn" type="button" title="Copy file contents">Copy</button>
+    ${opts.htmlSource ? '' : '<button class="btn" id="copy-btn" type="button" title="Copy file contents">Copy</button>'}
+    ${renderHref ? `<a class="btn" href="${esc(renderHref)}" title="Render HTML">Render</a>` : ''}
     <a class="btn" href="/file${esc(filePath)}?raw=1" target="_blank" rel="noopener noreferrer" title="Open raw">Raw</a>
   </header>
   <main class="stage text-stage">${body}</main>
@@ -264,7 +270,7 @@ function renderTextView(filePath, cssHref, opts = {}) {
   const body = `<div class="text-card">
     <pre><code class="${langClass} hljs">${withLines}</code></pre>
   </div>`;
-  return buildPage(name, filePath, cssHref, body, opts);
+  return buildPage(name, filePath, cssHref, body, { ...opts, htmlSource: kind === 'html' });
 }
 
 // Sandboxed iframe so the page's scripts/styles can't reach the chrome.
