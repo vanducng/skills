@@ -2,12 +2,23 @@
 
 Universal layout rules. Type-specific axes are defined in each `types/<type>.md`.
 
+## Mandatory grid
+
+Snap **every** `x`, `y`, `width`, `height` to a multiple of 20. Most of the "off-by-a-few-pixels" overlap defects come from coordinates like `x="83"` or `width="143"` — pick `80` and `140` instead. The grid is your overlap-prevention engine; respect it.
+
 ## Whitespace
 
 - **≥40px breathing room** around every grouping box.
 - **≥24px** between adjacent elements on the same row.
 - Labels never touch arrows. Minimum 8px gap.
 - No element clips another. If two elements would overlap, shrink the diagram or split it.
+
+## Edge routing
+
+- All connection paths are **orthogonal** — only horizontal segments, vertical segments, and right-angle corners. No diagonals (no `M 280 100 L 640 110`).
+- Edges never cross node bounding boxes. Route through the gutters between nodes; if a gutter doesn't exist, the layout is too dense — pick wider node spacing, not a diagonal shortcut.
+- Bidirectional flows collapse to **one** path with `marker-start` AND `marker-end` — never two parallel arrows on the same line.
+- For an arrow label on a long edge, place the `<g class="arrow-label">` at the midpoint of a straight segment with a literal-hex `<rect>` occluder behind the text. Do not place labels on bends.
 
 ## Hierarchy
 

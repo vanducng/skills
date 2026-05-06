@@ -3,12 +3,44 @@
 When `--format svg` is used, the LLM must emit raw SVG markup that conforms to this contract.
 The orchestrator strips markdown fences and validates that output starts with `<svg`.
 
+## Engines
+
+Two engine paths produce SVG; both must satisfy the Hard Constraints in this file.
+
+- **`--engine free`** (current default for `sequence` and `state-machine`): pure-LLM SVG path. The LLM owns layout AND aesthetics. Implemented in `scripts/openrouter_chat.py::generate_svg`.
+- **`--engine skeleton`** (default for `system-architecture`, `data-flow`, `c4-context`, `c4-container`, `er-diagram` once Phase 8 ships): two-pass — pass-1 emits a YAML structural skeleton (see [`skeleton-contract.md`](skeleton-contract.md)); Python computes coordinates; pass-2 paints SVG with coords locked (see [`painter-contract.md`](painter-contract.md)).
+
 ## Output Requirements
 
 - Valid **SVG 1.1**.
 - Self-contained — no embedded raster images, no external font loads, no data: URLs.
 - Must include `viewBox` so it scales cleanly.
 - No `<script>` tags. No `<foreignObject>`. No event handlers (`onclick`, etc.).
+
+## Hard Constraints (validated automatically — violations trigger an extra revise pass)
+
+1. **XML well-formedness.** The SVG must parse as strict XML.
+   - Escape `&` as `&amp;` in *every* `<text>` body. Even labels like `CLI & Subsystems` must be `CLI &amp; Subsystems`.
+   - Self-close empty elements (`<rect ... />`, not `<rect ...>`).
+   - Quote every attribute value.
+2. **No CSS variables in presentation attributes.** `var(--x)` only resolves inside `<style>` rules — *not* in inline attributes when the SVG loads via `<img>`. Forbidden:
+   ```svg
+   <path fill="var(--primary)"/>           <!-- BROKEN -->
+   <rect stroke="var(--accent)"/>          <!-- BROKEN -->
+   ```
+   Always use a class instead, defined in the embedded `<style>`:
+   ```svg
+   <style>
+     .arrow-fill   { fill: var(--primary); }
+     .accent-rect  { stroke: var(--accent); }
+   </style>
+   <path class="arrow-fill"/>
+   <rect class="accent-rect"/>
+   ```
+   This rule applies **inside `<defs>` and `<marker>` blocks** as well — markers must use class-based fills, not inline `var()`.
+3. **No node-rect overlaps.** Two `<rect>` elements with class `service`, `datastore`, `external-system`, `cache`, `queue`, `process`, `decision`, `state`, `entity`, or `actor` must not have intersecting axis-aligned bounding boxes. Layer envelopes (`class="boundary"`) and arrow-label occluders (`class="arrow-label"`) are exempt.
+4. **Every visible element is anchored.** No floating dots, dashes, or stray glyphs. If you draw it, it lives inside a `<g>` parent and is connected to the diagram's semantics.
+5. **Layer-boundary headers clear their children.** Boundary header text (e.g. `<text class="muted">User Input</text>`) must sit at least 12 px above the topmost child node. Putting the header inside the rect's top-left and overlapping the first child node is the most common defect — don't do it.
 
 ## Required Root Attributes
 

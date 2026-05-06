@@ -18,12 +18,17 @@ from pathlib import Path
 from openrouter_chat import (
     DEFAULT_MODEL as REFINE_MODEL,
     classify_type,
+    generate_skeleton,
     generate_svg,
+    paint_svg,
     refine_prompt,
     revise_svg,
 )
 from openrouter_image import DEFAULT_MODEL as IMAGE_MODEL
 from openrouter_image import find_api_key, generate_image
+from skeleton_layout import laid_out_to_yaml, layered_lr
+from skeleton_schema import SkeletonError, parse_skeleton
+from validation import ExpectedLayout, validate_and_fix
 
 SUPPORTED_TYPES = [
     "system-architecture",
@@ -46,6 +51,19 @@ TYPE_ALIASES = {
 
 SUPPORTED_PRESETS = ["warm", "mono", "pastel", "cyberpunk"]
 DEFAULT_PRESET = "warm"
+
+SUPPORTED_ENGINES = ["free", "skeleton"]
+
+# Default engine per type. Free is the fallback for types skeleton can't model.
+ENGINE_DEFAULT_BY_TYPE = {
+    "system-architecture": "skeleton",
+    "data-flow":           "skeleton",
+    "c4-context":          "skeleton",
+    "c4-container":        "skeleton",
+    "er-diagram":          "skeleton",
+    "sequence":            "free",
+    "state-machine":       "free",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +126,13 @@ def ensure_self_ignore(parent_diagrams_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def load_refs(diagram_type: str, want_svg: bool, preset: str = DEFAULT_PRESET) -> dict[str, str]:
+def load_refs(
+    diagram_type: str,
+    want_svg: bool,
+    preset: str = DEFAULT_PRESET,
+    *,
+    want_skeleton: bool = False,
+) -> dict[str, str]:
     refs_dir = find_skill_root() / "references"
     preset_tokens = refs_dir / "presets" / preset / "style-tokens.md"
     if not preset_tokens.exists():
@@ -121,6 +145,9 @@ def load_refs(diagram_type: str, want_svg: bool, preset: str = DEFAULT_PRESET) -
     }
     if want_svg:
         out["svg_contract"] = (refs_dir / "svg-contract.md").read_text()
+    if want_skeleton:
+        out["skeleton_contract"] = (refs_dir / "skeleton-contract.md").read_text()
+        out["painter_contract"] = (refs_dir / "painter-contract.md").read_text()
     return out
 
 
@@ -171,6 +198,7 @@ def write_session_artifacts(
     quality: str,
     aspect_ratio: str,
     preset: str,
+    engine: str | None = None,
 ) -> None:
     refined_for_md = refined if len(refined) <= 1000 else f"{refined[:1000]}\n... ({len(refined)} chars total)"
     prompt_md = (
@@ -193,6 +221,8 @@ def write_session_artifacts(
         "original_description": original,
         "image_files": [image_path.name],
     }
+    if engine is not None:
+        meta["engine"] = engine
     (session_dir / "meta.json").write_text(json.dumps(meta, indent=2))
 
 
@@ -285,7 +315,28 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Skip the SVG critique/revise pass (faster, lower quality).",
     )
+    parser.add_argument(
+        "--engine",
+        choices=SUPPORTED_ENGINES,
+        default=None,
+        help=("free: pure-LLM SVG path (current default for sequence/state-machine). "
+              "skeleton: two-pass YAML → layout → paint. "
+              "Default depends on --type."),
+    )
     return parser.parse_args(argv)
+
+
+def resolve_engine(arg_engine: str | None, diagram_type: str, fmt: str) -> str:
+    if fmt != "svg":
+        return "free"  # PNG path is never skeleton
+    engine = arg_engine or ENGINE_DEFAULT_BY_TYPE.get(diagram_type, "free")
+    if engine == "skeleton" and ENGINE_DEFAULT_BY_TYPE.get(diagram_type) != "skeleton":
+        raise RuntimeError(
+            f"--engine skeleton not supported for type {diagram_type!r}. "
+            f"Skeleton types: "
+            f"{sorted(t for t, e in ENGINE_DEFAULT_BY_TYPE.items() if e == 'skeleton')}"
+        )
+    return engine
 
 
 def _resolve_type(arg_type: str | None, description: str) -> tuple[str, float]:
@@ -303,6 +354,118 @@ def _resolve_parent_dir() -> Path:
     return Path.home() / "Documents" / "llm-diagrams" / Path.cwd().name
 
 
+def _produce_svg_free(
+    *,
+    description: str,
+    output_path: Path,
+    refs: dict[str, str],
+    style_tokens: str,
+    preset: str,
+    revise: bool = True,
+) -> tuple[str, str | None]:
+    """Pure-LLM SVG path. UNCHANGED from pre-skeleton-engine behavior."""
+    print(f"→ generating SVG draft (preset: {preset}, model: {REFINE_MODEL}, ~10–20s)…", flush=True)
+    svg_text = generate_svg(
+        description=description,
+        type_ref=refs["type_ref"],
+        style_tokens=style_tokens,
+        composition_rules=refs["composition_rules"],
+        svg_contract=refs["svg_contract"],
+    )
+    if revise:
+        print(f"→ critiquing + revising layout (~10–20s)…", flush=True)
+        svg_text = revise_svg(
+            draft_svg=svg_text,
+            description=description,
+            svg_contract=refs["svg_contract"],
+        )
+    svg_text, vreport = validate_and_fix(svg_text)
+    for fix in vreport.autofix_applied:
+        print(f"→ validation auto-fix: {fix}", flush=True)
+    if vreport.needs_revise and revise:
+        print(f"→ validation found {len(vreport.blocking_issues)} issue(s); revising once more…", flush=True)
+        svg_text = revise_svg(
+            draft_svg=svg_text,
+            description=description,
+            svg_contract=refs["svg_contract"],
+            extra_feedback=vreport.summary(),
+        )
+        svg_text, vreport2 = validate_and_fix(svg_text)
+        for fix in vreport2.autofix_applied:
+            print(f"→ validation auto-fix (post-revise): {fix}", flush=True)
+        if vreport2.needs_revise:
+            print(f"⚠ validation still flags {len(vreport2.blocking_issues)} issue(s); writing anyway", flush=True)
+    output_path.write_text(svg_text)
+    return svg_text, None
+
+
+def _produce_svg_skeleton(
+    *,
+    description: str,
+    diagram_type: str,
+    preset: str,
+    output_path: Path,
+    refs: dict[str, str],
+    revise: bool = True,
+) -> tuple[str, str | None]:
+    print(f"→ pass 1: emitting skeleton (preset: {preset}, model: {REFINE_MODEL})…", flush=True)
+    skel_yaml = generate_skeleton(
+        description=description,
+        diagram_type=diagram_type,
+        preset=preset,
+        skeleton_contract=refs["skeleton_contract"],
+        type_ref=refs["type_ref"],
+    )
+    try:
+        skel = parse_skeleton(skel_yaml)
+    except SkeletonError as exc:
+        raise RuntimeError(f"pass-1 emitted invalid skeleton: {exc}") from exc
+
+    print(f"→ laying out: {len(skel.elements)} elements, {len(skel.edges)} edges, "
+          f"{len(skel.groups)} groups…", flush=True)
+    laid = layered_lr(skel)
+    expected = ExpectedLayout(nodes={n: t for n, t in laid.nodes.items()})
+
+    print(f"→ pass 2: painting SVG (canvas {laid.canvas_w}×{laid.canvas_h})…", flush=True)
+    svg_text = paint_svg(
+        laid_out_yaml=laid_out_to_yaml(laid),
+        description=description,
+        preset_tokens=refs["style_tokens"],
+        style_foundations=refs["style_foundations"],
+        composition_rules=refs["composition_rules"],
+        svg_contract=refs["svg_contract"],
+        painter_contract=refs["painter_contract"],
+    )
+
+    svg_text, vreport = validate_and_fix(svg_text, expected_layout=expected)
+    for fix in vreport.autofix_applied:
+        print(f"→ validation auto-fix: {fix}", flush=True)
+
+    if vreport.needs_revise and revise:
+        print(f"→ {len(vreport.blocking_issues)} issue(s); one revise pass…", flush=True)
+        coords_locked_banner = (
+            "COORDINATES ARE LOCKED — DO NOT MOVE, RESIZE, OR REORDER ANY "
+            "ELEMENT. Resolve issues only via colors / line weights / decoration / "
+            "<style> changes. Preserve every (x, y, width, height) and every "
+            "data-name/data-bbox attribute exactly as supplied.\n\n"
+        )
+        svg_text = revise_svg(
+            draft_svg=svg_text,
+            description=description,
+            svg_contract=refs["svg_contract"],
+            extra_feedback=coords_locked_banner + vreport.summary(),
+        )
+        svg_text, vreport2 = validate_and_fix(svg_text, expected_layout=expected)
+        for fix in vreport2.autofix_applied:
+            print(f"→ validation auto-fix (post-revise): {fix}", flush=True)
+        if vreport2.needs_revise:
+            print(f"⚠ still {len(vreport2.blocking_issues)} issue(s); writing anyway", flush=True)
+
+    output_path.write_text(svg_text)
+    print(f"→ saved {output_path.name} ({len(svg_text)} bytes)", flush=True)
+    return svg_text, None
+
+
 def _produce_image(
     *,
     description: str,
@@ -313,32 +476,29 @@ def _produce_image(
     output_path: Path,
     preset: str,
     revise: bool = True,
+    engine: str = "free",
 ) -> tuple[str, str]:
     """Return (refined_text_or_svg, image_model_or_none)."""
-    refs = load_refs(diagram_type, want_svg=(fmt == "svg"), preset=preset)
+    want_skeleton = (fmt == "svg" and engine == "skeleton")
+    refs = load_refs(
+        diagram_type, want_svg=(fmt == "svg"), preset=preset,
+        want_skeleton=want_skeleton,
+    )
     style_tokens = (
         f"# Active preset: {preset}\n\n"
         f"## Preset style-tokens\n{refs['style_tokens']}\n\n"
         f"## Style foundations (theme-agnostic)\n{refs['style_foundations']}"
     )
     if fmt == "svg":
-        print(f"→ generating SVG draft (preset: {preset}, model: {REFINE_MODEL}, ~10–20s)…", flush=True)
-        svg_text = generate_svg(
-            description=description,
-            type_ref=refs["type_ref"],
-            style_tokens=style_tokens,
-            composition_rules=refs["composition_rules"],
-            svg_contract=refs["svg_contract"],
-        )
-        if revise:
-            print(f"→ critiquing + revising layout (~10–20s)…", flush=True)
-            svg_text = revise_svg(
-                draft_svg=svg_text,
-                description=description,
-                svg_contract=refs["svg_contract"],
+        if engine == "skeleton":
+            return _produce_svg_skeleton(
+                description=description, diagram_type=diagram_type, preset=preset,
+                output_path=output_path, refs=refs, revise=revise,
             )
-        output_path.write_text(svg_text)
-        return svg_text, None
+        return _produce_svg_free(
+            description=description, output_path=output_path,
+            refs=refs, style_tokens=style_tokens, preset=preset, revise=revise,
+        )
     print(f"→ refining prompt (preset: {preset}, model: {REFINE_MODEL}, ~5–10s)…", flush=True)
     refined = refine_prompt(
         description=description,
@@ -397,12 +557,13 @@ def main(argv: list[str] | None = None) -> int:
         diagram_type = meta.get("type") or "system-architecture"
         fmt = meta.get("format") or args.format
         preset = meta.get("preset") or args.preset
+        engine = meta.get("engine") or resolve_engine(args.engine, diagram_type, fmt)
         effective = f"{original}\n\nFeedback for next iteration: {args.regen}"
         variant = next_variant_index(session_dir, fmt)
         out_path = session_dir / f"v{variant}.{fmt}"
         print(
             f"→ regen: session={session_dir.name}, type={diagram_type}, format={fmt}, "
-            f"preset={preset}, variant=v{variant}",
+            f"preset={preset}, engine={engine}, variant=v{variant}",
             flush=True,
         )
         refined, _img_model = _produce_image(
@@ -412,6 +573,7 @@ def main(argv: list[str] | None = None) -> int:
             quality=args.quality,
             aspect_ratio=args.aspect_ratio,
             output_path=out_path,
+            engine=engine,
             preset=preset,
             revise=not args.no_revise,
         )
@@ -445,6 +607,9 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(f"→ type: {diagram_type}", flush=True)
 
+    engine = resolve_engine(args.engine, diagram_type, args.format)
+    print(f"→ engine: {engine}", flush=True)
+
     slug = args.slug or slugify(f"{diagram_type}-{args.description}")
     _, session_dir = resolve_output_dir(slug)
     out_path = session_dir / f"v1.{args.format}"
@@ -458,6 +623,7 @@ def main(argv: list[str] | None = None) -> int:
         output_path=out_path,
         preset=args.preset,
         revise=not args.no_revise,
+        engine=engine,
     )
     print(f"→ saved {out_path}", flush=True)
 
@@ -473,6 +639,7 @@ def main(argv: list[str] | None = None) -> int:
         quality=args.quality,
         aspect_ratio=args.aspect_ratio,
         preset=args.preset,
+        engine=engine,
     )
 
     print("→ spawning gallery…", flush=True)

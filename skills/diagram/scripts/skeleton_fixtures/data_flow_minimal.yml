@@ -1,0 +1,19 @@
+type: data-flow
+preset: warm
+title: "ETL pipeline (minimal)"
+groups:
+  - name: source
+    label: "Sources"
+  - name: process
+    label: "Processing"
+  - name: sink
+    label: "Sinks"
+elements:
+  - {name: kafka, kind: queue, group: source, label: "Kafka topics"}
+  - {name: spark, kind: process, group: process, label: "Spark", subject: true}
+  - {name: ch, kind: datastore, group: sink, label: "ClickHouse"}
+  - {name: graf, kind: external-system, group: sink, label: "Grafana"}
+edges:
+  - {from: kafka, to: spark, label: "stream", kind: async}
+  - {from: spark, to: ch, label: "writes", kind: sync}
+  - {from: ch, to: graf, label: "queries", kind: sync}
