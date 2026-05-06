@@ -440,6 +440,62 @@ body.markdown.has-fb-sidebar .content pre {
   font-size: 12px;
 }
 
+/* Recursive-search results — flat list shown in place of the lazy tree
+   when the filter input has 2+ chars. Each row shows the basename + relpath. */
+.fb-search-results {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.fb-search-results li.node {
+  cursor: pointer;
+}
+.fb-search-results li.node .row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  min-height: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.fb-search-results li.node:hover .row {
+  background: var(--sidebar-hover-bg);
+}
+.fb-search-results li.node.cursor .row {
+  background: var(--sidebar-cursor-bg);
+}
+.fb-search-results .icon {
+  flex: 0 0 auto;
+  width: 14px;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.85;
+}
+.fb-search-results .label {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: var(--sidebar-fg);
+}
+.fb-search-results .search-relpath {
+  flex: 1 1 auto;
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--sidebar-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* RTL clips from the left so the path tail (closer to the file) stays visible. */
+  direction: rtl;
+  text-align: left;
+  unicode-bidi: plaintext;
+}
+.fb-search-status {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--sidebar-muted);
+  font-style: italic;
+}
+
 @media (max-width: 720px) {
   body.gallery,
   body.single {

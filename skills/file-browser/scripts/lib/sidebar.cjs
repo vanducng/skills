@@ -37,6 +37,8 @@ function renderSidebar({ treeRoot, activePath }) {
   </div>
   <nav class="fb-sidebar-tree" tabindex="0">
     <ul class="tree" data-path="${esc(treeRoot)}" data-loaded="false"></ul>
+    <ul class="fb-search-results" hidden></ul>
+    <div class="fb-search-status" hidden></div>
   </nav>
   <div class="fb-sidebar-help-overlay" hidden>
     <div class="cheatsheet">
