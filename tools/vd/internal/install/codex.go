@@ -47,6 +47,8 @@ func Codex(repoRoot string, opts CodexOptions) ([]Result, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else if err := assertSafeDest(destRoot); err != nil {
+		return nil, err
 	}
 
 	skillsDir := filepath.Join(repoRoot, "skills")
@@ -182,6 +184,70 @@ func installSkill(src, dst, destRoot string, opts CodexOptions) (string, error) 
 	return "symlinked", nil
 }
 
+// dangerousDestPrefixes are absolute paths (and their subtrees) we refuse to
+// install into, even with --force, to catch finger-fumbles like
+// `--dest /etc`. Paths under $HOME or os.TempDir() are always allowed and
+// skip this check, so this list focuses on system roots.
+var dangerousDestPrefixes = []string{
+	"/etc",
+	"/usr",
+	"/bin",
+	"/sbin",
+	"/boot",
+	"/proc",
+	"/sys",
+	"/dev",
+	"/System",
+	"/Library",
+	"/private/etc",
+}
+
+func assertSafeDest(dest string) error {
+	abs, err := filepath.Abs(dest)
+	if err != nil {
+		return fmt.Errorf("resolve dest %s: %w", dest, err)
+	}
+	abs = filepath.Clean(abs)
+	if abs == "/" {
+		return fmt.Errorf("refusing to install into filesystem root %q", abs)
+	}
+	// Always allow $HOME and the OS temp dir (covers `t.TempDir()` on macOS,
+	// which lives under /var/folders).
+	for _, allow := range allowedDestRoots() {
+		if isWithin(abs, allow) {
+			return nil
+		}
+	}
+	for _, root := range dangerousDestPrefixes {
+		if isWithin(abs, root) {
+			return fmt.Errorf("refusing to install into system path %s; choose a path under $HOME or a temp dir", abs)
+		}
+	}
+	return nil
+}
+
+func allowedDestRoots() []string {
+	var roots []string
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		if abs, err := filepath.Abs(home); err == nil {
+			roots = append(roots, filepath.Clean(abs))
+		}
+	}
+	if tmp := os.TempDir(); tmp != "" {
+		if abs, err := filepath.Abs(tmp); err == nil {
+			roots = append(roots, filepath.Clean(abs))
+		}
+	}
+	return roots
+}
+
+func isWithin(abs, root string) bool {
+	if abs == root {
+		return true
+	}
+	return strings.HasPrefix(abs+string(filepath.Separator), root+string(filepath.Separator))
+}
+
 func assertSimpleName(name string) error {
 	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
 		return fmt.Errorf("invalid skill name %q", name)
@@ -204,6 +270,10 @@ func assertInsideRoot(path, repoRoot string) error {
 	return nil
 }
 
+// copyDir produces a self-contained snapshot of src under dst. Symlinks inside
+// src are dereferenced (their target contents are copied) — the snapshot mode
+// is meant to materialize a portable copy, so we trade link fidelity for
+// portability. Broken symlinks surface as Open errors from copyFile.
 func copyDir(src, dst string) error {
 	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -221,7 +291,13 @@ func copyDir(src, dst string) error {
 	})
 }
 
+// copyFile copies src to dst, preserving the source's permission bits so
+// executable scripts inside skills remain executable after a snapshot copy.
 func copyFile(src, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("stat src %s: %w", src, err)
+	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
@@ -231,7 +307,7 @@ func copyFile(src, dst string) error {
 	}
 	defer func() { _ = in.Close() }()
 
-	out, err := os.Create(dst)
+	out, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, info.Mode().Perm())
 	if err != nil {
 		return fmt.Errorf("create dst %s: %w", dst, err)
 	}
@@ -239,5 +315,10 @@ func copyFile(src, dst string) error {
 		_ = out.Close()
 		return fmt.Errorf("copy %s -> %s: %w", src, dst, err)
 	}
-	return out.Close()
+	if err := out.Close(); err != nil {
+		return err
+	}
+	// Re-apply mode: O_CREATE honors umask, so executables can still lose
+	// bits on systems with restrictive umask. Chmod is the belt-and-suspenders.
+	return os.Chmod(dst, info.Mode().Perm())
 }

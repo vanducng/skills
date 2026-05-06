@@ -61,9 +61,17 @@ Agents:
 func runInstall(cmd *cobra.Command, repoRoot string, args []string, opts installOptions) error {
 	agent := ""
 	skills := args
-	if len(args) > 0 && isKnownInstallAgent(args[0]) {
-		agent = normalizeInstallAgent(args[0])
-		skills = args[1:]
+	if len(args) > 0 {
+		if isKnownInstallAgent(args[0]) {
+			agent = normalizeInstallAgent(args[0])
+			skills = args[1:]
+		} else if _, err := os.Stat(filepath.Join(repoRoot, "skills", args[0], "SKILL.md")); err != nil {
+			// Not a known agent and not a real skill — most likely a
+			// typo'd agent name. Fail fast with a clear hint instead of
+			// silently treating it as a skill and confusing the user
+			// downstream.
+			return fmt.Errorf("unknown agent or skill %q (valid agents: codex, claude)", args[0])
+		}
 	}
 
 	if agent == "" {
@@ -253,6 +261,16 @@ func resolveInstallSelection(selection string, opts installOptions) (string, ins
 		opts.copy = true
 		return "codex", opts, nil
 	case "claude":
+		// Clear codex-only flags so a user who passed `--copy` / `--dest`
+		// / `--force` and then picked Claude in the picker doesn't trip
+		// the "only apply to codex installs" guard.
+		opts.copy = false
+		opts.dest = ""
+		opts.force = false
+		if opts.scope == "user" || opts.scope == "project" || opts.scope == "local" {
+			return "claude", opts, nil
+		}
+		opts.scope = "user"
 		return "claude", opts, nil
 	default:
 		return "", opts, fmt.Errorf("invalid selection %q", strings.TrimSpace(selection))

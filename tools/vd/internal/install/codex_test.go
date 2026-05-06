@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -97,5 +98,56 @@ func TestCodex_RejectsInvalidScopeWithDestOverride(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected invalid scope error")
+	}
+}
+
+func TestCodex_RejectsDangerousDestRoot(t *testing.T) {
+	repo := t.TempDir()
+	writeSkill(t, repo, "foo")
+
+	_, err := Codex(repo, CodexOptions{
+		Dest:   "/etc/skills",
+		Skills: []string{"foo"},
+		DryRun: true,
+	})
+	if err == nil {
+		t.Fatal("expected refusal for /etc dest")
+	}
+	if !strings.Contains(err.Error(), "system path") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCopyFile_PreservesExecutableMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file mode bits don't translate cleanly on Windows")
+	}
+	repo := t.TempDir()
+	dest := filepath.Join(t.TempDir(), "skills")
+	writeSkill(t, repo, "foo")
+
+	scriptDir := filepath.Join(repo, "skills", "foo", "scripts")
+	if err := os.MkdirAll(scriptDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	scriptPath := filepath.Join(scriptDir, "run.sh")
+	if err := os.WriteFile(scriptPath, []byte("#!/bin/sh\necho hi\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Codex(repo, CodexOptions{
+		Dest:   dest,
+		Skills: []string{"foo"},
+		Copy:   true,
+	}); err != nil {
+		t.Fatalf("Codex copy: %v", err)
+	}
+
+	info, err := os.Stat(filepath.Join(dest, "foo", "scripts", "run.sh"))
+	if err != nil {
+		t.Fatalf("stat copied script: %v", err)
+	}
+	if info.Mode().Perm()&0o111 == 0 {
+		t.Fatalf("copied script lost executable bit: mode=%v", info.Mode().Perm())
 	}
 }

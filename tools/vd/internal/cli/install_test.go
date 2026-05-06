@@ -103,3 +103,49 @@ func TestResolveInstallSelection(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveInstallSelection_ClaudeClearsCodexFlags(t *testing.T) {
+	in := installOptions{
+		scope: "user",
+		dest:  "/tmp/somewhere",
+		copy:  true,
+		force: true,
+	}
+	agent, opts, err := resolveInstallSelection("4", in)
+	if err != nil {
+		t.Fatalf("resolveInstallSelection: %v", err)
+	}
+	if agent != "claude" {
+		t.Fatalf("agent = %q, want claude", agent)
+	}
+	if opts.copy || opts.force || opts.dest != "" {
+		t.Fatalf("codex-only flags not cleared: %+v", opts)
+	}
+}
+
+func TestResolveInstallSelection_ClaudeRewritesRepoScope(t *testing.T) {
+	// `--scope repo` is codex-only; if the user mixed it with a claude
+	// pick, fall back to the safe default rather than carrying it over.
+	agent, opts, err := resolveInstallSelection("claude", installOptions{scope: "repo"})
+	if err != nil {
+		t.Fatalf("resolveInstallSelection: %v", err)
+	}
+	if agent != "claude" || opts.scope != "user" {
+		t.Fatalf("agent=%q scope=%q, want claude/user", agent, opts.scope)
+	}
+}
+
+func TestRunInstall_RejectsUnknownAgentTypo(t *testing.T) {
+	root := setupE2ERepo(t)
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstall(cmd, root, []string{"codeex"}, installOptions{scope: "user"})
+	if err == nil {
+		t.Fatal("expected error for unknown agent typo")
+	}
+	if !strings.Contains(err.Error(), "unknown agent or skill") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
