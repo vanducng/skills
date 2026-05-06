@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">vd CLI feature overview</title>
+  <desc id="desc">A workflow diagram showing vd init, add, sync, build, install, inspect, and cache commands.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7f8fb; }
+      .ink { fill: #172033; }
+      .muted { fill: #5d697c; }
+      .line { stroke: #8792a5; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .arrow { fill: #8792a5; }
+      .panel { fill: #ffffff; stroke: #d8dee9; stroke-width: 2; rx: 8; }
+      .step { fill: #eef6ff; stroke: #8ebce8; stroke-width: 2; rx: 8; }
+      .agent { fill: #ecf8f2; stroke: #80c89d; stroke-width: 2; rx: 8; }
+      .inspect { fill: #fff4e6; stroke: #f0b35a; stroke-width: 2; rx: 8; }
+      .code { font: 700 22px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #172033; }
+      .label { font: 700 26px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #172033; }
+      .small { font: 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #5d697c; }
+      .tiny { font: 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #5d697c; }
+      .title { font: 800 44px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #172033; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1280" height="720"/>
+  <text x="64" y="74" class="title">vd CLI</text>
+  <text x="64" y="110" class="small">Manage skill sources, local files, generated targets, and agent installs from one command.</text>
+
+  <rect x="64" y="152" width="1152" height="400" class="panel" rx="8"/>
+
+  <rect x="104" y="218" width="156" height="96" class="step" rx="8"/>
+  <text x="128" y="256" class="code">vd init</text>
+  <text x="128" y="286" class="small">create manifest</text>
+
+  <rect x="314" y="218" width="156" height="96" class="step" rx="8"/>
+  <text x="338" y="256" class="code">vd add</text>
+  <text x="338" y="286" class="small">track source</text>
+
+  <rect x="524" y="218" width="156" height="96" class="step" rx="8"/>
+  <text x="548" y="256" class="code">vd sync</text>
+  <text x="548" y="286" class="small">vendor skills</text>
+
+  <rect x="734" y="218" width="156" height="96" class="step" rx="8"/>
+  <text x="758" y="256" class="code">vd build</text>
+  <text x="758" y="286" class="small">emit targets</text>
+
+  <rect x="944" y="172" width="210" height="92" class="agent" rx="8"/>
+  <text x="970" y="210" class="code">codex</text>
+  <text x="970" y="238" class="small">.agents/skills links</text>
+
+  <rect x="944" y="326" width="210" height="92" class="agent" rx="8"/>
+  <text x="970" y="364" class="code">claude</text>
+  <text x="970" y="392" class="small">plugin bundle</text>
+
+  <path class="line" d="M260 266 H314"/>
+  <polygon class="arrow" points="314,266 300,258 300,274"/>
+  <path class="line" d="M470 266 H524"/>
+  <polygon class="arrow" points="524,266 510,258 510,274"/>
+  <path class="line" d="M680 266 H734"/>
+  <polygon class="arrow" points="734,266 720,258 720,274"/>
+  <path class="line" d="M890 266 C918 266 918 218 944 218"/>
+  <polygon class="arrow" points="944,218 929,212 934,228"/>
+  <path class="line" d="M890 266 C918 266 918 372 944 372"/>
+  <polygon class="arrow" points="944,372 930,364 930,380"/>
+
+  <rect x="148" y="406" width="180" height="86" class="inspect" rx="8"/>
+  <text x="172" y="440" class="code">vd list</text>
+  <text x="172" y="468" class="small">manifest view</text>
+
+  <rect x="376" y="406" width="180" height="86" class="inspect" rx="8"/>
+  <text x="400" y="440" class="code">vd diff</text>
+  <text x="400" y="468" class="small">local changes</text>
+
+  <rect x="604" y="406" width="190" height="86" class="inspect" rx="8"/>
+  <text x="628" y="440" class="code">vd doctor</text>
+  <text x="628" y="468" class="small">drift report</text>
+
+  <path class="line" d="M602 314 V372 C602 392 238 392 238 406"/>
+  <path class="line" d="M602 314 V372 C602 392 466 392 466 406"/>
+  <path class="line" d="M602 314 V372 C602 392 699 392 699 406"/>
+
+  <rect x="64" y="588" width="1152" height="72" class="panel" rx="8"/>
+  <text x="96" y="632" class="label">Common install:</text>
+  <text x="318" y="632" class="code">vd install codex</text>
+  <text x="568" y="632" class="small">symlinks local skills into $HOME/.agents/skills by default</text>
+</svg>
