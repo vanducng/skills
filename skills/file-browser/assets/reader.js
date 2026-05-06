@@ -494,59 +494,85 @@
 
   // Initialize code block expand toggle buttons (for wide ASCII art)
   function initCodeExpand() {
-    // Find all pre elements that are not mermaid and not already wrapped
+    // Wrap every <pre> (except mermaid) so we can attach copy + optional expand
+    // controls. Expand only appears when the block actually overflows; copy is
+    // unconditional so the user can grab snippet text regardless of width.
     const codeBlocks = document.querySelectorAll('pre:not(.mermaid)');
 
     codeBlocks.forEach(pre => {
-      // Skip if already wrapped or inside mermaid error
       if (pre.parentElement?.classList.contains('code-wrapper') ||
           pre.parentElement?.classList.contains('mermaid-error')) {
         return;
       }
 
-      // Only add expand button if content is wider than container
-      // Check if scrollWidth > clientWidth (has horizontal overflow)
-      if (pre.scrollWidth <= pre.clientWidth + 10) {
-        return; // No overflow, no need for expand button
-      }
-
-      // Create wrapper
       const wrapper = document.createElement('div');
       wrapper.className = 'code-wrapper';
-
-      // Create expand button
-      const btn = document.createElement('button');
-      btn.className = 'code-expand-btn';
-      btn.setAttribute('aria-label', 'Expand code block to full width');
-      btn.innerHTML = `
-        <span class="icon-expand">⤢</span>
-        <span class="icon-collapse">⤡</span>
-      `;
-
-      // Toggle handler — expand to fill .main-content
-      btn.addEventListener('click', () => {
-        const isExpanded = wrapper.classList.toggle('expanded');
-        btn.setAttribute('aria-label', isExpanded
-          ? 'Collapse code block'
-          : 'Expand code block to full width'
-        );
-        applyExpandLayout(wrapper, isExpanded);
-      });
-
-      // Insert wrapper before pre
       pre.parentNode.insertBefore(wrapper, pre);
-
-      // Move pre into wrapper
       wrapper.appendChild(pre);
 
-      // Add button to wrapper
-      wrapper.appendChild(btn);
+      // Copy button — always shown
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'code-copy-btn';
+      copyBtn.type = 'button';
+      copyBtn.setAttribute('aria-label', 'Copy code');
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', () => {
+        const code = pre.querySelector('code');
+        const text = (code || pre).innerText;
+        const flash = (msg) => {
+          const prev = copyBtn.textContent;
+          copyBtn.textContent = msg;
+          copyBtn.classList.add('flash');
+          setTimeout(() => {
+            copyBtn.textContent = prev;
+            copyBtn.classList.remove('flash');
+          }, 1200);
+        };
+        const legacy = () => {
+          try {
+            const r = document.createRange();
+            r.selectNodeContents(code || pre);
+            const s = window.getSelection();
+            s.removeAllRanges();
+            s.addRange(r);
+            document.execCommand('copy');
+            s.removeAllRanges();
+            flash('Copied');
+          } catch { flash('Failed'); }
+        };
+        if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(text).then(() => flash('Copied'), legacy);
+        } else {
+          legacy();
+        }
+      });
+      wrapper.appendChild(copyBtn);
 
-      // Auto-expand overflowing code blocks to fill available width
-      // (user can collapse back via the button)
-      wrapper.classList.add('expanded');
-      btn.setAttribute('aria-label', 'Collapse code block');
-      applyExpandLayout(wrapper, true);
+      // Expand button — only if the block overflows horizontally
+      if (pre.scrollWidth > pre.clientWidth + 10) {
+        const expandBtn = document.createElement('button');
+        expandBtn.className = 'code-expand-btn';
+        expandBtn.type = 'button';
+        expandBtn.setAttribute('aria-label', 'Expand code block to full width');
+        expandBtn.innerHTML = `
+          <span class="icon-expand">⤢</span>
+          <span class="icon-collapse">⤡</span>
+        `;
+        expandBtn.addEventListener('click', () => {
+          const isExpanded = wrapper.classList.toggle('expanded');
+          expandBtn.setAttribute('aria-label', isExpanded
+            ? 'Collapse code block'
+            : 'Expand code block to full width'
+          );
+          applyExpandLayout(wrapper, isExpanded);
+        });
+        wrapper.appendChild(expandBtn);
+
+        // Auto-expand on first paint so wide blocks aren't truncated.
+        wrapper.classList.add('expanded');
+        expandBtn.setAttribute('aria-label', 'Collapse code block');
+        applyExpandLayout(wrapper, true);
+      }
     });
   }
 

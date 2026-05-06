@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { withRoot } = require('./url-helpers.cjs');
 
 // Lazy load dependencies
 let marked = null;
@@ -16,6 +17,7 @@ let matter = null;
 // /view?file=<abs> (markdown) or /file/<abs> (other) URLs. Render is synchronous,
 // so a module-level slot is safe.
 let currentRenderBasePath = null;
+let currentRenderRoot = null;
 
 /**
  * Escape HTML entities to prevent XSS in mermaid content
@@ -86,6 +88,10 @@ function initDependencies() {
       walkTokens(token) {
         if (token.type === 'link' && currentRenderBasePath) {
           token.href = resolveLinkHref(token.href, currentRenderBasePath);
+          // Propagate ?root= so cross-file nav doesn't trigger a localStorage redirect.
+          if (currentRenderRoot && (token.href.startsWith('/view') || token.href.startsWith('/browse'))) {
+            token.href = withRoot(token.href, currentRenderRoot);
+          }
         }
       },
       renderer: {
@@ -347,11 +353,13 @@ function renderMarkdownFile(filePath, options = {}) {
   // Make basePath available to the walkTokens hook so relative link hrefs
   // get rewritten to /view?file=<abs> (md) or /file/<abs> (other).
   currentRenderBasePath = basePath;
+  currentRenderRoot = options.root || null;
   let html;
   try {
     html = marked.parse(resolvedContent);
   } finally {
     currentRenderBasePath = null;
+    currentRenderRoot = null;
   }
 
   // Add IDs to headings

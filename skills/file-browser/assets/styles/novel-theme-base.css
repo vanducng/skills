@@ -11,19 +11,20 @@
 }
 
 html {
-  font-size: 18px;
+  font-size: 15px;
   scroll-behavior: smooth;
 }
 
-html[data-font-size="S"] { font-size: 16px; }
-html[data-font-size="M"] { font-size: 18px; }
-html[data-font-size="L"] { font-size: 20px; }
+html[data-font-size="S"] { font-size: 14px; }
+html[data-font-size="M"] { font-size: 15px; }
+html[data-font-size="L"] { font-size: 17px; }
 
 body {
   font-family: var(--font-body);
+  font-weight: 400;
   background: var(--bg-primary);
   color: var(--text-primary);
-  line-height: 1.7;
+  line-height: 1.6;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 

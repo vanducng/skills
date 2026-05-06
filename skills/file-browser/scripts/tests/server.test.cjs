@@ -301,6 +301,43 @@ async function main() {
     if (!/has-fb-sidebar/.test(m.body.toString())) throw new Error('markdown body missing has-fb-sidebar class');
   });
 
+  await test('sidebar.js reconciles tree-root in localStorage', async () => {
+    const js = await get(port, '/assets/sidebar.js');
+    if (js.status !== 200) throw new Error(`status ${js.status}`);
+    const body = js.body.toString();
+    if (!body.includes("'fb-tree-root'")) throw new Error('ROOT_KEY constant missing');
+  });
+
+  await test('pages with sidebar inject blocking <head> redirect script', async () => {
+    // The script runs synchronously during head parse so URL→localStorage
+    // restore happens before any body paint (no flash on click).
+    for (const url of [
+      `/browse?dir=${encodeURIComponent(sandbox)}`,
+      `/view?file=${encodeURIComponent(imgPath)}`,
+      `/view?file=${encodeURIComponent(mdPath)}`,
+      `/view?file=${encodeURIComponent(jsPath)}`,
+    ]) {
+      const r = await get(port, url);
+      const body = r.body.toString();
+      if (!/fb-tree-root[^]*location\.replace/.test(body)) {
+        throw new Error(`head-blocking redirect script missing in ${url}`);
+      }
+    }
+  });
+
+  await test('?root= propagates into rendered links', async () => {
+    // Gallery folder cards include &root= so navigation never triggers redirect.
+    // HTML-escapes the &, so check for &amp;root= in the served body.
+    const g = await get(port, `/browse?dir=${encodeURIComponent(sandbox)}&root=${encodeURIComponent(sandbox)}`);
+    const body = g.body.toString();
+    if (!body.includes(`/browse?dir=${encodeURIComponent(subDir)}&amp;root=${encodeURIComponent(sandbox)}`)) {
+      throw new Error('gallery folder link missing &root=');
+    }
+    if (!body.includes(`/view?file=${encodeURIComponent(mdPath)}&amp;root=${encodeURIComponent(sandbox)}`)) {
+      throw new Error('gallery doc link missing &root=');
+    }
+  });
+
   server.close();
   fs.rmSync(sandbox, { recursive: true, force: true });
 

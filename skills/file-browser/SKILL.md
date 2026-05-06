@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[file-or-directory]"
 metadata:
   author: vanducng
-  version: "0.4.3"
+  version: "0.5.0"
 ---
 
 # file-browser
@@ -112,6 +112,10 @@ Click also works — clicking a folder toggles expand, clicking a file opens it.
 
 The markdown reader has its own ToC + plan-nav sidebar, so the file-browser sidebar is intentionally NOT injected there. Press `← Folder` (or browser back) to return to the gallery and use the tree.
 
+### Root persistence
+
+The current tree root is saved to `localStorage['fb-tree-root']` on every page load. URL `?root=<path>` is the canonical setter — when present, the server validates against the allow-list and the rendered value is written to storage. When absent, the client redirects once via `location.replace` to the same URL with the stored root appended, so refresh keeps the tree where you left it. A stale stored root that the server rejects is automatically replaced with the rendered (safe) value, so storage self-heals. The `↑` rebase button keeps working — it updates the URL `?root=`, which then flows through the same save path.
+
 ### Customizing / extending
 
 - `assets/sidebar.js` — keybinding map and tree behavior. Add a binding by extending the `keydown` switch.
@@ -158,6 +162,8 @@ assets/
 - image/video/audio extensions → calls file-browser `/view` (dispatches to media viewer)
 - code/config files → opens in nvim
 - everything else → `open`
+
+The Hammerspoon URL always appends `&root=<computed>` (file's parent dir, or the dir itself when launched on a folder) so each fresh launch overrides any `localStorage`-saved root from the previous session. Without this, the persistence layer would keep the sidebar anchored at whatever path the server was first started with.
 
 ### nvim
 
