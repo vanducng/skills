@@ -1,0 +1,25 @@
+type: er-diagram
+preset: warm
+title: "E-commerce schema"
+groups:
+  - name: party
+    label: "Party"
+  - name: order
+    label: "Order"
+  - name: catalog
+    label: "Catalog"
+elements:
+  - {name: customer, kind: entity, group: party, label: "Customer"}
+  - {name: address, kind: entity, group: party, label: "Address"}
+  - {name: order, kind: entity, group: order, label: "Order", subject: true}
+  - {name: orderline, kind: entity, group: order, label: "OrderLine"}
+  - {name: payment, kind: entity, group: order, label: "Payment"}
+  - {name: product, kind: entity, group: catalog, label: "Product"}
+  - {name: category, kind: entity, group: catalog, label: "Category"}
+edges:
+  - {from: customer, to: order, label: "places", kind: sync}
+  - {from: customer, to: address, label: "has", kind: sync}
+  - {from: order, to: orderline, label: "has", kind: sync}
+  - {from: orderline, to: product, label: "refs", kind: sync}
+  - {from: product, to: category, label: "in", kind: sync}
+  - {from: order, to: payment, label: "paid by", kind: sync}

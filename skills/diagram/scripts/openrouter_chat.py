@@ -152,11 +152,96 @@ def generate_svg(
     return _strip_fences(raw)
 
 
+def generate_skeleton(
+    description: str,
+    diagram_type: str,
+    preset: str,
+    skeleton_contract: str,
+    type_ref: str,
+    model: str = DEFAULT_MODEL,
+) -> str:
+    """Pass-1 LLM call. Returns YAML text (caller validates via parse_skeleton)."""
+    system = (
+        "You are a diagram structure designer. Read the user's description and emit "
+        "ONLY a YAML skeleton describing the diagram's nodes, edges, and groups. "
+        "DO NOT emit SVG, coordinates, colors, or styling. The schema is strict — "
+        "every rule will be validated; emit nothing outside the schema."
+    )
+    user = (
+        f"## Diagram type\n{diagram_type}\n\n"
+        f"## Active preset\n{preset}\n\n"
+        f"## Type reference (what this diagram type represents)\n{type_ref}\n\n"
+        f"## Skeleton schema (FOLLOW EXACTLY)\n{skeleton_contract}\n\n"
+        f"## User description\n{description}\n\n"
+        "Emit ONLY the YAML. No fences, no preamble."
+    )
+    raw = chat(
+        messages=[{"role": "system", "content": system},
+                  {"role": "user", "content": user}],
+        model=model,
+        temperature=0.2,
+        timeout=60,
+    )
+    return _strip_yaml_fences(raw).strip()
+
+
+def _strip_yaml_fences(raw: str) -> str:
+    s = raw.strip()
+    for fence in ("```yaml", "```yml", "```"):
+        if s.startswith(fence):
+            s = s[len(fence):].lstrip()
+            break
+    if s.endswith("```"):
+        s = s[:-3].rstrip()
+    return s
+
+
+def paint_svg(
+    laid_out_yaml: str,
+    description: str,
+    preset_tokens: str,
+    style_foundations: str,
+    composition_rules: str,
+    svg_contract: str,
+    painter_contract: str,
+    model: str = DEFAULT_MODEL,
+) -> str:
+    """Pass-2 LLM call. Returns final SVG markup."""
+    system = (
+        "You are an SVG illustrator. You will receive a fully laid-out diagram "
+        "skeleton with precomputed coordinates for every node, edge waypoint, and "
+        "label. Your job is to PAINT the final SVG using the active preset's style "
+        "tokens — colors, line weights, marker shapes, decorations are entirely "
+        "your call. POSITIONS ARE LOCKED: you may NOT move any node, edge waypoint, "
+        "or label more than 5% from the supplied coordinates. Every node listed "
+        "must appear in the output."
+    )
+    user = (
+        f"## Original description (for color/accent intent only)\n{description}\n\n"
+        f"## Style tokens (active preset)\n{preset_tokens}\n\n"
+        f"## Style foundations\n{style_foundations}\n\n"
+        f"## Composition rules\n{composition_rules}\n\n"
+        f"## SVG contract — HARD CONSTRAINTS\n{svg_contract}\n\n"
+        f"## Painter contract — what 'paint' means here\n{painter_contract}\n\n"
+        f"## Laid-out skeleton (coordinates are LOCKED)\n```yaml\n{laid_out_yaml}\n```\n\n"
+        "Emit ONLY the final SVG. No fences, no preamble."
+    )
+    raw = chat(
+        messages=[{"role": "system", "content": system},
+                  {"role": "user", "content": user}],
+        model=model,
+        temperature=0.3,
+        timeout=120,
+    )
+    return _strip_fences(raw)
+
+
 def revise_svg(
     draft_svg: str,
     description: str,
     svg_contract: str,
     model: str = DEFAULT_MODEL,
+    extra_feedback: str = "",
 ) -> str:
     """Critique-and-revise pass. Send the draft back, ask the LLM to find layout
     violations against the contract and emit a corrected SVG."""
@@ -178,9 +263,15 @@ def revise_svg(
         "Preserve the original component set, palette, and class names — only fix "
         "geometry."
     )
+    feedback_block = (
+        f"\n\n## Validator findings — fix THESE specifically\n{extra_feedback}\n"
+        if extra_feedback
+        else ""
+    )
     user = (
         f"## Original description\n{description}\n\n"
-        f"## SVG contract (the rules that the draft must satisfy)\n{svg_contract}\n\n"
+        f"## SVG contract (the rules that the draft must satisfy)\n{svg_contract}"
+        f"{feedback_block}\n\n"
         f"## Draft SVG to revise\n{draft_svg}"
     )
     raw = chat(

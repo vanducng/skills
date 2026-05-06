@@ -1,0 +1,34 @@
+type: system-architecture
+preset: warm
+title: "Microservices platform (dense)"
+groups:
+  - name: edge
+    label: "Edge"
+  - name: core
+    label: "Core services"
+  - name: data
+    label: "Data layer"
+  - name: external
+    label: "External"
+elements:
+  - {name: user, kind: actor, group: edge, label: "User"}
+  - {name: gateway, kind: service, group: edge, label: "API Gateway", subject: true}
+  - {name: auth, kind: service, group: core, label: "Auth"}
+  - {name: orders, kind: service, group: core, label: "Orders"}
+  - {name: billing, kind: service, group: core, label: "Billing"}
+  - {name: queue, kind: queue, group: core, label: "Events"}
+  - {name: db, kind: datastore, group: data, label: "Postgres"}
+  - {name: cache, kind: cache, group: data, label: "Redis"}
+  - {name: search, kind: datastore, group: data, label: "OpenSearch"}
+  - {name: stripe, kind: external-system, group: external, label: "Stripe"}
+  - {name: sendgrid, kind: external-system, group: external, label: "SendGrid"}
+  - {name: s3, kind: external-system, group: external, label: "S3"}
+edges:
+  - {from: user, to: gateway, label: "HTTPS", kind: sync}
+  - {from: gateway, to: auth, label: "verify", kind: sync}
+  - {from: gateway, to: orders, label: "RPC", kind: sync}
+  - {from: orders, to: billing, kind: async}
+  - {from: orders, to: queue, kind: async}
+  - {from: billing, to: stripe, label: "charge", kind: sync}
+  - {from: orders, to: db, label: "writes", kind: sync}
+  - {from: orders, to: cache, label: "caches", kind: sync}

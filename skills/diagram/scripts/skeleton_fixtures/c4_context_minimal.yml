@@ -1,0 +1,21 @@
+type: c4-context
+preset: warm
+title: "Banking app — system context"
+groups:
+  - name: users
+    label: "Users"
+  - name: system
+    label: "System"
+  - name: external
+    label: "External systems"
+elements:
+  - {name: customer, kind: actor, group: users, label: "Customer"}
+  - {name: staff, kind: actor, group: users, label: "Branch staff"}
+  - {name: cbs, kind: service, group: system, label: "Core Banking", subject: true}
+  - {name: gw, kind: external-system, group: external, label: "Payment Gateway"}
+  - {name: bureau, kind: external-system, group: external, label: "Credit Bureau"}
+edges:
+  - {from: customer, to: cbs, label: "uses", kind: sync}
+  - {from: staff, to: cbs, label: "uses", kind: sync}
+  - {from: cbs, to: gw, label: "settles", kind: sync}
+  - {from: cbs, to: bureau, label: "checks", kind: sync}

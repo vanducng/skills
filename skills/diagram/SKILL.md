@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[description] [--type TYPE] [--preset PRESET] [--format png|svg] [--regen FEEDBACK] [--new]"
 metadata:
   author: vanducng
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # vd:diagram
@@ -81,6 +81,12 @@ Get a key at <https://openrouter.ai/settings/keys>.
 | `--new` | off | Force a fresh session even when a recent one exists. |
 | `--no-open` | off | Skip auto-opening the browser tab. |
 | `--slug` | derived | Override the slug in the session dir name. |
+
+## Engines (in development)
+
+`vd:diagram` is moving toward a two-pass architecture for structurally-rich diagram types: pass-1 LLM emits a YAML skeleton (structure only); Python computes coordinates; pass-2 LLM paints the SVG with positions locked.
+
+A `--engine` flag will select between `free` (current pure-LLM path, kept as the escape hatch) and `skeleton` (the two-pass path). `skeleton` is gated behind explicit opt-in until Phase 8 of the `260506-0649-skeleton-then-paint` plan ships and the bake-off confirms quality. Until then, `free` remains the only path. See `references/skeleton-contract.md` and `references/painter-contract.md` for the in-progress contracts.
 
 ## Style presets
 

@@ -1,0 +1,17 @@
+type: system-architecture
+preset: warm
+title: "vd CLI architecture (minimal)"
+groups:
+  - name: client
+    label: "Client side"
+  - name: server
+    label: "Server side"
+elements:
+  - {name: user, kind: actor, group: client, label: "User"}
+  - {name: cli, kind: service, group: client, label: "vd CLI", subject: true}
+  - {name: api, kind: service, group: server, label: "Plugin API"}
+  - {name: db, kind: datastore, group: server, label: "skills.lock"}
+edges:
+  - {from: user, to: cli, label: "runs", kind: sync}
+  - {from: cli, to: api, label: "requests", kind: sync}
+  - {from: api, to: db, label: "reads", kind: sync}

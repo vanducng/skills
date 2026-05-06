@@ -1,0 +1,23 @@
+type: c4-container
+preset: warm
+title: "Internet banking — containers"
+groups:
+  - name: client
+    label: "Client apps"
+  - name: api
+    label: "API tier"
+  - name: data
+    label: "Data tier"
+elements:
+  - {name: web, kind: service, group: client, label: "Web SPA"}
+  - {name: mobile, kind: service, group: client, label: "Mobile app"}
+  - {name: api, kind: service, group: api, label: "REST API", subject: true}
+  - {name: auth, kind: service, group: api, label: "Auth service"}
+  - {name: accounts, kind: datastore, group: data, label: "Accounts DB"}
+  - {name: txns, kind: datastore, group: data, label: "Transactions DB"}
+edges:
+  - {from: web, to: api, label: "HTTPS", kind: sync}
+  - {from: mobile, to: api, label: "HTTPS", kind: sync}
+  - {from: api, to: auth, label: "verify", kind: sync}
+  - {from: api, to: accounts, label: "reads", kind: sync}
+  - {from: api, to: txns, label: "writes", kind: sync}
