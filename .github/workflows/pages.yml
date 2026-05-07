@@ -1,0 +1,53 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/vd/docs/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Configure Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+
+      - name: Build static site
+        run: |
+          set -euo pipefail
+          mkdir -p public
+          cp tools/vd/docs/vd-cli-design.html public/index.html
+          cp tools/vd/docs/vd-cli-overview.svg public/
+          cp tools/vd/docs/usage.md public/
+          cp tools/vd/docs/commands.md public/
+          cp tools/vd/docs/config-schema.md public/
+          cp tools/vd/docs/faq.md public/
+          cp tools/vd/docs/migration.md public/
+          touch public/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
