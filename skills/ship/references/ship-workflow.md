@@ -165,8 +165,8 @@ git push -u origin "$(git branch --show-current)"
    ```
    Missing → output "Install GitHub CLI (`gh`) to auto-create PRs" and stop after push.
 2. Resolve title and body (rules in `pr-template.md`):
-   - Title: branch contains `[A-Z]+-[0-9]+` → `TICKET: <summary>`. Otherwise → `type(scope): <summary>`.
-   - Body: prefer `.github/pull_request_template.md` if present, else fallback template.
+   - Title: branch contains `[A-Z]+-[0-9]+` → `TICKET: <past-tense summary>`. Otherwise → `type(scope): <past-tense summary>`.
+   - Body: prefer `.github/pull_request_template.md` if present. Otherwise fill the lean fallback (3 labelled bullets — Why / What / Risks — plus an italic verification stripe). Per-bullet sources: Why ← changelog/commit body, What ← deduped commit subjects, Risks ← breaking-change scan, Stripe ← live `gh pr checks`.
 3. Create / update PR:
    ```bash
    gh pr create --base <target> --title "<title>" --body "$(cat <<'EOF'
@@ -224,7 +224,7 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
    STATE=$(gh pr checks "$PR_NUMBER" --json state -q '[.[].state] | unique | join(",")')
    ```
 3. Branch on `$STATE`:
-   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, continue to Step 15.
+   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the PR's verification stripe (`gh pr edit` to update `_Tests: ✓ N · …_` with live counts), continue to Step 15.
    - **Any `FAILURE` / `CANCELLED` / `TIMED_OUT`** → **STOP**. `AskUserQuestion` (regardless of `--auto`):
      - `Investigate failure` (recommended) — print failing checks via `gh pr checks --json name,state,link -q '.[]|select(.state!="SUCCESS")'`, exit so user can fix
      - `Merge anyway` — proceed to Step 15 noting CI was red

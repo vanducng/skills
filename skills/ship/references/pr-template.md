@@ -26,35 +26,30 @@ done
 
 ## Fallback body template
 
-Lean by design — reviewers should grasp the PR in 30 seconds. Drop sections that don't help them decide.
+Three labelled bullets + one verification stripe. No section headings — eliminates the Summary-vs-Changes overlap by construction. Same shape for 5-line fixes and 500-line features (the **What** bullet nests when needed).
 
 ```markdown
-## Summary
-<2-4 sentences synthesizing the change from commits + diff. Lead with *why*, then *what*. End with `Closes #XX` / `Relates to #YY` inline if there are issues. No bullets here — prose. If beta/staging, mention the target audience.>
+- **Why:** <one-sentence motivation>. <Closes #N / Relates to #M if any>
+- **What:** <semicolon-separated behavior shifts for ≤3 items, OR nested bullets for >3>
+- **Risks:** <breaking changes / migration notes — or `none`>
 
-## Changes
-- <high-level bullet of a major change>
-- <another major change>
-<3-7 bullets max — describe behavior shifts, not file lists. Skip the diff-stat dump.>
-
-## Checklist
-- [x] Tests pass (<count>) <or `[x] Tests skipped (--skip-tests)`>
-- [x] No breaking changes <or `[ ] Breaking changes documented in CHANGELOG`>
-- [x] Docs updated <or `[x] N/A`>
+_Tests: <✓ N | ✗ N | – skipped> · Docs: <✓ | – N/A> · Breaking: <– | ⚠ see CHANGELOG>_
 ```
 
-**Rules for the fallback:**
-- Summary is prose, not bullets — forces synthesis. If you can't write 2-4 sentences explaining the PR, the scope is wrong.
-- Issue links (`Closes #42`) belong inside Summary, not a separate section — keeps the body lean and gives reviewers context next to the *why*.
-- Changes lists *behaviors that changed*, not files that changed. `git diff --stat` is one click away in the PR view; don't paste it.
-- Drop the Pre-Landing Review and Ship Mode sections — review findings live in the conversation, mode is visible from base/head branches.
-- Cap at ~25 lines of body. Big PR? That's a scope smell, not a template problem.
+## Per-bullet fill rules
+
+| Bullet | Source | Synthesis rule |
+|--------|--------|----------------|
+| **Why** | Top of `[Unreleased]` / `[X.Y.Z]` changelog entry → top commit body → branch name verbalized | One sentence. Drop low-signal verbs (`add`, `update`); promote the noun. End inline with `Closes #N` if any. |
+| **What** | Commit subjects on the branch, deduped, grouped by behavioral domain | ≤3 items: semicolon-joined on one line. >3: nested bullets. Each item is a *behavior change*, not a file change. Reject "renamed file X" — keep "renamed cookie from `sid` to `__Host-session`". Hard cap 7 nested bullets — more is a scope smell. |
+| **Risks** | Breaking-change scan on diff: removed exports, schema migrations, env var changes, removed CLI flags, `BREAKING CHANGE:` in commit body | Lead with severity word: `Breaking — …` / `Migration — …` / `none`. Keep `none` explicit; never omit the bullet. |
+| **Verification** | Live `gh pr checks` output for tests; `docs/` files in diff for Docs; same breaking-change scan for Breaking | One italic stripe. Regenerated after Step 14 (CI watch) reports green so reviewers see live status, not commit-time snapshot. |
 
 ## Rules
 
 - Repo template, when present, is law — do not append, do not reorder. Just fill.
-- Inline issue closers (`Closes #42`) inside the Summary paragraph; no separate "Linked Issues" section.
-- Test counts come from `tester` agent output, not estimates.
+- Issue closers (`Closes #42`) live inline in the **Why** bullet — no separate Linked-Issues section.
+- Verification stripe values come from live tooling output, never the author's claim.
 - Existing PR for this branch → `gh pr edit`, never re-create.
 - Beta PRs target dev/beta branch, not main.
 
@@ -64,22 +59,38 @@ Branch `PRJ-123-add-oauth` → `PRJ-123: added OAuth2 login flow`
 Branch `feature/oauth-cleanup` → `refactor(auth): consolidated OAuth helpers`
 Branch `fix/session-leak` → `fix(auth): closed session on logout`
 
-## Body example
+## Body examples
+
+**Tiny PR (typo fix):**
 
 ```markdown
-## Summary
-Replaces the home-rolled session middleware with Google + GitHub OAuth2.
-Sessions now use signed, encrypted cookies (HMAC + AES-GCM) and expire
-after 24h instead of staying alive until manual logout. Closes #42.
+- **Why:** Fix typo in OAuth provider error message that confused users.
+- **What:** corrected `Authentcation failed` → `Authentication failed` in `src/auth/errors.ts`.
+- **Risks:** none.
 
-## Changes
-- Login route now redirects to provider OAuth flow; old `/api/login` removed.
-- Session cookie name changed from `sid` to `__Host-session`; Secure + HttpOnly.
-- Server reads `OAUTH_GOOGLE_*` / `OAUTH_GITHUB_*` env vars at startup; missing → fail-fast.
-- Logout endpoint revokes the provider token, not just the local cookie.
+_Tests: ✓ 127 · Docs: – N/A · Breaking: –_
+```
 
-## Checklist
-- [x] Tests pass (127)
-- [x] Breaking change: existing sessions invalidated on deploy — noted in CHANGELOG
-- [x] Docs updated
+**Mid-sized PR (≤3 behavior shifts):**
+
+```markdown
+- **Why:** Replace home-rolled session middleware with OAuth2 for security + standards compliance. Closes #42.
+- **What:** login redirects to provider OAuth flow; old `/api/login` removed; session cookie renamed to `__Host-session` with Secure+HttpOnly.
+- **Risks:** Breaking — existing sessions invalidated on deploy. Documented in CHANGELOG.
+
+_Tests: ✓ 127 · Docs: ✓ · Breaking: ⚠_
+```
+
+**Large PR (>3 shifts, nested What):**
+
+```markdown
+- **Why:** Replace home-rolled session middleware with OAuth2 (Google + GitHub) for security + standards compliance. Closes #42.
+- **What:**
+  - login redirects to provider OAuth flow; old `/api/login` removed
+  - session cookie renamed `sid` → `__Host-session`; Secure + HttpOnly
+  - logout now revokes the provider token, not just the local cookie
+  - server fails fast at startup if `OAUTH_GOOGLE_*` / `OAUTH_GITHUB_*` env vars are missing
+- **Risks:** Breaking — existing sessions invalidated on deploy. Migration: clients must re-authenticate. Documented in CHANGELOG.
+
+_Tests: ✓ 412 · Docs: ✓ · Breaking: ⚠ see CHANGELOG_
 ```
