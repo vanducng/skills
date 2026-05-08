@@ -492,9 +492,9 @@ vd update research</code></pre>
         linksByHash.get(hash).push(a);
       });
 
-      const targets = [...linksByHash.keys()]
-        .map((hash) => document.getElementById(hash.slice(1)))
-        .filter(Boolean);
+      // Targets in DOM order — scrollspy depends on this ordering.
+      const targets = [...document.querySelectorAll('[id]')]
+        .filter((el) => linksByHash.has('#' + el.id));
 
       const setActive = (hash) => {
         document.querySelectorAll('.sidebar a.active, .toc a.active')
@@ -502,26 +502,48 @@ vd update research</code></pre>
         (linksByHash.get(hash) || []).forEach((a) => a.classList.add('active'));
       };
 
-      // Click → immediate feedback before the scroll catches up
+      // Activation line sits just under the sticky topbar. A heading is "passed"
+      // once its top crosses this line — the active section is the last one
+      // passed, which always picks the section the user is currently reading,
+      // even when no heading is on screen.
+      const OFFSET = 96;
+      let lockedHash = null;        // set on click; released on next user scroll
+      let lockReleaseAt = 0;
+
+      const computeActive = () => {
+        let current = targets[0];
+        for (const el of targets) {
+          if (el.getBoundingClientRect().top - OFFSET <= 0) current = el;
+          else break;
+        }
+        if (current) setActive('#' + current.id);
+      };
+
+      let ticking = false;
+      const onScroll = () => {
+        // Release the click-lock on user-initiated scroll after smooth-scroll settles
+        if (lockedHash && performance.now() > lockReleaseAt) lockedHash = null;
+        if (lockedHash) return;
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => { computeActive(); ticking = false; });
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+
+      // Click → lock to the clicked target while smooth-scroll is in flight,
+      // so scrollspy doesn't briefly highlight intermediate sections.
       links.forEach((a) => {
-        a.addEventListener('click', () => setActive(a.getAttribute('href')));
+        a.addEventListener('click', () => {
+          const hash = a.getAttribute('href');
+          setActive(hash);
+          lockedHash = hash;
+          lockReleaseAt = performance.now() + 700;
+        });
       });
 
-      // Scroll → highlight the section closest to the viewport top.
-      // rootMargin shrinks the activation band: the active section is the one
-      // whose top is between ~88px (just under the sticky topbar) and ~30% of viewport height.
-      const observer = new IntersectionObserver((entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible.length) setActive('#' + visible[0].target.id);
-      }, { rootMargin: '-88px 0px -70% 0px', threshold: 0 });
-      targets.forEach((el) => observer.observe(el));
-
-      // Initial state: honor URL hash, otherwise first section
-      if (location.hash && linksByHash.has(location.hash)) {
-        setActive(location.hash);
-      }
+      // Initial state: honor URL hash, otherwise compute from current scroll
+      if (location.hash && linksByHash.has(location.hash)) setActive(location.hash);
+      else computeActive();
     })();
   </script>
 </body>
