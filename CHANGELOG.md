@@ -4,6 +4,19 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-05-08
+
+### Added
+- `skills/ship/` — ship pipeline skill: pre-flight → link issues → merge target → tests → review → version bump → changelog → journal → docs → commit → push → PR (→ optional release tag).
+- Three ship modes: `official` (main/master), `staging` (staging/uat/release/x.y.z), `beta` (dev/development/beta) — each maps to a different target branch and skip-set.
+- `--release` flag to cut a GitHub release at the end. Tag style adapts per mode: stable `vX.Y.Z` (official), `vX.Y.Z-rc.N` prerelease (staging), `vX.Y.Z-beta.N` prerelease (beta).
+- Auto-release detection (`goreleaser`, `release-please`, `semantic-release`, `changesets`, CI workflow) — when present, Step 13 lets CI tag instead of doing it manually.
+- `--auto` flag for fully autonomous shipping — answers prompts with safe defaults and queues `gh pr merge --auto`. Safety floor: still stops on critical review issues, secret leaks, test failures, merge conflicts, and red CI.
+- CI watch step (always runs after PR creation): waits for `gh pr checks` to settle (15-min cap); on red CI prompts the user even under `--auto` (investigate / merge anyway / abort); on still-pending lets `--auto` queue via `gh pr merge --auto`.
+- PR title rule: ticket prefix in branch (`PRJ-123-…`) → `PRJ-123: <past-tense description>`; otherwise conventional `type(scope): …`.
+- PR body source priority: project's `.github/pull_request_template.md` wins, else built-in fallback template.
+- Lean fallback PR template: three labelled bullets (**Why** / **What** / **Risks**) plus a single italic verification stripe (`_Tests: ✓ N · Docs: ✓ · Breaking: –_`). No section headings — eliminates Summary/Changes overlap by construction. **What** nests when >3 behavior shifts. Per-bullet AI-fill sources documented in `skills/ship/references/pr-template.md`. Step 14 (CI watch) now refreshes the verification stripe in-place via `gh pr edit` once CI is green so reviewers see live status, not commit-time claim.
+
 ## [0.7.0] - 2026-05-08
 
 ### Added
