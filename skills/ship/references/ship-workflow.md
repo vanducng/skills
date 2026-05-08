@@ -179,8 +179,8 @@ git push -u origin "$(git branch --show-current)"
    EOF
    )"
    ```
-4. Link issues from Step 2 (`Closes #N` / `Relates to #M`) inside the body.
-5. **Output the PR URL** — final user-facing line (unless `--release` is set, in which case Step 13 runs after).
+4. Inline issue refs from Step 2 inside the Summary paragraph (`Closes #N` / `Relates to #M`) — no separate section.
+5. **Output the PR URL** — final user-facing line (unless `--release` or `--auto` is set, in which case Steps 13/14 run after).
 
 ## Step 13: Release (conditional)
 
@@ -208,3 +208,59 @@ git push -u origin "$(git branch --show-current)"
        $( [ "<mode>" != "official" ] && echo "--prerelease" )
      ```
 3. Output release URL: `gh release view <TAG> --json url -q .url`.
+
+## Step 14: CI watch
+
+Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so the next step (auto-merge or hand-off) can act correctly.
+
+1. If the repo has no CI configured (no checks attached to the PR), skip silently.
+   ```bash
+   COUNT=$(gh pr checks "$PR_NUMBER" --json state -q 'length' 2>/dev/null || echo 0)
+   [ "$COUNT" -eq 0 ] && echo "no CI checks — skipping" && exit 0
+   ```
+2. Wait for checks to settle (cap at 15 min so the skill doesn't block forever):
+   ```bash
+   timeout 900 gh pr checks "$PR_NUMBER" --watch --fail-fast || true
+   STATE=$(gh pr checks "$PR_NUMBER" --json state -q '[.[].state] | unique | join(",")')
+   ```
+3. Branch on `$STATE`:
+   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, continue to Step 15.
+   - **Any `FAILURE` / `CANCELLED` / `TIMED_OUT`** → **STOP**. `AskUserQuestion` (regardless of `--auto`):
+     - `Investigate failure` (recommended) — print failing checks via `gh pr checks --json name,state,link -q '.[]|select(.state!="SUCCESS")'`, exit so user can fix
+     - `Merge anyway` — proceed to Step 15 noting CI was red
+     - `Abort` — leave PR open, exit
+   - **Still pending after timeout** → in `--auto` mode rely on `gh pr merge --auto` (Step 15 queues until green); in interactive mode print "CI still running" with the PR URL and exit cleanly.
+4. CI failures are **never** silently bypassed by `--auto` — same prompt fires.
+
+## Step 15: Auto-merge (conditional)
+
+**Run only if** `--auto` flag is set AND Step 14 reported green (or user explicitly chose "Merge anyway").
+
+1. Detect the repo's preferred merge strategy and queue / immediate-merge:
+   ```bash
+   STRATEGY=$(gh repo view --json mergeCommitAllowed,squashMergeAllowed,rebaseMergeAllowed \
+     -q 'if .squashMergeAllowed then "--squash" elif .rebaseMergeAllowed then "--rebase" else "--merge" end')
+   gh pr merge "$PR_NUMBER" --auto $STRATEGY --delete-branch
+   ```
+2. If `gh pr merge --auto` is rejected (auto-merge disabled at repo level):
+   - Re-check mergeability: `gh pr view "$PR_NUMBER" --json mergeable -q .mergeable`.
+   - `MERGEABLE` → immediate merge: `gh pr merge "$PR_NUMBER" $STRATEGY --delete-branch`.
+   - Otherwise → print the PR URL and exit cleanly; user merges manually.
+3. Output: `Auto-merge queued: <PR URL>` (or `Merged: <PR URL>` for immediate).
+
+## `--auto` gate behavior
+
+When `--auto` is set, replace each `AskUserQuestion` with the listed default. Critical-issue and ambiguity gates remain blocking.
+
+| Gate | Default under `--auto` | Still blocks? |
+|------|------------------------|---------------|
+| Mode unclear from branch name | — | **Yes**, stop |
+| Issue creation when none found | Skip | No |
+| No test runner detected | Skip tests, warn | No |
+| Critical review issue | — | **Yes**, stop per issue |
+| Major/minor/patch bump prompt | Patch (or minor if branch starts with `feat/` or commits include `feat:`) | No |
+| Auto-release with manual fallback | Patch bump, tag automatically | No |
+| Push rejected | — | **Yes**, stop |
+| Secret-scan hit | — | **Yes**, stop |
+| CI failure on PR | — | **Yes**, prompt (investigate / merge anyway / abort) |
+| CI still pending after 15min timeout | Queue via `gh pr merge --auto` | No |

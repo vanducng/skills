@@ -26,41 +26,60 @@ done
 
 ## Fallback body template
 
+Lean by design — reviewers should grasp the PR in 30 seconds. Drop sections that don't help them decide.
+
 ```markdown
 ## Summary
-<bullets — from changelog / commits>
-
-## Linked Issues
-- Closes #XX — <title>
-<or "No linked issues.">
-
-## Pre-Landing Review
-<X critical, Y informational> — or "No issues found."
-<list informational findings as `[file:line] note`>
-
-## Test Results
-- [x] All tests pass (<count>, 0 failures)
-<or `- [x] Tests skipped (--skip-tests)`>
+<2-4 sentences synthesizing the change from commits + diff. Lead with *why*, then *what*. End with `Closes #XX` / `Relates to #YY` inline if there are issues. No bullets here — prose. If beta/staging, mention the target audience.>
 
 ## Changes
-<git diff --stat, top files>
+- <high-level bullet of a major change>
+- <another major change>
+<3-7 bullets max — describe behavior shifts, not file lists. Skip the diff-stat dump.>
 
-## Ship Mode
-- Mode: <official|staging|beta|release>
-- Target: <target-branch>
+## Checklist
+- [x] Tests pass (<count>) <or `[x] Tests skipped (--skip-tests)`>
+- [x] No breaking changes <or `[ ] Breaking changes documented in CHANGELOG`>
+- [x] Docs updated <or `[x] N/A`>
 ```
+
+**Rules for the fallback:**
+- Summary is prose, not bullets — forces synthesis. If you can't write 2-4 sentences explaining the PR, the scope is wrong.
+- Issue links (`Closes #42`) belong inside Summary, not a separate section — keeps the body lean and gives reviewers context next to the *why*.
+- Changes lists *behaviors that changed*, not files that changed. `git diff --stat` is one click away in the PR view; don't paste it.
+- Drop the Pre-Landing Review and Ship Mode sections — review findings live in the conversation, mode is visible from base/head branches.
+- Cap at ~25 lines of body. Big PR? That's a scope smell, not a template problem.
 
 ## Rules
 
 - Repo template, when present, is law — do not append, do not reorder. Just fill.
-- Always include linked-issues line; write "No linked issues." when empty.
-- Always include the review line, even when clean — proves review ran.
+- Inline issue closers (`Closes #42`) inside the Summary paragraph; no separate "Linked Issues" section.
 - Test counts come from `tester` agent output, not estimates.
 - Existing PR for this branch → `gh pr edit`, never re-create.
 - Beta PRs target dev/beta branch, not main.
 
-## Examples
+## Title examples
 
 Branch `PRJ-123-add-oauth` → `PRJ-123: added OAuth2 login flow`
 Branch `feature/oauth-cleanup` → `refactor(auth): consolidated OAuth helpers`
 Branch `fix/session-leak` → `fix(auth): closed session on logout`
+
+## Body example
+
+```markdown
+## Summary
+Replaces the home-rolled session middleware with Google + GitHub OAuth2.
+Sessions now use signed, encrypted cookies (HMAC + AES-GCM) and expire
+after 24h instead of staying alive until manual logout. Closes #42.
+
+## Changes
+- Login route now redirects to provider OAuth flow; old `/api/login` removed.
+- Session cookie name changed from `sid` to `__Host-session`; Secure + HttpOnly.
+- Server reads `OAUTH_GOOGLE_*` / `OAUTH_GITHUB_*` env vars at startup; missing → fail-fast.
+- Logout endpoint revokes the provider token, not just the local cookie.
+
+## Checklist
+- [x] Tests pass (127)
+- [x] Breaking change: existing sessions invalidated on deploy — noted in CHANGELOG
+- [x] Docs updated
+```

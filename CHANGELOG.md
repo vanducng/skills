@@ -11,8 +11,11 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 - Three ship modes: `official` (main/master), `staging` (staging/uat/release/x.y.z), `beta` (dev/development/beta) — each maps to a different target branch and skip-set.
 - `--release` flag to cut a GitHub release at the end. Tag style adapts per mode: stable `vX.Y.Z` (official), `vX.Y.Z-rc.N` prerelease (staging), `vX.Y.Z-beta.N` prerelease (beta).
 - Auto-release detection (`goreleaser`, `release-please`, `semantic-release`, `changesets`, CI workflow) — when present, Step 13 lets CI tag instead of doing it manually.
+- `--auto` flag for fully autonomous shipping — answers prompts with safe defaults and queues `gh pr merge --auto`. Safety floor: still stops on critical review issues, secret leaks, test failures, merge conflicts, and red CI.
+- CI watch step (always runs after PR creation): waits for `gh pr checks` to settle (15-min cap); on red CI prompts the user even under `--auto` (investigate / merge anyway / abort); on still-pending lets `--auto` queue via `gh pr merge --auto`.
 - PR title rule: ticket prefix in branch (`PRJ-123-…`) → `PRJ-123: <past-tense description>`; otherwise conventional `type(scope): …`.
 - PR body source priority: project's `.github/pull_request_template.md` wins, else built-in fallback template.
+- Lean fallback PR template: prose Summary with inlined `Closes #N`, behavior-level Changes bullets (no diff-stat dump), and a Tests/Breaking-changes/Docs Checklist. Linked-Issues, Pre-Landing-Review and Ship-Mode sections dropped — body capped ~25 lines.
 
 ## [0.7.0] - 2026-05-08
 
