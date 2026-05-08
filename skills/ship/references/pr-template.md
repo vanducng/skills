@@ -30,7 +30,8 @@ Three labelled bullets + one verification stripe. No section headings — elimin
 
 ```markdown
 - **Why:** <one-sentence motivation>. <Closes #N / Relates to #M if any>
-- **What:** <semicolon-separated behavior shifts for ≤3 items, OR nested bullets for >3>
+       _OR nested bullets when there are multiple distinct drivers (cap 4)_
+- **What:** <semicolon-separated behavior shifts for ≤3 items, OR nested bullets for >3 (cap 7)>
 - **Risks:** <breaking changes / migration notes — or `none`>
 
 _Tests: <✓ N | ✗ N | – skipped> · Docs: <✓ | – N/A> · Breaking: <– | ⚠ see CHANGELOG>_
@@ -40,7 +41,7 @@ _Tests: <✓ N | ✗ N | – skipped> · Docs: <✓ | – N/A> · Breaking: <–
 
 | Bullet | Source | Synthesis rule |
 |--------|--------|----------------|
-| **Why** | Top of `[Unreleased]` / `[X.Y.Z]` changelog entry → top commit body → branch name verbalized | One sentence. Drop low-signal verbs (`add`, `update`); promote the noun. End inline with `Closes #N` if any. |
+| **Why** | Top of `[Unreleased]` / `[X.Y.Z]` changelog entry → top commit body → branch name verbalized | Default: one sentence; drop low-signal verbs (`add`, `update`), promote the noun, end inline with `Closes #N`. If the motivation has multiple distinct drivers (e.g. compliance + performance + UX), nest them as bullets — same as **What**. Hard cap 4 nested bullets; more means the PR has too many goals. |
 | **What** | Commit subjects on the branch, deduped, grouped by behavioral domain | ≤3 items: semicolon-joined on one line. >3: nested bullets. Each item is a *behavior change*, not a file change. Reject "renamed file X" — keep "renamed cookie from `sid` to `__Host-session`". Hard cap 7 nested bullets — more is a scope smell. |
 | **Risks** | Breaking-change scan on diff: removed exports, schema migrations, env var changes, removed CLI flags, `BREAKING CHANGE:` in commit body | Lead with severity word: `Breaking — …` / `Migration — …` / `none`. Keep `none` explicit; never omit the bullet. |
 | **Verification** | Live `gh pr checks` output for tests; `docs/` files in diff for Docs; same breaking-change scan for Breaking | One italic stripe. Regenerated after Step 14 (CI watch) reports green so reviewers see live status, not commit-time snapshot. |
@@ -75,6 +76,19 @@ _Tests: ✓ 127 · Docs: – N/A · Breaking: –_
 
 ```markdown
 - **Why:** Replace home-rolled session middleware with OAuth2 for security + standards compliance. Closes #42.
+- **What:** login redirects to provider OAuth flow; old `/api/login` removed; session cookie renamed to `__Host-session` with Secure+HttpOnly.
+- **Risks:** Breaking — existing sessions invalidated on deploy. Documented in CHANGELOG.
+
+_Tests: ✓ 127 · Docs: ✓ · Breaking: ⚠_
+```
+
+**PR with multiple motivations (nested Why):**
+
+```markdown
+- **Why:**
+  - legal flagged session-token storage as non-compliant with new requirements (deadline 2026-06-01)
+  - existing middleware leaks request context across goroutines under load (#84)
+  - moving to OAuth lets us drop the home-rolled crypto and 600 lines of auth code
 - **What:** login redirects to provider OAuth flow; old `/api/login` removed; session cookie renamed to `__Host-session` with Secure+HttpOnly.
 - **Risks:** Breaking — existing sessions invalidated on deploy. Documented in CHANGELOG.
 
