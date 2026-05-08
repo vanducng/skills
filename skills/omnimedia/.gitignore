@@ -1,0 +1,5 @@
+.coverage
+generated.png
+__pycache__/
+*.pyc
+.pytest_cache/
