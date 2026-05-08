@@ -479,5 +479,50 @@ vd update research</code></pre>
       <a href="#env">Environment</a>
     </aside>
   </div>
+
+  <script>
+    (() => {
+      const links = document.querySelectorAll('.sidebar a[href^="#"], .toc a[href^="#"]');
+      if (!links.length) return;
+
+      const linksByHash = new Map();
+      links.forEach((a) => {
+        const hash = a.getAttribute('href');
+        if (!linksByHash.has(hash)) linksByHash.set(hash, []);
+        linksByHash.get(hash).push(a);
+      });
+
+      const targets = [...linksByHash.keys()]
+        .map((hash) => document.getElementById(hash.slice(1)))
+        .filter(Boolean);
+
+      const setActive = (hash) => {
+        document.querySelectorAll('.sidebar a.active, .toc a.active')
+          .forEach((a) => a.classList.remove('active'));
+        (linksByHash.get(hash) || []).forEach((a) => a.classList.add('active'));
+      };
+
+      // Click → immediate feedback before the scroll catches up
+      links.forEach((a) => {
+        a.addEventListener('click', () => setActive(a.getAttribute('href')));
+      });
+
+      // Scroll → highlight the section closest to the viewport top.
+      // rootMargin shrinks the activation band: the active section is the one
+      // whose top is between ~88px (just under the sticky topbar) and ~30% of viewport height.
+      const observer = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible.length) setActive('#' + visible[0].target.id);
+      }, { rootMargin: '-88px 0px -70% 0px', threshold: 0 });
+      targets.forEach((el) => observer.observe(el));
+
+      // Initial state: honor URL hash, otherwise first section
+      if (location.hash && linksByHash.has(location.hash)) {
+        setActive(location.hash);
+      }
+    })();
+  </script>
 </body>
 </html>
