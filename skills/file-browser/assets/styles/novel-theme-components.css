@@ -76,18 +76,11 @@ blockquote p:last-child {
   margin-bottom: 0;
 }
 
-/* Tables — center on the content column's axis even when the table's
-   intrinsic width exceeds the column. left:50% anchors the table's left
-   edge to the column center; translateX(-50%) shifts it back by half its
-   own width so its visual center aligns with the column center. */
+/* Tables — left-align with the content column. Allow the table to extend
+   past the column's right edge when its intrinsic width is larger, but cap
+   it so it can't bleed past the viewport edge. */
 table {
-  position: relative;
-  left: 50%;
-  transform: translateX(-50%);
   width: max-content;
-  /* Cap to the area between sidebar and viewport edge so the table can't
-     overlap the sidebar nor bleed past the right edge. 4rem leaves a small
-     visual gutter on both sides. */
   max-width: calc(100vw - var(--sidebar-width) - 4rem);
   border-collapse: collapse;
   margin: 1.5rem 0;
