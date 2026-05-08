@@ -4,6 +4,19 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-08
+
+### Added
+- `skills/omnimedia/` — multimodal AI skill: Gemini for analysis (vision/transcribe/OCR/extract); image generation via Codex (ChatGPT subscription), Gemini/Imagen, OpenRouter, MiniMax; video, speech, music via Gemini + MiniMax.
+- `--provider codex` — image-gen provider that shells out to `codex exec "$imagegen ..."`, billed against ChatGPT subscription quota (no `OPENAI_API_KEY`). Standalone CLI: `scripts/codex_imagegen.py`. PNG capture via tmpdir glob with `-o/--output-last-message` as a secondary path.
+- `--provider auto` cascade reordered for image gen: **Codex → Google → OpenRouter → MiniMax**. Codex is tried first (subscription-free); on `CodexQuotaExceeded` / `CodexNotAvailable` / `CodexError`, falls through to existing paid paths. Routing decision logged to stderr (`[auto] using <provider>`).
+- `references/codex-imagegen.md` — setup, model semantics (`-m` is Codex base model, not image), quota math, latency, cascade behavior, live-smoke command.
+- `scripts/tests/test_codex_imagegen.py` — mocked + gated live tests (`OMNIMEDIA_SMOKE_CODEX=1`).
+- `scripts/tests/test_provider_routing.py` — covers explicit-codex, auto-first-codex, quota-fall-through, codex-unavailable-silent, and image-gen-only routing.
+
+### Changed
+- `check_setup.py` — adds Codex CLI presence + ChatGPT login status check (non-fatal).
+
 ## [0.6.0] - 2026-05-05
 
 ### Added
