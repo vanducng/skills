@@ -36,7 +36,7 @@ Plan converts a *decided* approach into a *sequenced* implementation. If the app
 |---|---|---|
 | `--quick` | Single-file change, bug fix, tight scope (<3 phases) | One file: `plans/{date}-{slug}/plan.md` with inline steps |
 | **default** | Standard feature, 3-7 phases | `plan.md` overview + `phase-XX-{name}.md` per phase |
-| `--deep` | High-risk, multi-system, irreversible | Default output + research dispatch (Phase 2) + red-team review (Phase 6) |
+| `--deep` | High-risk, multi-system, irreversible | Default output + research dispatch (Phase 2) + red-team review (Phase 6) + independent audit (Phase 7) |
 
 Composable flag:
 
@@ -57,6 +57,12 @@ Before writing any plan file, in your reply, capture:
 - **Constraints** — language, runtime, team size, existing systems that can't change.
 
 If any of these are unclear after reading the task / brainstorm brief, **ask before writing files**. A misaimed plan wastes more than the 60 seconds it takes to clarify.
+
+### Capture decisions (mandatory if any non-goals stated)
+
+During framing, note any explicit non-goals or trade-offs the user states ("skip auth", "no migration needed", "use library X over Y", "defer i18n"). These belong in `{plan-dir}/decisions.md` — written alongside `plan.md` in Phase 4. Ask "any explicit non-goals to record?" if none have surfaced and the task feels likely to omit common scaffolding.
+
+**Tip:** if a brainstorm brief exists, copy its "Avoid" / "Out of scope" / "Open questions" sections into `decisions.md` as starting non-goals. The audit subagent (`vd:plan-audit`) reads `decisions.md` and respects listed exclusions, so capturing them here prevents false-positive findings later.
 
 ### Scope check (mandatory)
 
@@ -95,12 +101,31 @@ Sketch the dependency graph in your reply (text or mermaid) before writing files
 ```
 plans/{YYYYMMDD-HHMM}-{slug}/
   plan.md
+  decisions.md          # OPTIONAL — non-goals, trade-offs, accepted constraints. Write only if user stated any.
   phase-01-{verb-noun}.md
   phase-02-{verb-noun}.md
   ...
 ```
 
 Use the date/slug pattern injected by session hooks (`## Naming` block). If unavailable, fall back to `plans/{YYYYMMDD-HHMM}-{slug}/`.
+
+### `decisions.md` template (write only if non-goals/trade-offs were stated)
+
+```markdown
+# Decisions for {plan-title}
+_Captured during vd:plan on {YYYY-MM-DD}_
+
+## Non-goals (intentionally excluded)
+- **{thing}** — reason: {user-stated rationale}
+
+## Trade-offs
+- **{decision}** — chose {A} over {B} because {rationale}
+
+## Constraints accepted
+- **{constraint}** — {context}
+```
+
+Keep it flat: bullets, not prose. The audit subagent treats listed non-goals as out-of-scope and won't report them as gaps.
 
 ### `plan.md` template (≤80 lines)
 
@@ -198,8 +223,10 @@ After writing files, in your reply:
 2. **Show the phases table** verbatim from `plan.md` so the user sees the shape without opening it.
 3. **Recommend the next action:**
    - For implementation: `vd:cook {plan-dir}` or "I can implement Phase 1 — say go."
-   - For more rigor: "Run `--deep` mode with red-team review?"
-4. **Ask if anything's missing.** Don't claim done until the user confirms the shape is right.
+   - For more rigor: "Run `--deep` mode with red-team review + independent audit?"
+   - For default mode: "Run `vd:plan-audit` for independent verification before execution (recommended)."
+4. **For `--deep` runs:** mention the audit step — "Audit ran automatically. Findings: {summary}. See report: {path}. Address CRITICAL findings before `vd:cook`."
+5. **Ask if anything's missing.** Don't claim done until the user confirms the shape is right.
 
 ## Phase 6 — Red-team review (`--deep` only)
 
@@ -212,6 +239,16 @@ After writing the plan, before declaring done, run an adversarial pass. In your 
 | **Future maintainer** | "What will I curse you for in 6 months?" |
 
 If any answer reveals a real problem → revise the plan and note the change in `plan.md` under a `## Revisions` section. Don't hide the iteration.
+
+## Phase 7 — Independent audit (`--deep` only)
+
+After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as the final step. The audit skill spawns a clean-context subagent that re-reads the plan with no author bias and emits a severity-tagged report.
+
+- Trigger: only when `--deep` is set. Default and `--quick` skip this.
+- Surface result inline: top-3 findings + path to the audit report.
+- Audit findings are **advisory** — never block plan completion. The author owns the call.
+- If the audit returns CRITICAL findings, recommend revising the plan before handoff to `vd:cook`.
+- The skill itself handles subagent dispatch, JSON parsing, and report writing. Do not re-implement here.
 
 ## Anti-rationalization
 
@@ -250,10 +287,11 @@ If any answer reveals a real problem → revise the plan and note the change in 
 4. Default and `--deep` write `plan.md` + phase files. `--quick` writes only `plan.md` with inline phases.
 5. After writing, list files + show phases table in your reply (don't make the user open files to see the shape).
 6. End with the handoff recommendation (implement, deepen, revise) — don't leave the user wondering what's next.
-7. `--deep` mode is not done until the red-team round runs.
+7. `--deep` mode is not done until the red-team round (Phase 6) AND the independent audit (Phase 7) both run.
 
 ## Workflow position
 
 **Typically follows:** `vd:brainstorm` (after deciding the approach), `vd:research` (after picking a known option), `/ck:scout` or `/ck:debug` (after discovery)
 **Typically precedes:** `vd:cook` (execute the plan), or manual implementation phase-by-phase
+**Often followed by:** `vd:plan-audit` (auto on `--deep`, recommended after default mode) for independent verification
 **Compares to:** `vd:brainstorm` (pre-decision exploration) — if you find yourself debating approaches inside a plan, kick back to brainstorm
