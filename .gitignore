@@ -28,3 +28,7 @@ tools/vd/dist/
 /dist/
 .agents/
 .mcp.json
+skills/twitter/.pytest_cache/
+
+# vd:auto-loop runtime state (per-workspace, never committed)
+.auto-loop/
