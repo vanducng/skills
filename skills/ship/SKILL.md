@@ -2,10 +2,10 @@
 name: ship
 description: "Ship a feature branch end-to-end: merge target → test → review → version/changelog → commit → push → PR. Use when ready to land a branch on main/master (official) or dev/beta (beta). Stops only on test failures, critical review issues, or major version bumps."
 license: MIT
-argument-hint: "[official|staging|beta] [--auto] [--release] [--skip-tests] [--skip-review] [--skip-journal] [--skip-docs] [--dry-run]"
+argument-hint: "[official|staging|beta] [--auto] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-journal] [--skip-docs] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Ship
@@ -48,7 +48,8 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 | `--auto` | Fully autonomous — answer every prompt with the recommended default, watch CI, then queue an auto-merge on green. Still stops on critical review issues, secret leaks, test failures, merge conflicts, **and red CI** |
 | (none) | Auto-detect mode from branch name (`feature/*` → official, `release/*` / `uat/*` → staging, `dev/*` → beta) |
 | `--skip-tests` | Skip test step (use only when tests already passed in this session) |
-| `--skip-review` | Skip pre-landing review |
+| `--skip-review` | Skip pre-landing review (local AI review only — does NOT skip PR-comment handling) |
+| `--skip-pr-comments` | Skip Step 13 (don't fetch / address GH PR review comments) |
 | `--skip-journal` | Skip journal entry |
 | `--skip-docs` | Skip docs update |
 | `--dry-run` | Print what would happen at each step, change nothing |
@@ -59,10 +60,11 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 2. **Never force push.** Plain `git push` only. If rejected → `git pull --rebase`, retry once, then stop.
 3. **Never skip failing tests.** A red test stops the pipeline. Fix it (kick back to `vd:cook`) or pass `--skip-tests` deliberately.
 4. **Never bypass critical review issues silently.** Each critical finding gets an `AskUserQuestion`: fix now / acknowledge / false-positive.
+4b. **Never silently ignore unresolved PR review comments.** After the PR exists, fetch unresolved review threads + `CHANGES_REQUESTED` reviews. Each unresolved comment gets a prompt: fix now / reply / mark resolved / skip. Same blocking model as critical review issues.
 5. **Auto-decide everything else.** Patch-version bumps, changelog content, commit message, PR body — infer from diff and commits. Do not pause to ask.
 6. **Skip silently when a step doesn't apply.** No version file → skip version bump. No CHANGELOG → skip changelog. No test runner detected → ask once, then skip.
 7. **No secrets in commits.** Scan staged diff for API keys / tokens / passwords before commit. If found: stop, warn, suggest `.gitignore`.
-8. **`--auto` has a safety floor.** Even in auto mode, stop on: critical review issues, secret-scan hits, test failures, merge conflicts, push rejections, ambiguous mode (no branch-name match). Auto only suppresses *judgement-call* prompts (issue creation, version bump level, no-test-runner, journal/docs skip).
+8. **`--auto` has a safety floor.** Even in auto mode, stop on: critical review issues, **unresolved PR review comments**, secret-scan hits, test failures, merge conflicts, push rejections, ambiguous mode (no branch-name match). Auto only suppresses *judgement-call* prompts (issue creation, version bump level, no-test-runner, journal/docs skip).
 
 ## Pipeline
 
@@ -79,9 +81,10 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 10. Commit        → conventional commit, secret scan
 11. Push          → git push -u origin <branch>
 12. PR            → gh pr create with lean body (Summary + Changes + Checklist)
-13. Release       → `--release` only: detect auto-release tool; tag + push if manual
-14. CI watch      → wait for PR checks; on failure prompt user (every mode)
-15. Auto-merge    → `--auto` only: `gh pr merge --auto` once Step 14 is green
+13. PR comments   → fetch unresolved review threads + CHANGES_REQUESTED reviews; fix / reply / resolve each (re-run Step 4 after any fix)
+14. Release       → `--release` only: detect auto-release tool; tag + push if manual
+15. CI watch      → wait for PR checks; on failure prompt user (every mode)
+16. Auto-merge    → `--auto` only: `gh pr merge --auto` once Step 15 is green
 ```
 
 **Detailed steps:** see `references/ship-workflow.md`
@@ -96,9 +99,10 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 - Skip steps via flags when work already done in this session.
 - Staging mode auto-skips journal (Step 8) and docs (Step 9).
 - Beta mode auto-skips docs (Step 9).
-- Step 13 runs only with `--release`. If auto-release tooling detected, it's a no-op (CI handles tagging).
-- Step 14 (CI watch) always runs after PR creation. CI failure prompts the user even in `--auto`.
-- Step 15 runs only with `--auto`, only after Step 14 reports green (or user explicitly opted to merge anyway). Uses `gh pr merge --auto`, which respects branch protection — queues the merge; never bypasses.
+- Step 13 (PR comments) runs only when the PR exists *and* has unresolved review threads or `CHANGES_REQUESTED` reviews. Fresh PR with no comments → skip silently. One GraphQL call, no polling. Skipped entirely with `--skip-pr-comments`.
+- Step 14 runs only with `--release`. If auto-release tooling detected, it's a no-op (CI handles tagging).
+- Step 15 (CI watch) always runs after PR creation. CI failure prompts the user even in `--auto`.
+- Step 16 runs only with `--auto`, only after Step 15 reports green (or user explicitly opted to merge anyway). Uses `gh pr merge --auto`, which respects branch protection — queues the merge; never bypasses.
 
 ## Output
 
@@ -113,6 +117,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 ✓ Committed: chore(release): 1.4.0-rc.1
 ✓ Pushed: origin/release/1.4.0
 ✓ PR: https://github.com/org/repo/pull/123 → staging
+✓ PR comments: 0 unresolved
 - Journal: skipped (staging)
 - Docs:    skipped (staging)
 ```
