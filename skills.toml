@@ -31,8 +31,8 @@ mode = 'bundle'
 
 [targets.claude.bundle]
 name = 'vd'
-version = '0.8.0'
-description = "Duc's personal skills. Build pipeline: brainstorm → plan → cook. Plus research (deep tech research), excalidraw (diagrams), markdown-render (book-like viewer), open-design (HTML design artifacts from nexu-io/open-design catalog), qmd (local Markdown search), computer-clean (macOS disk cleanup), and omnimedia (multimodal AI: Gemini analysis + Codex/Gemini/OpenRouter/MiniMax image gen)."
+version = '0.9.0'
+description = "Duc's personal skills. Build pipeline: scout → debug → brainstorm → plan → cook → ship. Plus research (deep tech research), excalidraw (diagrams), markdown-render (book-like viewer), open-design (HTML design artifacts from nexu-io/open-design catalog), qmd (local Markdown search), computer-clean (macOS disk cleanup), and omnimedia (multimodal AI: Gemini analysis + Codex/Gemini/OpenRouter/MiniMax image gen). Scout and debug span software, data engineering, devops, and analytics surfaces."
 plugin_description = ''
 source = './'
 category = 'utilities'
