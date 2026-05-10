@@ -180,9 +180,57 @@ git push -u origin "$(git branch --show-current)"
    )"
    ```
 4. Inline issue refs from Step 2 inside the Summary paragraph (`Closes #N` / `Relates to #M`) — no separate section.
-5. **Output the PR URL** — final user-facing line (unless `--release` or `--auto` is set, in which case Steps 13/14 run after).
+5. **Output the PR URL** — final user-facing line (unless Steps 13–16 run after).
 
-## Step 13: Release (conditional)
+## Step 13: PR review comments
+
+**Skip if** `--skip-pr-comments`.
+
+Handles GitHub-side feedback that landed on the PR — unresolved review threads (line comments) and reviews left in `CHANGES_REQUESTED` state. Fresh PR with zero comments → skip silently.
+
+1. Fetch unresolved review threads + reviews in one GraphQL call:
+   ```bash
+   OWNER_REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+   OWNER=${OWNER_REPO%/*}; REPO=${OWNER_REPO#*/}
+   gh api graphql -f query='
+     query($owner:String!,$repo:String!,$pr:Int!){
+       repository(owner:$owner,name:$repo){
+         pullRequest(number:$pr){
+           reviewDecision
+           reviews(last:20){nodes{state author{login} body submittedAt}}
+           reviewThreads(first:50){nodes{
+             isResolved isOutdated
+             comments(first:10){nodes{
+               path line body author{login} url
+             }}
+           }}
+         }
+       }
+     }' -F owner="$OWNER" -F repo="$REPO" -F pr="$PR_NUMBER" \
+     > /tmp/ship-pr-comments.json
+   ```
+2. Parse with `jq`:
+   - Unresolved threads: `.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved==false and .isOutdated==false)`
+   - `CHANGES_REQUESTED` reviews: `.data.repository.pullRequest.reviews.nodes[] | select(.state=="CHANGES_REQUESTED")`
+3. **Nothing unresolved** → output `PR comments: 0 unresolved`, continue.
+4. **For each unresolved thread**, run `AskUserQuestion`:
+   - Show: `path:line` · author · comment body (truncate to 300 chars, link to full URL)
+   - Options:
+     - **A) Fix now** (recommended for actionable comments) — apply change, stage, **re-run Step 4 (tests)**, then on green: commit + push (`type(scope): address review feedback`), reply to thread (`gh api ... /pulls/comments/{id}/replies`) noting the commit, then resolve the thread via `resolveReviewThread` GraphQL mutation.
+     - **B) Reply only** — collect 1-line reply, post via `gh api`; leave thread unresolved.
+     - **C) Mark resolved** — call `resolveReviewThread` mutation; no code change.
+     - **D) Skip** — leave as-is, continue.
+5. **For `CHANGES_REQUESTED` reviews not tied to a thread**, prompt once: address (commit + push + request re-review via `gh pr edit --add-reviewer @<author>`) / acknowledge in PR comment / skip.
+6. After all loops, refetch state. If everything is resolved or skipped: continue to Step 14. Output: `PR comments: N addressed, M skipped`.
+7. If any fixes were committed and pushed in this step, Step 15 (CI watch) will pick up the new commit's checks automatically.
+
+### `--auto` behavior for Step 13
+
+`--auto` does **not** auto-fix code based on review comments — too risky, the reviewer's intent isn't always machine-parseable. Under `--auto`:
+- Unresolved comment with a clearly suggested edit (GitHub "suggestion" block) → apply suggestion, commit, reply with commit SHA, resolve thread.
+- Anything else → **STOP** and prompt (same as interactive mode). Treat as a critical gate.
+
+## Step 14: Release (conditional)
 
 **Run only if** `--release` flag is set.
 
@@ -209,7 +257,7 @@ git push -u origin "$(git branch --show-current)"
      ```
 3. Output release URL: `gh release view <TAG> --json url -q .url`.
 
-## Step 14: CI watch
+## Step 15: CI watch
 
 Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so the next step (auto-merge or hand-off) can act correctly.
 
@@ -224,17 +272,17 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
    STATE=$(gh pr checks "$PR_NUMBER" --json state -q '[.[].state] | unique | join(",")')
    ```
 3. Branch on `$STATE`:
-   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the PR's verification stripe (`gh pr edit` to update `_Tests: ✓ N · …_` with live counts), continue to Step 15.
+   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the PR's verification stripe (`gh pr edit` to update `_Tests: ✓ N · …_` with live counts), continue to Step 16.
    - **Any `FAILURE` / `CANCELLED` / `TIMED_OUT`** → **STOP**. `AskUserQuestion` (regardless of `--auto`):
      - `Investigate failure` (recommended) — print failing checks via `gh pr checks --json name,state,link -q '.[]|select(.state!="SUCCESS")'`, exit so user can fix
-     - `Merge anyway` — proceed to Step 15 noting CI was red
+     - `Merge anyway` — proceed to Step 16 noting CI was red
      - `Abort` — leave PR open, exit
-   - **Still pending after timeout** → in `--auto` mode rely on `gh pr merge --auto` (Step 15 queues until green); in interactive mode print "CI still running" with the PR URL and exit cleanly.
+   - **Still pending after timeout** → in `--auto` mode rely on `gh pr merge --auto` (Step 16 queues until green); in interactive mode print "CI still running" with the PR URL and exit cleanly.
 4. CI failures are **never** silently bypassed by `--auto` — same prompt fires.
 
-## Step 15: Auto-merge (conditional)
+## Step 16: Auto-merge (conditional)
 
-**Run only if** `--auto` flag is set AND Step 14 reported green (or user explicitly chose "Merge anyway").
+**Run only if** `--auto` flag is set AND Step 15 reported green (or user explicitly chose "Merge anyway").
 
 1. Detect the repo's preferred merge strategy and queue / immediate-merge:
    ```bash
@@ -258,6 +306,7 @@ When `--auto` is set, replace each `AskUserQuestion` with the listed default. Cr
 | Issue creation when none found | Skip | No |
 | No test runner detected | Skip tests, warn | No |
 | Critical review issue | — | **Yes**, stop per issue |
+| Unresolved PR review comment | Apply GitHub suggestion blocks; otherwise stop per comment | **Yes** (non-suggestion) |
 | Major/minor/patch bump prompt | Patch (or minor if branch starts with `feat/` or commits include `feat:`) | No |
 | Auto-release with manual fallback | Patch bump, tag automatically | No |
 | Push rejected | — | **Yes**, stop |
