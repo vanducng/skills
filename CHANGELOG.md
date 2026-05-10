@@ -4,6 +4,19 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-05-10
+
+### Added
+- `skills/scout/` — fast, parallel codebase scouting across software, data-engineering, devops, and analytics surfaces. Locates files, dbt models, dashboards, IaC, pipeline DAGs, K8s manifests, secrets, and CI workflows before changes. Internal mode (Explore subagents) and external mode (Gemini / OpenCode CLI) with model overrides via `GEMINI_MODEL` / `OPENCODE_MODEL` env vars.
+- `skills/scout/references/domain-scouting.md` — search-target playbooks per discipline: dbt lineage tracing, env-var maps across the stack (app → container → K8s → IaC → secrets → CI), BI metric-to-source tracing.
+- `skills/debug/` — systematic debugging across software, data pipelines, infrastructure, and analytics. Iron law: no fixes without root cause investigation first. Loads references on demand: systematic-debugging, root-cause-tracing, defense-in-depth, verification, investigation-methodology, log-and-ci-analysis (incl. K8s + dbt), performance-diagnostics (incl. BigQuery / Snowflake / Spark), reporting-standards, frontend-verification, task-management-debugging.
+- `skills/debug/references/data-pipeline-debugging.md` — dbt run/test failures, source-freshness, schema drift, idempotency check, backfill discipline, Airflow / Dagster / Prefect entry points, Spark stage skew, streaming consumer lag.
+- `skills/debug/references/infrastructure-debugging.md` — K8s pod-won't-start triage, Docker reproducibility, multi-environment configuration diff (Helm / Kustomize / Terraform), secret rotation, IaC drift, networking, cloud-provider quick checks.
+- `skills/debug/references/data-analytics-debugging.md` — wrong-number top-down trace (dashboard → BI SQL → semantic layer → mart), fan-out join detection, metric drift across dashboards, BI cache / refresh issues, schema-change-broke-the-chart, time / timezone bugs, conformance issues.
+
+### Changed
+- `skills/brainstorm/SKILL.md` (1.0.0 → 1.1.0) — workflow position now points to `vd:scout` and `vd:debug`. Added "Cross-discipline cues" section that biases Phase-1 framing per discipline (software / data engineering / devops / analytics) so the three options diverge along the axes that matter for that surface.
+
 ## [0.8.0] - 2026-05-08
 
 ### Added
