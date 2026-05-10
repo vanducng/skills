@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[topic or problem] [--quick | --deep]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Brainstorm
@@ -225,6 +225,19 @@ If the chosen option has independent sub-parts, list them in build order with ra
 
 ## Workflow position
 
-**Typically follows:** `/ck:scout`, `/ck:debug`, or a fresh ambiguous request
+**Typically follows:** `vd:scout` (after surveying the surface), `vd:debug` (when the diagnosis exposes a design decision worth re-deciding), or a fresh ambiguous request
+
 **Typically precedes:** `vd:plan` (for the chosen approach), or `vd:research` (if Phase 3 surfaced an unknown option that needs deep evaluation)
+
 **Compares to:** `vd:research` (known options, cited comparison) — when the user names options, prefer `research`; when the path is unclear, prefer `brainstorm`
+
+## Cross-discipline cues
+
+The decision space differs by discipline — call it out in Phase 1 so options diverge correctly:
+
+- **Software** — hot path is correctness + maintainability + reversibility
+- **Data engineering** — hot path is idempotency + lineage + freshness/SLA + backfill cost; "do nothing, materialize later" is often a real option
+- **DevOps / infra** — hot path is blast radius + reversibility + multi-env parity + ops burden; managed-service-vs-self-host is almost always one of the three options
+- **Analytics / BI** — hot path is metric correctness + governance + refresh latency + governance of definitions; "single source of truth" usually beats "more dashboards"
+
+If the request mixes disciplines, the scope-check rule still applies — decompose before brainstorming.
