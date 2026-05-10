@@ -43,6 +43,7 @@ Composable flags:
 |---|---|
 | `--tdd` | Step 1 of every phase is "write the tests from the phase's Tests section as failing tests." Implementation comes after. |
 | `--no-test` | Skip the test step. Use only for docs/config-only changes. Loud warning to user. |
+| `--skip-preflight` | Skip the mechanical Pre-flight check (Step 0). Use when audit already ran or you trust the plan against current codebase. |
 
 Detect mode from the argument shape (path → plan loop, free text → quick) and explicit flags. Announce mode in your first reply.
 
@@ -75,6 +76,26 @@ These failures are cheaper to surface now than to discover halfway through.
 ## Phase 2 — Cook the loop
 
 For each phase, in order, run this loop. Do not parallelize phases (parallelizing **within** a phase is fine if the steps are genuinely independent).
+
+### Step 0 — Pre-flight (mechanical only)
+
+Before any conform/implement work, validate the phase's mechanical assumptions against the current codebase. This catches drift between plan-time and cook-time without spawning subagents — a fast local check.
+
+- **`**Modify:**` paths** — verify each file exists. If missing → halt.
+- **`**Delete:**` paths** — verify each file exists. If already deleted → note as no-op and continue.
+- **`**Create:**` paths** — verify each file does NOT exist. If already exists → halt (potential overwrite).
+- **Install steps in Steps body** — if a step says `npm install X` / `pip install X` / etc. AND a package manifest exists in repo, best-effort verify the package isn't already installed at a conflicting version. Don't block on uncertainty.
+
+**Halt behavior:** print `Pre-flight failed for phase {N}: {reason}. Plan written {age} ago; codebase may have drifted.` Then offer three options:
+1. Skip preflight and proceed (user accepts risk).
+2. Revise the phase manually then resume.
+3. Abort cook.
+
+Do NOT auto-fix the plan — user owns the decision.
+
+**Pre-flight is mechanical, not logical.** Do NOT check phase ordering, dependency contradictions, or success-criteria realism — that's `vd:plan-audit`'s job. For logic audit, run `vd:plan-audit` separately. Do NOT spawn subagents — fast local Read/Glob/Bash only.
+
+`--skip-preflight` flag bypasses Step 0 entirely. Use when audit already ran clean or you trust the plan.
 
 ### Step A — Conform
 
@@ -182,7 +203,7 @@ After the last phase passes:
 
 ## Output rules
 
-1. Announce mode (default / `--auto` / `--quick`) and `--tdd` / `--no-test` if set in your first reply.
+1. Announce mode (default / `--auto` / `--quick`) and `--tdd` / `--no-test` / `--skip-preflight` if set in your first reply.
 2. Phase 1 (load + sanity check) happens visibly — list the phases or restate the task before any edit.
 3. Per-phase log: `✓ Phase N: {title} — files: {n}, tests: {x/y pass}, review: {gist}`. Concise, scannable.
 4. Default mode stops at Step G (gate) between phases. Do not start phase N+1 without confirmation.
