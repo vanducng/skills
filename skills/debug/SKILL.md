@@ -119,6 +119,6 @@ If catching yourself thinking:
 
 **Typically follows:** `vd:scout` (after locating relevant code/models/manifests)
 
-**Typically precedes:** `/ck:fix` (apply the diagnosed fix), `vd:brainstorm` (when the cause exposes a design problem worth re-deciding), `vd:plan` (when the fix is large enough to phase)
+**Typically precedes:** `vd:fix` (apply the diagnosed fix), `vd:brainstorm` (when the cause exposes a design problem worth re-deciding), `vd:plan` (when the fix is large enough to phase)
 
 **Related:** `vd:scout` (discover before debugging), `vd:research` (investigate unknown tools/CVEs surfaced during debug)
