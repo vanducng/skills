@@ -2,10 +2,10 @@
 name: plan-audit
 description: "Audit a vd:plan output for gaps, inconsistencies, missing scaffolding, and codebase drift using an independent clean-context subagent. Use after vd:plan (or any time after manual edits to phase files) when stakes warrant verification beyond same-context red-team. Auto-fires at end of vd:plan --deep."
 license: MIT
-argument-hint: "[plan-dir] [--fix]"
+argument-hint: "[plan-dir] [--fix] [--apply-all]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Plan Audit
@@ -25,7 +25,7 @@ It's a **second pair of eyes**, not a redesign tool. Findings are advisory — t
 
 ## Hard rules
 
-1. **Never edit source code.** This skill only edits plan files (and only with `--fix`, only HIGH/CRITICAL findings, only with per-finding confirmation). Never touches the actual codebase.
+1. **Never edit source code.** This skill only edits plan files (and only with `--fix`, only HIGH/CRITICAL findings, with per-finding confirmation by default — or single up-front confirmation when `--apply-all` is set). Never touches the actual codebase.
 2. **Always use a clean-context subagent.** Inline reasoning shares the same blind spots as the author. The point of audit is independence — `Agent` tool, fresh context, plan files as the only input.
 3. **Findings are advisory, not blocking.** Audit prints a report and exits. It never blocks `vd:plan` completion or `vd:cook` execution. The author decides.
 4. **Only HIGH/CRITICAL are eligible for `--fix`.** MEDIUM/LOW are observational — surfacing them is the value, fixing them auto would be over-reach.
@@ -38,8 +38,9 @@ It's a **second pair of eyes**, not a redesign tool. Findings are advisory — t
 |---|---|---|
 | **default** | Standard audit — read, spawn subagent, write report | No file edits beyond writing the report |
 | `--fix` | Author wants to apply HIGH/CRITICAL findings inline | After report, walk findings interactively; per-finding y/n; edit phase file in place. **Interactive-only** — never auto-invoked by other skills. |
+| `--fix --apply-all` | Author trusts the audit + wants one keypress instead of N | Print a unified preview of every HIGH/CRITICAL edit (file/line/old→new); single y/n at the top; apply the whole batch atomically on `y`. Still HIGH/CRITICAL only. **Interactive-only.** |
 
-Detect mode from the explicit flag. Announce mode in your first reply.
+Detect mode from the explicit flags. `--apply-all` without `--fix` is a usage error — error out and print the help line. Announce mode in your first reply.
 
 ## Phase 1 — Resolve plan dir
 
@@ -137,11 +138,20 @@ verdict "proceed". Do not pad. Do not invent gaps to look thorough.
 
 - Parse subagent JSON output. Validate shape; if malformed, ask the subagent to retry once.
 - Render report to `plans/reports/audit-{YYMMDD-HHMM}-{plan-slug}.md` using the report template below. Date format matches the session-hook `## Naming` block (6-digit YY). `plan-slug` = the date-stripped slug of the plan dir (e.g. `260510-0938-vd-plan-audit-skill` → `vd-plan-audit-skill`). If the plan dir doesn't follow `{date}-{slug}` pattern, fall back to the dir name itself as the slug.
-- If `--fix` mode:
+- If `--fix` mode (per-finding):
   - Walk findings filtered to severity in {CRITICAL, HIGH}.
   - For each, print finding + suggested fix, ask user `Apply? (y/n/skip-rest)`.
   - On `y`: open the named phase file, apply the suggested edit (Edit tool, with the user's confirmation of the exact diff if it's non-trivial). Mark finding as "applied" in the report.
   - On `n` or `skip-rest`: leave finding unfixed, note as "deferred" in the report.
+
+- If `--fix --apply-all` mode (batch):
+  - Filter findings to severity in {CRITICAL, HIGH}. If the filtered list is empty, print "No HIGH/CRITICAL findings to apply" and exit without prompting.
+  - Compute the concrete edit for each finding (the exact `old_string`/`new_string` pair that the Edit tool will use). If any edit cannot be made concrete from the `suggested_fix` (ambiguous instruction, target line missing) → mark that finding `unactionable` and exclude it from the batch.
+  - Print a single unified preview: for each actionable finding, show `phase-NN.md @ Lstart-Lend` + a 3-line context diff (old → new). Group by file. Cap at 60 lines total — if longer, write the full preview to `plans/reports/audit-{date}-{slug}.preview.diff` and print only the file/line summary inline.
+  - Ask **one** prompt: `Apply N HIGH/CRITICAL edits across M files? (y/n)`. Default is `n`. No `skip-rest` — it's all-or-nothing.
+  - On `y`: apply each edit in order. **If any edit fails** (file changed since audit read, `old_string` not unique, etc.) → stop, mark already-applied as `applied`, the failing one as `failed`, remaining as `deferred`. Surface the failure inline and in the report so the author can re-audit. Do **not** roll back applied edits — they're plan-file edits, not code, and partial progress is recoverable via `git`.
+  - On `n`: leave all findings unfixed, note them as `deferred`. Skill exits with a one-line summary.
+  - `unactionable` findings always appear in the report regardless of choice — surfacing them is the value.
 
 ### Report template
 
@@ -196,7 +206,7 @@ After writing the report:
    - `revise-before-cook` → "Address HIGH findings before execution."
    - `proceed-with-caveats` → "Plan is workable; review MEDIUM findings."
    - `proceed` → "No blocking issues. Cook when ready."
-4. **If `--fix` ran**, summarize: `{N} fixes applied, {M} deferred.`
+4. **If `--fix` ran**, summarize: `{N} fixes applied, {M} deferred, {U} unactionable, {F} failed.` (omit zero-count buckets).
 5. **Recommend re-run** after fixes: "Re-run `vd:plan-audit` after edits to verify."
 
 ## Anti-rationalization
@@ -207,6 +217,8 @@ After writing the report:
 | "The plan is small — skip decisions.md check" | Small plans have non-goals too. Read it if it exists. |
 | "Audit found 0 issues — must be wrong" | Or the plan is good. Don't pad findings to look thorough. |
 | "I'll fix MEDIUM findings too while I'm in --fix" | Out of scope. Surface, don't fix. The author decides. |
+| "I'll extend `--apply-all` to MEDIUM/LOW for tidy output" | No. The trust boundary is HIGH/CRITICAL — anything below is observational. |
+| "Just have another skill invoke `--apply-all` automatically" | `--apply-all` is interactive — one human keypress at the preview gate. It is NOT for auto-invocation by `vd:plan --deep` or `vd:cook --auto`. |
 | "Just block on CRITICAL by default" | Audit is advisory. The author owns the call. |
 | "I'll re-read the plan in main context to double-check" | That defeats the point. Trust the subagent's report. |
 
@@ -229,12 +241,13 @@ After writing the report:
 
 ## Output rules
 
-1. Announce mode (default / `--fix`) and resolved plan-dir in the first reply.
+1. Announce mode (default / `--fix` / `--fix --apply-all`) and resolved plan-dir in the first reply.
 2. Phase 1 (resolve) and Phase 2 (read) happen visibly — print plan dir + file count before spawning the subagent.
 3. Subagent dispatch is one `Agent` tool call. Print "Spawning audit subagent..." so the user sees the boundary.
 4. After subagent returns, print the report path and top-3 findings inline. Don't paste the whole report.
-5. `--fix` walks findings interactively — one prompt per HIGH/CRITICAL, no batch yes-to-all.
-6. End with the recommended next step. Don't leave the author wondering whether to cook.
+5. `--fix` (per-finding) walks findings interactively — one prompt per HIGH/CRITICAL.
+6. `--fix --apply-all` (batch) shows one unified preview, asks one y/n, applies the batch atomically. Default-no on the prompt.
+7. End with the recommended next step. Don't leave the author wondering whether to cook.
 
 ## References
 
