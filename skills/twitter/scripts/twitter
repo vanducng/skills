@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# twitter — CLI dispatcher for the personal twitter skill.
+#
+# Routes verbs to per-command Python scripts under scripts/.
+# Top-level flags (--use-browser, --help, --version) are stripped before dispatch.
+set -euo pipefail
+
+SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHON="$HOME/.claude/skills/.venv/bin/python3"
+SCRIPTS="$SKILL_DIR/scripts"
+
+VERBS=(fetch timeline post reply thread delete import-from-dia login doctor)
+
+print_help() {
+  cat <<'EOF'
+twitter — read and post on X/Twitter from the CLI
+
+USAGE
+  twitter [--use-browser] <verb> [args...]
+  twitter --help
+  twitter --version
+
+VERBS
+  fetch <url|@user|search:...>      Read a tweet, user feed, or search
+  timeline [home|latest|user:@h]    Read your timeline
+  post "text" [--media path...]     Post a tweet
+  reply <url|id> "text"             Reply to a tweet
+  thread "a" "b" "c"                Post a chained thread
+  delete <url|id>                   Delete a tweet
+  import-from-dia [--profile NAME]  Bootstrap cookies from local Dia browser
+  login                             Fallback bootstrap via twikit login
+  doctor                            Health check
+
+FLAGS
+  --use-browser    Force agent-browser fallback (fetch / post only)
+  --help           This message
+  --version        Skill version
+EOF
+}
+
+print_version() {
+  awk -F': *' '/^version:/ {print $2; exit}' "$SKILL_DIR/SKILL.md"
+}
+
+# Parse top-level flags.
+USE_BROWSER=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --use-browser)
+      USE_BROWSER=1
+      shift
+      ;;
+    --help|-h)
+      print_help
+      exit 0
+      ;;
+    --version|-V)
+      print_version
+      exit 0
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [[ $# -eq 0 ]]; then
+  print_help
+  exit 1
+fi
+
+VERB="$1"
+shift
+
+# Map verb to underscored module name (e.g. import-from-dia → import_from_dia).
+MODULE="cmd_${VERB//-/_}.py"
+SCRIPT="$SCRIPTS/$MODULE"
+
+if [[ ! -f "$SCRIPT" ]]; then
+  echo "twitter: unknown verb '$VERB'" >&2
+  echo "  valid: ${VERBS[*]}" >&2
+  exit 2
+fi
+
+export TWITTER_USE_BROWSER="$USE_BROWSER"
+export PYTHONPATH="$SCRIPTS${PYTHONPATH:+:$PYTHONPATH}"
+
+exec "$PYTHON" "$SCRIPT" "$@"
