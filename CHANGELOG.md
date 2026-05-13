@@ -4,6 +4,15 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 
 ## [Unreleased]
 
+### Added
+- `skills/git/` — granular git toolkit: stage / commit / push / PR / merge as discrete verbs (`cm` / `cp` / `pr` / `merge`). Delegates verbose ops to `git-manager` subagent; `--inline` keeps them in main context. Conventional commit format with secret-scan block, auto-split heuristic, pre-commit lint, pre-push test gate, remote-first diff for PRs, branch-protection rules.
+- `skills/git/references/pr-template.md` — canonical PR title + body conventions, shared with `vd:ship`. Past-tense (v-ed) title rule (`feat(auth): added OAuth2 provider`) to distinguish PR titles from commit-message imperatives; ticket-prefix detection; repo-template-wins priority; Why / What / Risks + verification stripe fallback body; per-bullet fill rules; worked examples.
+- `skills/docs/` — keep `./docs/` honest with `init` / `update` / `check` verbs over a canonical small set (`README.md`, `development-guidelines.md`, `system-architecture.md`, `tech-stack.md`, `deployment.md`). Scouts the codebase, delegates writing to `docs-manager` subagent (or `--inline`). `--dry-run` prints the plan without writes. Out-of-scope by design: changelog, roadmap, codebase-summary, PRD — those rot fastest and `vd:ship` / `vd:journal` already cover them.
+- `skills/twitter/` — Twitter / X CLI skill (login / post / thread / reply / fetch / timeline / delete / doctor / import-from-dia) backed by `twikit` with browser-cookie fallback. Loads credentials from gopass (`personal/x-twitter/credentials`). Test suite (router / formatters / media / url-parser / dia-cookies / twikit patch) plus integration smoke script.
+
+### Changed
+- `skills/ship/references/pr-template.md` — slimmed to a thin pointer at `skills/git/references/pr-template.md` (canonical) plus ship-specific Step-12 / Step-14 integration notes. Title format, body shape, per-bullet fill rules, and worked examples now live in one place.
+
 ## [0.9.0] - 2026-05-10
 
 ### Added
