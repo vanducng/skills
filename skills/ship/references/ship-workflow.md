@@ -2,7 +2,31 @@
 
 ## Step 1: Pre-flight
 
-1. `git branch --show-current`. If on a bare target branch (`main` / `master` / `staging` / `uat` / `dev` / `develop` / `development` / `beta`): **ABORT** — "Ship from a feature branch." Note: `release/x.y.z` is a *valid feature branch for staging mode*, do not abort on it.
+1. `git branch --show-current`. If on a bare target branch (`main` / `master` / `staging` / `uat` / `dev` / `develop` / `development` / `beta`): trigger **on-target recovery** (do NOT abort). Note: `release/x.y.z` is a *valid feature branch for staging mode*, no recovery needed there.
+
+   **On-target recovery flow** (Hard Rule 1):
+   - **`--auto`:** auto-create a feature branch and continue silently. No prompt.
+     ```bash
+     # Infer slug — staged-diff filenames first, then latest commit subject, else timestamp
+     SLUG=$(
+       git diff --cached --name-only | head -1 | sed 's|.*/||; s|\.[^.]*$||; s|[^a-zA-Z0-9]|-|g; s|--*|-|g; s|^-||; s|-$||' \
+       || git log -1 --pretty=%s | sed 's/^[a-z]*[(:][^)]*)*: *//; s|[^a-zA-Z0-9]|-|g; s|--*|-|g; s|^-||; s|-$||' | cut -c1-50 \
+       || date +"auto-%Y%m%d-%H%M"
+     )
+     # Pick prefix by mode: official → feat/, staging → release/, beta → dev/
+     case "$MODE" in
+       official) PREFIX="feat" ;;
+       staging)  PREFIX="release" ;;
+       beta)     PREFIX="dev" ;;
+     esac
+     git checkout -b "$PREFIX/$SLUG"
+     ```
+     Print one line: `↪ Auto-created branch: <PREFIX>/<SLUG> (from <target>) — continuing.`
+   - **Interactive:** `AskUserQuestion` with three options:
+     - *Create feature branch, then ship* (Recommended) — same auto-branch logic
+     - *Direct push to target* — skip Steps 5/12/13/15/16 (no review/PR/CI), commit + push straight to target. Requires explicit pick.
+     - *Abort* — stop the pipeline.
+   - **Never** offer direct-push in `--auto`. The flow is binary: branch + continue, or stop on safety violation.
 2. Resolve ship mode:
    - `official` → target = default branch (main/master)
    - `staging` → target = staging/uat/release branch
