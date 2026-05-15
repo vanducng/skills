@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[topic or problem] [--quick | --deep]"
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.3.0"
 ---
 
 # Brainstorm
@@ -49,6 +49,8 @@ Before generating options, write down (in your reply, briefly):
 
 If any of those are unclear or assumed, **ask before generating options**. Generating 3 wrong-shaped options because you assumed the constraints wastes the whole session.
 
+**How to ask:** one clarifying question per message. Prefer multiple choice (A/B/C) over open-ended when the answer space is bounded — it's faster to answer and surfaces hidden assumptions. Save open-ended for "what does success look like?" style framing. Don't stack 4 questions in one reply.
+
 ### Scope check (mandatory)
 
 If the request describes 3+ independent concerns ("build platform with auth + billing + analytics + chat") **stop**. Do not brainstorm. Reply:
@@ -68,6 +70,10 @@ Generate at least **3 genuinely different options**. Force divergence:
 If you find yourself generating "X with Postgres / X with MySQL / X with SQLite" — that's one option, not three. Restart.
 
 Where helpful, pull in proven patterns: search the web (`WebSearch`), read library docs, scan the codebase. Don't invent in a vacuum when the wheel exists. But also don't *only* surface known options — the user could have searched too.
+
+**For visual brainstorming** (UI layouts, page/dashboard structure, comparing visual designs): produce a **visual draft** alongside text options — a single static HTML page rendering A/B/C panels in the browser, so the user can react to shapes, not just words. See [Visual draft mode](#visual-draft-mode) below. The brief itself stays text-only — visual drafts are intermediate artifacts.
+
+Once the user picks a direction from the draft, hand off the *final* artifact to the right specialist: `vd:open-design` for polished marketing/dashboard pages with brand-grade design systems, `vd:diagram` for rendered system / data-flow / sequence diagrams, or `vd:excalidraw` for editable whiteboard sketches. The draft is the cheap throwaway; the specialist produces the keepable artifact.
 
 ## Phase 3 — Stress-test (red team)
 
@@ -184,6 +190,98 @@ For each option, the strongest argument *against* it from a hostile reviewer's p
 If the chosen option has independent sub-parts, list them in build order with rationale.
 ```
 
+## Phase 6 — Self-review & handoff
+
+### Self-review (mandatory before handoff)
+
+After writing the brief, re-read it with fresh eyes and fix issues inline. No second pass — just fix and move on:
+
+1. **Placeholder scan** — any `TBD`, `TODO`, `{...}` template stubs, or unfilled cells in the comparison table? Fill or remove.
+2. **Internal consistency** — does the recommendation in TL;DR match the recommendation in the long section? Do the strengths/weaknesses contradict the dealbreaker scenario? Does the runner-up condition actually flip the decision?
+3. **Scope check** — is this still one decision, or did it sprawl into 3? If it sprawled, decompose and write multiple briefs.
+4. **Ambiguity check** — could any criterion or recommendation be read two ways? Pick one and make it explicit.
+5. **Divergence check** — re-read the three options. If two share the same architectural assumption, you didn't diverge — regenerate the weakest one.
+
+### User review gate
+
+After self-review, surface the file and stop. Do not auto-invoke `vd:plan`:
+
+> Brief saved to `<path>`. Recommendation: **{Option X}**, runner-up **{Option Y}** if {condition}. Please review and tell me if you want changes — or say "plan it" and I'll hand off to `vd:plan`.
+
+If the user requests changes, edit the brief and re-run the self-review checklist before re-surfacing. Only invoke `vd:plan` after explicit approval.
+
+`--quick` mode skips Phase 6 entirely — verbal output only.
+
+## Visual draft mode
+
+A lightweight interactive layer for the subset of brainstorm questions where the user would understand a *picture* faster than a paragraph. Static HTML opened in the browser — no server, no event polling, no session state. Borrows the wireframe CSS vocabulary, drops the runtime machinery.
+
+### When to use
+
+**Yes** — the *content itself* is visual:
+- "Which dashboard layout?" (sidebar vs topbar vs split)
+- "Which signup flow shape?" (single-page vs wizard vs progressive disclosure)
+- "Which card layout for the feed?"
+- Side-by-side visual comparisons of two interface directions
+
+**No** — text decisions dressed up as visuals:
+- "Which auth strategy / database / message queue?" — text comparison table
+- "What does 'success' mean here?" — clarifying question
+- Anything in the data-engineering / devops / analytics disciplines per [Cross-discipline cues](#cross-discipline-cues)
+
+If you can express the decision as A/B/C bullet points without losing fidelity, skip the visual draft. A question *about* a UI topic isn't automatically a visual question.
+
+### Where to save (standardized artifact directory)
+
+Use the active plan context (injected by session hooks) — **do not invent new directories**, especially not under hidden dotdirs:
+
+- **Plan active:** `{plan_dir}/visuals/brainstorm-{slug}/comparison-{N}.html`
+- **No plan:** `plans/visuals/brainstorm-{YYYYMMDD-HHMM}-{slug}/comparison-{N}.html`
+
+Increment `{N}` per iteration: `comparison-1.html`, `comparison-2.html`. Never overwrite — the trail of drafts is part of the brainstorm record.
+
+### How to render
+
+1. Read the bundled template at `<this-skill-dir>/assets/comparison-template.html`.
+2. Copy it to the target path above. Fill the three placeholders:
+   - `{{TITLE}}` — the visual question, e.g. "Which dashboard layout?"
+   - `{{SUBTITLE}}` — one-sentence framing
+   - `{{PANELS}}` — your A/B/C panel HTML, using ONLY the classes documented below
+3. `open <path>` (macOS) / `xdg-open <path>` (Linux) to launch in the user's default browser.
+4. Tell the user: *"Visual draft at `<path>`. Take a look and reply with the letter you prefer — or describe what's off."*
+
+### CSS vocabulary in the template
+
+Use these classes — don't invent more, don't write inline styles:
+
+| Class | Use for |
+|---|---|
+| `.options` + `.option[data-choice]` + `.letter` + `.content` | A/B/C lettered cards (conceptual choices) |
+| `.cards` + `.card` + `.card-image` + `.card-body` | Richer cards with mockup bodies (visual designs) |
+| `.mockup` + `.mockup-header` + `.mockup-body` | Wrapped wireframe (browser-chrome frame) |
+| `.split` | Side-by-side mockup pair |
+| `.pros-cons` + `.pros` / `.cons` | Tradeoff lists per option |
+| `.mock-nav`, `.mock-sidebar`, `.mock-content` | Wireframe layout primitives |
+| `.mock-button`, `.mock-input`, `.placeholder` | Wireframe element primitives |
+
+The template handles theme tokens, dark-mode, responsive grid, and a cosmetic click-to-highlight (no event logging — the user replies in chat).
+
+### Iteration
+
+If the user requests changes after seeing the draft, write a **new file** (`comparison-2.html`) — don't overwrite. The diff between iterations is itself useful, and lets the brief reference "we considered layout v1 and rejected it because…".
+
+### Handoff after pick
+
+Once the user picks a direction, the visual draft has served its purpose — it bought a converging decision before any artifact got polished. After the brief is approved (Phase 6), point the user at the right specialist for the *final* artifact:
+
+| Pick shape | Hand off to |
+|---|---|
+| Polished UI page (landing, dashboard, marketing) | `vd:open-design` |
+| Rendered system / data-flow / sequence diagram | `vd:diagram` |
+| Editable whiteboard / architecture sketch | `vd:excalidraw` |
+
+The brainstorm's job is to pick the direction. Materializing it is downstream.
+
 ## Anti-rationalization
 
 | Excuse | Reality |
@@ -221,7 +319,7 @@ If the chosen option has independent sub-parts, list them in build order with ra
 5. Brief opens with TL;DR — recommendation, runner-up, avoid — before everything else
 6. Three+ options, each with the full Phase 3 shape — partial entries are a fail
 7. End with Open Questions — what couldn't be resolved, what would change the call
-8. After the brief is written, ask if the user wants to invoke `vd:plan` next
+8. After the brief is written, run Phase 6 self-review, then surface the file path + recommendation and **wait for user approval** before invoking `vd:plan`
 
 ## Workflow position
 

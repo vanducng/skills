@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}}</title>
+<style>
+  :root {
+    --bg: #fafaf9;
+    --fg: #18181b;
+    --muted: #71717a;
+    --accent: #6366f1;
+    --accent-fg: #ffffff;
+    --border: #e4e4e7;
+    --card-bg: #ffffff;
+    --card-bg-hover: #f4f4f5;
+    --pros-bg: #f0fdf4;
+    --pros-fg: #166534;
+    --cons-bg: #fef2f2;
+    --cons-fg: #991b1b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+    --radius: 12px;
+    --gap: 1.25rem;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0a0a0a;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --border: #27272a;
+      --card-bg: #18181b;
+      --card-bg-hover: #27272a;
+      --pros-bg: #14532d33;
+      --pros-fg: #86efac;
+      --cons-bg: #7f1d1d33;
+      --cons-fg: #fca5a5;
+      --shadow: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font);
+    line-height: 1.5;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+  .header { margin-bottom: 2rem; }
+  h1 { font-size: 1.75rem; font-weight: 600; margin: 0 0 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 1rem; margin: 0; }
+  h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.5rem; }
+  h4 { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+
+  /* Options: A/B/C lettered cards for conceptual choices */
+  .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--gap); }
+  .option {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+    display: flex; gap: 1rem; align-items: flex-start;
+  }
+  .option:hover { background: var(--card-bg-hover); }
+  .option.selected { border-color: var(--accent); transform: translateY(-2px); }
+  .option .letter {
+    width: 2.25rem; height: 2.25rem; border-radius: 50%;
+    background: var(--accent); color: var(--accent-fg);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; flex-shrink: 0;
+  }
+  .option .content { flex: 1; }
+  .option p { color: var(--muted); margin: 0.25rem 0 0; font-size: 0.95rem; }
+
+  /* Cards: richer panels with mockup bodies for visual designs */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--gap); }
+  .card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden; cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+  }
+  .card:hover { background: var(--card-bg-hover); }
+  .card.selected { border-color: var(--accent); transform: translateY(-2px); }
+  .card-image { padding: 1rem; background: var(--bg); border-bottom: 1px solid var(--border); min-height: 200px; }
+  .card-body { padding: 1rem 1.25rem; }
+  .card-body p { color: var(--muted); margin: 0.25rem 0 0; font-size: 0.95rem; }
+
+  /* Mockup container */
+  .mockup { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); overflow: hidden; }
+  .mockup-header { padding: 0.5rem 0.75rem; background: var(--card-bg); border-bottom: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); }
+  .mockup-body { padding: 0.75rem; min-height: 160px; }
+
+  /* Split: side-by-side mockup pair */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+  /* Pros / cons tradeoff lists */
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem; }
+  .pros, .cons { padding: 0.75rem; border-radius: 8px; font-size: 0.9rem; }
+  .pros { background: var(--pros-bg); color: var(--pros-fg); }
+  .cons { background: var(--cons-bg); color: var(--cons-fg); }
+  .pros ul, .cons ul { margin: 0.25rem 0 0; padding-left: 1.1rem; }
+
+  /* Wireframe primitives: navigation, sidebar, content, button, input, placeholder */
+  .mock-nav {
+    padding: 0.5rem 0.75rem; background: var(--card-bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: var(--font-mono); font-size: 0.85rem; color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+  .mock-sidebar {
+    padding: 0.5rem; background: var(--card-bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: var(--font-mono); font-size: 0.85rem; color: var(--muted);
+    min-width: 100px;
+  }
+  .mock-content {
+    flex: 1; padding: 0.75rem; background: var(--card-bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--muted); font-size: 0.85rem;
+  }
+  .mock-button {
+    display: inline-block; padding: 0.4rem 0.9rem;
+    background: var(--accent); color: var(--accent-fg);
+    border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer;
+  }
+  .mock-input {
+    display: block; width: 100%; padding: 0.4rem 0.6rem;
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 6px; font-size: 0.85rem; color: var(--fg);
+  }
+  .placeholder {
+    background: var(--border); border-radius: 4px;
+    color: var(--muted); font-size: 0.85rem;
+    padding: 0.75rem; text-align: center;
+  }
+
+  .section { margin-bottom: 2rem; }
+  .label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+  .hint {
+    margin-top: 2.5rem; padding: 0.75rem 1rem;
+    background: var(--card-bg); border: 1px dashed var(--border);
+    border-radius: 8px; font-size: 0.85rem; color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>{{TITLE}}</h1>
+    <p class="subtitle">{{SUBTITLE}}</p>
+  </div>
+
+  <!-- Replace this block with .options, .cards, .split, or any combination -->
+  {{PANELS}}
+
+  <p class="hint">Reply in the terminal with the letter you prefer (A / B / C), or describe what's off. Clicks are cosmetic only — the agent reads your text, not the page.</p>
+</div>
+
+<script>
+  // Cosmetic highlight only — no event logging, no network calls.
+  document.querySelectorAll('.option, .card').forEach(el => {
+    el.addEventListener('click', () => {
+      const siblings = el.parentElement.children;
+      [...siblings].forEach(s => s.classList.remove('selected'));
+      el.classList.add('selected');
+    });
+  });
+</script>
+</body>
+</html>
