@@ -4,6 +4,15 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-05-21
+
+### Added
+- `skills/code-review/` — personalized PR review skill. Borrows the inline-comment posting workflow from upstream `review-pr` and folds it into a vd: skill with a personal review voice. PR mode is the polished path: a single `gh api POST /pulls/:n/reviews` call builds the entire review payload (top-level summary + inline comments anchored to the PR head SHA). Severity prefixes (`Critical / Important - <topic> / Suggestion / Question / Nit`), comment shape (problem-first, evidence, concrete alternative), and tone calibration (encouraging when earned, direct on real problems, never condescending). Reference example shape: `careernowbrands/cnb-data-contract#124`. Other modes (`--pending`, commit hash, codebase) kept lean. Project-specific rules deferred to `CLAUDE.md` / `docs/code-standards.md` so the skill stays repo-agnostic.
+- `skills/browser-profile/` — named persistent Chrome profile registry on top of `--user-data-dir` + `--remote-debugging-port`. Lets the user and Claude both attach to the *same* Chrome window across runs without `--user-data-dir` collisions. Six verbs: `profile-list`, `profile-open`, `profile-attach`, `profile-close`, `profile-export`, `profile-reset`. Pairs with `vd:browser` (`browse env local --auto-connect`) for the CDP attach step.
+
+### Changed
+- `skills/browser/` + `skills/browser-trace/` — synced from `browserbase/skills@b2ae728` (upstream bump, no behavioural changes on our side).
+
 ## [0.11.0] - 2026-05-14
 
 ### Added
