@@ -41,11 +41,12 @@ If no flag is given, ask the user which lifecycle stage they want
 - Frontmatter required keys: `name`, `description`, `license`. The
   `name` MUST equal the directory basename — `scripts/validate.sh`
   enforces this.
-- `vd` ships from `tools/vd/`. Releases are tagged `vX.Y.Z` (no `vd/`
-  prefix — see `CONTRIBUTING.md`).
+- `vd` is the standalone CLI at [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli)
+  (`brew install vanducng/tap/vd` or `go install github.com/vanducng/vd-cli/cmd/vd@latest`).
+  This repo no longer contains its source.
 - Plugin manifest version (`.claude-plugin/marketplace.json`,
-  `.claude-plugin/plugin.json`) is for the **skill catalog**, not the
-  `vd` CLI. Don't bump it as part of a `vd` release.
+  `.claude-plugin/plugin.json`) is for the **skill catalog**. The `vd`
+  CLI versions independently in its own repo.
 
 ## --create
 
@@ -99,8 +100,9 @@ After `add`/`sync`/`update`/`remove`, always run `vd doctor` once and
 `bash scripts/validate.sh` to confirm the working tree matches the
 lock and frontmatter is clean. Surface any drift before committing.
 
-`vd` is `tools/vd/vd` if not on PATH yet — fall back to `./tools/vd/vd`
-or build with `make -C tools/vd build` when missing.
+`vd` must be on `PATH`. Install via `brew install vanducng/tap/vd` (or
+`go install github.com/vanducng/vd-cli/cmd/vd@latest`) — see
+[vanducng/vd-cli](https://github.com/vanducng/vd-cli).
 
 ## --validate
 
@@ -111,60 +113,26 @@ bash scripts/validate.sh
 Exit 0 = all skills clean. Exit 1 = at least one frontmatter failure;
 read the output, fix the offending `SKILL.md`, re-run.
 
-## --release (auto-release flow)
+## --release
 
-Releases are driven by **conventional commits** + `release-please` +
-GoReleaser. The maintainer never tags by hand.
+Releasing the `vd` CLI now happens in [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli),
+not this repo. Switch to that repo and follow its release-please flow.
 
-### How it ships
+If the user invokes `--release` here, redirect them:
 
-1. Land conventional commits on `main` that touch `tools/vd/`:
-   - `feat(vd): ...` → minor bump
-   - `fix(vd): ...` / `perf(vd): ...` → patch bump
-   - `feat(vd)!: ...` or `BREAKING CHANGE:` footer → major bump
-   - `chore(vd): ...` / `docs(vd): ...` → no release
-2. `vd-release-please.yml` opens (or updates) a release PR with the
-   computed version, CHANGELOG, and manifest bump.
-3. **Merge the release PR.** On merge, the same workflow detects
-   `release_created`, pushes the `vX.Y.Z` tag automatically.
-4. The tag push triggers `vd-release.yml` → GoReleaser → binaries +
-   Homebrew formula.
+> vd CLI releases live in `vanducng/vd-cli` now. `cd` there and land
+> conventional commits — release-please opens a PR, merging it tags
+> and triggers GoReleaser + Homebrew tap update.
 
-### What this skill does for `--release`
-
-- **Inspect**: run `git log --oneline origin/main..HEAD` and
-  `git status` to see what's pending. List commits that would go into
-  the next release.
-- **Suggest the bump**: read the commit subjects; report `patch` /
-  `minor` / `major` based on the conventional-commit rules above.
-- **If the user has uncommitted work**, help them write a properly
-  scoped conventional commit (`feat(vd): ...`, `fix(vd): ...`) so
-  release-please picks it up. Commits without the `vd` scope won't
-  trigger a release.
-- **If a release PR is already open**, point the user at it instead of
-  creating a new one. Don't push a manual tag — the workflow does that
-  on merge.
-- **Optional `[bump]` arg** (`patch|minor|major`) is a *hint*, not an
-  override. The actual bump is computed by release-please from the
-  commits. If the user insists on overriding, use a
-  `Release-As: x.y.z` footer in a commit on `main`.
-
-### Never do
-
-- `git tag vX.Y.Z && git push` by hand — the auto-release workflow
-  does this. Manual tags will conflict with release-please.
-- `git push --force` to `main` or to a release branch.
-- Bump `tools/vd/internal/version/version.go` manually — release-please
-  manages versioning via the manifest.
-- Touch `.release-please-manifest.json` outside of a release PR.
+This skill no longer touches `vd` versioning.
 
 ## Scope
 
 This skill handles: scaffolding new skills, vendoring upstream skills
-via `vd`, validating frontmatter, and orchestrating `vd` CLI releases.
-It does NOT handle: the actual implementation of an individual skill's
-logic, GoReleaser config edits, plugin marketplace publishing, or
-GitHub repo/permissions changes — those need direct user attention.
+via `vd`, validating frontmatter. It does NOT handle: the actual
+implementation of an individual skill's logic, `vd` CLI releases (now
+in `vanducng/vd-cli`), plugin marketplace publishing, or GitHub
+repo/permissions changes — those need direct user attention.
 
 ## Security
 

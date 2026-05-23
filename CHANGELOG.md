@@ -4,6 +4,14 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 
 ## [Unreleased]
 
+### Removed
+- `tools/vd/` — `vd` CLI extracted to standalone [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli) at `v2.0.1`. Module path renamed `github.com/vanducng/skills/tools/vd` → `github.com/vanducng/vd-cli/v2` (Go SIV-compliant). Homebrew install path unchanged (`brew install vanducng/tap/vd`). Skills repo now skills-only.
+- `.github/workflows/vd-test.yml`, `vd-release.yml`, `vd-release-please.yml` — moved to `vanducng/vd-cli`.
+- `.release-please-config.json`, `.release-please-manifest.json` — only tracked `tools/vd`; skills bundle releases continue to be cut manually.
+
+### Changed
+- `skills/skill-management/SKILL.md` — `--release` mode redirects to `vanducng/vd-cli`; install instructions point to the new repo.
+
 ## [0.12.0] - 2026-05-21
 
 ### Added
