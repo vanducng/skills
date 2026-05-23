@@ -11,6 +11,8 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 
 ### Changed
 - `skills/skill-management/SKILL.md` — `--release` mode redirects to `vanducng/vd-cli`; install instructions point to the new repo.
+- `skills/cook/SKILL.md` — added a **Pragmatism rules** section encoding YAGNI/KISS/DRY for execution: Rule of Three before extracting (Sandi Metz), no speculative generality (Fowler/YAGNI), inline > one-liner helpers, no throwaway comments (no `// TODO: refactor later`, version tags, commented-out code), MVP/POC bias. Removed duplicated `Quality bar` and `Output rules` sections (subsumed by Hard rules + Modes table) and unverifiable stats. Reviewer prompt now also flags premature abstractions + throwaway comments. Bumped 1.0.0 → 1.1.0.
+- `skills/git/references/pr-template.md` — added **Brevity rules** with section-length table, anti-patterns, and a before/after example. Clarifies how the conceptual section names map onto the repo-template heading style vs. the fallback bullet style so an LLM doesn't mix both.
 
 ## [0.12.0] - 2026-05-21
 
