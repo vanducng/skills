@@ -12,6 +12,83 @@ Canonical PR conventions — shared by `vd:git pr` and `vd:ship`. Both skills so
    ```
 2. **Otherwise** use the fallback template below.
 
+## Brevity rules (applies to both repo-template and fallback)
+
+PR readers have the diff one click away. Body explains *why* and *what's risky*, not *what changed line-by-line*. **A reviewer should scan the body in 10 seconds and decide whether to dive into the diff.**
+
+| Section | Length |
+|---|---|
+| **Why / Context** | 1–2 sentences. Motivation + ticket. No RCA, no scout reports, no narrative. |
+| **Main Changes / What** | 3–5 bullets max. Each bullet = a behavior or surface change, not a file list. Stop describing once a curious reader could open the diff and see the rest. |
+| **Notes / Additional Notes** | Optional. Only add a note if a reviewer genuinely needs it (sequencing, breaking change, manual deploy step, follow-up flagged). If nothing surprising, omit or write `none`. |
+| **Checklist** | Tick honestly. Don't pad with explanations. |
+
+These section *names* are conceptual — they map onto whichever body shape the repo uses. The **repo-template** path keeps the heading style (`## Context`, `## Main Changes`, `## Additional Notes`, `## Checklist`). The **fallback body** path collapses them into labelled bullets: `Why` = Context, `What` = Main Changes, `Risks` = Notes, and the verification stripe replaces Checklist. Don't introduce both styles in one PR.
+
+### Anti-patterns
+
+- ❌ Listing every file touched ("Created `models/observability/cnb_obs_dbt_test_runs.sql`, created `models/observability/cnb_obs_dbt_invocations.sql`, ...") — group instead: "5 dbt views + 1 incremental snapshot under `models/observability/`."
+- ❌ Re-stating the diff in prose ("This PR builds on top of elementary which already populates run results...")
+- ❌ Multi-paragraph "Context" sections that recap scouting / brainstorming. That belongs in Jira / the plan file.
+- ❌ Marketing language ("Foundation for future tickets", "comprehensive solution").
+- ❌ Repeating commit-message content. The commit is already in the PR; don't duplicate it in the body.
+
+### Too long vs right
+
+**Too long** (real-world overreach):
+
+```markdown
+## Context
+Builds the data-layer for PROJ-1234 observability foundation: row count history
+for raw tables, run history for pipeline jobs/tests, and a curated registry
+mapping scheduler tasks to their destination tables. Five views + one incremental
+snapshot + one seed, all materialized to the existing
+`<env>_ANALYTICS.OPS_METRICS` schema under a mandatory `obs_*` prefix.
+
+Scout found the upstream framework already populates run results / invocations /
+test results (tens of millions of rows fresh daily)...
+
+## Main Changes
+- `models/observability/obs_job_runs.sql` view from upstream `RUN_RESULTS` joined to `INVOCATIONS` + `JOBS`
+- `models/observability/obs_test_runs.sql` view (resource_type='test' from run_results, joined to `TEST_RESULTS` for failure context)
+- `models/observability/obs_invocations.sql` view direct off upstream `INVOCATIONS`
+- `models/observability/obs_raw_table_row_count_snapshots.sql` incremental snapshot of `<env>_RAW.INFORMATION_SCHEMA.TABLES`
+- `models/observability/obs_scheduler_extract_runs.sql` joining the existing `scheduler.task_instance` source to snapshot deltas
+- `seeds/observability/observability_assets.csv` ~50 curated `(dag_id, task_id) -> (db, schema, table)` mappings
+- `macros/observability/observability_raw_database.sql` resolves raw DB per target with `--vars` override for dev
+- `project.yml`: new `models.observability` + `seeds.observability` groups with `+schema: OPS_METRICS`
+
+## Additional Notes
+- Schema reuses the existing `OPS_METRICS` (env-var driven). Analytics role already has RW...
+- The snapshot model is `incremental` with composite unique_key...
+- For dev runs against the staging raw mirror, pass `--vars '{...}'`...
+- `disable_artifact_autoupload: true` stays unchanged...
+- Out of scope (separate PROJ-1234 follow-up tickets): dashboard, alerts, anomaly detection...
+```
+
+**Right** (same PR, scannable in 10 seconds):
+
+```markdown
+## Context
+Ticket #: PROJ-1234. Builds the observability surface (row counts + pipeline run history) on top of upstream framework.
+
+## Main Changes
+- 5 views + 1 incremental snapshot under `models/observability/`, materialized to `OPS_METRICS`
+- `observability_assets` seed: curated `(dag_id, task_id) -> (db, schema, table)` registry
+- `observability_raw_database()` macro for dev cross-DB override
+
+## Additional Notes
+- Pairs with scheduler PR #200 (hourly trigger DAG); merge data layer first.
+- Out of scope: dashboard, alerts, anomaly detection (separate tickets).
+
+## Checklist
+- [x] lint + parse/compile green
+- [x] seed loaded + tests pass
+- [x] schema reuses existing OPS_METRICS (no infra changes)
+```
+
+The right version is ~25% the length and reviewers learn the same thing. The eight-line "Main Changes" enumeration became three. The five "Notes" became two — only the ones a reviewer can't infer from the diff.
+
 ## Title
 
 PR titles flip to **past tense (v-ed)** — they narrate what the branch did, not what to do. Commit messages stay imperative; only the PR title flips.
