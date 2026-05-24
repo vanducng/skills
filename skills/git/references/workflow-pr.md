@@ -36,7 +36,7 @@ git diff origin/$TO...origin/$FROM --name-only
 
 ## Tool 2 — Generate content
 
-**Title + body rules** live in `pr-template.md` — the canonical PR convention shared with `vd:ship`. Load it for:
+**Title + body rules** live in `pr-template.md` — the canonical PR convention shared with `/vd:ship`. Load it for:
 - Past-tense (v-ed) title rules + ticket-prefix detection
 - Repo-template-wins detection (`.github/pull_request_template.md`)
 - Fallback Why / What / Risks + verification stripe body shape
@@ -85,6 +85,6 @@ EOF
 
 ## Hard rules
 
-- **Always sync `origin/$TO` into the branch first** if user is shipping. (`vd:ship` does this; for ad-hoc PRs, suggest it if `origin/$TO` is ahead.)
+- **Always sync `origin/$TO` into the branch first** if user is shipping. (`/vd:ship` does this; for ad-hoc PRs, suggest it if `origin/$TO` is ahead.)
 - **Never** create a PR with a draft title like "WIP" unless `--draft` is also set.
 - **Never** include AI attribution in title or body.

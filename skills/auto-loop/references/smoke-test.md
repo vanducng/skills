@@ -1,6 +1,6 @@
 # Smoke test recipe
 
-A reproducible end-to-end test of `vd:auto-loop` from a clean checkout. Goal:
+A reproducible end-to-end test of `/vd:auto-loop` from a clean checkout. Goal:
 "increment a counter file to 3", verifier checks the counter equals 3.
 
 ## Prerequisites

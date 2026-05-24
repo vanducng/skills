@@ -1,6 +1,6 @@
 # Apply fix
 
-You arrived here with a **confirmed root cause** (from Step 2 / `vd:debug`). This page is about turning that into a minimal, correct change.
+You arrived here with a **confirmed root cause** (from Step 2 / `/vd:debug`). This page is about turning that into a minimal, correct change.
 
 ## Principles
 

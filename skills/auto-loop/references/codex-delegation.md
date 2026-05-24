@@ -24,7 +24,7 @@ host.
 ## What the delegation does
 
 1. Probes `codex --version`; refuses on missing or `<0.128.0`.
-2. Refuses if a `vd:auto-loop` heartbeat is already live in the workspace.
+2. Refuses if a `/vd:auto-loop` heartbeat is already live in the workspace.
 3. Resolves the goal text (from `--goal-file` or positional `<goal>`).
 4. `exec`s `codex --sandbox workspace-write`, leaving the user in the TUI.
 5. The user types `/goal <text>` to start; manages `/goal status` / `pause` / `resume`
@@ -53,7 +53,7 @@ host.
 ## Why we don't reimplement /goal
 
 Codex got the structured-state contract right and ships the verifier-running primitive
-out of the box. Reimplementing it inside Claude Code (which `vd:auto-loop` does for
+out of the box. Reimplementing it inside Claude Code (which `/vd:auto-loop` does for
 the no-Codex case) is purely about removing the dependency on a paid Codex
 subscription. When the user *has* Codex, native `/goal` is the better tool.
 

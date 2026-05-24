@@ -120,6 +120,6 @@ template (`templates/next-iteration-prompt.md`) to spell out the enum.
 
 Either:
 1. Goal too ambitious for the cap. Raise `--max-iterations` or split into sub-goals
-   (run multiple `vd:auto-loop` invocations sequentially via `vd:plan`).
+   (run multiple `/vd:auto-loop` invocations sequentially via `/vd:plan`).
 2. The model is thrashing — `drift-watchdog.sh` should escalate after 3 stagnant or
    5-edit iters. Check `.auto-loop/diff-signatures.log` and `file-edits.log`.

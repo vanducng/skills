@@ -63,7 +63,7 @@ cat target/run_results.json | jq '.results[] | select(.status != "success")'
 ```
 
 For codebase orientation:
-- `vd:scout` — locate the relevant files / models / manifests
+- `/vd:scout` — locate the relevant files / models / manifests
 - `/ck:repomix` — generate a fresh codebase summary if `docs/codebase-summary.md` is missing or stale
 
 ## Step 3 — Analysis

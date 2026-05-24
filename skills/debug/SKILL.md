@@ -95,10 +95,10 @@ Multi-step investigation → task-management-debugging.md
 - **dbt** — `dbt run --select`, `dbt test`, `target/run_results.json`, `target/manifest.json`, `dbt-deps`
 - **Airflow / Dagster / Prefect** — UI logs + their CLIs (`airflow tasks logs`, `dagster job execute`, `prefect flow-run logs`)
 - **Tracing** — APM (Datadog, Sentry), OpenTelemetry exporters
-- **Codebase scout** — `vd:scout` to map files before diving in
+- **Codebase scout** — `/vd:scout` to map files before diving in
 - **Frontend** — Chrome MCP / `ck:chrome-devtools` for visual verification
 - **Secrets** — `sops -d` for the infra repo (age key per `.mise.toml`); never paste decrypted contents into reports
-- **Skills:** `vd:research` for unknown libs; `/ck:problem-solving` when stuck; `vd:gopass` for credentials
+- **Skills:** `/vd:research` for unknown libs; `/ck:problem-solving` when stuck; `/vd:gopass` for credentials
 
 ## Red flags — STOP and follow process
 
@@ -117,8 +117,8 @@ If catching yourself thinking:
 
 ## Workflow position
 
-**Typically follows:** `vd:scout` (after locating relevant code/models/manifests)
+**Typically follows:** `/vd:scout` (after locating relevant code/models/manifests)
 
-**Typically precedes:** `vd:fix` (apply the diagnosed fix), `vd:brainstorm` (when the cause exposes a design problem worth re-deciding), `vd:plan` (when the fix is large enough to phase)
+**Typically precedes:** `/vd:fix` (apply the diagnosed fix), `/vd:brainstorm` (when the cause exposes a design problem worth re-deciding), `/vd:plan` (when the fix is large enough to phase)
 
-**Related:** `vd:scout` (discover before debugging), `vd:research` (investigate unknown tools/CVEs surfaced during debug)
+**Related:** `/vd:scout` (discover before debugging), `/vd:research` (investigate unknown tools/CVEs surfaced during debug)

@@ -1,6 +1,6 @@
 ---
 name: plan
-description: "Turn a chosen approach into a phased implementation plan with concrete steps, file changes, and success criteria. Use after `vd:brainstorm` (or any decided design) when you need to sequence the work before building. Default produces plan.md + phase files; pass `--quick` for a single-file plan, `--deep` for research dispatch + red-team review."
+description: "Turn a chosen approach into a phased implementation plan with concrete steps, file changes, and success criteria. Use after `/vd:brainstorm` (or any decided design) when you need to sequence the work before building. Default produces plan.md + phase files; pass `--quick` for a single-file plan, `--deep` for research dispatch + red-team review."
 license: MIT
 argument-hint: "[task or path to brainstorm brief] [--quick | --deep] [--tdd]"
 metadata:
@@ -14,16 +14,16 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| `vd:brainstorm` | "How should I approach this — what are the options?" | Decision brief with 3+ approaches |
-| `vd:research` | "Which of these known options should I pick?" | Comparison report with citations |
-| **`vd:plan`** | **"Given the chosen approach, what are the steps to ship it?"** | **Phased plan: `plan.md` + `phase-XX-*.md`** |
-| `vd:cook` (or manual impl) | "Execute the plan." | Code changes |
+| `/vd:brainstorm` | "How should I approach this — what are the options?" | Decision brief with 3+ approaches |
+| `/vd:research` | "Which of these known options should I pick?" | Comparison report with citations |
+| **`/vd:plan`** | **"Given the chosen approach, what are the steps to ship it?"** | **Phased plan: `plan.md` + `phase-XX-*.md`** |
+| `/vd:cook` (or manual impl) | "Execute the plan." | Code changes |
 
-Plan converts a *decided* approach into a *sequenced* implementation. If the approach isn't decided, stop and run `vd:brainstorm` first. A plan that opens with "we should consider whether to use X or Y" is a brainstorm in disguise — kick it back.
+Plan converts a *decided* approach into a *sequenced* implementation. If the approach isn't decided, stop and run `/vd:brainstorm` first. A plan that opens with "we should consider whether to use X or Y" is a brainstorm in disguise — kick it back.
 
 ## Hard rules
 
-1. **No code, no scaffolding, no source edits.** Only plan files. If the user pushes for implementation, hand off to `vd:cook` or implement separately.
+1. **No code, no scaffolding, no source edits.** Only plan files. If the user pushes for implementation, hand off to `/vd:cook` or implement separately.
 2. **One decided approach in, one plan out.** If the input is ambiguous about *what* is being built, ask — don't guess and write a plan for the wrong shape.
 3. **Phases are independently reviewable units.** Each phase should be reviewable/mergeable on its own — not "step 4 of 12 with no working state in between." A phase that can't ship standalone is two phases.
 4. **Concrete, not aspirational.** Every phase names the files it touches, the steps in order, and the criteria that prove it's done. "Implement auth" is not a phase. "Add `auth/middleware.ts` validating JWT signature against JWKS endpoint, reject expired tokens" is.
@@ -62,7 +62,7 @@ If any of these are unclear after reading the task / brainstorm brief, **ask bef
 
 During framing, note any explicit non-goals or trade-offs the user states ("skip auth", "no migration needed", "use library X over Y", "defer i18n"). These belong in `{plan-dir}/decisions.md` — written alongside `plan.md` in Phase 4. Ask "any explicit non-goals to record?" if none have surfaced and the task feels likely to omit common scaffolding.
 
-**Tip:** if a brainstorm brief exists, copy its "Avoid" / "Out of scope" / "Open questions" sections into `decisions.md` as starting non-goals. The audit subagent (`vd:plan-audit`) reads `decisions.md` and respects listed exclusions, so capturing them here prevents false-positive findings later.
+**Tip:** if a brainstorm brief exists, copy its "Avoid" / "Out of scope" / "Open questions" sections into `decisions.md` as starting non-goals. The audit subagent (`/vd:plan-audit`) reads `decisions.md` and respects listed exclusions, so capturing them here prevents false-positive findings later.
 
 ### Scope check (mandatory)
 
@@ -77,7 +77,7 @@ A plan with 12+ phases is almost always two plans pretending to be one.
 Before designing phases, gather what exists:
 
 - **Codebase scan** — read entry points, existing patterns, conventions in `docs/`. Delegate to a subagent (`Explore` or `general-purpose` via the `Agent` tool) if the codebase is large; do not bloat the planning session with file dumps.
-- **Research** — for unfamiliar libraries/APIs, use `WebSearch` or `vd:research`. In `--deep` mode, dispatch 1–2 researcher subagents for parallel topics (e.g. "X library auth flow", "Y rate-limit patterns").
+- **Research** — for unfamiliar libraries/APIs, use `WebSearch` or `/vd:research`. In `--deep` mode, dispatch 1–2 researcher subagents for parallel topics (e.g. "X library auth flow", "Y rate-limit patterns").
 - **Risks** — note version mismatches, deprecated APIs, breaking changes, hidden state (caches, feature flags, migrations) that affect sequencing.
 
 Skip this phase if the user provided scout/research reports already. Don't repeat work.
@@ -222,10 +222,10 @@ After writing files, in your reply:
 1. **List the files written** (relative paths).
 2. **Show the phases table** verbatim from `plan.md` so the user sees the shape without opening it.
 3. **Recommend the next action:**
-   - For implementation: `vd:cook {plan-dir}` or "I can implement Phase 1 — say go."
+   - For implementation: `/vd:cook {plan-dir}` or "I can implement Phase 1 — say go."
    - For more rigor: "Run `--deep` mode with red-team review + independent audit?"
-   - For default mode: "Run `vd:plan-audit` for independent verification before execution (recommended)."
-4. **For `--deep` runs:** mention the audit step — "Audit ran automatically. Findings: {summary}. See report: {path}. Address CRITICAL findings before `vd:cook`."
+   - For default mode: "Run `/vd:plan-audit` for independent verification before execution (recommended)."
+4. **For `--deep` runs:** mention the audit step — "Audit ran automatically. Findings: {summary}. See report: {path}. Address CRITICAL findings before `/vd:cook`."
 5. **Ask if anything's missing.** Don't claim done until the user confirms the shape is right.
 
 ## Phase 6 — Red-team review (`--deep` only)
@@ -242,12 +242,12 @@ If any answer reveals a real problem → revise the plan and note the change in 
 
 ## Phase 7 — Independent audit (`--deep` only)
 
-After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as the final step. The audit skill spawns a clean-context subagent that re-reads the plan with no author bias and emits a severity-tagged report.
+After the red-team round (Phase 6), invoke `/vd:plan-audit {this-plan-dir}` as the final step. The audit skill spawns a clean-context subagent that re-reads the plan with no author bias and emits a severity-tagged report.
 
 - Trigger: only when `--deep` is set. Default and `--quick` skip this.
 - Surface result inline: top-3 findings + path to the audit report.
 - Audit findings are **advisory** — never block plan completion. The author owns the call.
-- If the audit returns CRITICAL findings, recommend revising the plan before handoff to `vd:cook`.
+- If the audit returns CRITICAL findings, recommend revising the plan before handoff to `/vd:cook`.
 - The skill itself handles subagent dispatch, JSON parsing, and report writing. Do not re-implement here.
 
 ## Anti-rationalization
@@ -276,7 +276,7 @@ After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as th
 - **API breaking changes** — sequence as: add new (phase A) → migrate callers (phase B) → remove old (phase C). Never do all three in one phase.
 - **Performance work** — phase 1 captures baseline numbers (against success criteria). Without baseline, "faster" is unfalsifiable.
 - **Refactors** — `--tdd` is mandatory. No tests = no safety net = no refactor plan, just hope.
-- **Bug fixes** — `--quick` mode is usually right. If the fix needs 3+ phases, the bug is a redesign in disguise — escalate to `vd:brainstorm`.
+- **Bug fixes** — `--quick` mode is usually right. If the fix needs 3+ phases, the bug is a redesign in disguise — escalate to `/vd:brainstorm`.
 - **Library upgrades** — every phase ends with "tests pass + manual smoke test of {feature touched}." Don't lump the smoke tests into a final QA phase.
 
 ## Output rules
@@ -291,7 +291,7 @@ After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as th
 
 ## Workflow position
 
-**Typically follows:** `vd:brainstorm` (after deciding the approach), `vd:research` (after picking a known option), `/ck:scout` or `/ck:debug` (after discovery)
-**Typically precedes:** `vd:cook` (execute the plan), or manual implementation phase-by-phase
-**Often followed by:** `vd:plan-audit` (auto on `--deep`, recommended after default mode) for independent verification
-**Compares to:** `vd:brainstorm` (pre-decision exploration) — if you find yourself debating approaches inside a plan, kick back to brainstorm
+**Typically follows:** `/vd:brainstorm` (after deciding the approach), `/vd:research` (after picking a known option), `/vd:scout` or `/vd:debug` (after discovery)
+**Typically precedes:** `/vd:cook` (execute the plan), or manual implementation phase-by-phase
+**Often followed by:** `/vd:plan-audit` (auto on `--deep`, recommended after default mode) for independent verification
+**Compares to:** `/vd:brainstorm` (pre-decision exploration) — if you find yourself debating approaches inside a plan, kick back to brainstorm

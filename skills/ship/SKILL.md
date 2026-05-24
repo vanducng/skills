@@ -14,10 +14,10 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| `vd:cook` | "Execute the plan." | Code, tests, plan status |
-| **`vd:ship`** | **"The branch is ready — land it."** | **Merged target, version bump, PR URL** |
+| `/vd:cook` | "Execute the plan." | Code, tests, plan status |
+| **`/vd:ship`** | **"The branch is ready — land it."** | **Merged target, version bump, PR URL** |
 
-Ship **lands** a branch. It does not implement features and does not redesign on the fly. If tests fail or review surfaces a real bug, **stop** and kick back to `vd:cook` — don't paper over issues to keep the pipeline moving.
+Ship **lands** a branch. It does not implement features and does not redesign on the fly. If tests fail or review surfaces a real bug, **stop** and kick back to `/vd:cook` — don't paper over issues to keep the pipeline moving.
 
 ## Ship modes
 
@@ -61,7 +61,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
    - **Interactive:** prompt the user with three choices — *create feature branch* (recommended), *direct push to target* (skips review/PR/CI; requires explicit confirm), *abort*.
    - **Never** do a direct push to the target branch in `--auto`. Direct push is interactive-only and requires the user to pick it themselves.
 2. **Never force push.** Plain `git push` only. If rejected → `git pull --rebase`, retry once, then stop.
-3. **Never skip failing tests.** A red test stops the pipeline. Fix it (kick back to `vd:cook`) or pass `--skip-tests` deliberately.
+3. **Never skip failing tests.** A red test stops the pipeline. Fix it (kick back to `/vd:cook`) or pass `--skip-tests` deliberately.
 4. **Never bypass critical review issues silently.** Each critical finding gets an `AskUserQuestion`: fix now / acknowledge / false-positive.
 4b. **Never silently ignore unresolved PR review comments.** After the PR exists, fetch unresolved review threads + `CHANGES_REQUESTED` reviews. Each unresolved comment gets a prompt: fix now / reply / mark resolved / skip. Same blocking model as critical review issues.
 5. **Auto-decide everything else.** Patch-version bumps, changelog content, commit message, PR body — infer from diff and commits. Do not pause to ask.
@@ -127,5 +127,5 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 
 ## Workflow position
 
-**Typically follows:** `vd:cook` (cook implements, ship lands)
+**Typically follows:** `/vd:cook` (cook implements, ship lands)
 **Often pairs with:** `code-reviewer` agent (review before ship), `tester` agent (final test run)

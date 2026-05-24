@@ -1,6 +1,6 @@
 ---
 name: plan-audit
-description: "Audit a vd:plan output for gaps, inconsistencies, missing scaffolding, and codebase drift using an independent clean-context subagent. Use after vd:plan (or any time after manual edits to phase files) when stakes warrant verification beyond same-context red-team. Auto-fires at end of vd:plan --deep."
+description: "Audit a /vd:plan output for gaps, inconsistencies, missing scaffolding, and codebase drift using an independent clean-context subagent. Use after /vd:plan (or any time after manual edits to phase files) when stakes warrant verification beyond same-context red-team. Auto-fires at end of /vd:plan --deep."
 license: MIT
 argument-hint: "[plan-dir] [--fix] [--apply-all]"
 metadata:
@@ -14,12 +14,12 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| `vd:plan` | "Given the chosen approach, what are the steps?" | Phased plan files |
-| `vd:plan --deep` Phase 6 (red-team) | "What does THIS author's plan assume that isn't true?" | Three hostile questions, same context |
-| **`vd:plan-audit`** | **"Independently — does this plan hold up against the real codebase and the stated goal?"** | **Severity-tagged audit report (clean-context subagent)** |
-| `vd:research` | "What do external sources say about X?" | Comparison report with citations |
+| `/vd:plan` | "Given the chosen approach, what are the steps?" | Phased plan files |
+| `/vd:plan --deep` Phase 6 (red-team) | "What does THIS author's plan assume that isn't true?" | Three hostile questions, same context |
+| **`/vd:plan-audit`** | **"Independently — does this plan hold up against the real codebase and the stated goal?"** | **Severity-tagged audit report (clean-context subagent)** |
+| `/vd:research` | "What do external sources say about X?" | Comparison report with citations |
 
-The `--deep` red-team round (in `vd:plan`) lives inside the same conversation that wrote the plan — it shares the author's blind spots. **Plan-audit escapes that** by spawning a subagent with **only** the plan files + audit checklist as input. No conversation history, no author bias.
+The `--deep` red-team round (in `/vd:plan`) lives inside the same conversation that wrote the plan — it shares the author's blind spots. **Plan-audit escapes that** by spawning a subagent with **only** the plan files + audit checklist as input. No conversation history, no author bias.
 
 It's a **second pair of eyes**, not a redesign tool. Findings are advisory — the author still owns the plan.
 
@@ -27,7 +27,7 @@ It's a **second pair of eyes**, not a redesign tool. Findings are advisory — t
 
 1. **Never edit source code.** This skill only edits plan files (and only with `--fix`, only HIGH/CRITICAL findings, with per-finding confirmation by default — or single up-front confirmation when `--apply-all` is set). Never touches the actual codebase.
 2. **Always use a clean-context subagent.** Inline reasoning shares the same blind spots as the author. The point of audit is independence — `Agent` tool, fresh context, plan files as the only input.
-3. **Findings are advisory, not blocking.** Audit prints a report and exits. It never blocks `vd:plan` completion or `vd:cook` execution. The author decides.
+3. **Findings are advisory, not blocking.** Audit prints a report and exits. It never blocks `/vd:plan` completion or `/vd:cook` execution. The author decides.
 4. **Only HIGH/CRITICAL are eligible for `--fix`.** MEDIUM/LOW are observational — surfacing them is the value, fixing them auto would be over-reach.
 5. **Respect `decisions.md`.** If the plan dir contains `decisions.md`, listed non-goals are intentional exclusions — drop those findings entirely. "Trade-offs" entries: drop the unchosen-side findings. "Constraints accepted" entries: a finding that contradicts the constraint may surface as MEDIUM with note "constraint may need revisiting" — never CRITICAL/HIGH.
 6. **Audit one plan at a time.** Multi-plan batch audit is out of scope — different plans, different contexts.
@@ -202,12 +202,12 @@ After writing the report:
 1. **Print report path** — `Audit report: plans/reports/audit-{date}-{slug}.md`
 2. **Print top-3 findings inline** — sorted by severity. Just summary + phase ref. Full detail in the file.
 3. **Recommend next step** based on verdict:
-   - `block` → "Critical findings — revise plan before `vd:cook`."
+   - `block` → "Critical findings — revise plan before `/vd:cook`."
    - `revise-before-cook` → "Address HIGH findings before execution."
    - `proceed-with-caveats` → "Plan is workable; review MEDIUM findings."
    - `proceed` → "No blocking issues. Cook when ready."
 4. **If `--fix` ran**, summarize: `{N} fixes applied, {M} deferred, {U} unactionable, {F} failed.` (omit zero-count buckets).
-5. **Recommend re-run** after fixes: "Re-run `vd:plan-audit` after edits to verify."
+5. **Recommend re-run** after fixes: "Re-run `/vd:plan-audit` after edits to verify."
 
 ## Anti-rationalization
 
@@ -218,7 +218,7 @@ After writing the report:
 | "Audit found 0 issues — must be wrong" | Or the plan is good. Don't pad findings to look thorough. |
 | "I'll fix MEDIUM findings too while I'm in --fix" | Out of scope. Surface, don't fix. The author decides. |
 | "I'll extend `--apply-all` to MEDIUM/LOW for tidy output" | No. The trust boundary is HIGH/CRITICAL — anything below is observational. |
-| "Just have another skill invoke `--apply-all` automatically" | `--apply-all` is interactive — one human keypress at the preview gate. It is NOT for auto-invocation by `vd:plan --deep` or `vd:cook --auto`. |
+| "Just have another skill invoke `--apply-all` automatically" | `--apply-all` is interactive — one human keypress at the preview gate. It is NOT for auto-invocation by `/vd:plan --deep` or `/vd:cook --auto`. |
 | "Just block on CRITICAL by default" | Audit is advisory. The author owns the call. |
 | "I'll re-read the plan in main context to double-check" | That defeats the point. Trust the subagent's report. |
 
@@ -255,6 +255,6 @@ After writing the report:
 
 ## Workflow position
 
-**Typically follows:** `vd:plan` (manual run after planning), `vd:plan --deep` (auto-invoked as Phase 7)
-**Typically precedes:** `vd:cook` (with HIGH/CRITICAL addressed) or another `vd:plan` revision pass
-**Compares to:** `vd:plan --deep` Phase 6 (red-team) — that pass is same-context author's-eye; this pass is clean-context independent. Both useful, both cheap. Prefer audit when stakes are high or after manual edits.
+**Typically follows:** `/vd:plan` (manual run after planning), `/vd:plan --deep` (auto-invoked as Phase 7)
+**Typically precedes:** `/vd:cook` (with HIGH/CRITICAL addressed) or another `/vd:plan` revision pass
+**Compares to:** `/vd:plan --deep` Phase 6 (red-team) — that pass is same-context author's-eye; this pass is clean-context independent. Both useful, both cheap. Prefer audit when stakes are high or after manual edits.

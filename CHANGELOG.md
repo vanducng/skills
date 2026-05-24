@@ -4,6 +4,9 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 
 ## [Unreleased]
 
+### Fixed
+- All `vd:` skill cross-references across skill markdown now use the `/vd:` slash-command form so user-facing hints (e.g. "next: `/vd:cook plans/path/to/feature`") are directly invocable. Bare `vd:X` was rendering hints the user couldn't paste back as a command. Touched every SKILL.md, references file, description field, ASCII flowchart, and workflow-position section.
+
 ### Removed
 - `tools/vd/` — `vd` CLI extracted to standalone [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli) at `v2.0.1`. Module path renamed `github.com/vanducng/skills/tools/vd` → `github.com/vanducng/vd-cli/v2` (Go SIV-compliant). Homebrew install path unchanged (`brew install vanducng/tap/vd`). Skills repo now skills-only.
 - `.github/workflows/vd-test.yml`, `vd-release.yml`, `vd-release-please.yml` — moved to `vanducng/vd-cli`.

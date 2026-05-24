@@ -96,7 +96,7 @@ The most common silent bug: **env var set in dev, missing or different in stagin
 
 ### Map a variable across environments
 
-Use `vd:scout` for the surface map (see `scout/references/domain-scouting.md` § DevOps). Then trace the precedence — runtime wins:
+Use `/vd:scout` for the surface map (see `scout/references/domain-scouting.md` § DevOps). Then trace the precedence — runtime wins:
 
 ```
 .env file  →  Dockerfile ENV  →  ConfigMap  →  Helm values  →  Deployment env  →  Secret (env or volume)
