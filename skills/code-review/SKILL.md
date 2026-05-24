@@ -14,12 +14,12 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| `vd:scout` | "Where does this code live?" | Pointers |
-| `vd:debug` | "Why is this broken?" | Root cause |
-| **`vd:code-review`** | **"Is this change ready to land, and what should the author fix?"** | **Inline PR comments + summary verdict** |
-| `vd:ship` | "Land the branch." | Merged + tagged + PR |
+| `/vd:scout` | "Where does this code live?" | Pointers |
+| `/vd:debug` | "Why is this broken?" | Root cause |
+| **`/vd:code-review`** | **"Is this change ready to land, and what should the author fix?"** | **Inline PR comments + summary verdict** |
+| `/vd:ship` | "Land the branch." | Merged + tagged + PR |
 
-This skill **reviews and reports**. It does not implement fixes. If a fix is obvious and one-line, mention it in the comment as a suggestion — but don't apply it. Hand back to `vd:cook` / `vd:fix` for the actual work.
+This skill **reviews and reports**. It does not implement fixes. If a fix is obvious and one-line, mention it in the comment as a suggestion — but don't apply it. Hand back to `/vd:cook` / `/vd:fix` for the actual work.
 
 ## Modes
 
@@ -279,8 +279,8 @@ Approved. <one sentence on what shipped well>.
 ## Workflow position
 
 ```
-vd:cook  →  vd:code-review (this skill)  →  vd:ship
-                                           (or vd:fix if changes requested)
+/vd:cook  →  /vd:code-review (this skill)  →  /vd:ship
+                                             (or /vd:fix if changes requested)
 ```
 
-Also fires standalone when the user invokes on a teammate's PR or to review the local branch before `vd:ship`.
+Also fires standalone when the user invokes on a teammate's PR or to review the local branch before `/vd:ship`.

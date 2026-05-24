@@ -1,6 +1,6 @@
 ---
 name: git
-description: "Granular git operations with conventional commits — stage, commit, push, PR, merge. Auto-splits commits by type/scope, blocks on secrets, delegates verbose work to git-manager subagent. Use when you want explicit control; for full ship-it pipeline use vd:ship."
+description: "Granular git operations with conventional commits — stage, commit, push, PR, merge. Auto-splits commits by type/scope, blocks on secrets, delegates verbose work to git-manager subagent. Use when you want explicit control; for full ship-it pipeline use /vd:ship."
 license: MIT
 argument-hint: "cm|cp|pr|merge [args] [--inline]"
 metadata:
@@ -10,17 +10,17 @@ metadata:
 
 # Git
 
-Low-level git toolkit for the moments when you don't want the full `vd:ship` pipeline — just a clean commit, a quick push, a PR, or a merge. Keeps verbose git output out of main context by delegating to the `git-manager` subagent.
+Low-level git toolkit for the moments when you don't want the full `/vd:ship` pipeline — just a clean commit, a quick push, a PR, or a merge. Keeps verbose git output out of main context by delegating to the `git-manager` subagent.
 
 ## What this skill is — and isn't
 
 | Skill | Question it answers | Scope |
 |---|---|---|
-| **`vd:git`** | **"Run one git operation cleanly."** | One verb: commit, push, PR, or merge |
-| `vd:ship` | "Land the branch." | Full pipeline: merge target → test → review → version → commit → push → PR → journal |
-| `vd:journal` | "What just happened?" | Personal entry in `./plans/journals/` |
+| **`/vd:git`** | **"Run one git operation cleanly."** | One verb: commit, push, PR, or merge |
+| `/vd:ship` | "Land the branch." | Full pipeline: merge target → test → review → version → commit → push → PR → journal |
+| `/vd:journal` | "What just happened?" | Personal entry in `./plans/journals/` |
 
-Use `vd:git` when you're mid-work and want to checkpoint, hand off a PR, or merge an upstream branch without invoking the whole ship pipeline. Use `vd:ship` when the branch is done and you want everything.
+Use `/vd:git` when you're mid-work and want to checkpoint, hand off a PR, or merge an upstream branch without invoking the whole ship pipeline. Use `/vd:ship` when the branch is done and you want everything.
 
 ## Subcommands
 
@@ -39,10 +39,10 @@ Parse `$ARGUMENTS` first word:
 
 | Form | Meaning |
 |---|---|
-| `vd:git cm` | Stage all, analyze, commit (split if needed). No push. |
-| `vd:git cp` | Same as `cm` + push. |
-| `vd:git pr [to] [from]` | `to` defaults to `main`, `from` defaults to current branch. |
-| `vd:git merge [to] [from]` | Same defaults. Always merges `origin/<from>`, never local. |
+| `/vd:git cm` | Stage all, analyze, commit (split if needed). No push. |
+| `/vd:git cp` | Same as `cm` + push. |
+| `/vd:git pr [to] [from]` | `to` defaults to `main`, `from` defaults to current branch. |
+| `/vd:git merge [to] [from]` | Same defaults. Always merges `origin/<from>`, never local. |
 
 ## Flags
 
@@ -77,7 +77,7 @@ See `references/commit-standards.md` for the full table + good/bad examples.
 
 ## PR title format
 
-PR titles flip to **past tense (v-ed)** — they narrate what the branch did, not what to do. Same conventional-commit shape, different verb form. Matches `vd:ship`.
+PR titles flip to **past tense (v-ed)** — they narrate what the branch did, not what to do. Same conventional-commit shape, different verb form. Matches `/vd:ship`.
 
 - ✅ `feat(auth): added OAuth2 provider`
 - ✅ `PRJ-123: fixed session leak on logout`
@@ -102,7 +102,7 @@ Single commit when:
 
 ## Pre-commit / pre-push checks
 
-These come from `~/.claude/rules/development-rules.md` and apply to all `vd:git` verbs that write history:
+These come from `~/.claude/rules/development-rules.md` and apply to all `/vd:git` verbs that write history:
 
 - **Run lint before commit.** Don't bypass on failure — fix the violation.
 - **Run tests before push.** Don't skip failing tests just to land the change.
@@ -132,9 +132,9 @@ For multi-commit splits, repeat the `commit:` line per group.
 
 **Replaces:** Manual `git add` / `git commit` / `git push` sequences when you want consistency.
 
-**Composes with:** `vd:scout` (find files before commit), `vd:fix` (fix → cm), `vd:cook` (mid-plan commits).
+**Composes with:** `/vd:scout` (find files before commit), `/vd:fix` (fix → cm), `/vd:cook` (mid-plan commits).
 
-**Not a substitute for `vd:ship`** — `vd:ship` is the right call when the branch is done. `vd:git` is for the checkpoints on the way there.
+**Not a substitute for `/vd:ship`** — `/vd:ship` is the right call when the branch is done. `/vd:git` is for the checkpoints on the way there.
 
 ## References
 
@@ -143,7 +143,7 @@ For multi-commit splits, repeat the `commit:` line per group.
 | `references/workflow-commit.md` | Stage + analyze + split-or-single + commit |
 | `references/workflow-push.md` | Push with upstream handling |
 | `references/workflow-pr.md` | PR creation process from remote diff |
-| `references/pr-template.md` | **Canonical** PR title + body conventions (shared with `vd:ship`) |
+| `references/pr-template.md` | **Canonical** PR title + body conventions (shared with `/vd:ship`) |
 | `references/workflow-merge.md` | Merge `origin/<from>` into `<to>` |
 | `references/commit-standards.md` | Conventional commit format, types, examples |
 | `references/safety-protocols.md` | Secret detection, branch protection, recovery |

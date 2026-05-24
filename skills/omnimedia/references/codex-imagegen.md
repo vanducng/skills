@@ -1,6 +1,6 @@
 # Codex Image Generation (`--provider codex`)
 
-Generate images via the OpenAI Codex CLI's built-in `$imagegen` skill, billed against your **ChatGPT subscription quota** instead of an OpenAI API key. The `vd:omnimedia` skill ships `scripts/codex_imagegen.py` as a standalone wrapper and exposes the same path through the unified `--provider codex` switch in `gemini_batch_process.py`.
+Generate images via the OpenAI Codex CLI's built-in `$imagegen` skill, billed against your **ChatGPT subscription quota** instead of an OpenAI API key. The `/vd:omnimedia` skill ships `scripts/codex_imagegen.py` as a standalone wrapper and exposes the same path through the unified `--provider codex` switch in `gemini_batch_process.py`.
 
 ## Setup
 

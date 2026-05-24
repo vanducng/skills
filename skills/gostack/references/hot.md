@@ -209,5 +209,5 @@ Mitigation: pin exact + read release notes before bumping + run integration test
 ## Cross-refs
 
 - See `oops.md` — wrap loader errors with structured context
-- See `vd:py2go` data-pipeline playbook — caching warm reads in the migrated Go service
-- See `vd:debug` — Prometheus metrics live here when on-call needs to triage cache effectiveness
+- See `/vd:py2go` data-pipeline playbook — caching warm reads in the migrated Go service
+- See `/vd:debug` — Prometheus metrics live here when on-call needs to triage cache effectiveness

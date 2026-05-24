@@ -20,7 +20,7 @@ Use when `./docs/` already has real content and code has drifted from it. If `./
    - Lint config or `CONTRIBUTING.md` changes, new dev-setup scripts → `development-guidelines.md`
    - New top-level modules, new public APIs, schema changes → `system-architecture.md`
    - Stack changes, new entry points → `README.md`
-4. Activate `vd:scout` (internal mode) on changed surfaces — pass the commit range so it focuses
+4. Activate `/vd:scout` (internal mode) on changed surfaces — pass the commit range so it focuses
 5. Merge scout reports into a drift digest (≤ 500 lines): what changed, where, which doc it affects
 
 ## Phase 1.5: Parallel doc reading
@@ -58,7 +58,7 @@ Files to evaluate (canonical set — only edit if drift digest touches them):
 | `docs/tech-stack.md` | Lockfile bump for a notable lib, new framework/runtime adopted, infra service swapped |
 | `docs/deployment.md` | CI workflow added/changed, new environment, new env var, new rollback procedure |
 
-Out-of-scope files — do **not** touch even if drift suggests them: `changelog.md`, `roadmap.md`, `codebase-summary.md`, `prd.md`. If user explicitly names one in `$ARGUMENTS`, surface that they're outside `vd:docs` scope and let them decide.
+Out-of-scope files — do **not** touch even if drift suggests them: `changelog.md`, `roadmap.md`, `codebase-summary.md`, `prd.md`. If user explicitly names one in `$ARGUMENTS`, surface that they're outside `/vd:docs` scope and let them decide.
 
 ## Additional requests
 
