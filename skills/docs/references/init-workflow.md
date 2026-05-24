@@ -11,7 +11,7 @@ Use when `./docs/` is missing, empty, or has only a stub README. If `./docs/` al
 ## Phase 1: Parallel codebase scouting
 
 1. List top-level directories that exist — skip `.claude`, `.opencode`, `.git`, `node_modules`, `__pycache__`, `.venv`, `dist`, `build`, `secrets`
-2. Activate `vd:scout` (internal mode) to map: stack, entry points, modules, configs, infra, CI workflows, deploy targets
+2. Activate `/vd:scout` (internal mode) to map: stack, entry points, modules, configs, infra, CI workflows, deploy targets
 3. Probe specific artifacts to feed each doc:
    - **tech-stack**: `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `Gemfile`, lockfiles, `*.tool-versions`, `.nvmrc`, `Dockerfile` base images
    - **deployment**: `.github/workflows/`, `.gitlab-ci.yml`, `Dockerfile`, `docker-compose*.yml`, `k8s/`, `terraform/`, `Procfile`, `vercel.json`, `netlify.toml`

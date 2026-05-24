@@ -23,7 +23,7 @@ Token-efficient parallel scouting that finds the right files before you touch th
 
 - About to change something that **could span multiple folders** — e.g. add a new dbt source that touches `models/`, `schema.yml`, `dashboards/`, and a CI workflow
 - User says **"find / locate / search for"** — code, models, charts, secrets, manifests
-- Starting a debug session and need a file map before invoking `vd:debug`
+- Starting a debug session and need a file map before invoking `/vd:debug`
 - Before a refactor, migration, or deletion that could ripple across services
 - Auditing a repo you don't own well — what's where, and how does it wire together
 
@@ -164,7 +164,7 @@ The "Surface map" section is only useful when the change spans disciplines. Drop
 
 ## Workflow position
 
-**Typically precedes:** `vd:debug` (investigate after locating), `vd:brainstorm` (design after surveying the surface), `vd:plan` (sequence work), `/ck:fix` (fix after locating)
+**Typically precedes:** `/vd:debug` (investigate after locating), `/vd:brainstorm` (design after surveying the surface), `/vd:plan` (sequence work), `/vd:fix` (fix after locating)
 
 **Compares to:** `Glob`/`Grep` direct — use those for one-target lookups; use scout for **multi-target, multi-dir** surveys
 

@@ -234,4 +234,4 @@ Then go all in — the chaining-style payoff compounds. Pair with `samber/lo` fo
 
 - See `lo.md` for slice transforms that compose with `Option`/`Result` outputs
 - See `oops.md` for error context when you do unwrap to Go's `(T, error)` at boundaries
-- See `vd:py2go` translation rules — Python `Optional[T]` maps to `mo.Option[T]` for JSON-bound structs
+- See `/vd:py2go` translation rules — Python `Optional[T]` maps to `mo.Option[T]` for JSON-bound structs

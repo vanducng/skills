@@ -80,8 +80,8 @@ docs/system-architecture.md:
   - ERROR: cited path does not exist → src/old-module/foo.ts
 
 ## Recommended next action
-- `vd:docs update` — drift detected in 2 files
-- Or `vd:docs init` for missing-file backfill
+- `/vd:docs update` — drift detected in 2 files
+- Or `/vd:docs init` for missing-file backfill
 ```
 
 ## Hard rules
@@ -89,4 +89,4 @@ docs/system-architecture.md:
 - **No writes.** Read-only across the board.
 - **No subagents.** Cheap and synchronous — no delegation needed.
 - **Surface every finding.** Even minor ones — this is the cheap step to fix them.
-- **Don't flag out-of-scope files.** `changelog.md`, `roadmap.md`, `prd.md`, `codebase-summary.md` aren't `vd:docs`'s problem — if they exist, leave them alone.
+- **Don't flag out-of-scope files.** `changelog.md`, `roadmap.md`, `prd.md`, `codebase-summary.md` aren't `/vd:docs`'s problem — if they exist, leave them alone.

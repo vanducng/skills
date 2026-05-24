@@ -10,18 +10,18 @@ metadata:
 
 # Worktree
 
-Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run lives on its own branch and its own filesystem path — without disturbing your main checkout. Pairs naturally with `vd:cook` and `vd:fix` (implement in the worktree) and `vd:ship` (land it).
+Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run lives on its own branch and its own filesystem path — without disturbing your main checkout. Pairs naturally with `/vd:cook` and `/vd:fix` (implement in the worktree) and `/vd:ship` (land it).
 
 ## What this skill is — and isn't
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| **`vd:worktree`** | Where does this feature/branch live on disk? | New worktree directory + branch ready for work |
-| `vd:git` | How do I stage/commit/push *this branch*? | Conventional commits on the current branch |
-| `vd:ship` | Is this branch ready to land? | Tests → review → version → PR |
-| `vd:scout` / `vd:plan` | What am I going to build? | Reports + phase files |
+| **`/vd:worktree`** | Where does this feature/branch live on disk? | New worktree directory + branch ready for work |
+| `/vd:git` | How do I stage/commit/push *this branch*? | Conventional commits on the current branch |
+| `/vd:ship` | Is this branch ready to land? | Tests → review → version → PR |
+| `/vd:scout` / `/vd:plan` | What am I going to build? | Reports + phase files |
 
-Use `vd:worktree` only for the **filesystem + branch primitive** — creating, listing, inspecting, removing. Everything downstream (planning, coding, testing, PR) belongs to the other skills.
+Use `/vd:worktree` only for the **filesystem + branch primitive** — creating, listing, inspecting, removing. Everything downstream (planning, coding, testing, PR) belongs to the other skills.
 
 ## Runtime compatibility
 
@@ -221,5 +221,5 @@ The script itself has **no machine-specific assumptions** — it uses only `git`
 
 ## Workflow position
 
-**Typically precedes:** `vd:cook` (implement in worktree), `vd:fix` (debug + fix in worktree), `vd:ship` (land from worktree).
+**Typically precedes:** `/vd:cook` (implement in worktree), `/vd:fix` (debug + fix in worktree), `/vd:ship` (land from worktree).
 **Setup primitive** — creates the isolated filesystem + branch before any implementation work begins.

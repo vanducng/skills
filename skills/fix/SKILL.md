@@ -62,10 +62,10 @@ Detect mode from the argument; announce in your first reply.
 [issue]
   │
   ▼
-1. Scout            ── locate affected code/models/manifests (vd:scout or 2-3 Explore agents)
+1. Scout            ── locate affected code/models/manifests (/vd:scout or 2-3 Explore agents)
   │
   ▼
-2. Diagnose         ── activate vd:debug; structured root-cause analysis; capture pre-fix evidence
+2. Diagnose         ── activate /vd:debug; structured root-cause analysis; capture pre-fix evidence
   │
   ▼
 3. Pick playbook    ── data-pipeline | app-stack | infra | generic
@@ -77,12 +77,12 @@ Detect mode from the argument; announce in your first reply.
 5. Verify + prevent ── rerun the exact failing command; add regression test; add defense-in-depth guard
   │
   ▼
-6. Finalize         ── report; offer commit via vd:ship or git; offer vd:journal
+6. Finalize         ── report; offer commit via /vd:ship or git; offer /vd:journal
 ```
 
 ### 1. Scout (mandatory)
 
-- Activate `vd:scout` OR launch 2–3 parallel `Explore` subagents.
+- Activate `/vd:scout` OR launch 2–3 parallel `Explore` subagents.
 - Discover: affected files/models/manifests, direct dependencies, related tests, recent git changes (`git log -p -- <path>`).
 - Read `./docs` if the project is unfamiliar.
 - **Quick mode:** just locate the file(s) + immediate deps.
@@ -91,7 +91,7 @@ Output: `✓ Scouted — N files, M deps, K tests`
 
 ### 2. Diagnose (mandatory)
 
-**Activate `vd:debug`** for systematic-debugging + root-cause-tracing. Don't restate the debug skill here — call it.
+**Activate `/vd:debug`** for systematic-debugging + root-cause-tracing. Don't restate the debug skill here — call it.
 
 Required outputs from this step:
 - **Pre-fix evidence captured**: exact error, failing command, stack trace, log snippet, dbt run-results, kubectl events, `terraform plan` output — whatever applies. This is the baseline for Step 5.
@@ -137,8 +137,8 @@ Output: `✓ Verified + prevented — before/after attached, N tests added, M gu
 
 1. Print a compact report: confidence, root cause, files touched, evidence summary, regression-guard summary.
 2. Update `./docs` only if the change affects shared docs (codebase-summary / architecture / standards). Skip otherwise.
-3. Offer to commit/PR via `vd:ship` (full pipeline) or a single conventional commit via `git`/`git-manager`.
-4. Offer `vd:journal` for a focused post-mortem entry if the fix was non-trivial or the root cause was surprising.
+3. Offer to commit/PR via `/vd:ship` (full pipeline) or a single conventional commit via `git`/`git-manager`.
+4. Offer `/vd:journal` for a focused post-mortem entry if the fix was non-trivial or the root cause was surprising.
 
 ## Tool integration
 
@@ -151,13 +151,13 @@ Output: `✓ Verified + prevented — before/after attached, N tests added, M gu
 - **Tracing** — APM (Datadog, Sentry), OpenTelemetry
 - **Secrets** — `sops -d` for infra repo (age key per `.mise.toml`); never paste decrypted contents into reports/commits
 - **Frontend verification** — Chrome MCP / `ck:chrome-devtools` to confirm UI fix
-- **Skills:** `vd:debug` (Step 2), `vd:scout` (Step 1), `vd:research` (unknown libs/CVEs surfaced mid-fix), `vd:gopass` (creds)
+- **Skills:** `/vd:debug` (Step 2), `/vd:scout` (Step 1), `/vd:research` (unknown libs/CVEs surfaced mid-fix), `/vd:gopass` (creds)
 
 ## Workflow position
 
-**Typically follows:** `vd:debug` (when diagnosis was done separately), `vd:scout` (after locating code)
-**Typically precedes:** `vd:ship` (ship the fix), `vd:journal` (post-fix log)
-**Related:** `vd:cook` (feature execution, not bug-driven), `vd:brainstorm` (when the fix exposes a design problem)
+**Typically follows:** `/vd:debug` (when diagnosis was done separately), `/vd:scout` (after locating code)
+**Typically precedes:** `/vd:ship` (ship the fix), `/vd:journal` (post-fix log)
+**Related:** `/vd:cook` (feature execution, not bug-driven), `/vd:brainstorm` (when the fix exposes a design problem)
 
 ## References (load on demand)
 
