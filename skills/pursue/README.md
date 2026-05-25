@@ -4,25 +4,45 @@ Drive a feature/fix end-to-end: **intake → worktree → plan → cook → ship
 
 ## Install
 
-**Primary (marketplace):**
+**Claude Code (marketplace):**
 
 ```
 /plugin marketplace add vanducng/skills
 /plugin install vd@vd-skills
 ```
 
-After install, `/vd:pursue` is available as a slash command in Claude Code.
-
-**Dev / local:**
+**Codex (TUI):**
 
 ```
 brew install vanducng/tap/vd
-vd install claude pursue
+vd install codex pursue
+# THEN register hooks in ~/.codex/config.toml — see references/codex-runtime.md
 ```
 
-Or as a legacy bash fallback: `bash ~/skills/scripts/install.sh`.
+**Dev / local (both runtimes):**
 
-**Codex:** `vd install codex pursue` (skill files install, but the executor loop is v0.2 — see `references/codex-deferred.md`).
+```
+brew install vanducng/tap/vd
+vd install claude --dev pursue    # symlink for Claude Code dev work
+vd install codex pursue            # symlink for Codex TUI dev work
+```
+
+After install, `/vd:pursue` is available as a slash command in either runtime.
+
+## Runtime support (v0.2)
+
+| Feature | Claude Code | Codex TUI | Codex exec |
+|---|---|---|---|
+| Intake | ✓ | ✓ | ✗ (errors — `ask_user_question` unavailable in exec) |
+| Sequential executor | ✓ | ✓ | ✗ |
+| Skill-to-skill dispatch | ✓ Skill tool | ✓ `codex exec resume` | ✗ |
+| Cook+verify iteration | ✓ auto-loop Stop-hook | ✓ auto-loop --codex → /goal | ✗ |
+| Monitor (wait_ci, etc.) | ✓ Monitor tool | ✓ PostToolUse hook + additionalContext | ✗ |
+| Cross-session resume | ✓ via state.json | ✓ via state.json | n/a |
+| Cross-runtime resume (same goal) | ✓ both directions via state.json | | |
+| Push notifications | ✓ Claude Code native (or `notify.sh`) | ✓ `notify.sh` (terminal-notifier / ntfy / Slack / log) | ✓ `notify.sh` |
+
+`codex exec` (non-interactive) parity is v0.3.
 
 ## Quick start
 
