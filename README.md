@@ -15,17 +15,17 @@ Inside Claude Code:
 
 ```
 /plugin marketplace add vanducng/skills
-/plugin install vd@vanducng-skills
+/plugin install vd@vd-skills
 ```
 
 Update later:
 
 ```
-/plugin marketplace update vanducng-skills
-/plugin install vd@vanducng-skills
+/plugin marketplace update vd-skills
+/plugin install vd@vd-skills
 ```
 
-Uninstall: `/plugin uninstall vd@vanducng-skills`.
+Uninstall: `/plugin uninstall vd@vd-skills`.
 
 ## Install the `vd` CLI
 
@@ -68,7 +68,7 @@ bash scripts/validate.sh
 git add skills/my-new-skill && git commit -m "feat: add my-new-skill" && git push
 ```
 
-After pushing, users update via `/plugin marketplace update vanducng-skills`.
+After pushing, users update via `/plugin marketplace update vd-skills`.
 
 ## License
 
