@@ -199,7 +199,7 @@ for action in "${ACTIONS_ARR[@]}"; do
   if [ "$G_autonomy" = "manual" ]; then gate_hint="gate"; fi
   if [ "$G_autonomy" = "auto" ]; then gate_hint="-"; fi
   delegate_hint=""
-  [ "$M_delegated_to" != "—" ] && delegate_hint=" [delegate → ${M_delegated_to}]"
+  [ "$M_delegated_to" != "-" ] && delegate_hint=" [delegate → ${M_delegated_to}]"
 
   printf '%2d. %-22s dispatch=%-32s verifier=%-30s %s%s\n' \
     "$i" "$action" "$M_dispatch" "$M_verifier" "$gate_hint" "$delegate_hint"

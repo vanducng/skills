@@ -76,6 +76,63 @@ Mode is set at intake time (`goal.yaml.autonomy`) and can be edited in-place mid
 - `references/intake-template.md` — the 4 intake questions + answer-to-goal.yaml mapping
 - `references/architecture.md` — two-layer SKILL.md ↔ bash-script invariant
 
+## Phase 3 — Executor protocol (manual mode)
+
+After intake (`state.terminal=null`, `current_phase=intake-complete`), the executor loop runs. Each iteration in pseudo-code:
+
+```
+while state.terminal is null:
+  state = read(goal_dir/state.json)
+  if state.terminal: break
+
+  # Decide next action: first unrun in the resolved sequence.
+  next = `bash scripts/resolve-workflow.sh {goal_dir}`   # returns 12-row table
+  action = pick-first-unrun(next, state.iteration_count)
+  if action is "done" or "block":
+    update-state.sh terminal={action}
+    break
+
+  # Gate? (Phase 4 wires this; Phase 3 manual-mode gates EVERY action.)
+  if mode == "manual" or action in gate_default for current mode:
+    AskUserQuestion("Run {action}? run / skip / quit")
+    if not "run": handle accordingly
+
+  # Dispatch via run-action.sh — returns the invocation hint.
+  hint = `bash scripts/run-action.sh --goal-dir {goal_dir} --action {action}`
+  case hint.dispatch_kind:
+    "skill":    Skill(skill: hint.skill, args: hint.args)
+    "agent":    Agent(subagent_type: hint.subagent_type, prompt: ...)
+    "monitor":  Monitor(command: hint.shell_cmd, ...)
+    "shell":    (already executed by run-action.sh; read hint.exit_code)
+    "terminal": (handled above)
+
+  # Verifier (per-action).
+  if hint.verifier:
+    if hint.verifier.type == "manual_confirm":
+      AskUserQuestion(hint.verifier.args.prompt)
+      eval-verifier.sh --type manual_confirm --resolve {yes|no} --prompt ...
+    else:
+      eval-verifier.sh --type {hint.verifier.type} ... → returns JSON
+    parse pass/evidence
+
+  # Journal + state.
+  append-journal.sh --goal-dir ... --action ... --exit-code ... \
+                    --verifier-pass {true|false} --verifier-evidence ...
+  echo '{"current_action":"{action}","iteration_count":N+1,"last_action_result":{...}}' \
+    | update-state.sh --goal-dir ...
+```
+
+**Failure handling (same-signature recognizer):** when a verifier fails, the executor checks `state.last_failure_signature` (computed as `action|verifier_type|exit_code`). If the same signature fires 3 times in a row → write `terminal=blocked` with reason. Otherwise increment `last_failure_count`.
+
+**Budgets:** before each action, check `state.budgets_consumed` against `goal.yaml.budgets`. If any exceeded → `terminal=blocked`.
+
+**Manual_confirm flow** (the only 2-step verifier):
+1. `eval-verifier.sh --type manual_confirm --prompt "..."` returns sentinel `{"needs_user_input": true, "prompt": "..."}`
+2. SKILL.md detects sentinel → `AskUserQuestion(prompt)` → captures answer.
+3. `eval-verifier.sh --type manual_confirm --resolve {yes|no} --prompt "..."` writes the journal-shape JSON.
+
+Phase 4 layers autonomy modes on top of this protocol. Phase 5 swaps the cook+verify loop for delegation to `vd:auto-loop`.
+
 ## Sub-verbs (Phase 6 ships these)
 
 Phase 1 stubs `status` and `kill` to print "not yet implemented (Phase 6)" — they fail gracefully but don't write state.

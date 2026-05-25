@@ -22,7 +22,7 @@ The closed set of actions `vd:pursue`'s executor (Phase 3) can dispatch. Each ac
 | `reconcile` | shell `{profile.deploy.reconcile_cmd}` | — | — | — | never | — |
 | `rollout_check` | shell `{profile.deploy.rollout_cmd}` | — | `cmd_exits_zero({profile.deploy.rollout_cmd})` | — | never | — |
 | `verify_pod_image` | shell `kubectl get …` | — | `pod_image_matches` (from target.verifiers) | — | never | — |
-| `verify_smoke` | varies (per target.verifiers) | — | workflow-level set from `target.verifiers` | — | `semi`,`manual` | — |
+| `verify_smoke` | shell `{profile.verify.smoke_cmd}` | — | workflow-level set from `target.verifiers` | — | `semi`,`manual` | — |
 | `debug` | skill `vd:debug` | — | — | — | never | — |
 | `fix` | skill `vd:fix` | — | — | — | never | — |
 | `docs` | skill `vd:docs` | — | — | — | never | — |
