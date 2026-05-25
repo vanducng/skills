@@ -39,7 +39,7 @@ This skill ships its CLI alongside `SKILL.md` so it works regardless of install 
 OD_BIN="<dir-of-this-SKILL.md>/scripts/open-design"
 # Example resolved values (use whichever matches where this file was loaded):
 #   /Users/vanducng/skills/skills/open-design/scripts/open-design          (dev clone)
-#   ~/.claude/plugins/cache/vanducng-skills/skills/open-design/scripts/open-design   (plugin)
+#   ~/.claude/plugins/cache/vd-skills/skills/open-design/scripts/open-design   (plugin)
 #   ~/.claude/skills/open-design/scripts/open-design                       (user-level)
 ```
 
