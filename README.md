@@ -29,16 +29,18 @@ Uninstall: `/plugin uninstall vd@vanducng-skills`.
 
 ## Install the `vd` CLI
 
+The `vd` CLI lives in its own repo: [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli).
+
 Homebrew (recommended):
 
 ```sh
 brew install vanducng/tap/vd
 ```
 
-Or via curl (downloads the latest release for your platform):
+Or via `go install`:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/vanducng/skills/main/install.sh | sh
+go install github.com/vanducng/vd-cli/v2/cmd/vd@latest
 ```
 
 Quick start:
@@ -47,15 +49,14 @@ Quick start:
 vd init && vd add browserbase/skills/browser --as browser && vd sync && vd build
 ```
 
-Set `VD_ROOT` in your shell to use `vd` from any directory without `--root`. Full command reference: [`tools/vd/README.md`](tools/vd/README.md).
+Set `VD_ROOT` in your shell to use `vd` from any directory without `--root`. Full command reference: [`vanducng/vd-cli` README](https://github.com/vanducng/vd-cli#readme).
 
 ## Layout
 
 ```
 .claude-plugin/   plugin manifest + marketplace registration
 skills/           one directory per skill (each has SKILL.md)
-tools/vd/         vd CLI source (Go module)
-scripts/          install + new-skill helpers
+scripts/          dev helpers: new-skill, validate, dev-fallback symlinker
 ```
 
 ## Contribute a skill
