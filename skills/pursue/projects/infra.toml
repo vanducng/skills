@@ -1,0 +1,54 @@
+# infra.toml — profile for the infra repo (dataplanelabs/infra).
+#
+# Infra is the FluxCD + K8s manifests repo. Changes here usually deploy via
+# Flux auto-reconcile rather than an explicit reconcile cmd, BUT pursue runs
+# can still verify the post-reconcile state.
+#
+# Auto-merge: per user policy, infra PRs are merged manually (similar caution
+# to skills repo — production cluster impact). Do NOT set --auto.
+
+[project]
+name = "infra"
+remote_matches = [
+  "dataplanelabs/infra",
+]
+default_branch_prefix = "feat/"
+ship_mode = "official"   # no --auto for production-impacting infra changes
+
+[actions]
+default_sequence_local    = ["plan", "cook", "code_review", "test", "done"]
+default_sequence_pr_only  = ["plan", "cook", "code_review", "test", "ship", "wait_ci", "done"]
+default_sequence_cluster  = [
+  "plan", "cook", "code_review", "test",
+  "ship", "wait_ci",
+  # No image_build step for infra — manifests only.
+  "reconcile",      # explicit flux nudge after merge
+  "rollout_check",  # if a Deployment was touched
+  "verify_smoke",
+  "done"
+]
+
+[deploy]
+# Infra changes go to flux-system's GitRepository reconcile, then to the
+# touched Kustomization. The exact Kustomization depends on what was touched;
+# the profile picks the catch-all "flux-system" + caller-supplied target.
+reconcile_cmd = "flux --context ${KUBE_CONTEXT:-everest} reconcile source git flux-system -n flux-system && flux --context ${KUBE_CONTEXT:-everest} reconcile kustomization ${INFRA_KUSTOMIZATION:-infrastructure-configs} -n flux-system"
+# rollout_cmd is a no-op default; pursue runs that touch a specific deployment
+# should override via goal.yaml's mid-flight edit.
+rollout_cmd = "echo 'no default rollout target for infra; override in goal.yaml.target.verifiers'"
+
+[verify]
+test_cmd = ""   # infra has no unit-test step; CI runs flux validate / kubeconform
+smoke_cmd = ""
+
+# SOPS context: secrets in the infra repo are age-encrypted. mise auto-loads
+# SOPS_AGE_KEY_FILE from .mise.toml at the repo root. The profile relies on
+# the user's mise activation; if it's not active, sops-touching steps will
+# fail clearly. Do not bake the age key path into the profile — it's a per-
+# machine secret.
+
+[budgets]
+max_iterations = 20
+max_rebases = 2
+max_ci_reruns = 1
+token_pct_cap = 80

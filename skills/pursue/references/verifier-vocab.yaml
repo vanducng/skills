@@ -1,0 +1,53 @@
+# Machine-readable shadow of verifier-vocab.md.
+# Must stay in sync; scripts/lint-vocab-sync.sh enforces.
+
+version: 1
+
+verifiers:
+  ci_green:
+    required_args: [pr_number]
+    optional_args: [repo]
+    latency: fast
+    sentinel: false   # synchronous from script POV
+
+  pod_image_matches:
+    required_args: [deployment, namespace, expected_image]
+    optional_args: [kube_context]
+    latency: fast
+    sentinel: false
+
+  http_status:
+    required_args: [url]
+    optional_args: [expected_code, headers]
+    defaults:
+      expected_code: 200
+    latency: network
+    sentinel: false
+
+  cmd_exits_zero:
+    required_args: [cmd]
+    optional_args: [cwd]
+    defaults:
+      cwd: "."
+    latency: variable
+    sentinel: false
+
+  test_suite_passes:
+    required_args: [target]
+    optional_args: []
+    latency: medium-slow
+    sentinel: false
+
+  manual_confirm:
+    required_args: [prompt]
+    optional_args: []
+    latency: user
+    sentinel: true   # eval-verifier returns {needs_user_input:true}; SKILL.md handles AskUserQuestion
+
+  shell:
+    required_args: [cmd]
+    optional_args: [expected_exit, expected_output_contains]
+    defaults:
+      expected_exit: 0
+    latency: variable
+    sentinel: false
