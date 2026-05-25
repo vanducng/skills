@@ -76,19 +76,29 @@ out = {"action": sys.argv[2], "verify_script": sys.argv[3], "delegated_at": sys.
 json.dump(out, open(sys.argv[1], "w"), indent=2)
 PY
 
+# Detect runtime — Codex needs `--codex` flag appended so auto-loop delegates
+# to native /goal instead of running its Stop-hook in-house loop.
+PURSUE_RUNTIME_DETECTED="$(bash "${SCRIPT_DIR}/detect-runtime.sh" 2>/dev/null || echo unknown)"
+CODEX_FLAG=""
+if [ "$PURSUE_RUNTIME_DETECTED" = "codex" ]; then
+  CODEX_FLAG="--codex"
+fi
+
 # Emit the invocation hint as JSON. SKILL.md interprets and calls the Skill tool.
 ACTION="$ACTION" GOAL_SLUG="$GOAL_SLUG" VERIFY_SH="$VERIFY_SH" \
   MAX_ITER="$MAX_ITER" MAX_TOKENS="$MAX_TOKENS" MAX_WALLCLOCK="$MAX_WALLCLOCK" \
-  MARKER="$MARKER" \
+  MARKER="$MARKER" CODEX_FLAG="$CODEX_FLAG" \
   "$PYBIN" - <<'PY'
 import os, json, shlex
 goal = f"pursue:{os.environ['ACTION']} for {os.environ['GOAL_SLUG']} until verifier passes"
+codex_flag = (" " + os.environ["CODEX_FLAG"]) if os.environ.get("CODEX_FLAG") else ""
 args = (
     f'{shlex.quote(goal)} '
     f'--verify {shlex.quote(os.environ["VERIFY_SH"])} '
     f'--max-iterations {os.environ["MAX_ITER"]} '
     f'--max-tokens {os.environ["MAX_TOKENS"]} '
     f'--max-wallclock {os.environ["MAX_WALLCLOCK"]}'
+    f'{codex_flag}'
 )
 print(json.dumps({
     "dispatch_kind": "skill",

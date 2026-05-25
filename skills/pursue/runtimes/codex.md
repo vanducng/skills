@@ -137,10 +137,10 @@ Per `references/action-vocab.yaml`. Most actions work via the generic skill disp
 |---|---|---|
 | `scout`, `research`, `brainstorm` | ✓ Phase 2 wired | `codex_exec_resume_last vd:<skill> ...` |
 | `plan`, `plan_audit` | ✓ Phase 2 wired | Same |
-| `cook`, `test` | ⚠ STUBBED (Phase 3) | Delegates to `vd:auto-loop --codex` per `references/auto-loop-integration.md` |
+| `cook`, `test` | ✓ Phase 3 wired | Delegates to `vd:auto-loop --codex` (auto-detected runtime adds `--codex` flag); see `references/auto-loop-integration.md` + `references/codex-gap-workarounds.md` Workaround 3 |
 | `code_review` | ✓ Phase 2 wired | Native Codex subagent |
 | `ship` | ✓ Phase 2 wired | `codex_exec_resume_last vd:ship ...` |
-| `wait_ci`, `image_build_wait`, `rollout_check` | ⚠ STUBBED (Phase 3) | PostToolUse hook + additionalContext |
+| `wait_ci`, `image_build_wait`, `rollout_check` | ✓ Phase 3 wired | PostToolUse hook + `additionalContext` via `scripts/codex-monitor-hook.sh`; see `references/codex-gap-workarounds.md` Workaround 2 |
 | `verify_pod_image`, `verify_smoke` | ✓ Phase 2 wired | Shell dispatch (run-action.sh handles inline) |
 | `debug`, `fix`, `docs`, `journal` | ✓ Phase 2 wired | `codex_exec_resume_last vd:<skill> ...` |
 | `done`, `block` | ✓ Phase 2 wired | Terminal state write |
