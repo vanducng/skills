@@ -133,9 +133,19 @@ while state.terminal is null:
 
 Phase 4 layers autonomy modes on top of this protocol. Phase 5 swaps the cook+verify loop for delegation to `vd:auto-loop`.
 
-## Sub-verbs (Phase 6 ships these)
+## Sub-verbs
 
-Phase 1 stubs `status` and `kill` to print "not yet implemented (Phase 6)" — they fail gracefully but don't write state.
+| Sub-verb | Script | Exit codes |
+|---|---|---|
+| `/vd:pursue status` | `scripts/status.sh` | 0=done · 1=blocked · 2=abandoned · 3=in-progress · 4=no goal found |
+| `/vd:pursue kill --reason "..."` | `scripts/kill.sh` | 0=killed · 3=already terminal |
+| `/vd:pursue resolve <goal-dir>` | `scripts/resolve-workflow.sh` | 0=resolved (dry-run printed) · 5=unknown action in vocab |
+
+`kill.sh` returns a JSON hint — if `needs_auto_loop_cancel: true`, SKILL.md must invoke `Skill(skill: "vd:auto-loop", args: "--cancel")` BEFORE the killed state propagates to consumers.
+
+## Codex runtime
+
+**v0.1 is Claude Code only.** Codex adapter deferred to v0.2 — see `references/codex-deferred.md` for the feasibility analysis + path forward. For Codex users today, `/vd:auto-loop --codex` is the closest existing primitive (single-shot verifier loops, not workflow orchestration).
 
 ## Workflow position
 
