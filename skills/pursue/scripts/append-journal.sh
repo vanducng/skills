@@ -20,6 +20,7 @@ EXIT_CODE=""
 EVIDENCE_FILE=""
 VERIFIER_PASS=""
 VERIFIER_EVIDENCE=""
+CODEX_JSONL=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -29,8 +30,9 @@ while [ $# -gt 0 ]; do
     --evidence-file)     EVIDENCE_FILE="${2:-}"; shift 2 ;;
     --verifier-pass)     VERIFIER_PASS="${2:-}"; shift 2 ;;
     --verifier-evidence) VERIFIER_EVIDENCE="${2:-}"; shift 2 ;;
+    --codex-jsonl)       CODEX_JSONL="${2:-}"; shift 2 ;;
     --help|-h)
-      echo "usage: append-journal.sh --goal-dir <dir> --action <name> --exit-code <int> [--evidence-file <p>] [--verifier-pass <t|f>] [--verifier-evidence <s>]"
+      echo "usage: append-journal.sh --goal-dir <dir> --action <name> --exit-code <int> [--evidence-file <p>] [--verifier-pass <t|f>] [--verifier-evidence <s>] [--codex-jsonl <path>]"
       exit 0 ;;
     *) echo "append-journal.sh: unknown arg: $1" >&2; exit 2 ;;
   esac
@@ -60,6 +62,15 @@ if [ -n "$EVIDENCE_FILE" ] && [ -f "$EVIDENCE_FILE" ]; then
   EVIDENCE_BODY="$(head -c 4000 "$EVIDENCE_FILE")"
 fi
 
+# Codex session metrics — parse Codex --json stream if path provided
+# (Phase 4 enrichment). Embedded into frontmatter for observability.
+CODEX_METRICS_LINE=""
+if [ -n "$CODEX_JSONL" ] && [ -f "$CODEX_JSONL" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  METRICS_JSON="$(bash "${SCRIPT_DIR}/codex-bridge.sh" json-parse "$CODEX_JSONL" 2>/dev/null || echo '{}')"
+  CODEX_METRICS_LINE="codex_session_metrics: ${METRICS_JSON}"
+fi
+
 # Frontmatter + body
 cat > "$TARGET" <<MD
 ---
@@ -68,6 +79,7 @@ action: ${ACTION}
 finished_at: ${NOW}
 exit_code: ${EXIT_CODE}
 verifier_pass: ${VERIFIER_PASS:-null}
+${CODEX_METRICS_LINE}
 ---
 
 # Iteration ${N} — ${ACTION}
