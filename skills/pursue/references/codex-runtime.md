@@ -48,13 +48,19 @@ After `vd install codex pursue`, register the Codex hooks in your config:
 
 ```toml
 # ~/.codex/config.toml
-[[hooks]]
-event = "PostToolUse"
-command = "bash ~/.codex/skills/pursue/scripts/codex-monitor-hook.sh"
+[[hooks.PostToolUse]]
+matcher = ".*"
 
-[[hooks]]
-event = "SessionStart"
-command = "bash ~/.codex/skills/pursue/scripts/codex-hook-cleanup.sh"
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "bash ~/.agents/skills/pursue/scripts/codex-monitor-hook.sh"
+
+[[hooks.SessionStart]]
+matcher = ".*"
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "bash ~/.agents/skills/pursue/scripts/codex-hook-cleanup.sh"
 ```
 
 Without hooks, Monitor-style actions (`wait_ci`, `image_build_wait`, `rollout_check`) won't get status updates. They'll still execute, but the executor blocks until they exit instead of getting event-driven updates.

@@ -135,13 +135,19 @@ Codex hooks are registered in user-level config (per [Codex Hooks docs](https://
 
 ```toml
 # ~/.codex/config.toml (or equivalent)
-[[hooks]]
-event = "PostToolUse"
-command = "bash ~/.codex/skills/pursue/scripts/codex-monitor-hook.sh"
+[[hooks.PostToolUse]]
+matcher = ".*"
 
-[[hooks]]
-event = "SessionStart"
-command = "bash ~/.codex/skills/pursue/scripts/codex-hook-cleanup.sh"
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "bash ~/.agents/skills/pursue/scripts/codex-monitor-hook.sh"
+
+[[hooks.SessionStart]]
+matcher = ".*"
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "bash ~/.agents/skills/pursue/scripts/codex-hook-cleanup.sh"
 ```
 
 v0.3 ships an `install-hooks` sub-verb that does this automatically.
