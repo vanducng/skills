@@ -4,6 +4,9 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 
 ## [Unreleased]
 
+### Added
+- `skills/sqlit/` — scriptable CLI wrapper over the `sqlit` binary for ad-hoc SQL against any saved connection (BigQuery, Postgres, MySQL, MSSQL, SQLite, Snowflake, DuckDB). Encodes the shell-quoting gotcha (single-quote SQL with backticks so the shell doesn't eat them), the bare-`sqlit` TUI hazard, per-dialect metadata recipes, and the failure-mode → cause map. Lets `vd:` workflows hit databases without re-deriving these rules each time.
+
 ### Fixed
 - All `vd:` skill cross-references across skill markdown now use the `/vd:` slash-command form so user-facing hints (e.g. "next: `/vd:cook plans/path/to/feature`") are directly invocable. Bare `vd:X` was rendering hints the user couldn't paste back as a command. Touched every SKILL.md, references file, description field, ASCII flowchart, and workflow-position section.
 
