@@ -48,12 +48,18 @@ After `vd install codex pursue`, register the Codex hooks in your config:
 
 ```toml
 # ~/.codex/config.toml
-[[hooks]]
-event = "PostToolUse"
+[[hooks.PostToolUse]]
+matcher = ".*"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
 command = "bash ~/.agents/skills/pursue/scripts/codex-monitor-hook.sh"
 
-[[hooks]]
-event = "SessionStart"
+[[hooks.SessionStart]]
+matcher = ".*"
+
+[[hooks.SessionStart.hooks]]
+type = "command"
 command = "bash ~/.agents/skills/pursue/scripts/codex-hook-cleanup.sh"
 ```
 

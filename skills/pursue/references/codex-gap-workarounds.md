@@ -135,12 +135,18 @@ Codex hooks are registered in user-level config (per [Codex Hooks docs](https://
 
 ```toml
 # ~/.codex/config.toml (or equivalent)
-[[hooks]]
-event = "PostToolUse"
+[[hooks.PostToolUse]]
+matcher = ".*"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
 command = "bash ~/.agents/skills/pursue/scripts/codex-monitor-hook.sh"
 
-[[hooks]]
-event = "SessionStart"
+[[hooks.SessionStart]]
+matcher = ".*"
+
+[[hooks.SessionStart.hooks]]
+type = "command"
 command = "bash ~/.agents/skills/pursue/scripts/codex-hook-cleanup.sh"
 ```
 
