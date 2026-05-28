@@ -1,96 +1,143 @@
 ---
 name: miudb
 description: >
-  Query and inspect saved miu-db database connections through the Go `miudb`
-  CLI. Use when the user asks to check migrated Python miu-db connections, run
-  SQL, list schemas, smoke-test connections, inspect tunnels, or produce
-  agent-readable JSON from SQLite, Postgres, MySQL, Snowflake, or BigQuery.
+  Query, inspect, and manage saved database connections through the Go `miudb`
+  CLI. Use when the user asks to run SQL, list schemas, add native
+  connections, smoke-test connections, inspect tunnel-backed databases, or
+  produce agent-readable JSON from SQLite, Postgres, MySQL, Snowflake, or
+  BigQuery.
 allowed-tools:
   - Bash
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.2.0"
   binary: miudb
 ---
 
 # miudb
 
-Headless database CLI for agent-safe SQL work against saved miu-db
-connections. Prefer this over the Python `miu-db` TUI when the task needs
-machine-readable output, scripted checks, or Neovim/agent integration.
+Headless database CLI for agent-safe SQL work against saved database
+connections. Prefer `miudb` for machine-readable output, scripted checks, and
+Neovim/agent integration.
+
+Do not use `sqlit` for miudb tasks.
 
 ## When to use
 
-- "Check current connections migrated from Python miu-db"
 - "Run this SQL on `<connection>`"
 - "List schemas/tables/columns for `<connection>`"
 - "Smoke-test my saved database connections"
 - "Check a tunnel-backed connection"
+- "Add a new database connection"
 - Any task naming a connection that appears in `miudb connections list`
-
-Use `sqlit` instead only when the user explicitly asks for `sqlit` or needs a
-database type not yet covered by `miudb`.
 
 ## Install/verify
 
 ```bash
 brew install vanducng/tap/miudb
 miudb version --output json
+miudb commands --output json
 ```
 
 Alternative:
 
 ```bash
-go install github.com/vanducng/miu-db/cmd/miudb@v0.2.0-go.4
+go install github.com/vanducng/miu-db/cmd/miudb@v0.2.0-go.5
 ```
 
 ## Default local config
 
-The current Go preview can read the existing Python miu-db config and exported
-credentials:
+`miudb` uses a native Go store by default:
 
-```bash
-MIUDB_CONFIG_DIR=/Users/vanducng/.config/miu/db
-MIUDB_CREDENTIALS=/Users/vanducng/.config/miu/db/credentials-export.json
+```text
+~/.config/miudb/connections.json
+~/.config/miudb/credentials.json
 ```
 
-Most commands should include both flags explicitly:
+Sensitive values are classified before persistence. New database and SSH
+passwords are stored outside `connections.json` by default using the OS
+Keychain/keyring service named `miudb`.
 
-```bash
-miudb \
-  --config-dir "$MIUDB_CONFIG_DIR" \
-  --credentials-export "$MIUDB_CREDENTIALS" \
-  <command> \
-  --output json
-```
+Only pass `--config-dir`, `--connections-file`, `--credentials-file`,
+`--secret-source`, or `--keyring-service` when the user asks for a non-default
+store.
 
 ## Discover commands and connections
 
 ```bash
 miudb commands --output json
+miudb describe connections add --output json
 miudb describe query run --output json
 miudb describe connections smoke --output json
-
-miudb \
-  --config-dir "$MIUDB_CONFIG_DIR" \
-  --credentials-export "$MIUDB_CREDENTIALS" \
-  connections list \
-  --output json
+miudb connections list --output json
 ```
 
 If the named connection is not listed, stop and ask the user. Do not
 substitute a similar connection.
 
-## Smoke-test migrated connections
+## Add connections
 
-Use this to verify which saved Python miu-db connections currently work from
-the Go CLI:
+SQLite:
 
 ```bash
-miudb \
-  --config-dir "$MIUDB_CONFIG_DIR" \
-  --credentials-export "$MIUDB_CREDENTIALS" \
-  connections smoke \
+miudb connections add \
+  --name local-app \
+  --db-type sqlite \
+  --path ./app.db \
+  --output json
+```
+
+Postgres/MySQL style TCP connection:
+
+```bash
+miudb connections add \
+  --name app-dev \
+  --db-type postgresql \
+  --host localhost \
+  --port 5432 \
+  --database app \
+  --username app \
+  --password "$APP_DB_PASSWORD" \
+  --secret-store keyring \
+  --output json
+```
+
+Tunnel-backed connection:
+
+```bash
+miudb connections add \
+  --name app-prod \
+  --db-type mysql \
+  --host prod-rds.internal \
+  --port 3306 \
+  --database app \
+  --username app \
+  --password "$APP_DB_PASSWORD" \
+  --tunnel \
+  --ssh-config-alias bastion \
+  --secret-store keyring \
+  --output json
+```
+
+Secret stores for new connections:
+
+- `keyring`: OS Keychain/keyring service named `miudb` by default.
+- `file`: local `credentials.json` with mode `0600`.
+- `inline`: leave the value in `connections.json`.
+- `none`: discard the supplied secret and require another resolver later.
+
+Rules:
+
+- Prefer `--secret-store keyring` for user-entered credentials.
+- Use `--secret-store file` only for disposable/local test configs or when the
+  user explicitly wants a file-backed credential.
+- Never print passwords, credential files, private keys, or service account
+  JSON.
+
+## Smoke-test connections
+
+```bash
+miudb connections smoke \
   --timeout 12s \
   --concurrency 4 \
   --output json
@@ -109,10 +156,7 @@ Summarize results without printing passwords or secret file contents.
 ## Run a query
 
 ```bash
-miudb \
-  --config-dir "$MIUDB_CONFIG_DIR" \
-  --credentials-export "$MIUDB_CREDENTIALS" \
-  query run \
+miudb query run \
   --connection <CONN> \
   --sql '<SQL>' \
   --limit 100 \
@@ -124,19 +168,15 @@ Rules:
 - Keep `--limit` bounded unless the user explicitly asks for a large export.
 - Prefer read-only SQL unless the user explicitly authorizes mutation.
 - Use single quotes around SQL containing BigQuery/MySQL backticks.
-- If SQL contains single-quoted literals and backticks, write it to a temp
-  `.sql` file only if the CLI supports file input in the current version;
-  otherwise escape carefully.
+- If SQL contains single-quoted literals and backticks, escape carefully; do
+  not assume file input exists unless `miudb describe query run` says it does.
 
 ## Fetch paged results
 
 If `query run` returns a cursor or truncation marker, continue with:
 
 ```bash
-miudb \
-  --config-dir "$MIUDB_CONFIG_DIR" \
-  --credentials-export "$MIUDB_CREDENTIALS" \
-  query fetch-page \
+miudb query fetch-page \
   --cursor <CURSOR> \
   --output json
 ```
@@ -144,23 +184,17 @@ miudb \
 ## Inspect schema
 
 ```bash
-miudb \
-  --config-dir "$MIUDB_CONFIG_DIR" \
-  --credentials-export "$MIUDB_CREDENTIALS" \
-  schema tree \
+miudb schema tree \
   --connection <CONN> \
   --output json
 ```
 
-Metadata SQL recipes also work through `query run`:
+Metadata SQL recipes also work through `query run`.
 
 ### BigQuery
 
 ```bash
-miudb \
-  --config-dir "$MIUDB_CONFIG_DIR" \
-  --credentials-export "$MIUDB_CREDENTIALS" \
-  query run \
+miudb query run \
   --connection <conn> \
   --sql 'SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA' \
   --output json
@@ -169,10 +203,7 @@ miudb \
 Use single quotes for BigQuery table references:
 
 ```bash
-miudb \
-  --config-dir "$MIUDB_CONFIG_DIR" \
-  --credentials-export "$MIUDB_CREDENTIALS" \
-  query run \
+miudb query run \
   --connection <conn> \
   --sql 'SELECT * FROM `dataset`.`table` LIMIT 10' \
   --limit 10 \
@@ -182,36 +213,31 @@ miudb \
 ### MySQL
 
 ```bash
-miudb --config-dir "$MIUDB_CONFIG_DIR" --credentials-export "$MIUDB_CREDENTIALS" query run --connection <conn> --sql 'SHOW DATABASES' --output json
-miudb --config-dir "$MIUDB_CONFIG_DIR" --credentials-export "$MIUDB_CREDENTIALS" query run --connection <conn> --sql 'SHOW TABLES' --output json
-miudb --config-dir "$MIUDB_CONFIG_DIR" --credentials-export "$MIUDB_CREDENTIALS" query run --connection <conn> --sql 'DESCRIBE `table_name`' --output json
+miudb query run --connection <conn> --sql 'SHOW DATABASES' --output json
+miudb query run --connection <conn> --sql 'SHOW TABLES' --output json
+miudb query run --connection <conn> --sql 'DESCRIBE `table_name`' --output json
 ```
 
 ### Postgres and Snowflake
 
 ```bash
-miudb --config-dir "$MIUDB_CONFIG_DIR" --credentials-export "$MIUDB_CREDENTIALS" query run --connection <conn> --sql 'SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = ''BASE TABLE''' --output json
-miudb --config-dir "$MIUDB_CONFIG_DIR" --credentials-export "$MIUDB_CREDENTIALS" query run --connection <conn> --sql 'SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = ''table_name'' ORDER BY ordinal_position' --output json
+miudb query run --connection <conn> --sql 'SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = ''BASE TABLE''' --output json
+miudb query run --connection <conn> --sql 'SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = ''table_name'' ORDER BY ordinal_position' --output json
 ```
 
 ### SQLite
 
 ```bash
-miudb --config-dir "$MIUDB_CONFIG_DIR" --credentials-export "$MIUDB_CREDENTIALS" query run --connection <conn> --sql "SELECT name FROM sqlite_master WHERE type = 'table'" --output json
-miudb --config-dir "$MIUDB_CONFIG_DIR" --credentials-export "$MIUDB_CREDENTIALS" query run --connection <conn> --sql "PRAGMA table_info('table_name')" --output json
+miudb query run --connection <conn> --sql "SELECT name FROM sqlite_master WHERE type = 'table'" --output json
+miudb query run --connection <conn> --sql "PRAGMA table_info('table_name')" --output json
 ```
 
 ## Stdio protocol
 
-For Neovim or client integration, the preview exposes experimental stdio
-serving:
+For Neovim or client integration, use the experimental stdio server:
 
 ```bash
-miudb \
-  --config-dir "$MIUDB_CONFIG_DIR" \
-  --credentials-export "$MIUDB_CREDENTIALS" \
-  serve \
-  --output json
+miudb serve --protocol jsonrpc --output json
 ```
 
 Use this only for client/protocol tasks. For normal agent work, call the direct
@@ -223,13 +249,14 @@ CLI commands above.
 - stderr is diagnostics only.
 - `ok: false` is a structured failure, not necessarily a shell failure.
 - Command descriptions are available via `miudb describe <command>`.
-- Connection output redacts secrets; do not inspect credential files unless the
-  user explicitly asks.
+- Connection output redacts secrets; do not inspect credential stores unless
+  the user explicitly asks.
 
 ## Failure modes
 
 - **connection not found** -> run `connections list`, then ask the user.
 - **localhost refused** -> local database/tunnel is not running.
+- **secret timeout** -> keyring/gopass lookup may need user session access.
 - **SSH/tunnel error** -> check `~/.ssh/config`, key path, username, and network.
 - **BigQuery auth error** -> verify `options.bigquery_credentials_path`.
 - **Snowflake JWT error** -> verify `options.private_key_file`.
@@ -238,6 +265,7 @@ CLI commands above.
 ## Anti-patterns
 
 - Do not run Python `miu-db` TUI for agent tasks.
+- Do not use `sqlit`.
 - Do not guess connection names.
 - Do not print credentials, private keys, or service account JSON.
 - Do not run destructive SQL without explicit user approval.
