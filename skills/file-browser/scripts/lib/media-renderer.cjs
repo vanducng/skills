@@ -161,9 +161,8 @@ function renderGallery(dirPath, cssHref, opts = {}) {
       <h1>Cannot read directory</h1><p>${esc(err.message)}</p></body>`;
   }
 
-  // Documents lane includes markdown + PDF. (Duplicates tree-api's MD_EXTS;
-  // kept inline to avoid a circular-ish refactor for one extra extension.)
-  const DOC_EXTS = new Set(['.md', '.markdown', '.mdx', '.pdf']);
+  // Documents lane includes markdown, PDF, and tabular data.
+  const DOC_EXTS = new Set(['.md', '.markdown', '.mdx', '.pdf', '.csv', '.tsv', '.xlsx']);
   const isDoc = (p) => DOC_EXTS.has(path.extname(p).toLowerCase());
 
   const dirs = [];
@@ -222,7 +221,8 @@ function renderGallery(dirPath, cssHref, opts = {}) {
     docsHtml += '<section class="docs"><h2 class="section-title">Documents (' + docs.length + ')</h2><ul class="other-list">';
     for (const d of docs) {
       const viewUrl = withRoot(`/view?file=${encodeURIComponent(d.path)}`, treeRoot);
-      const icon = d.name.toLowerCase().endsWith('.pdf') ? '📕' : '📄';
+      const lower = d.name.toLowerCase();
+      const icon = lower.endsWith('.pdf') ? '📕' : (lower.endsWith('.csv') || lower.endsWith('.tsv') || lower.endsWith('.xlsx')) ? '▦' : '📄';
       docsHtml += `<li><a href="${esc(viewUrl)}">${icon} ${esc(d.name)}</a></li>`;
     }
     docsHtml += '</ul></section>';

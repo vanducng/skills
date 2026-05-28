@@ -1,7 +1,7 @@
 {
   "name": "file-browser",
-  "version": "0.5.0",
-  "description": "Local HTTP server rendering markdown, code, PDF, images, video, and audio in the browser - dispatches by file extension",
+  "version": "0.5.1",
+  "description": "Local HTTP server rendering markdown, code, CSV/TSV/XLSX tables, PDF, images, video, and audio in the browser - dispatches by file extension",
   "main": "scripts/server.cjs",
   "scripts": {
     "start": "node scripts/server.cjs",
@@ -12,6 +12,7 @@
     "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",
     "marked": "^17.0.0",
-    "pdfjs-dist": "^5.7.0"
+    "pdfjs-dist": "^5.7.0",
+    "read-excel-file": "^9.0.10"
   }
 }
