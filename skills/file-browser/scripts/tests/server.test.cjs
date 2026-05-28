@@ -9,6 +9,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { strToU8, zipSync } = require('fflate');
 
 const { createHttpServer } = require('../lib/http-server.cjs');
 const { findAvailablePort } = require('../lib/port-finder.cjs');
@@ -25,6 +26,63 @@ function test(name, fn) {
       console.error(`✗ ${name}`);
       console.error(`  ${err.message}`);
     });
+}
+
+function xmlEsc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function colName(n) {
+  let out = '';
+  while (n > 0) {
+    n--;
+    out = String.fromCharCode(65 + (n % 26)) + out;
+    n = Math.floor(n / 26);
+  }
+  return out;
+}
+
+function makeXlsx(rows) {
+  const sheetRows = rows.map((row, r) => {
+    const cells = row.map((value, c) => {
+      const ref = `${colName(c + 1)}${r + 1}`;
+      if (typeof value === 'number') return `<c r="${ref}"><v>${value}</v></c>`;
+      return `<c r="${ref}" t="inlineStr"><is><t>${xmlEsc(value)}</t></is></c>`;
+    }).join('');
+    return `<row r="${r + 1}">${cells}</row>`;
+  }).join('');
+  const lastRef = `${colName(Math.max(...rows.map((row) => row.length)))}${rows.length}`;
+  const files = {
+    '[Content_Types].xml': strToU8(`<?xml version="1.0" encoding="UTF-8"?>
+      <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+        <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+        <Default Extension="xml" ContentType="application/xml"/>
+        <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+        <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+      </Types>`),
+    '_rels/.rels': strToU8(`<?xml version="1.0" encoding="UTF-8"?>
+      <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+        <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+      </Relationships>`),
+    'xl/workbook.xml': strToU8(`<?xml version="1.0" encoding="UTF-8"?>
+      <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+        <sheets><sheet name="Survey" sheetId="1" r:id="rId1"/></sheets>
+      </workbook>`),
+    'xl/_rels/workbook.xml.rels': strToU8(`<?xml version="1.0" encoding="UTF-8"?>
+      <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+        <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+      </Relationships>`),
+    'xl/worksheets/sheet1.xml': strToU8(`<?xml version="1.0" encoding="UTF-8"?>
+      <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+        <dimension ref="A1:${lastRef}"/>
+        <sheetData>${sheetRows}</sheetData>
+      </worksheet>`)
+  };
+  return Buffer.from(zipSync(files));
 }
 
 function get(port, urlPath, headers = {}) {
@@ -71,6 +129,14 @@ async function main() {
   fs.writeFileSync(txtPath, 'plain text line\nanother line\n');
   const jsonPath = path.join(sandbox, 'data.json');
   fs.writeFileSync(jsonPath, '{"a":1,"b":[2,3]}');
+  const csvPath = path.join(sandbox, 'people.csv');
+  fs.writeFileSync(csvPath, 'name,score,note\nAda,99,"quoted, comma"\nGrace,100,"multi\nline"\n');
+  const xlsxPath = path.join(sandbox, 'workbook.xlsx');
+  fs.writeFileSync(xlsxPath, makeXlsx([
+    ['Name', 'Score', 'Note'],
+    ['Ada', 99, 'XLSX row'],
+    ['Grace', 100, 'Second row']
+  ]));
   const binPath = path.join(sandbox, 'mystery.dat');
   fs.writeFileSync(binPath, Buffer.from([0x00, 0xff, 0x00, 0x42, 0x00, 0x99]));
   const pdfPath = path.join(sandbox, 'doc.pdf');
@@ -121,10 +187,12 @@ async function main() {
   await test('Gallery surfaces markdown + pdf in Documents section', async () => {
     const r = await get(port, `/browse?dir=${encodeURIComponent(sandbox)}`);
     const html = r.body.toString();
-    // sandbox contains note.md AND doc.pdf — both should land in Documents.
-    if (!html.includes('Documents (2)')) throw new Error('docs section count != 2');
+    // sandbox contains note.md, doc.pdf, people.csv, and workbook.xlsx — all should land in Documents.
+    if (!html.includes('Documents (4)')) throw new Error('docs section count != 4');
     if (!html.includes('note.md')) throw new Error('note.md not listed');
     if (!html.includes('doc.pdf')) throw new Error('doc.pdf not listed in Documents');
+    if (!html.includes('people.csv')) throw new Error('people.csv not listed in Documents');
+    if (!html.includes('workbook.xlsx')) throw new Error('workbook.xlsx not listed in Documents');
     // PDF must be in Documents lane, not below "Other".
     const docIdx = html.search(/Documents \(/);
     const pdfIdx = html.indexOf('doc.pdf');
@@ -140,6 +208,22 @@ async function main() {
       throw new Error(`mime ${r.headers['content-type']}`);
     if (r.headers['accept-ranges'] !== 'bytes')
       throw new Error('accept-ranges header missing');
+  });
+
+  await test('GET /file streams CSV with text/csv mime', async () => {
+    const r = await get(port, '/file' + csvPath);
+    if (r.status !== 200) throw new Error(`status ${r.status}`);
+    if (!String(r.headers['content-type'] || '').startsWith('text/csv')) {
+      throw new Error(`mime ${r.headers['content-type']}`);
+    }
+  });
+
+  await test('GET /file streams XLSX with workbook mime', async () => {
+    const r = await get(port, '/file' + xlsxPath);
+    if (r.status !== 200) throw new Error(`status ${r.status}`);
+    if (r.headers['content-type'] !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+      throw new Error(`mime ${r.headers['content-type']}`);
+    }
   });
 
   await test('GET /file with Sec-Fetch-Dest: document redirects to /view (sidebar wrapper)', async () => {
@@ -231,6 +315,9 @@ async function main() {
     if (classifyText('foo.js') !== 'code') throw new Error('js not code');
     if (classifyText('foo.txt') !== 'text') throw new Error('txt not text');
     if (classifyText('foo.json') !== 'data') throw new Error('json not data');
+    if (classifyText('foo.csv') !== 'table') throw new Error('csv not table');
+    if (classifyText('foo.TSV') !== 'table') throw new Error('TSV not table');
+    if (classifyText('foo.XLSX') !== 'table') throw new Error('XLSX not table');
     if (classifyText('foo.pdf') !== 'pdf') throw new Error('pdf not pdf');
     if (classifyText('foo.png') !== null) throw new Error('png leaked into text');
     if (!isText('a.PY')) throw new Error('PY case-insensitive failed');
@@ -266,6 +353,37 @@ async function main() {
     // hljs escapes quotes to &quot; — pretty-print indents to multi-line.
     if (!/&quot;a&quot;/.test(html)) throw new Error('json key missing');
     if (!/data-n="3"/.test(html)) throw new Error('json not pretty-printed (no line 3)');
+  });
+
+  await test('GET /view renders CSV as a table', async () => {
+    const r = await get(port, `/view?file=${encodeURIComponent(csvPath)}`);
+    if (r.status !== 200) throw new Error(`status ${r.status}`);
+    const html = r.body.toString();
+    if (!html.includes('class="csv-table"')) throw new Error('csv table missing');
+    if (!html.includes('<th scope="col">name</th>')) throw new Error('header missing');
+    if (!html.includes('<td>quoted, comma</td>')) throw new Error('quoted comma not parsed');
+    if (!html.includes('multi\nline')) throw new Error('quoted newline not preserved');
+    if (!html.includes('>Source</a>')) throw new Error('source toggle missing');
+    if (html.includes('id="copy-btn"')) throw new Error('copy button should be hidden in table view');
+  });
+
+  await test('GET /view?file=*.csv&raw=1 bypasses table renderer', async () => {
+    const r = await get(port, `/view?file=${encodeURIComponent(csvPath)}&raw=1`);
+    if (r.status !== 200) throw new Error(`status ${r.status}`);
+    const html = r.body.toString();
+    if (html.includes('class="csv-table"')) throw new Error('table leaked into raw view');
+    if (!html.includes('language-plaintext')) throw new Error('raw csv source view missing');
+  });
+
+  await test('GET /view renders XLSX first sheet as a table', async () => {
+    const r = await get(port, `/view?file=${encodeURIComponent(xlsxPath)}`);
+    if (r.status !== 200) throw new Error(`status ${r.status}`);
+    const html = r.body.toString();
+    if (!html.includes('class="csv-table"')) throw new Error('xlsx table missing');
+    if (!html.includes('<th scope="col">Name</th>')) throw new Error('xlsx header missing');
+    if (!html.includes('<td>XLSX row</td>')) throw new Error('xlsx row missing');
+    if (!html.includes('sheet: Survey')) throw new Error('sheet name missing');
+    if (html.includes('>Source</a>')) throw new Error('source toggle should not show for xlsx');
   });
 
   await test('GET /view shows "binary" card for null-byte file', async () => {
@@ -331,6 +449,8 @@ async function main() {
     if (classifyFile('/tmp/FOO.PDF') !== 'pdf') throw new Error('uppercase PDF missed');
     if (classifyFile('/tmp/foo.pdfx') === 'pdf') throw new Error('false positive on .pdfx');
     if (classifyFile('/tmp/foo.md') !== 'markdown') throw new Error('md regression');
+    if (classifyFile('/tmp/foo.csv') !== 'table') throw new Error('csv not table');
+    if (classifyFile('/tmp/foo.xlsx') !== 'table') throw new Error('xlsx not table');
   });
 
   await test('GET /assets/pdfjs-viewer/build/pdf.worker.mjs has javascript MIME', async () => {

@@ -8,7 +8,7 @@ const url = require('url');
 
 const { renderSingleView, renderGallery, isMedia } = require('./media-renderer.cjs');
 const { renderMarkdownPage, isMarkdown } = require('./markdown-page.cjs');
-const { renderTextView, renderPdfView, renderHtmlView, classify: classifyText } = require('./text-renderer.cjs');
+const { renderTextView, renderTableView, renderPdfView, renderHtmlView, classify: classifyText } = require('./text-renderer.cjs');
 const { listDir, searchTree } = require('./tree-api.cjs');
 
 let allowedBaseDirs = [];
@@ -35,6 +35,9 @@ const MIME_TYPES = {
   '.mjs': 'application/javascript; charset=utf-8',
   '.wasm': 'application/wasm',
   '.json': 'application/json; charset=utf-8',
+  '.csv': 'text/csv; charset=utf-8',
+  '.tsv': 'text/tab-separated-values; charset=utf-8',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   '.txt': 'text/plain; charset=utf-8',
   '.properties': 'text/plain; charset=utf-8',
   '.pdf': 'application/pdf',
@@ -176,7 +179,7 @@ function createHttpServer(options) {
 
   const cssHref = '/assets/styles.css';
 
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     let parsedUrl;
     try {
       parsedUrl = url.parse(req.url, true);
@@ -226,7 +229,7 @@ function createHttpServer(options) {
         const effectiveRoot = resolveTreeRoot(parsedUrl.query, treeRoot);
         const sidebarArg = effectiveRoot ? { treeRoot: effectiveRoot, activePath: filePath } : null;
         const textKind = classifyText(filePath);
-        // ?raw=1 forces source view for kinds with a richer renderer (html, pdf).
+        // ?raw=1 forces source view for kinds with a richer renderer.
         const wantRaw = parsedUrl.query?.raw === '1';
         if (isMarkdown(filePath)) {
           sendHtml(res, 200, renderMarkdownPage(filePath, assetsDir, { sidebar: sidebarArg }));
@@ -237,6 +240,8 @@ function createHttpServer(options) {
           sendHtml(res, 200, renderHtmlView(filePath, cssHref, { sidebar: sidebarArg }));
         } else if (textKind === 'pdf' && !wantRaw) {
           sendHtml(res, 200, renderPdfView(filePath, cssHref, { sidebar: sidebarArg }));
+        } else if (textKind === 'table' && !wantRaw) {
+          sendHtml(res, 200, await renderTableView(filePath, cssHref, { sidebar: sidebarArg }));
         } else {
           // Everything else (code/text/data, html|pdf with ?raw=1, unknown ext)
           // routes through the text view; binary sniff inside shows a fallback card.

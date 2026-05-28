@@ -1,8 +1,9 @@
-// Code/text/data/pdf/html renderer. Public surface mirrors media-renderer.cjs.
+// Code/text/data/table/pdf/html renderer. Public surface mirrors media-renderer.cjs.
 
 const fs = require('fs');
 const path = require('path');
 const hljs = require('highlight.js');
+const readExcelFile = require('read-excel-file/node');
 const { renderSidebar } = require('./sidebar.cjs');
 const { withRoot, ROOT_PERSIST_HEAD_SCRIPT } = require('./url-helpers.cjs');
 
@@ -25,9 +26,12 @@ const LANG_BY_EXT = {
 };
 
 const PLAIN_TEXT_EXTS = new Set([
-  '.txt', '.log', '.csv', '.tsv', '.env', '.gitignore', '.dockerignore',
+  '.txt', '.log', '.env', '.gitignore', '.dockerignore',
   '.editorconfig', '.npmrc', '.nvmrc'
 ]);
+
+const TABLE_EXTS = new Set(['.csv', '.tsv', '.xlsx']);
+const EXCEL_EXTS = new Set(['.xlsx']);
 
 const SPECIAL_BASENAMES = {
   'dockerfile': 'dockerfile',
@@ -46,6 +50,7 @@ function classify(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === '.pdf') return 'pdf';
   if (HTML_EXTS.has(ext)) return 'html';
+  if (TABLE_EXTS.has(ext)) return 'table';
   const base = path.basename(filePath).toLowerCase();
   if (SPECIAL_BASENAMES.hasOwnProperty(base)) return 'code';
   if (LANG_BY_EXT[ext]) return ext === '.json' ? 'data' : 'code';
@@ -55,7 +60,7 @@ function classify(filePath) {
 
 function isText(filePath) {
   const k = classify(filePath);
-  return k === 'code' || k === 'text' || k === 'data';
+  return k === 'code' || k === 'text' || k === 'data' || k === 'table';
 }
 
 function detectLanguage(filePath) {
@@ -103,6 +108,89 @@ function highlightSafe(content, lang) {
 function prettyJson(content) {
   try { return JSON.stringify(JSON.parse(content), null, 2); }
   catch { return content; }
+}
+
+function parseDelimited(content, delimiter) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
+  let i = 0;
+
+  while (i < content.length) {
+    const ch = content[i];
+    if (quoted) {
+      if (ch === '"') {
+        if (content[i + 1] === '"') {
+          field += '"';
+          i += 2;
+          continue;
+        }
+        quoted = false;
+      } else {
+        field += ch;
+      }
+      i++;
+      continue;
+    }
+
+    if (ch === '"') {
+      quoted = true;
+    } else if (ch === delimiter) {
+      row.push(field);
+      field = '';
+    } else if (ch === '\n' || ch === '\r') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+      if (ch === '\r' && content[i + 1] === '\n') i++;
+    } else {
+      field += ch;
+    }
+    i++;
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  while (rows.length > 0 && rows[rows.length - 1].every((cell) => cell === '')) {
+    rows.pop();
+  }
+  return rows;
+}
+
+function formatCell(cell) {
+  if (cell === null || cell === undefined) return '';
+  if (cell instanceof Date) return cell.toISOString();
+  return String(cell);
+}
+
+function rowsToTableHtml(rows, meta = {}) {
+  if (rows.length === 0) {
+    return '<p class="empty">Empty table.</p>';
+  }
+
+  const columnCount = Math.max(...rows.map((row) => row.length));
+  const rawHeaders = rows[0] || [];
+  const headers = Array.from({ length: columnCount }, (_, i) => formatCell(rawHeaders[i]) || `Column ${i + 1}`);
+  const bodyRows = rows.slice(1);
+  const tableHead = headers.map((h) => `<th scope="col">${esc(h)}</th>`).join('');
+  const tableBody = bodyRows.map((row) => {
+    const cells = Array.from({ length: columnCount }, (_, i) => `<td>${esc(formatCell(row[i]))}</td>`).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+  const sheet = meta.sheet ? ` · sheet: ${esc(meta.sheet)}` : '';
+  return `
+    <p class="table-meta">${bodyRows.length.toLocaleString()} rows · ${columnCount.toLocaleString()} columns${sheet}</p>
+    <div class="table-wrap">
+      <table class="csv-table">
+        <thead><tr>${tableHead}</tr></thead>
+        <tbody>${tableBody}</tbody>
+      </table>
+    </div>`;
 }
 
 function renderLineNumbers(highlighted) {
@@ -170,6 +258,52 @@ body.single.text > main.stage {
   color: var(--fg-muted);
 }
 .text-binary a, .text-toolarge a { color: var(--accent); text-decoration: underline; }
+.table-meta {
+  max-width: 100%;
+  margin: 0 0 0.75rem;
+  color: var(--fg-muted);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+.table-wrap {
+  width: max-content;
+  max-width: none;
+  min-width: min(100%, 760px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elev);
+  overflow: auto;
+}
+.csv-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  font-size: 13px;
+}
+.csv-table th,
+.csv-table td {
+  max-width: 34rem;
+  padding: 0.42rem 0.6rem;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.csv-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-elev);
+  color: var(--text-heading);
+  font-weight: 650;
+  white-space: nowrap;
+}
+.csv-table tr:last-child td { border-bottom: 0; }
+.csv-table th:last-child,
+.csv-table td:last-child { border-right: 0; }
+.csv-table tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--bg-elev) 84%, var(--bg) 16%); }
 `;
 
 function buildPage(name, filePath, cssHref, body, opts = {}) {
@@ -181,6 +315,9 @@ function buildPage(name, filePath, cssHref, body, opts = {}) {
   // and drops the Copy button — copying markup isn't a common need there.
   const renderHref = opts.htmlSource
     ? withRoot(`/view?file=${encodeURIComponent(filePath)}`, treeRoot)
+    : null;
+  const sourceHref = opts.sourceView
+    ? withRoot(`/view?file=${encodeURIComponent(filePath)}&raw=1`, treeRoot)
     : null;
   return `<!doctype html>
 <html lang="en">
@@ -203,7 +340,8 @@ function buildPage(name, filePath, cssHref, body, opts = {}) {
     <a class="btn" href="${esc(folderHref)}" title="Folder (Esc)">← Folder</a>
     <h1 class="title" title="${esc(filePath)}">${esc(name)}</h1>
     <span class="spacer"></span>
-    ${opts.htmlSource ? '' : '<button class="btn" id="copy-btn" type="button" title="Copy file contents">Copy</button>'}
+    ${opts.htmlSource || opts.hideCopy ? '' : '<button class="btn" id="copy-btn" type="button" title="Copy file contents">Copy</button>'}
+    ${sourceHref ? `<a class="btn" href="${esc(sourceHref)}" title="Show source">Source</a>` : ''}
     ${renderHref ? `<a class="btn" href="${esc(renderHref)}" title="Render HTML">Render</a>` : ''}
     <a class="btn" href="/file${esc(filePath)}?raw=1" target="_blank" rel="noopener noreferrer" title="Open raw">Raw</a>
   </header>
@@ -271,6 +409,56 @@ function renderTextView(filePath, cssHref, opts = {}) {
     <pre><code class="${langClass} hljs">${withLines}</code></pre>
   </div>`;
   return buildPage(name, filePath, cssHref, body, { ...opts, htmlSource: kind === 'html' });
+}
+
+async function readExcelRows(filePath) {
+  const sheets = await readExcelFile(filePath);
+  const firstSheet = sheets && sheets[0];
+  if (!firstSheet) return { rows: [], sheet: null };
+  return { rows: firstSheet.data || [], sheet: firstSheet.sheet || null };
+}
+
+async function renderTableView(filePath, cssHref, opts = {}) {
+  const name = path.basename(filePath);
+  const ext = path.extname(filePath).toLowerCase();
+
+  if (EXCEL_EXTS.has(ext)) {
+    let rows;
+    let sheet;
+    try {
+      ({ rows, sheet } = await readExcelRows(filePath));
+    } catch (err) {
+      const body = `<div class="text-toolarge">
+        <p><strong>${esc(name)}</strong> could not be rendered as a workbook.</p>
+        <p>${esc(err.message)}</p>
+        <p><a href="/file${esc(filePath)}?raw=1" target="_blank" rel="noopener noreferrer">Open raw</a></p>
+      </div>`;
+      return buildPage(name, filePath, cssHref, body, opts);
+    }
+    return buildPage(name, filePath, cssHref, rowsToTableHtml(rows, { sheet }), { ...opts, hideCopy: true });
+  }
+
+  const r = readFileForRender(filePath);
+
+  if (r.binary) {
+    const body = `<div class="text-binary">
+      <p><strong>${esc(name)}</strong> looks binary.</p>
+      <p><a href="/file${esc(filePath)}?raw=1" target="_blank" rel="noopener noreferrer">Open raw</a></p>
+    </div>`;
+    return buildPage(name, filePath, cssHref, body, opts);
+  }
+  if (r.tooLarge) {
+    const mb = (r.size / 1024 / 1024).toFixed(1);
+    const body = `<div class="text-toolarge">
+      <p><strong>${esc(name)}</strong> is ${mb} MB — too large to render.</p>
+      <p><a href="/file${esc(filePath)}?raw=1" target="_blank" rel="noopener noreferrer">Open raw</a></p>
+    </div>`;
+    return buildPage(name, filePath, cssHref, body, opts);
+  }
+
+  const delimiter = ext === '.tsv' ? '\t' : ',';
+  const rows = parseDelimited(r.text, delimiter);
+  return buildPage(name, filePath, cssHref, rowsToTableHtml(rows), { ...opts, hideCopy: true, sourceView: true });
 }
 
 // Sandboxed iframe so the page's scripts/styles can't reach the chrome.
@@ -381,9 +569,12 @@ module.exports = {
   detectLanguage,
   sniffBinary,
   renderTextView,
+  renderTableView,
   renderPdfView,
   renderHtmlView,
   LANG_BY_EXT,
   PLAIN_TEXT_EXTS,
+  TABLE_EXTS,
+  EXCEL_EXTS,
   HTML_EXTS
 };
