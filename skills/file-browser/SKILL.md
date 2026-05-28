@@ -1,11 +1,11 @@
 ---
 name: file-browser
-description: "Local HTTP server that renders markdown, code, text, JSON, HTML, PDF, images, video, and audio in the browser. Persistent left tree sidebar with vim keybindings (j/k/h/l/gg/G/Enter/o), filter (/), theme toggle (T), and folder open/collapse persistence per tab. Markdown dispatches to a novel-theme reader (Mermaid, plan nav, ToC scroll-spy); code/text dispatches to a highlight.js view with line numbers + copy button; HTML renders in a sandboxed iframe; PDF dispatches to a custom minimal viewer built on the pdfjs-dist PDFViewer component (toolbar: prev/next, page input, zoom, search, download); images/video/audio get a gallery + single-view with Range-aware streaming. One server, one port, one CLI."
+description: "Local HTTP server that renders markdown, code, text, JSON, CSV/TSV/XLSX tables, HTML, PDF, images, video, and audio in the browser. Persistent left tree sidebar with vim keybindings (j/k/h/l/gg/G/Enter/o), filter (/), theme toggle (T), and folder open/collapse persistence per tab. Markdown dispatches to a novel-theme reader (Mermaid, plan nav, ToC scroll-spy); code/text dispatches to a highlight.js view with line numbers + copy button; CSV/TSV/XLSX dispatches to a tabular view; HTML renders in a sandboxed iframe; PDF dispatches to a custom minimal viewer built on the pdfjs-dist PDFViewer component (toolbar: prev/next, page input, zoom, search, download); images/video/audio get a gallery + single-view with Range-aware streaming. One server, one port, one CLI."
 license: MIT
 argument-hint: "[file-or-directory]"
 metadata:
   author: vanducng
-  version: "0.5.0"
+  version: "0.5.1"
 ---
 
 # file-browser
@@ -18,7 +18,7 @@ One local HTTP server, one port, one CLI — handles markdown, images, video, an
 cd $HOME/skills/skills/file-browser && npm install
 ```
 
-**Dependencies:** `marked`, `highlight.js`, `gray-matter` (markdown), `pdfjs-dist` (PDF viewer). Media rendering is zero-dep — browser does the work.
+**Dependencies:** `marked`, `highlight.js`, `gray-matter` (markdown), `pdfjs-dist` (PDF viewer), `read-excel-file` (XLSX tables). Media rendering is zero-dep — browser does the work.
 
 `npm install` runs a `postinstall` hook that copies pdfjs-dist runtime deps (worker, cmaps, fonts, wasm helpers) from `node_modules/pdfjs-dist/` into `assets/pdfjs-viewer/`. If you ran `npm install --ignore-scripts`, populate the assets manually:
 
@@ -61,17 +61,17 @@ node $HOME/skills/skills/file-browser/scripts/server.cjs --stop
 
 | Route | Description |
 |---|---|
-| `/view?file=<abs-path>` | **Dispatches by extension.** `.md/.markdown/.mdx` → novel-theme markdown reader (Mermaid, plan nav, ToC). `.pdf` → custom PDF.js viewer iframe. Image/video/audio → media single-view with arrow-key prev/next. Append `?raw=1` to fall through to source view. |
-| `/browse?dir=<abs-path>` | Gallery: folders, Documents (markdown + PDF), Media (image/video/audio), Other files. |
+| `/view?file=<abs-path>` | **Dispatches by extension.** `.md/.markdown/.mdx` → novel-theme markdown reader (Mermaid, plan nav, ToC). `.csv/.tsv/.xlsx` → tabular data view. `.pdf` → custom PDF.js viewer iframe. Image/video/audio → media single-view with arrow-key prev/next. Append `?raw=1` to fall through to source view. |
+| `/browse?dir=<abs-path>` | Gallery: folders, Documents (markdown + PDF + CSV/TSV/XLSX), Media (image/video/audio), Other files. |
 | `/file/<abs-path>` | Raw byte streaming with HTTP `Range` support (required for video seeking and Safari audio). |
-| `/api/tree?dir=<abs-path>` | Lazy directory listing (one level) for the sidebar tree. Returns JSON `{path, entries[]}` where each entry has `{name, path, kind: dir\|file, fileType?: markdown\|pdf\|image\|video\|audio\|other}`. |
+| `/api/tree?dir=<abs-path>` | Lazy directory listing (one level) for the sidebar tree. Returns JSON `{path, entries[]}` where each entry has `{name, path, kind: dir\|file, fileType?: markdown\|pdf\|table\|image\|video\|audio\|other}`. |
 | `/assets/*` | Static assets (theme CSS, reader JS, sidebar JS). |
 | `/assets/pdfjs-viewer/*` | Custom PDF viewer + pdfjs-dist runtime deps (populated by `postinstall`). |
 | `/` | Welcome / route reference. |
 
 ## Supported Formats
 
-**Documents:** `.md`, `.markdown`, `.mdx` (rendered with [marked](https://marked.js.org/) + `highlight.js` + Mermaid), `.pdf` (custom minimal viewer wrapping the pdfjs-dist `PDFViewer` component)
+**Documents:** `.md`, `.markdown`, `.mdx` (rendered with [marked](https://marked.js.org/) + `highlight.js` + Mermaid), `.csv`, `.tsv`, `.xlsx` (tabular data view; XLSX renders the first worksheet), `.pdf` (custom minimal viewer wrapping the pdfjs-dist `PDFViewer` component)
 **Images:** PNG, JPEG, GIF, WebP, AVIF, SVG, BMP, ICO, HEIC/HEIF (Safari only), JPEG XL, APNG
 **Video:** MP4, WebM, MOV, M4V, MKV*, OGV
 **Audio:** MP3, M4A, AAC, OGG, Opus, WAV, FLAC

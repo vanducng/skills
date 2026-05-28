@@ -5,6 +5,7 @@ const path = require('path');
 
 const MD_EXTS = new Set(['.md', '.markdown', '.mdx']);
 const PDF_EXTS = new Set(['.pdf']);
+const TABLE_EXTS = new Set(['.csv', '.tsv', '.xlsx']);
 const IMAGE_EXTS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif',
   '.svg', '.bmp', '.ico', '.heic', '.heif', '.jxl', '.apng'
@@ -16,6 +17,7 @@ function classifyFile(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   if (MD_EXTS.has(ext)) return 'markdown';
   if (PDF_EXTS.has(ext)) return 'pdf';
+  if (TABLE_EXTS.has(ext)) return 'table';
   if (IMAGE_EXTS.has(ext)) return 'image';
   if (VIDEO_EXTS.has(ext)) return 'video';
   if (AUDIO_EXTS.has(ext)) return 'audio';
@@ -120,4 +122,4 @@ function searchTree(rootDir, query, opts = {}) {
   return { dir: rootDir, query, results, visited, truncated };
 }
 
-module.exports = { listDir, searchTree, classifyFile, MD_EXTS, PDF_EXTS, IMAGE_EXTS, VIDEO_EXTS, AUDIO_EXTS };
+module.exports = { listDir, searchTree, classifyFile, MD_EXTS, PDF_EXTS, TABLE_EXTS, IMAGE_EXTS, VIDEO_EXTS, AUDIO_EXTS };
