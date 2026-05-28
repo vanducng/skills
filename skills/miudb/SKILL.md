@@ -50,13 +50,16 @@ go install github.com/vanducng/miu-db/cmd/miudb@v0.2.0-go.5
 `miudb` uses a native Go store by default:
 
 ```text
-~/.config/miudb/connections.json
-~/.config/miudb/credentials.json
+~/.config/miu/db/connections.json
+~/.config/miu/db/credentials.json
 ```
 
 Sensitive values are classified before persistence. New database and SSH
 passwords are stored outside `connections.json` by default using the OS
 Keychain/keyring service named `miudb`.
+
+For migrated configs, `miudb` reads `credentials-export.json` from the same
+directory when `credentials.json` is absent.
 
 Only pass `--config-dir`, `--connections-file`, `--credentials-file`,
 `--secret-source`, or `--keyring-service` when the user asks for a non-default
