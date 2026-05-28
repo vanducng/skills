@@ -5,6 +5,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 ## [Unreleased]
 
 ### Added
+- `skills/file-browser/` — CSV/TSV/XLSX files now render as tabular data in `/view` instead of falling through to source text. CSV/TSV parsing handles quoted commas and quoted newlines; XLSX renders the first worksheet using `read-excel-file`. Gallery, sidebar tree classification, MIME types, docs, and smoke tests were updated for table files.
 - `skills/sqlit/` — scriptable CLI wrapper over the `sqlit` binary for ad-hoc SQL against any saved connection (BigQuery, Postgres, MySQL, MSSQL, SQLite, Snowflake, DuckDB). Encodes the shell-quoting gotcha (single-quote SQL with backticks so the shell doesn't eat them), the bare-`sqlit` TUI hazard, per-dialect metadata recipes, and the failure-mode → cause map. Lets `vd:` workflows hit databases without re-deriving these rules each time.
 
 ### Fixed
