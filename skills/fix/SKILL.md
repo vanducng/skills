@@ -68,35 +68,46 @@ Detect mode from the argument; announce in your first reply.
 2. Diagnose         ── activate /vd:debug; structured root-cause analysis; capture pre-fix evidence
   │
   ▼
-3. Pick playbook    ── data-pipeline | app-stack | infra | generic
+3. Assess scope     ── quick | standard | deep | parallel; decide how much process is warranted
   │
   ▼
-4. Apply fix        ── at root cause, minimal change, existing patterns
+4. Pick playbook    ── data-pipeline | app-stack | infra | generic
   │
   ▼
-5. Verify + prevent ── rerun the exact failing command; add regression test; add defense-in-depth guard
+5. Apply fix        ── at root cause, minimal change, existing patterns
   │
   ▼
-6. Finalize         ── report; offer commit via /vd:ship or git; offer /vd:journal
+6. Verify + prevent ── exact rerun; blast-radius sweep; regression guard; contract check
+  │
+  ▼
+7. Finalize         ── report; offer commit via /vd:ship or git; offer /vd:journal
 ```
 
 ### 1. Scout (mandatory)
 
 - Activate `/vd:scout` OR launch 2–3 parallel `Explore` subagents.
-- Discover: affected files/models/manifests, direct dependencies, related tests, recent git changes (`git log -p -- <path>`).
+- Discover: project type/language/framework, affected files/models/manifests, direct callers/dependents, related tests, recent git changes (`git log -p -- <path>`), and local patterns for similar fixes.
 - Read `./docs` if the project is unfamiliar.
 - **Quick mode:** just locate the file(s) + immediate deps.
+- If you need to ask a clarifying question, ask it after this scan and ground it in concrete files, logs, commits, or functions you found.
 
 Output: `✓ Scouted — N files, M deps, K tests`
 
 ### 2. Diagnose (mandatory)
 
-**Activate `/vd:debug`** for systematic-debugging + root-cause-tracing. Don't restate the debug skill here — call it.
+**Activate `/vd:debug`** for systematic-debugging + root-cause-tracing. Don't restate the debug skill here — call it. Use `references/diagnosis-protocol.md` when the cause is not immediately proven.
 
 Required outputs from this step:
 - **Pre-fix evidence captured**: exact error, failing command, stack trace, log snippet, dbt run-results, kubectl events, `terraform plan` output — whatever applies. This is the baseline for Step 5.
 - **Confirmed root cause** with an evidence chain (not just a hypothesis).
-- **Scope**: which files/models/resources need to change.
+- **Root-cause checklist** in concrete sentences:
+  - Exact symptom: copy the precise error/failing assertion/observed behavior.
+  - Reproduction: minimal command, input, environment, or workflow that triggers it.
+  - Expected vs actual: what should happen, and what does happen.
+  - Root cause: the specific line, missing guard, race, contract violation, bad data shape, or design flaw.
+  - Why now: recent commit, dependency/env change, data shape, timing, or load condition that exposed it.
+  - Blast radius: callers, downstream models, user flows, jobs, resources, or public contracts sharing the same cause.
+- **Scope**: which files/models/resources need to change, and which dependent paths must be checked for side effects.
 
 If 2+ hypotheses fail → broaden context, re-scout, consider that the *real* cause is upstream/downstream of where the symptom appears.
 
@@ -104,7 +115,18 @@ If you can't get to a confirmed cause in reasonable time → STOP, report what y
 
 Output: `✓ Diagnosed — root cause: …, evidence: …, scope: N files`
 
-### 3. Pick playbook
+### 3. Assess scope
+
+Classify the fix after scouting and diagnosis, then choose how much workflow to run:
+
+| Scope | Indicators | Behavior |
+|---|---|---|
+| **Quick** | Single file, clear type/lint/syntax error, root cause obvious from evidence | Minimal scout + diagnose; exact rerun; type/lint/build verification as relevant. |
+| **Standard** | 2–5 files, user-visible bug, test failure, multi-step but local cause | Full loop: playbook, fix, adjacent tests, blast-radius sweep, regression guard. |
+| **Deep** | 5+ files, architecture/design impact, perf/security risk, data/infra cross-surface issue | Pause before broad changes unless `--auto`; consider `/vd:brainstorm` or `/vd:plan`; verify across every affected surface. |
+| **Parallel** | 2+ independent issues or independent affected surfaces | Split by issue/surface, diagnose separately, then run integration verification once all fixes land. |
+
+### 4. Pick playbook
 
 Match the surface; load the matching reference. If multiple surfaces apply (e.g. a dbt model failure caused by a Terraform-managed warehouse role), use both. Load lazily — don't preload all playbooks.
 
@@ -115,7 +137,7 @@ Match the surface; load the matching reference. If multiple surfaces apply (e.g.
 | CI/CD / Terraform / K8s | `references/playbook-infra.md` |
 | Doesn't fit cleanly | `references/playbook-generic.md` |
 
-### 4. Apply fix
+### 5. Apply fix
 
 See `references/apply-fix.md`. Highlights:
 - Fix the **root cause**, not the symptom.
@@ -123,17 +145,19 @@ See `references/apply-fix.md`. Highlights:
 - Follow existing patterns in the affected module.
 - Compile / type-check / lint after each file, not at the end.
 
-### 5. Verify + prevent (mandatory)
+### 6. Verify + prevent (mandatory)
 
 See `references/verify-and-prevent.md`. Highlights:
 - **Verify with fresh evidence**: rerun the EXACT failing command from Step 2. Compare output. No claims without showing the rerun.
+- **Side-effect sweep**: run tests/checks for modified files plus transitively affected modules or downstream resources from the blast-radius list. Manually walk critical flows when no automated check exists.
+- **Contract check**: confirm public API contracts, exported function signatures/types, response shapes, DB schemas, metric definitions, env vars, Terraform outputs, and job/DAG schedules are unchanged — or call out the intentional change and migration path.
 - **Regression test**: add or update a test/check that fails without the fix and passes with it. dbt → add or fix a test; Airflow → add a sensor / assertion; Terraform → add a `terraform validate`/CI guardrail; backend → unit + integration; frontend → component test + e2e if the bug was reachable from the UI.
 - **Defense-in-depth**: where applicable, add a guard at a layer above the bug (schema constraint, type narrowing, K8s probe, CI check) so the same class can't recur silently.
 - **Verification loop**: if it fails, back to Step 2. After **3 failed verification cycles → stop and question architecture**, surface to user.
 
 Output: `✓ Verified + prevented — before/after attached, N tests added, M guards added`
 
-### 6. Finalize
+### 7. Finalize
 
 1. Print a compact report: confidence, root cause, files touched, evidence summary, regression-guard summary.
 2. Update `./docs` only if the change affects shared docs (codebase-summary / architecture / standards). Skip otherwise.
@@ -163,8 +187,9 @@ Output: `✓ Verified + prevented — before/after attached, N tests added, M gu
 
 | Reference | Load when |
 |---|---|
+| `references/diagnosis-protocol.md` | Step 2; cause is not immediately proven |
 | `references/apply-fix.md` | About to make code/config changes |
-| `references/verify-and-prevent.md` | Step 5; always |
+| `references/verify-and-prevent.md` | Step 6; always |
 | `references/playbook-data-pipeline.md` | Airflow / dbt / freshness / schema drift |
 | `references/playbook-app-stack.md` | Backend service, API, frontend, deploy |
 | `references/playbook-infra.md` | CI/CD, Terraform, K8s, secrets |

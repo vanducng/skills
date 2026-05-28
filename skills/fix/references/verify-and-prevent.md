@@ -22,7 +22,9 @@ Memory of "I think it should work now" is not evidence. Re-execute. Capture outp
    - K8s: `kubectl rollout restart` (if config-driven); `kubectl get pods -w` for stability; `kubectl logs --previous` to confirm no new crash loop.
 2. **Compare to baseline.** State both sides: before = exact error string; after = exact success output. If the "after" is qualitatively different (different log line, different status, different shape), say so — partial fix is not full fix.
 3. **Run adjacent suites** that touch the same module. dbt → run downstream tests (`+model_name`). Backend → run the package's test file, not just the single test. Frontend → run e2e for the affected flow if one exists.
-4. **Parallel verification** when possible: typecheck + lint + unit + build in parallel `Bash` invocations.
+4. **Sweep the blast radius** identified during diagnosis. Run tests/checks for modified files plus transitively affected modules, downstream models, workflows, jobs, or resources. When no automated test exists, manually walk the critical path and report that evidence.
+5. **Check public contracts.** Confirm function signatures, exported types, API request/response shapes, DB schemas, semantic metrics, env vars, Terraform outputs, K8s labels/selectors, and DAG/job schedules are unchanged. If a contract change is intentional, call it out with the migration or rollout path.
+6. **Parallel verification** when possible: typecheck + lint + unit + build in parallel `Bash` invocations.
 
 If verification fails → back to Step 2 (re-diagnose with the new evidence). **3 failed verification cycles → STOP**, surface to the user, question whether the architecture / approach is wrong.
 
@@ -59,6 +61,8 @@ One layer up is enough. Don't add five guards; pick the one that gives the most 
 
 - [ ] Baseline command reran; output captured and compared.
 - [ ] Adjacent suites pass.
+- [ ] Blast-radius side-effect sweep completed.
+- [ ] Public contracts unchanged, or intentional changes documented with migration path.
 - [ ] Regression guard added (or `--no-prevent` with explicit user OK and a follow-up ticket).
 - [ ] Defense-in-depth considered; added where cheap.
 - [ ] No new TODOs about the fix itself.
