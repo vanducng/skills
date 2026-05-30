@@ -86,8 +86,9 @@ In `--deep` mode, additionally produce:
 
 ### Where to save
 
-Default: `./research-{topic-slug}-{YYYYMMDD}.md` in the current working directory.
-If the user provided an output path, use that instead.
+Default: `./plans/reports/research-{topic-slug}-{YYYYMMDD}.md` from the current
+working directory. Create `plans/reports/` before writing the report. If the
+user provided an output path, use that instead.
 
 ### Template (default mode)
 
@@ -193,7 +194,8 @@ How much pain to switch off Option X 12 months in. This is the lock-in cost.
 
 ## Output rules
 
-1. Save to the path described in "Where to save"
+1. Save to the path described in "Where to save"; do not write research reports
+   into the repository root unless the user explicitly asks for that path
 2. Open with TL;DR — recommendation, runner-up, avoid — before anything else
 3. Comparison matrix is non-optional in any mode
 4. Code blocks get language tags

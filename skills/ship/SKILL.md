@@ -68,6 +68,12 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 6. **Skip silently when a step doesn't apply.** No version file → skip version bump. No CHANGELOG → skip changelog. No test runner detected → ask once, then skip.
 7. **No secrets in commits.** Scan staged diff for API keys / tokens / passwords before commit. If found: stop, warn, suggest `.gitignore`.
 8. **`--auto` has a safety floor.** Even in auto mode, stop on: critical review issues, **unresolved PR review comments**, secret-scan hits, test failures, merge conflicts, push rejections, ambiguous mode (no branch-name match). Auto suppresses *judgement-call* prompts (issue creation, version bump level, no-test-runner, journal/docs skip) **and recoverable preflight conditions** (on-target-branch → auto-create feature branch per Rule 1). Auto NEVER suppresses safety violations or direct-push-to-target.
+9. **Ticket branch/title invariant.** If the work is tied to Jira, Linear,
+   Shortcut, GitHub issue, or another tracker key, the branch must start with
+   the ticket key before Step 12 creates/updates the PR, and the PR title must
+   be `KEY-123: <past-tense description>`. If the current branch is a generic
+   slug (`feat/foo`, `2ndphone`, etc.), rename it before push/PR; do not open a
+   PR and fix the name later.
 
 ## Pipeline
 
