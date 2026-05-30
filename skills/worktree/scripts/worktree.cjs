@@ -40,6 +40,31 @@ function sanitizeBranchPrefix(value) {
   return safe || 'feat';
 }
 
+function extractIssueKey(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+
+  const urlMatch = raw.match(/(?:browse\/|issues?\/|ticket\/)([A-Z][A-Z0-9]+-\d+)\b/i);
+  if (urlMatch) return urlMatch[1].toUpperCase();
+
+  const keyMatch = raw.match(/\b([A-Z][A-Z0-9]+-\d+)\b/i);
+  if (!keyMatch) return null;
+
+  return keyMatch[1].toUpperCase();
+}
+
+function shouldUseIssueKeyAsBranchName(rawFeature, issueKey) {
+  if (!issueKey) return false;
+  const raw = String(rawFeature || '').trim();
+  if (!raw) return false;
+
+  if (raw.toUpperCase() === issueKey) return true;
+  if (/https?:\/\//i.test(raw)) return true;
+  if (/\s/.test(raw)) return true;
+
+  return false;
+}
+
 function isSafeEnvFileName(fileName) {
   if (!fileName || typeof fileName !== 'string') return false;
   if (fileName.includes('\0')) return false;
@@ -964,20 +989,34 @@ function cmdCreate() {
     }
   }
 
+  // Ticket-driven work (Jira, Linear, etc.) should keep the ticket key as the
+  // branch name when the caller passes a ticket key/URL or natural-language
+  // ticket task. Exact branch names like "ABC-123-some-slug" remain opt-in via
+  // --no-prefix so established team branch conventions are still possible.
+  const issueKey = extractIssueKey(feature);
+  const useIssueKeyAsBranch = !noPrefix && shouldUseIssueKeyAsBranchName(feature, issueKey);
+  const featureForBranch = useIssueKeyAsBranch ? issueKey : feature;
+  const preserveBranchCase = noPrefix || useIssueKeyAsBranch;
+
   // Sanitize feature name
-  const sanitizedFeature = sanitizeFeatureName(feature, noPrefix);
+  const sanitizedFeature = sanitizeFeatureName(featureForBranch, preserveBranchCase);
   if (!sanitizedFeature) {
     outputError('INVALID_FEATURE_NAME', 'Feature name became empty after sanitization', {
       suggestion: 'Use letters/numbers in feature name (example: "login-validation")'
     });
   }
-  const expectedFeature = noPrefix ? feature.replace(/\s+/g, '-') : feature.toLowerCase().replace(/\s+/g, '-');
+  const expectedFeature = preserveBranchCase
+    ? featureForBranch.replace(/\s+/g, '-')
+    : featureForBranch.toLowerCase().replace(/\s+/g, '-');
   if (sanitizedFeature !== expectedFeature) {
-    warnings.push(`Feature name sanitized: "${feature}" → "${sanitizedFeature}"`);
+    warnings.push(`Feature name sanitized: "${featureForBranch}" → "${sanitizedFeature}"`);
+  }
+  if (useIssueKeyAsBranch) {
+    warnings.push(`Ticket key detected: "${issueKey}" → branch "${sanitizedFeature}"`);
   }
 
-  // Create branch name — --no-prefix uses sanitized feature as-is
-  const branchName = noPrefix ? sanitizedFeature : `${branchPrefix}/${sanitizedFeature}`;
+  // Create branch name — --no-prefix and ticket-key mode use sanitized feature as-is
+  const branchName = preserveBranchCase ? sanitizedFeature : `${branchPrefix}/${sanitizedFeature}`;
 
   // Handle --base validation errors
   if (explicitBaseError) {

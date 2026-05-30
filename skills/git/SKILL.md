@@ -83,7 +83,17 @@ PR titles flip to **past tense (v-ed)** — they narrate what the branch did, no
 - ✅ `PRJ-123: fixed session leak on logout`
 - ❌ `feat(auth): add OAuth2 provider` (imperative — that's for commits)
 
-Branch with ticket prefix (`PRJ-123-...`) → title `PRJ-123: <v-ed description>`. See `references/workflow-pr.md`.
+Ticket-driven work is authoritative:
+- If the task references Jira, Linear, Shortcut, GitHub issue, or another ticket
+  key (`PRJ-123`), the branch must start with that key before creating/updating
+  a PR.
+- Prefer branch exactly `PRJ-123` unless the user explicitly provides a longer
+  team convention such as `PRJ-123-short-slug`.
+- If the current branch does not contain the ticket key, rename it before PR
+  creation (`git branch -m PRJ-123 && git push -u origin PRJ-123`), then delete
+  the old remote branch if it was pushed accidentally.
+- Branch with ticket prefix (`PRJ-123` or `PRJ-123-...`) → PR title
+  `PRJ-123: <v-ed description>`. See `references/workflow-pr.md`.
 
 ## Split decision (commit)
 

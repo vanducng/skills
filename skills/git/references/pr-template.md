@@ -100,6 +100,21 @@ PR titles flip to **past tense (v-ed)** — they narrate what the branch did, no
 - **Types** (when no ticket): `feat` | `fix` | `refactor` | `perf` | `docs` | `test` | `chore` | `ci` | `build`
 - **Scope:** dominant top-level changed dir
 
+### Ticket branch/title invariant
+
+When work is associated with Jira, Linear, Shortcut, GitHub issue, or another
+tracker key:
+
+1. Extract the key from the request, ticket URL, branch, or commits
+   (`[A-Z][A-Z0-9]+-[0-9]+` for Jira-style keys).
+2. Ensure the PR branch starts with that key before opening/updating the PR.
+   Prefer the exact key (`PRJ-123`) unless the user explicitly gave a longer
+   convention (`PRJ-123-short-slug`).
+3. Use the same key in the PR title: `PRJ-123: <past-tense description>`.
+
+If the branch lacks the key, fix the branch first; do not compensate with only a
+ticket-prefixed title.
+
 ### Verb form
 
 | Form | OK? | Example |

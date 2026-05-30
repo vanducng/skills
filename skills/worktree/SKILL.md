@@ -48,9 +48,31 @@ Parse: `repoType`, `baseBranch`, `projects`, `worktreeRoot`, `worktreeRootSource
 
 ### Step 2 — Decide branch name
 
+**Ticket-driven work is authoritative.** If the task is tied to a Jira,
+Linear, Shortcut, GitHub issue, or similar ticket, extract the issue key first
+and use it as the branch name before any slug/prefix logic:
+- Jira URL `https://teamcnb.atlassian.net/browse/ELT-3267` → branch `ELT-3267`
+- Text `fix ELT-3267 transfer phones` → branch `ELT-3267`
+- Bare key `ELT-3267` → branch `ELT-3267`
+
+Run the create command with `--no-prefix` for ticket branches:
+
+```bash
+node $HOME/skills/skills/worktree/scripts/worktree.cjs create "ELT-3267" --no-prefix
+```
+
 **Use `--no-prefix` (skip Step 3) when the caller supplies an exact branch name** — e.g., it contains uppercase letters, an issue-tracker key, or slashes used as a convention:
 - `ND-1377-cleanup-docs` → `--no-prefix` → branch `ND-1377-cleanup-docs`
 - `kai/feat/604-startup-option` → `--no-prefix` → branch `kai/feat/604-startup-option`
+
+**If a ticket is discovered after a non-ticket worktree already exists** (for
+example the user first says `2ndphone`, then provides Jira `ELT-3267`), rename
+the current branch before shipping or opening a PR:
+
+```bash
+git branch -m ELT-3267
+git push -u origin ELT-3267
+```
 
 **Otherwise detect prefix from the description:**
 
