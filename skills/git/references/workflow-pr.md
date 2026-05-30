@@ -34,6 +34,35 @@ git diff origin/$TO...origin/$FROM --name-only
 **If "branch not on remote":** push first (`git push -u origin HEAD`), retry.
 **If empty diff:** warn "no changes between $FROM and $TO — nothing to PR" and abort.
 
+## Tool 1b — Ticket branch guard
+
+Before creating or editing a PR, detect issue keys from the user request,
+branch name, commit subjects, and PR body context:
+
+```bash
+TICKET=$(printf '%s\n' "$USER_REQUEST" "$FROM" "$(git log origin/$TO...origin/$FROM --format=%s)" \
+  | grep -Eio '[A-Z][A-Z0-9]+-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]')
+```
+
+If `TICKET` is non-empty and `FROM` does not start with that key, **rename the
+branch before PR creation**:
+
+```bash
+git branch -m "$TICKET"
+git push -u origin "$TICKET"
+```
+
+If the old branch was already pushed and has no open PR that should remain,
+delete it after the replacement PR exists:
+
+```bash
+git push origin --delete "$FROM"
+```
+
+Do not open a PR from a non-ticket branch when the work is clearly tied to a
+ticket. This avoids later PR replacement churn and keeps branch naming, PR title,
+and Jira/Linear traceability aligned.
+
 ## Tool 2 — Generate content
 
 **Title + body rules** live in `pr-template.md` — the canonical PR convention shared with `/vd:ship`. Load it for:

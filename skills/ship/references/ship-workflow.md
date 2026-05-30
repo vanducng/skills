@@ -41,6 +41,41 @@
 5. `git diff <target>...HEAD --stat` and `git log <target>..HEAD --oneline` to summarize what's shipping.
 6. If `--dry-run`: print every step's intent, change nothing, stop here.
 
+### Step 1b: Ticket branch guard
+
+If the user request, active task, branch name, or commits reference a ticket
+key, preserve that key through branch and PR naming.
+
+Detect common tracker keys:
+
+```bash
+CURRENT_BRANCH=$(git branch --show-current)
+TICKET=$(
+  printf '%s\n' "$USER_REQUEST" "$CURRENT_BRANCH" "$(git log --format=%s -20)" \
+    | grep -Eio '[A-Z][A-Z0-9]+-[0-9]+' \
+    | head -1 \
+    | tr '[:lower:]' '[:upper:]'
+)
+```
+
+If `TICKET` is non-empty and `CURRENT_BRANCH` does not start with it, rename the
+branch before Step 11/12:
+
+```bash
+git branch -m "$TICKET"
+```
+
+If the old branch was already pushed, push the ticket branch and delete the old
+remote only after the replacement PR exists:
+
+```bash
+git push -u origin "$TICKET"
+git push origin --delete "$CURRENT_BRANCH"
+```
+
+Do not create a PR from a generic branch when a ticket is known. The PR title in
+Step 12 must use the same ticket key: `TICKET: <past-tense summary>`.
+
 ## Step 2: Link issues
 
 1. Search related open issues (keywords from branch + commits):
