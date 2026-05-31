@@ -33,6 +33,7 @@ from validation import ExpectedLayout, validate_and_fix
 SUPPORTED_TYPES = [
     "system-architecture",
     "data-flow",
+    "workflow",
     "sequence",
     "er-diagram",
     "state-machine",
@@ -43,6 +44,8 @@ SUPPORTED_TYPES = [
 TYPE_ALIASES = {
     "arch": "system-architecture",
     "flow": "data-flow",
+    "wf": "workflow",
+    "process": "workflow",
     "seq": "sequence",
     "er": "er-diagram",
     "state": "state-machine",
@@ -58,6 +61,7 @@ SUPPORTED_ENGINES = ["free", "skeleton"]
 ENGINE_DEFAULT_BY_TYPE = {
     "system-architecture": "skeleton",
     "data-flow":           "skeleton",
+    "workflow":            "skeleton",
     "c4-context":          "skeleton",
     "c4-container":        "skeleton",
     "er-diagram":          "skeleton",
@@ -109,6 +113,17 @@ def resolve_output_dir(slug: str) -> tuple[Path, Path]:
     session = parent / f"{stamp}-{slug}"
     if session.exists():
         session = parent / f"{stamp}{_dt.datetime.now().strftime('%S')}-{slug}"
+    session.mkdir(parents=True, exist_ok=True)
+    return parent, session
+
+
+def resolve_versioned_output_dir(slug: str) -> tuple[Path, Path]:
+    """Return a stable, git-trackable diagram directory under docs/diagrams."""
+    git_root = find_git_root()
+    if git_root is None:
+        raise RuntimeError("--versioned requires running inside a git repository")
+    parent = git_root / "docs" / "diagrams"
+    session = parent / slug
     session.mkdir(parents=True, exist_ok=True)
     return parent, session
 
@@ -250,6 +265,64 @@ def append_iteration(
         meta_path.write_text(json.dumps(meta, indent=2))
 
 
+def _yaml_block(text: str, indent: str = "  ") -> str:
+    lines = (text or "").splitlines() or [""]
+    return "\n".join(f"{indent}{line}" for line in lines)
+
+
+def write_versioned_spec(
+    session_dir: Path,
+    *,
+    slug: str,
+    original: str,
+    diagram_type: str,
+    fmt: str,
+    preset: str,
+    engine: str,
+    image_path: Path,
+) -> None:
+    """Write a small reviewable source spec beside the rendered variant."""
+    spec = (
+        "schema_version: 1\n"
+        "kind: vd.diagram\n"
+        f"slug: {slug}\n"
+        f"type: {diagram_type}\n"
+        f"format: {fmt}\n"
+        f"preset: {preset}\n"
+        f"engine: {engine}\n"
+        f"latest: {image_path.name}\n"
+        "description: |-\n"
+        f"{_yaml_block(original)}\n"
+    )
+    (session_dir / "diagram.spec.yaml").write_text(spec)
+
+
+def write_versioned_manifest(
+    session_dir: Path,
+    *,
+    slug: str,
+    diagram_type: str,
+    fmt: str,
+    preset: str,
+    engine: str,
+    image_path: Path,
+) -> None:
+    """Write deterministic metadata for git diffs and automation."""
+    variants = sorted(p.name for p in session_dir.glob("v*.*") if p.suffix in {".svg", ".png"})
+    manifest = {
+        "schema_version": 1,
+        "kind": "vd.diagram.manifest",
+        "slug": slug,
+        "type": diagram_type,
+        "format": fmt,
+        "preset": preset,
+        "engine": engine,
+        "latest": image_path.name,
+        "variants": variants,
+    }
+    (session_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+
+
 # ---------------------------------------------------------------------------
 # Viewer
 # ---------------------------------------------------------------------------
@@ -323,6 +396,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
               "skeleton: two-pass YAML → layout → paint. "
               "Default depends on --type."),
     )
+    parser.add_argument(
+        "--versioned",
+        action="store_true",
+        help=(
+            "Write git-trackable artifacts under docs/diagrams/<slug>/ "
+            "with diagram.spec.yaml, manifest.json, and vN.<format> variants."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -347,7 +428,12 @@ def _resolve_type(arg_type: str | None, description: str) -> tuple[str, float]:
     return classify_type(description, SUPPORTED_TYPES)
 
 
-def _resolve_parent_dir() -> Path:
+def _resolve_parent_dir(versioned: bool = False) -> Path:
+    if versioned:
+        git_root = find_git_root()
+        if git_root is None:
+            raise RuntimeError("--versioned requires running inside a git repository")
+        return git_root / "docs" / "diagrams"
     git_root = find_git_root()
     if git_root:
         return git_root / ".diagrams"
@@ -528,9 +614,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    parent_dir = _resolve_parent_dir()
+    parent_dir = _resolve_parent_dir(versioned=args.versioned)
     parent_dir.mkdir(parents=True, exist_ok=True)
-    ensure_self_ignore(parent_dir)
+    if not args.versioned:
+        ensure_self_ignore(parent_dir)
 
     # Branch: --regen
     if args.regen:
@@ -584,6 +671,26 @@ def main(argv: list[str] | None = None) -> int:
             image_path=out_path,
             variant=variant,
         )
+        if args.versioned or meta.get("versioned"):
+            write_versioned_spec(
+                session_dir,
+                slug=session_dir.name,
+                original=original,
+                diagram_type=diagram_type,
+                fmt=fmt,
+                preset=preset,
+                engine=engine,
+                image_path=out_path,
+            )
+            write_versioned_manifest(
+                session_dir,
+                slug=session_dir.name,
+                diagram_type=diagram_type,
+                fmt=fmt,
+                preset=preset,
+                engine=engine,
+                image_path=out_path,
+            )
         print(f"→ saved {out_path}", flush=True)
         print("→ spawning gallery…", flush=True)
         url = spawn_viewer(parent_dir, open_browser=not args.no_open)
@@ -611,8 +718,14 @@ def main(argv: list[str] | None = None) -> int:
     print(f"→ engine: {engine}", flush=True)
 
     slug = args.slug or slugify(f"{diagram_type}-{args.description}")
-    _, session_dir = resolve_output_dir(slug)
-    out_path = session_dir / f"v1.{args.format}"
+    if args.versioned:
+        _, session_dir = resolve_versioned_output_dir(slug)
+        variant = next_variant_index(session_dir, args.format)
+        out_path = session_dir / f"v{variant}.{args.format}"
+    else:
+        _, session_dir = resolve_output_dir(slug)
+        variant = 1
+        out_path = session_dir / f"v1.{args.format}"
 
     refined, image_model = _produce_image(
         description=args.description,
@@ -627,20 +740,55 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"→ saved {out_path}", flush=True)
 
-    write_session_artifacts(
-        session_dir,
-        original=args.description,
-        refined=refined,
-        image_path=out_path,
-        diagram_type=diagram_type,
-        fmt=args.format,
-        refine_model=REFINE_MODEL,
-        image_model=image_model,
-        quality=args.quality,
-        aspect_ratio=args.aspect_ratio,
-        preset=args.preset,
-        engine=engine,
-    )
+    if variant == 1 or not (session_dir / "prompt.md").exists():
+        write_session_artifacts(
+            session_dir,
+            original=args.description,
+            refined=refined,
+            image_path=out_path,
+            diagram_type=diagram_type,
+            fmt=args.format,
+            refine_model=REFINE_MODEL,
+            image_model=image_model,
+            quality=args.quality,
+            aspect_ratio=args.aspect_ratio,
+            preset=args.preset,
+            engine=engine,
+        )
+    else:
+        append_iteration(
+            session_dir,
+            feedback="new versioned variant",
+            refined=refined,
+            image_path=out_path,
+            variant=variant,
+        )
+
+    if args.versioned:
+        meta_path = session_dir / "meta.json"
+        if meta_path.exists():
+            meta = json.loads(meta_path.read_text())
+            meta["versioned"] = True
+            meta_path.write_text(json.dumps(meta, indent=2))
+        write_versioned_spec(
+            session_dir,
+            slug=slug,
+            original=args.description,
+            diagram_type=diagram_type,
+            fmt=args.format,
+            preset=args.preset,
+            engine=engine,
+            image_path=out_path,
+        )
+        write_versioned_manifest(
+            session_dir,
+            slug=slug,
+            diagram_type=diagram_type,
+            fmt=args.format,
+            preset=args.preset,
+            engine=engine,
+            image_path=out_path,
+        )
 
     print("→ spawning gallery…", flush=True)
     url = spawn_viewer(parent_dir, open_browser=not args.no_open)

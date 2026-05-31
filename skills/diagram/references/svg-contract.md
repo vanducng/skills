@@ -8,7 +8,7 @@ The orchestrator strips markdown fences and validates that output starts with `<
 Two engine paths produce SVG; both must satisfy the Hard Constraints in this file.
 
 - **`--engine free`** (current default for `sequence` and `state-machine`): pure-LLM SVG path. The LLM owns layout AND aesthetics. Implemented in `scripts/openrouter_chat.py::generate_svg`.
-- **`--engine skeleton`** (default for `system-architecture`, `data-flow`, `c4-context`, `c4-container`, `er-diagram` once Phase 8 ships): two-pass — pass-1 emits a YAML structural skeleton (see [`skeleton-contract.md`](skeleton-contract.md)); Python computes coordinates; pass-2 paints SVG with coords locked (see [`painter-contract.md`](painter-contract.md)).
+- **`--engine skeleton`** (default for `system-architecture`, `data-flow`, `workflow`, `c4-context`, `c4-container`, `er-diagram`): two-pass — pass-1 emits a YAML structural skeleton (see [`skeleton-contract.md`](skeleton-contract.md)); Python computes coordinates; pass-2 paints SVG with coords locked (see [`painter-contract.md`](painter-contract.md)).
 
 ## Output Requirements
 
