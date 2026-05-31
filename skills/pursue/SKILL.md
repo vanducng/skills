@@ -10,17 +10,17 @@ metadata:
 
 # Pursue — runtime router
 
-This file is the entry point for `/vd:pursue`. It detects which runtime is invoking (Claude Code or Codex) and dispatches to the right adapter under `runtimes/`. Most users won't read this file — they'll land in the adapter directly.
+This file is the entry point for `vd:pursue`. It detects which runtime is invoking (Claude Code or Codex) and dispatches to the right adapter under `runtimes/`. Most users won't read this file — they'll land in the adapter directly.
 
 ## Quick reference
 
 | Form | Action |
 |---|---|
-| `/vd:pursue "<goal>"` | New goal — intake → goal.yaml + state.json → executor loop |
-| `/vd:pursue` (no args) | Resume — auto-detect most recent in-progress goal-dir, skip intake, jump to executor |
-| `/vd:pursue status` | Print one-screen status (scripts/status.sh — runtime-agnostic) |
-| `/vd:pursue kill --reason "<text>"` | Write terminal=abandoned (scripts/kill.sh — runtime-agnostic) |
-| `/vd:pursue resolve <goal-dir>` | Dry-run the resolved workflow (scripts/resolve-workflow.sh — runtime-agnostic) |
+| `vd:pursue "<goal>"` | New goal — intake → goal.yaml + state.json → executor loop |
+| `vd:pursue` (no args) | Resume — auto-detect most recent in-progress goal-dir, skip intake, jump to executor |
+| `vd:pursue status` | Print one-screen status (scripts/status.sh — runtime-agnostic) |
+| `vd:pursue kill --reason "<text>"` | Write terminal=abandoned (scripts/kill.sh — runtime-agnostic) |
+| `vd:pursue resolve <goal-dir>` | Dry-run the resolved workflow (scripts/resolve-workflow.sh — runtime-agnostic) |
 
 Flags: `--reuse` (no worktree), `--manual` / `--semi` (default) / `--auto` (autonomy).
 
@@ -62,7 +62,7 @@ scripts/
   notify.sh                                — NEW Phase 4: PushNotification analog
 references/                                — 11 docs, runtime-agnostic (except codex-runtime.md)
   codex-runtime.md                         — Codex specifics (renamed from codex-deferred.md in Phase 1)
-  codex-gap-workarounds.md                 — NEW Phase 3: Skill-to-skill / Monitor / auto-loop --codex bridges
+  codex-gap-workarounds.md                 — NEW Phase 3: Skill-to-skill / Monitor / vd:auto-loop --codex bridges
 projects/                                  — 4 TOML profiles, runtime-agnostic
 ```
 

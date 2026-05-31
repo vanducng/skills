@@ -17,7 +17,7 @@ codex
 # 2. cd to goclaw worktree
 cd ~/git/personal/dataplanelabs/worktrees/goclaw-...
 # 3. Trigger
-/vd:pursue "<tiny fix>"
+vd:pursue "<tiny fix>"
 ```
 
 **Intake answers:**
@@ -67,7 +67,7 @@ cd ~/git/personal/dataplanelabs/worktrees/goclaw-...
 ```
 # 1. Open Claude Code session
 # 2. Start a fresh small goal
-/vd:pursue "another tiny fix"
+vd:pursue "another tiny fix"
 # 3. Walk intake to completion. Confirm goal.yaml + state.json created.
 # 4. Exit Claude Code WITHOUT killing the goal (state.terminal stays null).
 ```
@@ -79,7 +79,7 @@ codex
 # 6. cd to SAME worktree
 cd ~/git/personal/dataplanelabs/worktrees/...
 # 7. Bare invocation (resume mode)
-/vd:pursue
+vd:pursue
 ```
 
 **Expected:** Codex pursue reads existing goal.yaml + state.json, prints
@@ -89,7 +89,7 @@ to terminal=done.
 **Switch back to Claude Code:**
 ```
 # 8. New Claude Code session
-/vd:pursue status
+vd:pursue status
 ```
 
 **Expected:** Shows terminal=done (Claude Code reads the SAME state.json

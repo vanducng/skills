@@ -1,6 +1,6 @@
 ---
 name: text-diagram
-description: Draw reliable, well-aligned text/ASCII architecture diagrams with nested boxes, arrows, and connectors. Use when user asks to draw/create text diagrams, ASCII art diagrams, box diagrams, or architecture diagrams in plain text. For rendered image artifacts (PNG/SVG), use /vd:diagram instead.
+description: Draw reliable, well-aligned text/ASCII architecture diagrams with nested boxes, arrows, and connectors. Use when user asks to draw/create text diagrams, ASCII art diagrams, box diagrams, or architecture diagrams in plain text. For rendered image artifacts (PNG/SVG), use vd:diagram instead.
 license: MIT
 argument-hint: "[diagram description or 'from image']"
 metadata:

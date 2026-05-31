@@ -1,6 +1,6 @@
 ---
 name: cook
-description: "Execute a plan (or a small task) phase-by-phase: implement → verify → test → review → update status. Use after `/vd:plan` to ship the plan, or directly for tight tasks (`--quick`). Default stops at review gates between phases; pass `--auto` to run straight through, `--quick` for sub-plan tasks, `--tdd` for tests-first."
+description: "Execute a plan (or a small task) phase-by-phase: implement → verify → test → review → update status. Use after `vd:plan` to ship the plan, or directly for tight tasks (`--quick`). Default stops at review gates between phases; pass `--auto` to run straight through, `--quick` for sub-plan tasks, `--tdd` for tests-first."
 license: MIT
 argument-hint: "[plan-dir | plan.md | task] [--auto | --quick] [--tdd] [--no-test]"
 metadata:
@@ -14,11 +14,11 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| `/vd:brainstorm` | "How should I approach this?" | Decision brief |
-| `/vd:plan` | "Given the approach, what are the steps?" | Phased plan |
-| **`/vd:cook`** | **"Execute the plan — turn the spec into code."** | **Code changes, tests passing, plan status updated** |
+| `vd:brainstorm` | "How should I approach this?" | Decision brief |
+| `vd:plan` | "Given the approach, what are the steps?" | Phased plan |
+| **`vd:cook`** | **"Execute the plan — turn the spec into code."** | **Code changes, tests passing, plan status updated** |
 
-Cook **implements**. It does not design. If during cooking you find the plan is wrong, **stop** and kick back to `/vd:plan` (or `/vd:brainstorm` if the approach itself is wrong) — don't silently redesign while typing.
+Cook **implements**. It does not design. If during cooking you find the plan is wrong, **stop** and kick back to `vd:plan` (or `vd:brainstorm` if the approach itself is wrong) — don't silently redesign while typing.
 
 ## Hard rules
 
@@ -106,7 +106,7 @@ Validate the phase's mechanical assumptions against the live codebase. Fast loca
 2. Revise the phase manually then resume
 3. Abort cook
 
-Don't auto-fix the plan — user owns the decision. Pre-flight is mechanical, not logical: ordering / dependency / success-criteria realism is `/vd:plan-audit`'s job. `--skip-preflight` bypasses Step 0 entirely.
+Don't auto-fix the plan — user owns the decision. Pre-flight is mechanical, not logical: ordering / dependency / success-criteria realism is `vd:plan-audit`'s job. `--skip-preflight` bypasses Step 0 entirely.
 
 ### Step A — Conform
 
@@ -190,7 +190,7 @@ After the last phase passes:
 | "Tests are failing but only the flaky ones" | "Flaky" is the first lie before "I disabled it." Investigate; quarantine if proven, don't ignore. |
 | "I'll update plan status at the end" | Long sessions drift. Update after each phase or it never happens. |
 | "I'll review my own code, faster" | You don't see what you just wrote. Spawn the agent. |
-| "The plan is wrong but I can fix it as I go" | That's redesigning while typing. Stop, kick back to `/vd:plan`. |
+| "The plan is wrong but I can fix it as I go" | That's redesigning while typing. Stop, kick back to `vd:plan`. |
 | "It's only a POC, I'll add a TODO comment" | TODOs without owner + ticket become permanent. Either fix now or open an issue. |
 | "These two functions are similar; I'll extract a helper" | Two is not three. Wait — or invite the wrong abstraction. |
 | "It's MVP, I'll skip the test too" | MVP bias means skip *polish*, not skip *proof it works*. Tests stay. |
@@ -208,7 +208,7 @@ After the last phase passes:
 
 ## Workflow position
 
-**Typically follows:** `/vd:plan` (execute the plan), `/vd:brainstorm` → `/vd:plan` chain
+**Typically follows:** `vd:plan` (execute the plan), `vd:brainstorm` → `vd:plan` chain
 **Typically precedes:** code review, PR open, deploy
-**Compares to:** `/vd:fix` (narrow bug fixes — `--quick` covers similar ground)
-**Kick-back triggers:** plan is wrong → `/vd:plan`; approach is wrong → `/vd:brainstorm`. Do not redesign in cook.
+**Compares to:** `vd:fix` (narrow bug fixes — `--quick` covers similar ground)
+**Kick-back triggers:** plan is wrong → `vd:plan`; approach is wrong → `vd:brainstorm`. Do not redesign in cook.

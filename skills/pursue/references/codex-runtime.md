@@ -37,7 +37,7 @@ The semantic shape is identical — same `goal.yaml` / `state.json` / `iteration
 | Skill invocation | `Skill` tool | `codex exec resume --last "use ..."` |
 | Subagent | `Agent` tool | Native Codex subagent |
 | Long-running wait | `Monitor` tool | PostToolUse hook + additionalContext |
-| Loop primitive | auto-loop's Stop hook | auto-loop --codex → native /goal |
+| Loop primitive | `vd:auto-loop` Stop hook | `vd:auto-loop --codex` → native /goal |
 | Push notification | (Claude Code may add native; today: `notify.sh`) | `notify.sh` |
 
 Performance: comparable. Token usage on Codex ~10-20% higher per goal due to `/goal` overhead (acceptable; documented in Phase 5 dogfood notes).

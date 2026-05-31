@@ -2,7 +2,7 @@
 # kill.sh — write state.terminal=abandoned for a pursue goal.
 #
 # If a .pursue/delegated-to-auto-loop.json marker exists, kill.sh ALSO emits
-# a hint that SKILL.md should invoke /vd:auto-loop --cancel BEFORE marking
+# a hint that SKILL.md should invoke vd:auto-loop --cancel BEFORE marking
 # abandoned (bash can't call Skill directly).
 #
 # Usage: kill.sh --goal-dir <dir> --reason "<text>"

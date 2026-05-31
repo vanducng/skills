@@ -14,17 +14,17 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| `/vd:plan` | "What are the steps?" | Phased plan |
-| `/vd:cook` | "Execute the plan." | Code changes |
-| `/vd:ship` | "Land the branch." | Merged target |
-| `/vd:auto-loop` | "Drive to a verifier until passing." | Verified completion |
-| **`/vd:pursue`** | **"Drive a goal end-to-end: intake → plan → cook → ship → verify, until done."** | **Verified deployment or graceful block** |
+| `vd:plan` | "What are the steps?" | Phased plan |
+| `vd:cook` | "Execute the plan." | Code changes |
+| `vd:ship` | "Land the branch." | Merged target |
+| `vd:auto-loop` | "Drive to a verifier until passing." | Verified completion |
+| **`vd:pursue`** | **"Drive a goal end-to-end: intake → plan → cook → ship → verify, until done."** | **Verified deployment or graceful block** |
 
-Pursue **orchestrates the whole workflow**. It does not design (use `/vd:brainstorm`/`/vd:plan` first) and it does not run the inner iteration itself — when an action has a verifier defined, pursue delegates to `/vd:auto-loop` and resumes when auto-loop terminates.
+Pursue **orchestrates the whole workflow**. It does not design (use `vd:brainstorm`/`vd:plan` first) and it does not run the inner iteration itself — when an action has a verifier defined, pursue delegates to `vd:auto-loop` and resumes when `vd:auto-loop` terminates.
 
 ## Hard rules
 
-1. **State on disk is source of truth.** `plans/goals/{slug}/goal.yaml` + `state.json` + `iterations/NNN-*.md` survive context compaction. Re-invoking `/vd:pursue` reads them and resumes; never trust in-memory cache across sessions.
+1. **State on disk is source of truth.** `plans/goals/{slug}/goal.yaml` + `state.json` + `iterations/NNN-*.md` survive context compaction. Re-invoking `vd:pursue` reads them and resumes; never trust in-memory cache across sessions.
 2. **Loop primitive = `vd:auto-loop` (Stop hook).** Do NOT use `ScheduleWakeup` for iteration. `Monitor` is only for event-driven async waits (CI, image build, rollout).
 3. **No auto-merge on the skills repo.** `vd:ship official` (no `--auto`). User merges main manually.
 4. **Closed-set verifier vocabulary + `shell` escape.** Six built-ins: `ci_green`, `pod_image_matches`, `http_status`, `cmd_exits_zero`, `test_suite_passes`, `manual_confirm`. Plus `shell` for everything else.
@@ -51,14 +51,14 @@ Mode is set at intake time (`goal.yaml.autonomy`) and can be edited in-place mid
 | `--manual` / `--semi` / `--auto` | Set autonomy at intake (overrides goal.yaml on first run). |
 | `resolve <goal-dir>` | Dry-run: print the resolved workflow (Phase 2). |
 | `status` | Read state.json + last journal entry; print human summary (Phase 6). |
-| `kill --reason "<text>"` | Write `terminal=abandoned`; if mid-delegation, also cancel auto-loop (Phase 6). |
+| `kill --reason "<text>"` | Write `terminal=abandoned`; if mid-delegation, also cancel `vd:auto-loop` (Phase 6). |
 
 ## Entry routing — intake OR resume
 
-`/vd:pursue` is overloaded. The executor first decides which path to take based on `$1`:
+`vd:pursue` is overloaded. The executor first decides which path to take based on `$1`:
 
 ```
-if $1 is empty (bare `/vd:pursue`):
+if $1 is empty (bare `vd:pursue`):
   # Resume mode — auto-detect most recent in-progress goal-dir.
   goal_dir = find ./plans/goals/* -maxdepth 1 -type d \
              | sort -r \
@@ -71,7 +71,7 @@ if $1 is empty (bare `/vd:pursue`):
     print "resuming goal {slug} (current_phase={current_phase})"
     jump to executor loop (skip intake — Phase 3+ protocol)
   else:
-    print "no in-progress goal. Pass a goal: /vd:pursue \"<short goal>\""
+    print "no in-progress goal. Pass a goal: vd:pursue \"<short goal>\""
     exit 0
 
 elif $1 == "status" or "kill" or "resolve":
@@ -86,7 +86,7 @@ The "Resume mode" mirrors `scripts/status.sh`'s auto-detect logic. **Phase 5's k
 
 ## Phase 1 — Intake (new-goal mode)
 
-`/vd:pursue "<short goal>"` runs:
+`vd:pursue "<short goal>"` runs:
 
 1. Up to 4 `AskUserQuestion` prompts (see `references/intake-template.md`):
    - target kind (local / pr-only / cluster)
@@ -168,18 +168,20 @@ Phase 4 layers autonomy modes on top of this protocol. Phase 5 swaps the cook+ve
 
 | Sub-verb | Script | Exit codes |
 |---|---|---|
-| `/vd:pursue status` | `scripts/status.sh` | 0=done · 1=blocked · 2=abandoned · 3=in-progress · 4=no goal found |
-| `/vd:pursue kill --reason "..."` | `scripts/kill.sh` | 0=killed · 3=already terminal |
-| `/vd:pursue resolve <goal-dir>` | `scripts/resolve-workflow.sh` | 0=resolved (dry-run printed) · 5=unknown action in vocab |
+| `vd:pursue status` | `scripts/status.sh` | 0=done · 1=blocked · 2=abandoned · 3=in-progress · 4=no goal found |
+| `vd:pursue kill --reason "..."` | `scripts/kill.sh` | 0=killed · 3=already terminal |
+| `vd:pursue resolve <goal-dir>` | `scripts/resolve-workflow.sh` | 0=resolved (dry-run printed) · 5=unknown action in vocab |
 
 `kill.sh` returns a JSON hint — if `needs_auto_loop_cancel: true`, SKILL.md must invoke `Skill(skill: "vd:auto-loop", args: "--cancel")` BEFORE the killed state propagates to consumers.
 
 ## Codex runtime
 
-**v0.1 is Claude Code only.** Codex adapter deferred to v0.2 — see `references/codex-deferred.md` for the feasibility analysis + path forward. For Codex users today, `/vd:auto-loop --codex` is the closest existing primitive (single-shot verifier loops, not workflow orchestration).
+Codex support lives in `runtimes/codex.md`. Keep shared behavior and user-facing
+canonical skill IDs free of runtime prefixes here; runtime-specific invocation
+prefixes belong at the boundary where the user actually calls the skill.
 
 ## Workflow position
 
 **Typically follows:** a short intent ("ship X to staging and verify").
-**Typically composes:** `/vd:scout`, `/vd:brainstorm`, `/vd:plan`, `/vd:plan-audit`, `/vd:cook`, `/vd:ship`, `/vd:debug`, `/vd:fix`, `/vd:research`, `/vd:test`, `/vd:docs`, `/vd:journal`, `/vd:worktree`, `/vd:auto-loop`.
-**Compares to:** `/vd:cook` (one phase at a time, no e2e drive) and `/vd:auto-loop` (iterate to a verifier, no workflow shape).
+**Typically composes:** `vd:scout`, `vd:brainstorm`, `vd:plan`, `vd:plan-audit`, `vd:cook`, `vd:ship`, `vd:debug`, `vd:fix`, `vd:research`, `vd:test`, `vd:docs`, `vd:journal`, `vd:worktree`, `vd:auto-loop`.
+**Compares to:** `vd:cook` (one phase at a time, no e2e drive) and `vd:auto-loop` (iterate to a verifier, no workflow shape).

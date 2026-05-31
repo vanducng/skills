@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# dispatch.sh — argument parser + flag router for /vd:auto-loop.
+# dispatch.sh — argument parser + flag router for vd:auto-loop.
 #
 # Recognised invocations:
-#   /vd:auto-loop                                   → print help, exit 0
-#   /vd:auto-loop <goal> --verify <cmd> [opts]      → start in-house loop
-#   /vd:auto-loop --goal-file <path> [opts]         → start from goal.md
-#   /vd:auto-loop --status                          → status-reader
-#   /vd:auto-loop --cancel                          → cancel-loop
-#   /vd:auto-loop --codex <goal> [--verify <cmd>]   → delegate to codex /goal
+#   vd:auto-loop                                   → print help, exit 0
+#   vd:auto-loop <goal> --verify <cmd> [opts]      → start in-house loop
+#   vd:auto-loop --goal-file <path> [opts]         → start from goal.md
+#   vd:auto-loop --status                          → status-reader
+#   vd:auto-loop --cancel                          → cancel-loop
+#   vd:auto-loop --codex <goal> [--verify <cmd>]   → delegate to codex /goal
 #
 # Options:
 #   --max-iterations N     (default 40)
@@ -180,6 +180,6 @@ The Stop hook will re-feed each iteration's prompt until:
   - any hard cap fires (graceful drain), OR
   - --cancel is invoked.
 
-Inspect: /vd:auto-loop --status
-Stop:    /vd:auto-loop --cancel
+Inspect: vd:auto-loop --status
+Stop:    vd:auto-loop --cancel
 EOF

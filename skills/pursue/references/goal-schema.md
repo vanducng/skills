@@ -9,7 +9,7 @@ The single source of truth for "what is this pursue run trying to accomplish?" W
 | `version` | int | yes | Schema version. Always `1` for v0.1. |
 | `slug` | string | yes | Kebab-case identifier derived from short_goal. Max 40 chars. Stable for the life of the goal. |
 | `created` | RFC3339 datetime | yes | When the goal was initialized. |
-| `short_goal` | string | yes | One-line user intent, verbatim from `/vd:pursue "<text>"`. |
+| `short_goal` | string | yes | One-line user intent, verbatim from `vd:pursue "<text>"`. |
 | `project` | object | yes | See "project" below. |
 | `target` | object | yes | See "target" below. |
 | `actions` | list[string] | optional | Override the project profile's `default_sequence`. When omitted, profile wins. |
@@ -58,7 +58,7 @@ args:
 | Per-action verifiers | `action-vocab.yaml` (per action: e.g. `cook` → `test_suite_passes`) | Every iteration of the bound action (e.g. cook iteration loop) |
 | Workflow-level verifiers | `goal.yaml.target.verifiers` (e.g. `ci_green`, `pod_image_matches`, `http_status`) | Only at the dedicated `verify_*` actions, POST-deploy |
 
-**Never mix them.** Running `ci_green` during cook iteration loops would fail forever (no PR yet). Phase 5's compound verifier wraps ONLY the per-action set when delegating to `auto-loop`; `verify_*` phases run the workflow-level set separately.
+**Never mix them.** Running `ci_green` during cook iteration loops would fail forever (no PR yet). Phase 5's compound verifier wraps ONLY the per-action set when delegating to `vd:auto-loop`; `verify_*` phases run the workflow-level set separately.
 
 ## Worked example: goclaw bugfix targeting cluster
 
@@ -104,7 +104,7 @@ Per-action verifiers (NOT in this file — they're bound in `action-vocab.yaml`)
 ```yaml
 # action-vocab.yaml fragment (Phase 2):
 cook:
-  delegated_to: auto-loop
+  delegated_to: vd:auto-loop
   verifier:
     type: test_suite_passes
     args:

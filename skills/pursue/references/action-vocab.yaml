@@ -57,7 +57,7 @@ actions:
         target: "{profile.test_cmd}"
     parallel_with: []
     gate_default: []
-    delegated_to: auto-loop
+    delegated_to: vd:auto-loop
 
   code_review:
     dispatch: "agent:code-reviewer"
@@ -76,7 +76,7 @@ actions:
         target: "{profile.test_cmd}"
     parallel_with: [code_review]
     gate_default: []
-    delegated_to: auto-loop
+    delegated_to: vd:auto-loop
 
   ship:
     dispatch: "skill:vd:ship"

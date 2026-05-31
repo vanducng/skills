@@ -1,6 +1,6 @@
 # Smoke test recipe
 
-A reproducible end-to-end test of `/vd:auto-loop` from a clean checkout. Goal:
+A reproducible end-to-end test of `vd:auto-loop` from a clean checkout. Goal:
 "increment a counter file to 3", verifier checks the counter equals 3.
 
 ## Prerequisites
@@ -34,7 +34,7 @@ max_wallclock: 5m
 EOF
 
 # 3. Start the loop
-/vd:auto-loop --goal-file goal.md
+vd:auto-loop --goal-file goal.md
 # (Inside Claude Code: the model will edit counter.txt, set goal-state.json
 # with status=achieved, the Stop hook will run the verifier 2x and the
 # audit subagent. Both votes "achieved" → the loop ends.)

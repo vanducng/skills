@@ -36,7 +36,7 @@ You are in audit mode. Vote ONLY based on:
    documentation that the goal explicitly required).
 
 # Hard rules
-- You MUST NOT invoke `/vd:auto-loop`, `/ralph-loop`, or `codex /goal`.
+- You MUST NOT invoke `vd:auto-loop`, `/ralph-loop`, or `codex /goal`.
   Recursion is forbidden. The env-var VD_AUTOLOOP_DEPTH gates this.
 - You MUST NOT modify files in the repo. Read-only.
 - A passing test alone is not proof — verifier already accounts for that.

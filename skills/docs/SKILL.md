@@ -16,11 +16,11 @@ Keep `./docs/` honest. Scout the code, diff it against what the docs claim, writ
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| `/vd:scout` | "Where does X live in this repo?" | File map, no writes |
-| `/vd:journal` | "What did *I* just learn / decide / break?" | Personal entry in `./plans/journals/` |
-| **`/vd:docs`** | **"Are the shared `./docs/` files true and current?"** | **Updated files in `./docs/`** |
+| `vd:scout` | "Where does X live in this repo?" | File map, no writes |
+| `vd:journal` | "What did *I* just learn / decide / break?" | Personal entry in `./plans/journals/` |
+| **`vd:docs`** | **"Are the shared `./docs/` files true and current?"** | **Updated files in `./docs/`** |
 
-`./docs/` is **team-facing** truth. Journals are personal. Plans/reports live under `./plans/`. Changelog, roadmap, and PR-style narrative are intentionally **not** in this skill's scope — those rot fastest and `/vd:ship` / `/vd:journal` already cover them.
+`./docs/` is **team-facing** truth. Journals are personal. Plans/reports live under `./plans/`. Changelog, roadmap, and PR-style narrative are intentionally **not** in this skill's scope — those rot fastest and `vd:ship` / `vd:journal` already cover them.
 
 ## Subcommands
 
@@ -54,12 +54,12 @@ Intentionally short. Every file here earns its place — code-derivable, frequen
 | `docs/deployment.md` | CI/CD pipelines, environments, deploy steps, env vars, rollback procedure | Yes |
 
 **Out of scope** (by design):
-- Changelog → `/vd:ship` writes `CHANGELOG.md` directly
+- Changelog → `vd:ship` writes `CHANGELOG.md` directly
 - Project roadmap → lives in plans (`./plans/`) or your issue tracker, not here
-- Codebase summary → `/vd:scout` produces this on demand; doesn't need a static file
+- Codebase summary → `vd:scout` produces this on demand; doesn't need a static file
 - PRD / requirements → product artifact, not a code-derivable doc
 
-If a project has good reasons to maintain those, add them outside `/vd:docs`'s automated touch — this skill won't read, write, or validate them.
+If a project has good reasons to maintain those, add them outside `vd:docs`'s automated touch — this skill won't read, write, or validate them.
 
 ## Pre-flight: missing `./docs/`
 
@@ -97,11 +97,11 @@ When delegating, pass: scout digest, current doc LOC table, the user's `$ARGUMEN
 
 ## Workflow position
 
-**Typically follows:** `/vd:ship` (after the PR lands, sync `./docs/` to the new reality), `/vd:cook` (end of plan), major refactor or migration.
+**Typically follows:** `vd:ship` (after the PR lands, sync `./docs/` to the new reality), `vd:cook` (end of plan), major refactor or migration.
 
-**Typically precedes:** Nothing — `/vd:docs` is terminal. Next pipeline starts at `/vd:scout` or `/vd:plan`.
+**Typically precedes:** Nothing — `vd:docs` is terminal. Next pipeline starts at `vd:scout` or `vd:plan`.
 
-**Do not** run `/vd:docs` mid-implementation — docs drift faster than code does. Wait until the code is stable.
+**Do not** run `vd:docs` mid-implementation — docs drift faster than code does. Wait until the code is stable.
 
 ## Hard rules
 

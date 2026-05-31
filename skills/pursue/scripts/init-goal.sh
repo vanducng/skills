@@ -44,7 +44,7 @@ esac
 # ── Pre-flight: must be inside a git repo ─────────────────────────────────────
 
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  echo "init-goal.sh: not inside a git work tree. /vd:pursue requires git context for branch + worktree handling." >&2
+  echo "init-goal.sh: not inside a git work tree. vd:pursue requires git context for branch + worktree handling." >&2
   exit 3
 fi
 REPO_ROOT="$(git rev-parse --show-toplevel)"

@@ -46,7 +46,7 @@ Mirrors `goal.yaml.budgets` keys. The executor compares before each action; if a
 }
 ```
 
-Sufficient for `/vd:pursue status` to print a one-line summary without re-reading journal files.
+Sufficient for `vd:pursue status` to print a one-line summary without re-reading journal files.
 
 ## Worked example: after Phase 1 intake
 
