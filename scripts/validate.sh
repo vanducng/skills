@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# validate.sh — lint frontmatter for every skills/*/SKILL.md.
+# validate.sh — lint frontmatter for every skills/*/SKILL.md and repo skill-call conventions.
 # Asserts: file exists, frontmatter parses, name is kebab-case, name == basename(dir), description non-empty.
 # Exit 0 if all pass, 1 if any fail.
 set -euo pipefail
@@ -74,4 +74,74 @@ done
 
 echo
 echo "summary: checked=${checked} failed=${failed}"
+
+prefix_result="$(python3 - "$REPO" <<'PY'
+import pathlib
+import re
+import subprocess
+import sys
+
+repo = pathlib.Path(sys.argv[1])
+root_args = ["AGENTS.md", "CHANGELOG.md", "README.md", "skills.toml", "skills"]
+pattern = re.compile(r"(?<![\w/])(?:/|\$)(?:vd|ck):[a-z][a-z0-9-]*")
+matches = []
+
+def candidate_files():
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo), "ls-files", "-co", "--exclude-standard", "--", *root_args],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        result = None
+
+    if result is not None and result.returncode == 0:
+        for rel in result.stdout.splitlines():
+            path = repo / rel
+            if path.is_file():
+                yield path
+        return
+
+    for arg in root_args:
+        root = repo / arg
+        if root.is_file():
+            yield root
+        elif root.is_dir():
+            for child in root.rglob("*"):
+                if child.is_file():
+                    yield child
+
+for path in candidate_files():
+    if ".git" in path.parts:
+        continue
+    rel = path.relative_to(repo)
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        continue
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if pattern.search(line):
+            matches.append(f"{rel}:{lineno}: {line.strip()}")
+
+if matches:
+    print("runtime-prefixed skill IDs found; use canonical IDs like `vd:cook` without slash or dollar invocation prefixes")
+    for match in matches:
+        print(match)
+    sys.exit(1)
+
+print("ok")
+PY
+)" || true
+
+if [[ "$prefix_result" == "ok" ]]; then
+  echo "OK   canonical skill IDs"
+else
+  echo "FAIL canonical skill IDs:"
+  echo "$prefix_result"
+  failed=$((failed + 1))
+fi
+
 [[ $failed -eq 0 ]]

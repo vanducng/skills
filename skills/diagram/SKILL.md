@@ -84,7 +84,7 @@ Get a key at <https://openrouter.ai/settings/keys>.
 
 ## Engines (in development)
 
-`/vd:diagram` is moving toward a two-pass architecture for structurally-rich diagram types: pass-1 LLM emits a YAML skeleton (structure only); Python computes coordinates; pass-2 LLM paints the SVG with positions locked.
+`vd:diagram` is moving toward a two-pass architecture for structurally-rich diagram types: pass-1 LLM emits a YAML skeleton (structure only); Python computes coordinates; pass-2 LLM paints the SVG with positions locked.
 
 A `--engine` flag will select between `free` (current pure-LLM path, kept as the escape hatch) and `skeleton` (the two-pass path). `skeleton` is gated behind explicit opt-in until Phase 8 of the `260506-0649-skeleton-then-paint` plan ships and the bake-off confirms quality. Until then, `free` remains the only path. See `references/skeleton-contract.md` and `references/painter-contract.md` for the in-progress contracts.
 

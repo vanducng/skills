@@ -1,6 +1,6 @@
 # PR Title & Body Template
 
-Canonical PR conventions — shared by `/vd:git pr` and `/vd:ship`. Both skills source title/body rules from this file so PRs read the same regardless of which one opened them.
+Canonical PR conventions — shared by `vd:git pr` and `vd:ship`. Both skills source title/body rules from this file so PRs read the same regardless of which one opened them.
 
 ## Body source — priority order
 

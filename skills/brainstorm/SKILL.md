@@ -14,15 +14,15 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| `/vd:research` | "Which of these known options should I pick?" | Comparison report with citations |
-| **`/vd:brainstorm`** | **"How should I approach this — what are the options?"** | **Decision brief with 3+ invented/curated approaches** |
-| `/vd:plan` | "Given the chosen approach, what are the steps?" | Phased implementation plan |
+| `vd:research` | "Which of these known options should I pick?" | Comparison report with citations |
+| **`vd:brainstorm`** | **"How should I approach this — what are the options?"** | **Decision brief with 3+ invented/curated approaches** |
+| `vd:plan` | "Given the chosen approach, what are the steps?" | Phased implementation plan |
 
 Brainstorm is **solution-space exploration**. You may end up recommending a known pattern, but the job is to surface paths the user hasn't considered, then converge.
 
 ## Hard rules
 
-1. **No code, no scaffolding, no file edits to source.** Only the brief gets written. If the user pushes for implementation, point them at `/vd:plan` or `/vd:cook`.
+1. **No code, no scaffolding, no file edits to source.** Only the brief gets written. If the user pushes for implementation, point them at `vd:plan` or `vd:cook`.
 2. **Minimum 3 genuinely divergent options.** If all your options share the same architectural assumption (e.g. all are "different ORMs"), you haven't diverged — invent one that violates the shared assumption (e.g. "no ORM, raw SQL").
 3. **Steel-man before strawman.** For each option write the *strongest* case first. If you can't argue for it convincingly, you don't understand it yet.
 4. **Brutal honesty.** Name dealbreakers, hidden costs, ops burden, lock-in, hiring market, debugging pain. No marketing language. No symmetric "it's all tradeoffs" hedging — pick one.
@@ -73,7 +73,7 @@ Where helpful, pull in proven patterns: search the web (`WebSearch`), read libra
 
 **For visual brainstorming** (UI layouts, page/dashboard structure, comparing visual designs): produce a **visual draft** alongside text options — a single static HTML page rendering A/B/C panels in the browser, so the user can react to shapes, not just words. See [Visual draft mode](#visual-draft-mode) below. The brief itself stays text-only — visual drafts are intermediate artifacts.
 
-Once the user picks a direction from the draft, hand off the *final* artifact to the right specialist: `/vd:open-design` for polished marketing/dashboard pages with brand-grade design systems, `/vd:diagram` for rendered system / data-flow / sequence diagrams, or `/vd:excalidraw` for editable whiteboard sketches. The draft is the cheap throwaway; the specialist produces the keepable artifact.
+Once the user picks a direction from the draft, hand off the *final* artifact to the right specialist: `vd:open-design` for polished marketing/dashboard pages with brand-grade design systems, `vd:diagram` for rendered system / data-flow / sequence diagrams, or `vd:excalidraw` for editable whiteboard sketches. The draft is the cheap throwaway; the specialist produces the keepable artifact.
 
 ## Phase 3 — Stress-test (red team)
 
@@ -165,7 +165,7 @@ The full case. Why X wins *given the user's constraints*. The condition under wh
 What couldn't be answered without more input. What would change the recommendation.
 
 ## Next Step
-- If user wants a plan: `/vd:plan` with this brief as input
+- If user wants a plan: `vd:plan` with this brief as input
 - If user wants to validate before committing: spike Option X for {time-box}
 ```
 
@@ -204,11 +204,11 @@ After writing the brief, re-read it with fresh eyes and fix issues inline. No se
 
 ### User review gate
 
-After self-review, surface the file and stop. Do not auto-invoke `/vd:plan`:
+After self-review, surface the file and stop. Do not auto-invoke `vd:plan`:
 
-> Brief saved to `<path>`. Recommendation: **{Option X}**, runner-up **{Option Y}** if {condition}. Please review and tell me if you want changes — or say "plan it" and I'll hand off to `/vd:plan`.
+> Brief saved to `<path>`. Recommendation: **{Option X}**, runner-up **{Option Y}** if {condition}. Please review and tell me if you want changes — or say "plan it" and I'll hand off to `vd:plan`.
 
-If the user requests changes, edit the brief and re-run the self-review checklist before re-surfacing. Only invoke `/vd:plan` after explicit approval.
+If the user requests changes, edit the brief and re-run the self-review checklist before re-surfacing. Only invoke `vd:plan` after explicit approval.
 
 `--quick` mode skips Phase 6 entirely — verbal output only.
 
@@ -276,9 +276,9 @@ Once the user picks a direction, the visual draft has served its purpose — it 
 
 | Pick shape | Hand off to |
 |---|---|
-| Polished UI page (landing, dashboard, marketing) | `/vd:open-design` |
-| Rendered system / data-flow / sequence diagram | `/vd:diagram` |
-| Editable whiteboard / architecture sketch | `/vd:excalidraw` |
+| Polished UI page (landing, dashboard, marketing) | `vd:open-design` |
+| Rendered system / data-flow / sequence diagram | `vd:diagram` |
+| Editable whiteboard / architecture sketch | `vd:excalidraw` |
 
 The brainstorm's job is to pick the direction. Materializing it is downstream.
 
@@ -299,7 +299,7 @@ The brainstorm's job is to pick the direction. Materializing it is downstream.
 - **Steel-manned** — the option you don't favor still gets its strongest case
 - **Decisive** — ends with a pick + named conditions for the runner-up
 - **Grounded** — the recommendation cites the user's actual constraints, not generic best practice
-- **No implementation** — design only; pointer to `/vd:plan` for the next step
+- **No implementation** — design only; pointer to `vd:plan` for the next step
 - **Self-contained** — reader makes the decision from the brief alone
 
 ## Specials
@@ -319,15 +319,15 @@ The brainstorm's job is to pick the direction. Materializing it is downstream.
 5. Brief opens with TL;DR — recommendation, runner-up, avoid — before everything else
 6. Three+ options, each with the full Phase 3 shape — partial entries are a fail
 7. End with Open Questions — what couldn't be resolved, what would change the call
-8. After the brief is written, run Phase 6 self-review, then surface the file path + recommendation and **wait for user approval** before invoking `/vd:plan`
+8. After the brief is written, run Phase 6 self-review, then surface the file path + recommendation and **wait for user approval** before invoking `vd:plan`
 
 ## Workflow position
 
-**Typically follows:** `/vd:scout` (after surveying the surface), `/vd:debug` (when the diagnosis exposes a design decision worth re-deciding), or a fresh ambiguous request
+**Typically follows:** `vd:scout` (after surveying the surface), `vd:debug` (when the diagnosis exposes a design decision worth re-deciding), or a fresh ambiguous request
 
-**Typically precedes:** `/vd:plan` (for the chosen approach), or `/vd:research` (if Phase 3 surfaced an unknown option that needs deep evaluation)
+**Typically precedes:** `vd:plan` (for the chosen approach), or `vd:research` (if Phase 3 surfaced an unknown option that needs deep evaluation)
 
-**Compares to:** `/vd:research` (known options, cited comparison) — when the user names options, prefer `research`; when the path is unclear, prefer `brainstorm`
+**Compares to:** `vd:research` (known options, cited comparison) — when the user names options, prefer `research`; when the path is unclear, prefer `brainstorm`
 
 ## Cross-discipline cues
 

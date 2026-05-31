@@ -285,5 +285,5 @@ func newLogger() (*slog.Logger, func() error, error) {
 ## Cross-refs
 
 - See `oops.md` — the `slog-formatter` `ErrorFormatter` extracts `oops` attributes automatically
-- See `/vd:py2go` HTTP playbook — `slog` is the default logger, `slog-gin` the default middleware
-- See `/vd:debug` — log routing decisions determine on-call signal-to-noise
+- See `vd:py2go` HTTP playbook — `slog` is the default logger, `slog-gin` the default middleware
+- See `vd:debug` — log routing decisions determine on-call signal-to-noise

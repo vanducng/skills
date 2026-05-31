@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # read-auto-loop-outcome.sh — read .auto-loop/goal-state.json once and emit
-# the terminal status + reason as JSON. Used by SKILL.md AFTER /vd:auto-loop
+# the terminal status + reason as JSON. Used by SKILL.md AFTER vd:auto-loop
 # returns synchronously (Skill tool call exits when auto-loop's Stop hook
 # terminates), OR at session-resume time when {goal-dir}/.pursue/delegated-
 # to-auto-loop.json marker exists.

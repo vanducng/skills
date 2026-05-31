@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# delegate-to-auto-loop.sh — prepare a /vd:auto-loop invocation for the given
-# action. Does NOT actually call /vd:auto-loop (that's the Skill tool, which
+# delegate-to-auto-loop.sh — prepare a vd:auto-loop invocation for the given
+# action. Does NOT actually call vd:auto-loop (that's the Skill tool, which
 # only SKILL.md can invoke). Returns a JSON hint on stdout.
 #
 # Recursion guard: refuses if VD_AUTOLOOP_DEPTH > 0 (auto-loop's audit subagent

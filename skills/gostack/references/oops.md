@@ -198,9 +198,9 @@ return nil
 - **`slog`**: `slog.Error(err.Error(), slog.Any("error", err))` — `oops.OopsError` implements `slog.LogValuer`, so attributes flatten into the log record automatically
 - **`samber/slog-formatter`**: the upstream `slog-formatter` includes an `ErrorFormatter` that extracts `oops` attributes — pipe it into your log handler
 - **OpenTelemetry**: stash the trace ID in `.Trace()`; `oops` doesn't auto-link, but you can read it back and attach to spans
-- **`/vd:py2go`**: Python `loguru`/`logging` errors with `extra={}` map cleanly to `oops` `.With()` attributes during migration
+- **`vd:py2go`**: Python `loguru`/`logging` errors with `extra={}` map cleanly to `oops` `.With()` attributes during migration
 
 ## Cross-refs
 
 - See `slog.md` reference for the logging pipeline that consumes `oops` errors
-- See `/vd:debug` skill for the on-call workflow these attributes power
+- See `vd:debug` skill for the on-call workflow these attributes power

@@ -87,7 +87,7 @@ tail -F /path/to/app.log | grep --line-buffered -E "Ready to accept|ERROR|Traceb
 
 `--line-buffered` is critical — without it `grep`'s buffering can hold events for minutes before flushing.
 
-## Coverage principle (lesson from `/auto-loop`)
+## Coverage principle (lesson from `vd:auto-loop`)
 
 Silence is not success. A Monitor command that prints only the happy-path marker stays silent through a crash — and silence looks identical to "still running." Every Monitor command should emit on both success AND failure signatures:
 

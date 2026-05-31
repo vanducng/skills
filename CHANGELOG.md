@@ -7,12 +7,12 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 ### Added
 - `skills/file-browser/` — CSV/TSV/XLSX files now render as tabular data in `/view` instead of falling through to source text. CSV/TSV parsing handles quoted commas and quoted newlines; XLSX renders the first worksheet using `read-excel-file`. Gallery, sidebar tree classification, MIME types, docs, and smoke tests were updated for table files.
 - `skills/sqlit/` — scriptable CLI wrapper over the `sqlit` binary for ad-hoc SQL against any saved connection (BigQuery, Postgres, MySQL, MSSQL, SQLite, Snowflake, DuckDB). Encodes the shell-quoting gotcha (single-quote SQL with backticks so the shell doesn't eat them), the bare-`sqlit` TUI hazard, per-dialect metadata recipes, and the failure-mode → cause map. Lets `vd:` workflows hit databases without re-deriving these rules each time.
-- `skills/optimize-loop/` — autonomous metric-optimization loop (autoresearch pattern: Modify→Verify→Keep/Discard→Repeat). Runs N bounded iterations against a mechanical metric (coverage, bundle size, lint/type errors, latency, LOC), commits each attempt before verifying, auto-keeps wins and `git revert`s regressions. Protocol-only (no scripts), with references for the 8-phase loop, noise-aware verification + guard, git-as-memory + TSV results log, and a copy-paste metric library. Complements `auto-loop` (goal-pursuit) — different exit philosophy (metric/stuck-detection vs two-vote gate). Includes a verify-command safety screen + credential masking.
+- `skills/optimize-loop/` — autonomous metric-optimization loop (autoresearch pattern: Modify→Verify→Keep/Discard→Repeat). Runs N bounded iterations against a mechanical metric (coverage, bundle size, lint/type errors, latency, LOC), commits each attempt before verifying, auto-keeps wins and `git revert`s regressions. Protocol-only (no scripts), with references for the 8-phase loop, noise-aware verification + guard, git-as-memory + TSV results log, and a copy-paste metric library. Complements `vd:auto-loop` (goal-pursuit) — different exit philosophy (metric/stuck-detection vs two-vote gate). Includes a verify-command safety screen + credential masking.
 - `skills/scenario/` — edge-case generation by decomposing a feature/file across 12 risk dimensions (boundary, null, concurrency, authz, IO failure, time, encoding, …). Default one-shot pass; `--saturation` iterates (bounded) until coverage converges. Output is a severity-tagged scenario report for QA/test design, not executable tests.
-- `skills/security/` — STRIDE + OWASP threat-modeled audit scanning from multiple attacker perspectives, with an optional bounded `--red-team` discovery loop and an autoresearch-style `--fix` loop (reuses `optimize-loop`'s protocol). Defensive/authorized use only; mandatory credential masking on all findings and PoCs.
+- `skills/security/` — STRIDE + OWASP threat-modeled audit scanning from multiple attacker perspectives, with an optional bounded `--red-team` discovery loop and an autoresearch-style `--fix` loop (reuses `vd:optimize-loop`'s protocol). Defensive/authorized use only; mandatory credential masking on all findings and PoCs.
 
 ### Fixed
-- All `vd:` skill cross-references across skill markdown now use the `/vd:` slash-command form so user-facing hints (e.g. "next: `/vd:cook plans/path/to/feature`") are directly invocable. Bare `vd:X` was rendering hints the user couldn't paste back as a command. Touched every SKILL.md, references file, description field, ASCII flowchart, and workflow-position section.
+- Skill cross-references now use canonical skill IDs instead of hard-coded invocation prefixes, for example `vd:cook plans/path/to/feature`. Codex users add the dollar prefix when invoking; Claude Code users add the slash prefix.
 
 ### Removed
 - `tools/vd/` — `vd` CLI extracted to standalone [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli) at `v2.0.1`. Module path renamed `github.com/vanducng/skills/tools/vd` → `github.com/vanducng/vd-cli/v2` (Go SIV-compliant). Homebrew install path unchanged (`brew install vanducng/tap/vd`). Skills repo now skills-only.
@@ -123,21 +123,21 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 ## [0.4.0] - 2026-05-04
 
 ### Added
-- `skills/brainstorm/` (v1.0.0) — solution-space exploration skill, replaces `/ck:brainstorm`:
+- `skills/brainstorm/` (v1.0.0) — solution-space exploration skill, replaces `ck:brainstorm`:
   - Three-way distinction from `vd:research` (compare known options) and `vd:plan` (sequence steps).
   - Modes: `--quick` (chat-only), default (decision brief), `--deep` (red-team round + failure-mode catalog + migration paths).
   - 5-phase flow (Frame → Diverge → Stress-test → Converge → Brief) with mandatory scope-decomposition gate.
   - Forced-divergence rule: 3+ options must violate each other's architectural assumptions; "X with Postgres / X with MySQL" counts as one option.
   - Steel-man-before-strawman requirement; per-option dealbreaker scenario, hidden cost, reversibility cost.
   - Concrete output template with TL;DR, comparison matrix, and Open Questions section.
-- `skills/plan/` (v1.0.0) — phased implementation planning skill, replaces `/ck:plan`:
+- `skills/plan/` (v1.0.0) — phased implementation planning skill, replaces `ck:plan`:
   - Self-contained — no ClaudeKit CLI dependency; standard Claude Code tools only (Agent, WebSearch, Read/Write).
   - Modes: `--quick` (single inline-phases plan.md), default (plan.md + per-phase files), `--deep` (research dispatch + red-team review).
   - `--tdd` composable flag — tests-first structure in every phase.
   - 6-phase flow (Frame → Discover → Design → Write → Hand off → Red-team) with mandatory scope-decomposition gate.
   - Hard rules: phases must be independently reviewable, files must be named, success criteria must be observable.
   - Specials for migrations, breaking-change sequencing, performance baselines, refactors, library upgrades.
-- `skills/cook/` (v1.0.0) — phased implementation execution skill, replaces `/ck:cook`:
+- `skills/cook/` (v1.0.0) — phased implementation execution skill, replaces `ck:cook`:
   - Self-contained — no ClaudeKit CLI dependency, no Claude Tasks requirement; uses generic `Agent` subagent calls for testing/review.
   - Modes simplified to 3: `--quick` (sub-plan tasks), default (per-phase review gates), `--auto` (continuous run).
   - Composable: `--tdd` (failing tests before implementation), `--no-test` (loud-warn).

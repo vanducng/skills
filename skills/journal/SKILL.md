@@ -1,6 +1,6 @@
 ---
 name: journal
-description: "Write a focused engineering journal entry — retrospective on what just shipped or post-mortem on what just broke. Use after /vd:ship, /vd:cook, or right after an incident while context is fresh. Saves to ./plans/journals/ (personal dev log, not project docs)."
+description: "Write a focused engineering journal entry — retrospective on what just shipped or post-mortem on what just broke. Use after vd:ship, vd:cook, or right after an incident while context is fresh. Saves to ./plans/journals/ (personal dev log, not project docs)."
 license: MIT
 argument-hint: "[topic] [--incident] [--quick] [--since <ref>]"
 metadata:
@@ -14,17 +14,17 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| `/vd:ship` | "Land the branch." | Merged target, PR URL |
-| `/vd:cook` | "Execute the plan." | Code, tests, plan status |
-| **`/vd:journal`** | **"What just happened, why, and what should future-me know?"** | **One markdown file in `./plans/journals/`** |
+| `vd:ship` | "Land the branch." | Merged target, PR URL |
+| `vd:cook` | "Execute the plan." | Code, tests, plan status |
+| **`vd:journal`** | **"What just happened, why, and what should future-me know?"** | **One markdown file in `./plans/journals/`** |
 
-Journal **records**. It does not redesign, retest, or roll back. If writing the entry surfaces a real bug — stop, kick to `/vd:fix` or `/vd:cook`, then come back to journal once the fact pattern stabilises.
+Journal **records**. It does not redesign, retest, or roll back. If writing the entry surfaces a real bug — stop, kick to `vd:fix` or `vd:cook`, then come back to journal once the fact pattern stabilises.
 
 ## Modes
 
 | Mode | Voice | Use when |
 |---|---|---|
-| _(default)_ **retro** | Calm, structured. What shipped, what was tricky, what's next. | After `/vd:ship`, `/vd:cook`, end of session. |
+| _(default)_ **retro** | Calm, structured. What shipped, what was tricky, what's next. | After `vd:ship`, `vd:cook`, end of session. |
 | `--incident` | Brutal-honest, 2am-developer voice. Root cause without euphemism. | A failure happened — outage, data loss, broken migration, repeated test failure, security finding. |
 | `--quick` | 3–5 lines, no formal structure. | Drive-by note — small fix, minor decision, surprising bit of context. Pairs with either voice. |
 
@@ -33,7 +33,7 @@ Journal **records**. It does not redesign, retest, or roll back. If writing the 
 1. **Specificity beats vibe.** Every entry names at least one concrete artifact: commit SHA, PR #, file path, error string, metric. "We had perf issues" is not a journal entry.
 2. **Decision, not narration.** If a choice was made, name the alternatives that lost and why. Otherwise the future reader can't reverse-engineer the call.
 3. **Brutal in `--incident`, not performative.** Honesty about root cause is the point — not theatrics. "We shipped without testing the migration" beats both "an oversight occurred" *and* "this is a fucking disaster".
-4. **No new design decisions.** Journal records what already happened. New decisions belong in `/vd:brainstorm` or `/vd:plan`.
+4. **No new design decisions.** Journal records what already happened. New decisions belong in `vd:brainstorm` or `vd:plan`.
 5. **One file per event.** Don't append to yesterday's entry. New event → new file. Cross-link if related.
 6. **Stop at one page.** Retro: 200–400 words. Incident: 300–600 words. If it's longer, it's a post-mortem doc — link to the journal entry from there, don't bloat the journal.
 
@@ -90,7 +90,7 @@ Path: `./plans/journals/journal-{YYYYMMDD-HHMM}-{slug}.md` — use the naming pa
 
 - If a `plan.md` exists, append a one-line link to this entry under a "Journal" section at the bottom of `plan.md`.
 - If the entry references a PR, drop the PR # in the frontmatter.
-- Do **not** auto-edit `CHANGELOG.md` — that's `/vd:ship`'s job.
+- Do **not** auto-edit `CHANGELOG.md` — that's `vd:ship`'s job.
 
 ## Templates
 
@@ -187,10 +187,10 @@ mode: quick
 
 ## Workflow position
 
-**Typically follows:** `/vd:ship` (auto-invokes this skill in Step 8 — manual run is for skipped or out-of-pipeline cases), `/vd:cook` (end of phase or end of plan), `/vd:fix` (after incident is mitigated).
+**Typically follows:** `vd:ship` (auto-invokes this skill in Step 8 — manual run is for skipped or out-of-pipeline cases), `vd:cook` (end of phase or end of plan), `vd:fix` (after incident is mitigated).
 
-**Terminal skill** — no typical successor. The next time you want to make a change, start a new pipeline at `/vd:scout` or `/vd:plan`.
+**Terminal skill** — no typical successor. The next time you want to make a change, start a new pipeline at `vd:scout` or `vd:plan`.
 
 **Compares to:**
-- `/vd:ship` Step 8 — same writer, but `/vd:ship` calls it as part of the pipeline. `/vd:journal` is the manual entry point: out-of-band incidents, mid-session reflections, or when ship was run with `--skip-journal`.
+- `vd:ship` Step 8 — same writer, but `vd:ship` calls it as part of the pipeline. `vd:journal` is the manual entry point: out-of-band incidents, mid-session reflections, or when ship was run with `--skip-journal`.
 - A PR description — PR body is for reviewers landing the change; journal is for the dev opening this folder six months later.
