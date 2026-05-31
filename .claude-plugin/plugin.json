@@ -1,7 +1,7 @@
 {
   "name": "vd",
-  "version": "0.13.0",
-  "description": "Duc's personal Claude Code skills. Skills are namespaced under `vd:` to avoid conflicts with other plugins.",
+  "version": "0.13.1",
+  "description": "A daily-driver collection of skills for agentic coding, namespaced under `vd:` to avoid conflicts with other plugins.",
   "author": {
     "name": "vanducng",
     "url": "https://github.com/vanducng"
