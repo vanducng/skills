@@ -4,7 +4,7 @@ Detailed color palettes, layout templates, and accessibility guidance for techni
 
 ## Master Palette Principle
 
-Every color encodes information. No decoration without meaning. Within a single diagram, choose **3–4 primary colors + 1–2 accents** from one preset. Gray is reserved for secondary/supporting elements.
+Every color encodes information. No decoration without meaning. Within a single diagram, use at most **5 active semantic colors** from one preset. Treat long preset tables as menus, not instructions to use every color. Similar components share one color family; use shape, stroke style, grouping, and labels for extra distinctions. Gray is reserved for secondary/supporting elements.
 
 ### Stroke + Fill Pairs (Always Pair Light Fill With Dark Stroke)
 
@@ -26,6 +26,31 @@ Every color encodes information. No decoration without meaning. Within a single 
 | 2 | standard | shapes, main flows, standard arrows |
 | 3 | bold | streaming arrows, critical paths, emphasis |
 | 4+ | dominant | sparingly — only for ultimate emphasis |
+
+## Minimal Legends
+
+Add a compact legend when visual encodings are meaningful but not self-evident. Keep it to the semantics used in the diagram, not the full palette.
+
+| Include when | Limit |
+|--------------|-------|
+| 3+ semantic node colors | list only the 3-5 visible roles |
+| 2+ arrow colors/styles | show mini-lines for only the edge types used |
+| allow/deny, internal/external, batch/stream, sync/async appear together | prefer shape + line style, not color alone |
+
+Default arrow legend entries:
+
+| Meaning | Style | Color | Width |
+|---------|-------|-------|-------|
+| Sync/API call | solid | `#1976d2` | 2 |
+| Batch/data load | solid | `#757575` | 2 |
+| Stream/event | solid | `#f57c00` | 3 |
+| Async/queue | dashed | `#f57c00` | 2 |
+| Lineage/dependency | dotted | `#9c27b0` | 1 |
+| Denied/security block | solid | `#d32f2f` | 3 |
+
+The default arrow legend uses five colors: blue, gray, orange, purple, and red. Stream and async share orange; line style and width carry the distinction.
+
+Place the legend in unused top-right or bottom-right space. Use fontSize 13-14, short labels, and no more than one compact legend per diagram.
 
 ## C4 Color Assignment (Full)
 
@@ -78,7 +103,7 @@ GCP and Azure: keep their primary blue (`#4285F4`, `#0078D4`) for vendor brandin
 |------|-------|-------|-------|---------------|
 | Batch | solid | `#757575` | 2 | `daily 02:00` |
 | Stream | solid | `#f57c00` | **3** | `topic: orders` |
-| Async / queue | dashed | `#e8590c` | 2 | `queue: tasks` |
+| Async / queue | dashed | `#f57c00` | 2 | `queue: tasks` |
 | Lineage (parent→child) | dotted | `#9c27b0` | 1 | `derived from` |
 | Sync API | solid | `#1976d2` | 2 | `POST /v1/...` |
 | CDC | solid + thick | `#0097a7` | 3 | `Debezium / WAL` |
@@ -220,7 +245,7 @@ When red and green appear together, **also encode with line style** (dashed for 
 
 | Mistake | Why fails | Fix |
 |---------|-----------|-----|
-| Using all 8 category colors in one cloud diagram | viewer overwhelmed | scope to the categories actually present |
+| Using 6+ category colors in one diagram | viewer overwhelmed | merge similar components and cap active colors at 5 |
 | C4 Container view that contains internal Components | mixes abstraction levels | split into Container view + per-container Component view |
 | Same shape (rectangle) for source AND warehouse in data diagrams | breaks shape semantics | cylinder for stores, rect for compute |
 | Light gray arrows on white background | invisible | minimum stroke darkness `#757575`, ideally `#000`-derived |
@@ -236,6 +261,7 @@ When red and green appear together, **also encode with line style** (dashed for 
 Before declaring a diagram done, verify:
 
 - [ ] All elements use a single domain preset (no palette mixing)
+- [ ] No more than 5 active semantic colors in one diagram
 - [ ] Each color/shape used has a documented semantic role
 - [ ] Stroke + fill pairs have visible contrast
 - [ ] All text legible at 50–70% zoom (fontSize ≥16)
@@ -244,7 +270,7 @@ Before declaring a diagram done, verify:
 - [ ] Aligned to grid, ≥40px between unconnected, ≥120px between connected
 - [ ] Primary elements have more breathing room than supporting
 - [ ] One concern per diagram (not "everything")
-- [ ] Legend included if any color used non-obviously
+- [ ] Compact legend included when color/shape/arrow styles are non-obvious
 - [ ] Colorblind-safe alternative palette ready when red/green appear together
 - [ ] No mixing C4 abstraction levels
 - [ ] No invisible connections (light arrow on light bg)
