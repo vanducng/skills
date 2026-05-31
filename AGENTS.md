@@ -18,6 +18,8 @@ This repository contains skills for agentic coding plus the `vd` CLI used to man
 
 Use kebab-case for skill directory names and match the `name` field in `SKILL.md` exactly, such as `browser-trace`. Keep skill instructions direct, scoped, and supported by local `references/`, `scripts/`, or `assets/` when useful. Shell scripts should use `set -euo pipefail`. Go code in `tools/vd/` should be `gofmt`/`goimports` formatted, package-oriented, and kept within the CLI module unless a cross-repo change is intentional.
 
+When documenting skill handoffs or examples, use canonical skill IDs without a leading invocation prefix, such as `vd:cook plans/path/`. The caller adds the slash prefix in Claude Code or the dollar prefix in Codex.
+
 ## Testing Guidelines
 
 Run `bash scripts/validate.sh` for any skill change. For CLI changes, run `cd tools/vd && make test`; use `go test ./... -race -cover` before risky changes. Snapshot behavior for bundle output is covered in `tools/vd/internal/target/claude_bundle_test.go`; update golden files only when the emitted plugin output intentionally changes. Name Go tests with standard `TestXxx` functions in `*_test.go` files colocated with the package.

@@ -17,7 +17,7 @@ metadata:
 
 **Defensive / authorized use only.** Run against code you own or are authorized to audit. This skill performs review and authorized remediation; it does **not** produce weaponized exploits, mass-targeting tooling, or detection-evasion for malicious use.
 
-**Credential masking is mandatory** — even when the secret *is* the finding. Mask per the table in `optimize-loop`'s SKILL.md (API keys → `<REDACTED_TOKEN>`, connection strings → `…:<REDACTED_PASSWORD>@…`, env values → reference the name). No report or PoC may contain a live secret or a copy-paste-ready exploit with real credentials — write PoCs as templates the user fills in.
+**Credential masking is mandatory** — even when the secret *is* the finding. Mask per the table in `vd:optimize-loop`'s SKILL.md (API keys → `<REDACTED_TOKEN>`, connection strings → `…:<REDACTED_PASSWORD>@…`, env values → reference the name). No report or PoC may contain a live secret or a copy-paste-ready exploit with real credentials — write PoCs as templates the user fills in.
 
 ## What this is — and isn't
 
@@ -42,7 +42,7 @@ This is an LLM-driven threat-modeled review + bounded fix loop — **not** a rep
 
 ## Fix loop (`--fix`)
 
-Reuses the `optimize-loop` discipline (see [`../optimize-loop/references/loop-protocol.md`](../optimize-loop/references/loop-protocol.md)) — do not duplicate it:
+Reuses the `vd:optimize-loop` discipline (see [`../optimize-loop/references/loop-protocol.md`](../optimize-loop/references/loop-protocol.md)) — do not duplicate it:
 
 - **One finding per iteration.** Atomic change.
 - **Commit before verify** (`loop(iter-N): fix <finding-id>`).

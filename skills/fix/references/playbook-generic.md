@@ -22,7 +22,7 @@ Use this when the issue doesn't cleanly map to data-pipeline, app-stack, or infr
 
 ## When you can't categorize the failure
 
-That's a signal the diagnosis isn't deep enough. Go back to Step 2 (`/vd:debug`) with sharper questions:
+That's a signal the diagnosis isn't deep enough. Go back to Step 2 (`vd:debug`) with sharper questions:
 - What's the *exact* sequence of events leading to the failure?
 - What's the *first* place the system's state diverges from expected?
 - What's a smaller, faster reproducer?

@@ -182,7 +182,7 @@ Report: GB freed, before/after free space, residual >5GB items the user declined
 7. **Surface skipped items** at the end so user can decide later — don't silently leave reclaimable space on the table.
 8. **Adapt to what's there.** macOS evolves; new caches appear (LLM tool caches, Playwright/Cypress, Hugging Face, Ollama models). Apply the regenerable-cache heuristic: if it's recreated automatically on next use, it's 🟢.
 
-## When to suggest `/computer-clean` proactively
+## When to suggest `vd:computer-clean` proactively
 
 End the message with a one-line offer when you notice:
 - `df -h` capacity ≥ 85%

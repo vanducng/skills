@@ -78,9 +78,9 @@ If a Go service is going to adopt this ecosystem, the order I'd introduce librar
 
 ## Where this skill plugs into the rest
 
-- `/vd:py2go` (Python→Go migration) — defaults to `slog` over zap/zerolog, mentions `samber/oops` for error context, `samber/do` for DI when the graph grows. See py2go's translation rules table for the cross-reference.
-- `/vd:cook` / `/vd:ship` — the lint and review steps benefit from understanding why a PR pulls in `samber/lo` over stdlib (`lo.Contains` vs `slices.Contains` is a code-review smell I want to catch).
-- `/vd:debug` / `/vd:fix` — `samber/oops` error chains preserve the context that makes debugging much faster; this skill is the place to confirm best practices.
+- `vd:py2go` (Python→Go migration) — defaults to `slog` over zap/zerolog, mentions `samber/oops` for error context, `samber/do` for DI when the graph grows. See py2go's translation rules table for the cross-reference.
+- `vd:cook` / `vd:ship` — the lint and review steps benefit from understanding why a PR pulls in `samber/lo` over stdlib (`lo.Contains` vs `slices.Contains` is a code-review smell I want to catch).
+- `vd:debug` / `vd:fix` — `samber/oops` error chains preserve the context that makes debugging much faster; this skill is the place to confirm best practices.
 
 ## Versions snapshot (verified 2026-05-23)
 

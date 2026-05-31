@@ -19,10 +19,10 @@ metadata:
 |---|---|---|
 | `/loop` | "Re-run this prompt every N minutes." | Cron-style recurrence |
 | `/ralph-loop` | "Bash while-loop external to Claude." | Subprocess churn |
-| `auto-loop` | "Drive toward a goal until a verifier + audit both vote done." | Goal-pursuit (binary gate, hours-long) |
-| **`optimize-loop`** | **"Improve a measurable metric over N bounded iterations, auto keep/discard."** | **Best metric value + git-committed wins** |
+| `vd:auto-loop` | "Drive toward a goal until a verifier + audit both vote done." | Goal-pursuit (binary gate, hours-long) |
+| **`vd:optimize-loop`** | **"Improve a measurable metric over N bounded iterations, auto keep/discard."** | **Best metric value + git-committed wins** |
 
-optimize-loop **optimizes a number**. It does not pursue subjective goals (`auto-loop` / `vd:cook`) and does not poll on a clock (`/loop`). Each iteration makes one atomic change, commits it, measures, and keeps or reverts on the metric.
+`vd:optimize-loop` **optimizes a number**. It does not pursue subjective goals (`vd:auto-loop` / `vd:cook`) and does not poll on a clock (`/loop`). Each iteration makes one atomic change, commits it, measures, and keeps or reverts on the metric.
 
 ## When to Use / When NOT to Use
 
@@ -162,4 +162,4 @@ Reject output containing a live JWT (`eyJ…`), 32+ char hex, or AWS key prefixe
 
 ## Lineage
 
-Adapts the autoresearch pattern (Modify → Verify → Keep/Discard → Repeat) by Udit Goenka (MIT). Sibling: `auto-loop` (goal-pursuit). See `references/` for the canonical loop implementation.
+Adapts the autoresearch pattern (Modify → Verify → Keep/Discard → Repeat) by Udit Goenka (MIT). Sibling: `vd:auto-loop` (goal-pursuit). See `references/` for the canonical loop implementation.

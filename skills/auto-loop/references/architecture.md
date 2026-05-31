@@ -5,7 +5,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                       USER (Claude Code)                        │
-│       /vd:auto-loop "<goal>" --verify "<cmd>" [opts]            │
+│       vd:auto-loop "<goal>" --verify "<cmd>" [opts]            │
 └────────────────────────────┬────────────────────────────────────┘
                              ▼
                  scripts/dispatch.sh  (route by flag)

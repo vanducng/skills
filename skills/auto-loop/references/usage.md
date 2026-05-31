@@ -5,7 +5,7 @@ Drive a Claude Code session toward a verifiable goal until done or a hard cap fi
 ## Quick start
 
 ```
-/vd:auto-loop "all bats tests pass + ruff clean" --verify "bats tests/ && ruff check ."
+vd:auto-loop "all bats tests pass + ruff clean" --verify "bats tests/ && ruff check ."
 ```
 
 Goal text is positional. Verifier is a shell command — exit 0 means pass. The loop runs both 2× per gate check and additionally consults a fresh-context audit subagent before declaring `achieved`.
@@ -14,19 +14,19 @@ Goal text is positional. Verifier is a shell command — exit 0 means pass. The 
 
 ```
 # Default loop with explicit caps
-/vd:auto-loop "<goal>" --verify "<cmd>" --max-iterations 40 --max-wallclock 4h
+vd:auto-loop "<goal>" --verify "<cmd>" --max-iterations 40 --max-wallclock 4h
 
 # Read goal from goal.md (multi-line, scope, caps inline)
-/vd:auto-loop --goal-file goal.md
+vd:auto-loop --goal-file goal.md
 
 # Inspect a running loop
-/vd:auto-loop --status
+vd:auto-loop --status
 
 # Stop a running loop
-/vd:auto-loop --cancel
+vd:auto-loop --cancel
 
 # Delegate to Codex /goal
-/vd:auto-loop "<goal>" --verify "<cmd>" --codex
+vd:auto-loop "<goal>" --verify "<cmd>" --codex
 ```
 
 ## Modes

@@ -203,4 +203,4 @@ If the answer is one of the above, reach for the simpler tool. `ro` earns its ke
 
 - See `lo.md` — for finite slice transforms (don't use ro for those)
 - See `oops.md` — error propagation through the reactive pipeline
-- See `/vd:py2go` worker playbook — sometimes the Python `asyncio` source is reactive enough to warrant ro
+- See `vd:py2go` worker playbook — sometimes the Python `asyncio` source is reactive enough to warrant ro

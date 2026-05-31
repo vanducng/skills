@@ -73,11 +73,11 @@ rm -f /tmp/sentinel
 - **Hook scope.** PostToolUse fires for EVERY tool call. `codex-monitor-hook.sh` is a no-op when there's no matching spec, but every Bash/Read/Edit call goes through it. Acceptable overhead (<10ms typical).
 - **Stale spec leaks** when pursue dies mid-wait — covered by `codex-hook-cleanup.sh` (Workaround 4 below).
 
-## Workaround 3: auto-loop delegation on Codex
+## Workaround 3: `vd:auto-loop` delegation on Codex
 
-**Gap.** Pursue's `cook` action delegates to `vd:auto-loop` for the iteration loop. On Claude Code, auto-loop uses Stop-hook re-feed. On Codex, auto-loop has a `--codex` mode that delegates to native `/goal`. Pursue needs to pass `--codex` only when running on Codex.
+**Gap.** Pursue's `cook` action delegates to `vd:auto-loop` for the iteration loop. On Claude Code, `vd:auto-loop` uses Stop-hook re-feed. On Codex, `vd:auto-loop` has a `--codex` mode that delegates to native `/goal`. Pursue needs to pass `--codex` only when running on Codex.
 
-**Workaround.** `scripts/delegate-to-auto-loop.sh` detects runtime via `detect-runtime.sh` and appends `--codex` to the auto-loop invocation args when runtime is `codex`.
+**Workaround.** `scripts/delegate-to-auto-loop.sh` detects runtime via `detect-runtime.sh` and appends `--codex` to the `vd:auto-loop` invocation args when runtime is `codex`.
 
 **Implementation.** ~5 LOC in `delegate-to-auto-loop.sh` — detect runtime + conditional flag append. Other logic (compound verifier, marker file, recursion guard, precondition checks) unchanged.
 
@@ -96,7 +96,7 @@ PURSUE_RUNTIME=claude-code bash ~/skills/skills/pursue/scripts/delegate-to-auto-
 ```
 
 **Limitations.**
-- **auto-loop's `--codex` mode is TUI-only** (per `~/skills/skills/auto-loop/references/codex-delegation.md`: "codex exec does not (yet) accept /goal as an argument. So delegation is inherently interactive"). The chain `pursue → codex exec resume → auto-loop --codex → /goal` has 3 handoffs. The middle one (`codex exec resume`) IS interactive-capable, so this should work — but Phase 5 dogfood must verify the resumed session can actually exec `/goal`. If it can't, pursue's cook on Codex degrades to running auto-loop in non-`--codex` mode (loses /goal's pause/resume + cross-surface sync).
+- **`vd:auto-loop`'s `--codex` mode is TUI-only** (per `~/skills/skills/auto-loop/references/codex-delegation.md`: "codex exec does not (yet) accept /goal as an argument. So delegation is inherently interactive"). The chain `pursue → codex exec resume → vd:auto-loop --codex → /goal` has 3 handoffs. The middle one (`codex exec resume`) IS interactive-capable, so this should work — but Phase 5 dogfood must verify the resumed session can actually exec `/goal`. If it can't, pursue's cook on Codex degrades to running `vd:auto-loop` in non-`--codex` mode (loses /goal's pause/resume + cross-surface sync).
 - **No Codex /goal pause/resume integration.** Pursue's `kill` sub-verb writes `state.terminal=abandoned`; on Codex with `/goal` running, the user must also `/goal cancel` separately. Document in the kill output. v0.3 wires this.
 
 ## Workaround 4: Hook teardown (SessionStart sweep)

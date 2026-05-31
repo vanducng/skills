@@ -30,7 +30,7 @@ If pursue detects `codex exec` invocation (env: `$CODEX_EXEC_MODE` set, or no TT
 
 ```
 vd:pursue intake requires interactive mode (ask_user_question is unavailable in codex exec).
-Run interactively: open `codex` shell, then `/vd:pursue "<goal>"`.
+Run interactively: open `codex` shell, then `vd:pursue "<goal>"`.
 (Flag-based default-answer mode for CI is v0.3 work — see references/codex-runtime.md.)
 ```
 
@@ -39,7 +39,7 @@ Run interactively: open `codex` shell, then `/vd:pursue "<goal>"`.
 Same shape as `runtimes/claude-code.md`. The executor's first decision branches on `$1`:
 
 ```
-if $1 is empty (bare `/vd:pursue`):
+if $1 is empty (bare `vd:pursue`):
   # Resume mode — auto-detect most recent in-progress goal-dir.
   goal_dir = find ./plans/goals/* -maxdepth 1 -type d \
              | sort -r \
@@ -52,7 +52,7 @@ if $1 is empty (bare `/vd:pursue`):
     print "resuming goal {slug} (current_phase={current_phase})"
     jump to executor loop (skip intake)
   else:
-    print "no in-progress goal. Pass a goal: /vd:pursue \"<short goal>\""
+    print "no in-progress goal. Pass a goal: vd:pursue \"<short goal>\""
     exit 0
 
 elif $1 == "status" or "kill" or "resolve":
@@ -67,7 +67,7 @@ else:
 
 ## Phase 1 — Intake (new-goal mode)
 
-`/vd:pursue "<short goal>"` runs:
+`vd:pursue "<short goal>"` runs:
 
 1. Four `ask_user_question` prompts (see `references/intake-template.md` for the question shape):
    - target kind (local / pr-only / cluster)
@@ -167,13 +167,13 @@ Identical to claude-code.md — `status`, `kill`, `resolve` short-circuit to the
 
 ## Cross-session resume
 
-On Codex, sessions persist as JSONL under `~/.codex/sessions/`. pursue's resume invariant doesn't rely on this — it relies on `state.json` on disk. Bare `/vd:pursue` (no args) re-reads state.json and continues. Phase 5 keystone proves this works across runtime boundaries (Claude → Codex on the same goal).
+On Codex, sessions persist as JSONL under `~/.codex/sessions/`. pursue's resume invariant doesn't rely on this — it relies on `state.json` on disk. Bare `vd:pursue` (no args) re-reads state.json and continues. Phase 5 keystone proves this works across runtime boundaries (Claude → Codex on the same goal).
 
 ## See also
 
 - `runtimes/claude-code.md` — Claude Code adapter (mirror of this)
 - `runtimes/detect.md` — runtime detection precedence
 - `references/codex-runtime.md` — Codex-specific notes + v0.3 deferrals
-- `references/codex-gap-workarounds.md` — Phase 3 work: Monitor/Skill-to-skill/auto-loop details
+- `references/codex-gap-workarounds.md` — Phase 3 work: Monitor/Skill-to-skill/`vd:auto-loop` details
 - `references/architecture.md` — two-layer SKILL.md ↔ bash invariant
 - `scripts/codex-bridge.sh` — Codex helpers (resume, hook payload, JSON parse)

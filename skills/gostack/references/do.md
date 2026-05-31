@@ -248,5 +248,5 @@ status := injector.HealthCheck()  // map[string]error
 ## Cross-refs
 
 - See `oops.md` for error returns from providers
-- See `/vd:py2go` HTTP playbook — `do` v2 is the default DI when graph grows
-- See `/vd:cook` review gate for catching container abuse (Invoke called from non-root code)
+- See `vd:py2go` HTTP playbook — `do` v2 is the default DI when graph grows
+- See `vd:cook` review gate for catching container abuse (Invoke called from non-root code)

@@ -78,7 +78,7 @@ Install per https://developers.openai.com/codex/quickstart, or use the in-house 
 ```
 delegate-to-codex: another vd:auto-loop is live (pid=...)
 ```
-A previous session left a live heartbeat. Run `/vd:auto-loop --cancel` first.
+A previous session left a live heartbeat. Run `vd:auto-loop --cancel` first.
 
 ## Two concurrent loops in same workspace
 
@@ -99,7 +99,7 @@ kill -0 "$pid" && echo alive || echo dead
 ```
 
 If the PID is dead but the heartbeat persists, the dispatch shell may have exited
-(e.g. user pressed Ctrl-C in the terminal that started `/vd:auto-loop`). The next
+(e.g. user pressed Ctrl-C in the terminal that started `vd:auto-loop`). The next
 session start will purge the stale heartbeat automatically; or run `--cancel` to
 clean up immediately.
 
@@ -120,6 +120,6 @@ template (`templates/next-iteration-prompt.md`) to spell out the enum.
 
 Either:
 1. Goal too ambitious for the cap. Raise `--max-iterations` or split into sub-goals
-   (run multiple `/vd:auto-loop` invocations sequentially via `/vd:plan`).
+   (run multiple `vd:auto-loop` invocations sequentially via `vd:plan`).
 2. The model is thrashing — `drift-watchdog.sh` should escalate after 3 stagnant or
    5-edit iters. Check `.auto-loop/diff-signatures.log` and `file-edits.log`.

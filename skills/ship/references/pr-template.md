@@ -4,7 +4,7 @@ Used by Step 12 (`gh pr create` / `gh pr edit`) and refreshed by Step 14 once CI
 
 ## Canonical conventions live elsewhere
 
-**Title format, body shape, per-bullet fill rules, and worked examples** are owned by `/vd:git`'s canonical PR template:
+**Title format, body shape, per-bullet fill rules, and worked examples** are owned by `vd:git`'s canonical PR template:
 
 > `~/skills/skills/git/references/pr-template.md`
 

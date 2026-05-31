@@ -1,6 +1,6 @@
 ---
 name: browser-profile
-description: Manage named persistent browser profiles (cookies, localStorage, IndexedDB, cache) that both you and Claude can use against the SAME Chrome window without collisions. Each profile lives in its own `--user-data-dir` and exposes a deterministic `--remote-debugging-port`. Use when the user says "open profile X", "attach to profile X", "log me into staging once and reuse it", or asks to test frontend flows with persistent auth across runs. Pairs with the `/vd:browser` skill (`browse env local --auto-connect`) for the CDP attach step.
+description: Manage named persistent browser profiles (cookies, localStorage, IndexedDB, cache) that both you and Claude can use against the SAME Chrome window without collisions. Each profile lives in its own `--user-data-dir` and exposes a deterministic `--remote-debugging-port`. Use when the user says "open profile X", "attach to profile X", "log me into staging once and reuse it", or asks to test frontend flows with persistent auth across runs. Pairs with the `vd:browser` skill (`browse env local --auto-connect`) for the CDP attach step.
 license: MIT
 allowed-tools: Bash, Read
 ---
@@ -21,12 +21,12 @@ Why not Playwright `launchPersistentContext`? Because that path requires Playwri
 - Long-lived debugging sessions where you want to come back tomorrow and have the same logged-in dashboards.
 - Hand-off flows: you log in manually, then ask Claude to drive the rest.
 
-**Not for:** cloud-only / anti-bot use cases (use Browserbase contexts via `/vd:browser` `--context-id` instead) or one-shot ephemeral scraping (just use `/vd:browser` directly).
+**Not for:** cloud-only / anti-bot use cases (use Browserbase contexts via `vd:browser` `--context-id` instead) or one-shot ephemeral scraping (just use `vd:browser` directly).
 
 ## Prerequisites
 
 - macOS with Google Chrome at `/Applications/Google Chrome.app` (override via `BROWSER_PROFILE_CHROME` env var).
-- `/vd:browser` skill installed (`browse` CLI on PATH) — used by `attach`.
+- `vd:browser` skill installed (`browse` CLI on PATH) — used by `attach`.
 - Optional: `jq` for pretty `profile list` output.
 
 ## Quick start
@@ -95,8 +95,8 @@ $HOME/.claude/browser-profiles/
 
 ## Integration points
 
-- **`/vd:cook` flows that hit authenticated dashboards** — start a step with `profile-attach.sh <name>` so the `browse` CLI is pre-pointed at the right session.
-- **`/vd:browser-trace`** — attaches as a third CDP client on the same target, gets a full trace without interfering. Use the profile's deterministic port as the trace target.
+- **`vd:cook` flows that hit authenticated dashboards** — start a step with `profile-attach.sh <name>` so the `browse` CLI is pre-pointed at the right session.
+- **`vd:browser-trace`** — attaches as a third CDP client on the same target, gets a full trace without interfering. Use the profile's deterministic port as the trace target.
 - **`ck:web-testing` Playwright fixtures** — export `storageState.json` once, then any Playwright test (local or CI) gets the same identity via `{ storageState: '<path>' }`.
 
 ## Troubleshooting

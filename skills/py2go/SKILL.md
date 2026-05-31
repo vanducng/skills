@@ -65,9 +65,9 @@ discover → design → scaffold → translate → validate → cutover → clea
 ## Cross-refs into the rest of the skill ecosystem
 
 - **[gostack](../gostack/SKILL.md)** — Sam Berthe's Go libraries (lo, oops, do, mo, slog, hot, ro). See `references/translation-rules.md` for where each library is the right answer.
-- `/vd:cook` — once a plan + MIGRATION.md is in place, drive execution phase-by-phase
-- `/vd:debug` — for the on-call story `oops`/`slog` enables in the migrated service
-- `/vd:ship` — for the final cutover commit + PR
+- `vd:cook` — once a plan + MIGRATION.md is in place, drive execution phase-by-phase
+- `vd:debug` — for the on-call story `oops`/`slog` enables in the migrated service
+- `vd:ship` — for the final cutover commit + PR
 
 ## Versions snapshot (verified 2026-05-23)
 
