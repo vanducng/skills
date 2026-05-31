@@ -150,6 +150,7 @@ See `references/versioned-artifacts.md` for artifact conventions and review work
 ## Iteration: `--regen` vs `--new`
 
 - `--regen "<feedback>"` — finds the **most recent** session under the current repo's `.diagrams/`, re-uses its type and format, appends `<feedback>` to the original description, drops `v2.<ext>` (or `v3`, `v4`, …) alongside the original. The positional description is ignored when `--regen` is used.
+- `--versioned --regen "<feedback>"` — same iteration behavior, but searches `docs/diagrams/` and updates `diagram.spec.yaml` / `manifest.json` to point at the newest variant.
 - `--new` — forces a fresh session dir even if a recent one exists. Requires a positional description.
 - Default — creates a new session dir from the current description.
 
@@ -187,3 +188,13 @@ Edit these once and every future diagram inherits the change. Keep type refs ≤
 - Python: `requests` (already in the shared `~/.claude/skills/.venv`)
 - Node: the `file-browser` skill (`cd $HOME/skills/skills/file-browser && npm install`) for the gallery viewer
 - Env: `OPEN_ROUTER_KEY` or `OPENROUTER_API_KEY`
+
+## Local Verification
+
+```bash
+python3 -m py_compile skills/diagram/scripts/generate.py \
+  skills/diagram/scripts/skeleton_schema.py \
+  skills/diagram/scripts/skeleton_layout.py
+PYTHONPATH=skills/diagram/scripts python3 -m unittest discover \
+  skills/diagram/scripts/tests
+```
