@@ -13,9 +13,9 @@ The closed set of actions `vd:pursue`'s executor (Phase 3) can dispatch. Each ac
 | `brainstorm` | skill `vd:brainstorm` | `--deep` | — | — | `semi`,`manual` | — |
 | `plan` | skill `vd:plan` | `--deep` | `cmd_exits_zero(test -d {plan_dir})` | — | `semi`,`manual` | — |
 | `plan_audit` | skill `vd:plan-audit` | `{plan_dir}` | — | — | when risk_tier=high | — |
-| `cook` | skill `vd:cook` | `--auto {plan_dir}` | `test_suite_passes` (per profile) | — | never (long-running) | `auto-loop` |
+| `cook` | skill `vd:cook` | `--auto {plan_dir}` | `test_suite_passes` (per profile) | — | never (long-running) | `vd:auto-loop` |
 | `code_review` | agent `code-reviewer` | — | — | `[test]` | never | — |
-| `test` | skill `vd:test` | — | `test_suite_passes` | `[code_review]` | never | `auto-loop` |
+| `test` | skill `vd:test` | — | `test_suite_passes` | `[code_review]` | never | `vd:auto-loop` |
 | `ship` | skill `vd:ship` | `{ship_mode}` (from profile) | `ci_green({pr_number})` | — | `semi`,`manual` | — |
 | `wait_ci` | monitor `gh pr checks {pr_number}` | — | — | — | never | — |
 | `image_build_wait` | monitor `gh run view {run_id}` | — | — | — | never | — |
@@ -42,7 +42,7 @@ The closed set of actions `vd:pursue`'s executor (Phase 3) can dispatch. Each ac
 - **verifier (per-action)** — runs every iteration of this action (e.g. cook's `test_suite_passes` runs every iteration of the cook loop). NOT the same as workflow-level `target.verifiers`.
 - **parallel_with** — list of action names this action can run alongside in the same iteration (independent work, no file ownership clash). Phase 3+'s executor can fire a batch in a single tool message.
 - **gate_default** — autonomy modes in which this action gates by default (`AskUserQuestion` before execute). Either `never`, one or more of `{manual, semi}`, or a conditional like `when risk_tier=high`. The `--manual` mode forces a gate on EVERY action regardless of this column; `--auto` forces no gate ever.
-- **delegated_to** — `auto-loop` when this action's iteration is hosted by `/vd:auto-loop` (Phase 5). The compound verifier is built from the per-action verifier set.
+- **delegated_to** — `vd:auto-loop` when this action's iteration is hosted by that skill (Phase 5). The compound verifier is built from the per-action verifier set.
 
 ## Adding a new action
 

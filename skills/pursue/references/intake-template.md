@@ -1,6 +1,6 @@
 # Intake template — 4 questions max
 
-Phase 1's `/vd:pursue "<short goal>"` runs these via `AskUserQuestion`. Order is fixed (later answers depend on earlier ones). Max 4 questions per intake — anything more is bloat; defer to mid-flight editing of `goal.yaml`.
+Phase 1's `vd:pursue "<short goal>"` runs these via `AskUserQuestion`. Order is fixed (later answers depend on earlier ones). Max 4 questions per intake — anything more is bloat; defer to mid-flight editing of `goal.yaml`.
 
 ## Q1 — Target kind
 
@@ -26,9 +26,9 @@ Phase 1's `/vd:pursue "<short goal>"` runs these via `AskUserQuestion`. Order is
 
 | Label | Description |
 |---|---|
-| `Brainstorm-first` | Design phase needed — invoke `/vd:brainstorm` before `/vd:plan`. Use for unfamiliar / multi-option work. |
-| `Plan-only` | Skip brainstorm; jump straight to `/vd:plan`. Use when the approach is decided. |
-| `Fix-and-ship` | No design phase; treat as a small targeted fix. Invoke `/vd:fix --auto` instead of plan+cook. |
+| `Brainstorm-first` | Design phase needed — invoke `vd:brainstorm` before `vd:plan`. Use for unfamiliar / multi-option work. |
+| `Plan-only` | Skip brainstorm; jump straight to `vd:plan`. Use when the approach is decided. |
+| `Fix-and-ship` | No design phase; treat as a small targeted fix. Invoke `vd:fix --auto` instead of plan+cook. |
 | `Refactor` | TDD shape — plan with `--tdd` flag. |
 
 **Maps to:** prepends to the resolved workflow's action sequence:

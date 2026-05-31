@@ -62,5 +62,5 @@ Forensics preserved under .auto-loop/:
   verifier-*.log      — per-iter verifier output
   audit-*.json        — per-iter audit votes
 
-Re-run /vd:auto-loop "<goal>" --verify "<cmd>" to start fresh.
+Re-run vd:auto-loop "<goal>" --verify "<cmd>" to start fresh.
 EOF

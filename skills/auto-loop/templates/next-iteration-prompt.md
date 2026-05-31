@@ -34,4 +34,4 @@ The verifier will run automatically when you set status=achieved. Do NOT run it 
 6. Stay inside the scope:
    allow: {ALLOW}
    deny: {DENY}
-7. Do NOT invoke /vd:auto-loop, ralph-loop, or codex /goal recursively.
+7. Do NOT invoke vd:auto-loop, ralph-loop, or codex /goal recursively.

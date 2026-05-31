@@ -69,7 +69,7 @@ max_wallclock: 2h
 The above can also be expressed inline:
 
 ```
-/vd:auto-loop "all bats tests pass + ruff clean; no new files outside tests/ or src/" \
+vd:auto-loop "all bats tests pass + ruff clean; no new files outside tests/ or src/" \
   --verify "bats tests/ && ruff check ." \
   --max-iterations 30 \
   --max-wallclock 2h

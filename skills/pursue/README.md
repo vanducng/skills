@@ -27,7 +27,8 @@ vd install claude --dev pursue    # symlink for Claude Code dev work
 vd install codex pursue            # symlink for Codex TUI dev work
 ```
 
-After install, `/vd:pursue` is available as a slash command in either runtime.
+After install, invoke the skill with the runtime's prefix: slash in Claude Code,
+dollar in Codex. Examples below omit the prefix and use canonical skill IDs.
 
 ## Runtime support (v0.2)
 
@@ -36,7 +37,7 @@ After install, `/vd:pursue` is available as a slash command in either runtime.
 | Intake | ✓ | ✓ | ✗ (errors — `ask_user_question` unavailable in exec) |
 | Sequential executor | ✓ | ✓ | ✗ |
 | Skill-to-skill dispatch | ✓ Skill tool | ✓ `codex exec resume` | ✗ |
-| Cook+verify iteration | ✓ auto-loop Stop-hook | ✓ auto-loop --codex → /goal | ✗ |
+| Cook+verify iteration | ✓ `vd:auto-loop` Stop-hook | ✓ `vd:auto-loop --codex` → /goal | ✗ |
 | Monitor (wait_ci, etc.) | ✓ Monitor tool | ✓ PostToolUse hook + additionalContext | ✗ |
 | Cross-session resume | ✓ via state.json | ✓ via state.json | n/a |
 | Cross-runtime resume (same goal) | ✓ both directions via state.json | | |
@@ -47,7 +48,7 @@ After install, `/vd:pursue` is available as a slash command in either runtime.
 ## Quick start
 
 ```
-/vd:pursue "implement cron retry, ship to staging, verify"
+vd:pursue "implement cron retry, ship to staging, verify"
 ```
 
 Intake will ask up to 4 questions (target kind, action shape, branch name, autonomy). Then a worktree + `plans/goals/{date}-{slug}/goal.yaml` + `state.json` get created. The executor loop drives through plan → cook → ship → verify, gating at high-blast-radius transitions.
@@ -55,9 +56,9 @@ Intake will ask up to 4 questions (target kind, action shape, branch name, auton
 ## Sub-verbs
 
 ```
-/vd:pursue status                    # one-screen state summary (exit code = terminal state)
-/vd:pursue kill --reason "<text>"    # write terminal=abandoned, cancel auto-loop if mid-delegation
-/vd:pursue resolve <goal-dir>        # dry-run: print the resolved workflow without executing
+vd:pursue status                    # one-screen state summary (exit code = terminal state)
+vd:pursue kill --reason "<text>"    # write terminal=abandoned, cancel vd:auto-loop if mid-delegation
+vd:pursue resolve <goal-dir>        # dry-run: print the resolved workflow without executing
 ```
 
 ## Modes
@@ -73,9 +74,9 @@ Switch modes mid-flight by editing `goal.yaml.autonomy` — the executor re-read
 
 ## Composes
 
-- `/vd:scout`, `/vd:research`, `/vd:brainstorm`, `/vd:plan`, `/vd:plan-audit`, `/vd:cook`, `/vd:ship`, `/vd:debug`, `/vd:fix`, `/vd:test`, `/vd:docs`, `/vd:journal`, `/vd:worktree`, `/vd:auto-loop`
+- `vd:scout`, `vd:research`, `vd:brainstorm`, `vd:plan`, `vd:plan-audit`, `vd:cook`, `vd:ship`, `vd:debug`, `vd:fix`, `vd:test`, `vd:docs`, `vd:journal`, `vd:worktree`, `vd:auto-loop`
 
-When an action has a verifier defined (`cook`, `test`), pursue delegates iteration to `/vd:auto-loop` and resumes when it terminates. Requires `vd:auto-loop` installed.
+When an action has a verifier defined (`cook`, `test`), pursue delegates iteration to `vd:auto-loop` and resumes when it terminates. Requires `vd:auto-loop` installed.
 
 ## On-disk state
 
@@ -93,7 +94,7 @@ plans/goals/{YYMMDD-HHMM}-{slug}/
     delegated-to-auto-loop.json          # marker for cross-session resume
 ```
 
-All state survives context compaction. Re-invoke `/vd:pursue` in a fresh session — it reads the most recent goal-dir with `terminal=null` and resumes.
+All state survives context compaction. Re-invoke `vd:pursue` in a fresh session — it reads the most recent goal-dir with `terminal=null` and resumes.
 
 ## Hard guardrails
 
@@ -126,9 +127,9 @@ Adding a new project: drop a `<name>.toml` in `projects/` with `remote_matches` 
 - `references/autonomy-modes.md` — manual/semi/auto semantics
 - `references/monitor-recipes.md` — wait_ci / image_build_wait / rollout_check patterns
 - `references/auto-loop-integration.md` — Phase 5 delegation lifecycle
-- `references/codex-deferred.md` — v0.2 Codex adapter plan
+- `references/codex-runtime.md` — Codex runtime notes
 
 ## Versioning
 
-- v0.1 (this release): Claude Code only, intake + sequential executor + auto-loop delegation + per-project profiles + 4 sub-verbs.
-- v0.2 (planned): Codex runtime adapter, multi-goal concurrency, profile inheritance, replay / cost telemetry, verifier `manual_confirm` two-step UX polish.
+- v0.1: Claude Code runtime, intake + sequential executor + `vd:auto-loop` delegation + per-project profiles + 4 sub-verbs.
+- v0.2: Codex runtime adapter, shared state resume, monitor hooks, and cross-runtime goal portability.

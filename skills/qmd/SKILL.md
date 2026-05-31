@@ -81,7 +81,7 @@ qmd search "<query>" -c <collection> --all --files --min-score 0.3
 
 ### Multi-token query — split if BM25 returns nothing
 
-`qmd search` requires all tokens to co-occur in a chunk. With 4+ keywords this often returns zero. Workaround: issue per-token searches and aggregate by vote count. (See `/vd:open-design`'s `qmd_vote_search` for a worked example.)
+`qmd search` requires all tokens to co-occur in a chunk. With 4+ keywords this often returns zero. Workaround: issue per-token searches and aggregate by vote count. (See `vd:open-design`'s `qmd_vote_search` for a worked example.)
 
 ## Retrieval
 
@@ -121,7 +121,7 @@ For collections that change often, schedule `qmd update` hourly via cron. Reserv
 
 ## Composes well with
 
-- **`/vd:open-design`** — auto-detects qmd and uses it for skill/design-system catalog search.
+- **`vd:open-design`** — auto-detects qmd and uses it for skill/design-system catalog search.
 - Any other vd skill that needs to query a curated Markdown corpus — wrap `qmd search` with collection-specific defaults rather than re-implementing search.
 
 ## Security
