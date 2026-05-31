@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository contains Claude Code skills plus the `vd` CLI used to manage them. Skill packages live under `skills/<name>/` and each package must include `SKILL.md` with valid frontmatter. Skill-specific scripts, references, and assets stay inside that skill directory, for example `skills/file-browser/scripts/` and `skills/file-browser/assets/`. Repository helpers live in `scripts/`. The Go CLI is a separate module in `tools/vd/`, with source under `tools/vd/internal/`, command entrypoint under `tools/vd/cmd/vd`, docs under `tools/vd/docs/`, and tests beside the packages they cover.
+This repository contains skills for agentic coding plus the `vd` CLI used to manage them. Skill packages live under `skills/<name>/` and each package must include `SKILL.md` with valid frontmatter. Skill-specific scripts, references, and assets stay inside that skill directory, for example `skills/file-browser/scripts/` and `skills/file-browser/assets/`. Repository helpers live in `scripts/`. The Go CLI is a separate module in `tools/vd/`, with source under `tools/vd/internal/`, command entrypoint under `tools/vd/cmd/vd`, docs under `tools/vd/docs/`, and tests beside the packages they cover.
 
 ## Build, Test, and Development Commands
 
