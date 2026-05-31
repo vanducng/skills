@@ -17,6 +17,7 @@ metadata:
 | `/loop` | "Re-run this prompt every N minutes." | Cron-style recurrence |
 | `/ralph-loop` | "Bash-while loop external to Claude." | Subprocess churn |
 | `/vd:cook` | "Execute the plan, phase-by-phase, with review gates." | Phased delivery |
+| `/vd:optimize-loop` | "Improve a measurable metric over N bounded iterations." | Best metric value (auto keep/discard) |
 | **`/vd:auto-loop`** | **"Drive toward this goal until verified done or a cap fires — no babysitting."** | **Verified completion or graceful drain** |
 
 Auto-loop **pursues**. It does not design (use `/vd:brainstorm`/`/vd:plan` first) and it does not poll on a clock (use `/loop`). The exit condition is a **two-vote completion gate**: a user-supplied verifier command **and** a fresh-context audit subagent both vote `achieved`.
