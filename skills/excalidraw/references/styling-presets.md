@@ -27,6 +27,29 @@ Every color encodes information. No decoration without meaning. Within a single 
 | 3 | bold | streaming arrows, critical paths, emphasis |
 | 4+ | dominant | sparingly — only for ultimate emphasis |
 
+## Minimal Legends
+
+Add a compact legend when visual encodings are meaningful but not self-evident. Keep it to the semantics used in the diagram, not the full palette.
+
+| Include when | Limit |
+|--------------|-------|
+| 3+ semantic node colors | list only the 3-6 visible roles |
+| 2+ arrow colors/styles | show mini-lines for only the edge types used |
+| allow/deny, internal/external, batch/stream, sync/async appear together | prefer shape + line style, not color alone |
+
+Default arrow legend entries:
+
+| Meaning | Style | Color | Width |
+|---------|-------|-------|-------|
+| Sync/API call | solid | `#1976d2` | 2 |
+| Batch/data load | solid | `#757575` | 2 |
+| Stream/event | solid | `#f57c00` | 3 |
+| Async/queue | dashed | `#e8590c` | 2 |
+| Lineage/dependency | dotted | `#9c27b0` | 1 |
+| Denied/security block | solid | `#d32f2f` | 3 |
+
+Place the legend in unused top-right or bottom-right space. Use fontSize 13-14, short labels, and no more than one compact legend per diagram.
+
 ## C4 Color Assignment (Full)
 
 | C4 Level | Fill | Stroke | Shape | Label |
@@ -244,7 +267,7 @@ Before declaring a diagram done, verify:
 - [ ] Aligned to grid, ≥40px between unconnected, ≥120px between connected
 - [ ] Primary elements have more breathing room than supporting
 - [ ] One concern per diagram (not "everything")
-- [ ] Legend included if any color used non-obviously
+- [ ] Compact legend included when color/shape/arrow styles are non-obvious
 - [ ] Colorblind-safe alternative palette ready when red/green appear together
 - [ ] No mixing C4 abstraction levels
 - [ ] No invisible connections (light arrow on light bg)
