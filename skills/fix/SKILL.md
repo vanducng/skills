@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[issue description] [--quick | --auto] [--no-prevent]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Fix
@@ -89,7 +89,7 @@ Detect mode from the argument; announce in your first reply.
 - Discover: project type/language/framework, affected files/models/manifests, direct callers/dependents, related tests, recent git changes (`git log -p -- <path>`), and local patterns for similar fixes.
 - Read `./docs` if the project is unfamiliar.
 - **Quick mode:** just locate the file(s) + immediate deps.
-- If you need to ask a clarifying question, ask it after this scan and ground it in concrete files, logs, commits, or functions you found.
+- **Scout before questions.** Always scan the codebase BEFORE asking anything. State a 3–6 bullet codebase-context summary first (project type/stack, the symptom file + its callers, related tests, the suspect recent commit). Only then ask a clarifying question — grounded in concrete files, logs, commits, or functions you found. Never ask what the scan already answers.
 
 Output: `✓ Scouted — N files, M deps, K tests`
 
@@ -153,6 +153,7 @@ See `references/verify-and-prevent.md`. Highlights:
 - **Contract check**: confirm public API contracts, exported function signatures/types, response shapes, DB schemas, metric definitions, env vars, Terraform outputs, and job/DAG schedules are unchanged — or call out the intentional change and migration path.
 - **Regression test**: add or update a test/check that fails without the fix and passes with it. dbt → add or fix a test; Airflow → add a sensor / assertion; Terraform → add a `terraform validate`/CI guardrail; backend → unit + integration; frontend → component test + e2e if the bug was reachable from the UI.
 - **Defense-in-depth**: where applicable, add a guard at a layer above the bug (schema constraint, type narrowing, K8s probe, CI check) so the same class can't recur silently.
+- **Regression found ≠ verification failed**: if the original symptom is gone but the sweep/contract check broke something else, **STOP — don't patch around it.** Present what broke + why + 2–4 options (revert / update dependents / narrow scope / accept) via `AskUserQuestion`. See `references/verify-and-prevent.md` → "When the sweep finds a regression". Hard stop even in `--auto`.
 - **Verification loop**: if it fails, back to Step 2. After **3 failed verification cycles → stop and question architecture**, surface to user.
 
 Output: `✓ Verified + prevented — before/after attached, N tests added, M guards added`

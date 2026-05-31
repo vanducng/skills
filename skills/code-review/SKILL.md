@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: "Review code with a sharp, encouraging voice — inline GitHub PR comments + a tight summary. Supports PR (default), pending changes, commit hash, and codebase modes. Encodes the personal review style: severity-prefixed, concise, actionable, no fluff."
+description: "Review code with a sharp, encouraging voice — inline GitHub PR comments + a tight summary. Supports PR (default), pending changes, commit hash, and codebase modes. Encodes an opinionated review style: severity-prefixed, concise, actionable, no fluff."
 license: MIT
 argument-hint: "[#PR | URL | COMMIT | --pending | codebase] [--dry-run] [--post] [--no-inline]"
 metadata:

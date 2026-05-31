@@ -28,6 +28,21 @@ Memory of "I think it should work now" is not evidence. Re-execute. Capture outp
 
 If verification fails → back to Step 2 (re-diagnose with the new evidence). **3 failed verification cycles → STOP**, surface to the user, question whether the architecture / approach is wrong.
 
+## When the sweep finds a regression (don't silently patch)
+
+The original symptom is gone but the blast-radius sweep, contract check, or an adjacent suite broke — the fix introduced a side effect. **STOP. Do not patch around it.** A second patch to hide the first is how one bug becomes three.
+
+Surface it and let the user decide. Present:
+- **What broke** — the file / test / workflow / contract.
+- **Why the fix caused it** — one-line cause linking the change to the breakage.
+- **2–4 concrete options**, e.g.:
+  - Revert the fix and try a different root-cause angle.
+  - Keep the fix and update the dependent code at `<files>` to match the new contract.
+  - Narrow the fix scope to `<subset>` so the regression goes away.
+  - Accept the regression — it was buggy behavior the test was locking in (update the test, note why).
+
+Use `AskUserQuestion` with these grounded in the specific files/tests that broke — never abstract. In `--auto`, this is a hard stop: a regression is a safety-floor event, not a judgement call to auto-resolve.
+
 ## Regression guard (mandatory unless `--no-prevent`)
 
 Add a test/check that **fails without the fix** and **passes with it**. Confirm both directions when feasible (revert the fix locally, see the test fail, restore).

@@ -1,13 +1,13 @@
 # vanducng/skills
 
-Duc's personal [Claude Code skills](https://code.claude.com/docs/en/skills) and the **`vd`** CLI for managing them.
+A daily-driver collection of [skills for agentic coding](https://code.claude.com/docs/en/skills) and the **`vd`** CLI for managing them.
 
 ![validate](https://github.com/vanducng/skills/actions/workflows/validate.yml/badge.svg)
 
 ## What's here
 
-- **Skills** — packaged as the `vd` Claude Code plugin (`vd:research`, `vd:computer-clean`, …).
-- **`vd` CLI** — a standalone Go binary for tracking, vendoring, and publishing Claude skills across repos.
+- **Skills** — packaged as the `vd` plugin for Claude Code (`vd:research`, `vd:computer-clean`, …).
+- **`vd` CLI** — a standalone Go binary for tracking, vendoring, and publishing skills across repos.
 
 ## Install the skills (Claude Code plugin)
 
