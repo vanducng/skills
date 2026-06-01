@@ -5,6 +5,10 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 ## [Unreleased]
 
 ### Added
+- Release Please workflow for SemVer skill-catalog releases. The release PR
+  bumps `version.txt`, `skills.toml`, `.claude-plugin/plugin.json`, and
+  `.claude-plugin/marketplace.json` together, with CI checking version
+  consistency.
 - `skills/file-browser/` — CSV/TSV/XLSX files now render as tabular data in `/view` instead of falling through to source text. CSV/TSV parsing handles quoted commas and quoted newlines; XLSX renders the first worksheet using `read-excel-file`. Gallery, sidebar tree classification, MIME types, docs, and smoke tests were updated for table files.
 - `skills/sqlit/` — scriptable CLI wrapper over the `sqlit` binary for ad-hoc SQL against any saved connection (BigQuery, Postgres, MySQL, MSSQL, SQLite, Snowflake, DuckDB). Encodes the shell-quoting gotcha (single-quote SQL with backticks so the shell doesn't eat them), the bare-`sqlit` TUI hazard, per-dialect metadata recipes, and the failure-mode → cause map. Lets `vd:` workflows hit databases without re-deriving these rules each time.
 - `skills/optimize-loop/` — autonomous metric-optimization loop (autoresearch pattern: Modify→Verify→Keep/Discard→Repeat). Runs N bounded iterations against a mechanical metric (coverage, bundle size, lint/type errors, latency, LOC), commits each attempt before verifying, auto-keeps wins and `git revert`s regressions. Protocol-only (no scripts), with references for the 8-phase loop, noise-aware verification + guard, git-as-memory + TSV results log, and a copy-paste metric library. Complements `vd:auto-loop` (goal-pursuit) — different exit philosophy (metric/stuck-detection vs two-vote gate). Includes a verify-command safety screen + credential masking.

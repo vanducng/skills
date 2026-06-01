@@ -34,7 +34,7 @@ Pick the flag that matches user intent. Never re-implement what
 | `--diff <name>` | Show drift vs cached upstream | `vd diff` |
 | `--doctor` | Report drift between lock + disk | `vd doctor` |
 | `--validate` | Lint frontmatter of every local skill | `bash scripts/validate.sh` |
-| `--release [bump]` | Open a release PR via conventional commits | `release-please` (CI) |
+| `--release [bump]` | Use the skill-catalog release workflow | `release-please` (CI) |
 
 If no flag is given, ask the user which lifecycle stage they want
 (authoring / vendoring / releasing) before doing anything.
@@ -49,8 +49,9 @@ If no flag is given, ask the user which lifecycle stage they want
   (`brew install vanducng/tap/vd` or `go install github.com/vanducng/vd-cli/cmd/vd@latest`).
   This repo no longer contains its source.
 - Plugin manifest version (`.claude-plugin/marketplace.json`,
-  `.claude-plugin/plugin.json`) is for the **skill catalog**. The `vd`
-  CLI versions independently in its own repo.
+  `.claude-plugin/plugin.json`) is for the **skill catalog** and must match
+  `version.txt` plus `[targets.claude.bundle].version` in `skills.toml`. The
+  `vd` CLI versions independently in its own repo.
 
 ## --create
 
@@ -119,24 +120,40 @@ read the output, fix the offending `SKILL.md`, re-run.
 
 ## --release
 
-Releasing the `vd` CLI now happens in [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli),
-not this repo. Switch to that repo and follow its release-please flow.
+This repo releases the **skill catalog plugin**, not the standalone `vd` CLI.
+The CLI still releases from [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli).
 
-If the user invokes `--release` here, redirect them:
+For skill-catalog releases, use conventional commits on `main`. Release Please
+opens a release PR that applies the next SemVer bump to:
 
-> vd CLI releases live in `vanducng/vd-cli` now. `cd` there and land
-> conventional commits — release-please opens a PR, merging it tags
-> and triggers GoReleaser + Homebrew tap update.
+```text
+version.txt
+skills.toml
+.claude-plugin/plugin.json
+.claude-plugin/marketplace.json
+CHANGELOG.md
+```
 
-This skill no longer touches `vd` versioning.
+Do not hand-edit one version file by itself. If a release PR or manual repair
+touches versions, run:
+
+```bash
+bash scripts/check-release-versions.sh
+vd build
+bash scripts/check-release-versions.sh
+```
+
+Merging the release PR creates the `vX.Y.Z` GitHub release/tag. Marketplace
+users update with `/plugin marketplace update vd-skills`.
 
 ## Scope
 
 This skill handles: scaffolding new skills, vendoring upstream skills
-via `vd`, validating frontmatter. It does NOT handle: the actual
-implementation of an individual skill's logic, `vd` CLI releases (now
-in `vanducng/vd-cli`), plugin marketplace publishing, or GitHub
-repo/permissions changes — those need direct user attention.
+via `vd`, validating frontmatter, and skill-catalog release hygiene. It does
+NOT handle: the actual implementation of an individual skill's logic, `vd` CLI
+releases (now in `vanducng/vd-cli`), marketplace internals outside the checked
+in plugin metadata, or GitHub repo/permissions changes — those need direct user
+attention.
 
 ## Security
 
