@@ -10,15 +10,16 @@ allowed-tools:
   - Bash
 metadata:
   author: vanducng
-  version: "0.2.0"
+  version: "0.2.1"
   binary: miudb
 ---
 
 # miudb
 
 Headless database CLI for agent-safe SQL work against saved database
-connections. Prefer `miudb` for machine-readable output, scripted checks, and
-Neovim/agent integration.
+connections. Prefer direct `miudb` commands for one-shot machine-readable
+output and scripted checks. Use `miudb mcp serve` only when configuring an MCP
+host, and use `miudb serve` only for Neovim/custom protocol clients.
 
 Do not use `sqlit` for miudb tasks.
 
@@ -39,10 +40,14 @@ miudb version --output json
 miudb commands --output json
 ```
 
-Alternative:
+If `miudb version` reports older than `v0.2.0-go.9` or the command catalog
+lacks `mcp serve`, install the tagged Go binary or build from the local
+checkout.
 
 ```bash
-go install github.com/vanducng/miu-db/cmd/miudb@v0.2.0-go.5
+go install github.com/vanducng/miu-db/cmd/miudb@v0.2.0-go.9
+cd /Users/vanducng/git/personal/miu-db
+go build -buildvcs=false -o ./.miu-db/miudb ./cmd/miudb
 ```
 
 ## Default local config
@@ -62,16 +67,22 @@ For migrated configs, `miudb` reads `credentials-export.json` from the same
 directory when `credentials.json` is absent.
 
 Only pass `--config-dir`, `--connections-file`, `--credentials-file`,
-`--secret-source`, or `--keyring-service` when the user asks for a non-default
-store.
+`--credentials-export`, `--secret-source`, `--keyring-service`, or
+`--gopass-prefix` when the user asks for a non-default store.
+
+By default, secret lookup can use file credentials, the `miudb` keyring
+service, and gopass paths under the `miudb` prefix. Treat `--credentials-export`
+as a deprecated alias for `--credentials-file`.
 
 ## Discover commands and connections
 
 ```bash
 miudb commands --output json
 miudb describe connections add --output json
+miudb describe connections test --output json
 miudb describe query run --output json
 miudb describe connections smoke --output json
+miudb describe mcp serve --output json
 miudb connections list --output json
 ```
 
@@ -122,6 +133,20 @@ miudb connections add \
   --output json
 ```
 
+Provider options:
+
+```bash
+miudb connections add \
+  --name warehouse \
+  --db-type snowflake \
+  --host account \
+  --username USER \
+  --option authenticator=snowflake_jwt \
+  --option warehouse=DEV_WH \
+  --extra-option sslmode=require \
+  --output json
+```
+
 Secret stores for new connections:
 
 - `keyring`: OS Keychain/keyring service named `miudb` by default.
@@ -132,10 +157,24 @@ Secret stores for new connections:
 Rules:
 
 - Prefer `--secret-store keyring` for user-entered credentials.
+- Use `--password-command` only when the command is already trusted by the
+  user; never invent a credential command.
 - Use `--secret-store file` only for disposable/local test configs or when the
   user explicitly wants a file-backed credential.
 - Never print passwords, credential files, private keys, or service account
   JSON.
+
+## Test one connection
+
+```bash
+miudb connections test <CONN> \
+  --timeout 12s \
+  --output json
+```
+
+Use `connections test` when the user names one connection or asks whether one
+connection is reachable. This opens the connection and may create an SSH
+tunnel, but does not run user SQL.
 
 ## Smoke-test connections
 
@@ -246,6 +285,36 @@ miudb serve --protocol jsonrpc --output json
 Use this only for client/protocol tasks. For normal agent work, call the direct
 CLI commands above.
 
+## MCP server
+
+For MCP-native hosts such as Codex, Claude Code, Cursor, and VS Code, use:
+
+```bash
+miudb mcp serve --transport stdio
+```
+
+Useful flags:
+
+- `--connection <name>`: repeat to restrict visible/callable connections.
+- `--limit <n>`: default row limit for MCP query tools.
+- `--max-limit <n>`: maximum accepted MCP query limit.
+- `--max-bytes <n>`: maximum serialized bytes per tool/resource response.
+- `--allow-mutate`: allow mutation SQL through MCP `query_run`; unsafe.
+
+MCP tools exposed by the server:
+
+- `connections_list`
+- `connection_describe`
+- `connection_test`
+- `connections_smoke`
+- `schema_tree`
+- `query_run`
+- `query_fetch_page`
+
+MCP `query_run` is read-only by default and rejects mutation SQL unless
+`--allow-mutate` is explicitly provided. Stdout is reserved for MCP frames;
+startup errors and diagnostics go to stderr.
+
 ## Output contract
 
 - stdout is JSON.
@@ -254,6 +323,9 @@ CLI commands above.
 - Command descriptions are available via `miudb describe <command>`.
 - Connection output redacts secrets; do not inspect credential stores unless
   the user explicitly asks.
+- The command catalog currently includes `connections test`, `mcp serve`, and
+  the native `serve` protocol; choose the narrowest command that matches the
+  user's use case.
 
 ## Failure modes
 
