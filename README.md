@@ -70,6 +70,20 @@ git add skills/my-new-skill && git commit -m "feat: add my-new-skill" && git pus
 
 After pushing, users update via `/plugin marketplace update vd-skills`.
 
+## Release the skill catalog
+
+Releases are automated with Release Please. Conventional commits on `main`
+drive the next SemVer bump: `fix:` for patch, `feat:` for minor, and breaking
+changes for major.
+
+The release PR updates `CHANGELOG.md`, `version.txt`, `skills.toml`,
+`.claude-plugin/plugin.json`, and `.claude-plugin/marketplace.json` together.
+Run this before opening release-related PRs:
+
+```bash
+bash scripts/check-release-versions.sh
+```
+
 ## License
 
 [MIT](LICENSE)

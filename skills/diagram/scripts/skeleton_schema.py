@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 import yaml
 
 SUPPORTED_TYPES = frozenset({
-    "system-architecture", "data-flow", "sequence", "er-diagram",
+    "system-architecture", "data-flow", "workflow", "sequence", "er-diagram",
     "state-machine", "c4-context", "c4-container",
 })
 
