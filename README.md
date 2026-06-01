@@ -4,10 +4,13 @@ A daily-driver collection of [skills for agentic coding](https://code.claude.com
 
 ![validate](https://github.com/vanducng/skills/actions/workflows/validate.yml/badge.svg)
 
+Docs: <https://skills.vanducng.dev>
+Agent index: <https://skills.vanducng.dev/llms.txt>
+
 ## What's here
 
 - **Skills** — packaged as the `vd` plugin for Claude Code (`vd:research`, `vd:computer-clean`, …).
-- **`vd` CLI** — a standalone Go binary for tracking, vendoring, and publishing skills across repos.
+- **`vd` CLI integration** — the standalone [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli) binary tracks, vendors, and publishes skills across repos.
 
 ## Install the skills (Claude Code plugin)
 
@@ -51,10 +54,31 @@ vd init && vd add browserbase/skills/browser --as browser && vd sync && vd build
 
 Set `VD_ROOT` in your shell to use `vd` from any directory without `--root`. Full command reference: [`vanducng/vd-cli` README](https://github.com/vanducng/vd-cli#readme).
 
+## Install for Codex
+
+User-scope symlinks:
+
+```sh
+vd install codex
+```
+
+Repo-scope symlinks:
+
+```sh
+vd install codex --scope repo
+```
+
+For Claude Code development symlinks instead of marketplace plugin mode:
+
+```sh
+vd install claude --dev
+```
+
 ## Layout
 
 ```
 .claude-plugin/   plugin manifest + marketplace registration
+docs/             Zensical source for https://skills.vanducng.dev
 skills/           one directory per skill (each has SKILL.md)
 scripts/          dev helpers: new-skill, validate, dev-fallback symlinker
 ```

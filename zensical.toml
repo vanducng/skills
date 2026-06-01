@@ -1,0 +1,69 @@
+[project]
+site_name = "vd skills"
+site_url = "https://skills.vanducng.dev/"
+site_description = "A portable skill catalog for Claude Code, Codex, and repository-local agent workflows."
+site_author = "vanducng"
+copyright = "(c) 2026 Duc Nguyen. MIT License."
+repo_url = "https://github.com/vanducng/skills"
+repo_name = "vanducng/skills"
+docs_dir = "docs"
+site_dir = "site"
+extra_css = ["stylesheets/skills.css"]
+
+[[project.nav]]
+Home = "index.md"
+
+[[project.nav]]
+Install = [
+  "install.md",
+  "getting-started.md"
+]
+
+[[project.nav]]
+"For Agents" = [
+  "agent-context.md"
+]
+
+[[project.nav]]
+Catalog = [
+  "skills.md",
+  "workflows.md"
+]
+
+[[project.nav]]
+Project = [
+  "system-architecture.md",
+  "tech-stack.md",
+  "development-guidelines.md",
+  "deployment.md"
+]
+
+[project.theme]
+variant = "modern"
+language = "en"
+features = [
+  "content.code.copy",
+  "content.tabs.link",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.instant.prefetch",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.tabs",
+  "toc.follow"
+]
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "teal"
+accent = "amber"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "cyan"
+accent = "orange"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to light mode"

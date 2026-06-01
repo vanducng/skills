@@ -4,7 +4,15 @@ on:
   push:
     branches: [main]
     paths:
-      - "tools/vd/docs/**"
+      - "docs/**"
+      - "zensical.toml"
+      - "README.md"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "zensical.toml"
+      - "README.md"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -18,36 +26,48 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Install Zensical
+        run: pip install zensical==0.0.43
+
+      - name: Build static docs
+        run: zensical build --clean --strict
+
+      - name: Add Pages metadata
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          printf '%s\n' 'skills.vanducng.dev' > site/CNAME
+          touch site/.nojekyll
+
+      - name: Configure Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
   deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Configure Pages
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-
-      - name: Build static site
-        run: |
-          set -euo pipefail
-          mkdir -p public
-          cp tools/vd/docs/vd-cli-design.html public/index.html
-          cp tools/vd/docs/vd-cli-overview.svg public/
-          cp tools/vd/docs/usage.md public/
-          cp tools/vd/docs/commands.md public/
-          cp tools/vd/docs/config-schema.md public/
-          cp tools/vd/docs/faq.md public/
-          cp tools/vd/docs/migration.md public/
-          touch public/.nojekyll
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: public
-
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+        uses: actions/deploy-pages@v5
