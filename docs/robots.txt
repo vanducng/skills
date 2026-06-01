@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://skills.vanducng.dev/sitemap.xml
+LLMs: https://skills.vanducng.dev/llms.txt

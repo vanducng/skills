@@ -1,0 +1,146 @@
+:root {
+  --vd-ink: #102124;
+  --vd-muted: #4f6267;
+  --vd-teal: #0f766e;
+  --vd-cyan: #0ea5b7;
+  --vd-amber: #d97706;
+  --vd-plum: #6d28d9;
+  --vd-surface: #f7fbfb;
+  --vd-border: rgba(15, 118, 110, 0.2);
+}
+
+[data-md-color-scheme="slate"] {
+  --vd-ink: #eef8f8;
+  --vd-muted: #b5c8cc;
+  --vd-surface: #11191d;
+  --vd-border: rgba(14, 165, 183, 0.32);
+}
+
+.vd-hero {
+  border: 1px solid var(--vd-border);
+  border-radius: 8px;
+  padding: 2rem;
+  margin: 1rem 0 1.5rem;
+  background:
+    linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(14, 165, 183, 0.06) 42%, rgba(217, 119, 6, 0.1)),
+    var(--vd-surface);
+}
+
+.vd-hero h2 {
+  max-width: 13ch;
+  margin: 0.1rem 0 0.8rem;
+  color: var(--vd-ink);
+  font-size: 2.6rem;
+  line-height: 1.04;
+}
+
+.vd-hero p {
+  max-width: 48rem;
+  color: var(--vd-muted);
+}
+
+.vd-kicker {
+  margin: 0;
+  color: var(--vd-teal);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.vd-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.4rem;
+}
+
+.vd-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  background: var(--vd-teal);
+  color: #fff !important;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.vd-button-secondary {
+  background: transparent;
+  color: var(--vd-teal) !important;
+  border: 1px solid var(--vd-border);
+}
+
+.vd-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.vd-metrics div,
+.vd-card {
+  border: 1px solid var(--vd-border);
+  border-radius: 8px;
+  background: var(--vd-surface);
+}
+
+.vd-metrics div {
+  padding: 1rem;
+}
+
+.vd-metrics strong {
+  display: block;
+  color: var(--vd-plum);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.vd-metrics span {
+  display: block;
+  color: var(--vd-muted);
+  font-size: 0.86rem;
+}
+
+.vd-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.vd-card {
+  padding: 1rem;
+}
+
+.vd-card h3 {
+  margin-top: 0;
+}
+
+.vd-card pre {
+  margin-bottom: 0;
+}
+
+.md-typeset img[src$="architecture.svg"] {
+  width: 100%;
+  border: 1px solid var(--vd-border);
+  border-radius: 8px;
+  background: var(--vd-surface);
+}
+
+@media (max-width: 900px) {
+  .vd-hero {
+    padding: 1.25rem;
+  }
+
+  .vd-hero h2 {
+    max-width: 16ch;
+    font-size: 2rem;
+  }
+
+  .vd-metrics,
+  .vd-card-grid {
+    grid-template-columns: 1fr;
+  }
+}

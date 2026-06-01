@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 520" role="img" aria-labelledby="title desc">
+  <title id="title">vd skills repository architecture</title>
+  <desc id="desc">Skills source files flow through validation and vd build into Claude Code, Codex, release, and Zensical documentation outputs.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ecfeff"/>
+      <stop offset="0.58" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#fff7ed"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <rect width="1120" height="520" rx="18" fill="url(#bg)"/>
+  <g fill="none" stroke="#64748b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M270 150 H415"/>
+    <path d="M270 260 H415"/>
+    <path d="M270 370 H415"/>
+    <path d="M635 260 H790"/>
+    <path d="M515 190 V235"/>
+    <path d="M515 285 V330"/>
+    <path d="M890 210 V150"/>
+    <path d="M890 310 V370"/>
+  </g>
+  <g fill="#64748b">
+    <path d="M415 150l-11-6v12z"/>
+    <path d="M415 260l-11-6v12z"/>
+    <path d="M415 370l-11-6v12z"/>
+    <path d="M790 260l-11-6v12z"/>
+    <path d="M515 235l-6-11h12z"/>
+    <path d="M515 330l-6-11h12z"/>
+    <path d="M890 150l-6 11h12z"/>
+    <path d="M890 370l-6-11h12z"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="70" y="95" width="200" height="110" rx="10" fill="#ffffff" stroke="#99f6e4"/>
+    <rect x="70" y="205" width="200" height="110" rx="10" fill="#ffffff" stroke="#bae6fd"/>
+    <rect x="70" y="315" width="200" height="110" rx="10" fill="#ffffff" stroke="#fed7aa"/>
+    <rect x="415" y="110" width="220" height="300" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+    <rect x="790" y="95" width="230" height="110" rx="10" fill="#ffffff" stroke="#a7f3d0"/>
+    <rect x="790" y="205" width="230" height="110" rx="10" fill="#ffffff" stroke="#c4b5fd"/>
+    <rect x="790" y="315" width="230" height="110" rx="10" fill="#ffffff" stroke="#fcd34d"/>
+  </g>
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#0f172a">
+    <text x="95" y="135" font-size="22" font-weight="700">skills/</text>
+    <text x="95" y="164" font-size="15" fill="#475569">SKILL.md packages</text>
+    <text x="95" y="190" font-size="13" fill="#64748b">scripts, references, assets</text>
+    <text x="95" y="245" font-size="22" font-weight="700">skills.toml</text>
+    <text x="95" y="274" font-size="15" fill="#475569">tracked upstreams</text>
+    <text x="95" y="300" font-size="13" fill="#64748b">target configuration</text>
+    <text x="95" y="355" font-size="22" font-weight="700">docs/</text>
+    <text x="95" y="384" font-size="15" fill="#475569">Zensical source</text>
+    <text x="95" y="410" font-size="13" fill="#64748b">public documentation</text>
+    <text x="465" y="155" font-size="23" font-weight="800">Validation and build</text>
+    <text x="455" y="200" font-size="16" fill="#475569">scripts/validate.sh</text>
+    <text x="455" y="230" font-size="16" fill="#475569">check-release-versions.sh</text>
+    <text x="455" y="260" font-size="16" fill="#475569">vd doctor</text>
+    <text x="455" y="290" font-size="16" fill="#475569">vd build</text>
+    <text x="455" y="320" font-size="16" fill="#475569">zensical build</text>
+    <text x="455" y="360" font-size="14" fill="#64748b">all outputs are reproducible from files</text>
+    <text x="825" y="135" font-size="22" font-weight="700">Claude Code</text>
+    <text x="825" y="164" font-size="15" fill="#475569">plugin + marketplace</text>
+    <text x="825" y="190" font-size="13" fill="#64748b">vd@vd-skills</text>
+    <text x="825" y="245" font-size="22" font-weight="700">Codex</text>
+    <text x="825" y="274" font-size="15" fill="#475569">.agents/skills links</text>
+    <text x="825" y="300" font-size="13" fill="#64748b">user or repo scope</text>
+    <text x="825" y="355" font-size="22" font-weight="700">GitHub Pages</text>
+    <text x="825" y="384" font-size="15" fill="#475569">skills.vanducng.dev</text>
+    <text x="825" y="410" font-size="13" fill="#64748b">site/ artifact</text>
+  </g>
+</svg>

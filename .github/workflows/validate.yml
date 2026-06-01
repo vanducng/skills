@@ -16,3 +16,5 @@ jobs:
         run: bash scripts/validate.sh
       - name: Check release version consistency
         run: bash scripts/check-release-versions.sh
+      - name: Check docs site contract
+        run: bash scripts/check-docs-site.sh --check

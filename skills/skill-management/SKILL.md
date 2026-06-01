@@ -46,7 +46,7 @@ If no flag is given, ask the user which lifecycle stage they want
   `name` MUST equal the directory basename — `scripts/validate.sh`
   enforces this.
 - `vd` is the standalone CLI at [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli)
-  (`brew install vanducng/tap/vd` or `go install github.com/vanducng/vd-cli/cmd/vd@latest`).
+  (`brew install vanducng/tap/vd` or `go install github.com/vanducng/vd-cli/v2/cmd/vd@latest`).
   This repo no longer contains its source.
 - Plugin manifest version (`.claude-plugin/marketplace.json`,
   `.claude-plugin/plugin.json`) is for the **skill catalog** and must match
@@ -106,7 +106,7 @@ After `add`/`sync`/`update`/`remove`, always run `vd doctor` once and
 lock and frontmatter is clean. Surface any drift before committing.
 
 `vd` must be on `PATH`. Install via `brew install vanducng/tap/vd` (or
-`go install github.com/vanducng/vd-cli/cmd/vd@latest`) — see
+`go install github.com/vanducng/vd-cli/v2/cmd/vd@latest`) — see
 [vanducng/vd-cli](https://github.com/vanducng/vd-cli).
 
 ## --validate

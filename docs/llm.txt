@@ -1,0 +1,7 @@
+# vd skills
+
+The canonical agent index for this site is:
+
+- https://skills.vanducng.dev/llms.txt
+
+Use this singular path only as a compatibility pointer. The current convention is `/llms.txt`.
