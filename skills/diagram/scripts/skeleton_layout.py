@@ -25,6 +25,13 @@ TYPE_CONFIG: dict[str, dict] = {
         "lane_pad": 40, "node_gap": 32, "lane_gap": 100,
         "canvas_pad": 60,
     },
+    "workflow": {
+        # Swimlane-friendly process maps: lanes are teams/systems/stages.
+        "axis": "horizontal", "lane_dir": "lr",
+        "node_w": 180, "node_h": 80,
+        "lane_pad": 40, "node_gap": 32, "lane_gap": 96,
+        "canvas_pad": 60,
+    },
     "c4-context": {
         # Larger nodes — context diagrams have descriptive text.
         "axis": "horizontal", "lane_dir": "lr",

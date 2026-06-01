@@ -32,7 +32,7 @@ notes:                           # OPTIONAL free-floating annotations
 ```
 
 ### Supported `type` values
-`system-architecture`, `data-flow`, `sequence`, `er-diagram`, `state-machine`, `c4-context`, `c4-container`.
+`system-architecture`, `data-flow`, `workflow`, `sequence`, `er-diagram`, `state-machine`, `c4-context`, `c4-container`.
 
 ### Supported `kind` values for elements
 `service`, `datastore`, `external-system`, `cache`, `queue`, `actor`, `process`, `decision`, `state`, `entity`.
@@ -43,7 +43,7 @@ notes:                           # OPTIONAL free-floating annotations
 ## Validation rules (every one is enforced — emit nothing outside these)
 
 1. **Allowed top-level keys: exactly** `type`, `preset`, `groups`, `elements`, `edges` (required) and `title`, `notes` (optional). Any other top-level key — `caption`, `metadata`, `description`, `version`, etc. — is **rejected**.
-2. `type` MUST be one of the seven supported diagram types.
+2. `type` MUST be one of the eight supported diagram types.
 3. `preset` MUST be one of `warm | mono | pastel | cyberpunk`.
 4. Every element's `group` MUST reference an existing group by `name`.
 5. Every edge's `from` and `to` MUST reference an existing element by `name`.
@@ -151,6 +151,33 @@ edges:
   - {from: kafka, to: spark, label: "stream", kind: async}
   - {from: spark, to: ch, label: "writes", kind: sync}
   - {from: ch, to: graf, label: "queries", kind: sync}
+```
+
+**workflow** — process map with ownership lanes, decisions, queues, and terminal outcomes:
+
+```yaml
+type: workflow
+preset: warm
+title: "Checkout fulfillment"
+groups:
+  - {name: customer, label: "Customer"}
+  - {name: commerce, label: "Commerce app"}
+  - {name: risk, label: "Risk"}
+  - {name: warehouse, label: "Warehouse"}
+elements:
+  - {name: cart, kind: process, group: customer, label: "Review cart"}
+  - {name: order, kind: process, group: commerce, label: "Submit order", subject: true}
+  - {name: fraud, kind: decision, group: risk, label: "Risk flagged?"}
+  - {name: review, kind: process, group: risk, label: "Manual review"}
+  - {name: pick, kind: queue, group: warehouse, label: "Pick ticket"}
+  - {name: shipped, kind: state, group: warehouse, label: "Shipped"}
+edges:
+  - {from: cart, to: order, label: "checkout", kind: sync}
+  - {from: order, to: fraud, label: "score", kind: sync}
+  - {from: fraud, to: review, label: "yes", kind: async}
+  - {from: fraud, to: pick, label: "no", kind: async}
+  - {from: review, to: pick, label: "approve", kind: sync}
+  - {from: pick, to: shipped, label: "fulfill", kind: sync}
 ```
 
 **c4-context** — system boundary with users + external systems. Use larger labels; mark the system-of-interest with `subject: true`.
