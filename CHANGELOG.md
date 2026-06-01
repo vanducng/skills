@@ -2,6 +2,15 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.14.0](https://github.com/vanducng/skills/compare/v0.13.1...v0.14.0) (2026-06-01)
+
+
+### Features
+
+* **diagram:** add versioned workflow artifacts ([5f8778b](https://github.com/vanducng/skills/commit/5f8778bdc149652216585fe3030dda533b981b1c))
+* **diagram:** added versioned artifacts and release automation ([90ed657](https://github.com/vanducng/skills/commit/90ed6579d1097524f645c4bec15a2a2157c3d885))
+* **release:** add semver catalog automation ([2fdc3ef](https://github.com/vanducng/skills/commit/2fdc3efbe5170adfdd03d02dee8d041fcc3bd976))
+
 ## [Unreleased]
 
 ### Added
