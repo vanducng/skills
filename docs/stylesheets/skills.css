@@ -36,6 +36,18 @@ body:has(.vd-hero) .md-content__inner > h1:first-child {
   margin: 0 0 1.25rem;
 }
 
+body:has(.vd-architecture-diagram) .md-main__inner {
+  max-width: 68rem;
+}
+
+body:has(.vd-architecture-diagram) .md-content {
+  max-width: none;
+}
+
+body:has(.vd-architecture-diagram) .md-sidebar--secondary {
+  display: none;
+}
+
 .vd-hero {
   border: 1px solid var(--vd-border);
   border-radius: 8px;
@@ -147,6 +159,13 @@ body:has(.vd-hero) .md-content__inner > h1:first-child {
   border: 1px solid var(--vd-border);
   border-radius: 8px;
   background: var(--vd-surface);
+}
+
+.vd-architecture-diagram {
+  display: block;
+  margin: 1.25rem 0 1.6rem;
+  border: 0 !important;
+  background: transparent !important;
 }
 
 @media (max-width: 900px) {
