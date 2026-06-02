@@ -41,6 +41,8 @@ checks = [
     ])),
     ("architecture visual exists", exists("docs/assets/architecture.svg")),
     ("stylesheet has hero and cards", ".vd-hero" in text("docs/stylesheets/skills.css") and ".vd-card-grid" in text("docs/stylesheets/skills.css")),
+    ("homepage hides unused left sidebar", "body:has(.vd-hero) .md-sidebar--primary" in text("docs/stylesheets/skills.css") and "display: none;" in text("docs/stylesheets/skills.css")),
+    ("homepage uses aligned content rail", "body:has(.vd-hero) .md-main__inner" in text("docs/stylesheets/skills.css") and "max-width: 61rem;" in text("docs/stylesheets/skills.css")),
     ("old journal docs removed", not exists("docs/journals/2026-05-05-vd-cli-shipped.md")),
     ("pages workflow uses zensical", "zensical build --clean --strict" in text(".github/workflows/pages.yml")),
     ("pages workflow writes CNAME", "skills.vanducng.dev" in text(".github/workflows/pages.yml") and "site/CNAME" in text(".github/workflows/pages.yml")),
