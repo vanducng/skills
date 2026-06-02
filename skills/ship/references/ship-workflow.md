@@ -223,10 +223,13 @@ git push -u origin "$(git branch --show-current)"
    command -v gh >/dev/null || echo MISSING
    ```
    Missing → output "Install GitHub CLI (`gh`) to auto-create PRs" and stop after push.
-2. Resolve title and body (rules in `pr-template.md`):
+2. Load the PR template rules before resolving title/body:
+   - Ship integration: `~/skills/skills/ship/references/pr-template.md`
+   - Canonical template: `~/skills/skills/git/references/pr-template.md`
+3. Resolve title and body from those loaded rules:
    - Title: branch contains `[A-Z]+-[0-9]+` → `TICKET: <past-tense summary>`. Otherwise → `type(scope): <past-tense summary>`.
-   - Body: prefer `.github/pull_request_template.md` if present. Otherwise fill the lean fallback (3 labelled bullets — Why / What / Risks — plus an italic verification stripe). Per-bullet sources: Why ← changelog/commit body, What ← deduped commit subjects, Risks ← breaking-change scan, Stripe ← live `gh pr checks`.
-3. Create / update PR:
+   - Body: prefer `.github/pull_request_template.md` if present and fill it without adding, removing, or renaming sections. Otherwise fill the canonical fallback (3 labelled bullets — Why / What / Risks — plus an italic verification stripe). Never use ad hoc `Summary`, `Changes`, `Validation`, or mixed template bodies.
+4. Create / update PR:
    ```bash
    gh pr create --base <target> --title "<title>" --body "$(cat <<'EOF'
    <body>
@@ -238,8 +241,9 @@ git push -u origin "$(git branch --show-current)"
    EOF
    )"
    ```
-4. Inline issue refs from Step 2 inside the Summary paragraph (`Closes #N` / `Relates to #M`) — no separate section.
-5. **Output the PR URL** — final user-facing line (unless Steps 13–16 run after).
+5. Inline issue refs from Step 2 in the template's context/why area (`Closes #N` / `Relates to #M`) — no separate Linked-Issues section.
+6. Re-read the created/updated PR body and verify it matches the selected repo template or canonical fallback before continuing.
+7. **Output the PR URL** — final user-facing line (unless Steps 13–16 run after).
 
 ## Step 13: PR review comments
 
@@ -331,7 +335,7 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
    STATE=$(gh pr checks "$PR_NUMBER" --json state -q '[.[].state] | unique | join(",")')
    ```
 3. Branch on `$STATE`:
-   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the PR's verification stripe (`gh pr edit` to update `_Tests: ✓ N · …_` with live counts), continue to Step 16.
+   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the selected PR template with the latest verification status. For canonical fallback bodies, update the italic stripe (`_Tests: ✓ N · …_`). For repo-template bodies, update the appropriate checklist or notes field without changing section names. Continue to Step 16.
    - **Any `FAILURE` / `CANCELLED` / `TIMED_OUT`** → **STOP**. `AskUserQuestion` (regardless of `--auto`):
      - `Investigate failure` (recommended) — print failing checks via `gh pr checks --json name,state,link -q '.[]|select(.state!="SUCCESS")'`, exit so user can fix
      - `Merge anyway` — proceed to Step 16 noting CI was red
