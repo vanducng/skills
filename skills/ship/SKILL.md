@@ -74,6 +74,11 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
    be `KEY-123: <past-tense description>`. If the current branch is a generic
    slug (`feat/foo`, `2ndphone`, etc.), rename it before push/PR; do not open a
    PR and fix the name later.
+10. **PR template invariant.** Step 12 must load `references/pr-template.md`
+   and the canonical `~/skills/skills/git/references/pr-template.md` before any
+   `gh pr create` or `gh pr edit`. If the repo has a PR template, fill that
+   template only. Otherwise use the canonical fallback body. Do not invent
+   `Summary` / `Validation` / ad hoc PR bodies.
 
 ## Pipeline
 
@@ -89,7 +94,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 9.  Docs          → docs-manager subagent (background, official only)
 10. Commit        → conventional commit, secret scan
 11. Push          → git push -u origin <branch>
-12. PR            → gh pr create with lean body (Summary + Changes + Checklist)
+12. PR            → gh pr create/edit using repo template or canonical fallback
 13. PR comments   → fetch unresolved review threads + CHANGES_REQUESTED reviews; fix / reply / resolve each (re-run Step 4 after any fix)
 14. Release       → `--release` only: detect auto-release tool; tag + push if manual
 15. CI watch      → wait for PR checks; on failure prompt user (every mode)
