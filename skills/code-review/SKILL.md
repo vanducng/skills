@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[#PR | URL | COMMIT | --pending | codebase] [--dry-run] [--post] [--no-inline]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Code Review
@@ -38,6 +38,7 @@ Flags:
 - `--post` — opposite default; force posting even if other flags would skip
 - `--no-inline` — skip inline comments, post only the top-level summary
 - `--auto` — non-interactive, default answers, no prompts
+- `--ultra` — adversarial review via a dynamic workflow: every finding is independently refuted before it ships (see [Ultra mode](#ultra-mode--adversarial-workflow)). Higher token cost; use for high-stakes diffs.
 
 ## Hard rules
 
@@ -189,6 +190,25 @@ Posted review to PR #<n> as <event>:
   • Verdict: <event>
   • URL: <html_url from API response>
 ```
+
+## Ultra mode — adversarial workflow
+
+`--ultra` swaps the single-context review pass for a **dynamic Workflow** (Claude Code's `Workflow` tool) that structurally removes self-preferential bias: the agent that *finds* an issue is never the one that *confirms* it. Reach for it when a wrong call is expensive (security-sensitive change, large refactor, release diff) — not for a routine 50-line PR.
+
+**How it runs.** The template is `workflows/adversarial-review.js` — read it, adapt `DIMENSIONS` / `votes` to the diff, then invoke the `Workflow` tool with `args`:
+
+```jsonc
+{ "pr": 123, "votes": 3 }        // or { "diffCmd": "git diff", "votes": 3 }
+```
+
+It composes two patterns:
+
+1. **Review (fan-out)** — one agent per dimension (`correctness`, `security`, `reliability`, `performance`, `api`, `tests`), each with its own clean context. They map onto the [Checklist](#checklist-apply-to-every-diff) below, so coverage doesn't degrade the way a single long pass does (no "addressed 20 of 50" laziness).
+2. **Verify (adversarial)** — each candidate finding faces `votes` independent refuters prompted to *kill* it. Majority-refute drops the finding. Only survivors come back.
+
+**Then post as normal.** The workflow returns `{ confirmed, dropped }`. Map `confirmed` into the same review payload (§3) and post the **one** review (§4) with the usual severity prefixes and voice. Mention the filter in the summary: *"Adversarial pass: N findings confirmed, M refuted and dropped."* `--dry-run` still prints instead of posting.
+
+**Portability & cost.** The `Workflow` tool is Claude Code-only — in another runtime, fall back to the standard pass and say so. Ultra spends materially more tokens (≈ dimensions × findings × votes agents); the default non-ultra path remains correct for everyday reviews.
 
 ## Non-PR modes (quick reference)
 
