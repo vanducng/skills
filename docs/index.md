@@ -12,7 +12,7 @@
 
 <div class="vd-metrics" markdown>
 <div>
-<strong>42</strong>
+<strong>43</strong>
 <span>skills in the catalog</span>
 </div>
 <div>
