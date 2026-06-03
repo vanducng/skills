@@ -6,8 +6,8 @@ Use the repo as either a published plugin catalog or a local skills workbench.
 
 ## Use A Published Skill
 
-1. Install the catalog for your host from [Install](install.md).
-2. Pick a canonical skill ID from [Skills](skills.md).
+1. Install the catalog for your host from [Install](/install/).
+2. Pick a canonical skill ID from [Skills](/skills/).
 3. Invoke the skill in your agent UI.
 
 Common entries:

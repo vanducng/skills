@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "kind": "vd.diagram.manifest",
+  "slug": "skill-install-workflow",
+  "type": "workflow",
+  "format": "svg",
+  "preset": "mono",
+  "engine": "skeleton",
+  "latest": "v3.svg",
+  "variants": [
+    "v1.svg",
+    "v2.svg",
+    "v3.svg"
+  ]
+}

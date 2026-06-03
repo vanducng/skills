@@ -8,10 +8,10 @@ This site publishes plain-text entry points for coding agents and LLM-powered to
 
 | File | Purpose |
 | --- | --- |
-| [`/llms.txt`](llms.txt) | Curated root index: what this repo is, what to read first, and which docs are optional. |
-| [`/llms-full.txt`](llms-full.txt) | Fuller single-file context with install, architecture, workflows, and skill taxonomy. |
-| [`/llm.txt`](llm.txt) | Compatibility pointer for tools or users that try the singular spelling. |
-| [`/sitemap.xml`](sitemap.xml) | Exhaustive generated site map for crawlers and search tools. |
+| [`/llms.txt`](/llms.txt) | Curated root index: what this repo is, what to read first, and which docs are optional. |
+| [`/llms-full.txt`](/llms-full.txt) | Fuller single-file context with install, architecture, workflows, and skill taxonomy. |
+| [`/llm.txt`](/llm.txt) | Compatibility pointer for tools or users that try the singular spelling. |
+| [`/sitemap-index.xml`](/sitemap-index.xml) | Exhaustive generated site map for crawlers and search tools. |
 
 ## Recommended Agent Flow
 
