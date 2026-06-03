@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.16.0](https://github.com/vanducng/skills/compare/v0.15.0...v0.16.0) (2026-06-03)
+
+
+### Features
+
+* add devlog skill ([#83](https://github.com/vanducng/skills/issues/83)) ([ec7aaae](https://github.com/vanducng/skills/commit/ec7aaae0d6fa0dc99abc33a13139b9b7d16bb877))
+
 ## [0.15.0](https://github.com/vanducng/skills/compare/v0.14.0...v0.15.0) (2026-06-02)
 
 
