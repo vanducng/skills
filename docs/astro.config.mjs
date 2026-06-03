@@ -40,7 +40,7 @@ export default defineConfig({
         { label: 'Catalog', items: ['skills', 'workflows'] },
         {
           label: 'Project',
-          items: ['system-architecture', 'tech-stack', 'development-guidelines', 'deployment'],
+          items: ['tech-stack', 'development-guidelines', 'deployment'],
         },
       ],
     }),
