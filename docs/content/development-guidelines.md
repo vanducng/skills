@@ -35,7 +35,7 @@ bash scripts/validate.sh
 bash scripts/check-release-versions.sh
 vd list
 vd doctor
-(cd website && npm run build)   # docs site
+(cd docs && npm run build)   # docs site
 ```
 
 ## Release Hygiene

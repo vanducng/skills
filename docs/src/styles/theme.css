@@ -1,0 +1,85 @@
+/* ============================================================
+   dotfiles docs theme — Prefab-inspired: deep-dark surface,
+   pink/magenta accent, refined code. Layered over Starlight.
+   ============================================================ */
+
+/* ---- Accent (violet) ---- */
+:root {
+  --sl-color-accent-low: #ede9fe;
+  --sl-color-accent: #7c3aed;
+  --sl-color-accent-high: #4c1d95;
+  --sl-color-text-accent: #6d28d9;
+}
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #2e1065;
+  --sl-color-accent: #8b5cf6;
+  --sl-color-accent-high: #ddd6fe;
+  --sl-color-text-accent: #a78bfa;
+
+  /* Deep, near-black surfaces. */
+  --sl-color-bg: #0a0a0c;
+  --sl-color-bg-nav: #0c0c0f;
+  --sl-color-bg-sidebar: #0b0b0e;
+  --sl-color-bg-inline-code: color-mix(in srgb, #8b5cf6 12%, transparent);
+}
+
+/* Theme toggle sits before the GitHub link in the header. */
+starlight-theme-toggle {
+  order: -1;
+}
+
+/* ---- Inline code: pink, like Prefab (code blocks keep Expressive Code) ---- */
+.sl-markdown-content :not(pre) > code {
+  color: var(--sl-color-text-accent);
+  background-color: color-mix(in srgb, var(--sl-color-accent) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sl-color-accent) 20%, transparent);
+  border-radius: 0.34rem;
+  padding: 0.1em 0.36em;
+  font-size: 0.84em;
+}
+
+/* ---- Center the article column. Starlight reserves half the leftover space
+   as TOC padding (content hugs left); give the TOC its natural width and let
+   the article center in the remaining area with symmetric margins.
+   NOTE: targets Starlight-private classes — verified against @astrojs/starlight
+   0.39.3; re-check on minor upgrades. ---- */
+@media (min-width: 72rem) {
+  [data-has-sidebar][data-has-toc] .main-pane {
+    width: calc(100% - 2 * var(--sl-sidebar-width)) !important;
+    --sl-content-margin-inline: auto;
+  }
+  [data-has-sidebar][data-has-toc] .right-sidebar,
+  [data-has-sidebar][data-has-toc] .right-sidebar-container {
+    width: var(--sl-sidebar-width) !important;
+  }
+}
+
+/* ---- Search modal: narrower, calmer than the full-width default ---- */
+.dialog-frame:has(#starlight__search) {
+  max-inline-size: 42rem;
+  margin-inline: auto;
+}
+
+#starlight__search {
+  --pagefind-ui-scale: 0.9;
+  --pagefind-ui-border-radius: 0.5rem;
+  --pagefind-ui-primary: var(--sl-color-accent);
+}
+
+/* ---- Systematic accent: active nav as a tint (not a loud solid fill),
+   active TOC entry picks up the accent too. ---- */
+.sidebar-content a[aria-current='page'] {
+  background-color: color-mix(in srgb, var(--sl-color-accent) 14%, transparent);
+  color: var(--sl-color-text-accent);
+  font-weight: 600;
+}
+
+starlight-toc a[aria-current='true'] {
+  color: var(--sl-color-text-accent);
+}
+
+/* ---- Comfortable reading measure ---- */
+:root {
+  --sl-content-width: 45rem;
+}

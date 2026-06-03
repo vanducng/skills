@@ -32,7 +32,7 @@ tools/vd/dist/
 /dist/
 
 # Astro / Starlight docs site build output
-website/dist/
+docs/dist/
 .astro/
 .agents/
 .mcp.json
