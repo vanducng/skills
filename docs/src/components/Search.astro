@@ -1,0 +1,105 @@
+---
+import Default from '@astrojs/starlight/components/Search.astro';
+
+// Pages suggested when the search box is empty.
+const suggestions = [
+  { label: 'Install', href: '/install/' },
+  { label: 'Browse skills', href: '/skills/' },
+  { label: 'For agents', href: '/agent-context/' },
+  { label: 'System architecture', href: '/system-architecture/' },
+  { label: 'Deployment', href: '/deployment/' },
+];
+---
+
+<Default {...Astro.props}><slot /></Default>
+
+<script type="application/json" id="vd-search-suggestions" set:html={JSON.stringify(suggestions)}></script>
+
+<script is:inline>
+  (() => {
+    const data = () => {
+      try {
+        return JSON.parse(document.getElementById('vd-search-suggestions')?.textContent || '[]');
+      } catch {
+        return [];
+      }
+    };
+    const build = () => {
+      const wrap = document.createElement('div');
+      wrap.className = 'vd-suggestions not-content';
+      const label = document.createElement('p');
+      label.className = 'vd-suggestions__label';
+      label.textContent = 'Suggested pages';
+      const ul = document.createElement('ul');
+      for (const s of data()) {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = s.href;
+        a.textContent = s.label;
+        li.appendChild(a);
+        ul.appendChild(li);
+      }
+      wrap.append(label, ul);
+      return wrap;
+    };
+    const inject = () => {
+      const sc = document.querySelector('#starlight__search');
+      if (!sc || !sc.parentElement) return;
+      if (!sc.parentElement.querySelector('.vd-suggestions')) sc.after(build());
+      const node = sc.parentElement.querySelector('.vd-suggestions');
+      const input = sc.querySelector('input');
+      const update = () => {
+        node.style.display = input && input.value.trim() !== '' ? 'none' : '';
+      };
+      if (input && !input.dataset.vdSugg) {
+        input.dataset.vdSugg = '1';
+        input.addEventListener('input', update);
+      }
+      update();
+    };
+    const arm = () => {
+      const dlg = document.querySelector('#starlight__search')?.closest('dialog');
+      if (!dlg || dlg.dataset.vdArmed) return;
+      dlg.dataset.vdArmed = '1';
+      new MutationObserver(() => {
+        if (dlg.hasAttribute('open')) [0, 80, 250].forEach((t) => setTimeout(inject, t));
+      }).observe(dlg, { attributes: true, attributeFilter: ['open'] });
+    };
+    arm();
+    document.addEventListener('astro:page-load', arm);
+  })();
+</script>
+
+<style is:global>
+  .vd-suggestions {
+    margin-top: 1rem;
+    text-align: start;
+  }
+  .vd-suggestions__label {
+    margin: 0 0 0.5rem;
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-3);
+  }
+  .vd-suggestions ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.2rem;
+  }
+  .vd-suggestions a {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    color: var(--sl-color-text);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .vd-suggestions a:hover {
+    background-color: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+  }
+</style>
