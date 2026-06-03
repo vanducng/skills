@@ -35,7 +35,7 @@ bash scripts/validate.sh
 bash scripts/check-release-versions.sh
 vd list
 vd doctor
-zensical build --clean --strict
+(cd website && npm run build)   # docs site
 ```
 
 ## Release Hygiene
@@ -43,9 +43,9 @@ zensical build --clean --strict
 Use Conventional Commits. Focus scopes on the changed component:
 
 ```text
-feat(zensical): add docs-site skill
+feat(scout): add external mode
 fix(skill-management): update vd-cli module path
-docs: publish zensical site
+docs: migrate site to astro starlight
 ```
 
 Do not manually edit skill-catalog release versions unless you are working in the Release Please PR. The release workflow owns those version bumps.

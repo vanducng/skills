@@ -6,11 +6,11 @@ title: "Tech Stack"
 
 | Layer | Tool | Version / source |
 | --- | --- | --- |
-| Static site generator | Zensical | Local `zensical --version` reports `0.0.43`; CI installs `zensical==0.0.43` in `.github/workflows/pages.yml`. |
-| Source format | Markdown | `docs/*.md`, `skills/*/SKILL.md`, `README.md`. |
-| Agent text entry points | Markdown/plain text | `docs/llms.txt`, `docs/llms-full.txt`, `docs/llm.txt`, `docs/robots.txt`. |
-| Configuration | TOML | `zensical.toml`, `skills.toml`. |
-| Styling | CSS | `docs/stylesheets/skills.css`, configured by `zensical.toml`. |
+| Static site generator | Astro Starlight | `astro@6` + `@astrojs/starlight@0.39` pinned in `website/package.json`; CI builds via `withastro/action`. |
+| Source format | Markdown / MDX | `website/docs/*.{md,mdx}`, `skills/*/SKILL.md`, `README.md`. |
+| Agent text entry points | Plain text (served static) | `website/public/llms.txt`, `llms-full.txt`, `llm.txt`, `robots.txt`. |
+| Configuration | JS / TS | `website/astro.config.mjs`, `website/src/content.config.ts`; `skills.toml` (catalog). |
+| Styling | CSS | `website/src/styles/theme.css` (teal accent via Starlight `customCss`). |
 
 ## Skill Catalog
 
@@ -43,4 +43,4 @@ Source: `/Users/vanducng/git/personal/agents/vd-cli/go.mod`.
 | --- | --- |
 | `.github/workflows/validate.yml` | Skill frontmatter and release-version consistency. |
 | `.github/workflows/release.yml` | Release Please for skill-catalog SemVer. |
-| `.github/workflows/pages.yml` | Zensical build and GitHub Pages deployment. |
+| `.github/workflows/pages.yml` | Astro Starlight build and GitHub Pages deployment. |
