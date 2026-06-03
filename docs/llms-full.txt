@@ -95,7 +95,7 @@ Tooling and operations:
 - Data and workspace: `vd:miudb`, `vd:sqlit`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:qmd`
 - Local operations: `vd:computer-clean`, `vd:worktree`, `vd:gopass`, `vd:journal`
 - Language and migration: `vd:gostack`, `vd:py2go`
-- Skill lifecycle: `vd:skill-management`
+- Skill lifecycle: `vd:skill-management`, `vd:rule-miner`
 
 Use `vd:scout` for a file map, `vd:debug` for failing behavior, `vd:plan` when the path is not concrete, `vd:cook` when a plan is ready, `vd:docs` for canonical docs, and `vd:zensical` for Zensical site work.
 
