@@ -20,6 +20,16 @@ Use kebab-case for skill directory names and match the `name` field in `SKILL.md
 
 When documenting skill handoffs or examples, use canonical skill IDs without a leading invocation prefix, such as `vd:cook plans/path/`. The caller adds the slash prefix in Claude Code or the dollar prefix in Codex.
 
+## Documentation Sync
+
+The `skills/` directory is the source of truth for the catalog; `docs/` must track it. When you add, remove, or rename a skill — or materially change what one does — update the docs in the same change:
+
+- `docs/skills.md`: place the skill in the taxonomy tables and keep the catalog count accurate.
+- `docs/llms-full.txt`: mirror the same taxonomy for agents.
+- `docs/index.md`: update the skill-count and release-version metrics when they change.
+
+Validate before committing with `bash scripts/check-docs-site.sh --check`. A skill change that ships without the matching docs update is incomplete.
+
 ## Testing Guidelines
 
 Run `bash scripts/validate.sh` for any skill change. For CLI changes, run `cd tools/vd && make test`; use `go test ./... -race -cover` before risky changes. Snapshot behavior for bundle output is covered in `tools/vd/internal/target/claude_bundle_test.go`; update golden files only when the emitted plugin output intentionally changes. Name Go tests with standard `TestXxx` functions in `*_test.go` files colocated with the package.

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>vd skills — banner</title>
+<style>
+  :root {
+    --bg: #08090a;
+    --panel: #0f1011;
+    --ink: #f7f8f8;
+    --silver: #d0d6e0;
+    --muted: #8a8f98;
+    --faint: #62666d;
+    --indigo: #4f46e5;
+    --violet: #7c3aed;
+    --accent: #7170ff;
+    --border: rgba(255, 255, 255, 0.08);
+    --chip: rgba(255, 255, 255, 0.03);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #000; }
+  .banner {
+    width: 1280px;
+    height: 440px;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 60px 72px;
+  }
+  /* ambient glows */
+  .banner::before {
+    content: "";
+    position: absolute;
+    width: 760px; height: 760px;
+    top: -360px; left: -180px;
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.30), transparent 62%);
+    filter: blur(8px);
+    pointer-events: none;
+  }
+  .banner::after {
+    content: "";
+    position: absolute;
+    width: 720px; height: 720px;
+    bottom: -420px; right: -120px;
+    background: radial-gradient(circle, rgba(124, 58, 237, 0.26), transparent 62%);
+    pointer-events: none;
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(circle at 30% 35%, #000 0%, transparent 72%);
+    -webkit-mask-image: radial-gradient(circle at 30% 35%, #000 0%, transparent 72%);
+    pointer-events: none;
+  }
+  .lockup { display: flex; align-items: center; gap: 26px; position: relative; z-index: 2; }
+  .mark {
+    width: 104px; height: 104px;
+    border-radius: 26px;
+    background: linear-gradient(135deg, var(--indigo) 0%, var(--violet) 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 18px 40px rgba(79, 70, 229, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  .mark span {
+    color: #fff;
+    font-weight: 800;
+    font-size: 52px;
+    letter-spacing: -2px;
+    line-height: 1;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+  .word { display: flex; flex-direction: column; gap: 10px; }
+  .word h1 {
+    color: var(--ink);
+    font-size: 60px;
+    font-weight: 700;
+    letter-spacing: -2.4px;
+    line-height: 1;
+  }
+  .word h1 b { color: var(--accent); font-weight: 700; }
+  .word p {
+    color: var(--muted);
+    font-size: 21px;
+    font-weight: 450;
+    letter-spacing: -0.2px;
+  }
+  .bottom { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 22px; }
+  .pipe { display: flex; align-items: center; gap: 14px; }
+  .pill {
+    display: inline-flex; align-items: center;
+    padding: 11px 22px;
+    border: 1px solid var(--border);
+    background: var(--chip);
+    border-radius: 999px;
+    color: var(--silver);
+    font-size: 17px;
+    font-weight: 510;
+    letter-spacing: -0.2px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .pill.accent {
+    border-color: rgba(113, 112, 255, 0.45);
+    background: rgba(113, 112, 255, 0.12);
+    color: #c9c8ff;
+  }
+  .arrow { color: var(--accent); font-size: 20px; font-weight: 600; }
+  .meta { color: var(--faint); font-size: 15px; letter-spacing: -0.1px; }
+  .meta b { color: var(--muted); font-weight: 510; }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <div class="grid"></div>
+
+    <div class="lockup">
+      <div class="mark"><span>vd</span></div>
+      <div class="word">
+        <h1>vd <b>skills</b></h1>
+        <p>Portable, agent-agnostic skills for agentic coding.</p>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="pipe">
+        <span class="pill">brainstorm</span>
+        <span class="arrow">→</span>
+        <span class="pill">plan</span>
+        <span class="arrow">→</span>
+        <span class="pill">cook</span>
+        <span class="arrow">→</span>
+        <span class="pill accent">ship</span>
+      </div>
+      <div class="meta"><b>managed with the vd CLI</b> &nbsp;·&nbsp; skills.vanducng.dev</div>
+    </div>
+  </div>
+</body>
+</html>
