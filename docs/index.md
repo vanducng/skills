@@ -20,7 +20,7 @@
 <span>first-class agent targets</span>
 </div>
 <div>
-<strong>0.14.0</strong>
+<strong>0.15.0</strong>
 <span>current skill-catalog release</span>
 </div>
 </div>
