@@ -2,6 +2,20 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.15.0](https://github.com/vanducng/skills/compare/v0.14.0...v0.15.0) (2026-06-02)
+
+
+### Features
+
+* **docs:** publish zensical docs site ([1cfda17](https://github.com/vanducng/skills/commit/1cfda17fa105fe737d0e68660e5f8b604e2b0484))
+
+
+### Bug Fixes
+
+* **docs:** align zensical homepage layout ([20bf577](https://github.com/vanducng/skills/commit/20bf577eee524c291b56e7d2059006b838f2421f))
+* **docs:** refine architecture diagram layout ([df265bc](https://github.com/vanducng/skills/commit/df265bc82d9f6038b97167ccd644624a3d198c33))
+* **ship:** enforce PR template guardrails ([#82](https://github.com/vanducng/skills/issues/82)) ([bebfb3a](https://github.com/vanducng/skills/commit/bebfb3ac651a83dee46b235500b6f424c15fe0f2))
+
 ## [0.14.0](https://github.com/vanducng/skills/compare/v0.13.1...v0.14.0) (2026-06-01)
 
 
