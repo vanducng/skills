@@ -1,4 +1,6 @@
-# Skills
+---
+title: "Skills"
+---
 
 The catalog currently contains 43 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 

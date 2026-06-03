@@ -1,4 +1,6 @@
-# Workflows
+---
+title: "Workflows"
+---
 
 The repo is intentionally file-based. Commands are short, checks are local, and generated agent surfaces are committed only when they are part of the catalog release.
 

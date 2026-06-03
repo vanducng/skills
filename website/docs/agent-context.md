@@ -1,4 +1,6 @@
-# Agent Context
+---
+title: "Agent Context"
+---
 
 This site publishes plain-text entry points for coding agents and LLM-powered tools.
 

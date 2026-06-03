@@ -1,10 +1,9 @@
 ---
+title: "System Architecture"
 hide:
   - path
   - toc
 ---
-
-# System Architecture
 
 ![Repository architecture](assets/architecture.svg){ .vd-architecture-diagram }
 

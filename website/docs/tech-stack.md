@@ -1,4 +1,6 @@
-# Tech Stack
+---
+title: "Tech Stack"
+---
 
 ## Documentation
 

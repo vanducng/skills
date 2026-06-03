@@ -30,6 +30,10 @@ tools/vd/vd
 tools/vd/dist/
 # GoReleaser output (run from repo root, dist/ lands here)
 /dist/
+
+# Astro / Starlight docs site build output
+website/dist/
+.astro/
 .agents/
 .mcp.json
 skills/twitter/.pytest_cache/

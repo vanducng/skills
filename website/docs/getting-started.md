@@ -1,4 +1,6 @@
-# Getting Started
+---
+title: "Getting Started"
+---
 
 Use the repo as either a published plugin catalog or a local skills workbench.
 

@@ -1,4 +1,6 @@
-# Install
+---
+title: "Install"
+---
 
 This page covers two layers:
 
