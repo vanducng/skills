@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="820" viewBox="0 0 1320 820" role="img" aria-labelledby="title desc">
+  <title id="title">Skill catalog install workflow</title>
+  <desc id="desc">Workflow for installing the vanducng skills catalog into Claude Code or Codex, then verifying the install.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#111111"/>
+    </marker>
+    <style>
+      .bg { fill: #ffffff; }
+      .title { font: 700 28px Inter, ui-sans-serif, system-ui, sans-serif; fill: #111111; }
+      .subtitle { font: 14px Inter, ui-sans-serif, system-ui, sans-serif; fill: #555555; }
+      .lane { fill: #fafafa; stroke: #d0d0d0; stroke-width: 1.5; }
+      .box { fill: #ffffff; stroke: #111111; stroke-width: 2; }
+      .pill { fill: #ffffff; stroke: #111111; stroke-width: 3; }
+      .stage { font: 700 15px Inter, ui-sans-serif, system-ui, sans-serif; fill: #111111; }
+      .body { font: 13px Inter, ui-sans-serif, system-ui, sans-serif; fill: #333333; }
+      .code { font: 12px "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace; fill: #111111; }
+      .muted { font: 12px Inter, ui-sans-serif, system-ui, sans-serif; fill: #666666; }
+      .label { font: 700 12px Inter, ui-sans-serif, system-ui, sans-serif; fill: #111111; }
+      .line { fill: none; stroke: #111111; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow); }
+      .guide { fill: none; stroke: #111111; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1320" height="820"/>
+  <text class="title" x="48" y="48">Skill catalog install workflow</text>
+  <text class="subtitle" x="48" y="74">Choose a host path, install or link the catalog, then verify discovery before invoking canonical vd:* skill IDs.</text>
+
+  <rect class="lane" x="40" y="96" width="480" height="172" rx="10"/>
+  <text class="muted" x="60" y="124">Select install path</text>
+
+  <rect class="lane" x="260" y="286" width="260" height="132" rx="10"/>
+  <text class="muted" x="280" y="314">CLI-managed paths only</text>
+
+  <rect class="lane" x="580" y="96" width="380" height="684" rx="10"/>
+  <text class="muted" x="600" y="124">Install branch</text>
+
+  <rect class="lane" x="1040" y="250" width="280" height="430" rx="10"/>
+  <text class="muted" x="1060" y="278">Common verification</text>
+
+  <rect class="pill" x="64" y="150" width="160" height="70" rx="35"/>
+  <text class="stage" x="144" y="180" text-anchor="middle">Start</text>
+  <text class="body" x="144" y="202" text-anchor="middle">Need skills</text>
+
+  <rect class="box" x="280" y="150" width="190" height="70" rx="8"/>
+  <text class="stage" x="375" y="180" text-anchor="middle">Choose target</text>
+  <text class="body" x="375" y="202" text-anchor="middle">Claude Code or Codex</text>
+
+  <rect class="box" x="285" y="326" width="230" height="82" rx="8"/>
+  <text class="stage" x="400" y="351" text-anchor="middle">Install / verify vd CLI</text>
+  <text class="code" x="400" y="374" text-anchor="middle">brew install vanducng/tap/vd</text>
+  <text class="code" x="400" y="392" text-anchor="middle">vd --version</text>
+
+  <rect class="box" x="610" y="134" width="330" height="112" rx="8"/>
+  <text class="label" x="630" y="160">Claude Code plugin</text>
+  <text class="code" x="630" y="186">/plugin marketplace add vanducng/skills</text>
+  <text class="code" x="630" y="206">/plugin install vd@vd-skills</text>
+  <text class="muted" x="630" y="228">Update: marketplace update, then install again</text>
+
+  <rect class="box" x="610" y="284" width="330" height="112" rx="8"/>
+  <text class="label" x="630" y="310">Claude Code dev symlinks</text>
+  <text class="code" x="630" y="336">vd install claude --dev --dry-run</text>
+  <text class="code" x="630" y="356">vd install claude --dev</text>
+  <text class="muted" x="630" y="378">Links to $HOME/.claude/skills</text>
+
+  <rect class="box" x="610" y="434" width="330" height="112" rx="8"/>
+  <text class="label" x="630" y="460">Codex user scope</text>
+  <text class="code" x="630" y="486">vd install codex --dry-run</text>
+  <text class="code" x="630" y="506">vd install codex</text>
+  <text class="muted" x="630" y="528">Links to $HOME/.agents/skills</text>
+
+  <rect class="box" x="610" y="584" width="330" height="112" rx="8"/>
+  <text class="label" x="630" y="610">Codex repo scope</text>
+  <text class="code" x="630" y="636">vd install codex --scope repo --dry-run</text>
+  <text class="code" x="630" y="656">vd install codex --scope repo</text>
+  <text class="muted" x="630" y="678">Links to ./.agents/skills</text>
+
+  <rect class="box" x="1070" y="318" width="240" height="150" rx="8"/>
+  <text class="stage" x="1190" y="350" text-anchor="middle">Verify install</text>
+  <text class="code" x="1190" y="382" text-anchor="middle">vd list</text>
+  <text class="code" x="1190" y="406" text-anchor="middle">vd doctor</text>
+  <text class="code" x="1190" y="430" text-anchor="middle">bash scripts/validate.sh</text>
+
+  <rect class="pill" x="1070" y="570" width="240" height="86" rx="43"/>
+  <text class="stage" x="1190" y="604" text-anchor="middle">Ready to invoke</text>
+  <text class="body" x="1190" y="628" text-anchor="middle">Runtime discovers vd:* IDs</text>
+
+  <path class="line" d="M 224 185 H 280"/>
+
+  <path class="line" d="M 470 174 H 552 V 190 H 610"/>
+  <text class="label" x="520" y="164" text-anchor="middle">Plugin path</text>
+
+  <path class="line" d="M 375 220 V 326"/>
+  <text class="label" x="392" y="282">CLI paths</text>
+
+  <path class="guide" d="M 515 367 H 560 V 640"/>
+  <path class="line" d="M 560 340 H 610"/>
+  <path class="line" d="M 560 490 H 610"/>
+  <path class="line" d="M 560 640 H 610"/>
+
+  <path class="line" d="M 940 190 H 1000 V 393 H 1070"/>
+  <path class="line" d="M 940 340 H 1000 V 393 H 1070"/>
+  <path class="line" d="M 940 490 H 1000 V 393 H 1070"/>
+  <path class="line" d="M 940 640 H 1000 V 393 H 1070"/>
+  <text class="label" x="995" y="304" text-anchor="middle">Converge</text>
+
+  <path class="line" d="M 1190 468 V 570"/>
+</svg>
