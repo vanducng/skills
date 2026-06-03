@@ -40,3 +40,6 @@ skills/twitter/.pytest_cache/
 
 # vd:auto-loop runtime state (per-workspace, never committed)
 .auto-loop/
+
+# Generated diagram artifacts (vd:diagram)
+docs/content/diagrams/
