@@ -1,4 +1,6 @@
-# Development Guidelines
+---
+title: "Development Guidelines"
+---
 
 ## Skill Layout
 

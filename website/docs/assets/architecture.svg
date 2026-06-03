@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 560" role="img" aria-labelledby="title desc">
+  <title id="title">vd skills repository architecture</title>
+  <desc id="desc">Skill source files flow through validation into Claude Code, Codex, and GitHub Pages outputs.</desc>
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ecfeff"/>
+      <stop offset="0.62" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#fff7ed"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect x="16" y="16" width="1148" height="528" rx="22" fill="url(#page)" stroke="#b7d8d6" stroke-width="1.5"/>
+
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+    <text x="92" y="82" fill="#0f172a" font-size="17" font-weight="800" letter-spacing="0.08em">SOURCES</text>
+    <text x="470" y="82" fill="#0f172a" font-size="17" font-weight="800" letter-spacing="0.08em">CONTROL PLANE</text>
+    <text x="850" y="82" fill="#0f172a" font-size="17" font-weight="800" letter-spacing="0.08em">AGENT OUTPUTS</text>
+  </g>
+
+  <g fill="none" stroke="#64748b" stroke-width="2.4" stroke-linecap="round" marker-end="url(#arrow)">
+    <path d="M322 164 H438"/>
+    <path d="M322 272 H438"/>
+    <path d="M322 380 H438"/>
+    <path d="M766 278 H842"/>
+  </g>
+
+  <g filter="url(#soft-shadow)">
+    <rect x="92" y="116" width="230" height="92" rx="14" fill="#ffffff" stroke="#5eead4" stroke-width="1.3"/>
+    <rect x="92" y="224" width="230" height="92" rx="14" fill="#ffffff" stroke="#7dd3fc" stroke-width="1.3"/>
+    <rect x="92" y="332" width="230" height="92" rx="14" fill="#ffffff" stroke="#fdba74" stroke-width="1.3"/>
+
+    <rect x="438" y="108" width="328" height="316" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.4"/>
+
+    <rect x="842" y="116" width="256" height="92" rx="14" fill="#ffffff" stroke="#86efac" stroke-width="1.3"/>
+    <rect x="842" y="224" width="256" height="92" rx="14" fill="#ffffff" stroke="#a78bfa" stroke-width="1.3"/>
+    <rect x="842" y="332" width="256" height="92" rx="14" fill="#ffffff" stroke="#fbbf24" stroke-width="1.3"/>
+  </g>
+
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+    <g fill="#0f172a" font-weight="800" font-size="24">
+      <text x="120" y="154">skills/</text>
+      <text x="120" y="262">skills.toml</text>
+      <text x="120" y="370">docs/</text>
+      <text x="490" y="150">Validate and build</text>
+      <text x="880" y="154">Claude Code</text>
+      <text x="880" y="262">Codex</text>
+      <text x="880" y="370">GitHub Pages</text>
+    </g>
+
+    <g fill="#475569" font-size="16">
+      <text x="120" y="181">SKILL.md packages</text>
+      <text x="120" y="202" fill="#64748b" font-size="14">scripts, references, assets</text>
+
+      <text x="120" y="289">tracked upstreams</text>
+      <text x="120" y="310" fill="#64748b" font-size="14">target configuration</text>
+
+      <text x="120" y="397">Zensical source</text>
+      <text x="120" y="418" fill="#64748b" font-size="14">public documentation</text>
+
+      <text x="490" y="196">validate skills</text>
+      <text x="490" y="232">check versions</text>
+      <text x="490" y="268">doctor drift</text>
+      <text x="490" y="304">build targets</text>
+      <text x="490" y="340">build docs</text>
+      <text x="490" y="390" fill="#64748b" font-size="15">reproducible outputs from files</text>
+
+      <text x="880" y="181">plugin + marketplace</text>
+      <text x="880" y="202" fill="#64748b" font-size="14">vd@vd-skills</text>
+
+      <text x="880" y="289">.agents/skills links</text>
+      <text x="880" y="310" fill="#64748b" font-size="14">user or repo scope</text>
+
+      <text x="880" y="397">skills.vanducng.dev</text>
+      <text x="880" y="418" fill="#64748b" font-size="14">site artifact</text>
+    </g>
+  </g>
+</svg>

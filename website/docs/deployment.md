@@ -1,4 +1,6 @@
-# Deployment
+---
+title: "Deployment"
+---
 
 ## GitHub Pages
 
