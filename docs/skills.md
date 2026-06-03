@@ -19,17 +19,15 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Area | Skills |
 | --- | --- |
 | Browser automation | `vd:browser`, `vd:browser-profile`, `vd:browser-trace` |
-| Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:open-design` |
-| Media and files | `vd:omnimedia`, `vd:file-browser` |
-| Data and workspace | `vd:miudb`, `vd:sqlit`, `vd:gws`, `vd:jira`, `vd:qmd` |
-| Local operations | `vd:computer-clean`, `vd:worktree`, `vd:gopass`, `vd:journal`, `vd:twitter`, `vd:devlog` |
-| Skill lifecycle | `vd:skill-management`, `vd:zensical` |
+| Docs and diagrams | `vd:docs`, `vd:zensical`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:open-design` |
+| Media, files, and social | `vd:omnimedia`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
+| Data and workspace | `vd:miudb`, `vd:sqlit`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:qmd` |
+| Local operations | `vd:computer-clean`, `vd:worktree`, `vd:gopass`, `vd:journal` |
+| Skill lifecycle | `vd:skill-management` |
 
-## Go Stack Skills
+## Language And Migration
 
-The repo includes focused Go guidance for CLI work, testing, CI, dependencies, databases, security, concurrency, observability, and Samber libraries.
-
-Examples: `golang-cli`, `golang-testing`, `golang-continuous-integration`, `golang-security`, `golang-database`, `golang-concurrency`, `golang-samber-do`.
+`vd:gostack` is an opinionated reference for Sam Berthe's Go libraries (`lo`, `oops`, `do`, `mo`, `slog`, `hot`, `ro`), with per-library notes under `skills/gostack/references/`. `vd:py2go` runs end-to-end Python-to-Go migrations with six project-type playbooks and pinned stack defaults.
 
 ## Choosing The Right Skill
 

@@ -91,9 +91,10 @@ Tooling and operations:
 
 - Browser automation: `vd:browser`, `vd:browser-profile`, `vd:browser-trace`
 - Docs and diagrams: `vd:docs`, `vd:zensical`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:open-design`
-- Media and files: `vd:omnimedia`, `vd:file-browser`
-- Data and workspace: `vd:miudb`, `vd:sqlit`, `vd:gws`, `vd:jira`, `vd:qmd`
-- Local operations: `vd:computer-clean`, `vd:worktree`, `vd:gopass`, `vd:journal`, `vd:twitter`, `vd:devlog`
+- Media, files, and social: `vd:omnimedia`, `vd:file-browser`, `vd:twitter`, `vd:devlog`
+- Data and workspace: `vd:miudb`, `vd:sqlit`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:qmd`
+- Local operations: `vd:computer-clean`, `vd:worktree`, `vd:gopass`, `vd:journal`
+- Language and migration: `vd:gostack`, `vd:py2go`
 - Skill lifecycle: `vd:skill-management`
 
 Use `vd:scout` for a file map, `vd:debug` for failing behavior, `vd:plan` when the path is not concrete, `vd:cook` when a plan is ready, `vd:docs` for canonical docs, and `vd:zensical` for Zensical site work.

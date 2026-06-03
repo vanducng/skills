@@ -1,112 +1,63 @@
-# vanducng/skills
+<div align="center">
 
-A daily-driver collection of [skills for agentic coding](https://code.claude.com/docs/en/skills) and the **`vd`** CLI for managing them.
+<img src="docs/assets/banner.png" alt="vd skills — portable, agent-agnostic skills for agentic coding" width="840">
 
-![validate](https://github.com/vanducng/skills/actions/workflows/validate.yml/badge.svg)
+[![validate](https://github.com/vanducng/skills/actions/workflows/validate.yml/badge.svg)](https://github.com/vanducng/skills/actions/workflows/validate.yml)
+[![docs](https://img.shields.io/badge/docs-skills.vanducng.dev-7c3aed)](https://skills.vanducng.dev)
+[![license](https://img.shields.io/badge/license-MIT-3b82f6)](LICENSE)
 
-Docs: <https://skills.vanducng.dev>
-Agent index: <https://skills.vanducng.dev/llms.txt>
+**A daily-driver collection of skills for agentic coding** — portable across agents, managed with the **`vd`** CLI.
 
-## What's here
+[**Skill catalog**](https://skills.vanducng.dev/skills/) · [**Install guide**](https://skills.vanducng.dev/install/)
 
-- **Skills** — packaged as the `vd` plugin for Claude Code (`vd:research`, `vd:computer-clean`, …).
-- **`vd` CLI integration** — the standalone [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli) binary tracks, vendors, and publishes skills across repos.
+</div>
 
-## Install the skills (Claude Code plugin)
+---
 
-Inside Claude Code:
+## Install
 
-```
+### Claude Code plugin
+
+```text
 /plugin marketplace add vanducng/skills
 /plugin install vd@vd-skills
 ```
 
-Update later:
+Update with `/plugin marketplace update vd-skills && /plugin install vd@vd-skills` · uninstall with `/plugin uninstall vd@vd-skills`.
 
-```
-/plugin marketplace update vd-skills
-/plugin install vd@vd-skills
-```
-
-Uninstall: `/plugin uninstall vd@vd-skills`.
-
-## Install the `vd` CLI
-
-The `vd` CLI lives in its own repo: [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli).
-
-Homebrew (recommended):
+### vd CLI
 
 ```sh
-brew install vanducng/tap/vd
+brew install vanducng/tap/vd                                   # macOS
+go install github.com/vanducng/vd-cli/v2/cmd/vd@latest         # any platform
 ```
 
-Or via `go install`:
+### Codex
 
 ```sh
-go install github.com/vanducng/vd-cli/v2/cmd/vd@latest
+vd install codex                # user scope
+vd install codex --scope repo   # repo scope
 ```
 
-Quick start:
+For Claude Code development symlinks instead of the marketplace plugin: `vd install claude --dev`.
 
-```sh
-vd init && vd add browserbase/skills/browser --as browser && vd sync && vd build
-```
+> Full install matrix, prerequisites, and troubleshooting → **[skills.vanducng.dev/install](https://skills.vanducng.dev/install/)**
 
-Set `VD_ROOT` in your shell to use `vd` from any directory without `--root`. Full command reference: [`vanducng/vd-cli` README](https://github.com/vanducng/vd-cli#readme).
+## What's inside
 
-## Install for Codex
+Skills share one build pipeline — **brainstorm → plan → cook → ship** — alongside review, research, debugging, diagramming, browser automation, data and workspace tooling, and more. Each skill is a self-contained directory under `skills/<name>/` with a `SKILL.md`.
 
-User-scope symlinks:
-
-```sh
-vd install codex
-```
-
-Repo-scope symlinks:
-
-```sh
-vd install codex --scope repo
-```
-
-For Claude Code development symlinks instead of marketplace plugin mode:
-
-```sh
-vd install claude --dev
-```
-
-## Layout
-
-```
-.claude-plugin/   plugin manifest + marketplace registration
-docs/             Zensical source for https://skills.vanducng.dev
-skills/           one directory per skill (each has SKILL.md)
-scripts/          dev helpers: new-skill, validate, dev-fallback symlinker
-```
+> Browse the full catalog with "use this when" guidance → **[skills.vanducng.dev/skills](https://skills.vanducng.dev/skills/)**
 
 ## Contribute a skill
 
-```bash
+```sh
 bash scripts/new-skill.sh my-new-skill
 $EDITOR skills/my-new-skill/SKILL.md
 bash scripts/validate.sh
-git add skills/my-new-skill && git commit -m "feat: add my-new-skill" && git push
 ```
 
-After pushing, users update via `/plugin marketplace update vd-skills`.
-
-## Release the skill catalog
-
-Releases are automated with Release Please. Conventional commits on `main`
-drive the next SemVer bump: `fix:` for patch, `feat:` for minor, and breaking
-changes for major.
-
-The release PR updates `CHANGELOG.md`, `version.txt`, `skills.toml`,
-`.claude-plugin/plugin.json`, and `.claude-plugin/marketplace.json` together.
-Run this before opening release-related PRs:
-
-```bash
-bash scripts/check-release-versions.sh
-```
+Conventional commits drive automated releases (Release Please). Contributor workflow and repo conventions live in [`AGENTS.md`](AGENTS.md) and the **[development guidelines](https://skills.vanducng.dev/development-guidelines/)**.
 
 ## License
 
