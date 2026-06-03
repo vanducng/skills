@@ -12,7 +12,7 @@
 
 <div class="vd-metrics" markdown>
 <div>
-<strong>41</strong>
+<strong>42</strong>
 <span>skills in the catalog</span>
 </div>
 <div>
@@ -20,7 +20,7 @@
 <span>first-class agent targets</span>
 </div>
 <div>
-<strong>0.15.0</strong>
+<strong>0.16.0</strong>
 <span>current skill-catalog release</span>
 </div>
 </div>
