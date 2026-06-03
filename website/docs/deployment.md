@@ -10,29 +10,27 @@ The public documentation site deploys to:
 https://skills.vanducng.dev/
 ```
 
-`.github/workflows/pages.yml` builds on pushes to `main` when docs, `zensical.toml`, `README.md`, or the Pages workflow changes. Pull requests run the same Zensical build without deploying.
+`.github/workflows/pages.yml` builds on pushes to `main` when anything under `website/` (or the Pages workflow) changes. Pull requests run the same Astro build without deploying.
 
 Deployment steps:
 
 1. Checkout the repo.
-2. Install Python and `zensical==0.0.43`.
-3. Run `zensical build --clean --strict`.
-4. Write `site/CNAME` with `skills.vanducng.dev`.
-5. Upload `site/` as the Pages artifact.
-6. Deploy with `actions/deploy-pages`.
+2. Build with `withastro/action@v6` (`path: ./website`) — installs deps and runs `astro build`.
+3. Upload `website/dist/` as the Pages artifact (the custom domain comes from `website/public/CNAME`).
+4. Deploy with `actions/deploy-pages@v5`.
 
-Source: `.github/workflows/pages.yml`, `zensical.toml`.
+Source: `.github/workflows/pages.yml`, `website/astro.config.mjs`.
 
 ## Agent-Facing Files
 
-The docs build publishes:
+The site serves these static files from `website/public/` (plus an Astro-generated sitemap):
 
 ```text
 /llms.txt
 /llms-full.txt
 /llm.txt
 /robots.txt
-/sitemap.xml
+/sitemap-index.xml
 ```
 
 `/llms.txt` is the canonical curated index. `/llms-full.txt` is a larger single-file context. `/llm.txt` exists only as a compatibility pointer for the singular spelling.

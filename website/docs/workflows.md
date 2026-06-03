@@ -29,12 +29,14 @@ Source: `skills.toml`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace
 ## Publish Docs
 
 ```sh
-zensical build --clean --strict
+cd website
+npm install
+npm run build      # astro build -> website/dist/
 ```
 
-The Pages workflow installs `zensical==0.0.43`, builds the site into `site/`, writes `site/CNAME` with `skills.vanducng.dev`, and deploys through GitHub Pages. Agent-facing files are published from `docs/llms.txt`, `docs/llms-full.txt`, `docs/llm.txt`, and `docs/robots.txt`.
+The Pages workflow builds `website/` with `withastro/action` and deploys `website/dist/` to GitHub Pages; the custom domain comes from `website/public/CNAME`. Agent-facing files are served from `website/public/` (`/llms.txt`, `/llms-full.txt`, `/llm.txt`, `/robots.txt`).
 
-Source: `zensical.toml`, `.github/workflows/pages.yml`.
+Source: `website/astro.config.mjs`, `.github/workflows/pages.yml`.
 
 ## Release The Skill Catalog
 
