@@ -1,8 +1,6 @@
-# vd skills
-
 <div class="vd-hero">
   <p class="vd-kicker">skills.vanducng.dev</p>
-  <h2>Portable agent skills, versioned with the repo that uses them.</h2>
+  <h1>Portable agent skills, versioned with the repo that uses them.</h1>
   <p>Use one catalog for Claude Code plugin installs, Codex skill discovery, and repository-local workflows. The source of truth is plain Markdown under <code>skills/</code>; the build products are generated and validated.</p>
   <div class="vd-actions">
     <a href="install/" class="vd-button">Install</a>
