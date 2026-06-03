@@ -6,11 +6,11 @@ title: "Tech Stack"
 
 | Layer | Tool | Version / source |
 | --- | --- | --- |
-| Static site generator | Astro Starlight | `astro@6` + `@astrojs/starlight@0.39` pinned in `website/package.json`; CI builds via `withastro/action`. |
-| Source format | Markdown / MDX | `website/docs/*.{md,mdx}`, `skills/*/SKILL.md`, `README.md`. |
-| Agent text entry points | Plain text (served static) | `website/public/llms.txt`, `llms-full.txt`, `llm.txt`, `robots.txt`. |
-| Configuration | JS / TS | `website/astro.config.mjs`, `website/src/content.config.ts`; `skills.toml` (catalog). |
-| Styling | CSS | `website/src/styles/theme.css` (teal accent via Starlight `customCss`). |
+| Static site generator | Astro Starlight | `astro@6` + `@astrojs/starlight@0.39` pinned in `docs/package.json`; CI builds via `withastro/action`. |
+| Source format | Markdown / MDX | `docs/content/*.{md,mdx}`, `skills/*/SKILL.md`, `README.md`. |
+| Agent text entry points | Plain text (served static) | `docs/public/llms.txt`, `llms-full.txt`, `llm.txt`, `robots.txt`. |
+| Configuration | JS / TS | `docs/astro.config.mjs`, `docs/src/content.config.ts`; `skills.toml` (catalog). |
+| Styling | CSS | `docs/src/styles/theme.css` (teal accent via Starlight `customCss`). |
 
 ## Skill Catalog
 

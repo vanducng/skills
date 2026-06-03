@@ -1,0 +1,64 @@
+---
+/* One-click light/dark toggle replacing Starlight's default select. */
+---
+<starlight-theme-toggle>
+  <button type="button" aria-label="Toggle light / dark theme" title="Toggle theme">
+    <svg class="ico sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    <svg class="ico moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+  </button>
+</starlight-theme-toggle>
+
+<script is:inline>
+  (() => {
+    const KEY = 'starlight-theme';
+    const root = document.documentElement;
+    const resolved = () => {
+      const d = root.dataset.theme;
+      if (d === 'light' || d === 'dark') return d;
+      return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    };
+    const apply = (t) => {
+      root.dataset.theme = t;
+      try { localStorage.setItem(KEY, t); } catch {}
+    };
+    if (!customElements.get('starlight-theme-toggle')) {
+      customElements.define('starlight-theme-toggle', class extends HTMLElement {
+        connectedCallback() {
+          this.querySelector('button')?.addEventListener('click', () =>
+            apply(resolved() === 'dark' ? 'light' : 'dark')
+          );
+        }
+      });
+    }
+  })();
+</script>
+
+<style>
+  starlight-theme-toggle button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background-color: var(--sl-color-bg-nav);
+    color: var(--sl-color-text);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  }
+  starlight-theme-toggle button:hover {
+    background-color: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+    border-color: var(--sl-color-gray-4);
+  }
+  starlight-theme-toggle button:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+  /* Show the icon for the theme you'll switch TO. */
+  starlight-theme-toggle .sun { display: none; }
+  starlight-theme-toggle .moon { display: inline; }
+  [data-theme='dark'] starlight-theme-toggle .sun { display: inline; }
+  [data-theme='dark'] starlight-theme-toggle .moon { display: none; }
+</style>

@@ -1,0 +1,27 @@
+---
+title: Overview
+description: A portable skill catalog for Claude Code, Codex, and repository-local agent workflows.
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Portable agent skills, versioned with the repo that uses them — one catalog for **Claude Code** plugin installs, **Codex** skill discovery, and repository-local workflows. Start with [Install](/install/), or jump to a section below.
+
+## What's inside
+
+<CardGrid>
+  <LinkCard title="Install" href="/install/" description="Add the catalog to Claude Code (marketplace plugin) or Codex (vd CLI symlinks)." />
+  <LinkCard title="Browse skills" href="/skills/" description="The full catalog — 43 skills across docs, workflows, infra, and more." />
+  <LinkCard title="For agents" href="/agent-context/" description="Context an agent needs to use this repo: canonical skill IDs and conventions." />
+  <LinkCard title="Project" href="/system-architecture/" description="How the pieces fit: architecture, tech stack, guidelines, and deployment." />
+</CardGrid>
+
+## How the pieces fit
+
+![Repository architecture](/architecture.svg)
+
+The catalog stays small and explicit: skill sources are human-readable Markdown, `vd build` emits agent-specific surfaces, GitHub Actions validates the catalog, and Release Please keeps the version synchronized across `version.txt`, `skills.toml`, and the Claude plugin manifests.
+
+## Agent entry points
+
+Agents should start with [`/llms.txt`](/llms.txt) for the curated index or [`/llms-full.txt`](/llms-full.txt) for a fuller single-file context.

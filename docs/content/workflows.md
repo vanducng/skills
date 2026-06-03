@@ -29,14 +29,14 @@ Source: `skills.toml`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace
 ## Publish Docs
 
 ```sh
-cd website
+cd docs
 npm install
-npm run build      # astro build -> website/dist/
+npm run build      # astro build -> docs/dist/
 ```
 
-The Pages workflow builds `website/` with `withastro/action` and deploys `website/dist/` to GitHub Pages; the custom domain comes from `website/public/CNAME`. Agent-facing files are served from `website/public/` (`/llms.txt`, `/llms-full.txt`, `/llm.txt`, `/robots.txt`).
+The Pages workflow builds `docs/` with `withastro/action` and deploys `docs/dist/` to GitHub Pages; the custom domain comes from `docs/public/CNAME`. Agent-facing files are served from `docs/public/` (`/llms.txt`, `/llms-full.txt`, `/llm.txt`, `/robots.txt`).
 
-Source: `website/astro.config.mjs`, `.github/workflows/pages.yml`.
+Source: `docs/astro.config.mjs`, `.github/workflows/pages.yml`.
 
 ## Release The Skill Catalog
 

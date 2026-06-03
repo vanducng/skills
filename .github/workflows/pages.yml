@@ -4,11 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "website/**"
+      - "docs/**"
       - ".github/workflows/pages.yml"
   pull_request:
     paths:
-      - "website/**"
+      - "docs/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -30,7 +30,7 @@ jobs:
       - name: Build with Astro
         uses: withastro/action@v6
         with:
-          path: ./website
+          path: ./docs
 
   deploy:
     if: github.event_name != 'pull_request'
