@@ -12,7 +12,7 @@ export default defineConfig({
   markdown: { remarkPlugins: [remarkGfm] },
   integrations: [
     starlight({
-      title: 'vd skills',
+      title: 'skills',
       description:
         'A portable skill catalog for Claude Code, Codex, and repository-local agent workflows.',
       customCss: ['./src/styles/theme.css'],
@@ -23,6 +23,7 @@ export default defineConfig({
       components: {
         ThemeSelect: './src/components/ThemeSelect.astro',
         SocialIcons: './src/components/SocialIcons.astro',
+        Search: './src/components/Search.astro',
       },
       plugins: [
         starlightLlmsTxt({
