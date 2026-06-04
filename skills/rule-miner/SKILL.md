@@ -34,7 +34,7 @@ Detect from the argument. "what do I keep correcting / turn my feedback into rul
 
 ## Hard rules
 
-1. **Never auto-edit a rule file.** The workflow returns *proposals*. You present them and write to `CLAUDE.md` / `~/.claude/rules/*.md` only after the user approves each one. Editing the user's standing instructions without consent is the one unforgivable failure here.
+1. **Never auto-edit a rule file.** The workflow returns *proposals*. You present them and write only after the user approves each one — global scope → `~/.claude/CLAUDE.md` / `~/.claude/rules/*.md`; **project scope → the repo's `AGENTS.md`**, and ensure `CLAUDE.md` is a symlink to it (`ln -s AGENTS.md CLAUDE.md`) so the rules are reused across coding agents (Claude Code, Codex, Cursor, …). Editing the user's standing instructions without consent is the one unforgivable failure here.
 2. **Dedupe against what already exists.** Before proposing, the cluster step MUST read the current rule set for the chosen scope and drop anything already covered. A proposal that restates an existing rule is noise.
 3. **Two distinct occurrences minimum.** A one-off correction is not a rule. Every candidate needs ≥2 independent supporting events, or it's rejected as overfit.
 4. **One verifier per candidate, plus a skeptic.** Each candidate faces an evidence verifier ("would this have prevented a *real, repeated* mistake?") and a skeptic persona ("argue this is a false positive / would fire annoyingly"). Keep only what survives both. This is what stops the rule list from bloating with plausible-but-useless rules.
@@ -62,7 +62,7 @@ Invoke `workflows/mine-rules.js` with `args`:
 {
   "sessionsGlob": "~/.claude/projects/**/*.jsonl",  // adapt to where sessions live
   "repoPath": ".",                                    // repo to mine git/PR history from
-  "scope": "global",                                  // global → ~/.claude rules; project → this repo's CLAUDE.md
+  "scope": "global",                                  // global → ~/.claude rules; project → this repo's AGENTS.md (CLAUDE.md symlinked to it)
   "deep": false
 }
 ```
@@ -72,7 +72,7 @@ Invoke `workflows/mine-rules.js` with `args`:
 3. **Verify** — per candidate: an evidence verifier + a skeptic, in parallel. Survives only if the verifier confirms a real repeated mistake AND the skeptic fails to mark it a false positive.
 4. **Distill** — survivors become concrete proposals: exact rule text (terse, imperative), target file, one-line WHY, strongest evidence quote.
 
-After the workflow returns, **present the proposals** as a short list (rule · target · why · evidence). For each accepted one, write it to the target file and — when it's a global behavioral correction — also consider a memory entry. Reject list is shown briefly so the user sees what was filtered and why.
+After the workflow returns, **present the proposals** as a short list (rule · target · why · evidence). For each accepted one, write it to the target file — global → `~/.claude/CLAUDE.md`/`rules/`; **project → `AGENTS.md`** (create it if absent and `ln -s AGENTS.md CLAUDE.md` so every coding agent reads the same rules) — and, when it's a global behavioral correction, also consider a memory entry. Reject list is shown briefly so the user sees what was filtered and why.
 
 ## `--check` — phases
 
@@ -99,7 +99,7 @@ Mined N sessions · M correction events · K candidates · S survived
 Proposed rules:
 1. [global ~/.claude/CLAUDE.md] <rule text>
    why: <one line> · evidence: "<quote>" (×3 occurrences)
-2. [project CLAUDE.md] <rule text>
+2. [project AGENTS.md] <rule text>
    ...
 
 Filtered (not proposed): <rule> — <reason>, ...
