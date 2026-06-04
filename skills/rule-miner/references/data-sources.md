@@ -9,7 +9,7 @@ Where the `--mine` finders look, and what a "correction" looks like in each sour
 | Session transcripts | `~/.claude/projects/<project-hash>/*.jsonl` (one JSON event per line) | Read / Grep |
 | Git history | the repo at `repoPath` | `git log`, `git show`, `git log -p -- CLAUDE.md` |
 | PR review comments | the repo's remote | `gh pr list`, `gh api .../pulls/comments`, `gh search` |
-| Existing rules (for dedupe) | `~/.claude/CLAUDE.md`, `~/.claude/rules/*.md`, project `CLAUDE.md`, `docs/code-standards.md` | Read |
+| Existing rules (for dedupe) | `~/.claude/CLAUDE.md`, `~/.claude/rules/*.md`, project `AGENTS.md` (or `CLAUDE.md`, often symlinked to it), `docs/code-standards.md` | Read |
 
 Resolve `~` to `$HOME` at read time. Never hardcode an absolute home path — the skill must work for any user.
 

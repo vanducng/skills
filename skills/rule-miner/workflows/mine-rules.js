@@ -15,11 +15,11 @@ export const meta = {
 const A = args || {}
 const sessionsGlob = A.sessionsGlob || '~/.claude/projects/**/*.jsonl'
 const repoPath = A.repoPath || '.'
-const scope = A.scope || 'project' // global → ~/.claude rules; project → repo CLAUDE.md
+const scope = A.scope || 'project' // global → ~/.claude rules; project → repo AGENTS.md (CLAUDE.md symlinked to it)
 const deep = !!A.deep
 const ruleHome = scope === 'global'
   ? '~/.claude/CLAUDE.md and ~/.claude/rules/*.md'
-  : 'the project CLAUDE.md and docs/'
+  : 'the project AGENTS.md (CLAUDE.md is a symlink to it) and docs/'
 
 const EVENTS = {
   type: 'object', required: ['events'],
@@ -123,7 +123,7 @@ if (!survivors.length) return { proposals: [], rejected, stats: { events: events
 phase('Distill')
 const distilled = await agent(
   `Turn these verified candidates into concrete rule proposals. For each: exact rule text (terse, imperative, one line where possible), ` +
-  `target file (${scope === 'global' ? '~/.claude/CLAUDE.md or ~/.claude/rules/<topic>.md' : 'project CLAUDE.md'}), a one-line WHY, and the strongest supporting evidence quote. Do NOT write any files.\n\nSURVIVORS:\n${JSON.stringify(survivors)}`,
+  `target file (${scope === 'global' ? '~/.claude/CLAUDE.md or ~/.claude/rules/<topic>.md' : 'project AGENTS.md'}), a one-line WHY, and the strongest supporting evidence quote. Do NOT write any files.\n\nSURVIVORS:\n${JSON.stringify(survivors)}`,
   { phase: 'Distill', schema: PROPOSALS })
 
 return {
