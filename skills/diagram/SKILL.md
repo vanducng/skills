@@ -11,7 +11,7 @@ metadata:
 # vd:diagram
 
 Turn natural-language descriptions into reviewable diagram images and version-controlled diagram artifacts. Two render paths:
-- **PNG** (default): refines the prompt with `claude-haiku-4-5`, hands it to `gpt-5.4-image-2` for image generation.
+- **PNG** (default): refines the prompt with `claude-haiku-4-5`, then generates the image. Default image provider is **codex** (`gpt-image-2` via your ChatGPT subscription — cost-optimized, no per-image API spend), with automatic fallback to OpenRouter `gpt-5.4-image-2` when codex is unavailable. Force the API path with `--provider openrouter`.
 - **SVG** (`--format svg`): the LLM emits the SVG markup directly. Cheaper, crisper labels, hand-editable.
 
 Use `--versioned` when the diagram belongs in docs, ADRs, specs, or PR review. It writes a stable folder under `docs/diagrams/<slug>/` with:
@@ -86,6 +86,7 @@ Get a key at <https://openrouter.ai/settings/keys>.
 | `--type` | auto-classify | One of the 8 types or an alias. |
 | `--preset` | `warm` | Visual style: `warm`, `mono`, `pastel`, `cyberpunk`. See "Style presets" below. |
 | `--format` | `png` | `png` or `svg`. |
+| `--provider` | `codex` | PNG image backend. `codex`: `gpt-image-2` via ChatGPT subscription — cost-optimized, OpenRouter fallback. `openrouter`: `gpt-5.4-image-2` via API. |
 | `--quality` | `medium` | `low`, `medium`, `high`. PNG only; OpenRouter passes through. |
 | `--aspect-ratio` | `16:9` | PNG only. |
 | `--regen "<feedback>"` | — | Iterate on the most recent session. Inherits preset/type/format from prior session. |

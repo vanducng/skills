@@ -26,6 +26,12 @@ from openrouter_chat import (
 )
 from openrouter_image import DEFAULT_MODEL as IMAGE_MODEL
 from openrouter_image import find_api_key, generate_image
+from codex_image import (
+    DEFAULT_MODEL as CODEX_IMAGE_MODEL,
+    CodexImageError,
+    codex_available,
+    generate_image as codex_generate_image,
+)
 from skeleton_layout import laid_out_to_yaml, layered_lr
 from skeleton_schema import SkeletonError, parse_skeleton
 from validation import ExpectedLayout, validate_and_fix
@@ -371,6 +377,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Diagram type. Auto-classified if omitted.",
     )
     parser.add_argument("--format", choices=["png", "svg"], default="png")
+    parser.add_argument(
+        "--provider",
+        choices=["codex", "openrouter"],
+        default="codex",
+        help=(
+            "PNG image provider. codex (default): gpt-image-2 via Codex CLI / "
+            "ChatGPT subscription — cost-optimized, falls back to OpenRouter if "
+            "codex is unavailable. openrouter: gpt-5.4-image-2 via OpenRouter API."
+        ),
+    )
     parser.add_argument("--quality", choices=["low", "medium", "high"], default="medium")
     parser.add_argument("--aspect-ratio", default="16:9")
     parser.add_argument("--no-open", action="store_true", help="Do not auto-open the browser.")
@@ -563,6 +579,7 @@ def _produce_image(
     preset: str,
     revise: bool = True,
     engine: str = "free",
+    image_provider: str = "codex",
 ) -> tuple[str, str]:
     """Return (refined_text_or_svg, image_model_or_none)."""
     want_skeleton = (fmt == "svg" and engine == "skeleton")
@@ -592,6 +609,22 @@ def _produce_image(
         style_tokens=style_tokens,
         composition_rules=refs["composition_rules"],
     )
+    if image_provider == "codex":
+        if codex_available():
+            print(f"→ generating PNG via codex ({CODEX_IMAGE_MODEL}, ~30–120s)…", flush=True)
+            try:
+                codex_generate_image(
+                    prompt=refined,
+                    output_path=str(output_path),
+                    aspect_ratio=aspect_ratio,
+                    quality=quality,
+                )
+                return refined, CODEX_IMAGE_MODEL
+            except CodexImageError as exc:
+                print(f"⚠ codex image failed ({exc}); falling back to OpenRouter", file=sys.stderr, flush=True)
+        else:
+            print("⚠ codex unavailable (not installed / not logged in); using OpenRouter", file=sys.stderr, flush=True)
+
     print(f"→ generating PNG (model: {IMAGE_MODEL}, ~30–90s)…", flush=True)
     generate_image(
         prompt=refined,
@@ -663,6 +696,7 @@ def main(argv: list[str] | None = None) -> int:
             engine=engine,
             preset=preset,
             revise=not args.no_revise,
+            image_provider=args.provider,
         )
         append_iteration(
             session_dir,
@@ -737,6 +771,7 @@ def main(argv: list[str] | None = None) -> int:
         preset=args.preset,
         revise=not args.no_revise,
         engine=engine,
+        image_provider=args.provider,
     )
     print(f"→ saved {out_path}", flush=True)
 
