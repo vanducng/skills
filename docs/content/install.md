@@ -111,11 +111,15 @@ vd install codex --scope repo --dry-run
 vd install codex --scope repo
 ```
 
+:::tip
 Use repo scope when a project should carry the same skill set for every Codex session opened from that checkout.
+:::
 
 ## Invocation Names
 
+:::note
 Documentation uses canonical IDs such as `vd:research`, `vd:plan`, and `vd:ship`. Claude Code and Codex expose different invocation prefixes in their UIs, but the skill identity is the same catalog namespace.
+:::
 
 ## Verify The Install
 

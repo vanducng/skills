@@ -60,4 +60,8 @@ Release Please updates `CHANGELOG.md`, `version.txt`, `skills.toml`, `.claude-pl
 
 ## Rollback
 
-For docs, revert the bad docs commit and let the Pages workflow redeploy. For skill-catalog releases, create a follow-up fix commit and let Release Please issue the next patch. Avoid force-pushing `main`; release state is derived from GitHub releases, tags, and changelog history.
+For docs, revert the bad docs commit and let the Pages workflow redeploy. For skill-catalog releases, create a follow-up fix commit and let Release Please issue the next patch.
+
+:::caution
+Avoid force-pushing `main`. Release state is derived from GitHub releases, tags, and changelog history.
+:::

@@ -14,6 +14,8 @@ export default defineConfig({
     starlight({
       title: 'skills',
       logo: { src: './src/assets/logo.svg' },
+      // Apply Starlight's markdown pipeline (asides, heading links) to the custom-loader content/ dir.
+      markdown: { processedDirs: ['./content'] },
       description:
         'A portable skill catalog for Claude Code, Codex, and repository-local agent workflows.',
       customCss: ['./src/styles/theme.css'],
@@ -42,6 +44,14 @@ export default defineConfig({
         {
           label: 'Project',
           items: ['tech-stack', 'development-guidelines', 'deployment'],
+        },
+        {
+          label: 'Related docs',
+          items: [
+            { label: 'dotfiles', link: 'https://dotfiles.vanducng.dev', attrs: { target: '_blank' } },
+            { label: 'miudb', link: 'https://miudb.vanducng.dev', attrs: { target: '_blank' } },
+            { label: 'vd-cli', link: 'https://vd-cli.vanducng.dev', attrs: { target: '_blank' } },
+          ],
         },
       ],
     }),
