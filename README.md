@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/banner.png" alt="vd skills — portable, agent-agnostic skills for agentic coding" width="840">
+<img src="docs/content/assets/banner.png" alt="vd skills — portable, agent-agnostic skills for agentic coding" width="840">
 
 [![validate](https://github.com/vanducng/skills/actions/workflows/validate.yml/badge.svg)](https://github.com/vanducng/skills/actions/workflows/validate.yml)
 [![docs](https://img.shields.io/badge/docs-skills.vanducng.dev-7c3aed)](https://skills.vanducng.dev)

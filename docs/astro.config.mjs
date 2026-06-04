@@ -13,6 +13,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'skills',
+      logo: { src: './src/assets/logo.svg' },
       description:
         'A portable skill catalog for Claude Code, Codex, and repository-local agent workflows.',
       customCss: ['./src/styles/theme.css'],
