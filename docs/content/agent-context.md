@@ -23,4 +23,8 @@ This site publishes plain-text entry points for coding agents and LLM-powered to
 
 ## Scope
 
-These files help agents answer questions about the `vanducng/skills` catalog and its install paths. They do not replace `AGENTS.md` for repository-local coding instructions or the `SKILL.md` files for skill behavior.
+These files help agents answer questions about the `vanducng/skills` catalog and its install paths.
+
+:::note
+These files do not replace `AGENTS.md` for repository-local coding instructions or the `SKILL.md` files for skill behavior.
+:::

@@ -48,7 +48,9 @@ fix(skill-management): update vd-cli module path
 docs: migrate site to astro starlight
 ```
 
+:::caution
 Do not manually edit skill-catalog release versions unless you are working in the Release Please PR. The release workflow owns those version bumps.
+:::
 
 ## Documentation Rules
 

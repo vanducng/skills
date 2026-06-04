@@ -31,7 +31,9 @@ $EDITOR skills/my-skill/SKILL.md
 bash scripts/validate.sh
 ```
 
+:::note[Important]
 Skill directory names are kebab-case and must match the `name` field in `SKILL.md`. The validator enforces this in `scripts/validate.sh`.
+:::
 
 ## Sync Vendored Skills
 
