@@ -20,7 +20,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-DEFAULT_TIMEOUT = 300
+DEFAULT_TIMEOUT = 600
 
 
 class CodexError(Exception):
