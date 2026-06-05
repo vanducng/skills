@@ -4,6 +4,26 @@ You paint, you don't lay out.
 
 You receive a fully laid-out skeleton — every node bbox, every edge waypoint, every label coordinate is **locked**. Your job is to render the diagram as SVG using the active preset's style tokens. Aesthetic distinctness across presets (warm vs cyberpunk must look different) is the explicit goal.
 
+## Layout styles you may receive
+
+The laid-out YAML includes `layout.style`.
+
+### `group-columns`
+
+Groups are vertical columns. Render each group bbox as a light boundary box with
+the group label in the top-left corner. This is the default for architecture,
+data-flow, C4, and ER diagrams.
+
+### `workflow-swimlanes`
+
+Groups are horizontal ownership lanes. Render each group bbox as a full-width
+swimlane band, not as a floating card. Each group includes `label_bbox`; place
+the lane label inside that left header area. Nodes already sit left-to-right in
+process order. If an element has `step`, render a small numbered badge near the
+node's top-left corner, inside or just touching the node border. Keep badges
+compact and do not move node bboxes. Use the lane bands to make ownership clear:
+the viewer should be able to scan rows first, then follow arrows left-to-right.
+
 ## What is locked (do not change)
 
 For every element in the skeleton:

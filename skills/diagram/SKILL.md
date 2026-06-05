@@ -111,6 +111,8 @@ Get a key at <https://openrouter.ai/settings/keys>.
 
 `--engine` selects between `free` (pure-LLM SVG path, kept as the escape hatch) and `skeleton` (YAML → layout → paint). SVG defaults to `skeleton` for `system-architecture`, `data-flow`, `workflow`, `c4-context`, `c4-container`, and `er-diagram`; `sequence` and `state-machine` still default to `free`. See `references/skeleton-contract.md` and `references/painter-contract.md` for the contracts.
 
+Workflow skeleton layouts use horizontal swimlane rows: groups become ownership lanes top-to-bottom, and steps flow left-to-right inside each row. Other skeleton types keep the group-column layout.
+
 ## Style presets
 
 All presets share the same iconography, line weights, density limits, and label-placement rules. Only the palette and aesthetic feel differ.

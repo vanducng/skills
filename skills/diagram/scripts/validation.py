@@ -80,6 +80,20 @@ def validate_and_fix(
 
     node_rects = _collect_rects(root, _NODE_CLASSES)
     label_rects = _collect_rects(root, _LABEL_CLASSES)
+    moved_labels = _autofix_arrow_label_positions(root, label_rects, node_rects)
+    if moved_labels:
+        ET.register_namespace("", "http://www.w3.org/2000/svg")
+        svg_text = ET.tostring(root, encoding="unicode")
+        report.autofix_applied.append(
+            f"moved {moved_labels} arrow label group(s) away from node bodies"
+        )
+        try:
+            root = ET.fromstring(svg_text)
+        except ET.ParseError as exc:
+            report.blocking_issues.append(f"xml parse error after label autofix: {exc}")
+            return svg_text, report
+        node_rects = _collect_rects(root, _NODE_CLASSES)
+        label_rects = _collect_rects(root, _LABEL_CLASSES)
 
     overlaps = _pairwise_overlaps(node_rects, node_rects, same_set=True)
     if overlaps:
@@ -357,6 +371,81 @@ def _collect_rects(
     return out
 
 
+def _autofix_arrow_label_positions(
+    root: ET.Element,
+    label_rects: list[tuple[float, float, float, float, str]],
+    node_rects: list[tuple[float, float, float, float, str]],
+) -> int:
+    """Move arrow-label groups above node bodies when the painter overlaps them."""
+    if not label_rects or not node_rects:
+        return 0
+    parent = {child: el for el in root.iter() for child in el}
+    moved: set[int] = set()
+    for lx, ly, lw, lh, _ in label_rects:
+        overlaps = [
+            (nx, ny, nw, nh, nc)
+            for nx, ny, nw, nh, nc in node_rects
+            if _overlaps(lx, ly, lw, lh, nx, ny, nw, nh)
+        ]
+        if not overlaps:
+            continue
+        label_el = _find_rect(root, lx, ly, lw, lh)
+        if label_el is None:
+            continue
+        move_root = _label_move_root(label_el, parent)
+        ident = id(move_root)
+        if ident in moved:
+            continue
+        new_y = min(ny for _, ny, _, _, _ in overlaps) - lh - 8
+        if new_y < 8:
+            new_y = max(ny + nh for _, ny, _, nh, _ in overlaps) + 8
+        dy = new_y - ly
+        if abs(dy) < 0.5:
+            continue
+        _shift_y(move_root, dy)
+        moved.add(ident)
+    return len(moved)
+
+
+def _label_move_root(el: ET.Element, parent: dict[ET.Element, ET.Element]) -> ET.Element:
+    p = parent.get(el)
+    if p is not None and "arrow-label" in set((p.get("class") or "").split()):
+        return p
+    return el
+
+
+def _find_rect(root: ET.Element, x: float, y: float, w: float, h: float) -> ET.Element | None:
+    for el in root.iter():
+        if el.tag.split("}", 1)[-1] != "rect":
+            continue
+        try:
+            ex = float(el.get("x", 0)); ey = float(el.get("y", 0))
+            ew = float(el.get("width", 0)); eh = float(el.get("height", 0))
+        except (TypeError, ValueError):
+            continue
+        if abs(ex - x) < 0.1 and abs(ey - y) < 0.1 and abs(ew - w) < 0.1 and abs(eh - h) < 0.1:
+            return el
+    return None
+
+
+def _shift_y(root: ET.Element, dy: float) -> None:
+    for el in root.iter():
+        for attr in ("y", "y1", "y2", "cy"):
+            val = el.get(attr)
+            if val is None:
+                continue
+            try:
+                el.set(attr, _fmt_num(float(val) + dy))
+            except ValueError:
+                continue
+
+
+def _fmt_num(v: float) -> str:
+    if abs(v - round(v)) < 0.01:
+        return str(int(round(v)))
+    return f"{v:.1f}".rstrip("0").rstrip(".")
+
+
 def _pairwise_overlaps(
     set_a: list[tuple[float, float, float, float, str]],
     set_b: list[tuple[float, float, float, float, str]],
@@ -380,6 +469,17 @@ def _pairwise_overlaps(
                     f"vs [{bc} @ ({bx:.0f},{by:.0f}) {bw:.0f}x{bh:.0f}]"
                 )
     return out
+
+
+def _overlaps(
+    ax: float, ay: float, aw: float, ah: float,
+    bx: float, by: float, bw: float, bh: float,
+    *,
+    min_overlap_px: float = 4.0,
+) -> bool:
+    ox = min(ax + aw, bx + bw) - max(ax, bx)
+    oy = min(ay + ah, by + bh) - max(ay, by)
+    return ox > min_overlap_px and oy > min_overlap_px
 
 
 def _summarize(overlaps: list[str], cap: int = 5) -> str:

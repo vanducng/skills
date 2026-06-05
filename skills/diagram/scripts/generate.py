@@ -526,18 +526,12 @@ def _produce_svg_skeleton(
     refs: dict[str, str],
     revise: bool = True,
 ) -> tuple[str, str | None]:
-    print(f"→ pass 1: emitting skeleton (preset: {preset}, model: {REFINE_MODEL})…", flush=True)
-    skel_yaml = generate_skeleton(
+    skel = _generate_valid_skeleton(
         description=description,
         diagram_type=diagram_type,
         preset=preset,
-        skeleton_contract=refs["skeleton_contract"],
-        type_ref=refs["type_ref"],
+        refs=refs,
     )
-    try:
-        skel = parse_skeleton(skel_yaml)
-    except SkeletonError as exc:
-        raise RuntimeError(f"pass-1 emitted invalid skeleton: {exc}") from exc
 
     print(f"→ laying out: {len(skel.elements)} elements, {len(skel.edges)} edges, "
           f"{len(skel.groups)} groups…", flush=True)
@@ -581,6 +575,41 @@ def _produce_svg_skeleton(
 
     output_path.write_text(svg_text)
     return svg_text, None
+
+
+def _generate_valid_skeleton(
+    *,
+    description: str,
+    diagram_type: str,
+    preset: str,
+    refs: dict[str, str],
+):
+    """Emit and validate pass-1 YAML, retrying once with validator feedback."""
+    last_error: SkeletonError | None = None
+    for attempt in range(1, 3):
+        suffix = "" if last_error is None else (
+            "\n\nPrevious YAML failed validation. Fix this exact issue and keep "
+            f"all labels short enough for the schema: {last_error}"
+        )
+        print(
+            f"→ pass 1: emitting skeleton attempt {attempt}/2 "
+            f"(preset: {preset}, model: {REFINE_MODEL})…",
+            flush=True,
+        )
+        skel_yaml = generate_skeleton(
+            description=description + suffix,
+            diagram_type=diagram_type,
+            preset=preset,
+            skeleton_contract=refs["skeleton_contract"],
+            type_ref=refs["type_ref"],
+        )
+        try:
+            return parse_skeleton(skel_yaml)
+        except SkeletonError as exc:
+            last_error = exc
+            if attempt == 1:
+                print(f"→ pass 1 validation failed: {exc}; retrying once…", flush=True)
+    raise RuntimeError(f"pass-1 emitted invalid skeleton after retry: {last_error}") from last_error
 
 
 def _produce_image(

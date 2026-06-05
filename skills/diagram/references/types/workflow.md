@@ -18,7 +18,7 @@ Trigger words:
 - Terminal outcome: state-like rounded rectangle, label = `Approved`, `Rejected`, `Shipped`
 
 ## Layout direction
-Primary flow runs **left → right**. Use groups as swimlanes by team, system, or stage. Keep the happy path on the center row and route exceptions downward or upward.
+Primary flow runs **left → right**. Use groups as swimlanes by team, system, or stage. In the YAML skeleton, order groups top-to-bottom as swimlane rows and order elements in rough process order. The deterministic SVG engine will place each lane as a horizontal band and assign numbered steps from left-to-right position. Keep the happy path near the center lanes and route exceptions downward or upward.
 
 ## Level of detail
 Include: ownership, decision branches, retries, manual vs automated steps, external handoffs, terminal outcomes.
