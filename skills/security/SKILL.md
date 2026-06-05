@@ -39,6 +39,9 @@ This is an LLM-driven threat-modeled review + bounded fix loop — **not** a rep
 4. **`--red-team`** (optional) — run attacker personas iteratively; dedupe vs seen; stop on a dry round or `--iterations` cap (default 5). Bounded.
 5. **`--fix`** (optional) — see Fix loop.
 6. **Report** → `plans/reports/security-{date}-{slug}.md`.
+   Final handoff must include an openable report location, such as
+   `[security-report.md](/absolute/path/to/security-report.md)` or
+   `file:///absolute/path/to/security-report.md`, not just the basename.
 
 ## Fix loop (`--fix`)
 

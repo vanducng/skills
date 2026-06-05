@@ -204,9 +204,9 @@ After writing the brief, re-read it with fresh eyes and fix issues inline. No se
 
 ### User review gate
 
-After self-review, surface the file and stop. Do not auto-invoke `vd:plan`:
+After self-review, surface the file with an openable location and stop. Do not auto-invoke `vd:plan`:
 
-> Brief saved to `<path>`. Recommendation: **{Option X}**, runner-up **{Option Y}** if {condition}. Please review and tell me if you want changes — or say "plan it" and I'll hand off to `vd:plan`.
+> Brief saved to `[brainstorm-topic.md](/absolute/path/to/brainstorm-topic.md)` (`file:///absolute/path/to/brainstorm-topic.md`). Recommendation: **{Option X}**, runner-up **{Option Y}** if {condition}. Please review and tell me if you want changes — or say "plan it" and I'll hand off to `vd:plan`.
 
 If the user requests changes, edit the brief and re-run the self-review checklist before re-surfacing. Only invoke `vd:plan` after explicit approval.
 
@@ -248,7 +248,8 @@ Increment `{N}` per iteration: `comparison-1.html`, `comparison-2.html`. Never o
    - `{{SUBTITLE}}` — one-sentence framing
    - `{{PANELS}}` — your A/B/C panel HTML, using ONLY the classes documented below
 3. `open <path>` (macOS) / `xdg-open <path>` (Linux) to launch in the user's default browser.
-4. Tell the user: *"Visual draft at `<path>`. Take a look and reply with the letter you prefer — or describe what's off."*
+4. Tell the user where to open the draft using an openable location, not just the basename:
+   *"Visual draft at `[comparison-1.html](/absolute/path/to/comparison-1.html)` (`file:///absolute/path/to/comparison-1.html`). Take a look and reply with the letter you prefer — or describe what's off."*
 
 ### CSS vocabulary in the template
 

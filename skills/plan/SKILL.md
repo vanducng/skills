@@ -285,7 +285,7 @@ After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as th
 2. Phase 1 (frame + scope check) happens *before* writing any files — visible to the user.
 3. If decomposition triggers, stop and ask — do not write a 12-phase mega-plan.
 4. Default and `--deep` write `plan.md` + phase files. `--quick` writes only `plan.md` with inline phases.
-5. After writing, list files + show phases table in your reply (don't make the user open files to see the shape).
+5. After writing, list files with openable locations, then show the phases table in your reply (don't make the user open files to see the shape). Use clickable absolute file links such as `[plan.md](/absolute/path/to/plan.md)` and include a `file://` URI when helpful; never list only basenames.
 6. End with the handoff recommendation (implement, deepen, revise) — don't leave the user wondering what's next.
 7. `--deep` mode is not done until the red-team round (Phase 6) AND the independent audit (Phase 7) both run.
 

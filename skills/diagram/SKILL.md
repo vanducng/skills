@@ -148,6 +148,17 @@ Each session dir contains:
 
 See `references/versioned-artifacts.md` for artifact conventions and review workflow.
 
+## Final output handoff
+
+When reporting a finished diagram, give the user an openable location, not just `v1.svg` or a session folder name:
+- Primary rendered file as a clickable absolute file link: `[v2.svg](/absolute/path/to/v2.svg)`
+- Plain browser URI when useful: `file:///absolute/path/to/v2.svg`
+- Session directory path, so they can find `prompt.md`, `meta.json`, and prior variants
+- For `--versioned`, include `diagram.spec.yaml` and `manifest.json` alongside the rendered file
+- If the gallery starts, include the gallery URL too, but do not use it as the only location
+
+Repo-relative paths are fine as secondary context, but the final handoff must include either an absolute path/link or a `file://` URI for every finalized output artifact.
+
 ## Iteration: `--regen` vs `--new`
 
 - `--regen "<feedback>"` — finds the **most recent** session under the current repo's `.diagrams/`, re-uses its type and format, appends `<feedback>` to the original description, drops `v2.<ext>` (or `v3`, `v4`, …) alongside the original. The positional description is ignored when `--regen` is used.

@@ -329,6 +329,22 @@ def write_versioned_manifest(
     (session_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
 
+def print_output_handoff(output_path: Path, session_dir: Path, *, versioned: bool = False) -> None:
+    """Print openable absolute locations for the generated diagram artifacts."""
+    resolved_output = output_path.resolve()
+    resolved_session = session_dir.resolve()
+    print(f"→ saved: {resolved_output}", flush=True)
+    print(f"→ file URI: {resolved_output.as_uri()}", flush=True)
+    print(f"→ session dir: {resolved_session}", flush=True)
+    if versioned:
+        for name in ("diagram.spec.yaml", "manifest.json"):
+            companion = session_dir / name
+            if companion.exists():
+                resolved_companion = companion.resolve()
+                print(f"→ companion: {resolved_companion}", flush=True)
+                print(f"→ companion URI: {resolved_companion.as_uri()}", flush=True)
+
+
 # ---------------------------------------------------------------------------
 # Viewer
 # ---------------------------------------------------------------------------
@@ -564,7 +580,6 @@ def _produce_svg_skeleton(
             print(f"⚠ still {len(vreport2.blocking_issues)} issue(s); writing anyway", flush=True)
 
     output_path.write_text(svg_text)
-    print(f"→ saved {output_path.name} ({len(svg_text)} bytes)", flush=True)
     return svg_text, None
 
 
@@ -725,7 +740,7 @@ def main(argv: list[str] | None = None) -> int:
                 engine=engine,
                 image_path=out_path,
             )
-        print(f"→ saved {out_path}", flush=True)
+        print_output_handoff(out_path, session_dir, versioned=args.versioned or bool(meta.get("versioned")))
         print("→ spawning gallery…", flush=True)
         url = spawn_viewer(parent_dir, open_browser=not args.no_open)
         if url:
@@ -773,8 +788,6 @@ def main(argv: list[str] | None = None) -> int:
         engine=engine,
         image_provider=args.provider,
     )
-    print(f"→ saved {out_path}", flush=True)
-
     if variant == 1 or not (session_dir / "prompt.md").exists():
         write_session_artifacts(
             session_dir,
@@ -824,6 +837,8 @@ def main(argv: list[str] | None = None) -> int:
             engine=engine,
             image_path=out_path,
         )
+
+    print_output_handoff(out_path, session_dir, versioned=args.versioned)
 
     print("→ spawning gallery…", flush=True)
     url = spawn_viewer(parent_dir, open_browser=not args.no_open)

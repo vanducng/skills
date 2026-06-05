@@ -152,6 +152,11 @@ The live `debugger_url` in the manifest opens an interactive Chrome DevTools vie
 
 When a run was started via `bb-capture.mjs`, `manifest.json` also carries a top-level `browserbase` block: `session_id`, `project_id`, `region`, `started_at`, `expires_at`, `keep_alive`, `debugger_url`.
 
+When handing off trace artifacts, include the run directory and key files as openable locations:
+`[manifest.json](/absolute/path/to/run/manifest.json)`,
+`[screenshots](/absolute/path/to/run/screenshots)`, or matching `file://` URIs.
+Do not report only the run id or a basename.
+
 ### Summary shape
 
 `cdp/summary.json` is the entry point for any analysis: it has session-level totals and a `pages[]` array indexed by top-level `Page.frameNavigated`. Per-page entries are emitted in navigation order (page 0 = first concrete URL).

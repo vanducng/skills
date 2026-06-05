@@ -39,6 +39,9 @@ Output is an input to test-writing / QA / `vd:plan` risk sections — not execut
 3. **Emit scenarios** — group by dimension; each: a one-line condition, **severity** (Critical/High/Med/Low), why it breaks, suggested test/assertion.
 4. **(saturation)** — repeat with a completeness critic ("which dimension or angle is still thin?"); dedupe against the seen-set; stop per the rules in [`references/saturation-loop.md`](references/saturation-loop.md).
 5. **Save** the report to `plans/reports/scenario-{date}-{slug}.md`.
+   Final handoff must include an openable report location, such as
+   `[scenario-report.md](/absolute/path/to/scenario-report.md)` or
+   `file:///absolute/path/to/scenario-report.md`, not just the basename.
 
 ## Output shape
 

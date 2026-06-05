@@ -81,6 +81,11 @@ Never create `./docs/` silently. The user owns this directory.
 
 When delegating, pass: scout digest, current doc LOC table, the user's `$ARGUMENTS`, plan dir (if any). Do **not** pass full file contents — let the subagent re-read what it needs.
 
+After `init` or `update` writes files, list every changed doc with an openable location:
+`[deployment.md](/absolute/path/to/docs/deployment.md)` and, when helpful,
+`file:///absolute/path/to/docs/deployment.md`. Repo-relative paths are fine as
+secondary context, but never hand off only a basename.
+
 ## Token efficiency
 
 - **Scout in parallel, write once.** Don't re-scout per doc file.

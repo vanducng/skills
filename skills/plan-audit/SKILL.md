@@ -199,7 +199,7 @@ verdict: {recommended_action} — {verdict_one_liner}
 
 After writing the report:
 
-1. **Print report path** — `Audit report: plans/reports/audit-{date}-{slug}.md`
+1. **Print report path** — use an openable location such as `Audit report: [audit-report.md](/absolute/path/to/audit-report.md)` and include `file:///absolute/path/to/audit-report.md` when helpful. Do not print only the basename.
 2. **Print top-3 findings inline** — sorted by severity. Just summary + phase ref. Full detail in the file.
 3. **Recommend next step** based on verdict:
    - `block` → "Critical findings — revise plan before `vd:cook`."

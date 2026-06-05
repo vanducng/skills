@@ -196,6 +196,9 @@ How much pain to switch off Option X 12 months in. This is the lock-in cost.
 
 1. Save to the path described in "Where to save"; do not write research reports
    into the repository root unless the user explicitly asks for that path
+   In the final handoff, report the saved report as an openable location:
+   `[research-topic.md](/absolute/path/to/research-topic.md)` and, when helpful,
+   `file:///absolute/path/to/research-topic.md`. Do not report only the basename.
 2. Open with TL;DR — recommendation, runner-up, avoid — before anything else
 3. Comparison matrix is non-optional in any mode
 4. Code blocks get language tags
