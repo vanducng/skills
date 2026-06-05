@@ -23,7 +23,7 @@ Keep skill names kebab-case and match the `name` field in frontmatter to the dir
 - Put long reference material under `references/`.
 - Put deterministic helpers under `scripts/`.
 - Put templates, images, and copied output assets under `assets/`.
-- Use canonical IDs like `vd:cook`, `vd:docs`, or `vd:zensical` when referring to skills in docs.
+- Use canonical IDs like `vd:cook` or `vd:docs` when referring to skills in docs.
 
 Source: `skills/skill-management/SKILL.md`, `scripts/validate.sh`.
 

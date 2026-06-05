@@ -12,10 +12,6 @@ node_modules/
 plans/
 docs/journals/
 
-# Zensical docs build output/cache
-site/
-.cache/
-
 # Python bytecode cache (skills with Python scripts)
 __pycache__/
 *.pyc
