@@ -102,7 +102,12 @@ Unless the user passed `--no-open` or explicitly said not to open it:
 "$OD_BIN" preview <output>.html
 ```
 
-This calls `open <file>` on macOS (default browser). Tell the user the file path so they can re-open or share it.
+This calls `open <file>` on macOS (default browser). In the final handoff, include an openable target, not just the basename:
+- Clickable absolute file link: `[artifact.html](/absolute/path/to/artifact.html)`
+- Browser URI when helpful: `file:///absolute/path/to/artifact.html`
+- Repo-relative path as secondary context only: `./artifact.html`
+
+Never hand off only `artifact.html`; users need a path or URI they can open directly.
 
 ## Examples
 

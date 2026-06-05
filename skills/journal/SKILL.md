@@ -86,6 +86,10 @@ Path: `./plans/journals/journal-{YYYYMMDD-HHMM}-{slug}.md` — use the naming pa
 
 > Journals live under `./plans/`, not `./docs/`. They're a personal dev log — what *I* learned, decided, or broke — not project documentation. `./docs/` is for artifacts shared with the team (architecture, code standards, changelog).
 
+Final handoff must include an openable entry location, such as
+`[journal-entry.md](/absolute/path/to/journal-entry.md)` or
+`file:///absolute/path/to/journal-entry.md`, not just the basename.
+
 ### 5. Cross-link
 
 - If a `plan.md` exists, append a one-line link to this entry under a "Journal" section at the bottom of `plan.md`.

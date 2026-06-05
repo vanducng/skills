@@ -57,6 +57,15 @@ export GEMINI_API_KEY_2="key2"  # auto-rotates on rate limit
 
 > **Stdin support**: Pipe files via stdin for Gemini analysis (auto-detects PNG/JPG/PDF/WAV/MP3).
 
+## Output Handoff
+
+When an omnimedia workflow creates or exports a file, the final response must give the user an openable target:
+- Clickable absolute file link: `[out.png](/absolute/path/to/out.png)`
+- Plain browser URI when helpful: `file:///absolute/path/to/out.png`
+- Repo-relative path only as secondary context: `./docs/assets/out.png`
+
+Do not hand off only `out.png`, `results.json`, or another basename. For multi-file jobs, list each finalized output and any companion artifacts such as transcripts, manifests, thumbnails, or optimized derivatives.
+
 ## Models
 
 ### Google Gemini / Imagen
