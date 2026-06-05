@@ -18,7 +18,7 @@ This site publishes plain-text entry points for coding agents and LLM-powered to
 1. Fetch `/llms.txt`.
 2. Read the links under `## Core`.
 3. Fetch `/llms-full.txt` only when a single larger context file is more useful than selective page fetches.
-4. Prefer canonical skill IDs such as `vd:docs`, `vd:zensical`, and `vd:ship` when discussing skills.
+4. Prefer canonical skill IDs such as `vd:docs` and `vd:ship` when discussing skills.
 5. Check source files in GitHub before making claims about implementation details.
 
 ## Scope

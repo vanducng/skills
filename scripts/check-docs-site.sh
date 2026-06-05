@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-docs-site.sh - mechanical score/check for the Zensical docs site.
+# check-docs-site.sh - mechanical score/check for the Astro Starlight docs site.
 set -euo pipefail
 
 MODE="${1:---check}"
@@ -9,7 +9,6 @@ python3 - "$MODE" "$REPO" <<'PY'
 import pathlib
 import re
 import sys
-import tomllib
 
 mode = sys.argv[1]
 repo = pathlib.Path(sys.argv[2])
@@ -21,47 +20,72 @@ def text(rel):
 def exists(rel):
     return (repo / rel).exists()
 
-zensical = tomllib.loads(text("zensical.toml")) if exists("zensical.toml") else {}
-project = zensical.get("project", {})
-nav = project.get("nav", [])
+def first_int(pattern, body):
+    m = re.search(pattern, body)
+    return int(m.group(1)) if m else None
+
+cfg = text("docs/astro.config.mjs")
+pkg = text("docs/package.json")
+pages = text(".github/workflows/pages.yml")
+install = text("docs/content/install.md")
+skills_page = text("docs/content/skills.md")
+home = text("docs/content/index.mdx")
+agent_ctx = text("docs/content/agent-context.md")
+dev_guidelines = text("docs/content/development-guidelines.md")
+readme = text("README.md")
+
+skill_dirs = sorted(
+    p.name for p in (repo / "skills").iterdir()
+    if p.is_dir() and (p / "SKILL.md").exists()
+)
+skill_count = len(skill_dirs)
 
 checks = [
-    ("zensical config exists", exists("zensical.toml")),
-    ("site_url is custom domain", project.get("site_url") == "https://skills.vanducng.dev/"),
-    ("site_dir is site", project.get("site_dir") == "site"),
-    ("custom css configured", "stylesheets/skills.css" in project.get("extra_css", [])),
-    ("navigation has at least four sections", len(nav) >= 4),
-    ("homepage exists", exists("docs/index.md")),
-    ("install guide exists", exists("docs/install.md")),
-    ("canonical docs exist", all(exists(p) for p in [
-        "docs/development-guidelines.md",
-        "docs/system-architecture.md",
-        "docs/tech-stack.md",
-        "docs/deployment.md",
+    # Site wiring (Astro Starlight)
+    ("astro config exists", exists("docs/astro.config.mjs")),
+    ("site is custom domain", "site: 'https://skills.vanducng.dev'" in cfg),
+    ("starlight integration configured", "@astrojs/starlight" in pkg and "starlight(" in cfg),
+    ("llms.txt plugin configured", "starlight-llms-txt" in cfg and "starlight-llms-txt" in pkg),
+    ("custom theme css configured", "customCss: ['./src/styles/theme.css']" in cfg and exists("docs/src/styles/theme.css")),
+    ("CNAME is custom domain", text("docs/public/CNAME").strip() == "skills.vanducng.dev"),
+
+    # Canonical content pages
+    ("homepage exists", exists("docs/content/index.mdx")),
+    ("install guide exists", exists("docs/content/install.md")),
+    ("getting started guide exists", exists("docs/content/getting-started.md")),
+    ("canonical project docs exist", all(exists(p) for p in [
+        "docs/content/development-guidelines.md",
+        "docs/content/tech-stack.md",
+        "docs/content/deployment.md",
     ])),
-    ("architecture visual exists", exists("docs/assets/architecture.svg")),
-    ("architecture diagram avoids long overflowing label", "check-release-versions.sh" not in text("docs/assets/architecture.svg") and "validate skills" in text("docs/assets/architecture.svg")),
-    ("system architecture hides chrome", "hide:\n  - path\n  - toc" in text("docs/system-architecture.md")),
-    ("image attribute extension enabled", "[project.markdown_extensions.attr_list]" in text("zensical.toml")),
-    ("stylesheet has hero and cards", ".vd-hero" in text("docs/stylesheets/skills.css") and ".vd-card-grid" in text("docs/stylesheets/skills.css")),
-    ("homepage hides unused left sidebar", "body:has(.vd-hero) .md-sidebar--primary" in text("docs/stylesheets/skills.css") and "display: none;" in text("docs/stylesheets/skills.css")),
-    ("homepage uses aligned content rail", "body:has(.vd-hero) .md-main__inner" in text("docs/stylesheets/skills.css") and "max-width: 61rem;" in text("docs/stylesheets/skills.css")),
-    ("old journal docs removed", not exists("docs/journals/2026-05-05-vd-cli-shipped.md")),
-    ("pages workflow uses zensical", "zensical build --clean --strict" in text(".github/workflows/pages.yml")),
-    ("pages workflow writes CNAME", "skills.vanducng.dev" in text(".github/workflows/pages.yml") and "site/CNAME" in text(".github/workflows/pages.yml")),
-    ("pages workflow no stale tools path", "tools/vd/docs" not in text(".github/workflows/pages.yml")),
-    ("README links public docs", "https://skills.vanducng.dev" in text("README.md")),
-    ("install docs use v2 go path", "github.com/vanducng/vd-cli/v2/cmd/vd@latest" in text("docs/install.md")),
-    ("install docs cover codex", "vd install codex --scope repo" in text("docs/install.md")),
-    ("install docs cover claude dev", "vd install claude --dev" in text("docs/install.md")),
-    ("install docs avoid unshipped windows arm asset", "vd_windows_arm64.zip" not in text("docs/install.md")),
-    ("llms canonical exists", exists("docs/llms.txt") and text("docs/llms.txt").startswith("# vd skills\n")),
-    ("llms full context exists", exists("docs/llms-full.txt") and "vd install codex --scope repo" in text("docs/llms-full.txt")),
-    ("llm singular pointer exists", exists("docs/llm.txt") and "https://skills.vanducng.dev/llms.txt" in text("docs/llm.txt")),
-    ("robots advertises llms", exists("docs/robots.txt") and "LLMs: https://skills.vanducng.dev/llms.txt" in text("docs/robots.txt")),
-    ("agent context page exists", exists("docs/agent-context.md") and "/llms.txt" in text("docs/agent-context.md")),
-    ("skill-management uses v2 go path", "github.com/vanducng/vd-cli/cmd/vd@latest" not in text("skills/skill-management/SKILL.md")),
-    ("zensical skill exists", exists("skills/zensical/SKILL.md")),
+    ("catalog page exists", exists("docs/content/skills.md")),
+    ("workflows page exists", exists("docs/content/workflows.md")),
+    ("agent context page exists", exists("docs/content/agent-context.md") and "/llms.txt" in agent_ctx),
+
+    # Agent / LLM plain-text entry points
+    ("llm singular pointer exists", exists("docs/public/llm.txt") and "https://skills.vanducng.dev/llms.txt" in text("docs/public/llm.txt")),
+    ("robots advertises llms", exists("docs/public/robots.txt") and "LLMs: https://skills.vanducng.dev/llms.txt" in text("docs/public/robots.txt")),
+
+    # Install content contract
+    ("install docs use v2 go path", "github.com/vanducng/vd-cli/v2/cmd/vd@latest" in install),
+    ("install docs cover codex", "vd install codex --scope repo" in install),
+    ("install docs cover claude dev", "vd install claude --dev" in install),
+    ("install docs avoid unshipped windows arm asset", "vd_windows_arm64.zip" not in install),
+
+    # Deployment
+    ("pages workflow builds with astro", "withastro/action" in pages and "path: ./docs" in pages),
+    ("README links public docs", "https://skills.vanducng.dev" in readme),
+
+    # Docs track the skills/ catalog
+    ("catalog page count matches skills dir", first_int(r"contains (\d+) skills", skills_page) == skill_count),
+    ("homepage count matches skills dir", first_int(r"(\d+) skills across", home) == skill_count),
+
+    # Zensical fully removed (docs migrated to Astro Starlight)
+    ("zensical config removed", not exists("zensical.toml")),
+    ("no zensical references in catalog docs", not any(
+        "zensical" in body.lower()
+        for body in (skills_page, agent_ctx, dev_guidelines)
+    )),
 ]
 
 passed = sum(1 for _, ok in checks if ok)
@@ -73,7 +97,7 @@ if mode == "--score":
 
 for name, ok in checks:
     print(f"{'OK  ' if ok else 'FAIL'} {name}")
-print(f"score={score}")
+print(f"skills={skill_count} score={score}")
 
 if mode != "--check":
     print(f"unknown mode: {mode}", file=sys.stderr)
