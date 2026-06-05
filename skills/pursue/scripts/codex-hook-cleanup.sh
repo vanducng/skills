@@ -33,6 +33,18 @@ for root in "${SEARCH_ROOTS[@]}"; do
       COUNT=$((COUNT + 1))
     fi
   done < <(find "$root" -path '*/iterations/*-monitor.spec.json' -type f -mtime +1 2>/dev/null)
+
+  # Sweep cancel sentinels (#65) for goals that have already reached a terminal
+  # state — they've served their purpose and would otherwise re-trigger the
+  # monitor-hook stop directive on every PostToolUse.
+  while IFS= read -r sentinel; do
+    [ -n "$sentinel" ] || continue
+    state="$(dirname "$(dirname "$sentinel")")/state.json"
+    if [ -f "$state" ] && grep -qE '"terminal"[[:space:]]*:[[:space:]]*"' "$state" 2>/dev/null; then
+      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sweeping cancel.sentinel for terminal goal: $sentinel" >> "$LOG"
+      rm -f "$sentinel"; COUNT=$((COUNT + 1))
+    fi
+  done < <(find "$root" -path '*/.pursue/cancel.sentinel' -type f 2>/dev/null)
 done
 
 if [ "$COUNT" -gt 0 ]; then

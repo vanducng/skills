@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "<short goal> [--reuse] [--manual | --semi | --auto] | status | kill --reason <text> | resolve <goal-dir>"
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.3.0"
 ---
 
 # Pursue
@@ -59,18 +59,19 @@ Mode is set at intake time (`goal.yaml.autonomy`) and can be edited in-place mid
 
 ```
 if $1 is empty (bare `vd:pursue`):
-  # Resume mode — auto-detect most recent in-progress goal-dir.
-  goal_dir = find ./plans/goals/* -maxdepth 1 -type d \
-             | sort -r \
-             | while read d; do
-                 if jq -e '.terminal == null' "$d/state.json" >/dev/null 2>&1; then
-                   echo "$d"; break
-                 fi
-               done
-  if goal_dir found:
+  # Resume mode — find in-progress goal-dirs (terminal == null).
+  candidates = find ./plans/goals/* -maxdepth 1 -type d \
+               | sort -r \
+               | filter: jq -e '.terminal == null' "$d/state.json"
+  if exactly 1 candidate:
     print "resuming goal {slug} (current_phase={current_phase})"
     jump to executor loop (skip intake — Phase 3+ protocol)
-  else:
+  elif >1 candidate (#66 multi-goal disambiguation):
+    # Don't silently pick the newest — that orphans the others.
+    run `bash scripts/status.sh --all` to show slug + state + age + last-action,
+    then AskUserQuestion("Which goal to resume?") over the non-terminal candidates;
+    jump to executor for the picked goal-dir.
+  else (0 candidates):
     print "no in-progress goal. Pass a goal: vd:pursue \"<short goal>\""
     exit 0
 
@@ -168,11 +169,12 @@ Phase 4 layers autonomy modes on top of this protocol. Phase 5 swaps the cook+ve
 
 | Sub-verb | Script | Exit codes |
 |---|---|---|
-| `vd:pursue status` | `scripts/status.sh` | 0=done · 1=blocked · 2=abandoned · 3=in-progress · 4=no goal found |
+| `vd:pursue status [--all]` | `scripts/status.sh` | 0=done/in-progress-exist · 1=blocked · 2=abandoned · 3=in-progress · 4=no goal found |
 | `vd:pursue kill --reason "..."` | `scripts/kill.sh` | 0=killed · 3=already terminal |
 | `vd:pursue resolve <goal-dir>` | `scripts/resolve-workflow.sh` | 0=resolved (dry-run printed) · 5=unknown action in vocab |
+| `vd:pursue install-hooks [--apply\|--uninstall]` | `scripts/install-hooks.sh` | 0=ok/idempotent · 2=bad-args · 3=needs --apply/conflict · 4=write/parse fail |
 
-`kill.sh` returns a JSON hint — if `needs_auto_loop_cancel: true`, SKILL.md must invoke `Skill(skill: "vd:auto-loop", args: "--cancel")` BEFORE the killed state propagates to consumers.
+`kill.sh` returns a JSON hint — if `needs_auto_loop_cancel: true`, SKILL.md must invoke `Skill(skill: "vd:auto-loop", args: "--cancel")` BEFORE the killed state propagates to consumers. It also writes `{goal-dir}/.pursue/cancel.sentinel` and (on Codex) prints a `codex_goal_note` reminding the user to `/goal cancel` in the TUI.
 
 ## Codex runtime
 

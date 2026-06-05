@@ -41,6 +41,8 @@ vd install codex --scope repo   # repo scope
 
 For Claude Code development symlinks instead of the marketplace plugin: `vd install claude --dev`.
 
+> **Don't mix the two for the same skill.** A marketplace plugin copy and a `--dev` symlink of the same skill shadow each other unpredictably (edits to one won't "land"). Pick one. Diagnose duplicates with `bash scripts/check-install-conflicts.sh`.
+
 > Full install matrix, prerequisites, and troubleshooting → **[skills.vanducng.dev/install](https://skills.vanducng.dev/install/)**
 
 ## What's inside

@@ -16,7 +16,7 @@ Drive a feature/fix end-to-end: **intake → worktree → plan → cook → ship
 ```
 brew install vanducng/tap/vd
 vd install codex pursue
-# THEN register hooks in ~/.codex/config.toml — see references/codex-runtime.md
+vd:pursue install-hooks --apply    # register Codex hooks in ~/.codex/config.toml
 ```
 
 **Dev / local (both runtimes):**
@@ -30,20 +30,20 @@ vd install codex pursue            # symlink for Codex TUI dev work
 After install, invoke the skill with the runtime's prefix: slash in Claude Code,
 dollar in Codex. Examples below omit the prefix and use canonical skill IDs.
 
-## Runtime support (v0.2)
+## Runtime support (v0.3)
 
 | Feature | Claude Code | Codex TUI | Codex exec |
 |---|---|---|---|
-| Intake | ✓ | ✓ | ✗ (errors — `ask_user_question` unavailable in exec) |
-| Sequential executor | ✓ | ✓ | ✗ |
-| Skill-to-skill dispatch | ✓ Skill tool | ✓ `codex exec resume` | ✗ |
-| Cook+verify iteration | ✓ `vd:auto-loop` Stop-hook | ✓ `vd:auto-loop --codex` → /goal | ✗ |
-| Monitor (wait_ci, etc.) | ✓ Monitor tool | ✓ PostToolUse hook + additionalContext | ✗ |
-| Cross-session resume | ✓ via state.json | ✓ via state.json | n/a |
+| Intake | ✓ | ✓ | ✓ default-answer flags (`PURSUE_EXEC=1` + `--target-kind/--action-shape/--autonomy`) |
+| Sequential executor | ✓ | ✓ | ✓ |
+| Skill-to-skill dispatch | ✓ Skill tool | ✓ `codex exec resume` | ✓ |
+| Cook+verify iteration | ✓ `vd:auto-loop` Stop-hook | ✓ `vd:auto-loop --codex` → /goal | ✓ |
+| Monitor (wait_ci, etc.) | ✓ Monitor tool | ✓ PostToolUse hook + additionalContext | ✓ |
+| Cross-session resume | ✓ via state.json | ✓ via state.json | ✓ |
 | Cross-runtime resume (same goal) | ✓ both directions via state.json | | |
 | Push notifications | ✓ Claude Code native (or `notify.sh`) | ✓ `notify.sh` (terminal-notifier / ntfy / Slack / log) | ✓ `notify.sh` |
 
-`codex exec` (non-interactive) parity is v0.3.
+`codex exec` mode skips the interactive intake and reads the answers from flags — see `references/codex-runtime.md` → "CI / non-interactive usage". Detection requires the explicit `PURSUE_EXEC=1` contract.
 
 ## Quick start
 
@@ -57,9 +57,13 @@ Intake will ask up to 4 questions (target kind, action shape, branch name, auton
 
 ```
 vd:pursue status                    # one-screen state summary (exit code = terminal state)
-vd:pursue kill --reason "<text>"    # write terminal=abandoned, cancel vd:auto-loop if mid-delegation
+vd:pursue status --all              # enumerate ALL goal-dirs (slug, state, age, last-action) — #66
+vd:pursue kill --reason "<text>"    # terminal=abandoned + cancel.sentinel; cancels vd:auto-loop / signals Codex /goal
 vd:pursue resolve <goal-dir>        # dry-run: print the resolved workflow without executing
+vd:pursue install-hooks [--apply|--uninstall]   # register/remove Codex hooks in ~/.codex/config.toml
 ```
+
+When more than one goal is in-flight, bare `vd:pursue` (resume) and `status --all` list them so you can pick — no silent newest-wins. `kill` writes a cooperative `cancel.sentinel`; on Codex it also reminds you to `/goal cancel` in the TUI (codex CLI has no programmatic cancel).
 
 ## Modes
 
@@ -133,3 +137,4 @@ Adding a new project: drop a `<name>.toml` in `projects/` with `remote_matches` 
 
 - v0.1: Claude Code runtime, intake + sequential executor + `vd:auto-loop` delegation + per-project profiles + 4 sub-verbs.
 - v0.2: Codex runtime adapter, shared state resume, monitor hooks, and cross-runtime goal portability.
+- v0.3: `codex exec` default-answer mode (#60), `install-hooks` sub-verb (#61), `status --all` + multi-goal resume disambiguation (#66), cooperative Codex `/goal` cancel via `cancel.sentinel` (#65), and `check-install-conflicts.sh` marketplace/symlink duplicate detection (#64). Hardened runtime detection (broadened CLAUDE signal; explicit `PURSUE_EXEC` exec contract). Deferred: real cross-runtime TUI dogfood (#62) + CI cross-runtime test (#63).

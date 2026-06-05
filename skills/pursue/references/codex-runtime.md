@@ -18,14 +18,18 @@
 | Cross-session resume | ✓ | Via on-disk `state.json` (no Codex-specific state) |
 | Cross-runtime resume (Claude ↔ Codex same goal) | ✓ | Phase 5 keystone test |
 
-## What's NOT yet (v0.3+)
+## v0.3 (shipped)
 
-- **`codex exec` (non-interactive) parity** — `ask_user_question` is unavailable in exec mode. v0.2 intake refuses + suggests interactive `codex` TUI. v0.3 ships default-answer-mode flags for CI.
-- **Cross-runtime DAG / multi-goal concurrency** — v0.3+.
-- **Automated CI cross-runtime test** — v0.2 manually dogfood-validated only.
-- **Plugin marketplace vs `vd install` symlink conflict resolution** — v0.3.
-- **Codex /goal native pause/resume integration with pursue's kill sub-verb** — pursue kill writes terminal=abandoned; user must also `/goal cancel` manually on Codex. v0.3 wires this.
-- **`install-hooks` sub-verb** — v0.2 ships hook scripts but user must manually register them in `~/.codex/config.toml`. v0.3 automates.
+- **`codex exec` (non-interactive) parity** — `detect-runtime.sh` emits `codex-exec` when the explicit exec contract is set (`PURSUE_EXEC=1` / `PURSUE_RUNTIME=codex-exec`). In that mode pursue skips the `ask_user_question` intake and reads default-answer flags instead. See "CI / non-interactive usage" below.
+- **`install-hooks` sub-verb** — `vd:pursue install-hooks [--apply|--uninstall]` registers the Codex hooks in `~/.codex/config.toml` (marker-wrapped append, backup + re-parse guard, symlink-aware). Replaces the manual edit below.
+- **Codex /goal cancel propagation** — `vd:pursue kill` now writes a `cancel.sentinel` (before flipping terminal) that `codex-monitor-hook.sh` reads to halt the loop on the next PostToolUse turn, and prints a loud "also run `/goal cancel`" instruction. Cooperative only — codex CLI exposes no programmatic `/goal` cancel.
+- **Multi-goal disambiguation** — `vd:pursue status --all` (alias `--list`) enumerates every goal-dir; bare-resume lists in-flight goals to pick when more than one is non-terminal.
+- **Plugin marketplace vs symlink conflict detection** — `scripts/check-install-conflicts.sh` (run by `scripts/install.sh`) warns when a skill is installed BOTH as a vd symlink and a marketplace plugin copy.
+
+## Still deferred (v0.3+)
+
+- **Automated CI cross-runtime test** (#63) — blocked on a real dual-runtime dogfood (#62) and now on exercising the `codex-exec` default-answer path end-to-end in CI.
+- **Real cross-runtime TUI dogfood** (#62) — the bash-level keystone is proven; the live Claude⇄Codex TUI handoff is still unrun.
 
 ## vs Claude Code
 
@@ -44,28 +48,27 @@ Performance: comparable. Token usage on Codex ~10-20% higher per goal due to `/g
 
 ## Setup
 
-After `vd install codex pursue`, register the Codex hooks in your config:
+After installing the skill, register the Codex hooks:
 
-```toml
-# ~/.codex/config.toml
-[[hooks.PostToolUse]]
-matcher = ".*"
-
-[[hooks.PostToolUse.hooks]]
-type = "command"
-command = "bash ~/.agents/skills/pursue/scripts/codex-monitor-hook.sh"
-
-[[hooks.SessionStart]]
-matcher = ".*"
-
-[[hooks.SessionStart.hooks]]
-type = "command"
-command = "bash ~/.agents/skills/pursue/scripts/codex-hook-cleanup.sh"
+```bash
+vd:pursue install-hooks            # detect + print the block (no write)
+vd:pursue install-hooks --apply    # append it to ~/.codex/config.toml (backup + re-parse guard)
 ```
+
+`install-hooks` is symlink-aware (resolves a dotfiles-symlinked config to its real target and warns), idempotent (marker-wrapped block), and reversible (`--uninstall`). Restart your Codex session after `--apply`; Codex will prompt to trust the new hook commands on first run.
 
 Without hooks, Monitor-style actions (`wait_ci`, `image_build_wait`, `rollout_check`) won't get status updates. They'll still execute, but the executor blocks until they exit instead of getting event-driven updates.
 
-v0.3 will ship an `install-hooks` sub-verb that does this automatically.
+## CI / non-interactive usage (`codex exec`)
+
+`ask_user_question` is unavailable under `codex exec`. Set the exec contract and pass the intake answers as flags so pursue skips the interactive intake:
+
+```bash
+PURSUE_EXEC=1 codex exec "vd:pursue '<goal>' \
+  --target-kind=pr-only --action-shape=plan-only --autonomy=semi [--branch=<b>] [--reuse-worktree]"
+```
+
+`scripts/intake-complete.sh` validates the required trio (`--target-kind`, `--action-shape`, `--autonomy`); a missing or invalid value refuses with an actionable message rather than silently falling back to intake. `detect-runtime.sh` only emits `codex-exec` under the explicit contract — there is no env var distinguishing `codex exec` from the `codex` TUI, so it is never inferred from TTY/process state.
 
 ## See also
 

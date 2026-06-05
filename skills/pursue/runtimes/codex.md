@@ -22,17 +22,23 @@ Loaded by top-level `SKILL.md` when `scripts/detect-runtime.sh` returns `codex`.
 | `PushNotification` | `scripts/notify.sh` (Phase 4) — terminal-notifier / ntfy.sh / Slack / log fallback | Terminal=blocked notifications |
 | `TaskCreate` / `TaskUpdate` | File-based — pursue's `iterations/NNN-*.md` journal | Already runtime-agnostic |
 
-## `codex exec` (non-interactive) mode handling
+## `codex exec` (non-interactive) mode handling — v0.3 default-answer mode
 
-`ask_user_question` is **unavailable in `codex exec`** (per [Codex docs](https://developers.openai.com/codex/noninteractive)). pursue intake REQUIRES interactive mode.
+`ask_user_question` is **unavailable in `codex exec`** (per [Codex docs](https://developers.openai.com/codex/noninteractive)). Instead of the interactive intake, exec mode reads the answers from flags.
 
-If pursue detects `codex exec` invocation (env: `$CODEX_EXEC_MODE` set, or no TTY), refuse with the EXACT error text below — actionable, no aspirational claims about unshipped flags:
+Detection: `detect-runtime.sh` emits `codex-exec` ONLY under the explicit contract `PURSUE_EXEC=1` (or `PURSUE_RUNTIME=codex-exec`) — never inferred from TTY/process state, because no env var distinguishes `codex exec` from the `codex` TUI in codex-cli.
+
+In `codex-exec`, skip intake and:
+
+1. Read default-answer flags into `PURSUE_*` env: `--target-kind` `--action-shape` `--autonomy` (required), `--branch` `--reuse-worktree` (optional).
+2. `bash scripts/intake-complete.sh` — prints `ready` (exit 0), `missing: <flags>` (exit 2), or `invalid: <details>` (exit 3).
+3. If `ready` → call `init-goal.sh` directly. Otherwise refuse with that exact line — NEVER silently fall back to interactive intake (that is the refuse-loop this mode removes).
 
 ```
-vd:pursue intake requires interactive mode (ask_user_question is unavailable in codex exec).
-Run interactively: open `codex` shell, then `vd:pursue "<goal>"`.
-(Flag-based default-answer mode for CI is v0.3 work — see references/codex-runtime.md.)
+PURSUE_EXEC=1 codex exec "vd:pursue '<goal>' --target-kind=pr-only --action-shape=plan-only --autonomy=semi"
 ```
+
+See `references/codex-runtime.md` → "CI / non-interactive usage".
 
 ## Entry routing — intake OR resume
 
