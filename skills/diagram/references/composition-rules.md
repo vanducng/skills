@@ -23,6 +23,7 @@ Snap **every** `x`, `y`, `width`, `height` to a multiple of 20. Most of the "off
 ## Hierarchy
 
 - **Sequence / data-flow / workflow / system-architecture**: primary flow runs **left → right**.
+- **Workflow**: groups are horizontal swimlane rows. Lane labels belong in a fixed left header area; steps move left-to-right inside each row.
 - **State machine**: primary flow runs **top → bottom** (or radial when natural).
 - **C4 (context, container)**: subject system at center; external relationships emanate outward.
 - **ER diagram**: cluster strongly-related entities; place "core" entities centrally and dependent entities at the edges.
