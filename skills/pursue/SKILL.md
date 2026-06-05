@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[<short goal> | resume | status | kill --reason <text> | resolve <goal-dir>] [--reuse] [--manual | --semi | --auto]"
 metadata:
   author: vanducng
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Pursue — runtime router
@@ -18,22 +18,25 @@ This file is the entry point for `vd:pursue`. It detects which runtime is invoki
 |---|---|
 | `vd:pursue "<goal>"` | New goal — intake → goal.yaml + state.json → executor loop |
 | `vd:pursue` (no args) | Resume — auto-detect most recent in-progress goal-dir, skip intake, jump to executor |
-| `vd:pursue status` | Print one-screen status (scripts/status.sh — runtime-agnostic) |
-| `vd:pursue kill --reason "<text>"` | Write terminal=abandoned (scripts/kill.sh — runtime-agnostic) |
+| `vd:pursue status [--all]` | One-screen status; `--all`/`--list` enumerates every goal-dir (scripts/status.sh) |
+| `vd:pursue kill --reason "<text>"` | Write terminal=abandoned + cancel.sentinel (scripts/kill.sh — runtime-agnostic) |
 | `vd:pursue resolve <goal-dir>` | Dry-run the resolved workflow (scripts/resolve-workflow.sh — runtime-agnostic) |
+| `vd:pursue install-hooks [--apply\|--uninstall]` | Register Codex hooks in `~/.codex/config.toml` (scripts/install-hooks.sh) |
 
-Flags: `--reuse` (no worktree), `--manual` / `--semi` (default) / `--auto` (autonomy).
+Flags: `--reuse` (no worktree), `--manual` / `--semi` (default) / `--auto` (autonomy). CI/exec: `--target-kind` `--action-shape` `--autonomy` (+`--branch` `--reuse-worktree`) with `PURSUE_EXEC=1` skip intake.
 
 ## Runtime dispatch
 
-1. Run `bash scripts/detect-runtime.sh`. Output is `claude-code` or `codex`.
-2. If exit 2 (ambiguous): refuse with the diagnostic. Set `PURSUE_RUNTIME=claude-code` or `PURSUE_RUNTIME=codex` and retry.
-3. If exit 3 (unknown — no env signals + no CLI on PATH): print "Cannot detect runtime. Set `PURSUE_RUNTIME` env var explicitly."
-4. Else follow the runtime body:
+1. Run `bash scripts/detect-runtime.sh`. Output is `claude-code`, `codex`, or `codex-exec`.
+2. If exit 3 (unknown — no env signals + no CLI on PATH): print "Cannot detect runtime. Set `PURSUE_RUNTIME` env var explicitly."
+3. Else follow the runtime body:
    - `claude-code` → see `runtimes/claude-code.md`
-   - `codex` → see `runtimes/codex.md`
+   - `codex` → see `runtimes/codex.md` (interactive TUI — intake via `ask_user_question`)
+   - `codex-exec` → `runtimes/codex.md` in **CI / non-interactive mode**: skip interactive intake. Read default-answer flags (`--target-kind`, `--action-shape`, `--autonomy`; optional `--branch`, `--reuse-worktree`) into `PURSUE_*` env, then `bash scripts/intake-complete.sh`. If it prints `ready` → call `init-goal.sh` directly. If `missing:`/`invalid:` → refuse with that exact line; never silently fall back to interactive intake.
 
-The sub-verbs (`status`, `kill`, `resolve`) short-circuit the runtime dispatch — they invoke `scripts/<sub-verb>.sh` directly because those scripts are runtime-agnostic.
+`codex-exec` is an explicit exec contract: set `PURSUE_EXEC=1` (or `PURSUE_RUNTIME=codex-exec`). detect-runtime.sh never infers exec from TTY/process state — no env var distinguishes `codex exec` from `codex` TUI in codex-cli. When both Claude and Codex env signals are present, detection assumes `claude-code` (CODEX_SESSION_ID leaks via `inherit=all`); override with `PURSUE_RUNTIME=codex`.
+
+The sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) short-circuit the runtime dispatch — they invoke `scripts/<sub-verb>.sh` directly because those scripts are runtime-agnostic.
 
 ## Hard rules (apply across both runtimes)
 
