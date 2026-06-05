@@ -3,12 +3,14 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from generate import (  # noqa: E402
+    _generate_valid_skeleton,
     parse_args,
     resolve_engine,
     write_versioned_manifest,
@@ -68,6 +70,35 @@ class GenerateCliTest(unittest.TestCase):
             self.assertEqual(manifest["latest"], "v1.svg")
             self.assertEqual(manifest["variants"], ["v1.svg"])
             self.assertNotIn("updated", manifest)
+
+    def test_invalid_skeleton_retries_with_validator_feedback(self):
+        invalid = """type: workflow
+preset: warm
+groups:
+  - {name: lane, label: Lane}
+elements:
+  - {name: step, kind: process, group: lane, label: "This label is intentionally much longer than forty characters"}
+edges: []
+"""
+        valid = """type: workflow
+preset: warm
+groups:
+  - {name: lane, label: Lane}
+elements:
+  - {name: step, kind: process, group: lane, label: "Short step"}
+edges: []
+"""
+        with patch("generate.generate_skeleton", side_effect=[invalid, valid]) as mocked:
+            skel = _generate_valid_skeleton(
+                description="workflow",
+                diagram_type="workflow",
+                preset="warm",
+                refs={"skeleton_contract": "", "type_ref": ""},
+            )
+
+        self.assertEqual(skel.elements[0].label, "Short step")
+        self.assertEqual(mocked.call_count, 2)
+        self.assertIn("Previous YAML failed validation", mocked.call_args.kwargs["description"])
 
 
 if __name__ == "__main__":
