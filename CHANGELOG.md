@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.21.1](https://github.com/vanducng/skills/compare/v0.21.0...v0.21.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* **ultracode:** reference real catalog skills ([#100](https://github.com/vanducng/skills/issues/100)) ([2eb96a6](https://github.com/vanducng/skills/commit/2eb96a696a2d3270fbac5611721230fd483af982))
+
 ## [0.21.0](https://github.com/vanducng/skills/compare/v0.20.0...v0.21.0) (2026-06-07)
 
 
