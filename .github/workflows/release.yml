@@ -17,9 +17,22 @@ concurrency:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # HAS_PAT gates auto-merge: without RELEASE_PLEASE_TOKEN the workflow behaves exactly as before
+    # (release PR opened, merged manually). With it, the release PR is auto-merged AND the resulting
+    # push re-triggers this workflow (GITHUB_TOKEN pushes don't trigger workflows) so the tag is cut.
+    env:
+      HAS_PAT: ${{ secrets.RELEASE_PLEASE_TOKEN != '' }}
     steps:
       - name: Release Please
+        id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: Auto-merge release PR
+        if: ${{ steps.release.outputs.pr && env.HAS_PAT == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: gh pr merge --squash --auto "${{ fromJson(steps.release.outputs.pr).number }}"
