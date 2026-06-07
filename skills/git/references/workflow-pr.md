@@ -93,7 +93,71 @@ EOF
 **Draft mode** when WIP: add `--draft`.
 **Auto-merge** only on explicit user request: `gh pr merge --auto --squash` after creation.
 
-## Tool 4 — Report
+## Tool 4 — PR feedback pass
+
+Run one feedback pass after creating/updating the PR, especially when editing an
+existing PR or when bot review comments have already appeared. This is a
+lighter version of `vd:ship` Step 13; do not watch indefinitely.
+
+Fetch review threads, review bodies, and top-level comments:
+
+```bash
+OWNER_REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+OWNER=${OWNER_REPO%/*}; REPO=${OWNER_REPO#*/}
+PR_NUMBER=$(gh pr view --json number -q .number)
+gh api graphql -f query='
+  query($owner:String!,$repo:String!,$pr:Int!){
+    repository(owner:$owner,name:$repo){
+      pullRequest(number:$pr){
+        comments(first:50){nodes{author{login} body url createdAt}}
+        reviews(last:50){nodes{state author{login} body url submittedAt}}
+        reviewThreads(first:50){nodes{
+          id isResolved isOutdated
+          comments(first:10){nodes{id path line body author{login} url}}
+        }}
+      }
+    }
+  }' -F owner="$OWNER" -F repo="$REPO" -F pr="$PR_NUMBER" \
+  > /tmp/git-pr-feedback.json
+```
+
+Triage before editing:
+
+- **Actionable:** a concrete bug, broken contract, security/data-loss risk, flaky test, or useful improvement with a clear benefit.
+- **Informational:** summaries, style preference, bot lifecycle notices, general praise, or FYI.
+- **Noise/false positive:** stale, already handled, incorrect, or unrelated.
+
+For every substantive suggestion, validate it against codebase evidence first:
+
+- Source of truth: config/schema validation, type definitions, route/API docs,
+  tests, env-loading behavior, database constraints, feature flags, and repo
+  rules.
+- Prefer the smallest root-cause fix that follows local patterns. Do not apply
+  bot suggestions blindly.
+- If the comment is valid but the suggested patch is not the right fix, apply
+  the better fix and explain why.
+
+When replying to handled threads, use a concise rationale:
+
+```text
+Handled in <short-sha> by <specific change>. <Why this matches the codebase contract / why a different root-cause fix was chosen>.
+```
+
+Generic examples:
+
+- `Handled in <short-sha> by validating <CONFIG_KEY> at load time, keeping bad configuration fail-fast instead of silently defaulting.`
+- `Handled in <short-sha> by replacing a fixed sleep with a polling helper for the async assertion.`
+- `Not applying as suggested: <schema/type/test> already guarantees <condition>. Added <test/comment> to make the contract explicit.`
+
+After a valid fix:
+
+1. Commit on top; never amend a published commit.
+2. Push normally.
+3. Reply to the thread with the short SHA + rationale.
+4. Resolve only threads that were fixed or proven false/stale.
+5. Re-run the narrow relevant checks; for full CI watching use `vd:ship`.
+
+## Tool 5 — Report
 
 ```
 ✓ PR created: <url>

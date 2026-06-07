@@ -1,0 +1,4 @@
+# DBML import bridge installs @dbml/core on demand (see SKILL.md) — keep local only
+node_modules/
+package.json
+package-lock.json

@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "cm|cp|pr|merge [args] [--inline]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # Git
@@ -60,6 +60,7 @@ Default for all verbs except `cm` (single-commit case) is subagent delegation â€
 4. **Remote-first for compare ops.** `git diff origin/main...origin/feature` â€” never `git diff main...HEAD` (includes local WIP).
 5. **No AI attribution in commit messages.** No "Generated with Claude", no `Co-Authored-By: Claude`, no emojis unless asked.
 6. **Never amend a published commit.** New commit on top instead.
+7. **PR feedback is evidence-based.** For `pr`, fetch unresolved review threads and substantive review/top-level comments when a PR already exists or after creating/updating one. Validate comments against codebase contracts, types, config schemas, tests, and repo rules before changing code. If a suggestion is directionally valid but the literal patch is not the best fix, apply the better root-cause fix and explain that in the reply.
 
 ## Conventional commit format
 

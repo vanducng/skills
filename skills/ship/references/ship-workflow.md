@@ -249,9 +249,12 @@ git push -u origin "$(git branch --show-current)"
 
 **Skip if** `--skip-pr-comments`.
 
-Handles GitHub-side feedback that landed on the PR — unresolved review threads (line comments) and reviews left in `CHANGES_REQUESTED` state. Fresh PR with zero comments → skip silently.
+Handles GitHub-side feedback that landed on the PR: unresolved review threads
+(line comments), reviews left in `CHANGES_REQUESTED` state, substantive
+`COMMENTED` reviews from humans/bots, and top-level PR comments. Fresh PR with
+zero comments → skip silently.
 
-1. Fetch unresolved review threads + reviews in one GraphQL call:
+1. Fetch review threads, reviews, and top-level PR comments in one GraphQL call:
    ```bash
    OWNER_REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
    OWNER=${OWNER_REPO%/*}; REPO=${OWNER_REPO#*/}
@@ -260,11 +263,12 @@ Handles GitHub-side feedback that landed on the PR — unresolved review threads
        repository(owner:$owner,name:$repo){
          pullRequest(number:$pr){
            reviewDecision
-           reviews(last:20){nodes{state author{login} body submittedAt}}
+           comments(first:50){nodes{author{login} body url createdAt}}
+           reviews(last:50){nodes{state author{login} body url submittedAt}}
            reviewThreads(first:50){nodes{
-             isResolved isOutdated
+             id isResolved isOutdated
              comments(first:10){nodes{
-               path line body author{login} url
+               id path line body author{login} url
              }}
            }}
          }
@@ -275,22 +279,51 @@ Handles GitHub-side feedback that landed on the PR — unresolved review threads
 2. Parse with `jq`:
    - Unresolved threads: `.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved==false and .isOutdated==false)`
    - `CHANGES_REQUESTED` reviews: `.data.repository.pullRequest.reviews.nodes[] | select(.state=="CHANGES_REQUESTED")`
-3. **Nothing unresolved** → output `PR comments: 0 unresolved`, continue.
-4. **For each unresolved thread**, run `AskUserQuestion`:
+   - Substantive `COMMENTED` reviews: `.data.repository.pullRequest.reviews.nodes[] | select(.state=="COMMENTED" and (.body|length)>0)`
+   - Top-level comments: `.data.repository.pullRequest.comments.nodes[]`
+3. Triage each item before taking action:
+   - **Actionable:** specific bug, failing scenario, data-loss/security risk, broken contract, or concrete improvement with clear benefit.
+   - **Informational:** summary, style preference, non-blocking suggestion, bot deprecation notice, or FYI.
+   - **Noise/false positive:** incorrect claim, already handled, stale/outdated, or unrelated.
+   Do not blindly apply bot suggestions. Verify against the code and tests first.
+   For each substantive suggestion, answer these before editing:
+   - **Is the risk real under the codebase contract?** Check source of truth: config schema, type definitions, route docs, tests, env loading, database constraints, feature flags, and repo rules.
+   - **Is the suggested patch the right fix?** Prefer the smallest root-cause fix that matches local patterns. It is valid to reject a literal suggestion when a better fix exists (for example, fail fast in config validation instead of silently defaulting a bad runtime value).
+   - **What evidence proves it?** Add or update tests when the behavior can regress; rerun the narrowest relevant checks plus any ship-level checks required by the repo.
+4. **Nothing actionable/unresolved** → output `PR comments: 0 actionable`, continue.
+5. **For each actionable unresolved thread**, run `AskUserQuestion`:
    - Show: `path:line` · author · comment body (truncate to 300 chars, link to full URL)
    - Options:
-     - **A) Fix now** (recommended for actionable comments) — apply change, stage, **re-run Step 4 (tests)**, then on green: commit + push (`type(scope): address review feedback`), reply to thread (`gh api ... /pulls/comments/{id}/replies`) noting the commit, then resolve the thread via `resolveReviewThread` GraphQL mutation.
-     - **B) Reply only** — collect 1-line reply, post via `gh api`; leave thread unresolved.
+     - **A) Fix now** (recommended for actionable comments) — apply the verified fix (not necessarily the literal suggestion), stage, **re-run Step 4 (tests)**, then on green: commit + push (`type(scope): address review feedback`), reply to thread with the commit SHA plus the codebase rationale, then resolve the thread via `resolveReviewThread` GraphQL mutation.
+     - **B) Reply only** — collect a 1-2 sentence rationale grounded in codebase evidence, post via `gh api`, and leave thread unresolved unless the comment is clearly false/stale.
      - **C) Mark resolved** — call `resolveReviewThread` mutation; no code change.
      - **D) Skip** — leave as-is, continue.
-5. **For `CHANGES_REQUESTED` reviews not tied to a thread**, prompt once: address (commit + push + request re-review via `gh pr edit --add-reviewer @<author>`) / acknowledge in PR comment / skip.
-6. After all loops, refetch state. If everything is resolved or skipped: continue to Step 14. Output: `PR comments: N addressed, M skipped`.
-7. If any fixes were committed and pushed in this step, Step 15 (CI watch) will pick up the new commit's checks automatically.
+6. **For actionable review bodies or top-level comments not tied to a thread**, prompt once:
+   - fix now (commit + push, then reply with commit SHA)
+   - reply only with rationale
+   - skip as non-blocking
+   For bot comments, prefer reply-only for false positives/noise and fix-now for verified bugs.
+7. **For `CHANGES_REQUESTED` reviews not tied to a thread**, prompt once: address (commit + push + request re-review via `gh pr edit --add-reviewer @<author>`) / acknowledge in PR comment / skip.
+8. After all loops, refetch state. If everything is resolved, replied to, or skipped: continue to Step 14. Output: `PR comments: N addressed, M replied, K skipped`.
+9. If any fixes were committed and pushed in this step, Step 15 (CI watch) will pick up the new commit's checks automatically.
+
+### Reply style for reviewed comments
+
+When replying to a handled thread, write a short reasoned note, not just "fixed":
+
+```text
+Handled in <short-sha> by <specific change>. <Why this matches the codebase contract / why a different root-cause fix was chosen>.
+```
+
+Good examples:
+- `Handled in <short-sha> by validating <CONFIG_KEY> as non-empty at load time instead of falling back silently. This keeps misconfiguration fail-fast and prevents an invalid runtime value.`
+- `Handled in <short-sha> with a polling helper, replacing a fixed sleep in the async assertion.`
+- `Not applying as suggested: <schema/type/test> already guarantees <condition>. Added <test/comment> to make the contract explicit.`
 
 ### `--auto` behavior for Step 13
 
 `--auto` does **not** auto-fix code based on review comments — too risky, the reviewer's intent isn't always machine-parseable. Under `--auto`:
-- Unresolved comment with a clearly suggested edit (GitHub "suggestion" block) → apply suggestion, commit, reply with commit SHA, resolve thread.
+- Unresolved comment with a clearly suggested edit (GitHub "suggestion" block) → first validate it against codebase contracts. If the suggestion is correct and there is no better local-pattern fix, apply it, commit, reply with commit SHA + rationale, and resolve the thread. If the comment is valid but a better root-cause fix exists, apply that instead and explain why in the reply. If validity is uncertain, stop and prompt.
 - Anything else → **STOP** and prompt (same as interactive mode). Treat as a critical gate.
 
 ## Step 14: Release (conditional)
