@@ -26,7 +26,8 @@ Meta JSON shape (all keys optional):
 
 Usage:
   er_html.py --schema schema.json [--meta meta.json] [-o out.html] [--cdn]
-  er_html.py --print-sql            # emit the Postgres introspection SQL
+  er_html.py --print-sql                      # emit the Postgres introspection SQL
+  er_html.py --print-sql --dialect mysql      # emit the MySQL 8.0+/MariaDB 10.5+ introspection SQL
 """
 
 from __future__ import annotations
@@ -82,6 +83,46 @@ LEFT JOIN idx i ON i.table_name=t.table_name
 LEFT JOIN rc ON rc.table_name=t.table_name;
 """
 
+# MySQL 8.0+ / MariaDB 10.5+ (needs JSON_ARRAYAGG). Run against the target DB so DATABASE() resolves:
+#   mysql -N --raw -D <db> -e "$(er_html.py --print-sql --dialect mysql)" > schema.json
+# --raw is required: default --batch mode escapes control chars and corrupts the embedded JSON.
+# Array element order is undefined here (JSON_ARRAYAGG); er_html sorts columns by `ord` on load.
+INTROSPECT_SQL_MYSQL = r"""
+SELECT JSON_ARRAYAGG(JSON_OBJECT(
+  'table', t.TABLE_NAME,
+  'rows', COALESCE(t.TABLE_ROWS,0),
+  'pk', COALESCE((SELECT JSON_ARRAYAGG(pk.COLUMN_NAME) FROM (
+          SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE
+          WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=t.TABLE_NAME AND CONSTRAINT_NAME='PRIMARY'
+          ORDER BY ORDINAL_POSITION) pk), JSON_ARRAY()),
+  'columns', (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+          'column', c.COLUMN_NAME, 'type', c.DATA_TYPE, 'udt', c.COLUMN_TYPE,
+          'nullable', c.IS_NULLABLE, 'default', c.COLUMN_DEFAULT, 'ord', c.ORDINAL_POSITION))
+        FROM information_schema.COLUMNS c
+        WHERE c.TABLE_SCHEMA=DATABASE() AND c.TABLE_NAME=t.TABLE_NAME),
+  'fks', COALESCE((SELECT JSON_ARRAYAGG(JSON_OBJECT(
+          'column', kcu.COLUMN_NAME, 'ref_table', kcu.REFERENCED_TABLE_NAME,
+          'ref_column', kcu.REFERENCED_COLUMN_NAME, 'on_delete', rc.DELETE_RULE,
+          'constraint', kcu.CONSTRAINT_NAME))
+        FROM information_schema.KEY_COLUMN_USAGE kcu
+        JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+          ON rc.CONSTRAINT_SCHEMA=kcu.TABLE_SCHEMA AND rc.CONSTRAINT_NAME=kcu.CONSTRAINT_NAME
+        WHERE kcu.TABLE_SCHEMA=DATABASE() AND kcu.TABLE_NAME=t.TABLE_NAME
+          AND kcu.REFERENCED_TABLE_NAME IS NOT NULL), JSON_ARRAY()),
+  'indexes', COALESCE((SELECT JSON_ARRAYAGG(idx.ix) FROM (
+          SELECT JSON_OBJECT('name', s.INDEX_NAME, 'def',
+            CONCAT(IF(MAX(s.NON_UNIQUE)=0,'UNIQUE INDEX ','INDEX '), s.INDEX_NAME,
+                   ' (', GROUP_CONCAT(s.COLUMN_NAME ORDER BY s.SEQ_IN_INDEX SEPARATOR ', '), ')')) AS ix
+          FROM information_schema.STATISTICS s
+          WHERE s.TABLE_SCHEMA=DATABASE() AND s.TABLE_NAME=t.TABLE_NAME AND s.INDEX_NAME<>'PRIMARY'
+          GROUP BY s.INDEX_NAME) idx), JSON_ARRAY())
+)) AS schema_json
+FROM information_schema.TABLES t
+WHERE t.TABLE_SCHEMA=DATABASE() AND t.TABLE_TYPE='BASE TABLE';
+"""
+
+INTROSPECT_SQL_BY_DIALECT = {"postgres": INTROSPECT_SQL, "mysql": INTROSPECT_SQL_MYSQL}
+
 
 def _fetch(url: str) -> str:
     with urllib.request.urlopen(url, timeout=30) as r:  # noqa: S310
@@ -99,7 +140,7 @@ _DBML_DELETE = {"CASCADE": "cascade", "SET NULL": "set null", "SET DEFAULT": "se
 
 def emit_dbml(schema: list[dict], meta: dict) -> str:
     """Render the schema JSON as DBML (dbdiagram.io / dbdocs.io format)."""
-    out: list[str] = [f'Project "{meta.get("title", "database")}" {{\n  database_type: \'PostgreSQL\'\n}}\n']
+    out: list[str] = [f'Project "{meta.get("title", "database")}" {{\n  database_type: \'{meta.get("database_type", "PostgreSQL")}\'\n}}\n']
     for t in sorted(schema, key=lambda x: x["table"]):
         pk = set(t.get("pk") or [])
         out.append(f'Table {t["table"]} {{')
@@ -163,17 +204,21 @@ def main() -> int:
     ap.add_argument("--meta", help="Path to meta JSON (groups/classifications/descriptions).")
     ap.add_argument("-o", "--out", default="erd.html", help="Output HTML path.")
     ap.add_argument("--cdn", action="store_true", help="Link libs from CDN instead of inlining (smaller file, needs internet).")
-    ap.add_argument("--print-sql", action="store_true", help="Print the Postgres introspection SQL and exit.")
+    ap.add_argument("--print-sql", action="store_true", help="Print the introspection SQL for --dialect and exit.")
+    ap.add_argument("--dialect", choices=sorted(INTROSPECT_SQL_BY_DIALECT), default="postgres",
+                    help="SQL dialect for --print-sql (default: postgres).")
     ap.add_argument("--emit-dbml", metavar="FILE", help="Write the schema as DBML (dbdocs/dbdiagram) instead of HTML.")
     args = ap.parse_args()
 
     if args.print_sql:
-        print(INTROSPECT_SQL.strip())
+        print(INTROSPECT_SQL_BY_DIALECT[args.dialect].strip())
         return 0
     if not args.schema:
         ap.error("--schema is required (or use --print-sql)")
 
     schema = json.loads(Path(args.schema).read_text())
+    for t in schema:  # MySQL JSON_ARRAYAGG order is undefined; the details drawer renders columns in array order
+        t.get("columns", []).sort(key=lambda c: c.get("ord") or 0)
     meta = json.loads(Path(args.meta).read_text()) if args.meta else {}
     if args.emit_dbml:
         Path(args.emit_dbml).write_text(emit_dbml(schema, meta))

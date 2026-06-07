@@ -72,10 +72,16 @@ By default it **inlines** Cytoscape (~450 KB total) so the file works fully offl
 for a ~75 KB file that loads Cytoscape from jsdelivr.
 
 ```bash
-# 1. introspect a Postgres DB into schema.json (psql; no python DB deps)
+# 1a. introspect a Postgres DB into schema.json (psql; no python DB deps)
 psql "$DSN" -t -A -c "$(python3 $HOME/skills/skills/diagram/scripts/er_html.py --print-sql)" > schema.json
 
+# 1b. OR a MySQL DB (8.0+ / MariaDB 10.5+). --raw is REQUIRED (default --batch escaping corrupts JSON);
+#     -D selects the DB so DATABASE() resolves; pass the password via MYSQL_PWD, never on the cmdline.
+MYSQL_PWD="$DB_PASS" mysql -N --raw -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -D "$DB_NAME" \
+  -e "$(python3 $HOME/skills/skills/diagram/scripts/er_html.py --print-sql --dialect mysql)" > schema.json
+
 # 2. (optional) write meta.json — domain groups, classifications, descriptions, framework_tables, audit_columns
+#    (add "database_type": "MySQL" so --emit-dbml labels the Project correctly)
 #    see the docstring in er_html.py for the shape
 
 # 3. generate the interactive ERD
