@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.22.1](https://github.com/vanducng/skills/compare/v0.22.0...v0.22.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* **diagram:** ERD interaction + layout UX in er_html.py ([#106](https://github.com/vanducng/skills/issues/106)) ([357df45](https://github.com/vanducng/skills/commit/357df455a939fb6bc991455991fa87572dfaec74))
+
 ## [0.22.0](https://github.com/vanducng/skills/compare/v0.21.1...v0.22.0) (2026-06-07)
 
 
