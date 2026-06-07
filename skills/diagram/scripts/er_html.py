@@ -546,12 +546,17 @@ function cardCols(t){
   else if(exp && t.columns.length>6){ html+=`<div class="erd-col more erd-exp" data-tbl="${t.table}">collapse</div>`; n++; }
   return {html,n};
 }
+function shortNum(n){ n=+n||0; const a=Math.abs(n);
+  if(a>=1e9) return (n/1e9).toFixed(a>=1e10?0:1).replace(/\.0$/,'')+'B';
+  if(a>=1e6) return (n/1e6).toFixed(a>=1e7?0:1).replace(/\.0$/,'')+'M';
+  if(a>=1e3) return (n/1e3).toFixed(a>=1e4?0:1).replace(/\.0$/,'')+'K';
+  return ''+n; }
 function nodeData(t){
   const cc=state.cols?cardCols(t):{html:'',n:0};
   const w=230, h=30 + (state.cols && cc.n? (cc.n*17+8):0) + 2;
   return {id:t.table, name:t.table, color:gcolor[tgroup[t.table]], group:tgroup[t.table],
     fw:FRAMEWORK.has(t.table)?1:0, expanded:state.expanded.has(t.table),
-    meta:`${t.columns.length}c·${(t.rows||0).toLocaleString()}r`, cols:cc.html, w, h};
+    meta:`${t.columns.length}c·${shortNum(t.rows||0)}r`, metaTitle:`${t.columns.length} columns · ${(t.rows||0).toLocaleString()} rows`, cols:cc.html, w, h};
 }
 
 let cy=null;
@@ -719,7 +724,7 @@ function boot(){
       {selector:'edge.hi',style:{'opacity':1,'width':3,'line-color':'#4ea1ff','target-arrow-color':'#4ea1ff','color':'#e6edf3','z-index':20}}
     ]});
   cy.nodeHtmlLabel([{query:'node', halign:'center', valign:'center', halignBox:'center', valignBox:'center',
-    tpl:d=>`<div class="erd-card ${d.cls||''}" data-tbl="${d.name}" style="--c:${d.color}"><div class="erd-h"><span class="erd-dot"></span><span class="erd-name" title="${esc(d.name)}">${esc(d.name)}</span><span class="erd-meta">${d.meta}</span><span class="erd-ex erd-exp" data-tbl="${d.name}" title="show all columns">${d.expanded?'⊖':'⊕'}</span><span class="erd-ex erd-hide" data-tbl="${d.name}" title="hide entity">×</span></div>${d.cols?`<div class="erd-cols">${d.cols}</div>`:''}</div>`}]);
+    tpl:d=>`<div class="erd-card ${d.cls||''}" data-tbl="${d.name}" style="--c:${d.color}"><div class="erd-h"><span class="erd-dot"></span><span class="erd-name" title="${esc(d.name)}">${esc(d.name)}</span><span class="erd-meta" title="${esc(d.metaTitle||'')}">${d.meta}</span><span class="erd-ex erd-exp" data-tbl="${d.name}" title="show all columns">${d.expanded?'⊖':'⊕'}</span><span class="erd-ex erd-hide" data-tbl="${d.name}" title="hide entity">×</span></div>${d.cols?`<div class="erd-cols">${d.cols}</div>`:''}</div>`}]);
   const saved=loadPositions();
   if(saved){ cy.batch(()=>cy.nodes().forEach(n=>{const p=saved[n.id()]; if(p)n.position({x:p[0],y:p[1]});})); cy.fit(undefined,45); }
   else runLayout();
