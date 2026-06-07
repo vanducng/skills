@@ -41,7 +41,7 @@ Use $ultracode. Split this across agents and implement the settings export featu
   - `Task` write-capable: implement backend export route in named files (disjoint scope).
   - `Task` write-capable: add UI button + loading state in named files (disjoint scope).
   - `Explore` subagent: find tests and fixtures.
-- Each write packet has a disjoint write scope. Own integration, then `vd:test` + `vd:code-review`.
+- Each write packet has a disjoint write scope. Own integration, then `vd:cook` (verify) + `vd:code-review`.
 
 ## Repo-wide migration (Workflow tool)
 
