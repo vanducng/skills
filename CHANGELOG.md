@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.20.0](https://github.com/vanducng/skills/compare/v0.19.0...v0.20.0) (2026-06-07)
+
+
+### Features
+
+* **diagram:** interactive ERD generator + DBML interop (+ skill fixes) ([#94](https://github.com/vanducng/skills/issues/94)) ([4fa8492](https://github.com/vanducng/skills/commit/4fa8492958ab5c8b703c09c87911104bd1d0db4e))
+
 ## [0.19.0](https://github.com/vanducng/skills/compare/v0.18.1...v0.19.0) (2026-06-07)
 
 
