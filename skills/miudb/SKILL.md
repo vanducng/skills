@@ -176,6 +176,18 @@ Use `connections test` when the user names one connection or asks whether one
 connection is reachable. This opens the connection and may create an SSH
 tunnel, but does not run user SQL.
 
+## OAuth login for Snowflake and BigQuery
+
+Acquire and store an OAuth token for a connection supporting OAuth (Snowflake, BigQuery):
+
+```bash
+miudb auth login <CONN> --output json
+miudb auth status <CONN> --output json
+miudb auth logout <CONN> --output json
+```
+
+Tokens are stored in the keyring service. On CGO-disabled builds (release binaries), fallback to file-based credential storage.
+
 ## Smoke-test connections
 
 ```bash
@@ -222,6 +234,19 @@ miudb query fetch-page \
   --cursor <CURSOR> \
   --output json
 ```
+
+## Run multi-statement scripts
+
+For Snowflake and MySQL, execute multiple statements in one script; each statement produces one result set:
+
+```bash
+miudb query script \
+  --connection <CONN> \
+  --sql 'SELECT 1; SELECT 2' \
+  --output json
+```
+
+Postgres rejects multi-command scripts; run statements individually with `query run`.
 
 ## Inspect schema
 
@@ -274,6 +299,35 @@ miudb query run --connection <conn> --sql "SELECT name FROM sqlite_master WHERE 
 miudb query run --connection <conn> --sql "PRAGMA table_info('table_name')" --output json
 ```
 
+## Generate an ERD (interactive diagram)
+
+`miudb erd` turns a connection into a self-contained, offline interactive ER diagram (Cytoscape) plus a DBML export. Tier-1: MySQL, Postgres. Snowflake/BigQuery/DuckDB return a clean "unsupported" error.
+
+```bash
+# interactive offline index.html + schema.json + schema.dbml (default --format html)
+miudb erd generate --connection <CONN> --out-dir .diagrams/<CONN>-erd --output json
+# serve it in the browser (loopback HTTP); --from <dir|schema.json> renders an existing export, no DB
+miudb erd serve --connection <CONN> --output json
+```
+
+Two layers:
+- **Deterministic (miudb):** introspect -> `schema.json` (the render source-of-truth) -> DBML + HTML. No LLM.
+- **Agentic (you):** author `meta.json` to add **colored domain groups** + table **descriptions**. Without it, tables render as Framework/Other with no colors (`erd generate` emits a warning saying so).
+
+### Agentic polish recipe (how to make a good diagram)
+
+1. Scaffold: `miudb erd meta --stub --connection <CONN> --out-dir <dir>` — auto-detects framework tables (Laravel/Rails/Django/Prisma) and seeds blank `groups`/`descriptions`. The envelope `data.next_step` reminds you what to fill.
+2. Read `<dir>/schema.json` (the IR: `tables[] -> {pk, columns, fks, indexes, rows}`). Cheap, high-signal inputs: FK topology (which tables connect), table-name prefixes, FK hub degree, and row counts. Migration *filenames* (`ls database/migrations` / `db/migrate`) are a strong signal too — you do NOT need to read their contents.
+3. Edit `meta.json`:
+   - **`groups`**: cluster every non-framework table into 5-9 domains. Densely-FK-connected tables belong together; split by name prefix and responsibility (catalog vs apply vs analytics vs CMS vs auth). Each group = `{ "color": "#hex", "tables": [...] }`. Put core domains in saturated colors, infra/marketing in muted. Palette: `#2563eb` blue, `#16a34a` green, `#9333ea` purple, `#d97706` amber, `#dc2626` red, `#0d9488` teal, `#db2777` pink, `#475569` slate.
+   - **`descriptions`**: 1 line per important table (hubs + biggest by rows), inferred from name + columns + FK role (self-ref FK -> "conditional/nested"; double-FK + unique pair -> "junction"; `*_id` hub -> "owns/links X").
+   - leave **`framework_tables`** / **`audit_columns`** as detected.
+4. Regenerate: `miudb erd generate --connection <CONN> --meta <dir>/meta.json` (or `erd serve`). Iterate.
+
+Single-pass works: stub -> fill -> generate. Aim to leave 0 tables ungrouped (the renderer buckets ungrouped non-framework tables as "Other").
+
+**Worked example (cdljn, 112-table MySQL job-board):** stub detected 6 framework tables; the FK hubs (`users` 182, `jobs` 34, `companies`, `submissions`, `impressions` 141M rows) and name prefixes mapped cleanly to 8 domains — Jobs & Catalog, Apply & Submissions, Hiring Events, ATS & Feeds, Analytics & Tracking, Targeting & Geo, Content & CMS, Users & Marketing — grouping all 106 non-framework tables with colors + hub descriptions in one pass.
+
 ## Stdio protocol
 
 For Neovim or client integration, use the experimental stdio server:
@@ -314,6 +368,18 @@ MCP tools exposed by the server:
 MCP `query_run` is read-only by default and rejects mutation SQL unless
 `--allow-mutate` is explicitly provided. Stdout is reserved for MCP frames;
 startup errors and diagnostics go to stderr.
+
+## Query activity log
+
+Each session captures activity events in a per-session JSONL log. Query and prune it with:
+
+```bash
+miudb activity --connection <CONN> --since 24h --output json
+miudb activity --failed --since 7d --output json
+miudb activity prune --older-than 30d --output json
+```
+
+Use `--since` to filter by relative duration (e.g. `24h`, `7d`); omit to read all captured events. Use `--failed` to show only failed queries.
 
 ## Output contract
 
