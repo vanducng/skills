@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.23.0](https://github.com/vanducng/skills/compare/v0.22.1...v0.23.0) (2026-06-07)
+
+
+### Features
+
+* **skill:** miudb ERD agentic recipe + ER viewer UX upgrades ([#108](https://github.com/vanducng/skills/issues/108)) ([8a5967e](https://github.com/vanducng/skills/commit/8a5967e9362ebd365c5ec828b13c852ca4dfd0a1))
+
 ## [0.22.1](https://github.com/vanducng/skills/compare/v0.22.0...v0.22.1) (2026-06-07)
 
 
