@@ -365,6 +365,9 @@ kbd{display:inline-block;min-width:18px;text-align:center;border:1px solid var(-
 .ov{position:absolute;inset:0;background:rgba(6,9,13,.6);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:20}
 .ov.open{display:flex}
 .ovpanel{background:var(--panel);border:1px solid var(--line2);border-radius:14px;width:660px;max-width:92vw;max-height:86vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.dbmlsub{font-size:11px;color:var(--muted);font-weight:400;margin-left:8px}
+.dbmlsrc{margin:0;padding:14px 18px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.55;color:var(--ink);white-space:pre;overflow:auto;max-height:76vh;tab-size:2}
+.dbmlsrc .kw{color:var(--accent)}
 .ovh{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line)}
 .ovh h3{margin:0;font-size:15px}
 .ovbody{display:grid;grid-template-columns:1fr 1fr;gap:10px 28px;padding:16px 18px}
@@ -394,6 +397,7 @@ kbd{display:inline-block;min-width:18px;text-align:center;border:1px solid var(-
     <div class="spacer"></div>
     <button class="tool" id="btnAll">Clear</button>
     <button class="tool" id="btnInsights" title="Schema insights">⚑ Insights</button>
+    <button class="tool" id="btnDbml" title="View DBML source (dbdiagram.io / dbdocs)">DBML</button>
     <button class="tool" id="btnShare" title="Copy a shareable link (state in URL)">🔗 Share</button>
     <button class="tool" id="btnLayout" title="Re-run layout (g)">Re-layout</button>
     <button class="tool" id="btnFit" title="Fit (f)">Fit</button>
@@ -467,6 +471,10 @@ kbd{display:inline-block;min-width:18px;text-align:center;border:1px solid var(-
     <div id="insights" class="ov"><div class="ovpanel">
       <div class="ovh"><h3>Schema insights</h3><button class="x" id="insClose">×</button></div>
       <div class="body" id="insBody" style="padding:16px"></div>
+    </div></div>
+    <div id="dbml" class="ov"><div class="ovpanel">
+      <div class="ovh"><h3>DBML<span class="dbmlsub">dbdiagram.io / dbdocs source</span></h3><div style="display:flex;gap:8px;align-items:center"><button class="tool" id="dbmlCopy">Copy</button><button class="x" id="dbmlClose">×</button></div></div>
+      <pre class="dbmlsrc" id="dbmlSrc"></pre>
     </div></div>
   </main>
 </div>
@@ -693,16 +701,11 @@ function updateStats(){
 function focusNode(name){ if(!cy)return; const n=cy.$('#'+CSS.escape(name)); if(n.nonempty()) cy.animate({center:{eles:n},zoom:Math.max(cy.zoom(),0.85)},{duration:250}); }
 
 /* ---- cytoscape ---- */
-function runLayout(){ const big=SCHEMA.length>50;
-  cy.layout({name:'cose',animate:false,padding:60,nodeDimensionsIncludeLabels:true,randomize:true,
-    nodeRepulsion:big?30000:14000, nodeOverlap:big?30:12, idealEdgeLength:big?240:190,
-    componentSpacing:big?200:140, gravity:0.2, numIter:big?2500:1000, coolingFactor:0.95}).run();
-  cy.fit(undefined,45); }
+function runLayout(){ cy.layout({name:'cose',animate:false,padding:50,nodeRepulsion:14000,idealEdgeLength:190,
+  nodeDimensionsIncludeLabels:true,randomize:true,componentSpacing:140,gravity:0.25}).run(); cy.fit(undefined,45); }
 function boot(){
   updateStats();
   applyState(readHash());
-  // large schemas default to compact name-only cards (toggle "Columns on nodes" to expand); a shared hash overrides
-  if(!location.hash && SCHEMA.length>50){ state.cols=false; const oc=document.getElementById('optCols'); if(oc) oc.checked=false; }
   cy=cytoscape({container:document.getElementById('cy'), elements:buildElements(), wheelSensitivity:0.3, minZoom:0.12, maxZoom:4,
     style:[
       {selector:'node',style:{'shape':'round-rectangle','background-opacity':0,'border-width':0,'width':'data(w)','height':'data(h)'}},
@@ -885,6 +888,30 @@ $('btnPathClear').addEventListener('click',()=>{state.path=null;$('pathMsg').tex
 $('btnInsights').addEventListener('click',openInsights);
 $('insClose').addEventListener('click',()=>$('insights').classList.remove('open'));
 $('insights').addEventListener('click',e=>{if(e.target===$('insights'))$('insights').classList.remove('open');});
+const DBML_TYPE={int4:"int",int8:"bigint",int2:"smallint",bool:"boolean",varchar:"varchar",text:"text",float8:"float",float4:"float",numeric:"numeric",jsonb:"jsonb",json:"json",uuid:"uuid",bytea:"bytea",timestamp:"timestamp",timestamptz:"timestamptz",date:"date",time:"time",vector:"vector",tsvector:"tsvector"};
+const DBML_DEL={CASCADE:"cascade","SET NULL":"set null","SET DEFAULT":"set default",RESTRICT:"restrict"};
+function emitDBML(){
+  const out=[`Project "${META.title||'database'}" {\n  database_type: '${META.database_type||'PostgreSQL'}'\n}\n`];
+  const tabs=[...SCHEMA].sort((a,b)=>a.table.localeCompare(b.table)), present=new Set(SCHEMA.map(t=>t.table));
+  for(const t of tabs){ const pk=new Set(t.pk||[]); out.push(`Table ${t.table} {`);
+    for(const c of t.columns){ let ty=DBML_TYPE[c.udt]; if(ty===undefined)ty=c.udt||c.type||"text";
+      const a=[]; if(pk.has(c.column))a.push("pk"); else if(c.nullable==="NO")a.push("not null");
+      out.push(`  ${c.column} ${ty}`+(a.length?` [${a.join(", ")}]`:"")); }
+    out.push("}\n"); }
+  for(const t of tabs){ const order=[],gr={};
+    for(const f of t.fks||[]){ const k=f.constraint||f.column; if(!gr[k]){gr[k]={cols:[],rcols:[],ref:f.ref_table,od:f.on_delete,inf:f.inferred};order.push(k);} gr[k].cols.push(f.column); gr[k].rcols.push(f.ref_column); }
+    for(const k of order){ const g=gr[k],s=[]; const d=DBML_DEL[(g.od||'').toUpperCase()]; if(d)s.push(`delete: ${d}`); if(g.inf)s.push("note: 'inferred'");
+      const set=s.length?` [${s.join(", ")}]`:'';
+      const lhs=g.cols.length>1?`${t.table}.(${g.cols.join(", ")})`:`${t.table}.${g.cols[0]}`;
+      const rhs=g.cols.length>1?`${g.ref}.(${g.rcols.join(", ")})`:`${g.ref}.${g.rcols[0]}`;
+      out.push(`Ref: ${lhs} > ${rhs}${set}`); } }
+  for(const g of Object.keys(GROUPS).sort()){ const tbls=(GROUPS[g].tables||[]).filter(x=>present.has(x)); if(tbls.length) out.push(`\nTableGroup "${g}" {\n  ${tbls.join("\n  ")}\n}`); }
+  return out.join("\n")+"\n";
+}
+$('btnDbml').addEventListener('click',()=>{ $('dbmlSrc').textContent=emitDBML(); $('dbml').classList.add('open'); });
+$('dbmlClose').addEventListener('click',()=>$('dbml').classList.remove('open'));
+$('dbml').addEventListener('click',e=>{ if(e.target===$('dbml'))$('dbml').classList.remove('open'); });
+$('dbmlCopy').addEventListener('click',()=>{ const b=$('dbmlCopy'),o=b.textContent; if(navigator.clipboard)navigator.clipboard.writeText($('dbmlSrc').textContent); b.textContent='✓ copied'; setTimeout(()=>b.textContent=o,1200); });
 $('btnShare').addEventListener('click',()=>{ writeHash(); const u=location.href;
   const done=()=>{const b=$('btnShare');const t=b.textContent;b.textContent='✓ copied';setTimeout(()=>b.textContent=t,1200);};
   (navigator.clipboard?navigator.clipboard.writeText(u).then(done,done):done()); });
