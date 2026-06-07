@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.25.0](https://github.com/vanducng/skills/compare/v0.24.0...v0.25.0) (2026-06-07)
+
+
+### Features
+
+* **diagram:** ERD 'Focus selected (hide others)' view mode ([#112](https://github.com/vanducng/skills/issues/112)) ([f099133](https://github.com/vanducng/skills/commit/f0991339949d45d0a96e26688f8ba0dbf76d3bd0))
+
 ## [0.24.0](https://github.com/vanducng/skills/compare/v0.23.0...v0.24.0) (2026-06-07)
 
 
