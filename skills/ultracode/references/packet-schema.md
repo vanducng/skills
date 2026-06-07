@@ -83,7 +83,7 @@ Required keys:
       "id": "01-discovery",
       "status": "pending",
       "owner": "parent|read-only-agent|write-capable-agent",
-      "route": "inline|vd:scout|vd:cook|vd:test|Task|Workflow",
+      "route": "inline|vd:scout|vd:cook|vd:debug|Task|Workflow",
       "write_scope": [],
       "result_path": "results/01-discovery.md"
     }

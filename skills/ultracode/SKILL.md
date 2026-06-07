@@ -91,12 +91,12 @@ In Claude Code, don't reinvent orchestration — drive the native primitives and
 | Turn an approach into a phased plan | `vd:plan` (writes `plans/<slug>/`) |
 | Execute a plan phase-by-phase | `vd:cook` |
 | Diagnose a failure to root cause | `vd:debug`, `vd:fix` |
-| Run tests / coverage | `vd:test` |
+| Run tests / verify the change | `vd:cook` (verify phase), `vd:debug` on failure |
 | Review the diff before landing | `vd:code-review`, `vd:security` |
 | Land the branch (only when asked) | `vd:ship`, `vd:git` |
 | Autonomous metric/goal loop | `vd:auto-loop`, `vd:optimize-loop` |
 
-Ultracode is the orchestration layer **above** these: it classifies the task, picks the mode, packetizes, dispatches to the right skill or subagent, then owns integration and verification. For a full feature this often means: `vd:plan` → ultracode fans implementation packets across `Task`/`Workflow` → `vd:test` → `vd:code-review`. Stay in the loop between phases; read each result before the next dispatch.
+Ultracode is the orchestration layer **above** these: it classifies the task, picks the mode, packetizes, dispatches to the right skill or subagent, then owns integration and verification. For a full feature this often means: `vd:plan` → ultracode fans implementation packets across `Task`/`Workflow` → `vd:cook` (implement + verify + test) → `vd:code-review`. Stay in the loop between phases; read each result before the next dispatch.
 
 ## Workflow artifacts
 
