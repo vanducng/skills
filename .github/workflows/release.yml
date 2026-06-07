@@ -17,22 +17,25 @@ concurrency:
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    # HAS_PAT gates auto-merge: without RELEASE_PLEASE_TOKEN the workflow behaves exactly as before
-    # (release PR opened, merged manually). With it, the release PR is auto-merged AND the resulting
-    # push re-triggers this workflow (GITHUB_TOKEN pushes don't trigger workflows) so the tag is cut.
-    env:
-      HAS_PAT: ${{ secrets.RELEASE_PLEASE_TOKEN != '' }}
     steps:
+      # MiuMun app token (not GITHUB_TOKEN) so the auto-merged release commit re-triggers this workflow and cuts the tag.
+      - name: Generate MiuMun app token
+        id: app_token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_MUNMIU_PRIVATE_KEY }}
+
       - name: Release Please
         id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          token: ${{ steps.app_token.outputs.token }}
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
       - name: Auto-merge release PR
-        if: ${{ steps.release.outputs.pr && env.HAS_PAT == 'true' }}
+        if: ${{ steps.release.outputs.pr }}
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
         run: gh pr merge --squash --auto "${{ fromJson(steps.release.outputs.pr).number }}"
