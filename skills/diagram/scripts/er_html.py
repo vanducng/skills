@@ -260,6 +260,9 @@ button.tool:hover{border-color:var(--accent)}
 aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:12px;transition:transform .16s ease}
 aside h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
 aside h2:first-child{margin-top:0}
+.gtools{float:right;font-weight:400}
+.gtools a{color:var(--accent);cursor:pointer;margin-left:9px;text-transform:none;letter-spacing:0}
+.gtools a:hover{text-decoration:underline}
 .search{width:100%;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;color:var(--ink);padding:8px 10px;font-size:13px}
 .search:focus{outline:none;border-color:var(--accent)}
 .toggle{display:flex;align-items:center;gap:8px;padding:5px 2px;cursor:pointer;color:var(--ink);user-select:none}
@@ -412,7 +415,7 @@ kbd{display:inline-block;min-width:18px;text-align:center;border:1px solid var(-
     <select class="search" id="pathTo" style="margin-bottom:6px"></select>
     <div style="display:flex;gap:6px"><button class="tool" id="btnPath" style="flex:1">Find path</button><button class="tool" id="btnPathClear">Clear</button></div>
     <div id="pathMsg" style="color:var(--muted);font-size:11.5px;margin-top:6px"></div>
-    <h2>Domain groups</h2>
+    <h2>Domain groups<span class="gtools"><a id="grpAll">all</a><a id="grpNone">clear</a></span></h2>
     <div id="groups"></div>
     <h2>Tables</h2>
     <div class="tlist" id="tlist"></div>
@@ -528,7 +531,7 @@ function cardCols(t){
     const k=pk.has(c.column)?'pk':(fkc.has(c.column)?'fk':(AUDIT.has(c.column)?'au':'x'));
     const g=k==='pk'?'◆':(k==='fk'?'→':'·');
     const ht=hot&&hot.has(c.column)?' hot':'';
-    return `<div class="erd-col${ht}"><span class="g ${k}">${g}</span><span class="cn">${esc(c.column)}</span><span class="ct">${esc(shortType(c))}</span></div>`;
+    return `<div class="erd-col${ht}" title="${esc(c.column)}: ${esc(c.udt||c.type||'')}"><span class="g ${k}">${g}</span><span class="cn">${esc(c.column)}</span><span class="ct">${esc(shortType(c))}</span></div>`;
   }).join('');
   let n=shown.length;
   if(list.length>max){ html+=`<div class="erd-col more erd-exp" data-tbl="${t.table}">+${list.length-max} more — show all</div>`; n++; }
@@ -577,7 +580,7 @@ function refreshClasses(){
     cy.edges().forEach(e=>{ e.removeClass('dim hi');
       if(set) (set.has(e.data('src'))&&set.has(e.data('tgt')))?e.addClass('hi'):e.addClass('dim'); });
   });
-  writeHash(); drawHulls();
+  updateStats(); writeHash(); drawHulls();
 }
 function select(name,opendocs){ state.sel=name; state.edge=null; state.path=null; HOT=computeHot(relatedSet(name,state.depth)); renderCards(); markList(); if(opendocs)openDocs(name); }
 function clearSel(){ state.sel=null; state.edge=null; state.path=null; HOT={}; $('pathMsg')&&($('pathMsg').textContent=''); renderCards(); markList(); }
@@ -683,17 +686,23 @@ function applySearch(){
 function updateStats(){
   const cols=SCHEMA.reduce((n,t)=>n+t.columns.length,0);
   const cons=new Set(); SCHEMA.forEach(t=>(t.fks||[]).forEach(f=>cons.add(f.constraint||t.table+'.'+f.column)));
-  const rels=cons.size;
-  document.getElementById('stats').innerHTML=`<span><b>${SCHEMA.length}</b> tables</span><span><b>${cols}</b> columns</span><span><b>${rels}</b> relationships</span>`;
+  const vis=SCHEMA.filter(t=>!((!state.framework&&FRAMEWORK.has(t.table))||state.groupsOff.has(tgroup[t.table])||state.hidden.has(t.table))).length;
+  const tl=vis===SCHEMA.length?`<b>${SCHEMA.length}</b> tables`:`<b>${vis}</b>/${SCHEMA.length} tables`;
+  document.getElementById('stats').innerHTML=`<span>${tl}</span><span><b>${cols}</b> columns</span><span><b>${cons.size}</b> relationships</span>`;
 }
 function focusNode(name){ if(!cy)return; const n=cy.$('#'+CSS.escape(name)); if(n.nonempty()) cy.animate({center:{eles:n},zoom:Math.max(cy.zoom(),0.85)},{duration:250}); }
 
 /* ---- cytoscape ---- */
-function runLayout(){ cy.layout({name:'cose',animate:false,padding:50,nodeRepulsion:14000,idealEdgeLength:190,
-  nodeDimensionsIncludeLabels:true,randomize:true,componentSpacing:140,gravity:0.25}).run(); cy.fit(undefined,45); }
+function runLayout(){ const big=SCHEMA.length>50;
+  cy.layout({name:'cose',animate:false,padding:60,nodeDimensionsIncludeLabels:true,randomize:true,
+    nodeRepulsion:big?30000:14000, nodeOverlap:big?30:12, idealEdgeLength:big?240:190,
+    componentSpacing:big?200:140, gravity:0.2, numIter:big?2500:1000, coolingFactor:0.95}).run();
+  cy.fit(undefined,45); }
 function boot(){
   updateStats();
   applyState(readHash());
+  // large schemas default to compact name-only cards (toggle "Columns on nodes" to expand); a shared hash overrides
+  if(!location.hash && SCHEMA.length>50){ state.cols=false; const oc=document.getElementById('optCols'); if(oc) oc.checked=false; }
   cy=cytoscape({container:document.getElementById('cy'), elements:buildElements(), wheelSensitivity:0.3, minZoom:0.12, maxZoom:4,
     style:[
       {selector:'node',style:{'shape':'round-rectangle','background-opacity':0,'border-width':0,'width':'data(w)','height':'data(h)'}},
@@ -707,7 +716,7 @@ function boot(){
       {selector:'edge.hi',style:{'opacity':1,'width':3,'line-color':'#4ea1ff','target-arrow-color':'#4ea1ff','color':'#e6edf3','z-index':20}}
     ]});
   cy.nodeHtmlLabel([{query:'node', halign:'center', valign:'center', halignBox:'center', valignBox:'center',
-    tpl:d=>`<div class="erd-card ${d.cls||''}" data-tbl="${d.name}" style="--c:${d.color}"><div class="erd-h"><span class="erd-dot"></span><span class="erd-name">${esc(d.name)}</span><span class="erd-meta">${d.meta}</span><span class="erd-ex erd-exp" data-tbl="${d.name}" title="show all columns">${d.expanded?'⊖':'⊕'}</span><span class="erd-ex erd-hide" data-tbl="${d.name}" title="hide entity">×</span></div>${d.cols?`<div class="erd-cols">${d.cols}</div>`:''}</div>`}]);
+    tpl:d=>`<div class="erd-card ${d.cls||''}" data-tbl="${d.name}" style="--c:${d.color}"><div class="erd-h"><span class="erd-dot"></span><span class="erd-name" title="${esc(d.name)}">${esc(d.name)}</span><span class="erd-meta">${d.meta}</span><span class="erd-ex erd-exp" data-tbl="${d.name}" title="show all columns">${d.expanded?'⊖':'⊕'}</span><span class="erd-ex erd-hide" data-tbl="${d.name}" title="hide entity">×</span></div>${d.cols?`<div class="erd-cols">${d.cols}</div>`:''}</div>`}]);
   const saved=loadPositions();
   if(saved){ cy.batch(()=>cy.nodes().forEach(n=>{const p=saved[n.id()]; if(p)n.position({x:p[0],y:p[1]});})); cy.fit(undefined,45); }
   else runLayout();
@@ -869,6 +878,8 @@ $('optFramework').addEventListener('change',e=>{state.framework=e.target.checked
 $('optDim').addEventListener('change',e=>{state.dim=e.target.checked;refreshClasses();});
 $('optDepth').addEventListener('change',e=>{state.depth=+e.target.value; if(state.sel)select(state.sel,false);});
 $('optGroupAreas').addEventListener('change',e=>{state.groupAreas=e.target.checked; drawHulls(); writeHash();});
+$('grpAll')&&$('grpAll').addEventListener('click',()=>{state.groupsOff.clear();refreshClasses();buildSidebar();});
+$('grpNone')&&$('grpNone').addEventListener('click',()=>{[...new Set(SCHEMA.map(t=>tgroup[t.table]))].forEach(g=>state.groupsOff.add(g));refreshClasses();buildSidebar();});
 $('btnPath').addEventListener('click',runFindPath);
 $('btnPathClear').addEventListener('click',()=>{state.path=null;$('pathMsg').textContent='';$('pathFrom').value='';$('pathTo').value='';clearSel();});
 $('btnInsights').addEventListener('click',openInsights);
