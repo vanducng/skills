@@ -30,6 +30,17 @@ PAYLOAD_EXPORTS="$(cat | bash "${SCRIPT_DIR}/codex-bridge.sh" hook-read 2>/dev/n
 }
 eval "$PAYLOAD_EXPORTS"
 
+# Cancel propagation (#65): if a goal under CWD has a cancel.sentinel, surface a
+# GOAL-SCOPED stop directive. Cooperative — codex /goal has no programmatic
+# cancel; this is the next-iteration brake. Phrased conditionally on the slug so
+# a DIFFERENT goal running concurrently in the same repo is not falsely halted.
+while IFS= read -r sentinel; do
+  [ -n "$sentinel" ] || continue
+  gd_slug="$(basename "$(dirname "$(dirname "$sentinel")")")"
+  printf '{"hookSpecificOutput":{"additionalContext":"[pursue-cancel] goal %s was killed (cancel.sentinel present). IF the goal you are currently executing is %s, STOP its loop now and dispatch no further actions (and /goal cancel if under a Codex /goal). If you are executing a DIFFERENT goal, ignore this."}}\n' "$gd_slug" "$gd_slug"
+  exit 0
+done < <(find . -path '*/.pursue/cancel.sentinel' -type f 2>/dev/null)
+
 # Find an active monitor spec matching this tool_use_id.
 # Spec file convention: {goal-dir}/iterations/{NNN}-{action}-monitor.spec.json
 # Contains: {tool_use_id, poll_cmd, timeout_seconds, started_at}

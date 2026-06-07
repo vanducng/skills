@@ -97,7 +97,7 @@ PURSUE_RUNTIME=claude-code bash ~/skills/skills/pursue/scripts/delegate-to-auto-
 
 **Limitations.**
 - **`vd:auto-loop`'s `--codex` mode is TUI-only** (per `~/skills/skills/auto-loop/references/codex-delegation.md`: "codex exec does not (yet) accept /goal as an argument. So delegation is inherently interactive"). The chain `pursue → codex exec resume → vd:auto-loop --codex → /goal` has 3 handoffs. The middle one (`codex exec resume`) IS interactive-capable, so this should work — but Phase 5 dogfood must verify the resumed session can actually exec `/goal`. If it can't, pursue's cook on Codex degrades to running `vd:auto-loop` in non-`--codex` mode (loses /goal's pause/resume + cross-surface sync).
-- **No Codex /goal pause/resume integration.** Pursue's `kill` sub-verb writes `state.terminal=abandoned`; on Codex with `/goal` running, the user must also `/goal cancel` separately. Document in the kill output. v0.3 wires this.
+- **Codex /goal cancel is cooperative (v0.3).** codex CLI ≤0.137 exposes no programmatic `/goal` cancel (it's a TUI slash-primitive). Pursue's `kill` sub-verb writes a `{goal-dir}/.pursue/cancel.sentinel` BEFORE flipping `state.terminal=abandoned`; `codex-monitor-hook.sh` reads it on the next PostToolUse and tells the model to STOP the loop, and `kill` prints a loud "also run `/goal cancel` in the TUI" instruction. This halts the loop on the next iteration — it cannot interrupt an in-flight `/goal` turn. `codex-hook-cleanup.sh` sweeps the sentinel once the goal is terminal.
 
 ## Workaround 4: Hook teardown (SessionStart sweep)
 
@@ -129,28 +129,31 @@ grep stale ~/.pursue/cleanup.log | tail -1
 - **Search roots are heuristic.** If user's worktrees live outside `$HOME/git|Projects|Code`, stale specs there won't be swept. Mitigation: extend SEARCH_ROOTS array.
 - **24h threshold is generous.** A real wait > 24h would be falsely swept. v0.3 reduces to 4h once dogfood confirms it's safe.
 
-## Hook registration (manual setup until v0.3 automates)
+## Hook registration (`install-hooks` sub-verb, v0.3)
 
-Codex hooks are registered in user-level config (per [Codex Hooks docs](https://developers.openai.com/codex/hooks)). v0.2 ships the hook SCRIPTS but does NOT auto-register them. User must add to their Codex config:
+Codex hooks are registered in user-level config (per [Codex Hooks docs](https://developers.openai.com/codex/hooks)). The skill ships the hook SCRIPTS; `vd:pursue install-hooks` registers them:
+
+```bash
+vd:pursue install-hooks            # detect + print the block (no write)
+vd:pursue install-hooks --apply    # marker-wrapped append, backup + tomllib re-parse guard
+vd:pursue install-hooks --uninstall
+```
+
+It resolves a symlinked config (e.g. dotfiles) to its real target and warns before writing, is idempotent (keyed on the `# >>> vd:pursue managed hooks >>>` marker), and never rewrites existing TOML — it appends the two stanzas (`scripts/install-hooks.sh`). The registered block:
 
 ```toml
-# ~/.codex/config.toml (or equivalent)
 [[hooks.PostToolUse]]
 matcher = ".*"
-
 [[hooks.PostToolUse.hooks]]
 type = "command"
 command = "bash ~/.agents/skills/pursue/scripts/codex-monitor-hook.sh"
 
 [[hooks.SessionStart]]
 matcher = ".*"
-
 [[hooks.SessionStart.hooks]]
 type = "command"
 command = "bash ~/.agents/skills/pursue/scripts/codex-hook-cleanup.sh"
 ```
-
-v0.3 ships an `install-hooks` sub-verb that does this automatically.
 
 ## Cross-runtime portability invariant
 

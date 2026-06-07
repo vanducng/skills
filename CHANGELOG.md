@@ -2,6 +2,22 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.19.0](https://github.com/vanducng/skills/compare/v0.18.1...v0.19.0) (2026-06-07)
+
+
+### Features
+
+* add cnpg skill — create/operate CloudNativePG on k8s (cloud + self-hosted) ([#93](https://github.com/vanducng/skills/issues/93)) ([177ec31](https://github.com/vanducng/skills/commit/177ec3139bbefdeb272c2d79ca0b7b1e353dbac3))
+* **pursue:** v0.3 self-management improvements ([#60](https://github.com/vanducng/skills/issues/60), [#61](https://github.com/vanducng/skills/issues/61), [#64](https://github.com/vanducng/skills/issues/64), [#65](https://github.com/vanducng/skills/issues/65), [#66](https://github.com/vanducng/skills/issues/66)) ([#90](https://github.com/vanducng/skills/issues/90)) ([dc43e95](https://github.com/vanducng/skills/commit/dc43e955315898bb64f930da406e8f81fec10989))
+
+## [0.18.1](https://github.com/vanducng/skills/compare/v0.18.0...v0.18.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* **ci:** align docs-site check with Astro Starlight, purge zensical ([da06657](https://github.com/vanducng/skills/commit/da06657059d30ed7c98fdeb525e94eddc317f1a9))
+* **skills:** report openable artifact locations ([94e83d0](https://github.com/vanducng/skills/commit/94e83d01622fc6dc3f4bee0ccb61da3b6908ea22))
+
 ## [0.18.0](https://github.com/vanducng/skills/compare/v0.17.0...v0.18.0) (2026-06-04)
 
 

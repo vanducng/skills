@@ -19,13 +19,51 @@
 set -uo pipefail
 
 GOAL_DIR=""
+ALL=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --goal-dir) GOAL_DIR="${2:-}"; shift 2 ;;
-    --help|-h)  echo "usage: status.sh [--goal-dir <dir>]"; exit 0 ;;
+    --goal-dir)   GOAL_DIR="${2:-}"; shift 2 ;;
+    --all|--list) ALL=1; shift ;;
+    --help|-h)    echo "usage: status.sh [--goal-dir <dir>] [--all|--list]"; exit 0 ;;
     *) echo "status.sh: unknown arg: $1" >&2; exit 5 ;;
   esac
 done
+
+PYBIN="${HOME}/.claude/skills/.venv/bin/python3"; [ -x "$PYBIN" ] || PYBIN="$(command -v python3)"
+
+# --all / --list: enumerate every goal-dir (#66 multi-goal disambiguation).
+# Exit 0 if any in-progress goal exists, else 4.
+if [ "$ALL" -eq 1 ]; then
+  "$PYBIN" - <<'PY'
+import os, json, glob, time, datetime
+rows, inprog = [], 0
+for sj in sorted(glob.glob("plans/goals/*/state.json")):
+    gd = os.path.dirname(sj)
+    try: s = json.load(open(sj))
+    except Exception: continue
+    g = {}
+    gy = os.path.join(gd, "goal.yaml")
+    if os.path.exists(gy):
+        try:
+            import yaml; g = yaml.safe_load(open(gy)) or {}
+        except Exception: g = {}
+    term = s.get("terminal") or "in-progress"
+    if term == "in-progress": inprog += 1
+    last = (s.get("last_action_result") or {}).get("action", "-")
+    age_d = (time.time() - os.path.getmtime(sj)) / 86400
+    rows.append((os.path.basename(gd), g.get("slug", "?"), term,
+                 f"{age_d:.1f}d", s.get("iteration_count", 0), last))
+if not rows:
+    print("no goals under ./plans/goals/"); raise SystemExit(4)
+print(f"{'goal-dir':<46} {'state':<11} {'age':>6} {'iter':>4} last-action")
+print("-" * 86)
+for gd, slug, term, age, it, last in rows:
+    print(f"{gd:<46} {term:<11} {age:>6} {it:>4} {last}")
+print(f"\n{len(rows)} goal(s), {inprog} in-progress")
+raise SystemExit(0 if inprog else 4)
+PY
+  exit $?
+fi
 
 # Auto-detect: most recent plans/goals/*/ with terminal=null.
 if [ -z "$GOAL_DIR" ]; then
