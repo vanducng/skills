@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.24.0](https://github.com/vanducng/skills/compare/v0.23.0...v0.24.0) (2026-06-07)
+
+
+### Features
+
+* **diagram:** abbreviate ERD card row counts (K/M/B) + full count tooltip ([#110](https://github.com/vanducng/skills/issues/110)) ([181fb50](https://github.com/vanducng/skills/commit/181fb5080770dae12239aa8774036d9bade5feae))
+
 ## [0.23.0](https://github.com/vanducng/skills/compare/v0.22.1...v0.23.0) (2026-06-07)
 
 
