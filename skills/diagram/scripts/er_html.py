@@ -297,7 +297,7 @@ main{position:relative;overflow:hidden;background:radial-gradient(circle at 1px 
 .erd-h{display:flex;align-items:center;gap:7px;padding:6px 10px;font-size:12.5px;font-weight:600;color:var(--ink);
   background:color-mix(in srgb,var(--c) 22%,var(--panel));border-bottom:2px solid var(--c)}
 .erd-dot{width:9px;height:9px;border-radius:3px;background:var(--c);flex:none}
-.erd-name{flex:1;font-family:-apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.01em}
+.erd-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:-apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.01em}
 .erd-meta{color:var(--muted);font-size:10px;font-weight:500}
 .erd-cols{padding:4px 0}
 .erd-col{display:flex;align-items:center;gap:6px;height:17px;line-height:17px;padding:0 10px;font-size:11px;white-space:nowrap}
@@ -657,8 +657,6 @@ function buildSidebar(){
 function listVisible(){ return SCHEMA.filter(t=>!((!state.framework&&FRAMEWORK.has(t.table))||state.groupsOff.has(tgroup[t.table]))).map(t=>t.table); }
 function buildTableList(){
   const tl=document.getElementById('tlist'); tl.innerHTML='';
-  if(state.hidden.size){ const sh=document.createElement('div'); sh.className='showhidden';
-    sh.textContent='⟲ show '+state.hidden.size+' hidden'; sh.addEventListener('click',()=>{state.hidden.clear();refreshClasses();buildTableList();}); tl.appendChild(sh); }
   const vis=new Set(listVisible());
   SCHEMA.slice().sort((a,b)=>a.table.localeCompare(b.table)).forEach(t=>{
     if(!vis.has(t.table))return;
@@ -669,6 +667,9 @@ function buildTableList(){
     d.addEventListener('click',()=>{ select(t.table,true); focusNode(t.table); });
     tl.appendChild(d);
   });
+  // appended last so toggling a node never shifts the rows above it (avoids mis-clicks)
+  if(state.hidden.size){ const sh=document.createElement('div'); sh.className='showhidden';
+    sh.textContent='⟲ show '+state.hidden.size+' hidden'; sh.addEventListener('click',()=>{state.hidden.clear();refreshClasses();buildTableList();}); tl.appendChild(sh); }
   applySearch(); markList();
 }
 function applySearch(){
@@ -881,10 +882,10 @@ $('minimap').addEventListener('mousedown',e=>{_mmDrag=true;minimapPan(e);e.preve
 window.addEventListener('mousemove',e=>{if(_mmDrag)minimapPan(e);});
 window.addEventListener('mouseup',()=>{_mmDrag=false;});
 // expand/collapse all columns on a single entity (header ⊕ or the "+N more" row)
-document.addEventListener('click',e=>{ const ex=e.target.closest('.erd-exp'); if(!ex)return;
+document.addEventListener('pointerdown',e=>{ const ex=e.target.closest('.erd-exp'); if(!ex)return;
   e.stopPropagation(); const t=ex.dataset.tbl; state.expanded.has(t)?state.expanded.delete(t):state.expanded.add(t); renderCards(); },true);
 // hide a single entity (header ×) — restore via the sidebar eye or "show N hidden"
-document.addEventListener('click',e=>{ const h=e.target.closest('.erd-hide'); if(!h)return;
+document.addEventListener('pointerdown',e=>{ const h=e.target.closest('.erd-hide'); if(!h)return;
   e.stopPropagation(); state.hidden.add(h.dataset.tbl); refreshClasses(); buildTableList(); },true);
 $('dClose').addEventListener('click',closeDocs);
 $('btnAll').addEventListener('click',()=>{clearSel();closeDocs();});
