@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.21.0](https://github.com/vanducng/skills/compare/v0.20.0...v0.21.0) (2026-06-07)
+
+
+### Features
+
+* add ultracode skill — disciplined multi-agent orchestration ([#97](https://github.com/vanducng/skills/issues/97)) ([05f8dca](https://github.com/vanducng/skills/commit/05f8dca0debba85aa27f93b18fa4632c573502da))
+
 ## [0.20.0](https://github.com/vanducng/skills/compare/v0.19.0...v0.20.0) (2026-06-07)
 
 
