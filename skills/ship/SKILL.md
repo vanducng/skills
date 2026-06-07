@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[official|staging|beta] [--auto] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-journal] [--skip-docs] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.2.0"
+  version: "1.2.2"
 ---
 
 # Ship
@@ -63,7 +63,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 2. **Never force push.** Plain `git push` only. If rejected → `git pull --rebase`, retry once, then stop.
 3. **Never skip failing tests.** A red test stops the pipeline. Fix it (kick back to `vd:cook`) or pass `--skip-tests` deliberately.
 4. **Never bypass critical review issues silently.** Each critical finding gets an `AskUserQuestion`: fix now / acknowledge / false-positive.
-4b. **Never silently ignore unresolved PR review comments.** After the PR exists, fetch unresolved review threads + `CHANGES_REQUESTED` reviews. Each unresolved comment gets a prompt: fix now / reply / mark resolved / skip. Same blocking model as critical review issues.
+4b. **Never silently ignore PR feedback.** After the PR exists, fetch unresolved review threads, `CHANGES_REQUESTED` reviews, `COMMENTED` reviews from humans/bots, and top-level PR comments. Triage each item for validity/actionability before changing code. Validate every suggestion against codebase contracts, types, config schemas, tests, and local rules; if the comment is valid but the suggested patch is not the best fix, apply the better root-cause fix and explain that in the PR reply. Same blocking model as critical review issues.
 5. **Auto-decide everything else.** Patch-version bumps, changelog content, commit message, PR body — infer from diff and commits. Do not pause to ask.
 6. **Skip silently when a step doesn't apply.** No version file → skip version bump. No CHANGELOG → skip changelog. No test runner detected → ask once, then skip.
 7. **No secrets in commits.** Scan staged diff for API keys / tokens / passwords before commit. If found: stop, warn, suggest `.gitignore`.
@@ -95,7 +95,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 10. Commit        → conventional commit, secret scan
 11. Push          → git push -u origin <branch>
 12. PR            → gh pr create/edit using repo template or canonical fallback
-13. PR comments   → fetch unresolved review threads + CHANGES_REQUESTED reviews; fix / reply / resolve each (re-run Step 4 after any fix)
+13. PR comments   → fetch review threads + human/bot reviews + top-level comments; triage, then fix/reply/resolve valid feedback (re-run Step 4 after any fix)
 14. Release       → `--release` only: detect auto-release tool; tag + push if manual
 15. CI watch      → wait for PR checks; on failure prompt user (every mode)
 16. Auto-merge    → `--auto` only: `gh pr merge --auto` once Step 15 is green
@@ -113,7 +113,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 - Skip steps via flags when work already done in this session.
 - Staging mode auto-skips journal (Step 8) and docs (Step 9).
 - Beta mode auto-skips docs (Step 9).
-- Step 13 (PR comments) runs only when the PR exists *and* has unresolved review threads or `CHANGES_REQUESTED` reviews. Fresh PR with no comments → skip silently. One GraphQL call, no polling. Skipped entirely with `--skip-pr-comments`.
+- Step 13 (PR comments) runs when the PR exists and has unresolved review threads, `CHANGES_REQUESTED` reviews, substantive `COMMENTED` reviews from humans/bots, or top-level PR comments. Fresh PR with no comments → skip silently. One GraphQL call, no polling. Skipped entirely with `--skip-pr-comments`.
 - Step 14 runs only with `--release`. If auto-release tooling detected, it's a no-op (CI handles tagging).
 - Step 15 (CI watch) always runs after PR creation. CI failure prompts the user even in `--auto`.
 - Step 16 runs only with `--auto`, only after Step 15 reports green (or user explicitly opted to merge anyway). Uses `gh pr merge --auto`, which respects branch protection — queues the merge; never bypasses.
@@ -131,7 +131,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 ✓ Committed: chore(release): 1.4.0-rc.1
 ✓ Pushed: origin/release/1.4.0
 ✓ PR: https://github.com/org/repo/pull/123 → staging
-✓ PR comments: 0 unresolved
+✓ PR comments: 0 actionable
 - Journal: skipped (staging)
 - Docs:    skipped (staging)
 ```

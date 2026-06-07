@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[description] [--type TYPE] [--preset PRESET] [--format png|svg] [--versioned] [--regen FEEDBACK] [--new]"
 metadata:
   author: vanducng
-  version: "0.5.0"
+  version: "1.0.1"
 ---
 
 # vd:diagram
@@ -45,6 +45,68 @@ Use `--versioned` when the diagram belongs in docs, ADRs, specs, or PR review. I
   --preset cyberpunk \
   "data flow: Kafka → Spark → ClickHouse → Grafana"
 ```
+
+## Interactive HTML ERD (`er_html.py`)
+
+For database ER diagrams that need to be **explored**, not just viewed, use the deterministic
+`er_html.py` generator (no LLM, no API key). It emits **one self-contained HTML file** built on
+Cytoscape.js with a fully interactive graph:
+- **HTML ER cards** (header band in domain-group colour, `◆` PK / `→` FK glyphs, column types) drawn inside the graph via cytoscape-node-html-label
+- **draggable nodes** (edges follow), curved edges, pan/zoom, re-layout
+- **single-click** a table → spotlight it + its relationship chain; the **participating FK columns are highlighted inside the cards** (not as text on the lines)
+- **click a relationship line** → spotlight just its two joined tables, mark the join columns, and open a relationship summary (cardinality + `ON DELETE` + both columns)
+- **selectable highlight depth** (1 / 2 / 3 / All hops; default 1) for the chain
+- **hide/show individual entities** (card `×` to hide; sidebar eye or "show N hidden" to restore)
+- **find-path** between two tables (shortest FK chain, highlighted with join columns)
+- **schema insights** panel (missing PK, FK type mismatch, unindexed FK, orphan tables — click to jump to the table)
+- **shareable URL** (filters/selection encoded in the link) + **saved layout** (dragged positions persist per schema in localStorage)
+- **group hulls** (colored regions behind domain groups) + a **minimap** (click/drag to navigate)
+- **double-click** a table → details drawer (columns, types, PK/FK/audit badges, FK targets + `ON DELETE` rules, incoming references, indexes, row counts)
+- **crow's-foot cardinality** at edge ends (`1` / `N`, `1:1` when the FK is unique); edge **colour encodes `ON DELETE`** (CASCADE/SET NULL/NO ACTION)
+- **per-entity "show all columns"** expander (header `⊕` or the "+N more" row)
+- live search (tables + columns), domain-group filters, show/hide audit columns, show/hide framework tables, columns-on-nodes toggle
+- **collapsible left (filters) + right (details) sidebars**
+- **keyboard shortcuts** + a `?` help overlay (`/` search, `a`/`t`/`c`/`n` toggles, `[`/`]` panels, `f` fit, `g` re-layout, `+`/`-` zoom, `s` clear, `r` reset, `Esc`)
+
+By default it **inlines** Cytoscape (~450 KB total) so the file works fully offline; pass `--cdn`
+for a ~75 KB file that loads Cytoscape from jsdelivr.
+
+```bash
+# 1. introspect a Postgres DB into schema.json (psql; no python DB deps)
+psql "$DSN" -t -A -c "$(python3 $HOME/skills/skills/diagram/scripts/er_html.py --print-sql)" > schema.json
+
+# 2. (optional) write meta.json — domain groups, classifications, descriptions, framework_tables, audit_columns
+#    see the docstring in er_html.py for the shape
+
+# 3. generate the interactive ERD
+~/.claude/skills/.venv/bin/python3 $HOME/skills/skills/diagram/scripts/er_html.py \
+  --schema schema.json --meta meta.json -o erd.html        # self-contained (offline)
+  # add --cdn for a ~140 KB file that pulls Mermaid/svg-pan-zoom from jsdelivr
+```
+
+### DBML interop (dbdocs.io / dbdiagram.io)
+
+The generator round-trips with **DBML**:
+
+```bash
+# export our schema → DBML (no deps) — publish with `dbdocs build`, or paste into dbdiagram.io
+er_html.py --schema schema.json --meta meta.json --emit-dbml schema.dbml
+
+# import a .dbml → our schema JSON → interactive HTML (needs @dbml/core: npm i @dbml/core)
+node $HOME/skills/skills/diagram/scripts/dbml_to_schema.mjs schema.dbml > schema.json
+er_html.py --schema schema.json -o erd.html
+
+# extract a live DB straight to DBML with the official tool (alternative to our --print-sql):
+#   npm i -g @dbml/cli && db2dbml postgres '<conn>?schemas=public' -o schema.dbml
+```
+
+So: **DB → DBML** via our `--emit-dbml` (from introspected JSON) or `db2dbml`; **DBML → our HTML** via `dbml_to_schema.mjs`. The DBML carries tables, columns (pk/not null), `Ref … [delete: …]`, and domain `TableGroup`s.
+
+Schema JSON is DB-agnostic (any source that emits the documented shape works). `meta.json` is
+optional but recommended — it drives the colored domain groups, the write-pattern classification
+shown in the docs drawer, and which tables are hidden as "framework" by default. When to use this
+vs the image/SVG `er` type: **HTML** for living schema docs you click through and filter; **SVG**
+(`--type er --format svg --versioned`) for a static, diffable diagram in a PR/RFC.
 
 ## Setup
 
@@ -101,7 +163,8 @@ Get a key at <https://openrouter.ai/settings/keys>.
 | --- | --- | --- |
 | Architecture or C4 diagrams for PR/RFC review | `--format svg --versioned --engine skeleton` | Stable coordinates, crisp labels, deterministic spec + manifest. |
 | Workflow/process maps | `--type workflow --format svg --versioned` | Swimlane/stage-friendly layout with decision and handoff conventions. |
-| ERD/database design | `--type er --format svg --versioned` | Entities and relationships stay hand-editable and diffable. |
+| ERD/database design (static, diffable) | `--type er --format svg --versioned` | Entities and relationships stay hand-editable and diffable. |
+| Explorable/living DB docs (filter, search, per-table docs) | `er_html.py --schema … --meta …` | Self-contained interactive HTML ERD; no LLM/API key. |
 | Presentation or executive visuals | `--format png --preset pastel` | Higher visual richness; keep as scratch unless the image belongs in docs. |
 | Fast iteration on a draft | default scratch output or `--regen` | Avoids polluting docs until the shape stabilizes. |
 
