@@ -412,6 +412,7 @@ kbd{display:inline-block;min-width:18px;text-align:center;border:1px solid var(-
     <label class="toggle"><input type="checkbox" id="optAudit"/> Show audit columns</label>
     <label class="toggle"><input type="checkbox" id="optFramework"/> Show framework tables</label>
     <label class="toggle"><input type="checkbox" id="optDim" checked/> Dim unrelated on select</label>
+    <label class="toggle"><input type="checkbox" id="optFocus"/> Focus selected (hide others)</label>
     <label class="toggle"><input type="checkbox" id="optGroupAreas"/> Group areas (hulls)</label>
     <label class="toggle">Highlight depth <select id="optDepth" class="mini"><option value="1" selected>1 hop</option><option value="2">2 hops</option><option value="3">3 hops</option><option value="99">All</option></select></label>
     <h2>Find path</h2>
@@ -493,7 +494,8 @@ SCHEMA.forEach(t=>{if(!tgroup[t.table])tgroup[t.table]=FRAMEWORK.has(t.table)?"F
 if(!gcolor["Framework"])gcolor["Framework"]="#5a6878"; if(!gcolor["Other"])gcolor["Other"]="#8b98a8";
 const incoming={}; SCHEMA.forEach(t=>(t.fks||[]).forEach(f=>{(incoming[f.ref_table]=incoming[f.ref_table]||[]).push({from:t.table,...f});}));
 const ODCOL={CASCADE:"#ff7b72","SET NULL":"#79c0ff","NO ACTION":"#5a6878"};
-const state={audit:false,framework:false,cols:true,dim:true,depth:1,groupsOff:new Set(),expanded:new Set(),hidden:new Set(),sel:null,edge:null,path:null,groupAreas:false,q:""};
+const state={audit:false,framework:false,cols:true,dim:true,focus:false,depth:1,groupsOff:new Set(),expanded:new Set(),hidden:new Set(),sel:null,edge:null,path:null,groupAreas:false,q:""};
+let _focusSet=null;
 let HOT={};  // {table: Set(columns participating in the highlighted relationships)}
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 
@@ -581,10 +583,14 @@ function refreshClasses(){
   const set= state.path? new Set(state.path)
            : state.edge? new Set([state.edge.src,state.edge.tgt])
            : (state.sel&&state.dim)? relatedSet(state.sel,state.depth) : null;
+  // focus mode: when something is selected, HIDE everything except it + its related set
+  _focusSet = state.focus ? (state.path? new Set(state.path)
+           : state.edge? new Set([state.edge.src,state.edge.tgt])
+           : state.sel? relatedSet(state.sel,state.depth) : null) : null;
   cy.batch(()=>{
     cy.nodes().forEach(n=>{
       const t=n.id();
-      const gone=(!state.framework&&n.data('fw'))||state.groupsOff.has(tgroup[t])||state.hidden.has(t);
+      const gone=(!state.framework&&n.data('fw'))||state.groupsOff.has(tgroup[t])||state.hidden.has(t)||(_focusSet&&!_focusSet.has(t));
       n.toggleClass('gone',gone);  // canvas display:none → hides node + its edges
       const mq=!q||t.toLowerCase().includes(q)||byName[t].columns.some(c=>c.column.toLowerCase().includes(q));
       // drive card classes via node data so the html-label extension re-renders cards WITH them
@@ -699,7 +705,7 @@ function applySearch(){
 function updateStats(){
   const cols=SCHEMA.reduce((n,t)=>n+t.columns.length,0);
   const cons=new Set(); SCHEMA.forEach(t=>(t.fks||[]).forEach(f=>cons.add(f.constraint||t.table+'.'+f.column)));
-  const vis=SCHEMA.filter(t=>!((!state.framework&&FRAMEWORK.has(t.table))||state.groupsOff.has(tgroup[t.table])||state.hidden.has(t.table))).length;
+  const vis=SCHEMA.filter(t=>!((!state.framework&&FRAMEWORK.has(t.table))||state.groupsOff.has(tgroup[t.table])||state.hidden.has(t.table)||(_focusSet&&!_focusSet.has(t.table)))).length;
   const tl=vis===SCHEMA.length?`<b>${SCHEMA.length}</b> tables`:`<b>${vis}</b>/${SCHEMA.length} tables`;
   document.getElementById('stats').innerHTML=`<span>${tl}</span><span><b>${cols}</b> columns</span><span><b>${cons.size}</b> relationships</span>`;
 }
@@ -802,15 +808,15 @@ function openInsights(){
 }
 
 /* ---- shareable URL state ---- */
-function serialize(){ return {a:+state.audit,f:+state.framework,c:+state.cols,dm:+state.dim,dp:state.depth,ga:+state.groupAreas,go:[...state.groupsOff],hd:[...state.hidden],ex:[...state.expanded],sel:state.sel}; }
+function serialize(){ return {a:+state.audit,f:+state.framework,c:+state.cols,dm:+state.dim,fo:+state.focus,dp:state.depth,ga:+state.groupAreas,go:[...state.groupsOff],hd:[...state.hidden],ex:[...state.expanded],sel:state.sel}; }
 let _hashT=null;
 function writeHash(){ clearTimeout(_hashT); _hashT=setTimeout(()=>{ try{ history.replaceState(null,'','#s='+encodeURIComponent(JSON.stringify(serialize()))); }catch(e){} },250); }
 function readHash(){ try{ const m=(location.hash||'').match(/s=([^&]+)/); return m?JSON.parse(decodeURIComponent(m[1])):null; }catch(e){ return null; } }
 function applyState(s){ if(!s)return;
-  state.audit=!!s.a;state.framework=!!s.f;state.cols=s.c!==0;state.dim=s.dm!==0;state.depth=s.dp||1;state.groupAreas=!!s.ga;
+  state.audit=!!s.a;state.framework=!!s.f;state.cols=s.c!==0;state.dim=s.dm!==0;state.focus=!!s.fo;state.depth=s.dp||1;state.groupAreas=!!s.ga;
   state.groupsOff=new Set(s.go||[]);state.hidden=new Set(s.hd||[]);state.expanded=new Set(s.ex||[]);state.sel=s.sel||null;
   $('optAudit').checked=state.audit;$('optFramework').checked=state.framework;$('optCols').checked=state.cols;
-  $('optDim').checked=state.dim;$('optDepth').value=String(state.depth);$('optGroupAreas').checked=state.groupAreas; }
+  $('optDim').checked=state.dim;$('optFocus')&&($('optFocus').checked=state.focus);$('optDepth').value=String(state.depth);$('optGroupAreas').checked=state.groupAreas; }
 
 /* ---- saved layout (localStorage, per schema) ---- */
 const LKEY='erd-pos:'+(META.title||'db');
@@ -884,6 +890,7 @@ $('optCols').addEventListener('change',e=>{state.cols=e.target.checked;renderCar
 $('optAudit').addEventListener('change',e=>{state.audit=e.target.checked;renderCards();});
 $('optFramework').addEventListener('change',e=>{state.framework=e.target.checked;refreshClasses();buildSidebar();});
 $('optDim').addEventListener('change',e=>{state.dim=e.target.checked;refreshClasses();});
+$('optFocus').addEventListener('change',e=>{state.focus=e.target.checked;refreshClasses();});
 $('optDepth').addEventListener('change',e=>{state.depth=+e.target.value; if(state.sel)select(state.sel,false);});
 $('optGroupAreas').addEventListener('change',e=>{state.groupAreas=e.target.checked; drawHulls(); writeHash();});
 $('grpAll')&&$('grpAll').addEventListener('click',()=>{state.groupsOff.clear();refreshClasses();buildSidebar();});
