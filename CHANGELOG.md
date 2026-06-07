@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.22.0](https://github.com/vanducng/skills/compare/v0.21.1...v0.22.0) (2026-06-07)
+
+
+### Features
+
+* **diagram:** add MySQL introspection to er_html.py ER generator ([#102](https://github.com/vanducng/skills/issues/102)) ([a78a966](https://github.com/vanducng/skills/commit/a78a96615a4c8c63875141e8a5ac6377bbe8c518))
+
 ## [0.21.1](https://github.com/vanducng/skills/compare/v0.21.0...v0.21.1) (2026-06-07)
 
 
