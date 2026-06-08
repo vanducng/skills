@@ -34,7 +34,7 @@ Plan converts a *decided* approach into a *sequenced* implementation. If the app
 
 | Mode | When | Output |
 |---|---|---|
-| `--quick` | Single-file change, bug fix, tight scope (<3 phases) | One file: `plans/{date}-{slug}/plan.md` with inline steps |
+| `--quick` | Single-file change, bug fix, tight scope (<3 phases) | One file: `{plans-path}/{date}-{slug}/plan.md` with inline steps |
 | **default** | Standard feature, 3-7 phases | `plan.md` overview + `phase-XX-{name}.md` per phase |
 | `--deep` | High-risk, multi-system, irreversible | Default output + research dispatch (Phase 2) + red-team review (Phase 6) + independent audit (Phase 7) |
 
@@ -98,8 +98,10 @@ Sketch the dependency graph in your reply (text or mermaid) before writing files
 
 ### Directory layout
 
+Write to the injected path (`.work/plans/` when the project is migrated, else legacy `plans/`); when reading prior artifacts, check both.
+
 ```
-plans/{YYYYMMDD-HHMM}-{slug}/
+{plans-path}/{YYYYMMDD-HHMM}-{slug}/
   plan.md
   decisions.md          # OPTIONAL — non-goals, trade-offs, accepted constraints. Write only if user stated any.
   phase-01-{verb-noun}.md
@@ -107,7 +109,7 @@ plans/{YYYYMMDD-HHMM}-{slug}/
   ...
 ```
 
-Use the date/slug pattern injected by session hooks (`## Naming` block). If unavailable, fall back to `plans/{YYYYMMDD-HHMM}-{slug}/`.
+Use the date/slug pattern injected by session hooks (`## Naming` block).
 
 ### `decisions.md` template (write only if non-goals/trade-offs were stated)
 

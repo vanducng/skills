@@ -78,8 +78,8 @@ Same shape as `runtimes/claude-code.md`. The executor's first decision branches 
 ```
 if $1 is empty (bare `vd:ultracook`):
   # Resume mode — auto-detect most recent in-progress goal-dir.
-  goal_dir = find ./plans/goals/* -maxdepth 1 -type d \
-             | sort -r \
+  # Scans BOTH <state-base> ($CK_STATE_PATH → <git-root>/.work/state → plans/goals) AND legacy.
+  goal_dir = scan [state_base, "plans/goals"] dedup sort-r \
              | while read d; do
                  if jq -e '.terminal == null' "$d/state.json" >/dev/null 2>&1; then
                    echo "$d"; break

@@ -199,16 +199,12 @@ All presets share the same iconography, line weights, density limits, and label-
 
 ## Output location
 
-- Inside a git repo → `<git-root>/.diagrams/<YYYYMMDD-HHMM>-<slug>/`
-- Outside a git repo → `~/Documents/llm-diagrams/<cwd-basename>-<YYYYMMDD-HHMM>-<slug>/`
-- With `--versioned` → `<git-root>/docs/diagrams/<slug>/`
+Scratch (non-versioned) output: write to the injected path (`.work/visuals/` when the project is migrated, else legacy `<git-root>/.diagrams/`); when reading prior artifacts, check both. Each session gets a `<YYYYMMDD-HHMM>-<slug>/` subdir.
 
-Inside a git repo, `<git-root>/.diagrams/.gitignore` is auto-created on first run with:
-```
-*
-!.gitignore
-```
-That ignores every artifact while keeping the gitignore itself tracked. Your repo's root `.gitignore` is never touched.
+- Outside a git repo → `~/Documents/llm-diagrams/<cwd-basename>-<YYYYMMDD-HHMM>-<slug>/`
+- With `--versioned` → `<git-root>/docs/diagrams/<slug>/` (always; versioned diagrams stay in `docs/`)
+
+Inside a git repo, scratch output is auto-ignored by the gitignore managed in the session dir. Your repo's root `.gitignore` is never touched.
 
 Each session dir contains:
 - `v1.<png|svg>`, `v2.<png|svg>`, … — the variants

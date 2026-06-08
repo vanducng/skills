@@ -466,7 +466,12 @@ def _resolve_parent_dir(versioned: bool = False) -> Path:
         if git_root is None:
             raise RuntimeError("--versioned requires running inside a git repository")
         return git_root / "docs" / "diagrams"
+    ck_visuals = os.environ.get("CK_VISUALS_PATH", "")
+    if ck_visuals:
+        return Path(ck_visuals)
     git_root = find_git_root()
+    if git_root and (git_root / ".work").exists():
+        return git_root / ".work" / "visuals"
     if git_root:
         return git_root / ".diagrams"
     return Path.home() / "Documents" / "llm-diagrams" / Path.cwd().name

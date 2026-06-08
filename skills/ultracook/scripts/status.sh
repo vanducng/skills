@@ -31,30 +31,52 @@ done
 
 PYBIN="${HOME}/.claude/skills/.venv/bin/python3"; [ -x "$PYBIN" ] || PYBIN="$(command -v python3)"
 
+# Resolve state bases: $CK_STATE_PATH → <git-root>/.work/state (if .work) → plans/goals.
+# Returns newline-separated list of glob patterns (may include both new + legacy).
+_state_globs() {
+  if [ -n "${CK_STATE_PATH:-}" ]; then
+    echo "${CK_STATE_PATH}/*/state.json"
+    return
+  fi
+  REPO_ROOT_S="$(git rev-parse --show-toplevel 2>/dev/null || echo '')"
+  if [ -n "$REPO_ROOT_S" ] && [ -d "${REPO_ROOT_S}/.work" ]; then
+    echo "${REPO_ROOT_S}/.work/state/*/state.json"
+  fi
+  # Always include legacy so read-either works.
+  echo "plans/goals/*/state.json"
+}
+
 # --all / --list: enumerate every goal-dir (#66 multi-goal disambiguation).
 # Exit 0 if any in-progress goal exists, else 4.
 if [ "$ALL" -eq 1 ]; then
-  "$PYBIN" - <<'PY'
-import os, json, glob, time, datetime
-rows, inprog = [], 0
-for sj in sorted(glob.glob("plans/goals/*/state.json")):
-    gd = os.path.dirname(sj)
-    try: s = json.load(open(sj))
-    except Exception: continue
-    g = {}
-    gy = os.path.join(gd, "goal.yaml")
-    if os.path.exists(gy):
-        try:
-            import yaml; g = yaml.safe_load(open(gy)) or {}
-        except Exception: g = {}
-    term = s.get("terminal") or "in-progress"
-    if term == "in-progress": inprog += 1
-    last = (s.get("last_action_result") or {}).get("action", "-")
-    age_d = (time.time() - os.path.getmtime(sj)) / 86400
-    rows.append((os.path.basename(gd), g.get("slug", "?"), term,
-                 f"{age_d:.1f}d", s.get("iteration_count", 0), last))
+  mapfile -t _GLOBS < <(_state_globs)
+  _UC_GLOBS="$(printf '%s\n' "${_GLOBS[@]}")" "$PYBIN" - <<'PY'
+import os, json, glob, time
+
+patterns = [l for l in os.environ.get("_UC_GLOBS", "").splitlines() if l.strip()]
+seen, rows, inprog = set(), [], 0
+for pat in patterns:
+    for sj in sorted(glob.glob(pat)):
+        gd = os.path.dirname(sj)
+        if gd in seen:
+            continue
+        seen.add(gd)
+        try: s = json.load(open(sj))
+        except Exception: continue
+        g = {}
+        gy = os.path.join(gd, "goal.yaml")
+        if os.path.exists(gy):
+            try:
+                import yaml; g = yaml.safe_load(open(gy)) or {}
+            except Exception: g = {}
+        term = s.get("terminal") or "in-progress"
+        if term == "in-progress": inprog += 1
+        last = (s.get("last_action_result") or {}).get("action", "-")
+        age_d = (time.time() - os.path.getmtime(sj)) / 86400
+        rows.append((os.path.basename(gd), g.get("slug", "?"), term,
+                     f"{age_d:.1f}d", s.get("iteration_count", 0), last))
 if not rows:
-    print("no goals under ./plans/goals/"); raise SystemExit(4)
+    print("no goals found"); raise SystemExit(4)
 print(f"{'goal-dir':<46} {'state':<11} {'age':>6} {'iter':>4} last-action")
 print("-" * 86)
 for gd, slug, term, age, it, last in rows:
@@ -65,15 +87,23 @@ PY
   exit $?
 fi
 
-# Auto-detect: most recent plans/goals/*/ with terminal=null.
+# Auto-detect: most recent state.json with terminal=null, scanning both bases.
 if [ -z "$GOAL_DIR" ]; then
   candidates=()
-  for d in plans/goals/*/; do
-    [ -d "$d" ] || continue
-    if [ -f "$d/state.json" ]; then candidates+=("$d"); fi
+  mapfile -t _GLOBS < <(_state_globs)
+  for pat in "${_GLOBS[@]}"; do
+    # Expand glob manually (avoids issues when no match).
+    for sj in $pat; do
+      d="$(dirname "$sj")"
+      [ -d "$d" ] || continue
+      [ -f "$d/state.json" ] || continue
+      candidates+=("$d")
+    done
   done
+  # Deduplicate (in case legacy and new-base resolve to same path).
+  IFS=$'\n' candidates=($(printf '%s\n' "${candidates[@]}" | sort -u))
   if [ "${#candidates[@]}" -eq 0 ]; then
-    echo "status.sh: no goal-dir found under ./plans/goals/" >&2
+    echo "status.sh: no goal-dir found (checked: ${_GLOBS[*]})" >&2
     exit 4
   fi
   # Sort by name (timestamp-prefix → most recent last).
