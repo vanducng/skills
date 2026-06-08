@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.30.0](https://github.com/vanducng/skills/compare/v0.29.0...v0.30.0) (2026-06-08)
+
+
+### Features
+
+* adopt .work/ artifact umbrella across skills ([#129](https://github.com/vanducng/skills/issues/129)) ([9c26280](https://github.com/vanducng/skills/commit/9c26280f351a21cf391aa046eadbe72a1745757f))
+
 ## [0.29.0](https://github.com/vanducng/skills/compare/v0.28.1...v0.29.0) (2026-06-08)
 
 
