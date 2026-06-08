@@ -712,8 +712,10 @@ function updateStats(){
 function focusNode(name){ if(!cy)return; const n=cy.$('#'+CSS.escape(name)); if(n.nonempty()) cy.animate({center:{eles:n},zoom:Math.max(cy.zoom(),0.85)},{duration:250}); }
 
 /* ---- cytoscape ---- */
+// fit, but keep the initial zoom legible — fit-to-all on a spread layout can zoom so far out that card columns become unreadable
+function fitView(){ cy.fit(undefined,45); const z=cy.zoom(), c=Math.max(0.55,Math.min(1.1,z)); if(c!==z) cy.zoom({level:c,renderedPosition:{x:cy.width()/2,y:cy.height()/2}}); }
 function runLayout(){ cy.layout({name:'cose',animate:false,padding:50,nodeRepulsion:14000,idealEdgeLength:190,
-  nodeDimensionsIncludeLabels:true,randomize:true,componentSpacing:140,gravity:0.25}).run(); cy.fit(undefined,45); }
+  nodeDimensionsIncludeLabels:true,randomize:true,componentSpacing:140,gravity:0.25}).run(); fitView(); }
 function boot(){
   updateStats();
   applyState(readHash());
@@ -732,7 +734,7 @@ function boot(){
   cy.nodeHtmlLabel([{query:'node', halign:'center', valign:'center', halignBox:'center', valignBox:'center',
     tpl:d=>`<div class="erd-card ${d.cls||''}" data-tbl="${d.name}" style="--c:${d.color}"><div class="erd-h"><span class="erd-dot"></span><span class="erd-name" title="${esc(d.name)}">${esc(d.name)}</span><span class="erd-meta" title="${esc(d.metaTitle||'')}">${d.meta}</span><span class="erd-ex erd-exp" data-tbl="${d.name}" title="show all columns">${d.expanded?'⊖':'⊕'}</span><span class="erd-ex erd-hide" data-tbl="${d.name}" title="hide entity">×</span></div>${d.cols?`<div class="erd-cols">${d.cols}</div>`:''}</div>`}]);
   const saved=loadPositions();
-  if(saved){ cy.batch(()=>cy.nodes().forEach(n=>{const p=saved[n.id()]; if(p)n.position({x:p[0],y:p[1]});})); cy.fit(undefined,45); }
+  if(saved){ cy.batch(()=>cy.nodes().forEach(n=>{const p=saved[n.id()]; if(p)n.position({x:p[0],y:p[1]});})); fitView(); }
   else runLayout();
   let tapT=null,lastId=null;
   cy.on('tap','node',e=>{ const id=e.target.id();
