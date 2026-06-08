@@ -386,10 +386,19 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
      -q 'if .squashMergeAllowed then "--squash" elif .rebaseMergeAllowed then "--rebase" else "--merge" end')
    gh pr merge "$PR_NUMBER" --auto $STRATEGY --delete-branch
    ```
-2. If `gh pr merge --auto` is rejected (auto-merge disabled at repo level):
-   - Re-check mergeability: `gh pr view "$PR_NUMBER" --json mergeable -q .mergeable`.
-   - `MERGEABLE` → immediate merge: `gh pr merge "$PR_NUMBER" $STRATEGY --delete-branch`.
-   - Otherwise → print the PR URL and exit cleanly; user merges manually.
+2. If `gh pr merge --auto` is rejected (auto-merge disabled at repo level), the
+   merge becomes immediate — so re-confirm **CI is green** (not just conflict-free)
+   right before merging (`mergeable` reports conflicts, not CI status):
+   ```bash
+   CI=$(gh pr checks "$PR_NUMBER" --json state -q '[.[].state] | unique | join(",")' 2>/dev/null || echo "")
+   MERGEABLE=$(gh pr view "$PR_NUMBER" --json mergeable -q .mergeable)
+   ```
+   - `CI` is empty (no checks) **or** every state is `SUCCESS`/`COMPLETED`, **and**
+     `MERGEABLE` → immediate merge: `gh pr merge "$PR_NUMBER" $STRATEGY --delete-branch`.
+   - `CI` contains `FAILURE`/`ERROR`/`PENDING`/`IN_PROGRESS` → do **not** merge;
+     print the failing/pending checks + PR URL and exit (honor an explicit
+     "Merge anyway" only if the user picked it in Step 15).
+   - Not mergeable → print the PR URL and exit cleanly; user merges manually.
 3. Output: `Auto-merge queued: <PR URL>` (or `Merged: <PR URL>` for immediate).
 
 ## `--auto` gate behavior

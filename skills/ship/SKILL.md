@@ -79,6 +79,14 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
    `gh pr create` or `gh pr edit`. If the repo has a PR template, fill that
    template only. Otherwise use the canonical fallback body. Do not invent
    `Summary` / `Validation` / ad hoc PR bodies.
+11. **CI green is a merge precondition.** Step 15 watches CI in every mode. Never
+   merge — or report the ship as done — while checks are **failing or still
+   pending**. The only ways past a non-green state are an explicit user
+   *"Merge anyway"*, or `--auto`'s `gh pr merge --auto` (which queues and merges
+   **only when CI turns green**). When falling back to an immediate merge (repo
+   auto-merge disabled), re-confirm CI state is `SUCCESS` **first** — GitHub's
+   `mergeable` field reports merge *conflicts*, not CI status, so it is not a
+   substitute for a green-CI check.
 
 ## Pipeline
 
