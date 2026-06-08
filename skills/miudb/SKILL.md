@@ -35,17 +35,16 @@ Do not use `sqlit` for miudb tasks.
 ## Install/verify
 
 ```bash
-brew install vanducng/tap/miudb
-miudb version --output json
+brew install vanducng/tap/miudb   # first install
+miudb upgrade                      # self-update to the latest release
+miudb version --output json        # v0.8.0 or newer
 miudb commands --output json
 ```
 
-If `miudb version` reports older than `v0.2.0-go.9` or the command catalog
-lacks `mcp serve`, install the tagged Go binary or build from the local
-checkout.
+If the catalog lacks a command you need, run `miudb upgrade`, or build from the
+local checkout:
 
 ```bash
-go install github.com/vanducng/miu-db/cmd/miudb@v0.2.0-go.9
 cd /Users/vanducng/git/personal/miu-db
 go build -buildvcs=false -o ./.miu-db/miudb ./cmd/miudb
 ```
@@ -84,10 +83,13 @@ miudb describe query run --output json
 miudb describe connections smoke --output json
 miudb describe mcp serve --output json
 miudb connections list --output json
+miudb connections list --basic --output json   # scannable: ref/name/group/db_type/host
 ```
 
-If the named connection is not listed, stop and ask the user. Do not
-substitute a similar connection.
+Connections are addressed by **`group/name`** (e.g. `cnb/cdljn-prod`); a bare
+`name` works when it is unique across groups. The `ref` column from `--basic` is
+exactly what to pass to `--connection`/`-c`. If the named connection is not
+listed, stop and ask the user. Do not substitute a similar connection.
 
 ## Add connections
 
@@ -305,10 +307,15 @@ miudb query run --connection <conn> --sql "PRAGMA table_info('table_name')" --ou
 
 ```bash
 # interactive offline index.html + schema.json + schema.dbml (default --format html)
-miudb erd generate --connection <CONN> --out-dir .diagrams/<CONN>-erd --output json
-# serve it in the browser (loopback HTTP); --from <dir|schema.json> renders an existing export, no DB
-miudb erd serve --connection <CONN> --output json
+miudb erd generate -c <group/name> --out-dir .diagrams/<name>-erd --output json
+# serve it; auto-opens the browser for an interactive terminal (--no-open to suppress);
+# --from <dir|schema.json> renders an existing export with no DB
+miudb erd serve -c <group/name> --output json
 ```
+
+Short flags on every `erd` command: `-c`/`--connection`, `-s`/`--schema`,
+`-m`/`--meta`, `-f`/`--format`, `-p`/`--port`. A connection with no default
+database (e.g. a server-level DSN) errors with a clear "pass --schema" hint.
 
 Two layers:
 - **Deterministic (miudb):** introspect -> `schema.json` (the render source-of-truth) -> DBML + HTML. No LLM.
@@ -327,6 +334,8 @@ Two layers:
 Single-pass works: stub -> fill -> generate. Aim to leave 0 tables ungrouped (the renderer buckets ungrouped non-framework tables as "Other").
 
 **Worked example (a ~100-table SaaS schema):** the stub detects the framework tables; the FK hubs (a high-degree `users`/`accounts` table, a few central domain tables) plus name prefixes map cleanly to ~6-8 domains (e.g. Catalog, Orders, Billing, Analytics, Content, Auth) — grouping every non-framework table with colors + hub descriptions in one pass. Use generic examples; never paste real connection/schema names into the diagram metadata you commit.
+
+**Viewer (the rendered `index.html`):** click a table to spotlight its FK chain; **Focus** (View options) hides everything except the selected table + its relations — best for reading a dense schema; **DBML** (toolbar) shows the dbdiagram.io/dbdocs source with Copy; Domain Groups has **all**/**clear**; the header shows live visible/total counts; hover truncated names for the full value. Initial zoom is clamped so columns stay legible — the **Fit** button zooms to the whole graph. State (filters/selection) is encoded in the share URL.
 
 ## Stdio protocol
 
@@ -387,8 +396,10 @@ Use `--since` to filter by relative duration (e.g. `24h`, `7d`); omit to read al
 - stderr is diagnostics only.
 - `ok: false` is a structured failure, not necessarily a shell failure.
 - Command descriptions are available via `miudb describe <command>`.
-- Connection output redacts secrets; do not inspect credential stores unless
-  the user explicitly asks.
+- Output is secret-hardened: credential-named values, password-bearing URLs, and
+  `key=secret` assignments are redacted before stdout (`connections list` shows
+  `has_password: true`, never the value). Query-result *values* are NOT masked —
+  they're the user's data. Do not inspect credential stores unless asked.
 - The command catalog currently includes `connections test`, `mcp serve`, and
   the native `serve` protocol; choose the narrowest command that matches the
   user's use case.
