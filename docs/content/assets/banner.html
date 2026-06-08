@@ -21,7 +21,7 @@
   html, body { background: #000; }
   .banner {
     width: 1280px;
-    height: 440px;
+    height: 320px;
     position: relative;
     overflow: hidden;
     background: var(--bg);
@@ -30,8 +30,9 @@
     text-rendering: optimizeLegibility;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    padding: 56px 72px 52px;
+    justify-content: center;
+    gap: 36px;
+    padding: 0 72px;
   }
   /* ambient glows */
   .banner::before {
@@ -143,8 +144,8 @@
     color: #c9c8ff;
   }
   .arrow { color: var(--accent); font-size: 20px; font-weight: 600; }
-  .meta { color: var(--faint); font-size: 15px; letter-spacing: -0.1px; }
-  .meta b { color: var(--muted); font-weight: 510; }
+  .meta { color: var(--muted); font-size: 15px; letter-spacing: -0.1px; }
+  .meta b { color: var(--silver); font-weight: 510; }
 </style>
 </head>
 <body>
@@ -172,7 +173,6 @@
           <span class="pill accent">ship</span>
         </div>
       </div>
-      <div class="meta"><b>managed with the vd CLI</b> &nbsp;·&nbsp; skills.vanducng.dev</div>
     </div>
   </div>
 </body>
