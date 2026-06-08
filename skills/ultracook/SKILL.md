@@ -1,206 +1,107 @@
 ---
 name: ultracook
-description: "Run a disciplined multi-agent workflow for serious coding tasks: classify, plan, packetize, delegate when it helps, integrate, and verify. Use when the user types ultracook, $ultracook, ultra cook, or asks for a dynamic/multi-agent/subagent/parallel workflow, agent swarm, 'delegate this', 'split this across agents', or an independent verification pass. In Claude Code, maps directly onto the native Workflow tool and Task/Agent subagents and routes packet work through the vd: skill stack."
+description: "Dynamic workflow conductor. Classifies a coding task, picks the smallest viable workflow — direct, pipeline (brainstorm → plan → cook → ship), or parallel fan-out — stays interactive until a gate clears, then runs autonomously to verified done. Dual-runtime (Claude Code + Codex) with on-disk resumable state and hard guardrails. Use when the user types ultracook / $ultracook, asks to orchestrate, run the whole pipeline, drive a feature/fix/migration end-to-end, or split work across agents."
 license: MIT
+argument-hint: "[<short goal> | resume | status | kill --reason <text> | resolve <goal-dir>] [--reuse] [--manual | --semi | --auto]"
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.4.0"
 ---
 
-# Ultracook
+# Ultracook — dynamic workflow conductor
 
-A disciplined operating procedure for work that needs planning, packetization, agent delegation, integration, and verification. Use the smallest workflow that can prove the result — no ceremony for small tasks.
+`vd:ultracook` is the conductor over the `vd:` skill stack. Given a task it does two
+things, in order: **classify** it and pick the smallest viable workflow (the
+*conductor*), then run it through the right runtime primitives (the *router*). It
+composes existing skills — it never reimplements `vd:plan`, `vd:cook`, `vd:ship`, etc.
 
-This is a skill, not a runtime: no bundled runner, no hidden scripts. It tells the current agent *how* to orchestrate using whatever primitives the host exposes. The host's own system rules and tools always win.
+The spine is **brainstorm → plan → cook → ship**, but ultracook runs only the slice a
+task earns: a typo goes `direct` (no machinery); a feature goes `pipeline`
+(intake → executor, gating at high-blast transitions, then autonomous); a repo-wide
+migration goes `fan-out` (parallel packets). It stays human-in-the-loop until a gate
+clears, then drives autonomously to a terminal state, with state on disk so it
+resumes across context compaction.
 
-## Contract
+This file is the entry point. It runs triage, detects the runtime (Claude Code or
+Codex), and dispatches to the adapter under `runtimes/`.
 
-- This is a user-authored skill, not an official Anthropic/OpenAI/Google feature. Don't claim otherwise.
-- No bundled runtime or required scripts — orchestrate with native host tools and plain Markdown/JSON artifacts.
-- Treat an explicit `ultracook`, `$ultracook`, or "ultra cook" request as permission to choose **delegated mode** when the host allows it.
-- Don't commit, push, publish, or deploy unless the user explicitly asks (then `vd:ship` / `vd:git`).
-- In Claude Code, prefer the native **Workflow** tool for real fan-out/pipeline work and **Task/Agent** subagents for ad-hoc parallel packets. In other hosts, use the closest native primitive; if none exists, fall back to workflow-mode artifacts and say so.
+## Quick reference
 
-## First pass — classify
+| Form | Action |
+|---|---|
+| `vd:ultracook "<goal>"` | New goal — intake → goal.yaml + state.json → executor loop |
+| `vd:ultracook` (no args) | Resume — auto-detect most recent in-progress goal-dir, skip intake, jump to executor |
+| `vd:ultracook status [--all]` | One-screen status; `--all`/`--list` enumerates every goal-dir (scripts/status.sh) |
+| `vd:ultracook kill --reason "<text>"` | Write terminal=abandoned + cancel.sentinel (scripts/kill.sh — runtime-agnostic) |
+| `vd:ultracook resolve <goal-dir>` | Dry-run the resolved workflow (scripts/resolve-workflow.sh — runtime-agnostic) |
+| `vd:ultracook install-hooks [--apply\|--uninstall]` | Register Codex hooks in `~/.codex/config.toml` (scripts/install-hooks.sh) |
 
-Before acting, classify the task:
+Flags: `--reuse` (no worktree), `--manual` / `--semi` (default) / `--auto` (autonomy). CI/exec: `--target-kind` `--action-shape` `--autonomy` (+`--branch` `--reuse-worktree`) with `ULTRACOOK_EXEC=1` skip intake.
 
-- **type**: research, code change, bug fix, migration, audit, docs, design, QA, release
-- **risk**: low, medium, high
-- **blast radius**: single file, module, repo-wide, external system
-- **verification**: none, command, tests, build, browser, manual checklist
-- **delegation**: useful, not useful, allowed by host, blocked by environment
+## Conductor — classify first
 
-Then choose one mode.
+Before any dispatch, classify the task and pick a **mode** (how much workflow) and an
+**autonomy** (how often to gate). Full heuristics + gate map in
+[`references/conductor.md`](references/conductor.md); the short form:
 
-## Modes
+| Mode | Pick when | What runs |
+|---|---|---|
+| `direct` | trivial, clear, single-surface, reversible | do it inline — **no goal-dir** — narrowest check, report |
+| `pipeline` | real feature/fix, phases, uncertainty, blast radius | intake → executor (brainstorm/plan/cook/ship slice) → `vd:auto-loop` → verify |
+| `fan-out` | repo-wide / migration / N-finder audit, independent packets | parallel packets via the runtime's native primitive; parent owns integration |
 
-### Direct mode
+Sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) and bare resume skip triage —
+they go straight to their scripts. `direct` mode finishes here without touching the
+executor. `pipeline` and `fan-out` continue to runtime dispatch below.
 
-Small, clear tasks that don't benefit from packets: answer a narrow question, inspect one file, run one command, fix a typo, change one small function.
+**Progressive autonomy:** `semi` (default) gates the first `plan`, `ship`, and final
+`verify_*`, then runs autonomously; re-gate only on exceptions (unrelated test
+failure, merge conflict, non-auto-fixable error). Hard gates (delete, deploy,
+migration, secrets, broad codemod, expensive fan-out) always ask, even in `auto`.
 
-- Do the task directly. No artifacts unless asked.
-- Verify with the narrowest useful check.
-- Mention the full workflow wasn't needed only when useful.
+## Runtime dispatch
 
-### Workflow mode
+1. Run `bash scripts/detect-runtime.sh`. Output is `claude-code`, `codex`, or `codex-exec`.
+2. If exit 3 (unknown — no env signals + no CLI on PATH): print "Cannot detect runtime. Set `ULTRACOOK_RUNTIME` env var explicitly."
+3. Else follow the runtime body:
+   - `claude-code` → see `runtimes/claude-code.md`
+   - `codex` → see `runtimes/codex.md` (interactive TUI — intake via `ask_user_question`)
+   - `codex-exec` → `runtimes/codex.md` in **CI / non-interactive mode**: skip interactive intake. Read default-answer flags (`--target-kind`, `--action-shape`, `--autonomy`; optional `--branch`, `--reuse-worktree`) into `ULTRACOOK_*` env, then `bash scripts/intake-complete.sh`. If it prints `ready` → call `init-goal.sh` directly. If `missing:`/`invalid:` → refuse with that exact line; never silently fall back to interactive intake.
 
-Multiple phases, meaningful uncertainty, or enough risk to separate work packets — but native delegation is unavailable or not warranted: broad audit, research + plan, multi-step refactor, feature with discovery/implementation/verification.
+`codex-exec` is an explicit exec contract: set `ULTRACOOK_EXEC=1` (or `ULTRACOOK_RUNTIME=codex-exec`). detect-runtime.sh never infers exec from TTY/process state — no env var distinguishes `codex exec` from `codex` TUI in codex-cli. When both Claude and Codex env signals are present, detection assumes `claude-code` (CODEX_SESSION_ID leaks via `inherit=all`); override with `ULTRACOOK_RUNTIME=codex`.
 
-- Create a run directory (see [Run root](#workflow-artifacts)).
-- Write `plan.md`, `orchestration.md`, `state.json`, packet files, result notes, `integration.md`, `final-report.md`.
-- Execute packets as isolated passes in the parent session.
-- Integrate all results before final verification.
+The sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) short-circuit the runtime dispatch — they invoke `scripts/<sub-verb>.sh` directly because those scripts are runtime-agnostic.
 
-### Delegated mode
+## Hard rules (apply across both runtimes)
 
-The host exposes native delegation, the task has independent packets, and delegation is permitted. An explicit `ultracook` invocation is delegation permission when the host lets the skill choose depth.
+1. **State on disk is source of truth.** `plans/goals/{slug}/goal.yaml` + `state.json` survive context compaction. The Phase 5 keystone test proves goals are portable across runtimes via state.json — same goal can be started on one runtime and finished on the other.
+2. **Loop primitive = `vd:auto-loop` (Stop hook on Claude / `--codex` → native `/goal` on Codex).** Not `ScheduleWakeup`. Monitor is only for event-driven async waits.
+3. **No auto-merge on the skills repo.** `vd:ship official` (no `--auto`).
+4. **Closed-set verifier vocabulary + `shell` escape.** Six built-ins + `shell`.
+5. **Two verifier layers.** Per-action verifiers (cook iteration) vs workflow-level `target.verifiers` (verify_* phases). Never mix.
+6. **Hard guardrails.** Global iter cap (30), per-phase retry caps (3 rebases, 2 CI reruns), same-signature failure recognizer, token-cap prompt-back at 80%.
+7. **Composes existing `vd:*` skills** — never reimplements.
 
-- Create orchestration artifacts **before** delegating.
-- Keep the immediate blocking task in the parent session.
-- Delegate bounded, non-blocking sidecar work — prefer it for read-heavy exploration, tests, triage, summarization.
-- Use write-capable agents only when file ownership is disjoint and explicit.
-- Tell write agents: *you are not alone in the codebase; do not revert others' edits; adapt to nearby changes.*
-- Wait only when a delegated result blocks the next parent step. Integrate before final verification.
+## Architecture
 
-If native delegation is unavailable, fall back to workflow mode and say so briefly.
-
-## Host delegation primitives
-
-| Host | Preferred primitive | Notes |
-| --- | --- | --- |
-| **Claude Code** | `Workflow` tool for deterministic fan-out/pipeline; `Task`/`Agent` subagents for ad-hoc parallel packets | Invoking `ultracook` opts the session into the Workflow tool (its instructions authorize that call). See [Claude Code mapping](#claude-code-mapping). |
-| Codex | `spawn_agent` → `wait_agent`/`send_input`/`close_agent` | `explorer` for read-only packets, `worker` for bounded write packets. Self-contained prompts; don't pair an agent type with a full-history fork. |
-| Other hosts | Closest native agent/task primitive | Never invent a runner. Fall back to workflow-mode artifacts when none exists. |
-
-## Claude Code mapping
-
-In Claude Code, don't reinvent orchestration — drive the native primitives and route packets through the `vd:` stack.
-
-**Pick the delegation primitive:**
-
-- **`Workflow` tool** — when packets form a fan-out or multi-stage pipeline, need adversarial/independent verification, or exceed one context (repo-wide audit, migration over many sites, N-finder review). Use `pipeline()` by default; reserve `parallel()` barriers for genuine cross-item joins. This is the heavy primitive invoking `ultracook` unlocks.
-- **`Task`/`Agent` subagents** — for a handful of independent packets you launch and integrate yourself (parallel exploration, one-off write packets with disjoint ownership). Send independent agents in a single message so they run concurrently. Use specialized subagent types (`Explore`, `code-reviewer`, `tester`, `researcher`) when they fit.
-
-**Route packets to existing skills instead of hand-rolling the phase:**
-
-| Packet intent | Route to |
-| --- | --- |
-| Locate files / map the surface | `vd:scout` (or `Explore` subagents) |
-| Deep technical research / option eval | `vd:research`, `vd:brainstorm` |
-| Turn an approach into a phased plan | `vd:plan` (writes `plans/<slug>/`); `vd:plan-audit` to verify it |
-| Execute a plan phase-by-phase | `vd:cook` |
-| Diagnose a failure to root cause | `vd:debug`, `vd:fix` |
-| Run tests / verify the change | `vd:cook` (verify phase), `vd:debug` on failure |
-| Review the diff before landing | `vd:code-review`, `vd:security` |
-| Land the branch (only when asked) | `vd:ship`, `vd:git` |
-| Autonomous metric/goal loop | `vd:auto-loop`, `vd:optimize-loop` |
-
-Ultracook is the orchestration layer **above** these: it classifies the task, picks the mode, packetizes, dispatches to the right skill or subagent, then owns integration and verification. For a full feature this often means: `vd:plan` → ultracook fans implementation packets across `Task`/`Workflow` → `vd:cook` (implement + verify + test) → `vd:code-review`. Stay in the loop between phases; read each result before the next dispatch.
-
-## Workflow artifacts
-
-**Run root rule:**
-
-- If an active plan directory exists (from `vd:plan`, e.g. `plans/<date>-<slug>/`), reuse it — add `orchestration.md`, `state.json`, `packets/`, `results/` alongside the existing `plan.md` and phase files.
-- Otherwise default to `plans/ultracook/<slug>/`.
-- If project instructions name a different scratch/plans directory, use that.
-- Final summaries and reports go under `plans/reports/` per repo convention.
-
-Run layout:
-
-```text
-<run-root>/
-  plan.md
-  orchestration.md
-  state.json
-  packets/
-  results/
-  integration.md
-  final-report.md
+```
+SKILL.md (this file)        — conductor (classify) + router (detect + dispatch)
+references/
+  conductor.md              — triage: mode/autonomy selection, gate map, fan-out packets
+  autonomy-modes.md         — manual/semi/auto gate semantics
+  architecture.md           — two-layer SKILL.md ↔ bash-script invariant
+  action-vocab.{md,yaml}    — 21 actions · verifier-vocab.{md,yaml} — 7 verifier types
+  codex-runtime.md          — Codex specifics · codex-gap-workarounds.md — Monitor/Skill bridges
+runtimes/
+  claude-code.md            — Claude Code adapter (tools: Skill, Task, Workflow, Monitor, hooks)
+  codex.md                  — Codex adapter (codex exec, subagents, --ask-for-approval/--sandbox)
+  detect.md                 — runtime detection spec
+scripts/                    — runtime-agnostic bash (filesystem/git/parse); never call runtime tools
+projects/                   — 4 TOML profiles, picked by git remote
 ```
 
-Read `references/packet-schema.md` when filling packet files, result files, `orchestration.md`, or `state.json`.
+## See also
 
-## Plan
-
-Keep `plan.md` concrete: goal, success criteria, current context, constraints, risk level, approval gates, mode, work packets, integration policy, verification plan, completion criteria. Don't let the plan replace execution. (For non-trivial features, generate this via `vd:plan` instead of hand-writing it.)
-
-## Orchestration
-
-Keep `orchestration.md` short and operational — it's the execution contract, not a transcript: parent critical path, packet list with owners, agents/subagents to spawn, wait points, fallback if delegation is unavailable, verification order.
-
-## Delegation policy
-
-Before spawning or invoking another agent:
-
-- Identify the parent critical path and keep it local.
-- Confirm the packet is bounded and non-blocking.
-- Assign explicit ownership; state read-only vs write-capable.
-- Don't duplicate packet work across agents.
-
-Never use delegation to avoid understanding the integration path.
-
-## Approval gates
-
-Ask one clear yes/no question before: deletion, overwrite, mass rename, force push; publishing, deploying, emailing, posting; production data; credentials/secrets/billing/accounts; broad codemods; expensive/long-running agent swarms; irreversible repo operations.
-
-If approval is missing, continue only with safe read-only work, local drafts, or non-destructive checks. Read `references/approval-gates.md` when risk is ambiguous.
-
-## Packet design
-
-Good packets are narrow, bounded, evidence-based.
-
-- **Good read-only**: find entry points for a feature; trace data flow route→storage; find existing tests/fixtures; identify migration risk; compare behavior with docs.
-- **Good write-capable**: update validation in named files; add tests for one module; update docs only; refactor one isolated adapter.
-- **Bad**: "fix the whole thing", "figure it out", "implement everything", "edit any files you need".
-
-For code-edit packets, assign non-overlapping files or modules.
-
-### Agent prompt shapes
-
-Read-only:
-
-```text
-You are working in the same repo as other agents.
-Task: <specific read-only objective>
-Do: inspect only the listed sources unless one nearby hop is required; cite file:line; return concise findings with evidence.
-Do not: edit files; run destructive commands; duplicate other packet work.
-Output: summary, evidence, risks, recommended parent action.
-```
-
-Write-capable:
-
-```text
-You are not alone in the codebase. Other agents may edit other files.
-Do not revert edits made by others. Adapt to nearby changes.
-Ownership: <files or module>
-Task: <specific implementation task>
-Do: edit only owned files unless blocked; add/update focused tests if the area has them; list changed files.
-Do not: change public behavior outside this packet; run broad formatting; rewrite unrelated code; commit/push/publish/deploy.
-Output: files changed, summary, verification run, risks or blockers.
-```
-
-## Integration
-
-The parent session owns integration. After packet work: read each result; check claimed file edits; resolve disagreements against source/tests/docs; reject unevidenced outputs; update `integration.md` and `state.json`. Never paste raw agent logs as the final answer.
-
-## Verification
-
-Choose checks by risk:
-
-- **Low**: inspect diff; targeted test if available.
-- **Medium**: targeted tests; typecheck/lint; affected build.
-- **High**: full tests if practical; build; browser/CLI smoke; manual checklist; independent review pass (`vd:code-review`).
-
-Report skipped checks honestly.
-
-## Final answer
-
-Keep it shorter than `final-report.md`: outcome, important files changed / artifacts created, verification run, skipped checks, remaining risk.
-
-## References
-
-- `references/packet-schema.md` — schema for packet, result, `orchestration.md`, and `state.json` artifacts.
-- `references/approval-gates.md` — when to stop and ask vs. proceed.
-- `references/execution-examples.md` — worked examples of mode choice in Claude Code.
+- `references/conductor.md` — how a task is classified and routed
+- `runtimes/detect.md` — detection precedence + ambiguity rules
+- `README.md` — install + quick-start for both runtimes
