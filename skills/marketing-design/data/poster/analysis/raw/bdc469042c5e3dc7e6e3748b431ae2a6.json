@@ -1,0 +1,45 @@
+{
+  "image": "bdc469042c5e3dc7e6e3748b431ae2a6.jpg",
+  "style_cues": [
+    "spiritual",
+    "editorial",
+    "textured",
+    "high-contrast",
+    "dramatic"
+  ],
+  "palette_hexes": [
+    "#CBB490",
+    "#604A3A",
+    "#A32E1C",
+    "#FFFFFF",
+    "#E8D387"
+  ],
+  "layout": {
+    "grid": "centered stack with figure overlay",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "matte paper",
+    "finish": "paper grain and noise overlay"
+  },
+  "mood": [
+    "serious",
+    "spiritual",
+    "reverent",
+    "dramatic"
+  ],
+  "shape_primitives": [
+    "large letterforms",
+    "crown illustration",
+    "text blocks",
+    "organic rock shapes",
+    "splatter elements"
+  ],
+  "typography": [
+    "geometric sans",
+    "extreme size contrast",
+    "all caps",
+    "clean sans-serif"
+  ]
+}

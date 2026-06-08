@@ -1,0 +1,46 @@
+{
+  "image": "c19c048627cb33e313b02b020789ce71.jpg",
+  "style_cues": [
+    "futuristic",
+    "editorial",
+    "high-contrast",
+    "infographic",
+    "scientific illustration",
+    "data visualization"
+  ],
+  "palette_hexes": [
+    "#2637B4",
+    "#D4353C",
+    "#FFFFFF",
+    "#D5E0E0",
+    "#9C1F23"
+  ],
+  "layout": {
+    "grid": "centered object, infographic",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "matte paper",
+    "finish": "intricate illustration, subtle grain"
+  },
+  "mood": [
+    "conceptual",
+    "scientific",
+    "intricate",
+    "futuristic"
+  ],
+  "shape_primitives": [
+    "organic shape",
+    "thin rule",
+    "circle",
+    "stylized curve",
+    "implied rectangle"
+  ],
+  "typography": [
+    "ornamental serif display",
+    "geometric sans",
+    "extreme size contrast",
+    "all caps"
+  ]
+}

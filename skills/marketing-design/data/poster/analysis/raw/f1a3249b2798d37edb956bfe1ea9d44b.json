@@ -1,0 +1,44 @@
+{
+  "image": "f1a3249b2798d37edb956bfe1ea9d44b.jpg",
+  "style_cues": [
+    "surreal",
+    "dreamy",
+    "fantasy",
+    "whimsical",
+    "editorial"
+  ],
+  "palette_hexes": [
+    "#AECFEB",
+    "#F38BB5",
+    "#B5B7B1",
+    "#D4A74F",
+    "#FCD7BF"
+  ],
+  "layout": {
+    "grid": "centered subject with large background text",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital photo composite",
+    "finish": "photo realism"
+  },
+  "mood": [
+    "inspiring",
+    "dreamy",
+    "whimsical",
+    "educational"
+  ],
+  "shape_primitives": [
+    "curved letterforms",
+    "organic shapes",
+    "oval",
+    "rectilinear"
+  ],
+  "typography": [
+    "serif display",
+    "all caps",
+    "extreme size contrast",
+    "sans-serif secondary"
+  ]
+}

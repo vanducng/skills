@@ -1,0 +1,46 @@
+{
+  "image": "cbe2866e0e348558718f7e77168f0be7.jpg",
+  "style_cues": [
+    "editorial",
+    "conceptual",
+    "photographic",
+    "celebrity feature",
+    "puzzle motif"
+  ],
+  "palette_hexes": [
+    "#D4D4D4",
+    "#FFFFFF",
+    "#6D4E3C",
+    "#281E1C",
+    "#C4362E",
+    "#F5A88B"
+  ],
+  "layout": {
+    "grid": "centered portrait, broken grid",
+    "focal": "full-bleed",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "glossy",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "introspective",
+    "conceptual",
+    "editorial",
+    "thoughtful"
+  ],
+  "shape_primitives": [
+    "puzzle pieces",
+    "organic forms",
+    "implied rectangle",
+    "text blocks",
+    "curved lines"
+  ],
+  "typography": [
+    "bold sans-serif",
+    "all caps",
+    "stacked text",
+    "clean and legible"
+  ]
+}

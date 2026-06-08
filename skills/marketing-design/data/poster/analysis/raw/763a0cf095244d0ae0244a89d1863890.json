@@ -1,0 +1,43 @@
+{
+  "image": "763a0cf095244d0ae0244a89d1863890.jpg",
+  "style_cues": [
+    "japanese aesthetic",
+    "illustrative",
+    "graphic novel",
+    "dark fantasy"
+  ],
+  "palette_hexes": [
+    "#FFFFFF",
+    "#000000",
+    "#E24F6C",
+    "#6AA6AA",
+    "#D0D0D0"
+  ],
+  "layout": {
+    "grid": "asymmetric composition",
+    "focal": "center-left",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "flat vector"
+  },
+  "mood": [
+    "mysterious",
+    "powerful",
+    "intense",
+    "japanese"
+  ],
+  "shape_primitives": [
+    "organic curves",
+    "sharp points",
+    "straight lines",
+    "rectangular frame",
+    "abstract shapes"
+  ],
+  "typography": [
+    "graphic display",
+    "all caps sans-serif",
+    "size contrast"
+  ]
+}

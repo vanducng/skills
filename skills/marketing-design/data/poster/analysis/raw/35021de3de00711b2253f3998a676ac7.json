@@ -1,0 +1,43 @@
+{
+  "image": "35021de3de00711b2253f3998a676ac7.jpg",
+  "style_cues": [
+    "neon",
+    "geometric",
+    "futuristic",
+    "high-contrast",
+    "digital"
+  ],
+  "palette_hexes": [
+    "#1A0D30",
+    "#D7CFFF",
+    "#FFD700"
+  ],
+  "layout": {
+    "grid": "asymmetric stack",
+    "focal": "center-right",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "neon glow"
+  },
+  "mood": [
+    "energetic",
+    "modern",
+    "electronic",
+    "sleek"
+  ],
+  "shape_primitives": [
+    "extruded text",
+    "rectangle",
+    "line",
+    "circle",
+    "lightning bolt"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "extruded 3d"
+  ]
+}

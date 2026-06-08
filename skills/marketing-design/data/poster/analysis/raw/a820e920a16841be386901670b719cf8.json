@@ -1,0 +1,45 @@
+{
+  "image": "a820e920a16841be386901670b719cf8.jpg",
+  "style_cues": [
+    "high-contrast",
+    "film noir",
+    "geometric",
+    "typographic",
+    "minimalistic"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#FFFFFF",
+    "#E10000",
+    "#AAAAAA",
+    "#555555"
+  ],
+  "layout": {
+    "grid": "central perspective",
+    "focal": "center-bottom",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital print",
+    "finish": "photo manipulation"
+  },
+  "mood": [
+    "suspenseful",
+    "mysterious",
+    "dramatic",
+    "thrilling"
+  ],
+  "shape_primitives": [
+    "receding rectangles",
+    "diagonal lines",
+    "thick rule",
+    "fingerprint",
+    "distorted text"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "perspective distortion"
+  ]
+}

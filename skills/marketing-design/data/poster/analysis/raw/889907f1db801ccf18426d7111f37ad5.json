@@ -1,0 +1,42 @@
+{
+  "image": "889907f1db801ccf18426d7111f37ad5.jpg",
+  "style_cues": [
+    "editorial",
+    "high-contrast",
+    "typographic hierarchy",
+    "modern",
+    "minimalist"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#FFFFFF",
+    "#2560C7"
+  ],
+  "layout": {
+    "grid": "asymmetric typographic",
+    "focal": "center",
+    "whitespace_ratio": "high"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "flat vector"
+  },
+  "mood": [
+    "serious",
+    "epic",
+    "modern",
+    "authoritative"
+  ],
+  "shape_primitives": [
+    "diagonal stripe",
+    "circle",
+    "shield shape",
+    "rotated text block"
+  ],
+  "typography": [
+    "serif display",
+    "sans-serif secondary",
+    "extreme size contrast",
+    "mixed case and all caps"
+  ]
+}

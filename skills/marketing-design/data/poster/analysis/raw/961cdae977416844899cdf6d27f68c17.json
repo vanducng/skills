@@ -1,0 +1,44 @@
+{
+  "image": "961cdae977416844899cdf6d27f68c17.jpg",
+  "style_cues": [
+    "high-contrast",
+    "botanical",
+    "gothic",
+    "graphic",
+    "mixed media"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#FFFFFF",
+    "#E8A08A",
+    "#9DD1C5",
+    "#BDA789"
+  ],
+  "layout": {
+    "grid": "asymmetric with organic overlay",
+    "focal": "top-right",
+    "whitespace_ratio": "high"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "elegant",
+    "contemplative",
+    "artistic",
+    "sophisticated"
+  ],
+  "shape_primitives": [
+    "outlined kanji",
+    "rectangular box",
+    "organic curves",
+    "custom letterforms"
+  ],
+  "typography": [
+    "blackletter display",
+    "sans-serif body",
+    "mixed typography",
+    "variable weight"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "image": "463e4a2b40d25116c7fb6edc4f62a237.jpg",
+  "style_cues": [
+    "tech-inspired",
+    "modular",
+    "grid-based",
+    "cyberpunk ui"
+  ],
+  "palette_hexes": [
+    "#1a1a1a",
+    "#f2f2f2",
+    "#d94d4d",
+    "#f5a6a6"
+  ],
+  "layout": {
+    "grid": "asymmetric modular",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "halftone dots"
+  },
+  "mood": [
+    "futuristic",
+    "analytical",
+    "structured",
+    "modern"
+  ],
+  "shape_primitives": [
+    "rectangle",
+    "L-shape block",
+    "circle",
+    "rotated text block",
+    "thick rule"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "rotated text"
+  ]
+}

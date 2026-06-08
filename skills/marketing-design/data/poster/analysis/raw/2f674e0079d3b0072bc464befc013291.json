@@ -1,0 +1,44 @@
+{
+  "image": "2f674e0079d3b0072bc464befc013291.jpg",
+  "style_cues": [
+    "digital art",
+    "bold typography",
+    "experimental",
+    "high-contrast"
+  ],
+  "palette_hexes": [
+    "#8E0000",
+    "#D00000",
+    "#590000",
+    "#FFFFFF"
+  ],
+  "layout": {
+    "grid": "organic blocked",
+    "focal": "center-left",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "glossy",
+    "finish": "inflated 3d"
+  },
+  "mood": [
+    "intense",
+    "anxious",
+    "modern",
+    "contemplative"
+  ],
+  "shape_primitives": [
+    "rounded letterforms",
+    "rectangular block",
+    "sine wave",
+    "globe icon",
+    "umbrella icon",
+    "swirl icon"
+  ],
+  "typography": [
+    "inflated 3d",
+    "clean sans-serif",
+    "all caps",
+    "multi-script"
+  ]
+}

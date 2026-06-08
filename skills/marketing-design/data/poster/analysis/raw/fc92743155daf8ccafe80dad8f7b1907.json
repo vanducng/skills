@@ -1,0 +1,46 @@
+{
+  "image": "fc92743155daf8ccafe80dad8f7b1907.jpg",
+  "style_cues": [
+    "watercolor illustration",
+    "cultural fusion",
+    "dynamic narrative",
+    "dreamlike aesthetic",
+    "historical modern blend"
+  ],
+  "palette_hexes": [
+    "#FFFFFF",
+    "#D6E6F2",
+    "#FFD700",
+    "#E42D00",
+    "#296B50",
+    "#0D0C0B"
+  ],
+  "layout": {
+    "grid": "serpentine vertical flow",
+    "focal": "full-bleed",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "watercolor paper",
+    "finish": "watercolor wash"
+  },
+  "mood": [
+    "festive",
+    "vibrant",
+    "aspirational",
+    "cultural"
+  ],
+  "shape_primitives": [
+    "organic curves",
+    "rectilinear buildings",
+    "human figures",
+    "decorative patterns",
+    "steam clouds"
+  ],
+  "typography": [
+    "chinese calligraphy",
+    "serif chinese characters",
+    "geometric sans-serif",
+    "stacked vertical text"
+  ]
+}

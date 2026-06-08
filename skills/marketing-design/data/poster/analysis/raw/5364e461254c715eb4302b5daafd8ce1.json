@@ -1,0 +1,44 @@
+{
+  "image": "5364e461254c715eb4302b5daafd8ce1.jpg",
+  "style_cues": [
+    "3d typography",
+    "textured",
+    "minimalist",
+    "industrial",
+    "sculptural"
+  ],
+  "palette_hexes": [
+    "#1a1a1a",
+    "#c9c9c9",
+    "#9c9c9c",
+    "#5a5a5a",
+    "#c2c2c2"
+  ],
+  "layout": {
+    "grid": "stacked block",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "rough stone",
+    "finish": "chiseled relief"
+  },
+  "mood": [
+    "serious",
+    "rugged",
+    "minimalist",
+    "strong"
+  ],
+  "shape_primitives": [
+    "block letters",
+    "irregular edges",
+    "shadows",
+    "rectangular forms"
+  ],
+  "typography": [
+    "heavy display",
+    "all caps",
+    "3d effect",
+    "size contrast"
+  ]
+}
