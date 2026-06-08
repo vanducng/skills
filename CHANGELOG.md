@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.29.0](https://github.com/vanducng/skills/compare/v0.28.1...v0.29.0) (2026-06-08)
+
+
+### Features
+
+* **open-design:** README hero banner recipe + close banner gap ([#127](https://github.com/vanducng/skills/issues/127)) ([e7bed8f](https://github.com/vanducng/skills/commit/e7bed8f43ae1de803b0a46fc235f79bfeb4a7ab1))
+
 ## [0.28.1](https://github.com/vanducng/skills/compare/v0.28.0...v0.28.1) (2026-06-08)
 
 
