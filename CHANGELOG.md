@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.27.0](https://github.com/vanducng/skills/compare/v0.26.0...v0.27.0) (2026-06-08)
+
+
+### Features
+
+* **devlog:** gather release versions for posts ([#117](https://github.com/vanducng/skills/issues/117)) ([7ac62aa](https://github.com/vanducng/skills/commit/7ac62aaf32de4c69031a9aaab344e2c5f93a1ed9))
+
 ## [0.26.0](https://github.com/vanducng/skills/compare/v0.25.0...v0.26.0) (2026-06-08)
 
 
