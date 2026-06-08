@@ -1,6 +1,6 @@
 ---
 name: journal
-description: "Write a focused engineering journal entry — retrospective on what just shipped or post-mortem on what just broke. Use after vd:ship, vd:cook, or right after an incident while context is fresh. Saves to ./plans/journals/ (personal dev log, not project docs)."
+description: "Write a focused engineering journal entry — retrospective on what just shipped or post-mortem on what just broke. Use after vd:ship, vd:cook, or right after an incident while context is fresh. Saves to .work/journals/ when the project is migrated, else plans/journals/ (personal dev log, not project docs)."
 license: MIT
 argument-hint: "[topic] [--incident] [--quick] [--since <ref>]"
 metadata:
@@ -16,7 +16,7 @@ metadata:
 |---|---|---|
 | `vd:ship` | "Land the branch." | Merged target, PR URL |
 | `vd:cook` | "Execute the plan." | Code, tests, plan status |
-| **`vd:journal`** | **"What just happened, why, and what should future-me know?"** | **One markdown file in `./plans/journals/`** |
+| **`vd:journal`** | **"What just happened, why, and what should future-me know?"** | **One markdown file in `.work/journals/` (migrated) or `plans/journals/` (legacy)** |
 
 Journal **records**. It does not redesign, retest, or roll back. If writing the entry surfaces a real bug — stop, kick to `vd:fix` or `vd:cook`, then come back to journal once the fact pattern stabilises.
 
@@ -59,7 +59,7 @@ Journal **records**. It does not redesign, retest, or roll back. If writing the 
 If `<since>` isn't given:
 
 ```
-1. Look in ./plans/journals/ for the most recent file → use its date
+1. Look in .work/journals/ then plans/journals/ for the most recent file → use its date
 2. Otherwise, find the merge-base with the default branch
 3. Otherwise, last 20 commits
 ```
@@ -82,9 +82,9 @@ If delegating, pass: mode, topic hint, `<since>` ref, plan dir (if any), and the
 
 ### 4. Write the file
 
-Path: `./plans/journals/journal-{YYYYMMDD-HHMM}-{slug}.md` — use the naming pattern injected by the session hook (`## Naming` block) when present.
+Path: write to the injected path (`.work/journals/` when the project is migrated, else legacy `plans/journals/`); when reading prior artifacts, check both. Filename: `journal-{YYYYMMDD-HHMM}-{slug}.md`. Use the naming pattern from the session hook (`## Naming` block) when present.
 
-> Journals live under `./plans/`, not `./docs/`. They're a personal dev log — what *I* learned, decided, or broke — not project documentation. `./docs/` is for artifacts shared with the team (architecture, code standards, changelog).
+> Journals are a personal dev log — what *I* learned, decided, or broke — not project documentation. `./docs/` is for artifacts shared with the team (architecture, code standards, changelog).
 
 Final handoff must include an openable entry location, such as
 `[journal-entry.md](/absolute/path/to/journal-entry.md)` or
