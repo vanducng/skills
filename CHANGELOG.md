@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.27.1](https://github.com/vanducng/skills/compare/v0.27.0...v0.27.1) (2026-06-08)
+
+
+### Bug Fixes
+
+* **ultracook:** rename skill from ultracode to avoid Claude Code keyword conflict ([#121](https://github.com/vanducng/skills/issues/121)) ([32d3269](https://github.com/vanducng/skills/commit/32d3269e8864a3851022b43c1b2e24a661b054f3))
+
 ## [0.27.0](https://github.com/vanducng/skills/compare/v0.26.0...v0.27.0) (2026-06-08)
 
 
