@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.26.0](https://github.com/vanducng/skills/compare/v0.25.0...v0.26.0) (2026-06-08)
+
+
+### Features
+
+* **diagram:** clamp ERD initial fit zoom for legible columns ([#115](https://github.com/vanducng/skills/issues/115)) ([61b3147](https://github.com/vanducng/skills/commit/61b314738c551c5f535b6e29effc5430fa968f6e))
+
 ## [0.25.0](https://github.com/vanducng/skills/compare/v0.24.0...v0.25.0) (2026-06-07)
 
 
