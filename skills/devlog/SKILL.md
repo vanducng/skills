@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[today|ship|fix|debug|lesson|idea|week] [short|long|thread|article] [draft|post] [blunt|polished|technical] [--since <ref>] [--topic <text>] [--url <url>] [--repo <path>]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Devlog
@@ -82,6 +82,20 @@ git diff --stat <since>..HEAD
 git diff --stat
 ```
 
+Gather release/version facts when the source is a shipped project:
+
+```bash
+git fetch --tags --quiet origin  # when network is available
+git tag --list 'v*' --sort=-v:refname | head -10
+git describe --tags --abbrev=0 2>/dev/null || true
+gh release list --limit 10 2>/dev/null || true
+```
+
+Also inspect `CHANGELOG.md`, release PR titles, package metadata, and version
+files when present. Prefer the latest shipped release for a `release_version`
+fact. If the feature spans several releases, keep the range as a separate body
+detail. If release facts conflict, say which source won in `Facts used`.
+
 Also inspect likely context files when present:
 
 - `plans/**/plan.md`, latest phase/report/journal files
@@ -127,7 +141,7 @@ Hard rules:
 
 1. No invented claims, metrics, dates, PRs, or user reactions.
 2. Include at least one concrete artifact: repo, branch, PR, command, file,
-   skill name, test result, or error string.
+   skill name, release version, test result, or error string.
 3. No secrets, private customer data, credentials, tokens, internal URLs, or
    unreleased business-sensitive details.
 4. No hashtags. No emoji unless the user explicitly asks or source uses them.
@@ -137,6 +151,16 @@ Hard rules:
 7. Preserve useful roughness. Fragments are allowed when they improve pace.
 
 If facts are thin, produce a shorter post. Do not pad.
+
+Release-version rule:
+
+- Include the project release version when it is known and relevant, especially
+  for ship/devlog posts meant to be published later.
+- Use concrete values like `v0.8.0`, not "latest".
+- Do not guess. Omit the version or say it was not found if local tags,
+  changelog, and release metadata do not agree.
+- For multi-release work, distinguish "current project release" from "feature
+  landed across `vA..vB`".
 
 ### 6. Validate before publishing
 
