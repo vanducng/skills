@@ -31,7 +31,7 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 60px 72px;
+    padding: 56px 72px 52px;
   }
   /* ambient glows */
   .banner::before {
@@ -93,7 +93,37 @@
     font-weight: 450;
     letter-spacing: -0.2px;
   }
-  .bottom { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 22px; }
+  .bottom { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 20px; }
+
+  /* conductor wrapping the pipeline */
+  .conductor {
+    position: relative;
+    align-self: flex-start;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(113,112,255,0.05), rgba(255,255,255,0.012));
+    padding: 26px 26px 22px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .conductor-label {
+    position: absolute;
+    top: -15px; left: 22px;
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 5px 14px 5px 12px;
+    background: var(--bg);
+    border: 1px solid rgba(113,112,255,0.45);
+    border-radius: 999px;
+    color: #c9c8ff;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.1px;
+  }
+  .conductor-label .baton {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--indigo), var(--violet));
+    box-shadow: 0 0 10px rgba(113,112,255,0.8);
+  }
+  .conductor-label .role { color: var(--faint); font-weight: 500; }
   .pipe { display: flex; align-items: center; gap: 14px; }
   .pill {
     display: inline-flex; align-items: center;
@@ -130,14 +160,17 @@
     </div>
 
     <div class="bottom">
-      <div class="pipe">
-        <span class="pill">brainstorm</span>
-        <span class="arrow">→</span>
-        <span class="pill">plan</span>
-        <span class="arrow">→</span>
-        <span class="pill">cook</span>
-        <span class="arrow">→</span>
-        <span class="pill accent">ship</span>
+      <div class="conductor">
+        <span class="conductor-label"><span class="baton"></span>ultracook&nbsp;<span class="role">· conductor</span></span>
+        <div class="pipe">
+          <span class="pill">brainstorm</span>
+          <span class="arrow">→</span>
+          <span class="pill">plan</span>
+          <span class="arrow">→</span>
+          <span class="pill">cook</span>
+          <span class="arrow">→</span>
+          <span class="pill accent">ship</span>
+        </div>
       </div>
       <div class="meta"><b>managed with the vd CLI</b> &nbsp;·&nbsp; skills.vanducng.dev</div>
     </div>
