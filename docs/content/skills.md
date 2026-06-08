@@ -15,7 +15,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Execute | `vd:cook`, `vd:fix`, `vd:debug` |
 | Review and ship | `vd:code-review`, `vd:security`, `vd:ship`, `vd:git` |
 | Iterate | `vd:auto-loop`, `vd:optimize-loop`, `vd:pursue` |
-| Orchestrate | `vd:ultracode` |
+| Orchestrate | `vd:ultracook` |
 
 ## Agent And Tooling Skills
 

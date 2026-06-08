@@ -5,7 +5,7 @@ Worked examples of mode choice in Claude Code. Use when mode choice is unclear.
 ## Small typo
 
 ```text
-Use $ultracode to fix this typo in README.
+Use $ultracook to fix this typo in README.
 ```
 
 **Mode: direct.** Workflow overhead would exceed the work.
@@ -18,17 +18,17 @@ Use $ultracode to fix this typo in README.
 Audit this repo for slow startup paths and give me a fix plan.
 ```
 
-**Mode: workflow** (broad investigation, but no explicit ultracode/agent ask).
+**Mode: workflow** (broad investigation, but no explicit ultracook/agent ask).
 
 - Create a run dir per the run-root rule.
 - Write `plan.md`, `orchestration.md`, `state.json`.
 - Packets: `01-entry-points`, `02-startup-costs`, `03-fix-plan` — execute as isolated parent passes, notes in `results/`.
 - Integrate before the final answer.
 
-## Feature with explicit ultracode + "split across agents"
+## Feature with explicit ultracook + "split across agents"
 
 ```text
-Use $ultracode. Split this across agents and implement the settings export feature.
+Use $ultracook. Split this across agents and implement the settings export feature.
 ```
 
 **Mode: delegated.** Strong delegation wording + Claude Code exposes native primitives.
@@ -46,7 +46,7 @@ Use $ultracode. Split this across agents and implement the settings export featu
 ## Repo-wide migration (Workflow tool)
 
 ```text
-Use $ultracode to migrate all API clients to the new SDK.
+Use $ultracook to migrate all API clients to the new SDK.
 ```
 
 **Mode: delegated via the `Workflow` tool** — many independent sites, pipeline-shaped, exceeds one context.
@@ -56,13 +56,13 @@ Use $ultracode to migrate all API clients to the new SDK.
 - Author a `Workflow` script: `pipeline(sites, transform, verify)` with `isolation: 'worktree'` if agents mutate files in parallel.
 - Continue with read-only mapping only if approval isn't granted.
 
-## Ultracode only, size unknown
+## Ultracook only, size unknown
 
 ```text
-Ultracode: implement the settings export feature end to end.
+Ultracook: implement the settings export feature end to end.
 ```
 
-**Mode: direct, workflow, or delegated** depending on size, independent-packet value, and risk. `ultracode` authorizes choosing the depth.
+**Mode: direct, workflow, or delegated** depending on size, independent-packet value, and risk. `ultracook` authorizes choosing the depth.
 
 - Create artifacts if non-trivial. Split discovery/implementation/verification into packets when useful.
 - Use `Task`/`Workflow` delegation when packets are genuinely independent; otherwise stay inline.
@@ -70,7 +70,7 @@ Ultracode: implement the settings export feature end to end.
 ## No native delegation available
 
 ```text
-Use $ultracode and run parallel agents for this audit.
+Use $ultracook and run parallel agents for this audit.
 ```
 
 **Mode: workflow fallback** when the host can't spawn agents.

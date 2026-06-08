@@ -17,7 +17,7 @@ Use this reference when creating or validating workflow artifacts.
   final-report.md
 ```
 
-`<run-root>` is the active `vd:plan` plan directory when one exists, otherwise `plans/ultracode/<slug>/`. Reports/final summaries go under `plans/reports/`.
+`<run-root>` is the active `vd:plan` plan directory when one exists, otherwise `plans/ultracook/<slug>/`. Reports/final summaries go under `plans/reports/`.
 
 ## plan.md
 
