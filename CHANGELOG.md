@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.28.0](https://github.com/vanducng/skills/compare/v0.27.1...v0.28.0) (2026-06-08)
+
+
+### Features
+
+* **ultracook:** merge pursue into a dynamic workflow conductor ([#123](https://github.com/vanducng/skills/issues/123)) ([955b470](https://github.com/vanducng/skills/commit/955b470de959fa83b56753e1726616a9e167de44))
+
 ## [0.27.1](https://github.com/vanducng/skills/compare/v0.27.0...v0.27.1) (2026-06-08)
 
 
