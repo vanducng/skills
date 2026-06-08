@@ -102,25 +102,41 @@ def generate_image(
     out_path: Path,
     model: str | None = None,
     timeout: int = DEFAULT_TIMEOUT,
+    images: list | None = None,
 ) -> Path:
     """Generate one image via Codex CLI, save to out_path, return out_path.
+
+    Args:
+        images: optional reference image path(s) attached via `codex exec -i`,
+            enabling image-to-image / compositing (e.g. a logo onto a mockup).
 
     Raises:
         CodexNotAvailable: codex missing / not logged in.
         CodexQuotaExceeded: rate-limit / 429 detected in output.
-        CodexError: any other non-zero exit or no PNG captured.
+        CodexError: any other non-zero exit, missing reference image, or no PNG captured.
     """
     check_codex_available()
 
     out_path = Path(out_path).expanduser().resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    ref_images = []
+    for img in (images or []):
+        p = Path(img).expanduser().resolve()
+        if not p.is_file():
+            raise CodexError(f"reference image not found: {img}")
+        ref_images.append(p)
+
     with tempfile.TemporaryDirectory(prefix="codex_imagegen_") as td:
         tmpdir = Path(td)
         last_msg = tmpdir / "last.txt"
+        ref_note = (
+            " Use the attached image(s) as the reference/source for the edit."
+            if ref_images else ""
+        )
         agent_prompt = (
             f"$imagegen {prompt}\n\n"
-            "Save the generated image to ./generated.png in the current directory. "
+            f"Save the generated image to ./generated.png in the current directory.{ref_note} "
             "Output only the absolute file path on the last line."
         )
         cmd = [
@@ -130,13 +146,18 @@ def generate_image(
             "-C", str(tmpdir),
             "-o", str(last_msg),
         ]
+        for p in ref_images:
+            cmd += ["-i", str(p)]
         if model:
             cmd += ["-m", model]
-        cmd.append(agent_prompt)
+        # Prompt goes via stdin, NOT as a positional arg: `-i FILE...` is greedy
+        # (nargs+) and would otherwise swallow a trailing prompt as another image.
+        cmd.append("-")
 
         try:
             proc = subprocess.run(
                 cmd,
+                input=agent_prompt,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
@@ -175,6 +196,14 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--prompt", required=True, help="Image description prompt.")
     p.add_argument("--out", required=True, help="Output PNG path.")
     p.add_argument(
+        "--image", "-i",
+        action="append",
+        default=None,
+        metavar="FILE",
+        help="Reference image to attach (repeatable). Enables image-to-image / "
+             "compositing, e.g. placing a logo onto a mockup.",
+    )
+    p.add_argument(
         "--model",
         default=None,
         help="Optional Codex base model (e.g. gpt-5.5). NOT the image model — "
@@ -197,6 +226,7 @@ def main(argv: list[str] | None = None) -> int:
             out_path=Path(args.out),
             model=args.model,
             timeout=args.timeout,
+            images=args.image,
         )
     except CodexNotAvailable as e:
         print(f"[codex] not available: {e}", file=sys.stderr)
