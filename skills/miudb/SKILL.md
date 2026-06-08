@@ -326,7 +326,7 @@ Two layers:
 
 Single-pass works: stub -> fill -> generate. Aim to leave 0 tables ungrouped (the renderer buckets ungrouped non-framework tables as "Other").
 
-**Worked example (cdljn, 112-table MySQL job-board):** stub detected 6 framework tables; the FK hubs (`users` 182, `jobs` 34, `companies`, `submissions`, `impressions` 141M rows) and name prefixes mapped cleanly to 8 domains — Jobs & Catalog, Apply & Submissions, Hiring Events, ATS & Feeds, Analytics & Tracking, Targeting & Geo, Content & CMS, Users & Marketing — grouping all 106 non-framework tables with colors + hub descriptions in one pass.
+**Worked example (a ~100-table SaaS schema):** the stub detects the framework tables; the FK hubs (a high-degree `users`/`accounts` table, a few central domain tables) plus name prefixes map cleanly to ~6-8 domains (e.g. Catalog, Orders, Billing, Analytics, Content, Auth) — grouping every non-framework table with colors + hub descriptions in one pass. Use generic examples; never paste real connection/schema names into the diagram metadata you commit.
 
 ## Stdio protocol
 
