@@ -1,13 +1,13 @@
 ---
-name: ultracode
-description: "Run a disciplined multi-agent workflow for serious coding tasks: classify, plan, packetize, delegate when it helps, integrate, and verify. Use when the user types ultracode, $ultracode, ultra code, or asks for a dynamic/multi-agent/subagent/parallel workflow, agent swarm, 'delegate this', 'split this across agents', or an independent verification pass. In Claude Code, maps directly onto the native Workflow tool and Task/Agent subagents and routes packet work through the vd: skill stack."
+name: ultracook
+description: "Run a disciplined multi-agent workflow for serious coding tasks: classify, plan, packetize, delegate when it helps, integrate, and verify. Use when the user types ultracook, $ultracook, ultra cook, or asks for a dynamic/multi-agent/subagent/parallel workflow, agent swarm, 'delegate this', 'split this across agents', or an independent verification pass. In Claude Code, maps directly onto the native Workflow tool and Task/Agent subagents and routes packet work through the vd: skill stack."
 license: MIT
 metadata:
   author: vanducng
   version: "0.1.0"
 ---
 
-# Ultracode
+# Ultracook
 
 A disciplined operating procedure for work that needs planning, packetization, agent delegation, integration, and verification. Use the smallest workflow that can prove the result — no ceremony for small tasks.
 
@@ -17,7 +17,7 @@ This is a skill, not a runtime: no bundled runner, no hidden scripts. It tells t
 
 - This is a user-authored skill, not an official Anthropic/OpenAI/Google feature. Don't claim otherwise.
 - No bundled runtime or required scripts — orchestrate with native host tools and plain Markdown/JSON artifacts.
-- Treat an explicit `ultracode`, `$ultracode`, or "ultra code" request as permission to choose **delegated mode** when the host allows it.
+- Treat an explicit `ultracook`, `$ultracook`, or "ultra cook" request as permission to choose **delegated mode** when the host allows it.
 - Don't commit, push, publish, or deploy unless the user explicitly asks (then `vd:ship` / `vd:git`).
 - In Claude Code, prefer the native **Workflow** tool for real fan-out/pipeline work and **Task/Agent** subagents for ad-hoc parallel packets. In other hosts, use the closest native primitive; if none exists, fall back to workflow-mode artifacts and say so.
 
@@ -54,7 +54,7 @@ Multiple phases, meaningful uncertainty, or enough risk to separate work packets
 
 ### Delegated mode
 
-The host exposes native delegation, the task has independent packets, and delegation is permitted. An explicit `ultracode` invocation is delegation permission when the host lets the skill choose depth.
+The host exposes native delegation, the task has independent packets, and delegation is permitted. An explicit `ultracook` invocation is delegation permission when the host lets the skill choose depth.
 
 - Create orchestration artifacts **before** delegating.
 - Keep the immediate blocking task in the parent session.
@@ -69,7 +69,7 @@ If native delegation is unavailable, fall back to workflow mode and say so brief
 
 | Host | Preferred primitive | Notes |
 | --- | --- | --- |
-| **Claude Code** | `Workflow` tool for deterministic fan-out/pipeline; `Task`/`Agent` subagents for ad-hoc parallel packets | The `ultracode` keyword opts the session into the Workflow tool. See [Claude Code mapping](#claude-code-mapping). |
+| **Claude Code** | `Workflow` tool for deterministic fan-out/pipeline; `Task`/`Agent` subagents for ad-hoc parallel packets | Invoking `ultracook` opts the session into the Workflow tool (its instructions authorize that call). See [Claude Code mapping](#claude-code-mapping). |
 | Codex | `spawn_agent` → `wait_agent`/`send_input`/`close_agent` | `explorer` for read-only packets, `worker` for bounded write packets. Self-contained prompts; don't pair an agent type with a full-history fork. |
 | Other hosts | Closest native agent/task primitive | Never invent a runner. Fall back to workflow-mode artifacts when none exists. |
 
@@ -79,7 +79,7 @@ In Claude Code, don't reinvent orchestration — drive the native primitives and
 
 **Pick the delegation primitive:**
 
-- **`Workflow` tool** — when packets form a fan-out or multi-stage pipeline, need adversarial/independent verification, or exceed one context (repo-wide audit, migration over many sites, N-finder review). Use `pipeline()` by default; reserve `parallel()` barriers for genuine cross-item joins. This is the heavy primitive the `ultracode` keyword unlocks.
+- **`Workflow` tool** — when packets form a fan-out or multi-stage pipeline, need adversarial/independent verification, or exceed one context (repo-wide audit, migration over many sites, N-finder review). Use `pipeline()` by default; reserve `parallel()` barriers for genuine cross-item joins. This is the heavy primitive invoking `ultracook` unlocks.
 - **`Task`/`Agent` subagents** — for a handful of independent packets you launch and integrate yourself (parallel exploration, one-off write packets with disjoint ownership). Send independent agents in a single message so they run concurrently. Use specialized subagent types (`Explore`, `code-reviewer`, `tester`, `researcher`) when they fit.
 
 **Route packets to existing skills instead of hand-rolling the phase:**
@@ -88,7 +88,7 @@ In Claude Code, don't reinvent orchestration — drive the native primitives and
 | --- | --- |
 | Locate files / map the surface | `vd:scout` (or `Explore` subagents) |
 | Deep technical research / option eval | `vd:research`, `vd:brainstorm` |
-| Turn an approach into a phased plan | `vd:plan` (writes `plans/<slug>/`) |
+| Turn an approach into a phased plan | `vd:plan` (writes `plans/<slug>/`); `vd:plan-audit` to verify it |
 | Execute a plan phase-by-phase | `vd:cook` |
 | Diagnose a failure to root cause | `vd:debug`, `vd:fix` |
 | Run tests / verify the change | `vd:cook` (verify phase), `vd:debug` on failure |
@@ -96,14 +96,14 @@ In Claude Code, don't reinvent orchestration — drive the native primitives and
 | Land the branch (only when asked) | `vd:ship`, `vd:git` |
 | Autonomous metric/goal loop | `vd:auto-loop`, `vd:optimize-loop` |
 
-Ultracode is the orchestration layer **above** these: it classifies the task, picks the mode, packetizes, dispatches to the right skill or subagent, then owns integration and verification. For a full feature this often means: `vd:plan` → ultracode fans implementation packets across `Task`/`Workflow` → `vd:cook` (implement + verify + test) → `vd:code-review`. Stay in the loop between phases; read each result before the next dispatch.
+Ultracook is the orchestration layer **above** these: it classifies the task, picks the mode, packetizes, dispatches to the right skill or subagent, then owns integration and verification. For a full feature this often means: `vd:plan` → ultracook fans implementation packets across `Task`/`Workflow` → `vd:cook` (implement + verify + test) → `vd:code-review`. Stay in the loop between phases; read each result before the next dispatch.
 
 ## Workflow artifacts
 
 **Run root rule:**
 
 - If an active plan directory exists (from `vd:plan`, e.g. `plans/<date>-<slug>/`), reuse it — add `orchestration.md`, `state.json`, `packets/`, `results/` alongside the existing `plan.md` and phase files.
-- Otherwise default to `plans/ultracode/<slug>/`.
+- Otherwise default to `plans/ultracook/<slug>/`.
 - If project instructions name a different scratch/plans directory, use that.
 - Final summaries and reports go under `plans/reports/` per repo convention.
 
