@@ -98,7 +98,7 @@ detail. If release facts conflict, say which source won in `Facts used`.
 
 Also inspect likely context files when present:
 
-- `plans/**/plan.md`, latest phase/report/journal files
+- `.work/plans/**/plan.md` and `plans/**/plan.md` (check both), latest phase/report/journal files
 - `CHANGELOG.md`, release notes, PR body, issue text
 - recent `README.md` or docs changes
 - command outputs from this session if the user references them
@@ -112,7 +112,7 @@ Read `references/voice.md` before drafting. If the current repo has a populated
 devlog style guide, prefer that too:
 
 ```bash
-/Users/vanducng/git/personal/agents/devlog/.claude/skills/devlog/references/style-guide.md
+~/.claude/skills/devlog/references/style-guide.md
 ```
 
 Treat empty/stub style guides as no-op.

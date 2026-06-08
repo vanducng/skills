@@ -86,9 +86,9 @@ In `--deep` mode, additionally produce:
 
 ### Where to save
 
-Default: `./plans/reports/research-{topic-slug}-{YYYYMMDD}.md` from the current
-working directory. Create `plans/reports/` before writing the report. If the
-user provided an output path, use that instead.
+Write to the injected path (`.work/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both.
+
+Default filename: `research-{topic-slug}-{YYYYMMDD}.md`. If the user provided an output path, use that instead.
 
 ### Template (default mode)
 

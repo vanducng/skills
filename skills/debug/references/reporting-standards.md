@@ -71,9 +71,9 @@ List anything that remains unclear:
 
 ## Report File Naming
 
-Use naming pattern from `## Naming` section injected by hooks. Pattern includes full path and computed date.
+Write to the injected path (`.work/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Use the naming pattern from `## Naming` injected by hooks.
 
-**Example:** `plans/reports/debugger-260205-2215-api-500-investigation.md`
+**Example:** `debugger-260205-2215-api-500-investigation.md` (placed in the injected reports path)
 
 ## Writing Guidelines
 

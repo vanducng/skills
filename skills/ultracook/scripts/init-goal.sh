@@ -66,10 +66,22 @@ if [ -z "$SLUG" ]; then
   SLUG="goal-$(date +%y%m%d-%H%M)"
 fi
 
-# ── Compute goal-dir path: plans/goals/{YYMMDD-HHMM}-{slug}/ ──────────────────
+# ── Compute goal-dir path: <state-base>/{YYMMDD-HHMM}-{slug}/ ─────────────────
+# Resolution: $CK_STATE_PATH → <git-root>/.work/state (when .work exists) → legacy plans/goals.
 
 DATE_STAMP="$(date +%y%m%d-%H%M)"
 GOAL_DIR_NAME="${DATE_STAMP}-${SLUG}"
+
+_state_base() {
+  local root="$1"
+  if [ -n "${CK_STATE_PATH:-}" ]; then
+    echo "$CK_STATE_PATH"
+  elif [ -d "${root}/.work" ]; then
+    echo "${root}/.work/state"
+  else
+    echo "${root}/plans/goals"
+  fi
+}
 
 # ── Decide branch name + worktree path ────────────────────────────────────────
 
@@ -77,7 +89,8 @@ if [ "$ULTRACOOK_REUSE_WORKTREE" = "1" ]; then
   # --reuse: write into the current repo, capture current branch
   ULTRACOOK_BRANCH="${ULTRACOOK_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
   WORKTREE_PATH=""
-  GOAL_DIR="${REPO_ROOT}/plans/goals/${GOAL_DIR_NAME}"
+  STATE_BASE="$(_state_base "$REPO_ROOT")"
+  GOAL_DIR="${STATE_BASE}/${GOAL_DIR_NAME}"
 else
   if [ -z "$ULTRACOOK_BRANCH" ]; then
     echo "ULTRACOOK_BRANCH must be set when not using --reuse" >&2
@@ -96,7 +109,9 @@ else
       exit 4
     fi
   done
-  GOAL_DIR="${WORKTREE_PATH}/plans/goals/${GOAL_DIR_NAME}"
+  # In a worktree, the worktree root governs .work existence.
+  STATE_BASE="$(_state_base "$WORKTREE_PATH")"
+  GOAL_DIR="${STATE_BASE}/${GOAL_DIR_NAME}"
 fi
 
 # ── Create worktree (skip on --reuse) ─────────────────────────────────────────

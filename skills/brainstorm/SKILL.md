@@ -107,7 +107,7 @@ If you genuinely cannot pick because a constraint is missing, identify the missi
 ### Where to save
 
 - Active plan context (from session hooks): `{plan_dir}/brainstorm-{YYYYMMDD}-{slug}.md`
-- Otherwise: `plans/reports/brainstorm-{YYYYMMDD-HHMM}-{slug}.md` (use the report path injected by hooks)
+- Otherwise: write to the injected path (`.work/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Filename: `brainstorm-{YYYYMMDD-HHMM}-{slug}.md`.
 - `--quick` mode: skip the file. Verbal output only.
 
 ### Template (default mode)
@@ -236,7 +236,7 @@ If you can express the decision as A/B/C bullet points without losing fidelity, 
 Use the active plan context (injected by session hooks) — **do not invent new directories**, especially not under hidden dotdirs:
 
 - **Plan active:** `{plan_dir}/visuals/brainstorm-{slug}/comparison-{N}.html`
-- **No plan:** `plans/visuals/brainstorm-{YYYYMMDD-HHMM}-{slug}/comparison-{N}.html`
+- **No plan:** write to the injected path (`.work/visuals/` when the project is migrated, else legacy `plans/visuals/`); when reading prior artifacts, check both. Subdir: `brainstorm-{YYYYMMDD-HHMM}-{slug}/comparison-{N}.html`.
 
 Increment `{N}` per iteration: `comparison-1.html`, `comparison-2.html`. Never overwrite — the trail of drafts is part of the brainstorm record.
 
