@@ -1,11 +1,11 @@
 ---
 name: open-design
-description: "Generate polished single-file HTML design artifacts — landing pages, SaaS marketing pages, dashboards, mobile app screens, magazine/editorial posters, social carousels, marketing emails, pricing pages, docs pages, deck/PPT slides, e-guides, kanban boards, weekly updates, invoices, OKRs, and more — by composing 60 production skills × 137 brand-grade design systems (Linear, Stripe, Apple, Notion, Vercel, Airbnb, Brutalist, Editorial Monocle, …) sourced live from github.com/nexu-io/open-design. Use this skill whenever the user asks to design, mock up, prototype, sketch, draft, build, or render any visual web artifact, picks a brand/style direction, says 'in the style of <brand>', wants a presentation/deck/PPT, asks for a hero/section/component, or describes a UI surface in prose. Auto-opens the result in the browser for review."
+description: "Generate polished single-file HTML design artifacts — landing pages, SaaS marketing pages, dashboards, mobile app screens, magazine/editorial posters, social carousels, marketing emails, pricing pages, docs pages, deck/PPT slides, e-guides, kanban boards, weekly updates, invoices, OKRs, and more — by composing 60 production skills × 137 brand-grade design systems (Linear, Stripe, Apple, Notion, Vercel, Airbnb, Brutalist, Editorial Monocle, …) sourced live from github.com/nexu-io/open-design. Use this skill whenever the user asks to design, mock up, prototype, sketch, draft, build, or render any visual web artifact, picks a brand/style direction, says 'in the style of <brand>', wants a presentation/deck/PPT, asks for a hero/section/component, wants a GitHub README / repo hero banner (rendered HTML→PNG), or describes a UI surface in prose. Auto-opens the result in the browser for review."
 license: MIT
 argument-hint: "<design prompt> [--style <design-system>] [--no-open]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # open-design
@@ -17,6 +17,8 @@ Compose a single self-contained HTML artifact from the upstream `nexu-io/open-de
 **This skill handles:** static HTML/CSS/SVG artifacts (landings, marketing pages, dashboards, mobile screens, decks, posters, emails, e-guides, internal docs).
 
 **Does NOT handle:** live React/Vue apps, real backend wiring, image generation (use `ai-artist`), video (use `ai-multimodal`), production deployment (use `deploy`).
+
+**Special case — GitHub README / repo hero banner:** the catalog has no banner template (`search` returns social-cards that override the repo's brand). Skip the catalog and follow `references/github-readme-banner.md` — author/evolve a brand-locked `banner.html`, render to PNG at 2× via headless Chrome, and **verify the render (measure margins + view) before shipping**.
 
 ## Dependencies
 
