@@ -1,0 +1,46 @@
+{
+  "image": "9befb4c704b8f90d7988ca53b27bbaf8.jpg",
+  "style_cues": [
+    "digital art",
+    "urban",
+    "editorial",
+    "high-contrast",
+    "graffiti"
+  ],
+  "palette_hexes": [
+    "#FFFFFF",
+    "#DD3366",
+    "#FC7A9F",
+    "#F5B800",
+    "#333333",
+    "#EBEBEB"
+  ],
+  "layout": {
+    "grid": "dynamic asymmetric",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital",
+    "finish": "smooth rendering"
+  },
+  "mood": [
+    "aspirational",
+    "modern",
+    "edgy",
+    "energetic"
+  ],
+  "shape_primitives": [
+    "custom script type",
+    "circular path text",
+    "horizontal rule",
+    "stylized barcode",
+    "abstract brush strokes"
+  ],
+  "typography": [
+    "custom script display",
+    "geometric sans-serif",
+    "handwritten script accent",
+    "extreme size contrast"
+  ]
+}

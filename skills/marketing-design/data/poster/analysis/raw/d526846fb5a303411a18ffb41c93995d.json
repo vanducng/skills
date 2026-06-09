@@ -1,0 +1,45 @@
+{
+  "image": "d526846fb5a303411a18ffb41c93995d.jpg",
+  "style_cues": [
+    "editorial",
+    "urban",
+    "grungy",
+    "photo collage",
+    "high-contrast"
+  ],
+  "palette_hexes": [
+    "#1e1e1e",
+    "#6b6b6b",
+    "#b42828",
+    "#c0c0c0",
+    "#3d5987"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "full-bleed",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital composite",
+    "finish": "distressed print"
+  },
+  "mood": [
+    "urban",
+    "edgy",
+    "youthful",
+    "energetic"
+  ],
+  "shape_primitives": [
+    "rectangle",
+    "circular dot",
+    "thick rule",
+    "abstract spray",
+    "character forms"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "graffiti display"
+  ]
+}

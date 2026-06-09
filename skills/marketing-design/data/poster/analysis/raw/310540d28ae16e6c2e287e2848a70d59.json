@@ -1,0 +1,42 @@
+{
+  "image": "310540d28ae16e6c2e287e2848a70d59.jpg",
+  "style_cues": [
+    "high-contrast",
+    "botanical illustration",
+    "layered typography",
+    "distressed"
+  ],
+  "palette_hexes": [
+    "#1a1a1a",
+    "#ffffff",
+    "#b13a3b",
+    "#3d6c6b",
+    "#888888"
+  ],
+  "layout": {
+    "grid": "centered stack",
+    "focal": "center",
+    "whitespace_ratio": "high"
+  },
+  "texture": {
+    "material": "digital print",
+    "finish": "grainy overlay"
+  },
+  "mood": [
+    "dramatic",
+    "mysterious",
+    "vintage",
+    "elegant"
+  ],
+  "shape_primitives": [
+    "organic forms",
+    "rectilinear text blocks",
+    "horizontal lines"
+  ],
+  "typography": [
+    "sans-serif",
+    "all caps",
+    "extreme size contrast",
+    "overlapping elements"
+  ]
+}

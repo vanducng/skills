@@ -1,0 +1,43 @@
+{
+  "image": "4700136bbc2d6987577c3c16f4e187b3.jpg",
+  "style_cues": [
+    "sculptural typography",
+    "papercraft",
+    "dynamic",
+    "modern",
+    "minimalist"
+  ],
+  "palette_hexes": [
+    "#E0E0E0",
+    "#FFFFFF",
+    "#A0A0A0",
+    "#333333"
+  ],
+  "layout": {
+    "grid": "exploded text",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "layered paper",
+    "finish": "smooth gradient"
+  },
+  "mood": [
+    "dynamic",
+    "intellectual",
+    "modern",
+    "sophisticated"
+  ],
+  "shape_primitives": [
+    "3d letterforms",
+    "layered forms",
+    "geometric cutouts",
+    "implied books"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "3d depth effect",
+    "extreme size contrast"
+  ]
+}

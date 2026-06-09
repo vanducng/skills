@@ -1,0 +1,44 @@
+{
+  "image": "59ea108d8959586d359980808dc84fc3.jpg",
+  "style_cues": [
+    "photo collage",
+    "vintage",
+    "graphic",
+    "travel"
+  ],
+  "palette_hexes": [
+    "#F0EEDF",
+    "#0D0E13",
+    "#DE873A",
+    "#8AB3BF",
+    "#D7AA6F",
+    "#E8241D"
+  ],
+  "layout": {
+    "grid": "radial fan",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "textured paper",
+    "finish": "photo grain"
+  },
+  "mood": [
+    "nostalgic",
+    "exploratory",
+    "energetic",
+    "artistic"
+  ],
+  "shape_primitives": [
+    "diagonal stripes",
+    "rectangle",
+    "circle",
+    "curved text"
+  ],
+  "typography": [
+    "vertical text",
+    "curved text",
+    "sans-serif",
+    "minimal"
+  ]
+}

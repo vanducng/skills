@@ -1,0 +1,44 @@
+{
+  "image": "5c9277ead15d4e599740c7d6e698c3fa.jpg",
+  "style_cues": [
+    "photo collage",
+    "layered",
+    "promotional",
+    "torn paper effect"
+  ],
+  "palette_hexes": [
+    "#fcd989",
+    "#ffffff",
+    "#618d7f",
+    "#415f6f",
+    "#a0a0a0",
+    "#9c7a52"
+  ],
+  "layout": {
+    "grid": "layered composition",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital collage",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "energetic",
+    "playful",
+    "vibrant",
+    "promotional"
+  ],
+  "shape_primitives": [
+    "irregular organic shapes",
+    "architectural forms",
+    "curved lines",
+    "block letters"
+  ],
+  "typography": [
+    "bold sans-serif",
+    "all caps",
+    "extreme size contrast",
+    "integrated with imagery"
+  ]
+}

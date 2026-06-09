@@ -1,0 +1,43 @@
+{
+  "image": "2f3b297a6f24872fb8e6b4df1b952ee7.jpg",
+  "style_cues": [
+    "high-contrast",
+    "typographic",
+    "editorial",
+    "layered",
+    "minimalist"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#FFFFFF",
+    "#BBBBBB",
+    "#444444"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital print",
+    "finish": "subtle noise"
+  },
+  "mood": [
+    "serious",
+    "modern",
+    "edgy",
+    "introspective"
+  ],
+  "shape_primitives": [
+    "thick rule",
+    "text block",
+    "human profile",
+    "rectangle"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "text over image"
+  ]
+}

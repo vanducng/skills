@@ -1,0 +1,44 @@
+{
+  "image": "db7b1e073e80bee4fec31bfaabe06565.jpg",
+  "style_cues": [
+    "editorial",
+    "surreal",
+    "dreamy",
+    "mixed media",
+    "modern"
+  ],
+  "palette_hexes": [
+    "#B0D0DB",
+    "#F8E2D1",
+    "#7B7C72",
+    "#84969F",
+    "#E5C2BF"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital glossy",
+    "finish": "layered transparency"
+  },
+  "mood": [
+    "dreamy",
+    "serene",
+    "inspirational",
+    "contemplative"
+  ],
+  "shape_primitives": [
+    "segmented form",
+    "rectangular text blocks",
+    "thin rules",
+    "asterisks"
+  ],
+  "typography": [
+    "sans-serif display",
+    "all caps",
+    "distressed text",
+    "extreme size contrast"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "image": "8a800a072bcb22af6a8851b2d9274af4.jpg",
+  "style_cues": [
+    "dark academia",
+    "vintage",
+    "editorial",
+    "narrative",
+    "mixed media"
+  ],
+  "palette_hexes": [
+    "#E8E8E8",
+    "#D20000",
+    "#4F302E",
+    "#2B3B55",
+    "#C4A163",
+    "#FFFFFF"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "photographic print",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "dramatic",
+    "melancholic",
+    "vintage",
+    "editorial"
+  ],
+  "shape_primitives": [
+    "rectangle",
+    "oval",
+    "ornate script",
+    "thick rule",
+    "splatter"
+  ],
+  "typography": [
+    "script display",
+    "serif display",
+    "extreme size contrast",
+    "mixed case"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "image": "5737d7fd13c865fff12218cd86d4a176.jpg",
+  "style_cues": [
+    "collage",
+    "zine",
+    "high-contrast",
+    "urban",
+    "punk"
+  ],
+  "palette_hexes": [
+    "#1A1A1A",
+    "#CC2A2A",
+    "#EFEFEF",
+    "#6B6B6B"
+  ],
+  "layout": {
+    "grid": "dynamic collage",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "newsprint",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "rebellious",
+    "bold",
+    "gritty",
+    "energetic"
+  ],
+  "shape_primitives": [
+    "layered rectangles",
+    "torn edges",
+    "bold text blocks",
+    "angled elements"
+  ],
+  "typography": [
+    "bold sans-serif",
+    "all caps",
+    "display type",
+    "magazine text"
+  ]
+}

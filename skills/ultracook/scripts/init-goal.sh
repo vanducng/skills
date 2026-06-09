@@ -67,15 +67,15 @@ if [ -z "$SLUG" ]; then
 fi
 
 # ── Compute goal-dir path: <state-base>/{YYMMDD-HHMM}-{slug}/ ─────────────────
-# Resolution: $CK_STATE_PATH → <git-root>/.work/state (when .work exists) → legacy plans/goals.
+# Resolution: $VD_STATE_PATH → <git-root>/.work/state (when .work exists) → legacy plans/goals.
 
 DATE_STAMP="$(date +%y%m%d-%H%M)"
 GOAL_DIR_NAME="${DATE_STAMP}-${SLUG}"
 
 _state_base() {
   local root="$1"
-  if [ -n "${CK_STATE_PATH:-}" ]; then
-    echo "$CK_STATE_PATH"
+  if [ -n "${VD_STATE_PATH:-}" ]; then
+    echo "$VD_STATE_PATH"
   elif [ -d "${root}/.work" ]; then
     echo "${root}/.work/state"
   else

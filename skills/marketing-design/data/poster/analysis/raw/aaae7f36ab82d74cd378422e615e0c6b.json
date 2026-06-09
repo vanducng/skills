@@ -1,0 +1,47 @@
+{
+  "image": "aaae7f36ab82d74cd378422e615e0c6b.jpg",
+  "style_cues": [
+    "high-contrast",
+    "liquid abstraction",
+    "monochromatic",
+    "dynamic",
+    "graphic"
+  ],
+  "palette_hexes": [
+    "#1a1a1a",
+    "#f0f0f0",
+    "#303030"
+  ],
+  "layout": {
+    "grid": "vertical split asymmetric",
+    "focal": "right-center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "rough paper",
+    "finish": [
+      "paper grain",
+      "liquid graphic",
+      "flat vector"
+    ]
+  },
+  "mood": [
+    "energetic",
+    "modern",
+    "abstract",
+    "bold"
+  ],
+  "shape_primitives": [
+    "thick rule",
+    "organic swirl",
+    "vertical text block",
+    "stacked text",
+    "geometric letters"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "vertical orientation",
+    "distorted"
+  ]
+}

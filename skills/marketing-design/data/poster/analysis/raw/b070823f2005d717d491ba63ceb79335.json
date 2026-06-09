@@ -1,0 +1,43 @@
+{
+  "image": "b070823f2005d717d491ba63ceb79335.jpg",
+  "style_cues": [
+    "fantasy",
+    "digital illustration",
+    "futuristic",
+    "immersive"
+  ],
+  "palette_hexes": [
+    "#97C7F3",
+    "#F27845",
+    "#243258",
+    "#A36B9F",
+    "#FFFFFF",
+    "#E64747"
+  ],
+  "layout": {
+    "grid": "vertical dominant",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "gradient mesh"
+  },
+  "mood": [
+    "dreamlike",
+    "immersive",
+    "mysterious",
+    "inspiring"
+  ],
+  "shape_primitives": [
+    "vertical rectangle",
+    "organic shapes",
+    "soft forms",
+    "circle"
+  ],
+  "typography": [
+    "serif display",
+    "clean sans-serif",
+    "size hierarchy"
+  ]
+}

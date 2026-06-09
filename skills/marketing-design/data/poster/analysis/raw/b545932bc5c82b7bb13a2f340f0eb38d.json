@@ -1,0 +1,44 @@
+{
+  "image": "b545932bc5c82b7bb13a2f340f0eb38d.jpg",
+  "style_cues": [
+    "cosmic",
+    "lyrical",
+    "minimalist",
+    "ethereal",
+    "typographic"
+  ],
+  "palette_hexes": [
+    "#191A20",
+    "#E1D5C9",
+    "#8B4A3A",
+    "#EAE0D6",
+    "#594B43"
+  ],
+  "layout": {
+    "grid": "asymmetric composition",
+    "focal": "full-bleed",
+    "whitespace_ratio": "high"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "contemplative",
+    "ethereal",
+    "melancholic",
+    "mysterious"
+  ],
+  "shape_primitives": [
+    "circle",
+    "curved line",
+    "rotated text block",
+    "vertical text block"
+  ],
+  "typography": [
+    "geometric sans",
+    "extreme size contrast",
+    "vertical orientation",
+    "thin weight"
+  ]
+}

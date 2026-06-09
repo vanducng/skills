@@ -88,6 +88,36 @@ def test_generate_succeeds_via_filesystem_glob(monkeypatch, tmp_path):
     assert "-m" in cmd and "gpt-5.5" in cmd
 
 
+def test_generate_attaches_reference_images(monkeypatch, tmp_path):
+    """images=[...] forwards each as `-i <path>` and notes the reference in the prompt."""
+    monkeypatch.setattr(cig, "check_codex_available", lambda: None)
+    logo = tmp_path / "logo.png"
+    logo.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+
+    captured = {}
+
+    def fake_run(cmd, *args, **kwargs):
+        td = Path(cmd[cmd.index("-C") + 1])
+        (td / "generated.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 64)
+        captured["cmd"] = cmd
+        captured["input"] = kwargs.get("input")
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="OK\n", stderr="")
+
+    monkeypatch.setattr(cig.subprocess, "run", fake_run)
+
+    cig.generate_image("place logo on card", tmp_path / "card.png", images=[str(logo)])
+    cmd = captured["cmd"]
+    assert "-i" in cmd and str(logo.resolve()) in cmd
+    assert cmd[-1] == "-"  # prompt via stdin, not a positional (avoids -i greedy capture)
+    assert "reference" in (captured["input"] or "")  # ref note injected into stdin prompt
+
+
+def test_generate_missing_reference_image_raises(monkeypatch, tmp_path):
+    monkeypatch.setattr(cig, "check_codex_available", lambda: None)
+    with pytest.raises(cig.CodexError):
+        cig.generate_image("x", tmp_path / "out.png", images=[str(tmp_path / "nope.png")])
+
+
 def test_generate_falls_back_to_last_message(monkeypatch, tmp_path):
     """No PNG in tmpdir, but last.txt contains a path to a real PNG elsewhere."""
     monkeypatch.setattr(cig, "check_codex_available", lambda: None)

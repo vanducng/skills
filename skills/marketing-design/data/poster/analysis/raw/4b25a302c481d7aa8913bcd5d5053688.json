@@ -1,0 +1,43 @@
+{
+  "image": "4b25a302c481d7aa8913bcd5d5053688.jpg",
+  "style_cues": [
+    "fantasy illustration",
+    "dreamy",
+    "whimsical",
+    "luminescent",
+    "narrative"
+  ],
+  "palette_hexes": [
+    "#1B2B56",
+    "#5CACDB",
+    "#FFC438",
+    "#BA3330",
+    "#FFFFFF"
+  ],
+  "layout": {
+    "grid": "asymmetric",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "gradient mesh"
+  },
+  "mood": [
+    "whimsical",
+    "dreamy",
+    "enchanting",
+    "mysterious"
+  ],
+  "shape_primitives": [
+    "circle",
+    "organic curve",
+    "silhouette",
+    "hexagon"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "wide letter spacing"
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "image": "36097cd2af4616c9352ceef92e5b743e.jpg",
+  "style_cues": [
+    "photo collage",
+    "editorial",
+    "dynamic",
+    "aspirational"
+  ],
+  "palette_hexes": [
+    "#F9F7EF",
+    "#313131",
+    "#F7C966",
+    "#2E4D68",
+    "#5B979A",
+    "#F27A9B"
+  ],
+  "layout": {
+    "grid": "diagonal flow",
+    "focal": "bottom-left",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "aspirational",
+    "energetic",
+    "editorial",
+    "exploratory"
+  ],
+  "shape_primitives": [
+    "diagonal stripe",
+    "circle",
+    "rectangle",
+    "organic shape"
+  ],
+  "typography": [
+    "serif display",
+    "sans-serif headline",
+    "extreme size contrast",
+    "korean script"
+  ]
+}

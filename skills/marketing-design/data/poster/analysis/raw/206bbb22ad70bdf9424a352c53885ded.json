@@ -1,0 +1,44 @@
+{
+  "image": "206bbb22ad70bdf9424a352c53885ded.jpg",
+  "style_cues": [
+    "photo collage",
+    "distressed",
+    "high-contrast",
+    "editorial",
+    "punk rock"
+  ],
+  "palette_hexes": [
+    "#AA3030",
+    "#000000",
+    "#E0E0E0",
+    "#808080"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "grungy paper",
+    "finish": "halftone dots"
+  },
+  "mood": [
+    "rebellious",
+    "edgy",
+    "vintage",
+    "dramatic"
+  ],
+  "shape_primitives": [
+    "rotated text block",
+    "cut paper edges",
+    "scribble lines",
+    "eyes",
+    "car silhouette"
+  ],
+  "typography": [
+    "distressed serif",
+    "all caps",
+    "extreme size contrast",
+    "cut-out letters"
+  ]
+}

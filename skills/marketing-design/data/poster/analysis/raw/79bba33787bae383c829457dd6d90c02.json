@@ -1,0 +1,44 @@
+{
+  "image": "79bba33787bae383c829457dd6d90c02.jpg",
+  "style_cues": [
+    "photographic",
+    "editorial",
+    "tonal",
+    "layered",
+    "minimalist"
+  ],
+  "palette_hexes": [
+    "#455243",
+    "#98a467",
+    "#6f3f33",
+    "#e9d99c",
+    "#62674e"
+  ],
+  "layout": {
+    "grid": "vertical-dominant, asymmetric",
+    "focal": "center-left",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital",
+    "finish": "photographic, vertical stripes"
+  },
+  "mood": [
+    "pensive",
+    "artistic",
+    "understated",
+    "modern"
+  ],
+  "shape_primitives": [
+    "vertical stripes",
+    "rectangle",
+    "curved lines",
+    "small icons"
+  ],
+  "typography": [
+    "geometric sans-serif",
+    "hierarchical sizing",
+    "all caps",
+    "script signature"
+  ]
+}

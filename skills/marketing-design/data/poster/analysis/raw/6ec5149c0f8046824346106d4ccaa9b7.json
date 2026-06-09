@@ -1,0 +1,44 @@
+{
+  "image": "6ec5149c0f8046824346106d4ccaa9b7.jpg",
+  "style_cues": [
+    "artistic",
+    "modern",
+    "abstract",
+    "editorial",
+    "elegant"
+  ],
+  "palette_hexes": [
+    "#1e202b",
+    "#ffffff",
+    "#682e2c",
+    "#3d5e5e",
+    "#c9a04a"
+  ],
+  "layout": {
+    "grid": "asymmetric stack",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "textured brushwork"
+  },
+  "mood": [
+    "artistic",
+    "sophisticated",
+    "expressive",
+    "calm"
+  ],
+  "shape_primitives": [
+    "organic curves",
+    "geometric letterforms",
+    "rectangles",
+    "abstract blobs"
+  ],
+  "typography": [
+    "display sans-serif",
+    "classic serif",
+    "size contrast",
+    "all caps"
+  ]
+}

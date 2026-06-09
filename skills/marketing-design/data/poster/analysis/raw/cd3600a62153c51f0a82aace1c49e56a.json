@@ -1,0 +1,45 @@
+{
+  "image": "cd3600a62153c51f0a82aace1c49e56a.jpg",
+  "style_cues": [
+    "digital art",
+    "abstract",
+    "futuristic",
+    "vibrant"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#00c0c0",
+    "#ff00cc",
+    "#8000ff",
+    "#ff3366",
+    "#80e0e0"
+  ],
+  "layout": {
+    "grid": "asymmetric grid",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital",
+    "finish": "3d render"
+  },
+  "mood": [
+    "energetic",
+    "experimental",
+    "modern",
+    "dynamic"
+  ],
+  "shape_primitives": [
+    "organic blob",
+    "thin tube",
+    "rectangle",
+    "triangle",
+    "humanoid form"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "vertical text block"
+  ]
+}

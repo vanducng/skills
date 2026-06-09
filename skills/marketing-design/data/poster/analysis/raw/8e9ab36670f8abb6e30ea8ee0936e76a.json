@@ -1,0 +1,43 @@
+{
+  "image": "8e9ab36670f8abb6e30ea8ee0936e76a.jpg",
+  "style_cues": [
+    "collage",
+    "high-contrast",
+    "distressed",
+    "comic-book",
+    "editorial"
+  ],
+  "palette_hexes": [
+    "#0A0A0A",
+    "#F5F5F5",
+    "#969696"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "newsprint",
+    "finish": "halftone dots, paper grain, distressed overlay"
+  },
+  "mood": [
+    "dark",
+    "gritty",
+    "serious",
+    "energetic"
+  ],
+  "shape_primitives": [
+    "torn edge",
+    "cityscape",
+    "bat symbol",
+    "vertical stripe",
+    "rotated text block"
+  ],
+  "typography": [
+    "distressed sans-serif",
+    "all caps",
+    "extreme size contrast",
+    "varied orientation"
+  ]
+}

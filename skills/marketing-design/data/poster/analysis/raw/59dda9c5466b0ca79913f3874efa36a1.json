@@ -1,0 +1,44 @@
+{
+  "image": "59dda9c5466b0ca79913f3874efa36a1.jpg",
+  "style_cues": [
+    "digital art",
+    "abstract",
+    "typographic",
+    "organic forms",
+    "texture overlay"
+  ],
+  "palette_hexes": [
+    "#d8cebe",
+    "#ffffff",
+    "#b03833",
+    "#e65f4f",
+    "#8c8c8c"
+  ],
+  "layout": {
+    "grid": "layered typographic grid",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital render",
+    "finish": "paper grain overlay"
+  },
+  "mood": [
+    "dynamic",
+    "complex",
+    "modern",
+    "editorial"
+  ],
+  "shape_primitives": [
+    "bold sans-serif letters",
+    "swirling lines",
+    "intertwined tubes",
+    "abstract organic forms"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "large scale",
+    "letter-spaced"
+  ]
+}

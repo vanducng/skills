@@ -1,0 +1,48 @@
+{
+  "image": "43e8f9dec2c7b2b090ec370bd0948920.jpg",
+  "style_cues": [
+    "editorial",
+    "magazine",
+    "urban fashion",
+    "collage",
+    "dynamic"
+  ],
+  "palette_hexes": [
+    "#F4F4F4",
+    "#2F2F2F",
+    "#8FC1EA",
+    "#C13333",
+    "#F9F7F4",
+    "#E18F2E"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": [
+      "photo collage",
+      "paper grain"
+    ]
+  },
+  "mood": [
+    "energetic",
+    "trendy",
+    "urban",
+    "playful"
+  ],
+  "shape_primitives": [
+    "rectangular cut-outs",
+    "rotated text block",
+    "rounded rectangle",
+    "diagonal lines"
+  ],
+  "typography": [
+    "sans-serif",
+    "distressed text",
+    "extreme size contrast",
+    "mixed scripts"
+  ]
+}

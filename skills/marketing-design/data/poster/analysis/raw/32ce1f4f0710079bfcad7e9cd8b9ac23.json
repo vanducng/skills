@@ -1,0 +1,46 @@
+{
+  "image": "32ce1f4f0710079bfcad7e9cd8b9ac23.jpg",
+  "style_cues": [
+    "fantasy art",
+    "traditional chinese",
+    "ethereal",
+    "nature-inspired",
+    "mythological"
+  ],
+  "palette_hexes": [
+    "#344634",
+    "#F2F2D9",
+    "#D7524A",
+    "#3F6352",
+    "#7F4D3C",
+    "#E0E8E7"
+  ],
+  "layout": {
+    "grid": "centered organic flow",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital painting",
+    "finish": "painterly strokes"
+  },
+  "mood": [
+    "mysterious",
+    "serene",
+    "epic",
+    "enchanting"
+  ],
+  "shape_primitives": [
+    "organic curves",
+    "rectangles",
+    "triangles",
+    "flowing lines",
+    "calligraphic strokes"
+  ],
+  "typography": [
+    "calligraphic script",
+    "traditional chinese",
+    "vertical alignment",
+    "hierarchical size"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "image": "84f8e5e99ecc1448694574af98c9b261.jpg",
+  "style_cues": [
+    "editorial",
+    "narrative illustration",
+    "historical",
+    "distressed print"
+  ],
+  "palette_hexes": [
+    "#F4ECC9",
+    "#2E2F33",
+    "#E0852A",
+    "#3F6BA1",
+    "#6E6D6B"
+  ],
+  "layout": {
+    "grid": "dominant illustration, text blocks",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "matte paper",
+    "finish": "digital painting, paper grain, distress"
+  },
+  "mood": [
+    "heroic",
+    "epic",
+    "dynamic",
+    "serious"
+  ],
+  "shape_primitives": [
+    "rectangle",
+    "thick rule",
+    "diagonal line",
+    "organic form"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "serif body text"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "image": "72f7066f8bfd58ae11cba72b7e986c67.jpg",
+  "style_cues": [
+    "editorial illustration",
+    "anime-inspired",
+    "soft aesthetic",
+    "layered text"
+  ],
+  "palette_hexes": [
+    "#FDFDFD",
+    "#E8CDBB",
+    "#7D513F",
+    "#F7A895",
+    "#1892DA",
+    "#C39F93"
+  ],
+  "layout": {
+    "grid": "asymmetric full-bleed",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital illustration",
+    "finish": "painterly digital"
+  },
+  "mood": [
+    "dreamy",
+    "romantic",
+    "ethereal",
+    "intimate"
+  ],
+  "shape_primitives": [
+    "large serif characters",
+    "star",
+    "ribbons",
+    "curvy lines",
+    "rectangles"
+  ],
+  "typography": [
+    "large serif display",
+    "mixed serif and sans-serif",
+    "script accents",
+    "extreme size contrast"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "image": "d52d0671f8a0d52c5d1343020b8f3e8e.jpg",
+  "style_cues": [
+    "surreal",
+    "dreamlike",
+    "whimsical",
+    "digital art",
+    "vibrant"
+  ],
+  "palette_hexes": [
+    "#72D8F2",
+    "#E5A8BA",
+    "#C0588A",
+    "#5A7E4D",
+    "#BCC5CC",
+    "#8C5B32"
+  ],
+  "layout": {
+    "grid": "centered stack",
+    "focal": "center",
+    "whitespace_ratio": "high"
+  },
+  "texture": {
+    "material": "digital render",
+    "finish": "gradient mesh"
+  },
+  "mood": [
+    "dreamy",
+    "serene",
+    "whimsical",
+    "calm"
+  ],
+  "shape_primitives": [
+    "organic curve",
+    "oval",
+    "crescent",
+    "rectangle",
+    "small organic shapes"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "small scale text"
+  ]
+}

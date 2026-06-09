@@ -1,0 +1,46 @@
+{
+  "image": "3f168ed33e3a90bca52d731b43b7f8ff.jpg",
+  "style_cues": [
+    "streetwear",
+    "urban",
+    "digital",
+    "glitch",
+    "futuristic",
+    "graffiti"
+  ],
+  "palette_hexes": [
+    "#1a1a1a",
+    "#ff6600",
+    "#f0f0f0",
+    "#ffffff",
+    "#808080"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "gradient mesh, flat vector, spray paint"
+  },
+  "mood": [
+    "urban",
+    "edgy",
+    "energetic",
+    "modern"
+  ],
+  "shape_primitives": [
+    "diagonal stripe",
+    "rectangle",
+    "circle",
+    "thick rule",
+    "barcode"
+  ],
+  "typography": [
+    "geometric sans",
+    "graffiti script",
+    "all caps",
+    "small body text"
+  ]
+}

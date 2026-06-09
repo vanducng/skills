@@ -1,0 +1,44 @@
+{
+  "image": "e148e8bcff846b7c872c7c1d50452fd4.jpg",
+  "style_cues": [
+    "japanese aesthetic",
+    "high-contrast",
+    "typographic",
+    "modern graphic",
+    "grid-based",
+    "grunge"
+  ],
+  "palette_hexes": [
+    "#F3F3F3",
+    "#000000",
+    "#E23837"
+  ],
+  "layout": {
+    "grid": "sectional grid",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "flat vector"
+  },
+  "mood": [
+    "intense",
+    "modern",
+    "dark",
+    "cultural"
+  ],
+  "shape_primitives": [
+    "circle",
+    "rectangle",
+    "thick rule",
+    "vertical text block",
+    "wave pattern"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "vertical orientation"
+  ]
+}

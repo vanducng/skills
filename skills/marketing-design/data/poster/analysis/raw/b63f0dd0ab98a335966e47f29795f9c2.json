@@ -1,0 +1,42 @@
+{
+  "image": "b63f0dd0ab98a335966e47f29795f9c2.jpg",
+  "style_cues": [
+    "abstract typography",
+    "high-contrast",
+    "generative art",
+    "event poster",
+    "digital"
+  ],
+  "palette_hexes": [
+    "#1A1A1A",
+    "#FFFFFF",
+    "#F5DD36"
+  ],
+  "layout": {
+    "grid": "asymmetric grid",
+    "focal": "full-bleed",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "gradient mesh"
+  },
+  "mood": [
+    "modern",
+    "abstract",
+    "intriguing",
+    "sophisticated"
+  ],
+  "shape_primitives": [
+    "organic curves",
+    "thin rules",
+    "abstract letterforms",
+    "dots"
+  ],
+  "typography": [
+    "geometric sans-serif",
+    "abstract fluid forms",
+    "all caps",
+    "extreme scale contrast"
+  ]
+}

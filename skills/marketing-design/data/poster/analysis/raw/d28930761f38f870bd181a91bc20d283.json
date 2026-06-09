@@ -1,0 +1,47 @@
+{
+  "image": "d28930761f38f870bd181a91bc20d283.jpg",
+  "style_cues": [
+    "distressed",
+    "collage",
+    "halftone",
+    "magazine editorial",
+    "punk aesthetic"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#FFFFFF",
+    "#A0D4D4",
+    "#8D8E7D",
+    "#666666",
+    "#A67C7C"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "full-bleed",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "distressed paper",
+    "finish": "halftone dots"
+  },
+  "mood": [
+    "edgy",
+    "energetic",
+    "rebellious",
+    "grungy"
+  ],
+  "shape_primitives": [
+    "circle",
+    "rectangle",
+    "square",
+    "star",
+    "line",
+    "rotated text block"
+  ],
+  "typography": [
+    "geometric sans",
+    "script display",
+    "all caps",
+    "extreme size contrast"
+  ]
+}
