@@ -70,5 +70,11 @@ Give the `DataTable` body a consistent min-height (e.g. `min-h-[420px]`, ~ pageS
 ### 17. Login footer + single version constant
 Add a centered login footer `© <Brand> · v<APP_VERSION>` and reuse the SAME `APP_VERSION` (one `src/config/version.ts`) in the sidebar status chip. The brand lockup should be a link to `/` (home).
 
+### 19. Standardize audit columns + soft delete
+Give domain tables a consistent audit shape via base.py col factories: `created_at`, `updated_at`, `created_by`, `updated_by` (FK users, SET NULL), and `deleted_at` for soft-deletable entities. Populate `created_by`/`updated_by` from the acting user in services. Soft delete = set `deleted_at`; the service `list()`/`get()` MUST filter `deleted_at IS NULL`. Reserve HARD delete for rows that own an external resource (e.g. an S3 object) where a tombstone would lie. Immutable logs (audit) keep only `created_at`. Add columns via a migration; backfill nothing.
+
+### 20. Internal "support workspace" + tenant scoping
+Internal (provider) users often need BOTH an Admin section AND the tenant Workspace, seeing ALL tenants' data (e.g. all client files with a Company column + filter) to support them. Implement scoping in the service (`is_internal(role)` → all rows; tenant user → own `company_id`), gate write actions by role (e.g. AE = view+download, not delete), and render a Company column only for internal users. Route internal users' home to the admin landing.
+
 ### 18. Client-facing copy: precise, not over-claiming, not over-specifying
 For tenant/client UI + docs: describe what users actually do (e.g. "upload hire data exported from your ATS"), not internal jargon (no "leads/rosters/applicants", no "lead database"). Don't over-claim outcomes ("real hires", not "potential"; no "never sold/shared" promises). Don't leak infra specifics (say "in CNB's AWS (S3)", not the bucket name or "organized by your company identifier"). Keep internal role tables / audit details OUT of client docs.
