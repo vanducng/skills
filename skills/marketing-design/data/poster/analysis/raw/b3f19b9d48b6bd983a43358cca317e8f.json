@@ -1,0 +1,44 @@
+{
+  "image": "b3f19b9d48b6bd983a43358cca317e8f.jpg",
+  "style_cues": [
+    "3d typography",
+    "layered",
+    "monochromatic",
+    "modern",
+    "papercraft"
+  ],
+  "palette_hexes": [
+    "#D9D9D9",
+    "#000000",
+    "#666666",
+    "#AAAAAA"
+  ],
+  "layout": {
+    "grid": "dynamic arrangement",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "matte paper",
+    "finish": "paper grain"
+  },
+  "mood": [
+    "modern",
+    "sophisticated",
+    "dynamic",
+    "editorial"
+  ],
+  "shape_primitives": [
+    "3d letterforms",
+    "layered shapes",
+    "diagonal lines",
+    "rectilinear forms",
+    "curved shapes"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "sans-serif body"
+  ]
+}

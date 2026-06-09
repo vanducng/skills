@@ -1,0 +1,45 @@
+{
+  "image": "7e14dd460280476a871db304cd5b266b.jpg",
+  "style_cues": [
+    "digital illustration",
+    "high-contrast",
+    "dynamic composition",
+    "fragmented typography",
+    "character focus"
+  ],
+  "palette_hexes": [
+    "#4A0F11",
+    "#E11A1A",
+    "#FFFFFF",
+    "#F86E00",
+    "#180000",
+    "#40C6D3"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "halftone dots"
+  },
+  "mood": [
+    "energetic",
+    "intense",
+    "dynamic",
+    "powerful"
+  ],
+  "shape_primitives": [
+    "rotated text block",
+    "irregular polygons",
+    "organic curves",
+    "halftone dots"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "fragmented text"
+  ]
+}

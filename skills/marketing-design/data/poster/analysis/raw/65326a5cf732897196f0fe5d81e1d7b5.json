@@ -1,0 +1,44 @@
+{
+  "image": "65326a5cf732897196f0fe5d81e1d7b5.jpg",
+  "style_cues": [
+    "historical",
+    "landscape",
+    "commemorative",
+    "exploration",
+    "travel"
+  ],
+  "palette_hexes": [
+    "#8BD7F6",
+    "#2D6B3C",
+    "#1C728F",
+    "#FFFFFF",
+    "#F6BE4C"
+  ],
+  "layout": {
+    "grid": "layered composition",
+    "focal": "full-bleed",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "grand",
+    "inspiring",
+    "adventurous",
+    "historic"
+  ],
+  "shape_primitives": [
+    "rectangular buttons",
+    "small icons",
+    "organic landscape forms",
+    "serif letterforms"
+  ],
+  "typography": [
+    "serif display",
+    "sans-serif body text",
+    "extreme size contrast",
+    "all caps"
+  ]
+}

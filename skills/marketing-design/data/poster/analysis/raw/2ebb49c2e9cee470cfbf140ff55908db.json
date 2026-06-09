@@ -1,0 +1,45 @@
+{
+  "image": "2ebb49c2e9cee470cfbf140ff55908db.jpg",
+  "style_cues": [
+    "digital",
+    "high-contrast",
+    "graphic",
+    "editorial",
+    "monochromatic with accent"
+  ],
+  "palette_hexes": [
+    "#424242",
+    "#FFFFFF",
+    "#4DC6DB",
+    "#E39A68",
+    "#E4002B"
+  ],
+  "layout": {
+    "grid": "asymmetric layered",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "flat vector"
+  },
+  "mood": [
+    "modern",
+    "empowering",
+    "mysterious",
+    "graphic"
+  ],
+  "shape_primitives": [
+    "triangle",
+    "thick rule",
+    "rotated text block",
+    "rectangle",
+    "vertical bar"
+  ],
+  "typography": [
+    "sans-serif display",
+    "extreme size contrast",
+    "all caps",
+    "condensed sans-serif"
+  ]
+}

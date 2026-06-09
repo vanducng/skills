@@ -1,0 +1,44 @@
+{
+  "image": "ad954edcb87747e9098689cbe4baa5ef.jpg",
+  "style_cues": [
+    "grid",
+    "abstract",
+    "modern",
+    "typographic",
+    "high-contrast"
+  ],
+  "palette_hexes": [
+    "#131313",
+    "#FFFFFF",
+    "#00479A",
+    "#E07000",
+    "#A8E0F0"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "chromatic aberration"
+  },
+  "mood": [
+    "modern",
+    "abstract",
+    "dynamic",
+    "professional"
+  ],
+  "shape_primitives": [
+    "organic curves",
+    "grid lines",
+    "rectangular blocks",
+    "geometric letterforms"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "overlapped text"
+  ]
+}

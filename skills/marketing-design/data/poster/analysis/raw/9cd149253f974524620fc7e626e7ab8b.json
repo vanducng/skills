@@ -1,0 +1,45 @@
+{
+  "image": "9cd149253f974524620fc7e626e7ab8b.jpg",
+  "style_cues": [
+    "streetwear",
+    "distressed",
+    "layered",
+    "bold typography",
+    "urban"
+  ],
+  "palette_hexes": [
+    "#F4F4F4",
+    "#000000",
+    "#DDCBBA",
+    "#6F869A",
+    "#B6A79D"
+  ],
+  "layout": {
+    "grid": "broken grid, overlapping elements",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "crumpled paper",
+    "finish": "halftone dots, distressed edge, photo collage"
+  },
+  "mood": [
+    "energetic",
+    "urban",
+    "modern",
+    "casual"
+  ],
+  "shape_primitives": [
+    "rectangle",
+    "dot pattern",
+    "star",
+    "text block",
+    "human figure"
+  ],
+  "typography": [
+    "geometric sans",
+    "extreme size contrast",
+    "all caps",
+    "bold"
+  ]
+}

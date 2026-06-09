@@ -1,0 +1,43 @@
+{
+  "image": "9e8eb8cd216c308eb955be98c8b5469c.jpg",
+  "style_cues": [
+    "surreal",
+    "inspirational",
+    "modern fantasy",
+    "advertising"
+  ],
+  "palette_hexes": [
+    "#70B8D9",
+    "#FFC97C",
+    "#5A7B39",
+    "#FFFFFF",
+    "#E95944"
+  ],
+  "layout": {
+    "grid": "centered stack",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital composite",
+    "finish": "photo-realistic rendering"
+  },
+  "mood": [
+    "inspirational",
+    "whimsical",
+    "surreal",
+    "optimistic"
+  ],
+  "shape_primitives": [
+    "circle",
+    "organic form",
+    "rounded rectangle",
+    "brush stroke"
+  ],
+  "typography": [
+    "brush script display",
+    "clean sans-serif",
+    "extreme size contrast",
+    "mixed styles"
+  ]
+}

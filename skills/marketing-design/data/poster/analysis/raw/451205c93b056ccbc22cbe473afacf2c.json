@@ -1,0 +1,45 @@
+{
+  "image": "451205c93b056ccbc22cbe473afacf2c.jpg",
+  "style_cues": [
+    "digital",
+    "high-contrast",
+    "abstract",
+    "futuristic",
+    "geometric",
+    "experimental"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#FFFFFF",
+    "#CCCCCC",
+    "#666666"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "top-left",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "glossy",
+    "finish": "reflective gradient"
+  },
+  "mood": [
+    "futuristic",
+    "experimental",
+    "intense",
+    "dynamic"
+  ],
+  "shape_primitives": [
+    "circle",
+    "wavy lines",
+    "grid",
+    "text block",
+    "distorted mesh"
+  ],
+  "typography": [
+    "geometric sans-serif",
+    "all caps",
+    "extreme size contrast",
+    "vertical text"
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "image": "ecb624bec81a0d5b229dc2fe4ed585fd.jpg",
+  "style_cues": [
+    "cubist",
+    "geometric",
+    "abstract",
+    "editorial",
+    "modern chinese",
+    "constructivist"
+  ],
+  "palette_hexes": [
+    "#FDFDFD",
+    "#D9292F",
+    "#292E3D",
+    "#EF7E3B",
+    "#89B0C5",
+    "#D9D9D9"
+  ],
+  "layout": {
+    "grid": "asymmetric",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "flat vector"
+  },
+  "mood": [
+    "energetic",
+    "sophisticated",
+    "editorial",
+    "modern"
+  ],
+  "shape_primitives": [
+    "circle",
+    "triangle",
+    "rectangle",
+    "diagonal stripe",
+    "thick rule"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "size contrast",
+    "clean sans-serif"
+  ]
+}

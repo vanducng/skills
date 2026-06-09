@@ -1,0 +1,45 @@
+{
+  "image": "19b3f41ac3316417b7b3c05b6f259f78.jpg",
+  "style_cues": [
+    "modernist",
+    "editorial",
+    "typographic",
+    "structured",
+    "minimalist"
+  ],
+  "palette_hexes": [
+    "#F8F8F8",
+    "#263A48",
+    "#000000",
+    "#B0B0B0",
+    "#8C4B4B"
+  ],
+  "layout": {
+    "grid": "structured vertical",
+    "focal": "center",
+    "whitespace_ratio": "high"
+  },
+  "texture": {
+    "material": "matte paper",
+    "finish": "metallic sheen"
+  },
+  "mood": [
+    "sophisticated",
+    "editorial",
+    "modern",
+    "technical"
+  ],
+  "shape_primitives": [
+    "circle",
+    "thick rule",
+    "geometric icon",
+    "petal shape",
+    "hashtag outline"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "typographic hierarchy"
+  ]
+}

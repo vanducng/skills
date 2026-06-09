@@ -1,0 +1,44 @@
+{
+  "image": "75b9a7dbfc4f5298f6092a3dbbda9c80.jpg",
+  "style_cues": [
+    "digital aesthetic",
+    "experimental",
+    "high-contrast",
+    "futuristic",
+    "glitch art"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#FFFFFF",
+    "#FF00FF",
+    "#00FFFF"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "chromatic aberration"
+  },
+  "mood": [
+    "modern",
+    "experimental",
+    "energetic",
+    "techy"
+  ],
+  "shape_primitives": [
+    "thick rule",
+    "fluid curve",
+    "rectangle",
+    "circle",
+    "diagonal line"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "refracted effect"
+  ]
+}

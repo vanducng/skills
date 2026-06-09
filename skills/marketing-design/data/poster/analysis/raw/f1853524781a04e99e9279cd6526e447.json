@@ -1,0 +1,44 @@
+{
+  "image": "f1853524781a04e99e9279cd6526e447.jpg",
+  "style_cues": [
+    "high-contrast",
+    "editorial",
+    "bold typography",
+    "integrated photography",
+    "graphic overlay"
+  ],
+  "palette_hexes": [
+    "#C20A17",
+    "#FFFFFF",
+    "#000000",
+    "#3F3F3F",
+    "#D4B4A9"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "bold",
+    "edgy",
+    "energetic",
+    "modern"
+  ],
+  "shape_primitives": [
+    "thick rule",
+    "large letterforms",
+    "rectangle",
+    "human figure"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "script accent"
+  ]
+}

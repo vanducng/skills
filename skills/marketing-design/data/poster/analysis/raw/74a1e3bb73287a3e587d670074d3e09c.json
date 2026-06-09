@@ -1,0 +1,45 @@
+{
+  "image": "74a1e3bb73287a3e587d670074d3e09c.jpg",
+  "style_cues": [
+    "typographic art",
+    "figurative",
+    "high-contrast",
+    "conceptual",
+    "digital rendering"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#C69C6D",
+    "#7F001F",
+    "#F0E0D0",
+    "#503A26"
+  ],
+  "layout": {
+    "grid": "figure-dominant",
+    "focal": "center-right",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "3d text rendering"
+  },
+  "mood": [
+    "introspective",
+    "strong",
+    "complex",
+    "artistic"
+  ],
+  "shape_primitives": [
+    "organic forms",
+    "curved text paths",
+    "concentric arcs",
+    "diagonal alignment",
+    "text outlines"
+  ],
+  "typography": [
+    "all caps",
+    "sans-serif",
+    "variable size",
+    "curved baselines"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "image": "download.png",
+  "style_cues": [
+    "graffiti art",
+    "street art",
+    "grunge",
+    "pop art",
+    "distressed"
+  ],
+  "palette_hexes": [
+    "#252525",
+    "#F2EBDC",
+    "#D7543D",
+    "#F8C33E",
+    "#58A6C2"
+  ],
+  "layout": {
+    "grid": "layered collage",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "aged paper",
+    "finish": "distressed ink"
+  },
+  "mood": [
+    "rebellious",
+    "energetic",
+    "playful",
+    "street art"
+  ],
+  "shape_primitives": [
+    "pixelated rectangle",
+    "irregular splatters",
+    "stars",
+    "graffiti tags",
+    "crosses",
+    "smiley face"
+  ],
+  "typography": [
+    "graffiti-style",
+    "all caps",
+    "hand-drawn display",
+    "distressed lettering"
+  ]
+}

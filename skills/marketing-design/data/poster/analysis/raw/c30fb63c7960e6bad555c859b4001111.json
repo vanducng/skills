@@ -1,0 +1,47 @@
+{
+  "image": "c30fb63c7960e6bad555c859b4001111.jpg",
+  "style_cues": [
+    "3d illustration",
+    "playful",
+    "whimsical",
+    "narrative",
+    "digital render"
+  ],
+  "palette_hexes": [
+    "#183099",
+    "#262a2d",
+    "#fdfbfd",
+    "#76c3ef",
+    "#31a265",
+    "#fce400"
+  ],
+  "layout": {
+    "grid": "dynamic diagonal",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital render",
+    "finish": "glossy 3d render"
+  },
+  "mood": [
+    "playful",
+    "imaginative",
+    "energetic",
+    "youthful"
+  ],
+  "shape_primitives": [
+    "circle",
+    "rounded rectangle",
+    "star",
+    "organic splatter",
+    "cloud",
+    "snowflake"
+  ],
+  "typography": [
+    "sans-serif",
+    "geometric sans",
+    "handwritten accent",
+    "all caps"
+  ]
+}

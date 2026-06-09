@@ -1,0 +1,44 @@
+{
+  "image": "3dc3adf1e1542239db8acbe7233ef6d3.jpg",
+  "style_cues": [
+    "editorial",
+    "anime-inspired",
+    "high-contrast",
+    "magazine cover",
+    "pop art"
+  ],
+  "palette_hexes": [
+    "#ED7D31",
+    "#4DC2F3",
+    "#FDFDFD",
+    "#171717",
+    "#C83D2A"
+  ],
+  "layout": {
+    "grid": "asymmetric",
+    "focal": "top-left",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "flat vector"
+  },
+  "mood": [
+    "stylish",
+    "playful",
+    "modern",
+    "vibrant"
+  ],
+  "shape_primitives": [
+    "thick rule",
+    "diamond",
+    "stripe",
+    "rectangle"
+  ],
+  "typography": [
+    "geometric sans",
+    "extreme size contrast",
+    "all caps",
+    "stacked text"
+  ]
+}

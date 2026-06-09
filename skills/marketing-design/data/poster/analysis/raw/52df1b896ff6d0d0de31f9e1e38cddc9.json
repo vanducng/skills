@@ -1,0 +1,46 @@
+{
+  "image": "52df1b896ff6d0d0de31f9e1e38cddc9.jpg",
+  "style_cues": [
+    "futuristic",
+    "dark mode",
+    "geometric type",
+    "event promotion",
+    "techwear aesthetic"
+  ],
+  "palette_hexes": [
+    "#2C2C2C",
+    "#E8E8E8",
+    "#A0874E",
+    "#FFFFFF",
+    "#AAAAAA"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital",
+    "finish": "gradient mesh, subtle noise"
+  },
+  "mood": [
+    "energetic",
+    "modern",
+    "cool",
+    "futuristic"
+  ],
+  "shape_primitives": [
+    "thick rule",
+    "geometric shapes",
+    "barcode",
+    "rounded rectangles",
+    "chevron arrows",
+    "circle"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "digital distressed"
+  ]
+}

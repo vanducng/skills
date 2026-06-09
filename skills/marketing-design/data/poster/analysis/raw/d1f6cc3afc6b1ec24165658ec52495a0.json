@@ -1,0 +1,46 @@
+{
+  "image": "d1f6cc3afc6b1ec24165658ec52495a0.jpg",
+  "style_cues": [
+    "ink wash",
+    "chinese fantasy",
+    "dynamic composition",
+    "storytelling",
+    "traditional art"
+  ],
+  "palette_hexes": [
+    "#2e3032",
+    "#e6e0d2",
+    "#3c7e7b",
+    "#e28a2a",
+    "#d33b2a",
+    "#3a4e51"
+  ],
+  "layout": {
+    "grid": "dynamic diagonal",
+    "focal": "top-center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "ink wash paper",
+    "finish": "textured brushstrokes"
+  },
+  "mood": [
+    "mysterious",
+    "epic",
+    "adventure",
+    "intense"
+  ],
+  "shape_primitives": [
+    "circle",
+    "curved path",
+    "organic shapes",
+    "calligraphic strokes",
+    "rectangular forms"
+  ],
+  "typography": [
+    "calligraphic brush script",
+    "vertical text block",
+    "traditional chinese script",
+    "high contrast"
+  ]
+}

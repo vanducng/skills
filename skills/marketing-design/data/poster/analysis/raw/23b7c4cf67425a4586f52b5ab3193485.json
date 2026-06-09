@@ -1,0 +1,45 @@
+{
+  "image": "23b7c4cf67425a4586f52b5ab3193485.jpg",
+  "style_cues": [
+    "pixel art",
+    "editorial",
+    "retro digital",
+    "photo collage",
+    "glitch art"
+  ],
+  "palette_hexes": [
+    "#2A4A2A",
+    "#F0F0F0",
+    "#101010",
+    "#709060",
+    "#DDBBAA"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "full-bleed",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "mysterious",
+    "retro",
+    "editorial",
+    "contemplative"
+  ],
+  "shape_primitives": [
+    "squares",
+    "circles",
+    "thick rule",
+    "arrows",
+    "pixel grid"
+  ],
+  "typography": [
+    "sans-serif",
+    "pixelated font",
+    "all caps",
+    "extreme size contrast"
+  ]
+}

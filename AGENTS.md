@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository is a daily-driver collection of skills for agentic coding, described by `skills.toml`. Skill packages live under `skills/<name>/` and each package must include `SKILL.md` with valid frontmatter. Skill-specific scripts, references, and assets stay inside that skill directory, for example `skills/file-browser/scripts/` and `skills/file-browser/assets/`. Repository helpers live in `scripts/` (install/uninstall/validate/check-*). The `vd` CLI that installs and manages these skills lives in a separate repo, not here. Agent-generated working artifacts (reports, plans, visuals, journals, state) live under a gitignored `.work/` umbrella when the project opts in via `.ck.json` (`paths.umbrella`); otherwise the legacy `plans/` layout applies.
+This repository is a daily-driver collection of skills for agentic coding, described by `skills.toml`. Skill packages live under `skills/<name>/` and each package must include `SKILL.md` with valid frontmatter. Skill-specific scripts, references, and assets stay inside that skill directory, for example `skills/file-browser/scripts/` and `skills/file-browser/assets/`. Repository helpers live in `scripts/` (install/uninstall/validate/check-*). The `vd` CLI that installs and manages these skills lives in a separate repo, not here. Agent-generated working artifacts (reports, plans, visuals, journals, state) live under a gitignored `.work/` umbrella when the project opts in via `.vd.json` (`paths.umbrella`); otherwise the legacy `plans/` layout applies.
 
 ## Build, Test, and Development Commands
 

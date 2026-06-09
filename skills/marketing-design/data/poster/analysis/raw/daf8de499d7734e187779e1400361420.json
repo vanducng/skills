@@ -1,0 +1,45 @@
+{
+  "image": "daf8de499d7734e187779e1400361420.jpg",
+  "style_cues": [
+    "high-contrast",
+    "grunge",
+    "experimental",
+    "collage",
+    "monochromatic"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#FFFFFF",
+    "#404040",
+    "#B00000"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "grainy photo collage"
+  },
+  "mood": [
+    "experimental",
+    "grungy",
+    "enigmatic",
+    "dark"
+  ],
+  "shape_primitives": [
+    "cross",
+    "circle",
+    "rectangle",
+    "organic shape",
+    "thin rule",
+    "arrow"
+  ],
+  "typography": [
+    "hand-drawn script",
+    "distressed sans-serif",
+    "all caps",
+    "numeric"
+  ]
+}

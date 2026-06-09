@@ -1,0 +1,44 @@
+{
+  "image": "4e84eb4cb51d17fdaa195243e9271c0c.jpg",
+  "style_cues": [
+    "high-contrast",
+    "broken grid",
+    "photo collage",
+    "distressed",
+    "editorial",
+    "experimental"
+  ],
+  "palette_hexes": [
+    "#f5f0e1",
+    "#0a0a0a",
+    "#d32d43"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "full-bleed",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "newsprint",
+    "finish": "halftone dots"
+  },
+  "mood": [
+    "energetic",
+    "intense",
+    "experimental",
+    "chaotic"
+  ],
+  "shape_primitives": [
+    "rectangles",
+    "thick rules",
+    "grid lines",
+    "organic curves",
+    "text blocks"
+  ],
+  "typography": [
+    "geometric sans",
+    "stylized script",
+    "all caps",
+    "extreme size contrast"
+  ]
+}

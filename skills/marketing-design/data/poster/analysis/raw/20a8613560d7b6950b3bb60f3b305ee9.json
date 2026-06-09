@@ -1,0 +1,46 @@
+{
+  "image": "20a8613560d7b6950b3bb60f3b305ee9.jpg",
+  "style_cues": [
+    "photo-driven",
+    "promotional",
+    "layered",
+    "vibrant",
+    "event poster"
+  ],
+  "palette_hexes": [
+    "#008d8e",
+    "#81c0da",
+    "#2f7d32",
+    "#1f3e5e",
+    "#ffffff",
+    "#917c66"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "adventurous",
+    "inviting",
+    "energetic",
+    "optimistic"
+  ],
+  "shape_primitives": [
+    "irregular blob",
+    "pin icon",
+    "crown",
+    "circle",
+    "rounded rectangle"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "bold weight"
+  ]
+}

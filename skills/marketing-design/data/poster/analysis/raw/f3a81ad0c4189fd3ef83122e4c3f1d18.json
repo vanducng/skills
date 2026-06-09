@@ -1,0 +1,43 @@
+{
+  "image": "f3a81ad0c4189fd3ef83122e4c3f1d18.jpg",
+  "style_cues": [
+    "abstract",
+    "dynamic",
+    "monochromatic",
+    "modern",
+    "editorial"
+  ],
+  "palette_hexes": [
+    "#F5F5F5",
+    "#000000",
+    "#888888",
+    "#FFFFFF"
+  ],
+  "layout": {
+    "grid": "dynamic flow",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "glossy",
+    "finish": "liquid reflections"
+  },
+  "mood": [
+    "sophisticated",
+    "modern",
+    "dynamic",
+    "abstract"
+  ],
+  "shape_primitives": [
+    "curved lines",
+    "swirls",
+    "text blocks",
+    "thin rules"
+  ],
+  "typography": [
+    "serif display",
+    "size hierarchy",
+    "all caps",
+    "overlapping elements"
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "image": "ae121a7d8e2061230c1e894400c8a373.jpg",
+  "style_cues": [
+    "typographic",
+    "layered",
+    "high-contrast",
+    "editorial",
+    "urban"
+  ],
+  "palette_hexes": [
+    "#FFFFFF",
+    "#D65147",
+    "#1E1E1E",
+    "#A37E6F",
+    "#E8E8E8"
+  ],
+  "layout": {
+    "grid": "typographic grid",
+    "focal": "center",
+    "whitespace_ratio": "high"
+  },
+  "texture": {
+    "material": "matte paper",
+    "finish": "paper grain"
+  },
+  "mood": [
+    "urban",
+    "edgy",
+    "energetic",
+    "modern"
+  ],
+  "shape_primitives": [
+    "thick rule",
+    "rectangular block",
+    "text block",
+    "cutout"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "typographic layering"
+  ]
+}

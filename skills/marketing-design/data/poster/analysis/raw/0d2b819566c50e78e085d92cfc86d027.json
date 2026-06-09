@@ -1,0 +1,44 @@
+{
+  "image": "0d2b819566c50e78e085d92cfc86d027.jpg",
+  "style_cues": [
+    "modern",
+    "high-contrast",
+    "glossy",
+    "abstract",
+    "dynamic"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#FFFFFF",
+    "#48D1CC",
+    "#FF4500",
+    "#8A2BE2"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "full-bleed",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "fabric",
+    "finish": "glossy refraction"
+  },
+  "mood": [
+    "modern",
+    "dynamic",
+    "intriguing",
+    "abstract"
+  ],
+  "shape_primitives": [
+    "circle",
+    "organic curve",
+    "thick rule",
+    "abstract form"
+  ],
+  "typography": [
+    "serif display",
+    "all caps",
+    "large scale",
+    "distorted"
+  ]
+}

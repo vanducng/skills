@@ -1,0 +1,46 @@
+{
+  "image": "80f5c85b6886175b4d4cdb009c33bd4b.jpg",
+  "style_cues": [
+    "editorial",
+    "high-contrast",
+    "futuristic",
+    "experimental",
+    "glitch art"
+  ],
+  "palette_hexes": [
+    "#1a1a1a",
+    "#ffffff",
+    "#6f3fff",
+    "#ff00ff",
+    "#00ff88",
+    "#c0c0c0"
+  ],
+  "layout": {
+    "grid": "asymmetric grid with central disruption",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital",
+    "finish": "iridescent gradient"
+  },
+  "mood": [
+    "reflective",
+    "futuristic",
+    "editorial",
+    "calm"
+  ],
+  "shape_primitives": [
+    "thick rule",
+    "diagonal line",
+    "organic curves",
+    "chain link",
+    "barcode"
+  ],
+  "typography": [
+    "geometric sans",
+    "script display",
+    "extreme size contrast",
+    "all caps"
+  ]
+}

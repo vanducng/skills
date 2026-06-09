@@ -1,0 +1,46 @@
+{
+  "image": "ae8e1437e0cc1aaded8f58f5009e019d.jpg",
+  "style_cues": [
+    "cyberpunk",
+    "futuristic",
+    "high-contrast",
+    "experimental",
+    "deconstructed",
+    "editorial"
+  ],
+  "palette_hexes": [
+    "#FFFFFF",
+    "#000000",
+    "#444444",
+    "#AAAAAA"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital mixed media",
+    "finish": "photorealistic render, flat vector, digital glitch"
+  },
+  "mood": [
+    "dystopian",
+    "futuristic",
+    "intense",
+    "technical"
+  ],
+  "shape_primitives": [
+    "rectangle",
+    "thick rule",
+    "barcode",
+    "arrow",
+    "circle",
+    "abstract geometric"
+  ],
+  "typography": [
+    "geometric sans",
+    "extreme size contrast",
+    "all caps",
+    "monospace"
+  ]
+}

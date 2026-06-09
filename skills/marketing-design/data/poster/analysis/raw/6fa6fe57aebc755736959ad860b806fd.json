@@ -1,0 +1,45 @@
+{
+  "image": "6fa6fe57aebc755736959ad860b806fd.jpg",
+  "style_cues": [
+    "editorial",
+    "typographic",
+    "textured",
+    "modern",
+    "botanical"
+  ],
+  "palette_hexes": [
+    "#E6E7E4",
+    "#232E2B",
+    "#FDFDFD",
+    "#5A6D56",
+    "#ADB4B0"
+  ],
+  "layout": {
+    "grid": "asymmetric grid",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "aged paper",
+    "finish": "paper grain, subtle halftone, grunge overlay"
+  },
+  "mood": [
+    "reflective",
+    "editorial",
+    "nature-inspired",
+    "thought-provoking"
+  ],
+  "shape_primitives": [
+    "thick rule",
+    "circle",
+    "rotated text block",
+    "organic shapes",
+    "rectangular text blocks"
+  ],
+  "typography": [
+    "geometric sans",
+    "serif display",
+    "all caps",
+    "extreme size contrast"
+  ]
+}

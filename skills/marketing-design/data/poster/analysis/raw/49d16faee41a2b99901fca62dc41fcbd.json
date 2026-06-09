@@ -1,0 +1,45 @@
+{
+  "image": "49d16faee41a2b99901fca62dc41fcbd.jpg",
+  "style_cues": [
+    "editorial",
+    "high-contrast",
+    "fashion",
+    "portrait",
+    "textured"
+  ],
+  "palette_hexes": [
+    "#0A0A0A",
+    "#FFFFFF",
+    "#B19A91",
+    "#F2E9E5",
+    "#2B2527"
+  ],
+  "layout": {
+    "grid": "full-bleed image with overlaid text",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "glossy print",
+    "finish": "smooth photographic"
+  },
+  "mood": [
+    "serious",
+    "editorial",
+    "intense",
+    "elegant"
+  ],
+  "shape_primitives": [
+    "text blocks",
+    "curved lines",
+    "chain links",
+    "rectangle",
+    "abstract mesh"
+  ],
+  "typography": [
+    "serif display",
+    "sans-serif body",
+    "all caps",
+    "extreme size contrast"
+  ]
+}

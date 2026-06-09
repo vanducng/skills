@@ -1,0 +1,46 @@
+{
+  "image": "a559e4c0235989ea746a1580a7a5fd67.jpg",
+  "style_cues": [
+    "digital art",
+    "futuristic",
+    "editorial",
+    "abstract",
+    "holographic"
+  ],
+  "palette_hexes": [
+    "#FFFFFF",
+    "#F5F5F5",
+    "#B38F6F",
+    "#D0DCE0",
+    "#E8522E",
+    "#000000"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital render",
+    "finish": "iridescent sheen"
+  },
+  "mood": [
+    "dreamy",
+    "luxurious",
+    "modern",
+    "romantic"
+  ],
+  "shape_primitives": [
+    "oval",
+    "rectangle",
+    "thick rule",
+    "organic curve",
+    "interlocking forms"
+  ],
+  "typography": [
+    "serif display",
+    "geometric sans",
+    "all caps",
+    "size contrast"
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "image": "dcba357e7239c0f3b7eddf412558e68c.jpg",
+  "style_cues": [
+    "high-contrast",
+    "grid",
+    "minimalist",
+    "conceptual typography",
+    "dynamic"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#FFFFFF"
+  ],
+  "layout": {
+    "grid": "stacked and sectional",
+    "focal": "center",
+    "whitespace_ratio": "high"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "flat vector"
+  },
+  "mood": [
+    "modern",
+    "conceptual",
+    "dynamic",
+    "structured"
+  ],
+  "shape_primitives": [
+    "thick rules",
+    "geometric shapes",
+    "arcs",
+    "segmented forms",
+    "rectangles"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "extreme size contrast",
+    "segmented letterforms"
+  ]
+}

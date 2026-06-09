@@ -1,0 +1,44 @@
+{
+  "image": "804ab63a723f046ed504683e5ff029ac.jpg",
+  "style_cues": [
+    "high-contrast",
+    "grid",
+    "editorial",
+    "digital",
+    "minimalist"
+  ],
+  "palette_hexes": [
+    "#F5F5F5",
+    "#000000",
+    "#B88A5B",
+    "#F0EFE9",
+    "#333333"
+  ],
+  "layout": {
+    "grid": "modular grid",
+    "focal": "full-bleed",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "digital rendering, pixel art"
+  },
+  "mood": [
+    "editorial",
+    "modern",
+    "informative",
+    "sophisticated"
+  ],
+  "shape_primitives": [
+    "thick rule",
+    "square",
+    "asterisk",
+    "dot matrix"
+  ],
+  "typography": [
+    "pixelated sans-serif",
+    "geometric sans",
+    "all caps",
+    "extreme size contrast"
+  ]
+}

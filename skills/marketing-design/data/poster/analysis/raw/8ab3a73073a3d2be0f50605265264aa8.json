@@ -1,0 +1,45 @@
+{
+  "image": "8ab3a73073a3d2be0f50605265264aa8.jpg",
+  "style_cues": [
+    "distressed",
+    "collage",
+    "editorial",
+    "graphic novel"
+  ],
+  "palette_hexes": [
+    "#EBEBEB",
+    "#A32924",
+    "#4E78B2",
+    "#4A4A4A",
+    "#7D7D7D",
+    "#D3B29D"
+  ],
+  "layout": {
+    "grid": "layered block, asymmetric",
+    "focal": "full-bleed",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "distressed paper",
+    "finish": "halftone dots, paper grain, grunge overlay"
+  },
+  "mood": [
+    "serious",
+    "dramatic",
+    "editorial",
+    "gritty"
+  ],
+  "shape_primitives": [
+    "rectangle",
+    "circle",
+    "rotated text block",
+    "scribbled line",
+    "thick rule"
+  ],
+  "typography": [
+    "distressed sans-serif",
+    "all caps",
+    "extreme size contrast",
+    "handwritten"
+  ]
+}

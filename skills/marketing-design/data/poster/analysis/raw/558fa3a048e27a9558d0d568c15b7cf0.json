@@ -1,0 +1,44 @@
+{
+  "image": "558fa3a048e27a9558d0d568c15b7cf0.jpg",
+  "style_cues": [
+    "mystery thriller",
+    "aquatic",
+    "high contrast",
+    "narrative",
+    "textured"
+  ],
+  "palette_hexes": [
+    "#1A202A",
+    "#2C6B7E",
+    "#E6F8FF",
+    "#E0364B",
+    "#2C3032"
+  ],
+  "layout": {
+    "grid": "centered stack",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital composite",
+    "finish": "gritty overlay"
+  },
+  "mood": [
+    "mysterious",
+    "suspenseful",
+    "somber",
+    "eerie"
+  ],
+  "shape_primitives": [
+    "horizontal line",
+    "organic blob",
+    "small circles",
+    "thick rules"
+  ],
+  "typography": [
+    "sans-serif display",
+    "all caps",
+    "layered effect",
+    "extreme size contrast"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "image": "629edf88f617724399b5b5ee70c9fde9.jpg",
+  "style_cues": [
+    "editorial",
+    "high-contrast",
+    "modern",
+    "artistic"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#ffffff",
+    "#3136a6",
+    "#e4f009",
+    "#d40d82",
+    "#0c0a0c"
+  ],
+  "layout": {
+    "grid": "asymmetric vertical blocks",
+    "focal": "full-bleed",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "glossy",
+    "finish": "shiny reflections"
+  },
+  "mood": [
+    "bold",
+    "energetic",
+    "artistic",
+    "editorial"
+  ],
+  "shape_primitives": [
+    "organic curves",
+    "thick rule",
+    "rectangular text block",
+    "barcode",
+    "straight line"
+  ],
+  "typography": [
+    "sans-serif display",
+    "serif display",
+    "all caps",
+    "extreme size contrast"
+  ]
+}

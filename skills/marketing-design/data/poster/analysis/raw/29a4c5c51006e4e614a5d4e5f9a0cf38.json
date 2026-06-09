@@ -1,0 +1,42 @@
+{
+  "image": "29a4c5c51006e4e614a5d4e5f9a0cf38.jpg",
+  "style_cues": [
+    "high-contrast",
+    "typographic",
+    "distressed",
+    "grungy",
+    "editorial"
+  ],
+  "palette_hexes": [
+    "#C42626",
+    "#000000",
+    "#4B0D0D",
+    "#D82D2D"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "full-bleed",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "distressed paper",
+    "finish": "grainy texture"
+  },
+  "mood": [
+    "intense",
+    "somber",
+    "grungy",
+    "powerful"
+  ],
+  "shape_primitives": [
+    "human form",
+    "typographic shapes",
+    "text blocks"
+  ],
+  "typography": [
+    "bold sans-serif",
+    "extreme size contrast",
+    "all caps",
+    "geometric sans"
+  ]
+}

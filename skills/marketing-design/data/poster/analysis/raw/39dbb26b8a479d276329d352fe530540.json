@@ -1,0 +1,45 @@
+{
+  "image": "39dbb26b8a479d276329d352fe530540.jpg",
+  "style_cues": [
+    "photographic",
+    "segmented",
+    "minimalist",
+    "editorial",
+    "documentary"
+  ],
+  "palette_hexes": [
+    "#1d4142",
+    "#53b8bc",
+    "#4e5b5c",
+    "#8cb4b9",
+    "#d3c05f",
+    "#2d5152"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "photo collage"
+  },
+  "mood": [
+    "serious",
+    "documentary",
+    "thought-provoking",
+    "somber"
+  ],
+  "shape_primitives": [
+    "rectangle",
+    "vertical bar",
+    "square",
+    "organic curve"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "wide tracking",
+    "minimalist type"
+  ]
+}

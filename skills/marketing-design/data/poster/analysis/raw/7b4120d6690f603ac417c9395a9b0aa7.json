@@ -1,0 +1,44 @@
+{
+  "image": "7b4120d6690f603ac417c9395a9b0aa7.jpg",
+  "style_cues": [
+    "cosmic",
+    "illustrative",
+    "surreal",
+    "modern",
+    "dramatic"
+  ],
+  "palette_hexes": [
+    "#290b50",
+    "#6a40e0",
+    "#e07050",
+    "#ffc000",
+    "#ffffff"
+  ],
+  "layout": {
+    "grid": "dynamic composition",
+    "focal": "center-bottom",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "flat vector"
+  },
+  "mood": [
+    "mysterious",
+    "ethereal",
+    "contemplative",
+    "dreamlike"
+  ],
+  "shape_primitives": [
+    "organic shapes",
+    "angular forms",
+    "circle",
+    "lines"
+  ],
+  "typography": [
+    "mixed serif and sans-serif",
+    "extreme size contrast",
+    "display sans-serif",
+    "decorative serif"
+  ]
+}

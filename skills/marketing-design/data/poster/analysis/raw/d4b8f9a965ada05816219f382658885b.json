@@ -1,0 +1,44 @@
+{
+  "image": "d4b8f9a965ada05816219f382658885b.jpg",
+  "style_cues": [
+    "editorial",
+    "vintage",
+    "high-contrast",
+    "grunge",
+    "expressive"
+  ],
+  "palette_hexes": [
+    "#ECE8E3",
+    "#1F1F1F",
+    "#9B0C0C",
+    "#5F0F0F",
+    "#FFFFFF"
+  ],
+  "layout": {
+    "grid": "central dominant figure",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "aged paper",
+    "finish": "halftone dots"
+  },
+  "mood": [
+    "somber",
+    "melancholic",
+    "serious",
+    "gritty"
+  ],
+  "shape_primitives": [
+    "stars",
+    "implied rectangles",
+    "curvilinear forms",
+    "block letters"
+  ],
+  "typography": [
+    "serif display",
+    "all caps",
+    "size contrast",
+    "mixed typefaces"
+  ]
+}

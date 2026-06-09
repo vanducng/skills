@@ -1,0 +1,44 @@
+{
+  "image": "1d3081c243a0158eef6ac3f75fc9b210.jpg",
+  "style_cues": [
+    "japanese inspired",
+    "vintage poster",
+    "travel aesthetic",
+    "minimalist elements"
+  ],
+  "palette_hexes": [
+    "#747A8B",
+    "#D9725C",
+    "#DBD6C8",
+    "#3A3A3A",
+    "#D2AF5B"
+  ],
+  "layout": {
+    "grid": "sectional composition",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "matte paper",
+    "finish": "paper grain, subtle film grain"
+  },
+  "mood": [
+    "serene",
+    "nostalgic",
+    "calm",
+    "contemplative"
+  ],
+  "shape_primitives": [
+    "circle",
+    "rectangle",
+    "thick rule",
+    "wave pattern",
+    "bar code"
+  ],
+  "typography": [
+    "serif display",
+    "japanese characters",
+    "vertical text",
+    "monospaced sans-serif"
+  ]
+}

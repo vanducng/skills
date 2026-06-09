@@ -1,0 +1,44 @@
+{
+  "image": "0720a64949fc9de76f4ef558c4a2a255.jpg",
+  "style_cues": [
+    "conceptual",
+    "dimensional",
+    "cinematic",
+    "organic"
+  ],
+  "palette_hexes": [
+    "#ededed",
+    "#a8784d",
+    "#333130",
+    "#737373",
+    "#333333",
+    "#804b3a"
+  ],
+  "layout": {
+    "grid": "centered stack",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital 3d",
+    "finish": "organic texture overlay"
+  },
+  "mood": [
+    "grim",
+    "serious",
+    "epic",
+    "somber"
+  ],
+  "shape_primitives": [
+    "thick rules",
+    "organic curves",
+    "rectangles",
+    "splatter"
+  ],
+  "typography": [
+    "dimensional sans-serif",
+    "all caps",
+    "extreme size contrast",
+    "stacked text"
+  ]
+}

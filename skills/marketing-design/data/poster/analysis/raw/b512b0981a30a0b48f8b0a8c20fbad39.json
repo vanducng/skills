@@ -1,0 +1,44 @@
+{
+  "image": "b512b0981a30a0b48f8b0a8c20fbad39.jpg",
+  "style_cues": [
+    "grunge",
+    "protest art",
+    "high-contrast",
+    "editorial",
+    "street art"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#ffffff",
+    "#d82c2c",
+    "#888888"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "gritty paper",
+    "finish": "distressed texture, grunge overlay, photo composite"
+  },
+  "mood": [
+    "serious",
+    "protest",
+    "aggressive",
+    "raw"
+  ],
+  "shape_primitives": [
+    "heart",
+    "chain links",
+    "spikes",
+    "text blocks",
+    "thick rule"
+  ],
+  "typography": [
+    "bold sans-serif",
+    "all caps",
+    "distressed lettering",
+    "extreme size contrast"
+  ]
+}

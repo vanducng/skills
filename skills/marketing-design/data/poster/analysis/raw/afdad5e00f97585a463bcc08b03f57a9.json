@@ -1,0 +1,44 @@
+{
+  "image": "afdad5e00f97585a463bcc08b03f57a9.jpg",
+  "style_cues": [
+    "modern spiritual",
+    "typographic",
+    "distressed texture",
+    "pixel art",
+    "editorial",
+    "minimalist color palette"
+  ],
+  "palette_hexes": [
+    "#d6d2c8",
+    "#efebe2",
+    "#7d7a71",
+    "#8c9d74"
+  ],
+  "layout": {
+    "grid": "asymmetric typographic",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "matte paper",
+    "finish": "paper grain"
+  },
+  "mood": [
+    "serene",
+    "reflective",
+    "modern spiritual",
+    "calm"
+  ],
+  "shape_primitives": [
+    "dove silhouette",
+    "pixel grid",
+    "blurred streak",
+    "rectilinear text block"
+  ],
+  "typography": [
+    "serif display",
+    "geometric sans",
+    "extreme size contrast",
+    "all caps"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "image": "d5c9c14b21ac3a63d3029c736af62814.jpg",
+  "style_cues": [
+    "digital art",
+    "editorial",
+    "dreamy",
+    "futuristic",
+    "soft focus"
+  ],
+  "palette_hexes": [
+    "#98B08B",
+    "#F8D1DB",
+    "#FFFFFF",
+    "#566C52",
+    "#D7DFD0",
+    "#D594A5"
+  ],
+  "layout": {
+    "grid": "asymmetric",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital render",
+    "finish": "glossy transparency"
+  },
+  "mood": [
+    "dreamy",
+    "elegant",
+    "futuristic",
+    "serene"
+  ],
+  "shape_primitives": [
+    "organic curves",
+    "rectangles",
+    "thin rules",
+    "rounded forms"
+  ],
+  "typography": [
+    "serif display",
+    "all caps",
+    "minimal sans",
+    "size contrast"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "image": "208f93c9e0e26a587c675482bb6159c0.jpg",
+  "style_cues": [
+    "surreal",
+    "ethereal",
+    "sci-fi",
+    "editorial",
+    "dreamlike",
+    "futuristic"
+  ],
+  "palette_hexes": [
+    "#182a3a",
+    "#a9d8f1",
+    "#ffffff",
+    "#b36427",
+    "#2e3f2e"
+  ],
+  "layout": {
+    "grid": "asymmetric",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital",
+    "finish": "luminous glow"
+  },
+  "mood": [
+    "mysterious",
+    "hopeful",
+    "contemplative",
+    "ethereal"
+  ],
+  "shape_primitives": [
+    "circle",
+    "rectangle",
+    "thin rule",
+    "curved path",
+    "organic blob"
+  ],
+  "typography": [
+    "serif display",
+    "geometric sans",
+    "all caps",
+    "high size contrast"
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "image": "a00214fa42e14653b71e7e19750b2dd1.jpg",
+  "style_cues": [
+    "cyberpunk",
+    "futuristic",
+    "graphic poster",
+    "high-contrast",
+    "techwear"
+  ],
+  "palette_hexes": [
+    "#FFFFFF",
+    "#E50000",
+    "#202020",
+    "#C26F30",
+    "#D0D0D0"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "high"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "distressed edges"
+  },
+  "mood": [
+    "futuristic",
+    "energetic",
+    "urban",
+    "gritty"
+  ],
+  "shape_primitives": [
+    "large curves",
+    "geometric shapes",
+    "thick rule",
+    "abstract forms"
+  ],
+  "typography": [
+    "geometric sans",
+    "extreme size contrast",
+    "all caps",
+    "stylized numeral"
+  ]
+}

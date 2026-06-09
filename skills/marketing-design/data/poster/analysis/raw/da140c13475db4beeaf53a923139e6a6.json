@@ -1,0 +1,45 @@
+{
+  "image": "da140c13475db4beeaf53a923139e6a6.jpg",
+  "style_cues": [
+    "high-contrast",
+    "futuristic",
+    "typographic",
+    "abstract",
+    "glitzy"
+  ],
+  "palette_hexes": [
+    "#1A1A1A",
+    "#800080",
+    "#FFFFFF",
+    "#CCCCCC",
+    "#FF00FF"
+  ],
+  "layout": {
+    "grid": "asymmetric",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "glossy",
+    "finish": "foil"
+  },
+  "mood": [
+    "futuristic",
+    "energetic",
+    "bold",
+    "modern"
+  ],
+  "shape_primitives": [
+    "abstract swirl",
+    "rounded rectangle",
+    "sparkle",
+    "thick rule",
+    "rectangle"
+  ],
+  "typography": [
+    "geometric sans",
+    "extreme size contrast",
+    "metallic effect",
+    "stacked"
+  ]
+}

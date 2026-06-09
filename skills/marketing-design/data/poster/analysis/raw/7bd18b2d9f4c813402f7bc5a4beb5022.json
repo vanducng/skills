@@ -1,0 +1,44 @@
+{
+  "image": "7bd18b2d9f4c813402f7bc5a4beb5022.jpg",
+  "style_cues": [
+    "dark aesthetic",
+    "vintage floral",
+    "gothic typography",
+    "geometric overlay",
+    "high-contrast"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#c26f4f",
+    "#f0d1bd",
+    "#5b7a70",
+    "#ffffff"
+  ],
+  "layout": {
+    "grid": "diagonal composition",
+    "focal": "center",
+    "whitespace_ratio": "high"
+  },
+  "texture": {
+    "material": "digital print",
+    "finish": "painterly brushstrokes"
+  },
+  "mood": [
+    "bold",
+    "serious",
+    "elegant",
+    "rebellious"
+  ],
+  "shape_primitives": [
+    "diagonal rectangles",
+    "organic floral shapes",
+    "geometric cross",
+    "splatter"
+  ],
+  "typography": [
+    "blackletter display",
+    "sans-serif contrast",
+    "all caps",
+    "distressed lettering"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "image": "dcc5bc4453e379070d8dac1f8a50704d.jpg",
+  "style_cues": [
+    "illustrative",
+    "whimsical",
+    "digital art",
+    "dreamlike",
+    "playful"
+  ],
+  "palette_hexes": [
+    "#60CAFF",
+    "#98EC5D",
+    "#FF93CC",
+    "#F98632",
+    "#FFFFFF",
+    "#FFDF32"
+  ],
+  "layout": {
+    "grid": "centered composition",
+    "focal": "center",
+    "whitespace_ratio": "high"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "flat vector"
+  },
+  "mood": [
+    "playful",
+    "optimistic",
+    "imaginative",
+    "fresh"
+  ],
+  "shape_primitives": [
+    "rounded rectangle",
+    "organic forms",
+    "star",
+    "circle",
+    "arch"
+  ],
+  "typography": [
+    "geometric sans",
+    "all caps",
+    "size contrast",
+    "clean sans-serif"
+  ]
+}

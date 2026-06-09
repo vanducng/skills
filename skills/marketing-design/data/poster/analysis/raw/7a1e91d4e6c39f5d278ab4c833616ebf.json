@@ -1,0 +1,44 @@
+{
+  "image": "7a1e91d4e6c39f5d278ab4c833616ebf.jpg",
+  "style_cues": [
+    "vintage",
+    "graphic",
+    "structured",
+    "distressed",
+    "editorial"
+  ],
+  "palette_hexes": [
+    "#F5F1E7",
+    "#2C2E3C",
+    "#A6446B",
+    "#CD7B98"
+  ],
+  "layout": {
+    "grid": "stacked blocks with asymmetric elements",
+    "focal": "top",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "matte paper",
+    "finish": "paper grain"
+  },
+  "mood": [
+    "nostalgic",
+    "calm",
+    "elegant",
+    "poetic"
+  ],
+  "shape_primitives": [
+    "thick rule",
+    "rounded rectangle",
+    "circle",
+    "wavy lines",
+    "block text"
+  ],
+  "typography": [
+    "geometric sans",
+    "serif body",
+    "all caps",
+    "extreme size contrast"
+  ]
+}

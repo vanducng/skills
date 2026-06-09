@@ -1,0 +1,45 @@
+{
+  "image": "e697e58f5a500c4b7ba0fb5c02a5506e.jpg",
+  "style_cues": [
+    "high-contrast",
+    "digital-art",
+    "typographic",
+    "abstract",
+    "chromatic-aberration",
+    "minimalist"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#E0E0E0",
+    "#4D85F3",
+    "#8C49E6",
+    "#F4D03F"
+  ],
+  "layout": {
+    "grid": "vertical stack, left-aligned text blocks",
+    "focal": "center",
+    "whitespace_ratio": "medium"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "glassy reflection, chromatic aberration, flat vector"
+  },
+  "mood": [
+    "modern",
+    "futuristic",
+    "experimental",
+    "sleek"
+  ],
+  "shape_primitives": [
+    "S-curve",
+    "horizontal rule",
+    "diagonal lines",
+    "smiley face",
+    "rectangular text blocks"
+  ],
+  "typography": [
+    "bold geometric sans",
+    "all caps",
+    "extreme size contrast"
+  ]
+}

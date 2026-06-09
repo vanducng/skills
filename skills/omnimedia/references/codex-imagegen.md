@@ -29,6 +29,19 @@ python scripts/codex_imagegen.py \
   --out /tmp/cube.png
 ```
 
+### With reference image(s) (image-to-image / compositing)
+
+```bash
+python scripts/codex_imagegen.py \
+  --prompt "Place this logo on a matte-black business card, centered, premium feel" \
+  --image /path/to/logo.png \
+  --out /tmp/card.png
+```
+
+`--image/-i` is repeatable and forwards to `codex exec -i FILE...`, attaching the
+image(s) to the prompt so `$imagegen` can use them as a reference/source. Requires
+codex-cli ≥ 0.137 (the `-i` flag).
+
 ### Through the unified provider switch
 
 ```bash
@@ -83,7 +96,7 @@ This avoids brittleness when Codex output formats drift between minor versions.
 
 ## Limits and known issues
 
-- **Image-to-image edits via Codex `-i/--image`** are deferred to v2. Codex CLI supports `--image FILE...` for input attachments, but `$imagegen`-style edits aren't wired through this wrapper yet.
+- **Image-to-image / reference images** are supported via `--image/-i` (forwards to `codex exec -i`), requiring codex-cli ≥ 0.137. `$imagegen` treats attachments as reference/source; fidelity of the composite is model-dependent — verify on first real run.
 - **No batch mode**. One image per `codex exec` turn. Cascading to MiniMax (`image-01`, 1–9 batch) is the path for batch generation.
 - **No streaming progress**. The wrapper blocks until Codex finishes (typical 5–30s).
 - **Sandbox**: runs with `--sandbox workspace-write` inside a tmpdir; no host filesystem writes outside the wrapper's `--out` target.

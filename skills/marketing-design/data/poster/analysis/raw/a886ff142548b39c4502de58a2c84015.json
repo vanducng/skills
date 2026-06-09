@@ -1,0 +1,44 @@
+{
+  "image": "a886ff142548b39c4502de58a2c84015.jpg",
+  "style_cues": [
+    "editorial",
+    "high-contrast",
+    "dramatic",
+    "vintage-distressed"
+  ],
+  "palette_hexes": [
+    "#151818",
+    "#2a3a3d",
+    "#d6d1c8",
+    "#a68d5a",
+    "#7d1c1c",
+    "#ffffff"
+  ],
+  "layout": {
+    "grid": "centered stack",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital",
+    "finish": "grainy photo"
+  },
+  "mood": [
+    "serious",
+    "mysterious",
+    "dramatic",
+    "somber"
+  ],
+  "shape_primitives": [
+    "stylized star",
+    "vertical lines",
+    "arched forms",
+    "rectangles"
+  ],
+  "typography": [
+    "serif display",
+    "geometric sans",
+    "extreme size contrast",
+    "all caps"
+  ]
+}

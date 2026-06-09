@@ -1,0 +1,47 @@
+{
+  "image": "f99f4bfc2eb5f0b11f8069aab956231b.jpg",
+  "style_cues": [
+    "high-contrast",
+    "deconstructed",
+    "urban streetwear",
+    "futuristic",
+    "editorial",
+    "grunge"
+  ],
+  "palette_hexes": [
+    "#000000",
+    "#FFFFFF",
+    "#B4B4B4",
+    "#E0E0E0",
+    "#FF0000"
+  ],
+  "layout": {
+    "grid": "broken grid",
+    "focal": "center",
+    "whitespace_ratio": "low"
+  },
+  "texture": {
+    "material": "digital flat",
+    "finish": "polished metal, vector graphics, photo collage"
+  },
+  "mood": [
+    "edgy",
+    "urban",
+    "futuristic",
+    "rebellious"
+  ],
+  "shape_primitives": [
+    "sharp geometric shapes",
+    "thick rules",
+    "rectangles",
+    "rotated text block",
+    "triangles",
+    "stars"
+  ],
+  "typography": [
+    "all caps",
+    "geometric sans",
+    "extreme size contrast",
+    "stacked text"
+  ]
+}
