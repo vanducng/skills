@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.31.0](https://github.com/vanducng/skills/compare/v0.30.0...v0.31.0) (2026-06-09)
+
+
+### Features
+
+* **fastreact:** add FastAPI + React full-stack webapp skill ([761468a](https://github.com/vanducng/skills/commit/761468aed14dd4fb5c563e27bcfbac3e02d67546))
+
 ## [0.30.0](https://github.com/vanducng/skills/compare/v0.29.0...v0.30.0) (2026-06-08)
 
 
