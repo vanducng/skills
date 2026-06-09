@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.33.0](https://github.com/vanducng/skills/compare/v0.32.0...v0.33.0) (2026-06-09)
+
+
+### Features
+
+* **fastreact:** standardize audit columns + soft delete; internal support-workspace + tenant scoping patterns ([abea4f3](https://github.com/vanducng/skills/commit/abea4f3cb97506b95848e2f27408020bac30d901))
+
 ## [0.32.0](https://github.com/vanducng/skills/compare/v0.31.0...v0.32.0) (2026-06-09)
 
 
