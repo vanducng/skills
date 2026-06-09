@@ -22,6 +22,13 @@ Helpers: `is_internal(role)` (prefix check), `is_admin`, `can_view_audit` (inter
 
 **Audit visibility:** keep the audit trail internal-only. Do NOT show it in the client UI. A client's own-activity feed (`GET /auth/me/activity`, self only) is fine for a Profile page; the cross-tenant audit log is not.
 
+## Multi-tenant Google login (JIT + pending + admin grant)
+When clients sign in with their OWN Google accounts you can't domain-allowlist. Pattern:
+- Google callback = JIT: do NOT hard-reject by domain (leave `GOOGLE_ALLOWED_DOMAIN` empty). New user → create with role `pending`, `company_id=null`, `is_active=true`, capture `picture` → `avatar_url`. Existing user keeps role/company.
+- Add a `pending` role with no permissions. A pending user authenticates (`/auth/me` works) but has no resource access; the frontend `_protected` `beforeLoad` redirects `role === 'pending'` to a `/pending` page ("access being set up").
+- A CNB admin/AE then grants access on the Users screen: `PATCH /users/{id}` with `role` + `company_id`. Show pending users with a Pending badge; the edit dialog sets BOTH role and company.
+- Register the local callback (`http://localhost:<fe-port>/api/v1/auth/google/callback`) + the prod URL in the Google client; nginx proxies `/api/` to the backend so the frontend-origin callback reaches it.
+
 ## S3 (boto3)
 - `clients/s3.py`: client built from `AWS_ACCESS_KEY_ID/SECRET/REGION`. Methods: `build_key`, `upload_fileobj(fileobj,key,content_type)`, `presigned_get_url(key, expires)`, `delete_object(key)`. Singleton `get_s3()`.
 - **Key scheme:** keep bucket slash-free; put the path in the prefix. A good tenant scheme: `<prefix>/<tenant_id>/<filename>` (e.g. `hire-intelligence/<universal_company_id>/<raw-filename>`). Same filename overwrites = natural "reupload".

@@ -32,6 +32,13 @@ Before building, present the visual direction with `AskUserQuestion` (use `previ
 ## Brand lockup gotcha
 If the wordmark stacks under/next to the icon via CSS grid (icon col1, name row1, tagline row2), the wordmark wrapper element needs `display: contents` so its children become grid items — otherwise the tagline renders inline next to the name. See `gotchas.md`.
 
+## Docs / help pages
+- Put the table-of-contents on the RIGHT rail (content left), sticky on wide screens, hidden/stacked on narrow. A left TOC reads awkwardly.
+- Manage help content as Markdown (react-markdown + remark-gfm), auto-generate the TOC from headings.
+- Keep client/tenant docs free of internal role tables and audit internals (those are internal-only).
+- Realign multi-step "how it works" blocks (number + label column, description column) so labels don't wrap awkwardly.
+
 ## Copy rules
 - No em-dash (—) in UI copy; use ", " or " - " or rephrase. Scan components for "—" before shipping.
 - Keep one support email / brand string in a single constant.
+- Client-facing precision: describe the user's real action ("upload hire data from your ATS"), avoid internal jargon and over-claims, and don't leak infra specifics (cloud "S3", not bucket names). See gotchas #18.

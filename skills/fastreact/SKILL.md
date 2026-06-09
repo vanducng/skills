@@ -5,7 +5,7 @@ argument-hint: "[app description | scaffold | mockup | backend | frontend]"
 license: MIT
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # fastreact — FastAPI + React full-stack webapp
