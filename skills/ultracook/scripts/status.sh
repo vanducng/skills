@@ -31,11 +31,11 @@ done
 
 PYBIN="${HOME}/.claude/skills/.venv/bin/python3"; [ -x "$PYBIN" ] || PYBIN="$(command -v python3)"
 
-# Resolve state bases: $CK_STATE_PATH → <git-root>/.work/state (if .work) → plans/goals.
+# Resolve state bases: $VD_STATE_PATH → <git-root>/.work/state (if .work) → plans/goals.
 # Returns newline-separated list of glob patterns (may include both new + legacy).
 _state_globs() {
-  if [ -n "${CK_STATE_PATH:-}" ]; then
-    echo "${CK_STATE_PATH}/*/state.json"
+  if [ -n "${VD_STATE_PATH:-}" ]; then
+    echo "${VD_STATE_PATH}/*/state.json"
     return
   fi
   REPO_ROOT_S="$(git rev-parse --show-toplevel 2>/dev/null || echo '')"
