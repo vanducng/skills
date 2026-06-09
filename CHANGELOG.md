@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.32.0](https://github.com/vanducng/skills/compare/v0.31.0...v0.32.0) (2026-06-09)
+
+
+### Features
+
+* **fastreact:** multi-tenant Google JIT/pending + admin grant, dialog close, table min-height, login footer/version, clickable logo, right-side docs TOC, client-copy discipline ([0f8fd71](https://github.com/vanducng/skills/commit/0f8fd7152b41d8b46d22b70ec7e23d9745339fd9))
+
 ## [0.31.0](https://github.com/vanducng/skills/compare/v0.30.0...v0.31.0) (2026-06-09)
 
 
