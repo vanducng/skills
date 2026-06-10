@@ -1,0 +1,4 @@
+interface:
+  display_name: "Webdesign"
+  short_description: "Build, review, and test modern web UIs"
+  default_prompt: "Use $webdesign to build and verify a polished responsive web interface."
