@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# append-journal.sh — write plans/goals/{slug}/iterations/NNN-{action}.md.
+# append-journal.sh — write {goal-dir}/iterations/NNN-{action}.md.
 #
 # Usage:
 #   append-journal.sh --goal-dir <dir> --action <name> --exit-code <int>
