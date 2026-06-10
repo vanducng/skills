@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# update-state.sh — atomic merge-patch on plans/goals/{slug}/state.json.
+# update-state.sh — atomic merge-patch on {goal-dir}/state.json.
 #
 # Usage:
 #   update-state.sh --goal-dir <dir>  (reads JSON merge patch from stdin)

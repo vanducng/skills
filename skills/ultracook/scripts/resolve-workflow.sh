@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # resolve-workflow.sh — dry-run resolver for a goal-dir.
 #
-# Given plans/goals/{slug}/goal.yaml, looks up the matching project profile
+# Given {goal-dir}/goal.yaml, looks up the matching project profile
 # via lookup-profile.sh, merges the profile's action sequence with any
 # goal.yaml.actions overrides, and prints the resolved workflow in human-
 # readable form.

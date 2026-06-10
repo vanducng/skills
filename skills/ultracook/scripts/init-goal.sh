@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # init-goal.sh — Phase 1 intake helper.
 # Reads env vars (ULTRACOOK_*) populated by SKILL.md after AskUserQuestion calls.
-# Writes plans/goals/{date}-{slug}/goal.yaml + state.json. Optionally creates a worktree.
+# Writes <state-base>/{date}-{slug}/goal.yaml + state.json. Optionally creates a worktree.
 # Stdout: the absolute path to the goal-dir (so SKILL.md can chain).
 # Exit: 0 on success, non-zero with diagnostic on stderr.
 
@@ -67,10 +67,40 @@ if [ -z "$SLUG" ]; then
 fi
 
 # ── Compute goal-dir path: <state-base>/{YYMMDD-HHMM}-{slug}/ ─────────────────
-# Resolution: $VD_STATE_PATH → <git-root>/.work/state (when .work exists) → legacy plans/goals.
+# Resolution: $VD_STATE_PATH → <git-root>/.work/state (when .work exists) →
+# XDG user state. `plans/goals` is legacy read-only state and is never the
+# default write target.
 
 DATE_STAMP="$(date +%y%m%d-%H%M)"
 GOAL_DIR_NAME="${DATE_STAMP}-${SLUG}"
+
+_hash12() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 | awk '{print substr($1, 1, 12)}'
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha256sum | awk '{print substr($1, 1, 12)}'
+  else
+    cksum | awk '{print $1}'
+  fi
+}
+
+_state_repo_id() {
+  local root="$1"
+  local source name hash
+  source="$(git -C "$root" remote get-url origin 2>/dev/null || printf '%s' "$root")"
+  name="$(printf '%s' "$source" | sed -E 's#\\#/#g; s#^.*[:/]##; s#[.]git$##')"
+  if [ -z "$name" ]; then
+    name="$(basename "$root")"
+  fi
+  name="$(printf '%s' "$name" \
+    | tr '[:upper:]' '[:lower:]' \
+    | LC_ALL=C sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+  if [ -z "$name" ]; then
+    name="repo"
+  fi
+  hash="$(printf '%s' "$source" | _hash12)"
+  echo "${name}-${hash}"
+}
 
 _state_base() {
   local root="$1"
@@ -79,7 +109,7 @@ _state_base() {
   elif [ -d "${root}/.work" ]; then
     echo "${root}/.work/state"
   else
-    echo "${root}/plans/goals"
+    echo "${XDG_STATE_HOME:-${HOME}/.local/state}/vd/ultracook/$(_state_repo_id "$root")/goals"
   fi
 }
 
@@ -109,8 +139,9 @@ else
       exit 4
     fi
   done
-  # In a worktree, the worktree root governs .work existence.
-  STATE_BASE="$(_state_base "$WORKTREE_PATH")"
+  # Use the source repo identity for state so sibling git worktrees of the same
+  # remote resume from the same user-level goal store.
+  STATE_BASE="$(_state_base "$REPO_ROOT")"
   GOAL_DIR="${STATE_BASE}/${GOAL_DIR_NAME}"
 fi
 

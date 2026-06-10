@@ -65,7 +65,7 @@ dollar in Codex. Examples below omit the prefix and use canonical skill IDs.
 vd:ultracook "implement cron retry, ship to staging, verify"
 ```
 
-Intake will ask up to 4 questions (target kind, action shape, branch name, autonomy). Then a worktree + `plans/goals/{date}-{slug}/goal.yaml` + `state.json` get created. The executor loop drives through plan → cook → ship → verify, gating at high-blast-radius transitions.
+Intake will ask up to 4 questions (target kind, action shape, branch name, autonomy). Then a worktree + `<state-base>/{date}-{slug}/goal.yaml` + `state.json` get created. The executor loop drives through plan → cook → ship → verify, gating at high-blast-radius transitions.
 
 ## Sub-verbs
 
@@ -98,8 +98,10 @@ When an action has a verifier defined (`cook`, `test`), ultracook delegates iter
 
 ## On-disk state
 
+State base resolves to `$VD_STATE_PATH`, then `<git-root>/.work/state` when `.work/` exists, then `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default). Legacy `plans/goals` is still scanned for old runs but is not used for new writes.
+
 ```
-plans/goals/{YYMMDD-HHMM}-{slug}/
+<state-base>/{YYMMDD-HHMM}-{slug}/
   goal.yaml                              # spec — see references/goal-schema.md
   state.json                             # runtime state — see references/state-schema.md
   iterations/

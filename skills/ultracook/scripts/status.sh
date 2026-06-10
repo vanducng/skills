@@ -4,9 +4,9 @@
 # Usage:
 #   status.sh [--goal-dir <dir>]
 #
-# If --goal-dir omitted, auto-detects: scans CWD's plans/goals/*/ and picks
-# the most recent with state.terminal=null. If none found, prints "no
-# in-progress goal" and exits 4.
+# If --goal-dir omitted, auto-detects by scanning the configured state base,
+# user-level default state, and legacy repo-local plans/goals/*/. If none found,
+# prints "no in-progress goal" and exits 4.
 #
 # Exit codes (scriptable):
 #   0 = terminal=done
@@ -31,19 +31,52 @@ done
 
 PYBIN="${HOME}/.claude/skills/.venv/bin/python3"; [ -x "$PYBIN" ] || PYBIN="$(command -v python3)"
 
-# Resolve state bases: $VD_STATE_PATH → <git-root>/.work/state (if .work) → plans/goals.
+# Resolve state bases: $VD_STATE_PATH → <git-root>/.work/state (if .work) →
+# XDG user state. Legacy plans/goals is still included for read-only resume.
 # Returns newline-separated list of glob patterns (may include both new + legacy).
+_hash12() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 | awk '{print substr($1, 1, 12)}'
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha256sum | awk '{print substr($1, 1, 12)}'
+  else
+    cksum | awk '{print $1}'
+  fi
+}
+
+_state_repo_id() {
+  local root="$1"
+  local source name hash
+  source="$(git -C "$root" remote get-url origin 2>/dev/null || printf '%s' "$root")"
+  name="$(printf '%s' "$source" | sed -E 's#\\#/#g; s#^.*[:/]##; s#[.]git$##')"
+  if [ -z "$name" ]; then
+    name="$(basename "$root")"
+  fi
+  name="$(printf '%s' "$name" \
+    | tr '[:upper:]' '[:lower:]' \
+    | LC_ALL=C sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+  if [ -z "$name" ]; then
+    name="repo"
+  fi
+  hash="$(printf '%s' "$source" | _hash12)"
+  echo "${name}-${hash}"
+}
+
 _state_globs() {
   if [ -n "${VD_STATE_PATH:-}" ]; then
     echo "${VD_STATE_PATH}/*/state.json"
-    return
   fi
   REPO_ROOT_S="$(git rev-parse --show-toplevel 2>/dev/null || echo '')"
   if [ -n "$REPO_ROOT_S" ] && [ -d "${REPO_ROOT_S}/.work" ]; then
     echo "${REPO_ROOT_S}/.work/state/*/state.json"
   fi
-  # Always include legacy so read-either works.
-  echo "plans/goals/*/state.json"
+  if [ -n "$REPO_ROOT_S" ]; then
+    echo "${XDG_STATE_HOME:-${HOME}/.local/state}/vd/ultracook/$(_state_repo_id "$REPO_ROOT_S")/goals/*/state.json"
+    # Always include legacy so read-either works without writing new state there.
+    echo "${REPO_ROOT_S}/plans/goals/*/state.json"
+  else
+    echo "plans/goals/*/state.json"
+  fi
 }
 
 # --all / --list: enumerate every goal-dir (#66 multi-goal disambiguation).

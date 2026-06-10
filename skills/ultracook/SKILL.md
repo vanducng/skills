@@ -74,7 +74,7 @@ The sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) short-circuit the r
 
 ## Hard rules (apply across both runtimes)
 
-1. **State on disk is source of truth.** `plans/goals/{slug}/goal.yaml` + `state.json` survive context compaction. The Phase 5 keystone test proves goals are portable across runtimes via state.json — same goal can be started on one runtime and finished on the other.
+1. **State on disk is source of truth.** `<state-base>/{slug}/goal.yaml` + `state.json` survive context compaction. State base resolves to `$VD_STATE_PATH` → `<git-root>/.work/state` when `.work/` exists → `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default). Legacy `plans/goals` is read for old runs only; do not write new ultracook state into the project tree.
 2. **Loop primitive = `vd:auto-loop` (Stop hook on Claude / `--codex` → native `/goal` on Codex).** Not `ScheduleWakeup`. Monitor is only for event-driven async waits.
 3. **No auto-merge on the skills repo.** `vd:ship official` (no `--auto`).
 4. **Closed-set verifier vocabulary + `shell` escape.** Six built-ins + `shell`.
