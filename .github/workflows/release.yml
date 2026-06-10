@@ -21,7 +21,7 @@ jobs:
       # MiuMun app token (not GITHUB_TOKEN) so the auto-merged release commit re-triggers this workflow and cuts the tag.
       - name: Generate MiuMun app token
         id: app_token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.GH_APP_ID }}
           private-key: ${{ secrets.GH_APP_MUNMIU_PRIVATE_KEY }}
