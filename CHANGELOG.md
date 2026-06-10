@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.36.0](https://github.com/vanducng/skills/compare/v0.35.0...v0.36.0) (2026-06-10)
+
+
+### Features
+
+* **webdesign:** add consolidated web design skill ([#143](https://github.com/vanducng/skills/issues/143)) ([f12c22f](https://github.com/vanducng/skills/commit/f12c22f388c0cfe2dfd5deba033634c190f38c87))
+
 ## [0.35.0](https://github.com/vanducng/skills/compare/v0.34.0...v0.35.0) (2026-06-10)
 
 
