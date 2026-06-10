@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.34.0](https://github.com/vanducng/skills/compare/v0.33.1...v0.34.0) (2026-06-10)
+
+
+### Features
+
+* **cktovd:** added claudekit→vd-cli migration runbook skill ([#139](https://github.com/vanducng/skills/issues/139)) ([d80dd7d](https://github.com/vanducng/skills/commit/d80dd7d4f49aa797ac6d86028a96749349367d28))
+
 ## [0.33.1](https://github.com/vanducng/skills/compare/v0.33.0...v0.33.1) (2026-06-10)
 
 
