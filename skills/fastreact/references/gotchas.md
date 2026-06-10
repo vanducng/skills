@@ -70,11 +70,43 @@ Give the `DataTable` body a consistent min-height (e.g. `min-h-[420px]`, ~ pageS
 ### 17. Login footer + single version constant
 Add a centered login footer `© <Brand> · v<APP_VERSION>` and reuse the SAME `APP_VERSION` (one `src/config/version.ts`) in the sidebar status chip. The brand lockup should be a link to `/` (home).
 
+### 18. Client-facing copy: precise, not over-claiming, not over-specifying
+For tenant/client UI + docs: describe what users actually do (e.g. "upload hire data exported from your ATS"), not internal jargon (no "leads/rosters/applicants", no "lead database"). Don't over-claim outcomes ("real hires", not "potential"; no "never sold/shared" promises). Don't leak infra specifics (say "in CNB's AWS (S3)", not the bucket name or "organized by your company identifier"). Keep internal role tables / audit details OUT of client docs.
+
 ### 19. Standardize audit columns + soft delete
 Give domain tables a consistent audit shape via base.py col factories: `created_at`, `updated_at`, `created_by`, `updated_by` (FK users, SET NULL), and `deleted_at` for soft-deletable entities. Populate `created_by`/`updated_by` from the acting user in services. Soft delete = set `deleted_at`; the service `list()`/`get()` MUST filter `deleted_at IS NULL`. Reserve HARD delete for rows that own an external resource (e.g. an S3 object) where a tombstone would lie. Immutable logs (audit) keep only `created_at`. Add columns via a migration; backfill nothing.
 
 ### 20. Internal "support workspace" + tenant scoping
 Internal (provider) users often need BOTH an Admin section AND the tenant Workspace, seeing ALL tenants' data (e.g. all client files with a Company column + filter) to support them. Implement scoping in the service (`is_internal(role)` → all rows; tenant user → own `company_id`), gate write actions by role (e.g. AE = view+download, not delete), and render a Company column only for internal users. Route internal users' home to the admin landing.
 
-### 18. Client-facing copy: precise, not over-claiming, not over-specifying
-For tenant/client UI + docs: describe what users actually do (e.g. "upload hire data exported from your ATS"), not internal jargon (no "leads/rosters/applicants", no "lead database"). Don't over-claim outcomes ("real hires", not "potential"; no "never sold/shared" promises). Don't leak infra specifics (say "in CNB's AWS (S3)", not the bucket name or "organized by your company identifier"). Keep internal role tables / audit details OUT of client docs.
+## Deployment (AWS)
+
+### 21. postgres:18+ moved its data dir
+The 18+ image wants the volume at `/var/lib/postgresql` (NOT `/data`); the old mount → "unused mount/volume", container exits 1. Fix: `pgdata:/var/lib/postgresql` (or set `PGDATA=/var/lib/postgresql/data` to keep the old layout). Bumping the PG MAJOR also needs a volume wipe (`down -v`); data dirs aren't cross-major compatible.
+
+### 22. RDS minor versions get removed
+A pinned minor (e.g. `16.4`) fails at terraform APPLY, not plan/validate. Verify first: `aws rds describe-db-engine-versions --engine postgres` + `describe-orderable-db-instance-options --db-instance-class <class>`.
+
+### 23. ECR IMMUTABLE is a silent no-op through a shared module
+A `for_each` module that doesn't pass `image_tag_mutability` creates the repo MUTABLE regardless of your locals. Verify the module wires the var. Separately: IMMUTABLE + a moving tag (`:prod`/`:latest`) breaks on the 2nd push (`ImageTagAlreadyExistsException`) → deploy by git SHA only.
+
+### 24. Internet-facing ALB needs >=2 AZs
+A single-AZ VPC needs a Terraform-created 2nd-AZ subnet pair (the compute target can stay single-AZ).
+
+### 25. 443-only egress breaks DNS
+Tightening app egress to 443 also blocks resolution. Allow 53 (udp+tcp) to the VPC resolver CIDR, and 5432 to the RDS SG.
+
+### 26. Terraform repo hygiene
+Gitignore `.terraform/` and `*.tfstate*` but KEEP `.terraform.lock.hcl`; run `terraform providers lock -platform=linux_amd64 -platform=darwin_arm64` so linux CI has provider hashes.
+
+### 27. Pin local Postgres to the RDS MAJOR
+Pin docker-compose Postgres to the SAME MAJOR as the RDS engine (real drift caught: local 16 vs prod 18).
+
+### 28. Automate ACM + DNS when the zone is in-account
+If the Route53 zone is in the same AWS account, create the ACM validation records + `aws_acm_certificate_validation` + the app alias record in Terraform. No manual CNAME handoff.
+
+### 29. RDS param-group family must match the engine MAJOR
+Pinning `family = "postgres16"` with an 18 engine fails at APPLY (InvalidParameterCombination), not validate/plan. Derive it: `family = "postgres${split(".", var.db_engine_version)[0]}"` so it tracks the version.
+
+### 30. AWS SSM names/descriptions reject `+` and math symbols
+SSM patch-baseline (and similar) fields allow `\p{P}` punctuation but NOT `\p{S}` symbols, so a `+` in a description fails apply with a regex ValidationException. Use plain words/commas.

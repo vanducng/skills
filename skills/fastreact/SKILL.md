@@ -5,7 +5,7 @@ argument-hint: "[app description | scaffold | mockup | backend | frontend]"
 license: MIT
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # fastreact — FastAPI + React full-stack webapp
@@ -63,6 +63,7 @@ Seed deterministic test users per role. Verify the real flow with `agent-browser
 - `references/auth-rbac.md` — JWT + Google OAuth, role model, permission deps, S3 key scheme.
 - `references/design-mockup-workflow.md` — marketing-design + open-design then theme port.
 - `references/gotchas.md` — the bugs that recur in this stack. READ before frontend↔backend integration.
+- `references/deployment.md` — AWS deploy: EC2+compose, SSM/Ansible, RDS, ALB, ECR, OIDC; security floor + pre-apply checklist.
 
 ## Hard rules (this stack bites here; see references/gotchas.md)
 1. **FormData uploads:** never set `Content-Type: multipart/form-data` manually; in the axios request interceptor delete the default JSON header when `data instanceof FormData` so the browser sets the boundary. The backend `UploadFile` param name MUST match the FormData key (`files`/`file`).
