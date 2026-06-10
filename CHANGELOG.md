@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.36.1](https://github.com/vanducng/skills/compare/v0.36.0...v0.36.1) (2026-06-10)
+
+
+### Bug Fixes
+
+* **ultracook:** store goal state outside project tree ([#145](https://github.com/vanducng/skills/issues/145)) ([7abddb4](https://github.com/vanducng/skills/commit/7abddb412d26d3cec226ea712a8bd22a02b023dc))
+
 ## [0.36.0](https://github.com/vanducng/skills/compare/v0.35.0...v0.36.0) (2026-06-10)
 
 
