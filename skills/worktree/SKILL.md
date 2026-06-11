@@ -1,40 +1,43 @@
 ---
 name: worktree
-description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, and monorepo or submodule setups. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
+description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under .work/trees/, auto-copies .env files (nested included), assigns each worktree a deterministic port block, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
 license: MIT
-argument-hint: "[feature-description] | [project] [feature] | status | list | prune | remove <name>"
+argument-hint: "[feature-description] | [project] [feature] | status | list | ports | prune | remove <name>"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "2.0.0"
 ---
 
 # Worktree
 
-Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run lives on its own branch and its own filesystem path — without disturbing your main checkout. Pairs naturally with `vd:cook` and `vd:fix` (implement in the worktree) and `vd:ship` (land it).
+Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run lives on its own branch and its own filesystem path — without disturbing your main checkout. Each worktree arrives ready to run: env files copied, a private port block assigned, install commands detected. Pairs naturally with `vd:cook` and `vd:fix` (implement in the worktree) and `vd:ship` (land it).
 
 ## What this skill is — and isn't
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| **`vd:worktree`** | Where does this feature/branch live on disk? | New worktree directory + branch ready for work |
+| **`vd:worktree`** | Where does this feature/branch live on disk, and how does it run without colliding? | Worktree + branch + env + ports, ready for work |
 | `vd:git` | How do I stage/commit/push *this branch*? | Conventional commits on the current branch |
 | `vd:ship` | Is this branch ready to land? | Tests → review → version → PR |
 | `vd:scout` / `vd:plan` | What am I going to build? | Reports + phase files |
 
-Use `vd:worktree` only for the **filesystem + branch primitive** — creating, listing, inspecting, removing. Everything downstream (planning, coding, testing, PR) belongs to the other skills.
+## Standard location: `.work/trees/`
 
-## Runtime compatibility
+All worktrees live at **`<git-root>/.work/trees/<repo>-<feature>/`** — one rule for every repo type:
 
-The underlying script auto-detects which agent runtime invoked it and tunes the "Next steps" hint accordingly:
+- **Standalone** → `<repo>/.work/trees/`
+- **Monorepo** → `<monorepo-root>/.work/trees/`
+- **Submodule** → topmost superproject's `.work/trees/`
 
-| Detection signal | Next-step CLI shown |
-|---|---|
-| `CLAUDECODE=1` or `AI_AGENT=claude-*` | `claude` |
-| `CODEX_HOME` / `CODEX_SANDBOX` / `OPENAI_CODEX` | `codex` |
-| `WORKTREE_AGENT_CMD=<your-cli>` (override) | `<your-cli>` |
-| none of the above | `claude  # or: codex` |
+`.work/` is the gitignored agent-artifact umbrella (plans, reports, journals — and now trees). The script auto-appends `/.work/trees/` and `.env.worktree` to `.git/info/exclude` when the repo doesn't already ignore them, so `git status` stays clean without touching tracked files.
 
-JSON output (`--json`) is identical across runtimes — agents should prefer it for parsing.
+**Hazard:** `git clean -fdx` in the main checkout can delete in-repo worktrees (single `-f` skips dirs containing `.git`, double `-ff` does not). Run `prune` after any aggressive clean.
+
+**Overrides:** `--worktree-root <path>` flag → `WORKTREE_ROOT` env → `.work/trees` default. Pre-2.0 worktrees in sibling `worktrees/` dirs keep working (`list`/`status`/`remove` find them via git); new ones land in `.work/trees/`.
+
+## Script path
+
+Canonical: `node $HOME/skills/skills/worktree/scripts/worktree.cjs`. If the repo isn't at `$HOME/skills`, use the installed symlink `node $HOME/.claude/skills/worktree/scripts/worktree.cjs`. Pick one at the start of the session and stick with it — don't retry both paths every call.
 
 ## Workflow
 
@@ -46,11 +49,11 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs info --json
 
 Parse: `repoType`, `baseBranch`, `projects`, `worktreeRoot`, `worktreeRootSource`, `dirtyState`, `dirtyDetails`.
 
+If the base branch must be fresh (release work, long-running repos), run `git fetch origin <base>` first — `create` warns when the local base is behind an already-fetched `origin/<base>`, but it cannot see commits that were never fetched.
+
 ### Step 2 — Decide branch name
 
-**Ticket-driven work is authoritative.** If the task is tied to a Jira,
-Linear, Shortcut, GitHub issue, or similar ticket, extract the issue key first
-and use it as the branch name before any slug/prefix logic:
+**Ticket-driven work is authoritative.** If the task is tied to a Jira, Linear, Shortcut, GitHub issue, or similar ticket, extract the issue key first and use it as the branch name before any slug/prefix logic:
 - Jira URL `https://teamcnb.atlassian.net/browse/ELT-3267` → branch `ELT-3267`
 - Text `fix ELT-3267 transfer phones` → branch `ELT-3267`
 - Bare key `ELT-3267` → branch `ELT-3267`
@@ -61,17 +64,16 @@ Run the create command with `--no-prefix` for ticket branches:
 node $HOME/skills/skills/worktree/scripts/worktree.cjs create "ELT-3267" --no-prefix
 ```
 
-**Use `--no-prefix` (skip Step 3) when the caller supplies an exact branch name** — e.g., it contains uppercase letters, an issue-tracker key, or slashes used as a convention:
+**Use `--no-prefix` (skip Step 3) when the caller supplies an exact branch name** — uppercase letters, an issue-tracker key, or slashes used as a convention:
 - `ND-1377-cleanup-docs` → `--no-prefix` → branch `ND-1377-cleanup-docs`
 - `kai/feat/604-startup-option` → `--no-prefix` → branch `kai/feat/604-startup-option`
 
-**If a ticket is discovered after a non-ticket worktree already exists** (for
-example the user first says `2ndphone`, then provides Jira `ELT-3267`), rename
-the current branch before shipping or opening a PR:
+**Attaching to an existing branch:** pass the existing branch name (usually with `--no-prefix`). If the branch exists locally or on origin, `create` attaches the worktree to it instead of creating a new branch — no need to drop to raw `git worktree add`.
+
+**If a ticket is discovered after a non-ticket worktree already exists**, rename the branch before shipping:
 
 ```bash
-git branch -m ELT-3267
-git push -u origin ELT-3267
+git branch -m ELT-3267 && git push -u origin ELT-3267
 ```
 
 **Otherwise detect prefix from the description:**
@@ -119,85 +121,144 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs create "<SLUG>" --prefix 
 node $HOME/skills/skills/worktree/scripts/worktree.cjs create "<PROJECT>" "<SLUG>" --prefix <TYPE>
 ```
 
+`create` does the session-setup work automatically:
+
+1. Copies untracked `.env*` files from the source checkout — **including nested ones** (`backend/.env`, `frontend/.env.local`, up to 3 levels). Disable with `--no-copy-env`.
+2. Copies `.env*.example` templates for any env name not already copied.
+3. Copies `.worktreeinclude` entries (see below).
+4. Assigns a deterministic 10-port block and writes `.env.worktree`.
+5. Verifies the checkout landed on the requested branch (auto-rescues via `git switch` if git silently attached elsewhere) and warns when the base branch is behind its fetched remote.
+6. Detects lockfiles and returns `suggestedInstalls`.
+
 **Flags:**
 
 | Flag | Purpose |
 |---|---|
 | `--prefix <type>` | Branch type: `feat\|fix\|refactor\|docs\|test\|chore\|perf` |
 | `--base <branch>` | Override auto-detected base (default: `dev → develop → main → master`) |
-| `--no-prefix` | Preserve original case + slashes (Jira keys, `user/type/feature`) |
+| `--no-prefix` | Preserve original case + slashes (Jira keys, `user/type/feature`); attaches if branch exists |
+| `--no-copy-env` | Skip auto-copy of untracked `.env*` files |
 | `--checkout-submodules` | Run `git submodule update --init --checkout --recursive` after create |
 | `--post-create-hook <x>` | Explicit hook script path or shell command (overrides auto-detect) |
 | `--no-post-create-hook` | Disable hook auto-detection |
-| `--worktree-root <path>` | Override default location |
+| `--no-pre-remove-hook` | Skip `.worktree/hooks/pre-remove` teardown on remove |
+| `--worktree-root <path>` | Override default `.work/trees/` location |
 | `--json` | Machine-readable output |
-| `--dry-run` | Preview without touching disk |
-| `--env <files>` | Comma-separated `.env` files to copy (legacy; templates auto-copy by default) |
+| `--dry-run` | Preview without touching disk (includes `portBase`) |
+| `--env <files>` | Comma-separated root-level `.env` files to copy (legacy; auto-copy covers this) |
 
-### Step 6 — Install deps (post-create hook OR background install)
+### Step 6 — Install deps
 
-**Preferred: drop a `post-create` hook into the repo** so the install is repeatable for every worktree the team creates. The script auto-detects (in order):
+Run the `suggestedInstalls` from the create output in the new worktree (background bash, don't block):
 
-1. `.worktree/hooks/post-create` (executable) — check this in, share with the team
-2. `scripts/setup-worktree` (executable)
+```json
+"suggestedInstalls": [
+  { "dir": ".", "command": "pnpm install" },
+  { "dir": "backend", "command": "uv sync" }
+]
+```
 
-Example `.worktree/hooks/post-create`:
+Each entry runs in `<worktreePath>/<dir>`. This replaces guessing from lockfiles by hand. Repos that need more than installs should check in a post-create hook (below).
+
+## Per-worktree isolation kit
+
+### `.env.worktree` — identity + ports
+
+Every worktree gets a generated `.env.worktree` (excluded from git):
+
+```bash
+WORKTREE_NAME=app-login-fix        # directory name
+WORKTREE_BRANCH=fix/login-fix
+WORKTREE_ID=app_login_fix          # safe for Postgres/MySQL db names
+WORKTREE_PORT_BASE=23450           # block of 10: 23450-23459
+PORT=23450
+COMPOSE_PROJECT_NAME=app-login-fix # docker compose isolation for free
+```
+
+Port blocks are a deterministic hash of the worktree name into 20000–39990, collision-checked against sibling worktrees — stable across recreations, no registry. Main checkout keeps default ports (3000/8000/5173); only worktrees get offsets.
+
+**Using the ports:**
+
+```bash
+set -a; . ./.env.worktree; set +a        # shell / hooks
+npm run dev -- --port $PORT               # vite needs explicit --port
+PORT=$PORT uvicorn app:app --port $PORT   # or pass through directly
+# direnv users: add `dotenv .env.worktree` to .envrc
+```
+
+Audit all assignments / debug a port conflict:
+
+```bash
+node $HOME/skills/skills/worktree/scripts/worktree.cjs ports --json
+```
+
+### `.worktreeinclude` — copy manifest
+
+Same convention Claude Code's native worktrees use: one repo-relative path per line (file or directory, literal paths, `#` comments) copied into each new worktree. For local-only files the env auto-copy doesn't cover:
+
+```
+.claude/settings.local.json
+.secrets/age-key.txt
+config/master.key
+```
+
+Unsafe entries (absolute, `..`, globs) are skipped with a warning.
+
+### Hooks — DB seeding and teardown
+
+Check `.worktree/hooks/post-create` (executable) into the repo for setup beyond installs; `.worktree/hooks/pre-remove` for teardown. Both run inside the worktree with `WORKTREE_NAME`, `WORKTREE_BRANCH`, `WORKTREE_ID`, `WORKTREE_PORT_BASE`, `PORT`, `COMPOSE_PROJECT_NAME`, `WORKTREE_PATH`, `WORKTREE_SOURCE` (main checkout path) exported. `scripts/setup-worktree` is also auto-detected for post-create.
+
+**Postgres per-worktree DB** (template DB gives sub-second clones):
 
 ```bash
 #!/usr/bin/env bash
+# .worktree/hooks/post-create
 set -euo pipefail
-# $PWD is the new worktree; $WORKTREE_PATH is also exported.
-if [ -f bun.lock ]; then bun install
-elif [ -f pnpm-lock.yaml ]; then pnpm install
-elif [ -f package-lock.json ]; then npm install
-elif [ -f poetry.lock ]; then poetry install
-elif [ -f uv.lock ]; then uv sync
-elif [ -f go.mod ]; then go mod download
-fi
-[ -f .envrc ] && direnv allow . || true
+createdb "$WORKTREE_ID" -T app_template 2>/dev/null || createdb "$WORKTREE_ID"
+DATABASE_URL="postgres://localhost/$WORKTREE_ID" alembic upgrade head
+echo "DATABASE_URL=postgres://localhost/$WORKTREE_ID" >> .env.worktree
 ```
 
-Override with `--post-create-hook <path-or-command>` (e.g. `--post-create-hook "make worktree-init"`).
-Skip with `--no-post-create-hook`.
+```bash
+#!/usr/bin/env bash
+# .worktree/hooks/pre-remove — failure warns, never blocks removal
+dropdb "$WORKTREE_ID" 2>/dev/null || true
+docker compose -p "$COMPOSE_PROJECT_NAME" down -v 2>/dev/null || true
+```
 
-**Fallback** — if no hook is present, kick off the right install yourself in the new worktree path (background bash, don't block):
+**Docker compose:** `COMPOSE_PROJECT_NAME` already isolates containers/volumes/networks per worktree — `docker compose up` in two worktrees won't collide (map host ports from the block: `"${PORT}:3000"`).
 
-| Lockfile | Install command |
-|---|---|
-| `bun.lock` / `bun.lockb` | `bun install` |
-| `pnpm-lock.yaml` | `pnpm install` |
-| `yarn.lock` | `yarn install` |
-| `package-lock.json` | `npm install` |
-| `poetry.lock` | `poetry install` |
-| `uv.lock` | `uv sync` |
-| `requirements.txt` | `pip install -r requirements.txt` |
-| `Cargo.toml` | `cargo build` |
-| `go.mod` | `go mod download` |
+**SQLite:** db files are not auto-copied — add them to `.worktreeinclude`, or copy from `$WORKTREE_SOURCE` in the post-create hook (`cp "$WORKTREE_SOURCE/db.sqlite" ./db.sqlite`).
 
 ## Commands
 
 | Command | Usage | Purpose |
 |---|---|---|
-| `create` | `create [project] <feature>` | Create worktree + branch |
-| `remove` | `remove <name-or-path>` | Remove worktree + branch (safe; blocks on dirty state) |
+| `create` | `create [project] <feature>` | Create worktree + branch + env + ports |
+| `remove` | `remove <name-or-path>` | Backup env files → pre-remove hook → remove worktree + branch |
 | `info` | `info` | Repo type, base branch, projects, worktree location |
 | `list` | `list` | All existing worktrees (normalized paths) |
 | `status` | `status` | Health audit + base-branch divergence per worktree |
+| `ports` | `ports` | Port block assignment per worktree |
 | `prune` | `prune [--dry-run]` | Clean stale worktree metadata |
+
+`remove` rescues untracked `.env*` files (with any edits made in the worktree) to `<trees-root>/.env-backups/<worktree-name>/` before deletion.
 
 ## JSON output fields (high-signal)
 
 | Field | Description |
 |---|---|
-| `baseBranch` | Branch the worktree is based on |
-| `baseBranchSource` | `explicit` (from `--base`) or `auto-detected` |
-| `worktreePath` | Absolute path of the new worktree |
-| `worktreeRootSource` | How the location was chosen (flag / env / monorepo / sibling) |
-| `checkoutSubmodules` | Whether submodules were initialized |
-| `currentWorktree` | Current health record (from `status --json`) |
-| `worktrees` | All worktree records (from `list --json` or `status --json`) |
-| `entries` | Prune output lines (from `prune --json`) |
-| `envTemplatesCopied` | Auto-copied `.env*.example` → `.env*` mappings |
+| `baseBranch` / `baseBranchSource` | Base branch and how it was chosen (`explicit` / `auto-detected`) |
+| `worktreePath` / `worktreeRootSource` | New worktree location and root-selection source |
+| `portBase` | First port of this worktree's 10-port block |
+| `worktreeId` | DB-name-safe identifier |
+| `suggestedInstalls` | `[{dir, command}]` — run these in the worktree |
+| `envFilesCopied` | Untracked `.env*` files copied (incl. nested paths) |
+| `envTemplatesCopied` | `.env*.example` → `.env*` mappings (gap-fill only) |
+| `includeCopied` | `.worktreeinclude` entries copied |
+| `envBackup` | (remove) `{dir, files}` of rescued env files |
+| `currentWorktree` / `worktrees` | Health records (from `status --json` / `list --json`) |
+| `assignments` | Port blocks per worktree (from `ports --json`) |
 
 ## Exit codes (for shell scripting + Codex tool-use loops)
 
@@ -205,7 +266,7 @@ Skip with `--no-post-create-hook`.
 |---:|---|---|
 | `0` | success | n/a |
 | `2` | bad CLI input, not a git repo, unknown command | no |
-| `10` | git command failed | maybe (transient) |
+| `10` | git command failed (incl. unrecoverable branch mismatch) | maybe (transient) |
 | `13` | permission denied | no (fix perms) |
 | `17` | worktree or branch already exists | no (use a different name) |
 | `28` | disk / mkdir failed | no (free space) |
@@ -219,29 +280,19 @@ JSON output (`--json`) embeds the same `exitCode` inside `error` for parsing wit
 
 | Variable | Effect |
 |---|---|
-| `WORKTREE_ROOT` | Override default worktree root directory |
+| `WORKTREE_ROOT` | Override default `.work/trees/` root directory |
 | `WORKTREE_AGENT_CMD` | Override the "Next steps" CLI hint (for runtimes the script can't auto-detect) |
-| `WORKTREE_PATH` | Exported into post-create hooks — absolute path of the new worktree |
-
-## Portability — running on any machine
-
-The skill assumes the `vanducng/skills` repo lives at `$HOME/skills`. If you clone it elsewhere, either:
-
-1. Symlink it: `ln -s /path/to/skills $HOME/skills`
-2. Or call the script with an absolute path matching your clone: `node /your/path/skills/worktree/scripts/worktree.cjs ...`
-
-The script itself has **no machine-specific assumptions** — it uses only `git`, Node.js ≥18, and the standard library. No `$HOME`-relative writes, no hardcoded users, no platform-specific shell calls.
+| `WORKTREE_*` (exported to hooks) | `NAME`, `BRANCH`, `ID`, `PORT_BASE`, `PATH`, `SOURCE` + `PORT`, `COMPOSE_PROJECT_NAME` |
 
 ## Notes
 
-- Default worktree location is **smart**: submodule → topmost superproject's `worktrees/`; monorepo → `worktrees/` inside repo; standalone → sibling `worktrees/`.
-- `--base` is useful for long-lived variant branches (e.g. `main-dsl`) that diverge from auto-detected defaults.
+- All operations are **idempotent and reversible** except branch deletion via `remove` (which checks for unmerged commits).
+- Secrets never leave the machine: env copying is checkout → worktree on the same filesystem.
 - `status` normalizes the main checkout path in submodule repos before reporting health.
 - `prune --dry-run` is the safe first pass when auditing stale metadata.
-- `.env*.example` templates auto-copy with the `.example` suffix removed — secrets are never copied across worktrees.
-- All operations are **idempotent and reversible** except branch deletion via `remove` (which checks for unmerged commits).
+- The script has **no machine-specific assumptions** — `git`, Node.js ≥18, standard library only.
 
 ## Workflow position
 
 **Typically precedes:** `vd:cook` (implement in worktree), `vd:fix` (debug + fix in worktree), `vd:ship` (land from worktree).
-**Setup primitive** — creates the isolated filesystem + branch before any implementation work begins.
+**Setup primitive** — creates the isolated filesystem + branch + runtime environment before any implementation work begins.

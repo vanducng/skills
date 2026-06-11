@@ -7,24 +7,27 @@
  * Usage: node worktree.cjs <command> [options]
  * Commands:
  *   create <project> <feature>  Create a new worktree (project optional for standalone)
- *   remove <name-or-path>       Remove a worktree and its branch
+ *   remove <name-or-path>       Remove a worktree and its branch (runs pre-remove hook)
  *   info                        Get repo info (type, projects, env files)
  *   list                        List existing worktrees
  *   status                      Show worktree health and branch status
  *   prune                       Remove stale worktree metadata
+ *   ports                       Show per-worktree port block assignments
  *
  * Options:
  *   --prefix <type>        Branch prefix (feat|fix|refactor|docs|test|chore|perf)
  *   --base <branch>        Override auto-detected base branch (default: dev→develop→main→master)
  *   --checkout-submodules  Initialize submodules in the new worktree after create
- *   --worktree-root <path> Explicit worktree directory (Claude's decision)
+ *   --worktree-root <path> Explicit worktree directory (default: <git-root>/.work/trees)
  *   --json                 Output in JSON format for LLM consumption
  *   --env <files>          Comma-separated list of .env files to copy (legacy)
+ *   --no-copy-env          Skip auto-copy of untracked .env* files
+ *   --no-pre-remove-hook   Skip .worktree/hooks/pre-remove on remove
  *   --dry-run              Show what would be done without executing
  *   --no-prefix            Skip branch prefix and preserve original case
  */
 
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -174,6 +177,16 @@ const noPostCreateHookIndex = args.indexOf('--no-post-create-hook');
 const noPostCreateHook = noPostCreateHookIndex > -1;
 if (noPostCreateHookIndex > -1) args.splice(noPostCreateHookIndex, 1);
 
+// --no-copy-env: skip copying untracked .env* files from the source checkout
+const noCopyEnvIndex = args.indexOf('--no-copy-env');
+const noCopyEnv = noCopyEnvIndex > -1;
+if (noCopyEnvIndex > -1) args.splice(noCopyEnvIndex, 1);
+
+// --no-pre-remove-hook: skip .worktree/hooks/pre-remove on remove
+const noPreRemoveHookIndex = args.indexOf('--no-pre-remove-hook');
+const noPreRemoveHook = noPreRemoveHookIndex > -1;
+if (noPreRemoveHookIndex > -1) args.splice(noPreRemoveHookIndex, 1);
+
 const command = args[0];
 // For create: args[1] is project (or feature for standalone), args[2] is feature
 // For remove: args[1] is worktree name or path
@@ -214,12 +227,23 @@ function output(data) {
         console.log(`   # or manually:`);
         console.log(`   git worktree remove ${data.worktreePath} && git branch -d ${data.branch}`);
       }
-      if (data.envTemplatesCopied && data.envTemplatesCopied.length > 0) {
-        console.log(`\n📄 Environment templates copied:`);
-        data.envTemplatesCopied.forEach(t => console.log(`   ✓ ${t.from} → ${t.to}`));
-      } else if (data.envFilesCopied && data.envFilesCopied.length > 0) {
+      if (data.envFilesCopied && data.envFilesCopied.length > 0) {
         console.log(`\n📄 Environment files copied:`);
         data.envFilesCopied.forEach(f => console.log(`   ✓ ${f}`));
+      }
+      if (data.includeCopied && data.includeCopied.length > 0) {
+        console.log(`\n📄 .worktreeinclude entries copied:`);
+        data.includeCopied.forEach(f => console.log(`   ✓ ${f}`));
+      }
+      if (data.portBase) {
+        console.log(`\n🔌 Ports: ${data.portBase}-${data.portBase + 9} (PORT=${data.portBase}, in ${data.envWorktreeFile})`);
+      }
+      if (data.suggestedInstalls && data.suggestedInstalls.length > 0) {
+        console.log(`\n📦 Install dependencies:`);
+        data.suggestedInstalls.forEach(s => console.log(`   ${s.dir === '.' ? '' : `cd ${s.dir} && `}${s.command}`));
+      }
+      if (data.envBackup) {
+        console.log(`\n💾 Env files backed up: ${data.envBackup.dir}`);
       }
       if (data.warnings && data.warnings.length > 0) {
         console.log(`\n⚠️  Warnings:`);
@@ -285,6 +309,7 @@ const ERROR_CODE_MAP = {
   WORKTREE_EXISTS: 'ERROR_CONFLICT',
   BRANCH_CHECKED_OUT: 'ERROR_CONFLICT',
   WORKTREE_CREATE_FAILED: 'ERROR_GIT',
+  BRANCH_MISMATCH: 'ERROR_GIT',
   WORKTREE_LIST_ERROR: 'ERROR_GIT',
   WORKTREE_REMOVE_FAILED: 'ERROR_GIT',
   WORKTREE_PRUNE_FAILED: 'ERROR_GIT',
@@ -327,6 +352,26 @@ function git(command, options = {}) {
     const result = execSync(`git ${command}`, {
       encoding: 'utf-8',
       stdio: options.silent ? 'pipe' : ['pipe', 'pipe', 'pipe'],
+      cwd: options.cwd || process.cwd()
+    });
+    return { success: true, output: result.trim() };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      stderr: error.stderr?.toString().trim() || '',
+      code: error.status
+    };
+  }
+}
+
+// Non-shell git for commands that interpolate disk-derived names — filenames
+// found in a cloned repo are attacker-controlled and must never hit a shell.
+function gitArgs(argv, options = {}) {
+  try {
+    const result = execFileSync('git', argv, {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
       cwd: options.cwd || process.cwd()
     });
     return { success: true, output: result.trim() };
@@ -435,12 +480,17 @@ function validateWorktreeRoot(rootPath) {
   return { valid: false, error: `Cannot create worktree directory: parent path does not exist: ${parent}` };
 }
 
+// Standard worktree location: <topmost-git-root>/.work/trees/
+// One rule for all repo types — standalone, monorepo, submodule (worktrees
+// land at the superproject root). The .work umbrella is gitignored (or
+// auto-excluded via .git/info/exclude), so worktrees never show as noise.
+const UMBRELLA_DIR = '.work';
+const TREES_SUBDIR = 'trees';
+
 // Determine the worktree root directory with priority:
 // 1. Explicit --worktree-root flag (Claude's decision)
 // 2. WORKTREE_ROOT env var (explicit override)
-// 3. Topmost superproject's worktrees/ (for submodules)
-// 4. Monorepo: worktrees/ inside repo (keeps related worktrees together)
-// 5. Standalone: sibling worktrees/ (avoids polluting repo)
+// 3. <topmost-git-root>/.work/trees/ (standard umbrella location)
 function getWorktreeRoot(gitRoot, isMonorepo, explicitRoot = null) {
   // Priority 0: Explicit --worktree-root flag (Claude's decision)
   if (explicitRoot) {
@@ -465,24 +515,36 @@ function getWorktreeRoot(gitRoot, isMonorepo, explicitRoot = null) {
     return { dir: validation.path, source: 'WORKTREE_ROOT env' };
   }
 
-  // Priority 2: Check for superproject (we might be in a submodule)
+  // Priority 2: .work/trees at the topmost root (superproject for submodules)
   const topmostRoot = findTopmostSuperproject(gitRoot);
-  if (topmostRoot !== gitRoot) {
-    return {
-      dir: path.join(topmostRoot, 'worktrees'),
-      source: `superproject (${path.basename(topmostRoot)})`
-    };
-  }
+  const dir = path.join(topmostRoot, UMBRELLA_DIR, TREES_SUBDIR);
+  const source = topmostRoot !== gitRoot
+    ? `.work umbrella (superproject ${path.basename(topmostRoot)})`
+    : '.work umbrella';
+  return { dir, source, umbrellaRoot: topmostRoot };
+}
 
-  // Priority 3: Monorepo - use worktrees/ inside the repo
-  // Keeps all project worktrees organized together within the monorepo
-  if (isMonorepo) {
-    return { dir: path.join(gitRoot, 'worktrees'), source: 'monorepo internal' };
-  }
+// Make git ignore a path without touching tracked files: append to
+// .git/info/exclude (local-only, shared across worktrees via common dir).
+// Best-effort — returns a warning string on failure instead of aborting.
+function ensureGitExcluded(repoCwd, line) {
+  const check = gitArgs(['check-ignore', '-q', '--', line.replace(/^\//, '').replace(/\/$/, '')], { cwd: repoCwd });
+  if (check.success) return { added: false };
 
-  // Priority 4: Standalone repos - use sibling worktrees/
-  // Avoids polluting the repo with worktree directories
-  return { dir: path.join(path.dirname(gitRoot), 'worktrees'), source: 'sibling directory' };
+  const commonDir = getGitCommonDir(repoCwd);
+  if (!commonDir) return { added: false, warning: `Could not resolve git dir to exclude ${line}` };
+
+  try {
+    const excludePath = path.join(commonDir, 'info', 'exclude');
+    fs.mkdirSync(path.dirname(excludePath), { recursive: true });
+    const existing = fs.existsSync(excludePath) ? fs.readFileSync(excludePath, 'utf-8') : '';
+    if (existing.split('\n').some(l => l.trim() === line)) return { added: false };
+    const prefix = existing && !existing.endsWith('\n') ? '\n' : '';
+    fs.appendFileSync(excludePath, `${prefix}${line}\n`);
+    return { added: true };
+  } catch (err) {
+    return { added: false, warning: `Could not update .git/info/exclude for ${line}: ${err.message}` };
+  }
 }
 
 // Check for uncommitted changes
@@ -552,7 +614,8 @@ function findEnvTemplates(dir) {
   }
 }
 
-// Copy env templates to worktree (strips .example suffix)
+// Copy env templates to worktree (strips .example suffix).
+// Never clobbers an existing dest — real .env copies win over templates.
 function copyEnvTemplates(srcDir, destDir) {
   const templates = findEnvTemplates(srcDir);
   const copied = [];
@@ -562,6 +625,7 @@ function copyEnvTemplates(srcDir, destDir) {
     const srcPath = path.join(srcDir, template);
     const destName = template.replace(/\.example$/, '');
     const destPath = path.join(destDir, destName);
+    if (fs.existsSync(destPath)) return;
 
     try {
       fs.copyFileSync(srcPath, destPath);
@@ -572,6 +636,222 @@ function copyEnvTemplates(srcDir, destDir) {
   });
 
   return { copied, warnings };
+}
+
+function isTrackedByGit(file, cwd) {
+  return gitArgs(['ls-files', '--error-unmatch', '--', file], { cwd }).success;
+}
+
+// Recursive .env* scan, 3 levels deep, covers backend/.env, frontend/.env,
+// apps/api/.env. Skips dot-dirs and dependency/build dirs.
+const ENV_SCAN_SKIP = new Set([
+  'node_modules', 'worktrees', 'vendor', 'venv', 'dist', 'build', 'target', '__pycache__'
+]);
+
+function findEnvFilesRecursive(dir, relPrefix = '', depth = 0) {
+  const out = [];
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return out; }
+  entries.forEach(e => {
+    const rel = relPrefix ? `${relPrefix}/${e.name}` : e.name;
+    if (e.isDirectory()) {
+      if (depth < 2 && !e.name.startsWith('.') && !ENV_SCAN_SKIP.has(e.name)) {
+        out.push(...findEnvFilesRecursive(path.join(dir, e.name), rel, depth + 1));
+      }
+    } else if (e.isFile() && e.name.startsWith('.env') && !e.name.endsWith('.example') && e.name !== ENV_WORKTREE_FILE) {
+      out.push(rel);
+    }
+  });
+  return out;
+}
+
+// Copy real (untracked, gitignored) .env* files from the source checkout,
+// including nested ones. Tracked env files arrive via checkout.
+function copyUntrackedEnvFiles(srcDir, destDir) {
+  const copied = [];
+  const warnings = [];
+
+  findEnvFilesRecursive(srcDir).forEach(rel => {
+    if (isTrackedByGit(rel, srcDir)) return;
+    try {
+      const destPath = path.join(destDir, rel);
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.copyFileSync(path.join(srcDir, rel), destPath);
+      copied.push(rel);
+    } catch (err) {
+      warnings.push(`Failed to copy ${rel}: ${err.message}`);
+    }
+  });
+
+  return { copied, warnings };
+}
+
+// Detect install commands from lockfiles in the new worktree (root + one
+// level of subdirs for backend/frontend splits). One match per language
+// group per dir. Returned as suggestions — the caller runs them.
+const INSTALL_GROUPS = [
+  [['bun.lock', 'bun install'], ['bun.lockb', 'bun install'], ['pnpm-lock.yaml', 'pnpm install'],
+   ['yarn.lock', 'yarn install'], ['package-lock.json', 'npm install']],
+  [['uv.lock', 'uv sync'], ['poetry.lock', 'poetry install'], ['requirements.txt', 'pip install -r requirements.txt']],
+  [['go.mod', 'go mod download']],
+  [['Cargo.toml', 'cargo build']],
+  [['composer.json', 'composer install']],
+];
+
+function detectInstallCommands(dir) {
+  const dirsToCheck = ['.'];
+  try {
+    fs.readdirSync(dir, { withFileTypes: true }).forEach(e => {
+      if (e.isDirectory() && !e.name.startsWith('.') && !ENV_SCAN_SKIP.has(e.name) && dirsToCheck.length < 30) {
+        dirsToCheck.push(e.name);
+      }
+    });
+  } catch { /* unreadable dir — root-only check */ }
+
+  const found = [];
+  dirsToCheck.forEach(sub => {
+    const base = path.join(dir, sub);
+    INSTALL_GROUPS.forEach(group => {
+      for (const [file, command] of group) {
+        if (fs.existsSync(path.join(base, file))) {
+          found.push({ dir: sub, command });
+          break;
+        }
+      }
+    });
+  });
+  return found;
+}
+
+// .worktreeinclude — same convention Claude Code's native worktrees use:
+// one repo-relative path per line (file or directory) to copy into each new
+// worktree. Lines starting with # are comments. Literal paths only.
+function readWorktreeInclude(srcDir) {
+  const manifestPath = path.join(srcDir, '.worktreeinclude');
+  if (!fs.existsSync(manifestPath)) return [];
+  return fs.readFileSync(manifestPath, 'utf-8')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('#'));
+}
+
+function copyWorktreeIncludeEntries(srcDir, destDir, entries) {
+  const copied = [];
+  const warnings = [];
+  const resolvedSrc = path.resolve(srcDir);
+
+  entries.forEach(entry => {
+    if (path.isAbsolute(entry) || entry.split(/[\\/]/).some(seg => seg === '..')) {
+      warnings.push(`Skipped unsafe .worktreeinclude entry: ${entry}`);
+      return;
+    }
+    if (/[*?[\]]/.test(entry)) {
+      warnings.push(`Skipped glob .worktreeinclude entry (literal paths only): ${entry}`);
+      return;
+    }
+    const srcPath = path.resolve(resolvedSrc, entry);
+    if (!srcPath.startsWith(resolvedSrc + path.sep)) {
+      warnings.push(`Skipped .worktreeinclude entry outside repo: ${entry}`);
+      return;
+    }
+    if (!fs.existsSync(srcPath)) return;
+    const destPath = path.join(destDir, entry);
+    try {
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.cpSync(srcPath, destPath, { recursive: true, force: false, errorOnExist: false });
+      copied.push(entry);
+    } catch (err) {
+      warnings.push(`Failed to copy ${entry}: ${err.message}`);
+    }
+  });
+
+  return { copied, warnings };
+}
+
+// Per-worktree port block: deterministic hash of the worktree name maps to a
+// block of 10 ports in 20000–39990 (below the ephemeral range, clear of
+// common dev defaults). Collisions with sibling worktrees probe forward.
+const ENV_WORKTREE_FILE = '.env.worktree';
+const PORT_BLOCK_SIZE = 10;
+const PORT_RANGE_START = 20000;
+const PORT_BLOCK_COUNT = 2000;
+
+function hashPortBase(name) {
+  const n = crypto.createHash('sha1').update(name).digest().readUInt32BE(0);
+  return PORT_RANGE_START + (n % PORT_BLOCK_COUNT) * PORT_BLOCK_SIZE;
+}
+
+function parseEnvWorktree(worktreePath) {
+  const filePath = path.join(worktreePath, ENV_WORKTREE_FILE);
+  if (!fs.existsSync(filePath)) return null;
+  const vars = {};
+  fs.readFileSync(filePath, 'utf-8').split('\n').forEach(line => {
+    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+    if (m) vars[m[1]] = m[2];
+  });
+  return vars;
+}
+
+function collectAssignedPortBases(worktrees) {
+  const bases = new Set();
+  worktrees.forEach(w => {
+    if (!fs.existsSync(w.path)) return;
+    const vars = parseEnvWorktree(w.path);
+    const base = vars && Number.parseInt(vars.WORKTREE_PORT_BASE, 10);
+    if (Number.isFinite(base)) bases.add(base);
+  });
+  return bases;
+}
+
+function assignPortBase(worktreeName, assignedBases) {
+  let base = hashPortBase(worktreeName);
+  for (let i = 0; i < PORT_BLOCK_COUNT && assignedBases.has(base); i++) {
+    base += PORT_BLOCK_SIZE;
+    if (base >= PORT_RANGE_START + PORT_BLOCK_COUNT * PORT_BLOCK_SIZE) base = PORT_RANGE_START;
+  }
+  return base;
+}
+
+// Identifier safe for Postgres/MySQL database names (63-char limit)
+function worktreeId(worktreeName) {
+  return worktreeName.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 63);
+}
+
+// Values land unquoted in .env.worktree which users `source` — strip
+// anything shell-meaningful. worktreeName embeds the repo dir name, which
+// is not otherwise sanitized.
+function safeEnvValue(value) {
+  return String(value).replace(/[^A-Za-z0-9._/-]+/g, '-');
+}
+
+function buildWorktreeEnv(worktreeName, branchName, portBase, sourceDir, worktreePath) {
+  const composeProject = worktreeName.toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^[^a-z0-9]+/, '');
+  return {
+    WORKTREE_NAME: safeEnvValue(worktreeName),
+    WORKTREE_BRANCH: safeEnvValue(branchName),
+    WORKTREE_ID: worktreeId(worktreeName),
+    WORKTREE_PORT_BASE: String(portBase),
+    PORT: String(portBase),
+    COMPOSE_PROJECT_NAME: composeProject,
+    WORKTREE_SOURCE: sourceDir,
+    WORKTREE_PATH: worktreePath,
+  };
+}
+
+function writeEnvWorktreeFile(worktreePath, env) {
+  const fileVars = ['WORKTREE_NAME', 'WORKTREE_BRANCH', 'WORKTREE_ID', 'WORKTREE_PORT_BASE', 'PORT', 'COMPOSE_PROJECT_NAME'];
+  const lines = [
+    '# Generated by the worktree skill — per-worktree identity + a block of 10 ports',
+    `# (${env.WORKTREE_PORT_BASE}-${Number(env.WORKTREE_PORT_BASE) + PORT_BLOCK_SIZE - 1}). Load: set -a; . ./${ENV_WORKTREE_FILE}; set +a`,
+    ...fileVars.map(k => `${k}=${env[k]}`),
+    '',
+  ];
+  fs.writeFileSync(path.join(worktreePath, ENV_WORKTREE_FILE), lines.join('\n'));
 }
 
 // Find matching projects
@@ -1087,6 +1367,10 @@ function cmdCreate() {
       : detectPostCreateHook(sourceDir);
   }
 
+  // Deterministic port block, collision-checked against sibling worktrees
+  const assignedBases = collectAssignedPortBases(getWorktreeRecords(gitRoot, workDir));
+  const portBase = assignPortBase(worktreeName, assignedBases);
+
   // Dry-run mode: show what would be done
   if (dryRun) {
     output({
@@ -1102,7 +1386,9 @@ function cmdCreate() {
         checkoutSubmodules,
         branchExists: !!branchStatus,
         project: isMonorepo ? projectName : null,
+        portBase,
         envFilesToCopy: safeEnvFilesToCopy.length > 0 ? safeEnvFilesToCopy : undefined,
+        worktreeInclude: readWorktreeInclude(sourceDir),
         postCreateHook: plannedHook ? plannedHook.display : null
       },
       warnings: warnings.length > 0 ? warnings : undefined
@@ -1144,13 +1430,53 @@ function cmdCreate() {
     });
   }
 
-  // Auto-copy env templates (.env*.example → .env*)
-  // (sourceDir declared above for post-create hook detection)
+  // Verify the checkout actually landed on the requested branch — guards
+  // against silent attach-to-base incidents. Auto-rescue via git switch.
+  const actualBranchRes = git('rev-parse --abbrev-ref HEAD', { silent: true, cwd: worktreePath });
+  const actualBranch = actualBranchRes.success ? actualBranchRes.output : null;
+  if (actualBranch && actualBranch !== branchName) {
+    const switchCmd = branchExists(branchName, worktreePath) === 'local'
+      ? `switch "${branchName}"`
+      : `switch -c "${branchName}"`;
+    git(switchCmd, { silent: true, cwd: worktreePath });
+    const verify = git('rev-parse --abbrev-ref HEAD', { silent: true, cwd: worktreePath });
+    if (!verify.success || verify.output !== branchName) {
+      outputError('BRANCH_MISMATCH', `Worktree checked out "${actualBranch}" instead of "${branchName}"`, {
+        suggestion: `cd ${worktreePath} && git switch -c ${branchName}`,
+        worktreePath
+      });
+    }
+    warnings.push(`Checkout landed on "${actualBranch}"; auto-switched to "${branchName}"`);
+  }
+
+  // Warn when branching from a base that is behind its already-fetched remote
+  if (!branchStatus && !baseBranch.includes('/')) {
+    const localBase = git(`show-ref --verify --quiet refs/heads/${baseBranch}`, { silent: true, cwd: workDir });
+    const remoteBase = git(`show-ref --verify --quiet refs/remotes/origin/${baseBranch}`, { silent: true, cwd: workDir });
+    if (localBase.success && remoteBase.success) {
+      const behindRes = git(`rev-list --count ${baseBranch}..origin/${baseBranch}`, { silent: true, cwd: workDir });
+      const behind = Number.parseInt(behindRes.output, 10);
+      if (behindRes.success && Number.isFinite(behind) && behind > 0) {
+        warnings.push(`Base "${baseBranch}" is ${behind} commit(s) behind origin/${baseBranch} — stale base. Fetch first, or recreate with --base origin/${baseBranch}.`);
+      }
+    }
+  }
+
+  // Env propagation order: real untracked .env* files win, templates fill
+  // gaps, explicit --env entries and .worktreeinclude add the rest.
+  const envFilesCopied = [];
+  if (!noCopyEnv) {
+    const untracked = copyUntrackedEnvFiles(sourceDir, worktreePath);
+    untracked.copied.forEach(f => envFilesCopied.push(f));
+    untracked.warnings.forEach(w => warnings.push(w));
+  }
+
   const envResult = copyEnvTemplates(sourceDir, worktreePath);
   envResult.warnings.forEach(w => warnings.push(w));
+  envResult.copied.forEach(c => {
+    if (!envFilesCopied.includes(c.to)) envFilesCopied.push(c.to);
+  });
 
-  // Also copy explicitly specified env files (legacy --env flag support)
-  const envFilesCopied = envResult.copied.map(c => c.to);
   if (safeEnvFilesToCopy.length > 0) {
     safeEnvFilesToCopy.forEach(envFile => {
       const sourcePath = path.join(sourceDir, envFile);
@@ -1169,6 +1495,29 @@ function cmdCreate() {
       }
     });
   }
+
+  const includeEntries = readWorktreeInclude(sourceDir);
+  const includeResult = copyWorktreeIncludeEntries(sourceDir, worktreePath, includeEntries);
+  includeResult.warnings.forEach(w => warnings.push(w));
+
+  // Per-worktree identity + port block
+  const worktreeEnv = buildWorktreeEnv(worktreeName, branchName, portBase, sourceDir, worktreePath);
+  try {
+    writeEnvWorktreeFile(worktreePath, worktreeEnv);
+  } catch (err) {
+    warnings.push(`Failed to write ${ENV_WORKTREE_FILE}: ${err.message}`);
+  }
+
+  // Keep git status clean: exclude the trees dir (in the repo that contains
+  // it) and the generated .env.worktree (in the repo owning the worktree).
+  const umbrellaRoot = worktreeRoot.umbrellaRoot;
+  if (umbrellaRoot && worktreesDir.startsWith(umbrellaRoot + path.sep)) {
+    const rel = path.relative(umbrellaRoot, worktreesDir).split(path.sep).join('/');
+    const result = ensureGitExcluded(umbrellaRoot, `/${rel}/`);
+    if (result.warning) warnings.push(result.warning);
+  }
+  const envExclude = ensureGitExcluded(workDir, ENV_WORKTREE_FILE);
+  if (envExclude.warning) warnings.push(envExclude.warning);
 
   if (checkoutSubmodules) {
     const submoduleResult = git('submodule update --init --checkout --recursive', {
@@ -1190,7 +1539,7 @@ function cmdCreate() {
       ? resolvePostCreateHook(postCreateHook, worktreePath, sourceDir)
       : detectPostCreateHook(sourceDir);
     if (resolvedHook) {
-      hookResult = runPostCreateHook(resolvedHook, worktreePath);
+      hookResult = runPostCreateHook(resolvedHook, worktreePath, worktreeEnv);
       if (!hookResult.success) {
         outputError('POST_CREATE_HOOK_FAILED', `Post-create hook failed: ${resolvedHook.display}`, {
           suggestion: hookResult.stderr || hookResult.error || 'Inspect the worktree and re-run the hook manually',
@@ -1211,8 +1560,13 @@ function cmdCreate() {
     baseBranchSource,
     checkoutSubmodules,
     project: isMonorepo ? projectName : null,
+    portBase,
+    worktreeId: worktreeEnv.WORKTREE_ID,
+    envWorktreeFile: ENV_WORKTREE_FILE,
     envFilesCopied,
     envTemplatesCopied: envResult.copied,
+    includeCopied: includeResult.copied,
+    suggestedInstalls: detectInstallCommands(worktreePath),
     postCreateHook: hookResult ? { ran: true, hook: hookResult.display } : { ran: false },
     warnings: warnings.length > 0 ? warnings : undefined
   });
@@ -1258,12 +1612,12 @@ function resolvePostCreateHook(value, worktreePath, repoRoot) {
   return { command: value, display: value, explicit: true };
 }
 
-function runPostCreateHook(hook, worktreePath) {
+function runPostCreateHook(hook, worktreePath, worktreeEnv = {}) {
   try {
     const result = execSync(hook.command ? hook.command : `"${hook.path}"`, {
       cwd: worktreePath,
       stdio: jsonOutput ? 'pipe' : 'inherit',
-      env: { ...process.env, WORKTREE_PATH: worktreePath },
+      env: { ...process.env, ...worktreeEnv, WORKTREE_PATH: worktreePath },
     });
     return { success: true, output: result ? result.toString().trim() : '', display: hook.display };
   } catch (err) {
@@ -1274,6 +1628,30 @@ function runPostCreateHook(hook, worktreePath) {
       error: err.message,
       display: hook.display,
     };
+  }
+}
+
+// Pre-remove hook: tear down per-worktree resources (drop DB, compose down)
+// before the worktree disappears. Failure warns but never blocks removal.
+function runPreRemoveHook(worktreePath) {
+  const hookPath = path.join(worktreePath, '.worktree', 'hooks', 'pre-remove');
+  if (!fs.existsSync(hookPath)) return null;
+  try {
+    fs.accessSync(hookPath, fs.constants.X_OK);
+  } catch {
+    return { ran: false, warning: `Pre-remove hook not executable: ${hookPath}` };
+  }
+
+  const vars = parseEnvWorktree(worktreePath) || {};
+  try {
+    execSync(`"${hookPath}"`, {
+      cwd: worktreePath,
+      stdio: jsonOutput ? 'pipe' : 'inherit',
+      env: { ...process.env, ...vars, WORKTREE_PATH: worktreePath },
+    });
+    return { ran: true };
+  } catch (err) {
+    return { ran: true, warning: `Pre-remove hook failed (removal continues): ${err.message}` };
   }
 }
 
@@ -1348,10 +1726,38 @@ function cmdRemove() {
       wouldRemove: {
         worktreePath,
         branch: branchName,
-        deleteBranch: !!branchName
+        deleteBranch: !!branchName,
+        preRemoveHook: fs.existsSync(path.join(worktreePath, '.worktree', 'hooks', 'pre-remove'))
       }
     });
     return;
+  }
+
+  const removeWarnings = [];
+
+  // Rescue untracked env files before the worktree disappears — edits made
+  // inside the worktree (new keys, new services) are otherwise lost.
+  let envBackup = null;
+  if (fs.existsSync(worktreePath)) {
+    const envFiles = findEnvFilesRecursive(worktreePath).filter(rel => !isTrackedByGit(rel, worktreePath));
+    if (envFiles.length > 0) {
+      const backupDir = path.join(path.dirname(worktreePath), '.env-backups', path.basename(worktreePath));
+      try {
+        envFiles.forEach(rel => {
+          const dest = path.join(backupDir, rel);
+          fs.mkdirSync(path.dirname(dest), { recursive: true });
+          fs.copyFileSync(path.join(worktreePath, rel), dest);
+        });
+        envBackup = { dir: backupDir, files: envFiles };
+      } catch (err) {
+        removeWarnings.push(`Env backup failed: ${err.message}`);
+      }
+    }
+  }
+
+  if (!noPreRemoveHook && fs.existsSync(worktreePath)) {
+    const preRemove = runPreRemoveHook(worktreePath);
+    if (preRemove && preRemove.warning) removeWarnings.push(preRemove.warning);
   }
 
   // Remove worktree
@@ -1375,13 +1781,15 @@ function cmdRemove() {
     }
   }
 
+  if (branchDeleteWarning) removeWarnings.push(branchDeleteWarning);
   output({
     success: true,
     message: 'Worktree removed successfully!',
     removedPath: worktreePath,
     branchDeleted: branchDeleted ? branchName : null,
     branchKept: !branchDeleted && branchName ? branchName : null,
-    warnings: branchDeleteWarning ? [branchDeleteWarning] : undefined
+    envBackup,
+    warnings: removeWarnings.length > 0 ? removeWarnings : undefined
   });
 }
 
@@ -1422,6 +1830,36 @@ function cmdPrune() {
   });
 }
 
+function cmdPorts() {
+  const gitRoot = checkGitRepo();
+  checkGitVersion();
+
+  const assignments = getWorktreeRecords(gitRoot, gitRoot).map(worktree => {
+    const vars = fs.existsSync(worktree.path) ? parseEnvWorktree(worktree.path) : null;
+    const portBase = vars ? Number.parseInt(vars.WORKTREE_PORT_BASE, 10) : null;
+    return {
+      path: worktree.path,
+      branch: worktree.branch,
+      isMainWorktree: worktree.isMainWorktree,
+      name: vars ? vars.WORKTREE_NAME : path.basename(worktree.path),
+      portBase: Number.isFinite(portBase) ? portBase : null,
+      portRange: Number.isFinite(portBase) ? `${portBase}-${portBase + PORT_BLOCK_SIZE - 1}` : null
+    };
+  });
+
+  if (jsonOutput) {
+    console.log(JSON.stringify({ success: true, blockSize: PORT_BLOCK_SIZE, assignments }, null, 2));
+    return;
+  }
+
+  console.log('\n🔌 Worktree port assignments (block of 10 each):');
+  assignments.forEach(a => {
+    const range = a.portBase ? a.portRange : a.isMainWorktree ? 'default ports (main checkout)' : 'none assigned';
+    console.log(`   ${a.branch}  →  ${range}`);
+    console.log(`      ${a.path}`);
+  });
+}
+
 function showHelp() {
   const help = `Git Worktree Manager (runtime-agnostic: Claude Code / Codex / shell)
 
@@ -1429,11 +1867,12 @@ Usage: node worktree.cjs <command> [options]
 
 Commands:
   create <project> <feature>  Create a new worktree (project optional for standalone)
-  remove <name-or-path>       Remove a worktree and its branch
+  remove <name-or-path>       Remove a worktree and its branch (runs pre-remove hook)
   info                        Get repo info (type, projects, env files)
   list                        List existing worktrees
   status                      Inspect worktree health and branch status
   prune                       Remove stale worktree metadata
+  ports                       Show per-worktree port block assignments
 
 Options:
   --prefix <type>          Branch prefix (feat|fix|refactor|docs|test|chore|perf)
@@ -1441,9 +1880,11 @@ Options:
   --checkout-submodules    Initialize submodules in the new worktree after create
   --post-create-hook <x>   Explicit post-create script path or command (e.g. "make worktree-init")
   --no-post-create-hook    Disable auto-detection (.worktree/hooks/post-create, scripts/setup-worktree)
-  --worktree-root <path>   Explicit worktree directory
+  --worktree-root <path>   Explicit worktree directory (default: <git-root>/.work/trees)
   --json                   Output in JSON format for LLM consumption
   --env <files>            Comma-separated list of .env files to copy (legacy)
+  --no-copy-env            Skip auto-copy of untracked .env* files from source checkout
+  --no-pre-remove-hook     Skip .worktree/hooks/pre-remove teardown on remove
   --dry-run                Show what would be done without executing
   --no-prefix              Skip branch prefix and preserve original case
   --help, -h               Show this help message
@@ -1487,9 +1928,12 @@ function main() {
     case 'prune':
       cmdPrune();
       break;
+    case 'ports':
+      cmdPorts();
+      break;
     default:
       outputError('UNKNOWN_COMMAND', `Unknown command: ${command || '(none)'}`, {
-        suggestion: 'Available commands: create, remove, info, list, status, prune. Use --help for usage.'
+        suggestion: 'Available commands: create, remove, info, list, status, prune, ports. Use --help for usage.'
       });
   }
 }
