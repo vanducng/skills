@@ -22,7 +22,7 @@ So `vd:ultracook` is structured in two layers:
 │ scripts/*.sh (subprocess)                                      │
 │   - Pure filesystem + git + jq/yq work                         │
 │   - Returns: stdout (JSON or env-var hints), exit code         │
-│   - Logs evidence to plans/goals/{slug}/iterations/NNN-*.log   │
+│   - Logs evidence to <state-base>/{slug}/iterations/NNN-*.log  │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -47,7 +47,7 @@ So `vd:ultracook` is structured in two layers:
 `SKILL.md`:
 ```
 loop:
-  state = Read(plans/goals/{slug}/state.json)
+  state = Read(<state-base>/{slug}/state.json)
   if state.terminal != null: break
 
   next_action = bash ~/skills/skills/ultracook/scripts/resolve-next.sh --goal-dir ...

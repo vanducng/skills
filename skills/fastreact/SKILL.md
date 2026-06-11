@@ -1,6 +1,6 @@
 ---
 name: fastreact
-description: "Scaffold and build a full-stack web app: FastAPI backend (Python, uv, SQLModel, Postgres, Alembic, JWT + Google OAuth, boto3/S3) + React frontend (Vite, TypeScript, shadcn/ui + Tailwind, TanStack Router/Query/Table, Zod, Axios), wired with Docker Compose. Use this skill whenever the user wants to spin up, bootstrap, create, or design a new full-stack webapp; an API-first backend + SPA frontend; an admin/portal/dashboard app; file upload + S3; RBAC / role-based auth with seeded test users; local docker dev; or asks for a 'FastAPI + React' / 'Python + React' project. Runs mockup-first: marketing-design (brand/logo raster) + open-design (HTML page mockups) before code, then ports the design to Tailwind/shadcn. Covers project structure, local setup, auth/RBAC, S3 uploads, and the gotchas that break these stacks."
+description: "Scaffold and build a full-stack web app: FastAPI backend (Python, uv, SQLModel, Postgres, Alembic, JWT + Google OAuth, boto3/S3) + React frontend (Vite, TypeScript, shadcn/ui + Tailwind, TanStack Router/Query/Table, Zod, Axios), wired with Docker Compose. Use this skill whenever the user wants to spin up, bootstrap, create, or design a new full-stack webapp; an API-first backend + SPA frontend; an admin/portal/dashboard app; file upload + S3; RBAC / role-based auth with seeded test users; local docker dev; or asks for a 'FastAPI + React' / 'Python + React' project. Runs mockup-first: marketing-design (brand/logo raster) + opendesign (HTML page mockups) before code, then ports the design to Tailwind/shadcn. Covers project structure, local setup, auth/RBAC, S3 uploads, and the gotchas that break these stacks."
 argument-hint: "[app description | scaffold | mockup | backend | frontend]"
 license: MIT
 metadata:
@@ -22,15 +22,15 @@ Build a production-shaped full-stack web app from a mockup to a running Docker C
 
 ## Scope
 This skill handles scaffolding, conventions, and local setup for a FastAPI+React+Postgres+S3 webapp.
-It does NOT: deploy to cloud (use a deploy skill), generate raster brand art itself (delegates to `marketing-design`), or design HTML pages itself (delegates to `open-design`). For pure UI-token/Tailwind work use `ui-styling`. Never put secrets in tracked files; always a gitignored `.env`.
+It does NOT: deploy to cloud, generate raster brand art itself (delegates to `vd:marketing-design`), or design HTML pages itself (delegates to `vd:opendesign`). For pure UI-token/Tailwind work use `vd:webdesign`. Never put secrets in tracked files; always a gitignored `.env`.
 
 ## Workflow (numbered)
 
 ### 1. Mockup first (design before code)
 Lock the look before writing app code. Save artifacts under `.work/visuals/{app-slug}/` (or `plans/visuals/{app-slug}/`), where `{app-slug}` is a kebab-case name for the app/feature.
 1. **Brand/logo (raster):** use `marketing-design` (`design logo` / `create CIP`) for the mark + favicons. Engine: Codex `gpt-image-2` via ChatGPT, falls back to Gemini. To stay faithful to an existing logo, pass it as a reference image (`codex exec -i <ref>` or the cip `--logo`).
-2. **HTML page mockups:** use `open-design` for the screens (login, dashboard, tables, detail) plus an `index.html` gallery and ONE source-of-truth `theme.css` (color tokens, type scale, spacing, components). marketing-design defers HTML/dashboards to open-design.
-3. Get approval on direction (style, screens) via `AskUserQuestion` with preview/ASCII options before building.
+2. **HTML page mockups:** use `opendesign` for the screens (login, dashboard, tables, detail) plus an `index.html` gallery and ONE source-of-truth `theme.css` (color tokens, type scale, spacing, components). marketing-design defers HTML/dashboards to opendesign.
+3. Get approval on direction (style, screens) with concise preview options before building.
 4. Treat the approved `theme.css` + screens as the contract: the frontend MUST match them.
 Details: `references/design-mockup-workflow.md`.
 
@@ -61,7 +61,7 @@ Seed deterministic test users per role. Verify the real flow with `agent-browser
 - `references/project-structure.md` — exact backend + frontend trees + naming conventions.
 - `references/local-setup.md` — docker-compose, Dockerfiles, entrypoint, Makefile, ports, seed.
 - `references/auth-rbac.md` — JWT + Google OAuth, role model, permission deps, S3 key scheme.
-- `references/design-mockup-workflow.md` — marketing-design + open-design then theme port.
+- `references/design-mockup-workflow.md` — marketing-design + opendesign then theme port.
 - `references/gotchas.md` — the bugs that recur in this stack. READ before frontend↔backend integration.
 - `references/deployment.md` — AWS deploy: EC2+compose, SSM/Ansible, RDS, ALB, ECR, OIDC; security floor + pre-apply checklist.
 

@@ -1,6 +1,6 @@
 ---
 name: marketing-design
-description: "Marketing brand-asset generation (raster images via AI): logo design (55 styles, 30 palettes, 25 industries), corporate identity / CIP mockups (50 deliverables — business card, letterhead, signage, packaging, apparel), banner design (22 styles, social/ads/web/print), SVG icon design (15 styles), social photos (multi-platform), and model-agnostic poster prompts. Default image engine is Codex gpt-image-2 (ChatGPT subscription via `codex login`), attaching the brand logo as a reference image for CIP compositing; falls back to Gemini Nano Banana (GEMINI_API_KEY, same key as omnimedia). Actions: design logo, create CIP / brand identity, generate mockups, design banner, generate icon, create social photos, design poster, social media images. Platforms: Facebook, Twitter, LinkedIn, YouTube, Instagram, Pinterest, TikTok, Threads, Google Ads. For HTML/web pages, dashboards, and slide decks, use open-design instead."
+description: "Marketing brand-asset generation (raster images via AI): logo design (55 styles, 30 palettes, 25 industries), corporate identity / CIP mockups (50 deliverables — business card, letterhead, signage, packaging, apparel), banner design (22 styles, social/ads/web/print), SVG icon design (15 styles), social photos (multi-platform), and model-agnostic poster prompts. Default image engine is Codex gpt-image-2 (ChatGPT subscription via `codex login`), attaching the brand logo as a reference image for CIP compositing; falls back to Gemini Nano Banana (GEMINI_API_KEY, same key as omnimedia). Actions: design logo, create CIP / brand identity, generate mockups, design banner, generate icon, create social photos, design poster, social media images. Platforms: Facebook, Twitter, LinkedIn, YouTube, Instagram, Pinterest, TikTok, Threads, Google Ads. For HTML/web pages, dashboards, and slide decks, use opendesign instead."
 argument-hint: "[design-type] [context]"
 license: MIT
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # Marketing Design
 
-Unified marketing brand-asset skill: logo, CIP, banners, SVG icons, social photos, posters. Generates **raster images** — default engine is **Codex gpt-image-2** (ChatGPT subscription, `codex login`), falling back to **Gemini Nano Banana** (`GEMINI_API_KEY`, the same key `omnimedia` uses). For HTML/web artifacts and slide decks, use `open-design`.
+Unified marketing brand-asset skill: logo, CIP, banners, SVG icons, social photos, posters. Generates **raster images** — default engine is **Codex gpt-image-2** (ChatGPT subscription, `codex login`), falling back to **Gemini Nano Banana** (`GEMINI_API_KEY`, the same key `omnimedia` uses). For HTML/web artifacts and slide decks, use `opendesign`.
 
 ## When to Use
 
@@ -22,20 +22,20 @@ Unified marketing brand-asset skill: logo, CIP, banners, SVG icons, social photo
 - Poster design (event, editorial, marketing) with locked-style + varied-composition prompts
 - SVG icons and icon sets
 
-> Not this skill: HTML/web pages, dashboards, and slide decks → `open-design`. Token systems / shadcn-Tailwind code → `ui-styling`.
+> Not this skill: HTML/web pages, dashboards, and slide decks → `opendesign`. Token systems / shadcn-Tailwind code → `vd:webdesign`.
 
 ## Sub-skill Routing
 
-All modules below the line are **built-in and self-contained** (references + scripts + data in this skill). The three external rows are optional — use them only if those skills are installed; the built-in modules do not depend on them.
+All built-in modules are self-contained (references + scripts + data in this skill). Route HTML artifacts and frontend implementation to the installed repo skills listed below.
 
 | Task | Sub-skill | Details |
 |------|-----------|---------|
-| Brand identity, voice, assets | `brand` | Optional external skill (not bundled) |
-| Tokens, specs, CSS vars | `design-system` | Optional external skill (not bundled) |
-| shadcn/ui, Tailwind, code | `ui-styling` / `ui-ux-pro-max` | Optional external skill (not bundled) |
+| Static HTML artifacts, decks | `vd:opendesign` | Self-contained HTML/CSS artifacts |
+| Frontend UI, tokens, shadcn/Tailwind code | `vd:webdesign` | App UI design/build/review/test |
+| Full-stack FastAPI + React apps | `vd:fastreact` | Mockup-first app scaffolding |
 | Logo creation, AI generation | Logo (built-in) | `references/logo-design.md` |
 | CIP mockups, deliverables | CIP (built-in) | `references/cip-design.md` |
-| Presentations, pitch decks | `open-design` | Use open-design for slide decks (HTML) |
+| Presentations, pitch decks | `vd:opendesign` | Use opendesign for slide decks (HTML) |
 | Banners, covers, headers | Banner (built-in) | `references/banner-sizes-and-styles.md` |
 | Social media images/photos | Social Photos (built-in) | `references/social-photos-design.md` |
 | SVG icons, icon sets | Icon (built-in) | `references/icon-design.md` |
@@ -91,7 +91,7 @@ python3 ~/.claude/skills/marketing-design/scripts/logo/generate.py --brand "Tech
 
 **IMPORTANT:** When scripts fail, try to fix them directly.
 
-After generation, **ALWAYS** ask user about HTML preview via `AskUserQuestion`. If yes, invoke `/ui-ux-pro-max` for gallery.
+After generation, ask whether the user wants an HTML preview gallery. If yes, use `vd:opendesign` for a static gallery artifact.
 
 ## CIP Design (Built-in)
 
@@ -143,16 +143,16 @@ python3 ~/.claude/skills/marketing-design/scripts/cip/render-html.py --brand "To
 
 ## Banner Design (Built-in)
 
-22 art direction styles across social, ads, web, print. Uses `frontend-design`, `ai-artist`, `ai-multimodal`, `chrome-devtools` skills.
+22 art direction styles across social, ads, web, print. Uses the built-in banner reference, this skill's raster generation flow when imagery is needed, and browser/Playwright screenshots for exact-pixel export.
 
 Load `references/banner-sizes-and-styles.md` for complete sizes and styles reference.
 
 ### Banner: Workflow
 
-1. **Gather requirements** via `AskUserQuestion` — purpose, platform, content, brand, style, quantity
-2. **Research** — Activate `ui-ux-pro-max`, browse Pinterest for references
-3. **Design** — Create HTML/CSS banner with `frontend-design`, generate visuals with `ai-artist`/`ai-multimodal`
-4. **Export** — Screenshot to PNG at exact dimensions via `chrome-devtools`
+1. **Gather requirements** — purpose, platform, content, brand, style, quantity
+2. **Research** — collect visual references only when the brief lacks a clear direction
+3. **Design** — create HTML/CSS banner variants; generate raster visuals through this skill's image flow when needed
+4. **Export** — screenshot to PNG at exact dimensions via Browser, Playwright, or Chrome
 5. **Present** — Show all options side-by-side, iterate on feedback
 
 ### Banner: Quick Size Reference
@@ -271,20 +271,20 @@ Pipe stdout into any image-gen model. For series: same `--style`, different `--s
 
 ## Social Photos (Built-in)
 
-Multi-platform social image design: HTML/CSS → screenshot export. Uses `ui-ux-pro-max`, `brand`, `design-system`, `chrome-devtools` skills.
+Multi-platform social image design: HTML/CSS → screenshot export. Uses built-in social templates, brand context from the brief, and Browser/Playwright screenshots.
 
 Load `references/social-photos-design.md` for sizes, templates, best practices.
 
 ### Social Photos: Workflow
 
-1. **Orchestrate** — `project-management` skill for TODO tasks; parallel subagents for independent work
+1. **Orchestrate** — track variants and parallelize independent work when useful
 2. **Analyze** — Parse prompt: subject, platforms, style, brand context, content elements
-3. **Ideate** — 3-5 concepts, present via `AskUserQuestion`
-4. **Design** — apply brand + tokens (if those external skills are installed) → invoke `ui-ux-pro-max` OR `frontend-design`; HTML per idea × size
-5. **Export** — `chrome-devtools` or Playwright screenshot at exact px (2x deviceScaleFactor)
-6. **Verify** — Use Chrome MCP or `chrome-devtools` skill to visually inspect exported designs; fix layout/styling issues and re-export
+3. **Ideate** — 3-5 concepts and present concise options
+4. **Design** — apply brand tokens from the brief; build HTML per idea × size
+5. **Export** — Browser or Playwright screenshot at exact px (2x deviceScaleFactor)
+6. **Verify** — visually inspect exported designs; fix layout/styling issues and re-export
 7. **Report** — Summary to `plans/reports/` with design decisions
-8. **Organize** — Invoke `assets-organizing` skill to sort output files and reports
+8. **Organize** — sort output files and reports under the chosen artifact directory
 
 ### Social Photos: Key Sizes
 
@@ -301,13 +301,13 @@ Load `references/social-photos-design.md` for sizes, templates, best practices.
 
 1. **Logo** → `scripts/logo/generate.py` → Generate logo variants
 2. **CIP** → `scripts/cip/generate.py --logo ...` → Create deliverable mockups
-3. **Presentation** → use `open-design` to build the pitch deck (HTML)
+3. **Presentation** → use `opendesign` to build the pitch deck (HTML)
 
 ### New Design System
 
-1. **Brand** (brand skill) → Define colors, typography, voice
-2. **Tokens** (design-system skill) → Create semantic token layers
-3. **Implement** (ui-styling skill) → Configure Tailwind, shadcn/ui
+1. **Brand assets** (this skill) → Define visual direction and generate marks/mockups
+2. **HTML artifact** (`vd:opendesign`) → Explore page/deck direction
+3. **Implement** (`vd:webdesign`) → Configure Tailwind, shadcn/ui, and frontend screens
 
 ## References
 
@@ -354,5 +354,4 @@ pip install google-genai pillow
 
 ## Integration
 
-**Optional external sub-skills (not bundled):** brand, design-system, ui-styling — built-in modules work without them
-**Related Skills:** frontend-design, ui-ux-pro-max, ai-multimodal, chrome-devtools
+**Related skills:** `vd:opendesign`, `vd:webdesign`, `vd:fastreact`, `vd:omnimedia`
