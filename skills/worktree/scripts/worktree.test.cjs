@@ -117,15 +117,14 @@ test('info detects monorepo from monorepo root', () => {
   assert(json.projects.length > 0, 'Should have projects');
 });
 
-test('monorepo uses internal worktrees directory', () => {
+test('monorepo uses .work/trees inside the repo', () => {
   if (!fs.existsSync(MONOREPO_DIR)) return; // Skip if not available
   const result = run('info --json', { cwd: MONOREPO_DIR });
   const json = assertJSON(result.output);
-  // Monorepo should use worktrees/ inside the repo, not sibling
-  assert(json.worktreeRoot === path.join(MONOREPO_DIR, 'worktrees'),
-    `Expected ${path.join(MONOREPO_DIR, 'worktrees')}, got ${json.worktreeRoot}`);
-  assert(json.worktreeRootSource === 'monorepo internal',
-    `Expected 'monorepo internal', got ${json.worktreeRootSource}`);
+  assert(json.worktreeRoot === path.join(MONOREPO_DIR, '.work', 'trees'),
+    `Expected ${path.join(MONOREPO_DIR, '.work', 'trees')}, got ${json.worktreeRoot}`);
+  assert(json.worktreeRootSource === '.work umbrella',
+    `Expected '.work umbrella', got ${json.worktreeRootSource}`);
 });
 
 test('info returns text output without --json', () => {
@@ -262,11 +261,22 @@ test('create shows base branch', () => {
   assert(json.wouldCreate.baseBranch, 'Should show base branch');
 });
 
-test('create shows worktree path', () => {
+test('create shows worktree path under .work/trees', () => {
   const result = run('create test-path --dry-run --json');
   const json = assertJSON(result.output);
   assert(json.wouldCreate.worktreePath, 'Should show worktree path');
-  assert(json.wouldCreate.worktreePath.includes('worktrees'), 'Path should include worktrees dir');
+  assert(json.wouldCreate.worktreePath.includes(path.join('.work', 'trees')), 'Path should be under .work/trees');
+});
+
+test('create dry-run shows deterministic port base', () => {
+  const r1 = run('create test-port-base --dry-run --json');
+  const r2 = run('create test-port-base --dry-run --json');
+  const j1 = assertJSON(r1.output);
+  const j2 = assertJSON(r2.output);
+  assert(Number.isInteger(j1.wouldCreate.portBase), 'Should include portBase');
+  assert(j1.wouldCreate.portBase >= 20000 && j1.wouldCreate.portBase < 40000, 'portBase in 20000-39990');
+  assert(j1.wouldCreate.portBase % 10 === 0, 'portBase aligned to block of 10');
+  assert(j1.wouldCreate.portBase === j2.wouldCreate.portBase, 'portBase deterministic for same name');
 });
 
 test('create dry-run surfaces checkout-submodules flag', () => {
@@ -277,10 +287,12 @@ test('create dry-run surfaces checkout-submodules flag', () => {
 });
 
 test('create dry-run shows explicit base branch source', () => {
-  const result = run('create test-explicit-base --dry-run --json --base dev');
+  const infoJson = assertJSON(run('info --json').output);
+  const base = infoJson.baseBranch;
+  const result = run(`create test-explicit-base --dry-run --json --base ${base}`);
   assert(result.success, 'Should succeed with explicit base');
   const json = assertJSON(result.output);
-  assert(json.wouldCreate.baseBranch === 'dev', 'Should use explicit base branch');
+  assert(json.wouldCreate.baseBranch === base, 'Should use explicit base branch');
   assert(json.wouldCreate.baseBranchSource === 'explicit', 'Should mark baseBranchSource as explicit');
 });
 
@@ -414,7 +426,8 @@ test('info shows worktreeRoot and worktreeRootSource', () => {
   assert(json.worktreeRoot, 'Should have worktreeRoot');
   assert(json.worktreeRootSource, 'Should have worktreeRootSource');
   assert(typeof json.worktreeRoot === 'string', 'worktreeRoot should be string');
-  assert(json.worktreeRoot.includes('worktrees'), 'worktreeRoot should include worktrees');
+  assert(json.worktreeRoot.endsWith(path.join('.work', 'trees')), 'worktreeRoot should be .work/trees');
+  assert(json.worktreeRootSource.includes('.work umbrella'), 'Source should be .work umbrella');
 });
 
 test('create --worktree-root overrides default location', () => {
@@ -521,9 +534,9 @@ test('success commands return exit code 0', () => {
   assert(result.exitCode === 0, 'Exit code should be 0');
 });
 
-test('error commands return exit code 1', () => {
+test('error commands return structured exit code', () => {
   const result = run('create --json');
-  assert(result.exitCode === 1, 'Exit code should be 1');
+  assert(result.exitCode === 2, 'Bad CLI input should exit 2 (FATAL_ARG)');
 });
 
 test('non-git directory returns error', () => {
@@ -936,6 +949,131 @@ test('scenario: user with WORKTREE_ROOT env var', () => {
     // Skip if env var handling fails
   }
 });
+
+// ============================================
+// INTEGRATION: TEMP-REPO LIFECYCLE (v2 features)
+// ============================================
+console.log('\n🧪 Temp-Repo Integration Tests (v2)');
+
+function sh(cmd, cwd) {
+  return execSync(cmd, { encoding: 'utf-8', cwd, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+}
+
+const TMP_BASE = fs.mkdtempSync(path.join(require('os').tmpdir(), 'worktree-test-'));
+const TMP_REPO = path.join(TMP_BASE, 'repo');
+const PRE_REMOVE_MARKER = path.join(TMP_BASE, 'pre-remove-ran.txt');
+
+function setupTempRepo() {
+  fs.mkdirSync(path.join(TMP_REPO, 'backend'), { recursive: true });
+  sh('git init -q -b main', TMP_REPO);
+  sh('git config user.email t@t.t && git config user.name t', TMP_REPO);
+  fs.writeFileSync(path.join(TMP_REPO, '.gitignore'), 'node_modules\n.env\n');
+  fs.writeFileSync(path.join(TMP_REPO, 'package-lock.json'), '{}');
+  fs.writeFileSync(path.join(TMP_REPO, 'backend', 'requirements.txt'), 'requests\n');
+  fs.mkdirSync(path.join(TMP_REPO, '.claude'), { recursive: true });
+  fs.writeFileSync(path.join(TMP_REPO, '.claude', 'settings.local.json'), '{}');
+  fs.writeFileSync(path.join(TMP_REPO, '.worktreeinclude'), '.claude/settings.local.json\n# comment\n../escape\n');
+  const hooksDir = path.join(TMP_REPO, '.worktree', 'hooks');
+  fs.mkdirSync(hooksDir, { recursive: true });
+  fs.writeFileSync(path.join(hooksDir, 'pre-remove'), `#!/bin/sh\necho "$WORKTREE_ID:$WORKTREE_PORT_BASE" > "${PRE_REMOVE_MARKER}"\n`);
+  fs.chmodSync(path.join(hooksDir, 'pre-remove'), 0o755);
+  sh('git add -A && git commit -qm init', TMP_REPO);
+  fs.writeFileSync(path.join(TMP_REPO, '.env'), 'SECRET=1\n');
+  fs.writeFileSync(path.join(TMP_REPO, 'backend', '.env'), 'API=1\n');
+  fs.writeFileSync(path.join(TMP_REPO, '.env";touch INJECTED #'), 'EVIL=1\n');
+}
+
+let integration = null;
+
+test('integration: create copies nested env files, assigns ports, suggests installs', () => {
+  setupTempRepo();
+  const result = run('create "integration test" --json', { cwd: TMP_REPO });
+  assert(result.success, `create failed: ${result.output} ${result.stderr}`);
+  integration = assertJSON(result.output);
+  assert(integration.worktreePath.includes(path.join('.work', 'trees')), 'worktree under .work/trees');
+  assert(integration.envFilesCopied.includes('.env'), 'copies root .env');
+  assert(integration.envFilesCopied.includes('backend/.env'), 'copies nested backend/.env');
+  assert(integration.includeCopied.includes('.claude/settings.local.json'), 'copies .worktreeinclude entry');
+  assert(Number.isInteger(integration.portBase) && integration.portBase >= 20000, 'port base assigned');
+  assert(integration.suggestedInstalls.some(s => s.command === 'npm install' && s.dir === '.'), 'suggests npm install at root');
+  assert(integration.suggestedInstalls.some(s => s.dir === 'backend'), 'suggests install in backend');
+  assert((integration.warnings || []).some(w => w.includes('unsafe .worktreeinclude')), 'warns on unsafe include entry');
+});
+
+test('integration: crafted .env filename does not execute shell commands', () => {
+  assert(integration, 'create must have succeeded');
+  assert(!fs.existsSync(path.join(TMP_REPO, 'INJECTED')), 'injection marker must not appear in source repo');
+  assert(!fs.existsSync(path.join(integration.worktreePath, 'INJECTED')), 'injection marker must not appear in worktree');
+});
+
+test('integration: .env.worktree written with identity vars', () => {
+  assert(integration, 'create must have succeeded');
+  const content = fs.readFileSync(path.join(integration.worktreePath, '.env.worktree'), 'utf-8');
+  assert(content.includes(`WORKTREE_PORT_BASE=${integration.portBase}`), 'records port base');
+  assert(content.includes(`WORKTREE_ID=${integration.worktreeId}`), 'records db-safe id');
+  assert(content.includes(`PORT=${integration.portBase}`), 'records PORT');
+  assert(content.includes('COMPOSE_PROJECT_NAME='), 'records compose project name');
+});
+
+test('integration: git status stays clean (info/exclude updated)', () => {
+  assert(integration, 'create must have succeeded');
+  const mainStatus = sh('git status --porcelain', TMP_REPO);
+  assert(!mainStatus.includes('.work/'), `main checkout shows .work noise: ${mainStatus}`);
+  const wtStatus = sh('git status --porcelain', integration.worktreePath);
+  assert(!wtStatus.includes('.env.worktree'), `worktree shows .env.worktree noise: ${wtStatus}`);
+});
+
+test('integration: ports command reports the assignment', () => {
+  assert(integration, 'create must have succeeded');
+  const result = run('ports --json', { cwd: TMP_REPO });
+  assert(result.success, 'ports should succeed');
+  const json = assertJSON(result.output);
+  const entry = json.assignments.find(a => path.resolve(a.path) === path.resolve(integration.worktreePath));
+  assert(entry && entry.portBase === integration.portBase, 'ports lists the created worktree block');
+});
+
+test('integration: second worktree avoids port collision', () => {
+  assert(integration, 'create must have succeeded');
+  const result = run('create "second feature" --json', { cwd: TMP_REPO });
+  assert(result.success, 'second create should succeed');
+  const json = assertJSON(result.output);
+  assert(json.portBase !== integration.portBase, 'distinct port blocks');
+});
+
+test('integration: remove backs up env edits and runs pre-remove hook', () => {
+  assert(integration, 'create must have succeeded');
+  fs.appendFileSync(path.join(integration.worktreePath, 'backend', '.env'), 'ADDED=1\n');
+  const result = run(`remove "${path.basename(integration.worktreePath)}" --json`, { cwd: TMP_REPO });
+  assert(result.success, `remove failed: ${result.output}`);
+  const json = assertJSON(result.output);
+  assert(json.envBackup && json.envBackup.files.includes('backend/.env'), 'env backup recorded');
+  const backedUp = fs.readFileSync(path.join(json.envBackup.dir, 'backend', '.env'), 'utf-8');
+  assert(backedUp.includes('ADDED=1'), 'backup contains worktree edits');
+  assert(fs.existsSync(PRE_REMOVE_MARKER), 'pre-remove hook ran');
+  assert(fs.readFileSync(PRE_REMOVE_MARKER, 'utf-8').includes(String(integration.portBase)), 'hook received WORKTREE_PORT_BASE');
+});
+
+test('integration: create attaches to existing branch', () => {
+  assert(integration, 'create must have succeeded');
+  sh('git branch existing-branch', TMP_REPO);
+  const result = run('create "existing-branch" --no-prefix --json', { cwd: TMP_REPO });
+  assert(result.success, `attach failed: ${result.output}`);
+  const json = assertJSON(result.output);
+  const head = sh('git rev-parse --abbrev-ref HEAD', json.worktreePath);
+  assert(head === 'existing-branch', `expected existing-branch, got ${head}`);
+});
+
+test('integration: --no-copy-env skips env copying', () => {
+  assert(integration, 'create must have succeeded');
+  const result = run('create "no env" --no-copy-env --json', { cwd: TMP_REPO });
+  assert(result.success, 'create should succeed');
+  const json = assertJSON(result.output);
+  assert(json.envFilesCopied.length === 0, 'no env files copied');
+});
+
+try {
+  fs.rmSync(TMP_BASE, { recursive: true, force: true });
+} catch { /* temp dir cleanup is best-effort */ }
 
 // ============================================
 // SUMMARY
