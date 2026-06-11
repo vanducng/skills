@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.38.0](https://github.com/vanducng/skills/compare/v0.37.0...v0.38.0) (2026-06-11)
+
+
+### Features
+
+* **worktree:** standardize .work/trees root, add env/port/db lifecycle ([#149](https://github.com/vanducng/skills/issues/149)) ([fcfa265](https://github.com/vanducng/skills/commit/fcfa26555edc7e955548b3b1dfe7f51b7e7fe467))
+
 ## [0.37.0](https://github.com/vanducng/skills/compare/v0.36.1...v0.37.0) (2026-06-11)
 
 
