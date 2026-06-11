@@ -2,7 +2,7 @@
 """
 OpenRouter image-gen client (vd:diagram skill).
 
-Source: cloned & trimmed from `~/.claude/skills/ai-multimodal/scripts/openrouter_generate.py`.
+Source: adapted from the local multimodal image-generation helper used before `vd:omnimedia`.
 Intentional change: the `modalities` payload field is ALWAYS `["image", "text"]`,
 not branched on `"gemini" in model`. Proof that `["image", "text"]` works for
 `openai/gpt-5.4-image-2`: `skills/file-browser/scripts/generate-logo.cjs`.

@@ -73,7 +73,7 @@ Where helpful, pull in proven patterns: search the web (`WebSearch`), read libra
 
 **For visual brainstorming** (UI layouts, page/dashboard structure, comparing visual designs): produce a **visual draft** alongside text options — a single static HTML page rendering A/B/C panels in the browser, so the user can react to shapes, not just words. See [Visual draft mode](#visual-draft-mode) below. The brief itself stays text-only — visual drafts are intermediate artifacts.
 
-Once the user picks a direction from the draft, hand off the *final* artifact to the right specialist: `vd:open-design` for polished marketing/dashboard pages with brand-grade design systems, `vd:diagram` for rendered system / data-flow / sequence diagrams, or `vd:excalidraw` for editable whiteboard sketches. The draft is the cheap throwaway; the specialist produces the keepable artifact.
+Once the user picks a direction from the draft, hand off the *final* artifact to the right specialist: `vd:opendesign` for polished marketing/dashboard pages with brand-grade design systems, `vd:diagram` for rendered system / data-flow / sequence diagrams, or `vd:excalidraw` for editable whiteboard sketches. The draft is the cheap throwaway; the specialist produces the keepable artifact.
 
 ## Phase 3 — Stress-test (red team)
 
@@ -277,7 +277,7 @@ Once the user picks a direction, the visual draft has served its purpose — it 
 
 | Pick shape | Hand off to |
 |---|---|
-| Polished UI page (landing, dashboard, marketing) | `vd:open-design` |
+| Polished UI page (landing, dashboard, marketing) | `vd:opendesign` |
 | Rendered system / data-flow / sequence diagram | `vd:diagram` |
 | Editable whiteboard / architecture sketch | `vd:excalidraw` |
 

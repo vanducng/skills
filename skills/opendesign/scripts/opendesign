@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
-# open-design — fetch + search nexu-io/open-design skills & design-systems
+# opendesign — fetch + search nexu-io/open-design skills & design-systems
 # Usage:
-#   open-design sync                       # clone or pull cache (auto-embeds if qmd installed)
-#   open-design list [skills|design-systems]
-#   open-design search "<prompt>"          # rank skills + design-systems (qmd if installed, else grep)
-#   open-design show <name>                # print absolute cache path
-#   open-design preview <file>             # open html artifact in browser
+#   opendesign sync                       # clone or pull cache (auto-registers qmd if installed)
+#   opendesign list [skills|design-systems]
+#   opendesign search "<prompt>"          # rank skills + design-systems (qmd if installed, else grep)
+#   opendesign show <name>                # print absolute cache path
+#   opendesign preview <file>             # open html artifact in browser
 set -euo pipefail
 
 REPO_URL="https://github.com/nexu-io/open-design.git"
 # Per-user cache namespace via $USER (avoids collisions on shared hosts).
-# Override with OPEN_DESIGN_CACHE.
-CACHE_DIR="${OPEN_DESIGN_CACHE:-$HOME/.cache/${USER:-shared}-open-design}"
+# Override with OPENDESIGN_CACHE. Legacy OPEN_DESIGN_CACHE is still honored.
+CACHE_DIR="${OPENDESIGN_CACHE:-${OPEN_DESIGN_CACHE:-$HOME/.cache/${USER:-shared}-opendesign}}"
 SKILLS_DIR="$CACHE_DIR/skills"
 DS_DIR="$CACHE_DIR/design-systems"
 
 # Optional dependency: tobi/qmd for hybrid (BM25 + vector + rerank) search.
-# Collections are namespaced "od-*" to avoid colliding with the user's own.
-QMD_COLL_SKILLS="od-skills"
-QMD_COLL_DS="od-design-systems"
+# Collections are namespaced to avoid colliding with the user's own.
+QMD_COLL_SKILLS="opendesign-skills"
+QMD_COLL_DS="opendesign-design-systems"
 qmd_available() { command -v qmd >/dev/null 2>&1; }
 
-die() { echo "open-design: $*" >&2; exit 1; }
+die() { echo "opendesign: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null || die "missing dependency: $1"; }
 
 # Sparse-checkout list (cone mode — directories only), justified per entry:
@@ -39,7 +39,7 @@ SPARSE_PATHS=(skills design-systems assets)
 ensure_cache() {
   need git
   if [ ! -d "$CACHE_DIR/.git" ]; then
-    echo "open-design: first-time clone of $REPO_URL → $CACHE_DIR" >&2
+    echo "opendesign: first-time clone of $REPO_URL -> $CACHE_DIR" >&2
     mkdir -p "$(dirname "$CACHE_DIR")"
     git clone --depth=1 --filter=blob:none --sparse "$REPO_URL" "$CACHE_DIR" >&2
     git -C "$CACHE_DIR" sparse-checkout set "${SPARSE_PATHS[@]}" >&2
@@ -50,7 +50,7 @@ ensure_cache() {
     current=$(git -C "$CACHE_DIR" sparse-checkout list 2>/dev/null | sort | tr '\n' ' ')
     expected=$(printf '%s\n' "${SPARSE_PATHS[@]}" | sort | tr '\n' ' ')
     if [ "$current" != "$expected" ]; then
-      echo "open-design: reconciling sparse-checkout to: ${SPARSE_PATHS[*]}" >&2
+      echo "opendesign: reconciling sparse-checkout to: ${SPARSE_PATHS[*]}" >&2
       git -C "$CACHE_DIR" sparse-checkout set "${SPARSE_PATHS[@]}" >&2
     fi
   fi
@@ -60,16 +60,16 @@ ensure_cache() {
 pull_quiet() {
   if [ -d "$CACHE_DIR/.git" ]; then
     git -C "$CACHE_DIR" pull --ff-only --quiet 2>/dev/null \
-      || echo "open-design: offline or pull failed, using cached copy" >&2
+      || echo "opendesign: offline or pull failed, using cached copy" >&2
   fi
 }
 
 # Register both collections in qmd (idempotent, instant — no model download).
-# Embeddings are NOT generated here; that requires `open-design embed` opt-in
+# Embeddings are NOT generated here; that requires a future explicit embed command
 # (downloads ~334MB model). BM25 search via `qmd search` works without it.
 qmd_sync_collections() {
   qmd_available || return 0
-  echo "open-design: qmd detected — registering 'od-skills' + 'od-design-systems' collections (BM25 ready, no model download)" >&2
+  echo "opendesign: qmd detected - registering '$QMD_COLL_SKILLS' + '$QMD_COLL_DS' collections (BM25 ready, no model download)" >&2
   qmd collection add "$SKILLS_DIR" --name "$QMD_COLL_SKILLS" >/dev/null 2>&1 || true
   qmd collection add "$DS_DIR"     --name "$QMD_COLL_DS"     >/dev/null 2>&1 || true
 }
@@ -80,7 +80,7 @@ cmd_sync() {
   local n_s n_d
   n_s=$(find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
   n_d=$(find "$DS_DIR"     -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
-  echo "open-design: cache ready at $CACHE_DIR ($n_s skills, $n_d design-systems)"
+  echo "opendesign: cache ready at $CACHE_DIR ($n_s skills, $n_d design-systems)"
   qmd_sync_collections
 }
 
@@ -162,7 +162,7 @@ rationale() {
 # for marginal gain on a 197-doc curated catalog (see levineam/qmd-skill guidance).
 # Output is post-processed: full file paths → bare folder names, deduped.
 # Extract folder names from qmd's `--files` output rows like:
-#   #c623b2,0.83,qmd://od-skills/html-ppt/references/full-decks.md
+#   #c623b2,0.83,qmd://opendesign-skills/html-ppt/references/full-decks.md
 # → "html-ppt"
 # Drop top-level files (e.g. "readme.md") since they aren't a skill/DS folder.
 qmd_extract_folders() {
@@ -220,8 +220,10 @@ cmd_search() {
   echo "# query: $query"
   echo
 
-  # Prefer qmd if available — much better ranking.
+  # Prefer qmd if available — much better ranking. Register collections here too,
+  # so first-run `opendesign search ...` works without requiring a separate sync.
   if qmd_available; then
+    qmd_sync_collections
     qmd_search "$query"
     return 0
   fi
@@ -266,7 +268,7 @@ cmd_show() {
   elif [ -d "$DS_DIR/$name" ]; then
     echo "$DS_DIR/$name"
   else
-    die "show: '$name' not found (try 'open-design list')"
+    die "show: '$name' not found (try 'opendesign list')"
   fi
 }
 
@@ -283,7 +285,7 @@ cmd_preview() {
 
 usage() {
   cat <<EOF
-open-design — search nexu-io/open-design skills + design-systems
+opendesign — search nexu-io/open-design skills + design-systems
 
 Commands:
   sync                          Clone or pull the upstream cache
@@ -292,7 +294,7 @@ Commands:
   show <name>                   Print absolute cache path of a skill or design-system
   preview <file.html>           Open generated artifact in default browser
 
-Cache: $CACHE_DIR  (override with OPEN_DESIGN_CACHE)
+Cache: $CACHE_DIR  (override with OPENDESIGN_CACHE; legacy OPEN_DESIGN_CACHE also works)
 EOF
 }
 

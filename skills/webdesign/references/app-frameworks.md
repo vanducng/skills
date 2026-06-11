@@ -7,7 +7,7 @@ Use this reference for React, Next.js, monorepos, app architecture, routing, cac
 Default conservatively:
 
 - **Existing app:** stay on its current framework, router, component system, and package manager unless the user requested migration.
-- **Static HTML artifact:** use `vd:open-design` if the task is a standalone mockup, poster, landing artifact, deck, or single-file HTML design.
+- **Static HTML artifact:** use `vd:opendesign` if the task is a standalone mockup, poster, landing artifact, deck, or single-file HTML design.
 - **Full-stack FastAPI + React app:** use `vd:fastreact` when the user asks for a new FastAPI/Python backend plus React frontend.
 - **React app needing SSR/RSC/SEO/content:** Next.js App Router is usually the practical default.
 - **Client-first typed SPA:** TanStack Router plus Query is often better than Next.js if SSR/SEO is not central.

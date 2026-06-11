@@ -5,10 +5,10 @@ Design the look BEFORE app code, so the frontend has a fixed contract to build a
 | Need | Skill | Output |
 |------|-------|--------|
 | Logo / brand mark, favicons, CIP, social/banner art (raster) | **`marketing-design`** | PNG/SVG mark + favicon set + brand assets |
-| HTML page mockups, dashboards, landing/portal screens, slide decks | **`open-design`** | Self-contained HTML pages + a shared `theme.css` |
-| Tailwind/shadcn token system, component code | `ui-styling` (optional) | CSS vars / components |
+| HTML page mockups, dashboards, landing/portal screens, slide decks | **`opendesign`** | Self-contained HTML pages + a shared `theme.css` |
+| Tailwind/shadcn token system, component code | `vd:webdesign` | CSS vars / components |
 
-`marketing-design` explicitly defers HTML/dashboards/decks to `open-design`. Use both.
+`marketing-design` explicitly defers HTML/dashboards/decks to `opendesign`. Use both.
 
 ## Step 1 — brand mark (marketing-design)
 - Generate the logo: `marketing-design` → "design logo" (style/palette/industry) or "create CIP".
@@ -16,13 +16,13 @@ Design the look BEFORE app code, so the frontend has a fixed contract to build a
 - To stay faithful to an EXISTING logo, attach it as a reference image: the wrapper defers img2img, so call `codex exec` directly: `printf '%s' "$imagegen <prompt>... Save to ./generated.png" | codex exec --skip-git-repo-check --sandbox workspace-write -C <tmp> -o <tmp>/last.txt -i <ref.png>` (the `-i/--image` flag is variadic — pipe the prompt via stdin so it isn't swallowed).
 - A hand-authored SVG is often the better portal logo (crisp, themeable). Render favicons from it with `rsvg-convert` / ImageMagick.
 
-## Step 2 — page mockups + theme (open-design)
-- Use `open-design` to produce the key screens (login, overview/dashboard, data table, detail, admin) and an `index.html` gallery.
+## Step 2 — page mockups + theme (opendesign)
+- Use `opendesign` to produce the key screens (login, overview/dashboard, data table, detail, admin) and an `index.html` gallery.
 - Produce ONE `theme.css` = the source of truth: color tokens (brand scale + ink/neutral + semantic), type scale (font + sizes/weights), spacing, radius, shadows, and component classes (buttons, cards, badges, tables, sidebar, status chips). The brand color is the accent (~10% of UI), not large fills.
 - Save under `.work/visuals/{app-slug}/` (umbrella) or `plans/visuals/{app-slug}/`: `index.html`, `screens/*.html`, `assets/theme.css`, `assets/logo/*`. Use a kebab-case app/feature slug so each design has its own subfolder.
 
 ## Step 3 — approve direction (gate)
-Before building, present the visual direction with `AskUserQuestion` (use `preview` options with small ASCII/code mockups). Lock: style/mood, screen list, scope, logo treatment. Cheap to change now, expensive after code.
+Before building, present the visual direction with concise preview options. Lock: style/mood, screen list, scope, logo treatment. Cheap to change now, expensive after code.
 
 ## Step 4 — port the theme into the React app
 - Map `theme.css` tokens to shadcn HSL CSS vars in `src/index.css` (`--primary` = brand, `--background`, `--foreground`, `--border`, `--radius`) and keep raw brand tokens (`--brand`, ink scale).

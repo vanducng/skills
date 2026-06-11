@@ -1,0 +1,4 @@
+interface:
+  display_name: "DB Design"
+  short_description: "Design and review database schemas"
+  default_prompt: "Use $dbdesign to design or review a production-ready database schema."
