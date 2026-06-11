@@ -1,6 +1,6 @@
 ---
-name: open-design
-description: "Generate polished single-file HTML design artifacts using the nexu-io/open-design catalog of production skills and brand-grade design systems. Use when the user asks to design, mock up, prototype, draft, build, or render a visual web artifact, chooses a brand/style direction, requests a deck/PPT, hero, section, component, marketing page, dashboard, email, doc page, or GitHub README/repo banner. Auto-opens the result for review. Produces editable HTML/CSS; use marketing-design for AI-generated raster brand imagery."
+name: opendesign
+description: "Generate polished single-file HTML design artifacts using the nexu-io/open-design catalog of production skills and brand-grade design systems. Use when the user asks to design, mock up, prototype, draft, build, or render a visual web artifact, chooses a brand/style direction, requests a deck/PPT, hero, section, component, marketing page, dashboard, email, doc page, or GitHub README/repo banner. Auto-opens the result for review. Produces editable HTML/CSS; use vd:marketing-design for AI-generated raster brand imagery."
 license: MIT
 argument-hint: "<design prompt> [--style <design-system>] [--no-open]"
 metadata:
@@ -8,7 +8,7 @@ metadata:
   version: "1.1.0"
 ---
 
-# open-design
+# opendesign
 
 Compose a single self-contained HTML artifact from the upstream `nexu-io/open-design` catalog: pick the closest **skill** (workflow + seed template + section layouts), apply a **design system** (color tokens, typography, components), produce the artifact, open it in the browser.
 
@@ -16,41 +16,41 @@ Compose a single self-contained HTML artifact from the upstream `nexu-io/open-de
 
 **This skill handles:** static HTML/CSS/SVG artifacts (landings, marketing pages, dashboards, mobile screens, decks, posters, emails, e-guides, internal docs).
 
-**Does NOT handle:** live React/Vue apps, real backend wiring, image generation (use `ai-artist`), video (use `ai-multimodal`), production deployment (use `deploy`).
+**Does NOT handle:** live React/Vue apps or backend wiring (use `vd:webdesign` or `vd:fastreact`), AI-generated raster brand imagery (use `vd:marketing-design`), multimodal media (use `vd:omnimedia`), production release work (use `vd:ship`).
 
 **Special case — GitHub README / repo hero banner:** the catalog has no banner template (`search` returns social-cards that override the repo's brand). Skip the catalog and follow `references/github-readme-banner.md` — author/evolve a brand-locked `banner.html`, render to PNG at 2× via headless Chrome, and **verify the render (measure margins + view) before shipping**.
 
 ## Dependencies
 
-**Required:** `git`, `bash`, `grep`, `awk` (all preinstalled on macOS). Cache lives at `~/.cache/$USER-open-design` (~few MB after first sync).
+**Required:** `git`, `bash`, `grep`, `awk` (all preinstalled on macOS). Cache lives at `~/.cache/$USER-opendesign` (~few MB after first sync). Override with `OPENDESIGN_CACHE`; legacy `OPEN_DESIGN_CACHE` is still honored.
 
 **Optional — better search via [tobi/qmd](https://github.com/tobi/qmd):** if `qmd` is on `PATH`, the `search` command auto-routes through qmd's BM25 lexical engine instead of the bash/grep fallback. Two install paths:
 
 1. **Direct:** `bun install -g https://github.com/tobi/qmd` (or `npm i -g @tobilu/qmd`).
 2. **Via the [levineam/qmd-skill](https://github.com/levineam/qmd-skill) Claude skill** — bundles an auto-install hook plus broader qmd guidance for Claude. Recommended if you also use qmd for searching your own notes/docs.
 
-Either path makes the `qmd` binary available. On the next `open-design sync`, the script registers two namespaced collections (`od-skills`, `od-design-systems`) — instant, no model download. The script uses `qmd search` (pure BM25, no LLM model required); the heavyweight `qmd vsearch`/`qmd query` modes are deliberately *not* used (they download multi-GB models for marginal gain on a 197-doc catalog). No action needed otherwise — grep fallback works fine.
+Either path makes the `qmd` binary available. On the next `opendesign sync`, the script registers two namespaced collections (`opendesign-skills`, `opendesign-design-systems`) — instant, no model download. The script uses `qmd search` (pure BM25, no LLM model required); the heavyweight `qmd vsearch`/`qmd query` modes are deliberately *not* used (they download multi-GB models for marginal gain on a 197-doc catalog). No action needed otherwise — grep fallback works fine.
 
 ## Workflow
 
 ### Step 0 — Resolve the bundled CLI path (do this once)
 
-This skill ships its CLI alongside `SKILL.md` so it works regardless of install location (dev clone, plugin cache, or user-level install). Set `OD_BIN` once, using the absolute path of *this* SKILL.md's directory:
+This skill ships its CLI alongside `SKILL.md` so it works regardless of install location (dev clone, plugin cache, or user-level install). Set `OPENDESIGN_BIN` once, using the absolute path of *this* SKILL.md's directory:
 
 ```bash
-OD_BIN="<dir-of-this-SKILL.md>/scripts/open-design"
+OPENDESIGN_BIN="<dir-of-this-SKILL.md>/scripts/opendesign"
 # Example resolved values (use whichever matches where this file was loaded):
-#   /Users/vanducng/skills/skills/open-design/scripts/open-design          (dev clone)
-#   ~/.claude/plugins/cache/vd-skills/skills/open-design/scripts/open-design   (plugin)
-#   ~/.claude/skills/open-design/scripts/open-design                       (user-level)
+#   /Users/vanducng/skills/skills/opendesign/scripts/opendesign          (dev clone)
+#   ~/.claude/plugins/cache/vd-skills/skills/opendesign/scripts/opendesign   (plugin)
+#   ~/.claude/skills/opendesign/scripts/opendesign                       (user-level)
 ```
 
-All subsequent commands use `"$OD_BIN"`.
+All subsequent commands use `"$OPENDESIGN_BIN"`.
 
 ### Step 1 — Sync the catalog (first run, or when user asks for fresh content)
 
 ```bash
-"$OD_BIN" sync
+"$OPENDESIGN_BIN" sync
 ```
 
 This clones (first time) or `git pull --ff-only`s the upstream sparse checkout of `skills/` + `design-systems/`. Offline-tolerant: falls back to existing cache silently.
@@ -60,7 +60,7 @@ This clones (first time) or `git pull --ff-only`s the upstream sparse checkout o
 Pass the user's full design prompt verbatim:
 
 ```bash
-"$OD_BIN" search "<user's prompt>"
+"$OPENDESIGN_BIN" search "<user's prompt>"
 ```
 
 Output ranks top 5 skills and top 5 design systems by token-overlap score, each with a one-line rationale (matching trigger or description). Pick:
@@ -72,13 +72,13 @@ State the picked pair to the user in one sentence before reading files. They can
 ### Step 3 — Resolve cache paths
 
 ```bash
-SKILL_PATH=$("$OD_BIN" show <skill-name>)
-DS_PATH=$("$OD_BIN" show <design-system-name>)
+SKILL_PATH=$("$OPENDESIGN_BIN" show <skill-name>)
+DS_PATH=$("$OPENDESIGN_BIN" show <design-system-name>)
 ```
 
 ### Step 4 — Read the upstream files (in this order)
 
-1. `$SKILL_PATH/SKILL.md` — the chosen skill's own workflow. **Follow it literally.** It tells Claude exactly what classes, layouts, and checks to use.
+1. `$SKILL_PATH/SKILL.md` — the chosen skill's own workflow. **Follow it literally.** It tells the agent exactly what classes, layouts, and checks to use.
 2. `$SKILL_PATH/assets/template.html` — the seed (pre-built tokens + class system + chrome). Always use this; never write CSS from scratch.
 3. `$SKILL_PATH/references/layouts.md` — paste-ready section skeletons (don't invent sections; pick the closest).
 4. `$SKILL_PATH/references/checklist.md` — the P0/P1/P2 self-review (run before emitting).
@@ -101,7 +101,7 @@ Follow the upstream skill's workflow exactly. The standard pattern is:
 Unless the user passed `--no-open` or explicitly said not to open it:
 
 ```bash
-"$OD_BIN" preview <output>.html
+"$OPENDESIGN_BIN" preview <output>.html
 ```
 
 This calls `open <file>` on macOS (default browser). In the final handoff, include an openable target, not just the basename:
@@ -118,14 +118,14 @@ Never hand off only `artifact.html`; users need a path or URI they can open dire
 User: *"design a landing page for an indie task tracker, in Linear's style"*
 
 ```bash
-open-design search "landing page indie task tracker Linear"
+opendesign search "landing page indie task tracker Linear"
 # → top skill: web-prototype  · matches 'landing'
 # → top design-system: linear-app  · Productivity & SaaS, ultra-minimal purple accent
-SKILL_PATH=$(open-design show web-prototype)
-DS_PATH=$(open-design show linear-app)
+SKILL_PATH=$(opendesign show web-prototype)
+DS_PATH=$(opendesign show linear-app)
 # read SKILL.md, template.html, layouts.md, DESIGN.md
 # produce ./tracker-landing.html using web-prototype seed + linear-app tokens
-open-design preview ./tracker-landing.html
+opendesign preview ./tracker-landing.html
 ```
 
 ### Example 2 — Pitch deck
@@ -133,7 +133,7 @@ open-design preview ./tracker-landing.html
 User: *"magazine-style pitch deck for our seed round, brutalist vibe"*
 
 ```bash
-open-design search "magazine pitch deck seed round brutalist"
+opendesign search "magazine pitch deck seed round brutalist"
 # top skill: html-ppt-pitch-deck  (or guizang-ppt — magazine-style)
 # top design-system: brutalism  (or neobrutalism)
 # follow that skill's deck workflow → ./pitch-deck.html → preview
@@ -144,7 +144,7 @@ open-design search "magazine pitch deck seed round brutalist"
 User: *"a Stripe-style pricing page"*
 
 ```bash
-open-design search "Stripe pricing page"
+opendesign search "Stripe pricing page"
 # top skill: pricing-page
 # top design-system: stripe (rank #1 due to explicit brand mention)
 # if 'stripe' isn't in catalog, fall back to nearest neutral system (clean / linear-app)
@@ -164,14 +164,14 @@ open-design search "Stripe pricing page"
 The cache is checked once per command via `git pull --ff-only`. To force a re-clone:
 
 ```bash
-rm -rf ~/.cache/$USER-open-design && "$OD_BIN" sync
+rm -rf ~/.cache/$USER-opendesign && "$OPENDESIGN_BIN" sync
 ```
 
 ## Security
 
-This skill executes a single bash CLI bundled at `scripts/open-design`. It only:
+This skill executes a single bash CLI bundled at `scripts/opendesign`. It only:
 - clones / pulls a fixed public repo (`github.com/nexu-io/open-design`)
-- reads files inside `~/.cache/$USER-open-design`
+- reads files inside `~/.cache/$USER-opendesign`
 - calls `open <file>` (macOS) / `xdg-open` (Linux) on local HTML files
 
 It does NOT execute upstream code, run upstream scripts, evaluate upstream HTML server-side, or send data anywhere. Refuse if asked to point the cache at an arbitrary user-supplied URL or to execute arbitrary cached content. Do not echo the contents of files outside the cache directory or the user's working tree.

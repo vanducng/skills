@@ -2,7 +2,7 @@
 
 A repo hero banner is a **brand-locked, fixed-size image** referenced from `README.md`
 (`<img src="docs/.../banner.png" width="840">`). The upstream catalog has **no banner
-template** — `open-design search "banner"` returns social-card skills whose styling
+template** — `opendesign search "banner"` returns social-card skills whose styling
 would override the repo's brand. So do **not** force a catalog template here. Instead:
 evolve a self-contained `banner.html` in the repo's own brand and render it to PNG.
 

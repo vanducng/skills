@@ -1,6 +1,6 @@
 # Social Photos Design Guide
 
-Design social media images via HTML/CSS rendering + screenshot export. Orchestrates `ui-ux-pro-max`, `brand`, `design-system`, and `chrome-devtools` skills.
+Design social media images via HTML/CSS rendering + screenshot export. Use this skill's built-in references for brand assets, then verify exports with Browser, Playwright, Puppeteer, or Chrome headless.
 
 ## Platform Sizes
 
@@ -22,16 +22,16 @@ Design social media images via HTML/CSS rendering + screenshot export. Orchestra
 
 ## Workflow
 
-### Step 1: Activate Project Management
+### Step 1: Plan The Work
 
-Invoke `project-management` skill to create persistent TODO tasks via Claude's native task orchestration. Break down into:
+Break down the work into:
 - Requirement analysis task
 - Idea generation task(s)
 - HTML design task(s) — can parallelize per size/variant
 - Screenshot export task(s) — can parallelize per file
 - Report generation task
 
-Spawn parallel subagents for independent tasks (e.g., multiple HTML files for different sizes).
+Parallelize independent tasks when useful, such as separate HTML files for different sizes.
 
 ### Step 2: Analyze Requirements
 
@@ -51,15 +51,11 @@ Create 3-5 concept ideas that:
 - Vary in composition, color, typography approach
 - Align with brand guidelines if available
 
-Present ideas to user via `AskUserQuestion` for approval before designing.
+Present ideas to the user for approval before designing.
 
 ### Step 4: Design HTML Files
 
-Activate these skills in sequence (the brand/design-token steps are optional — skip if those skills aren't installed):
-
-1. **brand** — Extract brand colors, fonts, voice from user's project (optional external skill)
-2. **design-system** — Get design tokens (spacing, typography scale, color palette) (optional external skill)
-3. **Randomly invoke ONE of:** `ck:ui-ux-pro-max` OR `ck:frontend-design` — for layout, hierarchy, visual balance. Pick one at random each run for design variety.
+Use existing project brand context when available, or derive a compact token set from the prompt and generated assets. For app/frontend implementation, hand off to `vd:webdesign`; for static HTML gallery or deck artifacts, hand off to `vd:opendesign`.
 
 For each approved idea + each target size, create an HTML file:
 
@@ -119,7 +115,7 @@ output/social-photos/
 
 ### Step 5: Screenshot Export
 
-Use Chrome headless, `chrome-devtools` skill, or Playwright/Puppeteer to capture exact-size screenshots.
+Use Chrome headless, Browser, Playwright, or Puppeteer to capture exact-size screenshots.
 
 **IMPORTANT:** Always add a delay (3-5s) after page load for fonts/images to fully render before capture.
 
@@ -145,9 +141,9 @@ Key flags:
 - `--hide-scrollbars` — prevents scrollbar artifacts in screenshots
 - `--window-size=WxH` — sets exact pixel dimensions
 
-#### Option B: chrome-devtools skill
+#### Option B: Browser Or Playwright
 
-Invoke `/chrome-devtools` with instructions to:
+Open each HTML file in a browser automation tool and:
 1. Open each HTML file in browser
 2. Set viewport to exact target dimensions
 3. Wait 3-5s for fonts/images to fully load
@@ -210,7 +206,7 @@ async function captureScreenshots(htmlFiles) {
 
 ### Step 6: Verify & Fix Designs
 
-Use Chrome MCP or `chrome-devtools` skill to visually inspect each exported PNG:
+Use Browser, Chrome, Playwright, or local image inspection to visually inspect each exported PNG:
 
 1. Open exported screenshots and check for layout/styling issues
 2. Verify: fonts rendered correctly, colors match brand, text readable at thumbnail size
@@ -269,7 +265,7 @@ Report structure:
 
 ### Step 8: Organize Output
 
-Invoke `assets-organizing` skill to organize all output files and reports:
+Organize all output files and reports:
 - Move/copy exported PNGs to proper asset directories
 - Ensure reports are in `plans/reports/` with correct naming
 - Clean up intermediate HTML files if requested
@@ -326,4 +322,4 @@ This sub-skill handles social media image design only. Does NOT handle:
 - Animation/motion graphics
 - Print production files (CMYK, bleed)
 - Direct social media posting/scheduling
-- AI image generation (use `ai-artist` skill for that)
+- AI image generation (use this skill's logo/CIP raster flow or `vd:omnimedia` for broader model routing)

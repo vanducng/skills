@@ -36,7 +36,7 @@ Use `uv sync --no-dev` (no `--frozen`) in the Dockerfile so it resolves without 
 ## Verification
 
 ### 8. agent-browser daemon quirks
-Screenshots via the agent-browser daemon may fail in some envs; DOM-text checks (`get url`, `snapshot`, `eval document.body.innerText`) are reliable. For visual checks (logo, layout) drive the app with Puppeteer (via the chrome-devtools node_modules) and screenshot. Refs from a snapshot go stale after navigation — re-snapshot before interacting.
+Screenshots via the agent-browser daemon may fail in some envs; DOM-text checks (`get url`, `snapshot`, `eval document.body.innerText`) are reliable. For visual checks (logo, layout), drive the app with Playwright or Puppeteer and screenshot it. Refs from a snapshot go stale after navigation — re-snapshot before interacting.
 
 ### 9. File-upload via headless browser
 The visible "Choose files" button hides the real `<input type=file>`; target the input directly: `agent-browser upload "input[type=file]" <path>`. Verify the result against the backend (the DB/S3), not just the toast.
