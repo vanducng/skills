@@ -96,7 +96,7 @@ Multi-step investigation → task-management-debugging.md
 - **Airflow / Dagster / Prefect** — UI logs + their CLIs (`airflow tasks logs`, `dagster job execute`, `prefect flow-run logs`)
 - **Tracing** — APM (Datadog, Sentry), OpenTelemetry exporters
 - **Codebase scout** — `vd:scout` to map files before diving in
-- **Frontend** — Chrome MCP / `ck:chrome-devtools` for visual verification
+- **Frontend** — Chrome MCP / `vd:web-e2e` (persistent-profile browser + trace evidence) for visual verification
 - **Secrets** — `sops -d` for the infra repo (age key per `.mise.toml`); never paste decrypted contents into reports
 - **Skills:** `vd:research` for unknown libs; `ck:problem-solving` when stuck; `vd:gopass` for credentials
 
