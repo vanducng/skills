@@ -17,7 +17,7 @@ ws="${3:?workspace required}"
 cd "$ws"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-state_dir=".auto-loop"
+source "$SCRIPT_DIR/_state-dir.sh"
 state_file="$state_dir/goal-state.json"
 gate_log="$state_dir/gate-history.jsonl"
 

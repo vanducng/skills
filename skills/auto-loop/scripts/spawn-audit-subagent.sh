@@ -20,7 +20,7 @@ cd "$ws"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(dirname "$SCRIPT_DIR")"
-state_dir=".auto-loop"
+source "$SCRIPT_DIR/_state-dir.sh"
 audit_file="$state_dir/audit-${iter}.json"
 gate_log="$state_dir/gate-history.jsonl"
 
