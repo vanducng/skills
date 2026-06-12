@@ -117,14 +117,14 @@ test('info detects monorepo from monorepo root', () => {
   assert(json.projects.length > 0, 'Should have projects');
 });
 
-test('monorepo uses .work/worktrees inside the repo', () => {
+test('monorepo uses top-level .worktrees inside the repo', () => {
   if (!fs.existsSync(MONOREPO_DIR)) return; // Skip if not available
   const result = run('info --json', { cwd: MONOREPO_DIR });
   const json = assertJSON(result.output);
-  assert(json.worktreeRoot === path.join(MONOREPO_DIR, '.work', 'worktrees'),
-    `Expected ${path.join(MONOREPO_DIR, '.work', 'worktrees')}, got ${json.worktreeRoot}`);
-  assert(json.worktreeRootSource === '.work umbrella',
-    `Expected '.work umbrella', got ${json.worktreeRootSource}`);
+  assert(json.worktreeRoot === path.join(MONOREPO_DIR, '.worktrees'),
+    `Expected ${path.join(MONOREPO_DIR, '.worktrees')}, got ${json.worktreeRoot}`);
+  assert(json.worktreeRootSource === '.worktrees',
+    `Expected '.worktrees', got ${json.worktreeRootSource}`);
 });
 
 test('info returns text output without --json', () => {
@@ -261,11 +261,11 @@ test('create shows base branch', () => {
   assert(json.wouldCreate.baseBranch, 'Should show base branch');
 });
 
-test('create shows worktree path under .work/worktrees', () => {
+test('create shows worktree path under .worktrees', () => {
   const result = run('create test-path --dry-run --json');
   const json = assertJSON(result.output);
   assert(json.wouldCreate.worktreePath, 'Should show worktree path');
-  assert(json.wouldCreate.worktreePath.includes(path.join('.work', 'worktrees')), 'Path should be under .work/worktrees');
+  assert(json.wouldCreate.worktreePath.includes(`${path.sep}.worktrees${path.sep}`), 'Path should be under .worktrees');
 });
 
 test('create dry-run shows deterministic port base', () => {
@@ -376,23 +376,31 @@ test('remove error includes available worktrees', () => {
 });
 
 // ============================================
-// PRUNE COMMAND TESTS
+// CLEAN COMMAND TESTS
 // ============================================
-console.log('\n🧹 PRUNE Command Tests');
+console.log('\n🧹 CLEAN Command Tests');
 
-test('prune dry-run returns valid JSON', () => {
-  const result = run('prune --dry-run --json');
-  assert(result.success, 'Dry-run should succeed');
+test('clean defaults to dry-run (no --yes)', () => {
+  const result = run('clean --json');
+  assert(result.success, 'clean should succeed');
   const json = assertJSON(result.output);
-  assert(json.success === true, 'Should have success: true');
-  assert(json.dryRun === true, 'Should have dryRun: true');
-  assert(Array.isArray(json.entries), 'Should include entries array');
+  assert(json.dryRun === true, 'Should be dry-run without --yes');
+  assert(Array.isArray(json.candidates), 'Should include candidates array');
+  assert(typeof json.reclaimable === 'string', 'Should report reclaimable size');
 });
 
-test('prune text output is readable', () => {
-  const result = run('prune --dry-run');
-  assert(result.success, 'Dry-run should succeed');
-  assert(result.output.includes('Prune'), 'Should have readable prune output');
+test('clean reports scope flags', () => {
+  const result = run('clean --merged --json');
+  const json = assertJSON(result.output);
+  assert(json.scope.merged === true, 'merged scope on');
+  assert(json.scope.stale === false, 'stale scope off when only --merged');
+});
+
+test('prune command is gone (folded into clean)', () => {
+  const result = run('prune --json');
+  assert(!result.success, 'prune should no longer be a command');
+  const json = assertJSON(result.output);
+  assert(json.error.code === 'UNKNOWN_COMMAND', 'prune should be unknown');
 });
 
 // ============================================
@@ -426,8 +434,8 @@ test('info shows worktreeRoot and worktreeRootSource', () => {
   assert(json.worktreeRoot, 'Should have worktreeRoot');
   assert(json.worktreeRootSource, 'Should have worktreeRootSource');
   assert(typeof json.worktreeRoot === 'string', 'worktreeRoot should be string');
-  assert(json.worktreeRoot.endsWith(path.join('.work', 'worktrees')), 'worktreeRoot should be .work/worktrees');
-  assert(json.worktreeRootSource.includes('.work umbrella'), 'Source should be .work umbrella');
+  assert(json.worktreeRoot.endsWith(`${path.sep}.worktrees`), 'worktreeRoot should be top-level .worktrees');
+  assert(json.worktreeRootSource.includes('.worktrees'), 'Source should be .worktrees');
 });
 
 test('create --worktree-root overrides default location', () => {
@@ -990,7 +998,7 @@ test('integration: create copies nested env files, assigns ports, suggests insta
   const result = run('create "integration test" --json', { cwd: TMP_REPO });
   assert(result.success, `create failed: ${result.output} ${result.stderr}`);
   integration = assertJSON(result.output);
-  assert(integration.worktreePath.includes(path.join('.work', 'worktrees')), 'worktree under .work/worktrees');
+  assert(integration.worktreePath.includes(`${path.sep}.worktrees${path.sep}`), 'worktree under .worktrees');
   assert(integration.envFilesCopied.includes('.env'), 'copies root .env');
   assert(integration.envFilesCopied.includes('backend/.env'), 'copies nested backend/.env');
   assert(integration.includeCopied.includes('.claude/settings.local.json'), 'copies .worktreeinclude entry');
@@ -1069,6 +1077,31 @@ test('integration: --no-copy-env skips env copying', () => {
   assert(result.success, 'create should succeed');
   const json = assertJSON(result.output);
   assert(json.envFilesCopied.length === 0, 'no env files copied');
+});
+
+test('integration: clean --yes removes merged worktree and reclaims disk', () => {
+  // Create a worktree whose branch is already merged into main (points at HEAD)
+  const created = assertJSON(run('create "to-be-cleaned" --json', { cwd: TMP_REPO }).output);
+  const head = sh('git rev-parse --abbrev-ref HEAD', created.worktreePath);
+  // branch == main tip → merged. Confirm it shows up as a candidate first.
+  const dry = assertJSON(run('clean --merged --json', { cwd: TMP_REPO }).output);
+  assert(dry.dryRun === true, 'clean defaults to dry-run');
+  assert(dry.candidates.some(c => c.path === created.worktreePath), 'merged worktree is a candidate');
+  // Execute
+  const done = assertJSON(run('clean --merged --yes --json', { cwd: TMP_REPO }).output);
+  assert(done.removed.some(r => r.path === created.worktreePath), 'merged worktree removed');
+  assert(!fs.existsSync(created.worktreePath), 'worktree dir gone from disk');
+  assert(typeof done.reclaimed === 'string', 'reports reclaimed disk');
+});
+
+test('integration: status reports disk size and merged flag', () => {
+  const created = assertJSON(run('create "status-size" --json', { cwd: TMP_REPO }).output);
+  const json = assertJSON(run('status --json', { cwd: TMP_REPO }).output);
+  const entry = json.worktrees.find(w => path.resolve(w.path) === path.resolve(created.worktreePath));
+  assert(entry, 'created worktree present in status');
+  assert(entry.merged === true, 'merged flag set for HEAD-based branch');
+  assert(typeof entry.size === 'string' && entry.sizeBytes > 0, 'reports disk size');
+  run(`remove "${path.basename(created.worktreePath)}" --json`, { cwd: TMP_REPO });
 });
 
 try {

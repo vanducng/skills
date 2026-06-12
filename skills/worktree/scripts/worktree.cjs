@@ -11,7 +11,7 @@
  *   info                        Get repo info (type, projects, env files)
  *   list                        List existing worktrees
  *   status                      Show worktree health and branch status
- *   prune                       Remove stale worktree metadata
+ *   clean                       Bulk-remove merged/stale worktrees + prune metadata to free disk (dry-run; --yes to execute)
  *   ports                       Show per-worktree port block assignments
  *
  * Options:
@@ -186,6 +186,21 @@ if (noCopyEnvIndex > -1) args.splice(noCopyEnvIndex, 1);
 const noPreRemoveHookIndex = args.indexOf('--no-pre-remove-hook');
 const noPreRemoveHook = noPreRemoveHookIndex > -1;
 if (noPreRemoveHookIndex > -1) args.splice(noPreRemoveHookIndex, 1);
+
+// --yes: confirm a destructive bulk op (clean executes; default is dry-run)
+const yesIndex = args.indexOf('--yes');
+const confirmYes = yesIndex > -1;
+if (yesIndex > -1) args.splice(yesIndex, 1);
+
+// clean scope: --merged (branch merged into base), --stale (gone-from-remote
+// or prunable). Neither flag = both. --force includes dirty worktrees.
+const cleanMerged = args.includes('--merged');
+[args.indexOf('--merged')].filter(i => i > -1).forEach(i => args.splice(i, 1));
+const cleanStale = args.includes('--stale');
+[args.indexOf('--stale')].filter(i => i > -1).forEach(i => args.splice(i, 1));
+const forceIndex = args.indexOf('--force');
+const cleanForce = forceIndex > -1;
+if (forceIndex > -1) args.splice(forceIndex, 1);
 
 const command = args[0];
 // For create: args[1] is project (or feature for standalone), args[2] is feature
@@ -480,17 +495,18 @@ function validateWorktreeRoot(rootPath) {
   return { valid: false, error: `Cannot create worktree directory: parent path does not exist: ${parent}` };
 }
 
-// Standard worktree location: <topmost-git-root>/.work/worktrees/
+// Standard worktree location: <topmost-git-root>/.worktrees/
 // One rule for all repo types — standalone, monorepo, submodule (worktrees
-// land at the superproject root). The .work umbrella is gitignored (or
-// auto-excluded via .git/info/exclude), so worktrees never show as noise.
-const UMBRELLA_DIR = '.work';
-const TREES_SUBDIR = 'worktrees';
+// land at the superproject root). Deliberately a top-level sibling of the
+// .work artifact umbrella, NOT nested under it: worktrees are full checkouts
+// (heavy, contain source), so nesting would pollute artifact globs and bloat
+// .work. Auto-excluded via .git/info/exclude so worktrees never show as noise.
+const TREES_DIRNAME = '.worktrees';
 
 // Determine the worktree root directory with priority:
 // 1. Explicit --worktree-root flag (Claude's decision)
 // 2. WORKTREE_ROOT env var (explicit override)
-// 3. <topmost-git-root>/.work/worktrees/ (standard umbrella location)
+// 3. <topmost-git-root>/.worktrees/ (standard location)
 function getWorktreeRoot(gitRoot, isMonorepo, explicitRoot = null) {
   // Priority 0: Explicit --worktree-root flag (Claude's decision)
   if (explicitRoot) {
@@ -515,13 +531,13 @@ function getWorktreeRoot(gitRoot, isMonorepo, explicitRoot = null) {
     return { dir: validation.path, source: 'WORKTREE_ROOT env' };
   }
 
-  // Priority 2: .work/worktrees at the topmost root (superproject for submodules)
+  // Priority 2: .worktrees at the topmost root (superproject for submodules)
   const topmostRoot = findTopmostSuperproject(gitRoot);
-  const dir = path.join(topmostRoot, UMBRELLA_DIR, TREES_SUBDIR);
+  const dir = path.join(topmostRoot, TREES_DIRNAME);
   const source = topmostRoot !== gitRoot
-    ? `.work umbrella (superproject ${path.basename(topmostRoot)})`
-    : '.work umbrella';
-  return { dir, source, umbrellaRoot: topmostRoot };
+    ? `.worktrees (superproject ${path.basename(topmostRoot)})`
+    : '.worktrees';
+  return { dir, source, treesRoot: topmostRoot };
 }
 
 // Make git ignore a path without touching tracked files: append to
@@ -854,6 +870,91 @@ function writeEnvWorktreeFile(worktreePath, env) {
   fs.writeFileSync(path.join(worktreePath, ENV_WORKTREE_FILE), lines.join('\n'));
 }
 
+// Disk usage of a directory in bytes (du -sk → KiB). Best-effort: null on failure.
+function dirSizeBytes(p) {
+  if (!fs.existsSync(p)) return null;
+  try {
+    const out = execFileSync('du', ['-sk', p], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+    const kib = Number.parseInt(out.trim().split(/\s+/)[0], 10);
+    return Number.isFinite(kib) ? kib * 1024 : null;
+  } catch {
+    return null;
+  }
+}
+
+function humanBytes(bytes) {
+  if (!Number.isFinite(bytes)) return 'n/a';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let n = bytes;
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)}${units[i]}`;
+}
+
+// Branch tip reachable from base = fully merged (covers ff/rebase merges).
+function isBranchMerged(branch, base, cwd) {
+  if (!branch || !base || branch === base || branch === 'detached' || branch === 'bare') return false;
+  return gitArgs(['merge-base', '--is-ancestor', branch, base], { cwd }).success;
+}
+
+// Branch had an upstream that no longer exists on the remote → stale.
+function isUpstreamGone(branch, cwd) {
+  if (!branch || branch === 'detached' || branch === 'bare') return false;
+  const res = gitArgs(['for-each-ref', '--format=%(upstream:track)', `refs/heads/${branch}`], { cwd });
+  return res.success && res.output.includes('[gone]');
+}
+
+// Shared removal: env-backup → pre-remove hook → git worktree remove → branch
+// delete. Used by both `remove` (single) and `clean` (bulk). Never throws.
+function removeWorktree(worktree, opts = {}) {
+  const worktreePath = worktree.path;
+  const branchName = worktree.branch;
+  const warnings = [];
+  const sizeBytes = dirSizeBytes(worktreePath);
+
+  let envBackup = null;
+  if (!opts.noBackup && fs.existsSync(worktreePath)) {
+    const envFiles = findEnvFilesRecursive(worktreePath).filter(rel => !isTrackedByGit(rel, worktreePath));
+    if (envFiles.length > 0) {
+      const backupDir = path.join(path.dirname(worktreePath), '.env-backups', path.basename(worktreePath));
+      try {
+        envFiles.forEach(rel => {
+          const dest = path.join(backupDir, rel);
+          fs.mkdirSync(path.dirname(dest), { recursive: true });
+          fs.copyFileSync(path.join(worktreePath, rel), dest);
+        });
+        envBackup = { dir: backupDir, files: envFiles };
+      } catch (err) {
+        warnings.push(`Env backup failed: ${err.message}`);
+      }
+    }
+  }
+
+  if (!opts.noPreRemoveHook && fs.existsSync(worktreePath)) {
+    const preRemove = runPreRemoveHook(worktreePath);
+    if (preRemove && preRemove.warning) warnings.push(preRemove.warning);
+  }
+
+  const removeResult = git(`worktree remove "${worktreePath}" --force`, { silent: true });
+  if (!removeResult.success) {
+    return { success: false, worktreePath, branch: branchName, sizeBytes, envBackup, warnings, error: removeResult.stderr || removeResult.error };
+  }
+
+  let branchDeleted = false;
+  if (branchName && branchName !== 'detached' && branchName !== 'bare') {
+    const deleteResult = git(`branch -d "${branchName}"`, { silent: true });
+    if (deleteResult.success) {
+      branchDeleted = true;
+    } else if (opts.forceBranchDelete) {
+      branchDeleted = git(`branch -D "${branchName}"`, { silent: true }).success;
+    } else {
+      warnings.push(`Branch kept: ${branchName} (${deleteResult.stderr || 'not fully merged'})`);
+    }
+  }
+
+  return { success: true, worktreePath, branch: branchName, sizeBytes, envBackup, branchDeleted, warnings };
+}
+
 // Find matching projects
 function findMatchingProjects(projects, query) {
   const queryLower = query.toLowerCase();
@@ -1139,6 +1240,9 @@ function cmdStatus() {
     const divergence = existsOnDisk && branchExistsLocally && baseBranch
       ? getAheadBehind(worktree.branch, baseBranch, worktree.path)
       : { ahead: 0, behind: 0 };
+    const merged = existsOnDisk && !worktree.isMainWorktree && baseBranch
+      ? isBranchMerged(worktree.branch, baseBranch, worktree.path) : false;
+    const sizeBytes = existsOnDisk && !worktree.isMainWorktree ? dirSizeBytes(worktree.path) : null;
 
     return {
       ...worktree,
@@ -1148,7 +1252,10 @@ function cmdStatus() {
       dirtyState,
       dirtyDetails,
       ahead: divergence.ahead,
-      behind: divergence.behind
+      behind: divergence.behind,
+      merged,
+      sizeBytes,
+      size: sizeBytes != null ? humanBytes(sizeBytes) : null
     };
   });
 
@@ -1179,12 +1286,19 @@ function cmdStatus() {
     if (worktree.isCurrentWorktree) flags.push('current');
     if (worktree.dirtyState) flags.push('dirty');
     if (!worktree.branchExists && worktree.branch !== 'detached' && worktree.branch !== 'bare') flags.push('missing-branch');
+    if (worktree.merged) flags.push('merged');
     if (worktree.prunable) flags.push('prunable');
     const suffix = flags.length > 0 ? ` [${flags.join(', ')}]` : '';
+    const sizeLabel = worktree.size ? ` (${worktree.size})` : '';
     console.log(`   ${worktree.path}${suffix}`);
-    console.log(`      Branch: ${worktree.branch}`);
+    console.log(`      Branch: ${worktree.branch}${sizeLabel}`);
     console.log(`      Base: ${worktree.baseBranch || 'n/a'} | Ahead/Behind: ${worktree.ahead}/${worktree.behind}`);
   });
+  const reclaimable = worktrees.filter(w => !w.isMainWorktree && (w.merged || w.prunable) && w.sizeBytes)
+    .reduce((sum, w) => sum + w.sizeBytes, 0);
+  if (reclaimable > 0) {
+    console.log(`\n   💾 ~${humanBytes(reclaimable)} reclaimable via: worktree clean --yes`);
+  }
 }
 
 function cmdCreate() {
@@ -1510,10 +1624,10 @@ function cmdCreate() {
 
   // Keep git status clean: exclude the trees dir (in the repo that contains
   // it) and the generated .env.worktree (in the repo owning the worktree).
-  const umbrellaRoot = worktreeRoot.umbrellaRoot;
-  if (umbrellaRoot && worktreesDir.startsWith(umbrellaRoot + path.sep)) {
-    const rel = path.relative(umbrellaRoot, worktreesDir).split(path.sep).join('/');
-    const result = ensureGitExcluded(umbrellaRoot, `/${rel}/`);
+  const treesRoot = worktreeRoot.treesRoot;
+  if (treesRoot && worktreesDir.startsWith(treesRoot + path.sep)) {
+    const rel = path.relative(treesRoot, worktreesDir).split(path.sep).join('/');
+    const result = ensureGitExcluded(treesRoot, `/${rel}/`);
     if (result.warning) warnings.push(result.warning);
   }
   const envExclude = ensureGitExcluded(workDir, ENV_WORKTREE_FILE);
@@ -1733,101 +1847,125 @@ function cmdRemove() {
     return;
   }
 
-  const removeWarnings = [];
-
-  // Rescue untracked env files before the worktree disappears — edits made
-  // inside the worktree (new keys, new services) are otherwise lost.
-  let envBackup = null;
-  if (fs.existsSync(worktreePath)) {
-    const envFiles = findEnvFilesRecursive(worktreePath).filter(rel => !isTrackedByGit(rel, worktreePath));
-    if (envFiles.length > 0) {
-      const backupDir = path.join(path.dirname(worktreePath), '.env-backups', path.basename(worktreePath));
-      try {
-        envFiles.forEach(rel => {
-          const dest = path.join(backupDir, rel);
-          fs.mkdirSync(path.dirname(dest), { recursive: true });
-          fs.copyFileSync(path.join(worktreePath, rel), dest);
-        });
-        envBackup = { dir: backupDir, files: envFiles };
-      } catch (err) {
-        removeWarnings.push(`Env backup failed: ${err.message}`);
-      }
-    }
-  }
-
-  if (!noPreRemoveHook && fs.existsSync(worktreePath)) {
-    const preRemove = runPreRemoveHook(worktreePath);
-    if (preRemove && preRemove.warning) removeWarnings.push(preRemove.warning);
-  }
-
-  // Remove worktree
-  const removeResult = git(`worktree remove "${worktreePath}" --force`, { silent: true });
-  if (!removeResult.success) {
+  const result = removeWorktree(worktree, { noPreRemoveHook });
+  if (!result.success) {
     outputError('WORKTREE_REMOVE_FAILED', `Failed to remove worktree: ${worktreePath}`, {
-      suggestion: removeResult.stderr || 'Check if the worktree has uncommitted changes',
-      gitError: removeResult.stderr
+      suggestion: result.error || 'Check if the worktree has uncommitted changes',
+      gitError: result.error
     });
   }
 
-  // Delete branch if it exists
-  let branchDeleted = false;
-  let branchDeleteWarning = null;
-  if (branchName) {
-    const deleteResult = git(`branch -d "${branchName}"`, { silent: true });
-    if (deleteResult.success) {
-      branchDeleted = true;
-    } else {
-      branchDeleteWarning = `Branch kept: ${branchName} (${deleteResult.stderr || 'not fully merged'})`;
-    }
-  }
-
-  if (branchDeleteWarning) removeWarnings.push(branchDeleteWarning);
   output({
     success: true,
     message: 'Worktree removed successfully!',
     removedPath: worktreePath,
-    branchDeleted: branchDeleted ? branchName : null,
-    branchKept: !branchDeleted && branchName ? branchName : null,
-    envBackup,
-    warnings: removeWarnings.length > 0 ? removeWarnings : undefined
+    branchDeleted: result.branchDeleted ? branchName : null,
+    branchKept: !result.branchDeleted && branchName && branchName !== 'detached' ? branchName : null,
+    reclaimed: result.sizeBytes ? humanBytes(result.sizeBytes) : null,
+    envBackup: result.envBackup,
+    warnings: result.warnings.length > 0 ? result.warnings : undefined
   });
 }
 
-function cmdPrune() {
-  checkGitRepo();
+function cmdClean() {
+  const gitRoot = checkGitRepo();
   checkGitVersion();
 
-  const pruneArgs = ['worktree', 'prune'];
-  if (dryRun) pruneArgs.push('--dry-run');
-  pruneArgs.push('--verbose');
+  // Scope: default to both merged and stale; flags narrow it.
+  const wantMerged = cleanMerged || !cleanStale;
+  const wantStale = cleanStale || !cleanMerged;
 
-  const pruneResult = git(pruneArgs.join(' '), { silent: true });
-  if (!pruneResult.success) {
-    outputError('WORKTREE_PRUNE_FAILED', 'Failed to prune worktree metadata', {
-      suggestion: pruneResult.stderr || pruneResult.error
-    });
+  const records = getWorktreeRecords(gitRoot, gitRoot)
+    .filter(w => !w.isMainWorktree && fs.existsSync(w.path));
+
+  const candidates = [];
+  const skipped = [];
+  records.forEach(w => {
+    const base = !w.bare ? detectBaseBranch(w.path) : null;
+    const dirty = !w.bare && checkDirtyState(w.path);
+    const merged = base ? isBranchMerged(w.branch, base, w.path) : false;
+    const stale = w.prunable || isUpstreamGone(w.branch, w.path) ||
+      (w.branch !== 'detached' && w.branch !== 'bare' && branchExists(w.branch, w.path) === false);
+
+    const reasons = [];
+    if (wantMerged && merged) reasons.push(`merged into ${base}`);
+    if (wantStale && stale) reasons.push(w.prunable ? 'prunable' : 'gone from remote');
+    if (reasons.length === 0) return;
+
+    if (dirty && !cleanForce) {
+      skipped.push({ path: w.path, branch: w.branch, reason: 'dirty (use --force)' });
+      return;
+    }
+    candidates.push({ worktree: w, reasons, dirty, sizeBytes: dirSizeBytes(w.path) });
+  });
+
+  const willExecute = confirmYes && !dryRun;
+  const totalBytes = candidates.reduce((sum, c) => sum + (c.sizeBytes || 0), 0);
+  // Stale admin metadata from worktrees whose dir was deleted manually —
+  // clean subsumes the old `prune` command by handling these too.
+  const stalePrune = (git('worktree prune --dry-run --verbose', { silent: true }).output || '')
+    .split('\n').filter(Boolean);
+
+  if (!willExecute) {
+    if (jsonOutput) {
+      console.log(JSON.stringify({
+        success: true,
+        dryRun: true,
+        message: candidates.length || stalePrune.length ? 'Dry run — pass --yes to remove' : 'Nothing to clean',
+        scope: { merged: wantMerged, stale: wantStale, includeDirty: cleanForce },
+        candidates: candidates.map(c => ({ path: c.worktree.path, branch: c.worktree.branch, reasons: c.reasons, size: humanBytes(c.sizeBytes), sizeBytes: c.sizeBytes })),
+        staleMetadata: stalePrune,
+        skipped,
+        reclaimable: humanBytes(totalBytes),
+        reclaimableBytes: totalBytes
+      }, null, 2));
+      return;
+    }
+    console.log(`\n🧹 Worktree Clean (dry run — pass --yes to remove)`);
+    console.log(`   Scope: ${[wantMerged && 'merged', wantStale && 'stale'].filter(Boolean).join(' + ')}${cleanForce ? ' + dirty' : ''}`);
+    if (candidates.length === 0 && stalePrune.length === 0) {
+      console.log('   Nothing to clean.');
+    } else {
+      candidates.forEach(c => {
+        console.log(`   ${c.worktree.branch}  (${humanBytes(c.sizeBytes)})  — ${c.reasons.join(', ')}`);
+        console.log(`      ${c.worktree.path}`);
+      });
+      if (candidates.length) console.log(`\n   Reclaimable: ${humanBytes(totalBytes)} across ${candidates.length} worktree(s)`);
+      if (stalePrune.length) console.log(`   Stale metadata to prune: ${stalePrune.length} entr${stalePrune.length === 1 ? 'y' : 'ies'}`);
+    }
+    skipped.forEach(s => console.log(`   skipped ${s.branch}: ${s.reason}`));
+    return;
   }
 
-  const entries = pruneResult.output.split('\n').filter(Boolean);
+  // Execute
+  const removed = [];
+  const failed = [];
+  candidates.forEach(c => {
+    const res = removeWorktree(c.worktree, { noPreRemoveHook, forceBranchDelete: true });
+    if (res.success) removed.push(res); else failed.push(res);
+  });
+  git('worktree prune', { silent: true });
+
+  const reclaimedBytes = removed.reduce((sum, r) => sum + (r.sizeBytes || 0), 0);
   if (jsonOutput) {
     console.log(JSON.stringify({
       success: true,
-      dryRun,
-      message: dryRun ? 'Prune dry run completed' : 'Worktree prune completed',
-      entries
+      message: `Removed ${removed.length} worktree(s), reclaimed ${humanBytes(reclaimedBytes)}`,
+      removed: removed.map(r => ({ path: r.worktreePath, branch: r.branch, size: humanBytes(r.sizeBytes), envBackup: r.envBackup })),
+      failed: failed.map(r => ({ path: r.worktreePath, error: r.error })),
+      prunedMetadata: stalePrune,
+      skipped,
+      reclaimed: humanBytes(reclaimedBytes),
+      reclaimedBytes
     }, null, 2));
     return;
   }
-
-  console.log(`\n🧹 Worktree Prune${dryRun ? ' (dry run)' : ''}`);
-  if (entries.length === 0) {
-    console.log('   No stale worktree metadata found.');
-    return;
-  }
-
-  entries.forEach(entry => {
-    console.log(`   ${entry}`);
-  });
+  console.log(`\n🧹 Worktree Clean`);
+  removed.forEach(r => console.log(`   ✓ removed ${r.branch} (${humanBytes(r.sizeBytes)})`));
+  failed.forEach(r => console.log(`   ✗ ${r.worktreePath}: ${r.error}`));
+  if (stalePrune.length) console.log(`   ✓ pruned ${stalePrune.length} stale metadata entr${stalePrune.length === 1 ? 'y' : 'ies'}`);
+  skipped.forEach(s => console.log(`   skipped ${s.branch}: ${s.reason}`));
+  console.log(`\n   Reclaimed ${humanBytes(reclaimedBytes)} across ${removed.length} worktree(s).`);
 }
 
 function cmdPorts() {
@@ -1870,9 +2008,15 @@ Commands:
   remove <name-or-path>       Remove a worktree and its branch (runs pre-remove hook)
   info                        Get repo info (type, projects, env files)
   list                        List existing worktrees
-  status                      Inspect worktree health and branch status
-  prune                       Remove stale worktree metadata
+  status                      Inspect worktree health and branch status (with disk usage)
+  clean                       Bulk-remove merged/stale worktrees + prune metadata to free disk (dry-run; --yes to execute)
   ports                       Show per-worktree port block assignments
+
+Clean options:
+  --merged                 Only worktrees whose branch is merged into its base
+  --stale                  Only worktrees gone from remote / prunable (default: merged + stale)
+  --force                  Include dirty worktrees (uncommitted changes)
+  --yes                    Actually remove (without it, clean is a dry run)
 
 Options:
   --prefix <type>          Branch prefix (feat|fix|refactor|docs|test|chore|perf)
@@ -1925,15 +2069,15 @@ function main() {
     case 'status':
       cmdStatus();
       break;
-    case 'prune':
-      cmdPrune();
+    case 'clean':
+      cmdClean();
       break;
     case 'ports':
       cmdPorts();
       break;
     default:
       outputError('UNKNOWN_COMMAND', `Unknown command: ${command || '(none)'}`, {
-        suggestion: 'Available commands: create, remove, info, list, status, prune, ports. Use --help for usage.'
+        suggestion: 'Available commands: create, remove, info, list, status, clean, ports. Use --help for usage.'
       });
   }
 }
