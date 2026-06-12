@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[repo-path] [--machine] [--check]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # cktovd — claudekit → vd-cli migration
@@ -28,9 +28,9 @@ Detect scope from the argument: `--machine` → machine layer only; a repo path 
 | State | `plans/goals/` | `<git-root>/.work/state/` (**renamed**: goals → state) |
 | Docs | `<cwd>/docs/` | `<cwd>/docs/` — **never moves**: git-tracked team deliverables, umbrella-blind by design |
 
-The umbrella dir is named tool-neutrally (`.work`, not `.vd`) because multiple agents share the repo.
+The umbrella dir is named tool-neutrally (`.work`, not `.vd`) because multiple agents share the repo. Git worktrees are a separate top-level `<git-root>/.worktrees/` (not under `.work`); artifacts written from *inside* a worktree resolve to the **main** repo's `.work/` (they survive `git worktree remove`), while `docs/` stays branch-local.
 
-Config precedence: DEFAULT ← global `~/.claude/.vd.json` ← project `<git-root>/.vd.json`. At each layer, if `.vd.json` is absent, `.ck.json` is read as a legacy fallback — **read-only, one-way**: vd never writes `.ck.json`, so migration is just creating the new file and the old one ages out. Don't delete `.ck.json` during cutover; it's the safety net.
+Config precedence: DEFAULT ← global `~/.claude/.vd.json` ← project `<git-root>/.vd.json`. **There is no `.ck.json` read fallback** (removed): vd reads `.vd.json` only. A lingering `.ck.json` *without* its `.vd.json` is no longer silently honored — it **raises a migration error** ("run the cktovd skill / rename to `.vd.json`"). So the cutover is: **create the `.vd.json`** (from `.ck.json` if present). Once `.vd.json` exists the old file is inert (ignored); it's safe to delete — the master backup is your real safety net. vd never writes `.ck.json`.
 
 `paths.umbrella` must be a relative path with no `..`/empty segments that resolves inside the git root. An **invalid** value (absolute, traversal, empty) never errors — it's **silently coerced to null**, which restores the byte-identical legacy layout, so a bad value presents as "migration didn't take effect". A plausible **typo** (`.wrok`) passes sanitization and creates a wrong-named umbrella dir. Umbrella resolution anchors via `git rev-parse --show-toplevel` — a non-git dir never activates it; `git init` first.
 
@@ -50,7 +50,7 @@ Config precedence: DEFAULT ← global `~/.claude/.vd.json` ← project `<git-roo
    grep -n '\$HOME/.claude/hooks' ~/.claude/settings.json   # all entries must show literal $HOME
    ```
    `vd install hooks` is idempotent: byte-identical files are skipped, a differing vd-owned file is backed up once as `<name>.bak.<UTC-ts>.cjs`, unknown files are never touched. settings.json edits are surgical (only vd's hook entries + the top-level `statusLine` key are patched; a one-time `settings.json.bak` is taken first). Registered commands keep `$HOME` **literal** — the hook runner shell-expands it; never bake a personal absolute path in. Caution: registration matches existing entries by `.cjs` **filename substring** and rewrites them to vd's canonical command — a custom wrapper referencing the same filename gets clobbered.
-4. **Config rename:** `[ -f ~/.claude/.ck.json ] && [ ! -f ~/.claude/.vd.json ] && cp ~/.claude/.ck.json ~/.claude/.vd.json`. Do **not** set `paths.umbrella` globally — that flips every repo at once and strands un-migrated `plans/` content. Go per-repo; consider the global flip only after all active repos are migrated.
+4. **Config rename (required — prevents the migration error):** `[ -f ~/.claude/.ck.json ] && [ ! -f ~/.claude/.vd.json ] && cp ~/.claude/.ck.json ~/.claude/.vd.json`. With the fallback gone, a global `~/.claude/.ck.json` without `~/.claude/.vd.json` errors on *every* session, so this `cp` is mandatory when a legacy global config exists. After `.vd.json` exists, `rm ~/.claude/.ck.json` (it's inert and backed up). Do **not** set `paths.umbrella` globally — that flips every repo at once and strands un-migrated `plans/` content. Go per-repo; consider the global flip only after all active repos are migrated.
 5. **CK_* consumer audit** — the env rename is a hard cut: every `CK_*` session var has a `VD_*` successor (`VD_REPORTS_PATH`, `VD_PLANS_PATH`, `VD_GIT_ROOT`, `VD_ACTIVE_PLAN`, …) and anything still reading `CK_*` silently gets nothing. Temp files renamed `ck-session-*` → `vd-session-*`.
    ```sh
    grep -rn 'CK_' ~/.claude/ --include='*.cjs' --include='*.json' --include='*.sh' \
@@ -90,7 +90,7 @@ git check-ignore -v docs/x; [ $? -eq 1 ] && echo "OK docs NOT ignored"
 echo "{\"cwd\":\"$PWD\",\"session_id\":\"check\"}" | node ~/.claude/hooks/dev-rules-reminder.cjs
 ```
 
-Pass = the injected `## Paths` block shows **six** paths (Reports/Plans/Docs/Visuals/Journals/State) with everything except Docs under `.work/`. **Three paths = umbrella did not activate** (invalid umbrella value, missing `.vd.json`, or you ran from outside the repo). A malformed `.vd.json` doesn't crash — it silently falls back to the 3-path legacy injection, so assert on output, never trust the config edit. New paths take effect on the **next prompt**; the current session's earlier injection still shows old paths — don't chase that as a bug.
+Pass = the injected `## Paths` block shows **six** paths (Reports/Plans/Docs/Visuals/Journals/State) with everything except Docs under `.work/`. **Three paths = umbrella did not activate** (invalid umbrella value, missing `.vd.json`, or you ran from outside the repo). A malformed `.vd.json` doesn't crash — it silently falls back to the 3-path legacy injection, so assert on output, never trust the config edit. **No paths at all = a legacy `.ck.json` lingers without a `.vd.json`**: the loader now raises a migration error and the fail-open hook injects nothing — create the `.vd.json` (step 4 / repo step 1). New paths take effect on the **next prompt**; the current session's earlier injection still shows old paths — don't chase that as a bug.
 
 ## Rollback
 
