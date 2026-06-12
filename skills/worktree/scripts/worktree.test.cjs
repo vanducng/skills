@@ -117,12 +117,12 @@ test('info detects monorepo from monorepo root', () => {
   assert(json.projects.length > 0, 'Should have projects');
 });
 
-test('monorepo uses .work/trees inside the repo', () => {
+test('monorepo uses .work/worktrees inside the repo', () => {
   if (!fs.existsSync(MONOREPO_DIR)) return; // Skip if not available
   const result = run('info --json', { cwd: MONOREPO_DIR });
   const json = assertJSON(result.output);
-  assert(json.worktreeRoot === path.join(MONOREPO_DIR, '.work', 'trees'),
-    `Expected ${path.join(MONOREPO_DIR, '.work', 'trees')}, got ${json.worktreeRoot}`);
+  assert(json.worktreeRoot === path.join(MONOREPO_DIR, '.work', 'worktrees'),
+    `Expected ${path.join(MONOREPO_DIR, '.work', 'worktrees')}, got ${json.worktreeRoot}`);
   assert(json.worktreeRootSource === '.work umbrella',
     `Expected '.work umbrella', got ${json.worktreeRootSource}`);
 });
@@ -261,11 +261,11 @@ test('create shows base branch', () => {
   assert(json.wouldCreate.baseBranch, 'Should show base branch');
 });
 
-test('create shows worktree path under .work/trees', () => {
+test('create shows worktree path under .work/worktrees', () => {
   const result = run('create test-path --dry-run --json');
   const json = assertJSON(result.output);
   assert(json.wouldCreate.worktreePath, 'Should show worktree path');
-  assert(json.wouldCreate.worktreePath.includes(path.join('.work', 'trees')), 'Path should be under .work/trees');
+  assert(json.wouldCreate.worktreePath.includes(path.join('.work', 'worktrees')), 'Path should be under .work/worktrees');
 });
 
 test('create dry-run shows deterministic port base', () => {
@@ -426,7 +426,7 @@ test('info shows worktreeRoot and worktreeRootSource', () => {
   assert(json.worktreeRoot, 'Should have worktreeRoot');
   assert(json.worktreeRootSource, 'Should have worktreeRootSource');
   assert(typeof json.worktreeRoot === 'string', 'worktreeRoot should be string');
-  assert(json.worktreeRoot.endsWith(path.join('.work', 'trees')), 'worktreeRoot should be .work/trees');
+  assert(json.worktreeRoot.endsWith(path.join('.work', 'worktrees')), 'worktreeRoot should be .work/worktrees');
   assert(json.worktreeRootSource.includes('.work umbrella'), 'Source should be .work umbrella');
 });
 
@@ -990,7 +990,7 @@ test('integration: create copies nested env files, assigns ports, suggests insta
   const result = run('create "integration test" --json', { cwd: TMP_REPO });
   assert(result.success, `create failed: ${result.output} ${result.stderr}`);
   integration = assertJSON(result.output);
-  assert(integration.worktreePath.includes(path.join('.work', 'trees')), 'worktree under .work/trees');
+  assert(integration.worktreePath.includes(path.join('.work', 'worktrees')), 'worktree under .work/worktrees');
   assert(integration.envFilesCopied.includes('.env'), 'copies root .env');
   assert(integration.envFilesCopied.includes('backend/.env'), 'copies nested backend/.env');
   assert(integration.includeCopied.includes('.claude/settings.local.json'), 'copies .worktreeinclude entry');

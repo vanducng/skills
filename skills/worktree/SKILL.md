@@ -1,6 +1,6 @@
 ---
 name: worktree
-description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under .work/trees/, auto-copies .env files (nested included), assigns each worktree a deterministic port block, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
+description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under .work/worktrees/, auto-copies .env files (nested included), assigns each worktree a deterministic port block, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
 license: MIT
 argument-hint: "[feature-description] | [project] [feature] | status | list | ports | prune | remove <name>"
 metadata:
@@ -21,19 +21,19 @@ Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run
 | `vd:ship` | Is this branch ready to land? | Tests → review → version → PR |
 | `vd:scout` / `vd:plan` | What am I going to build? | Reports + phase files |
 
-## Standard location: `.work/trees/`
+## Standard location: `.work/worktrees/`
 
-All worktrees live at **`<git-root>/.work/trees/<repo>-<feature>/`** — one rule for every repo type:
+All worktrees live at **`<git-root>/.work/worktrees/<repo>-<feature>/`** — one rule for every repo type:
 
-- **Standalone** → `<repo>/.work/trees/`
-- **Monorepo** → `<monorepo-root>/.work/trees/`
-- **Submodule** → topmost superproject's `.work/trees/`
+- **Standalone** → `<repo>/.work/worktrees/`
+- **Monorepo** → `<monorepo-root>/.work/worktrees/`
+- **Submodule** → topmost superproject's `.work/worktrees/`
 
-`.work/` is the gitignored agent-artifact umbrella (plans, reports, journals — and now trees). The script auto-appends `/.work/trees/` and `.env.worktree` to `.git/info/exclude` when the repo doesn't already ignore them, so `git status` stays clean without touching tracked files.
+`.work/` is the gitignored agent-artifact umbrella (plans, reports, journals — and now trees). The script auto-appends `/.work/worktrees/` and `.env.worktree` to `.git/info/exclude` when the repo doesn't already ignore them, so `git status` stays clean without touching tracked files.
 
 **Hazard:** `git clean -fdx` in the main checkout can delete in-repo worktrees (single `-f` skips dirs containing `.git`, double `-ff` does not). Run `prune` after any aggressive clean.
 
-**Overrides:** `--worktree-root <path>` flag → `WORKTREE_ROOT` env → `.work/trees` default. Pre-2.0 worktrees in sibling `worktrees/` dirs keep working (`list`/`status`/`remove` find them via git); new ones land in `.work/trees/`.
+**Overrides:** `--worktree-root <path>` flag → `WORKTREE_ROOT` env → `.work/worktrees` default. Pre-2.0 worktrees in sibling `worktrees/` dirs keep working (`list`/`status`/`remove` find them via git); new ones land in `.work/worktrees/`.
 
 ## Script path
 
@@ -142,7 +142,7 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs create "<PROJECT>" "<SLUG
 | `--post-create-hook <x>` | Explicit hook script path or shell command (overrides auto-detect) |
 | `--no-post-create-hook` | Disable hook auto-detection |
 | `--no-pre-remove-hook` | Skip `.worktree/hooks/pre-remove` teardown on remove |
-| `--worktree-root <path>` | Override default `.work/trees/` location |
+| `--worktree-root <path>` | Override default `.work/worktrees/` location |
 | `--json` | Machine-readable output |
 | `--dry-run` | Preview without touching disk (includes `portBase`) |
 | `--env <files>` | Comma-separated root-level `.env` files to copy (legacy; auto-copy covers this) |
@@ -280,7 +280,7 @@ JSON output (`--json`) embeds the same `exitCode` inside `error` for parsing wit
 
 | Variable | Effect |
 |---|---|
-| `WORKTREE_ROOT` | Override default `.work/trees/` root directory |
+| `WORKTREE_ROOT` | Override default `.work/worktrees/` root directory |
 | `WORKTREE_AGENT_CMD` | Override the "Next steps" CLI hint (for runtimes the script can't auto-detect) |
 | `WORKTREE_*` (exported to hooks) | `NAME`, `BRANCH`, `ID`, `PORT_BASE`, `PATH`, `SOURCE` + `PORT`, `COMPOSE_PROJECT_NAME` |
 
