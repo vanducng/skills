@@ -11,7 +11,7 @@ NAME="$(require_name "${1:-}")"
 DIR="$(profile_dir "$NAME")"
 PORT="$(port_for "$NAME")"
 
-command -v browse >/dev/null 2>&1 || die "'browse' CLI not on PATH. Install: npm i -g @browserbasehq/browse-cli"
+command -v browse >/dev/null 2>&1 || die "'browse' CLI not on PATH. Install: npm install -g @browserbasehq/browse-cli (registry 'browse' is a different CLI without 'env')"
 
 if ! cdp_alive "$PORT"; then
   if [[ ! -d "$DIR" ]]; then

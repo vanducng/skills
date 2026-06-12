@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 48 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 52 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -21,7 +21,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
 | Area | Skills |
 | --- | --- |
-| Browser automation | `vd:browser`, `vd:browser-profile`, `vd:browser-trace` |
+| Browser automation and e2e | `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-testing`, `vd:web-perf` |
 | Web and frontend | `vd:webdesign`, `vd:opendesign`, `vd:fastreact` |
 | Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |

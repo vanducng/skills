@@ -44,7 +44,7 @@ curl -i ...                 # reproduce the failing request, capture before/afte
 - Hard reload from a clean state (incognito or cleared cache).
 - Reproduce the original failing flow end-to-end.
 - Screenshot before/after if visual.
-- For UI fixes, use Chrome MCP / `ck:chrome-devtools` to verify in a real browser, not just unit tests.
+- For UI fixes, use Chrome MCP / `vd:web-e2e` to verify in a real browser, not just unit tests.
 - Run the e2e suite if one exists for the affected flow.
 
 ## Cross-cutting
