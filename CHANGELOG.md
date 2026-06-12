@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.40.0](https://github.com/vanducng/skills/compare/v0.39.1...v0.40.0) (2026-06-12)
+
+
+### Features
+
+* add web e2e testing skill family ([#157](https://github.com/vanducng/skills/issues/157)) ([68fc8f7](https://github.com/vanducng/skills/commit/68fc8f7d49c5922faa9e29d5bb21bee2759d88f6))
+
 ## [0.39.1](https://github.com/vanducng/skills/compare/v0.39.0...v0.39.1) (2026-06-12)
 
 
