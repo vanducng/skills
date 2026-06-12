@@ -126,13 +126,14 @@ else
     echo "ULTRACOOK_BRANCH must be set when not using --reuse" >&2
     exit 2
   fi
-  # Worktree convention: sibling dir next to current repo, named ${repo}-${slug}.
-  PARENT_DIR="$(dirname "$REPO_ROOT")"
-  WORKTREE_PATH="${PARENT_DIR}/${REPO_NAME}-${SLUG}"
+  # Worktree convention: <repo-root>/.worktrees/${repo}-${slug}
+  # (top-level .worktrees/, same as the vd:worktree skill).
+  TREES_DIR="${REPO_ROOT}/.worktrees"
+  WORKTREE_PATH="${TREES_DIR}/${REPO_NAME}-${SLUG}"
   # Collision handling: suffix -2, -3, ... if path exists.
   i=2
   while [ -e "$WORKTREE_PATH" ]; do
-    WORKTREE_PATH="${PARENT_DIR}/${REPO_NAME}-${SLUG}-${i}"
+    WORKTREE_PATH="${TREES_DIR}/${REPO_NAME}-${SLUG}-${i}"
     i=$((i + 1))
     if [ "$i" -gt 10 ]; then
       echo "Refusing to create worktree: 10+ collisions for ${REPO_NAME}-${SLUG}" >&2
@@ -148,6 +149,15 @@ fi
 # ── Create worktree (skip on --reuse) ─────────────────────────────────────────
 
 if [ "$ULTRACOOK_REUSE_WORKTREE" = "0" ]; then
+  mkdir -p "$TREES_DIR"
+  # Keep git status clean when the repo does not ignore .worktrees/ yet
+  if ! git -C "$REPO_ROOT" check-ignore -q .worktrees 2>/dev/null; then
+    COMMON_DIR="$(git -C "$REPO_ROOT" rev-parse --git-common-dir)"
+    case "$COMMON_DIR" in /*) ;; *) COMMON_DIR="${REPO_ROOT}/${COMMON_DIR}" ;; esac
+    mkdir -p "${COMMON_DIR}/info"
+    grep -qxF '/.worktrees/' "${COMMON_DIR}/info/exclude" 2>/dev/null \
+      || echo '/.worktrees/' >> "${COMMON_DIR}/info/exclude"
+  fi
   # If branch already exists locally, attach to it; else create.
   if git show-ref --verify --quiet "refs/heads/${ULTRACOOK_BRANCH}"; then
     git worktree add "$WORKTREE_PATH" "$ULTRACOOK_BRANCH" >/dev/null

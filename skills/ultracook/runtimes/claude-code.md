@@ -120,7 +120,7 @@ The "Resume mode" mirrors `scripts/status.sh`'s auto-detect logic. **Phase 5's k
    - branch name (suggested from slug; skip when `--reuse`)
    - autonomy (manual / semi / auto; default semi)
 2. Computes slug from short goal (kebab-case, max 40 chars).
-3. Optionally creates a worktree: `git worktree add ../{repo}-{slug} -b {branch}` (skip if `--reuse`).
+3. Optionally creates a worktree: `git worktree add .worktrees/{repo}-{slug} -b {branch}` (standard `.worktrees/` location) (skip if `--reuse`).
 4. Writes `<state-base>/{date}-{slug}/goal.yaml` + `state.json` (terminal=null, current_phase=intake-complete). State base = `$VD_STATE_PATH` → `<git-root>/.work/state` (when `.work` exists) → `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default).
 5. Prints the goal-dir path so the next step (Phase 2 `resolve`) can chain.
 

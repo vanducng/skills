@@ -1,8 +1,8 @@
 ---
 name: worktree
-description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under .work/worktrees/, auto-copies .env files (nested included), assigns each worktree a deterministic port block, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
+description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under a top-level .worktrees/ dir, auto-copies .env files (nested included), assigns each worktree a deterministic port block, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
 license: MIT
-argument-hint: "[feature-description] | [project] [feature] | status | list | ports | prune | remove <name>"
+argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | remove <name>"
 metadata:
   author: vanducng
   version: "2.0.0"
@@ -21,19 +21,19 @@ Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run
 | `vd:ship` | Is this branch ready to land? | Tests → review → version → PR |
 | `vd:scout` / `vd:plan` | What am I going to build? | Reports + phase files |
 
-## Standard location: `.work/worktrees/`
+## Standard location: `.worktrees/`
 
-All worktrees live at **`<git-root>/.work/worktrees/<repo>-<feature>/`** — one rule for every repo type:
+All worktrees live at **`<git-root>/.worktrees/<repo>-<feature>/`** — one rule for every repo type:
 
-- **Standalone** → `<repo>/.work/worktrees/`
-- **Monorepo** → `<monorepo-root>/.work/worktrees/`
-- **Submodule** → topmost superproject's `.work/worktrees/`
+- **Standalone** → `<repo>/.worktrees/`
+- **Monorepo** → `<monorepo-root>/.worktrees/`
+- **Submodule** → topmost superproject's `.worktrees/`
 
-`.work/` is the gitignored agent-artifact umbrella (plans, reports, journals — and now trees). The script auto-appends `/.work/worktrees/` and `.env.worktree` to `.git/info/exclude` when the repo doesn't already ignore them, so `git status` stays clean without touching tracked files.
+`.worktrees/` is a **top-level sibling of the `.work/` artifact umbrella**, deliberately not nested under it. Worktrees are full checkouts (heavy, contain source), so nesting them inside `.work/` would pollute artifact globs (`reports/`, `plans/`) and bloat the umbrella. The script auto-appends `/.worktrees/` and `.env.worktree` to `.git/info/exclude` when the repo doesn't already ignore them, so `git status` stays clean without touching tracked files.
 
-**Hazard:** `git clean -fdx` in the main checkout can delete in-repo worktrees (single `-f` skips dirs containing `.git`, double `-ff` does not). Run `prune` after any aggressive clean.
+**Hazard:** `git clean -fdx` in the main checkout can delete in-repo worktrees (single `-f` skips dirs containing `.git`, double `-ff` does not). Run `clean` afterward to tidy stale metadata.
 
-**Overrides:** `--worktree-root <path>` flag → `WORKTREE_ROOT` env → `.work/worktrees` default. Pre-2.0 worktrees in sibling `worktrees/` dirs keep working (`list`/`status`/`remove` find them via git); new ones land in `.work/worktrees/`.
+**Overrides:** `--worktree-root <path>` flag → `WORKTREE_ROOT` env → `.worktrees` default. Older worktrees in sibling `worktrees/` or `.work/worktrees/` dirs keep working (`list`/`status`/`remove`/`clean` find them via git); new ones land in `.worktrees/`.
 
 ## Script path
 
@@ -142,7 +142,7 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs create "<PROJECT>" "<SLUG
 | `--post-create-hook <x>` | Explicit hook script path or shell command (overrides auto-detect) |
 | `--no-post-create-hook` | Disable hook auto-detection |
 | `--no-pre-remove-hook` | Skip `.worktree/hooks/pre-remove` teardown on remove |
-| `--worktree-root <path>` | Override default `.work/worktrees/` location |
+| `--worktree-root <path>` | Override default `.worktrees/` location |
 | `--json` | Machine-readable output |
 | `--dry-run` | Preview without touching disk (includes `portBase`) |
 | `--env <files>` | Comma-separated root-level `.env` files to copy (legacy; auto-copy covers this) |
@@ -235,14 +235,23 @@ docker compose -p "$COMPOSE_PROJECT_NAME" down -v 2>/dev/null || true
 | Command | Usage | Purpose |
 |---|---|---|
 | `create` | `create [project] <feature>` | Create worktree + branch + env + ports |
-| `remove` | `remove <name-or-path>` | Backup env files → pre-remove hook → remove worktree + branch |
+| `remove` | `remove <name-or-path>` | Remove **one** worktree: backup env → pre-remove hook → remove + delete branch |
+| `clean` | `clean [--merged\|--stale] [--force] [--yes]` | Sweep **all** dead worktrees + prune metadata to free disk |
 | `info` | `info` | Repo type, base branch, projects, worktree location |
 | `list` | `list` | All existing worktrees (normalized paths) |
-| `status` | `status` | Health audit + base-branch divergence per worktree |
+| `status` | `status` | Health audit + divergence + disk usage; flags merged/prunable + reclaimable total |
 | `ports` | `ports` | Port block assignment per worktree |
-| `prune` | `prune [--dry-run]` | Clean stale worktree metadata |
 
-`remove` rescues untracked `.env*` files (with any edits made in the worktree) to `<trees-root>/.env-backups/<worktree-name>/` before deletion.
+**`remove` vs `clean`:** `remove` takes a name and removes that one. `clean` takes no target — it finds every worktree whose branch is merged into its base or gone from the remote, shows them with disk sizes (dry-run by default), and removes them on `--yes`. `clean` also prunes stale git metadata (the old `prune` command folded in here). Both rescue untracked `.env*` files to `<trees-root>/.env-backups/<name>/` before deletion.
+
+```bash
+# See what's reclaimable (safe, read-only)
+node $HOME/skills/skills/worktree/scripts/worktree.cjs clean
+# Actually free the disk
+node $HOME/skills/skills/worktree/scripts/worktree.cjs clean --yes
+# Only merged branches; include dirty ones
+node $HOME/skills/skills/worktree/scripts/worktree.cjs clean --merged --force --yes
+```
 
 ## JSON output fields (high-signal)
 
@@ -280,7 +289,7 @@ JSON output (`--json`) embeds the same `exitCode` inside `error` for parsing wit
 
 | Variable | Effect |
 |---|---|
-| `WORKTREE_ROOT` | Override default `.work/worktrees/` root directory |
+| `WORKTREE_ROOT` | Override default `.worktrees/` root directory |
 | `WORKTREE_AGENT_CMD` | Override the "Next steps" CLI hint (for runtimes the script can't auto-detect) |
 | `WORKTREE_*` (exported to hooks) | `NAME`, `BRANCH`, `ID`, `PORT_BASE`, `PATH`, `SOURCE` + `PORT`, `COMPOSE_PROJECT_NAME` |
 
@@ -289,7 +298,7 @@ JSON output (`--json`) embeds the same `exitCode` inside `error` for parsing wit
 - All operations are **idempotent and reversible** except branch deletion via `remove` (which checks for unmerged commits).
 - Secrets never leave the machine: env copying is checkout → worktree on the same filesystem.
 - `status` normalizes the main checkout path in submodule repos before reporting health.
-- `prune --dry-run` is the safe first pass when auditing stale metadata.
+- `clean` (no `--yes`) is the safe first pass — it lists removable worktrees + reclaimable disk without changing anything.
 - The script has **no machine-specific assumptions** — `git`, Node.js ≥18, standard library only.
 
 ## Workflow position
