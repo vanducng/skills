@@ -23,7 +23,7 @@ Check **in order**:
 
 When neither the MCP tools nor the REST fallback are available:
 
-1. Resolve **project root**: `git rev-parse --show-toplevel` (fallback to CWD if not a git repo).
+1. Resolve **project root**: `git rev-parse --show-toplevel` (fallback to CWD if not a git repo). Inside a git worktree this correctly returns the worktree itself — `.mcp.json` must live at the working root the session runs in, so the MCP registers for that session.
 2. Derive **project name** = `basename` of the project root.
 3. If `<project_root>/.mcp.json` does **not** exist, create it with this exact template (substitute `<project_name>`):
 
@@ -315,7 +315,7 @@ If any check fails: STOP. Use `update_element` or delete + recreate. Re-screensh
 | Projects | `list_projects`, `switch_project` |
 | Conversion | `create_from_mermaid` (low-quality preview only) |
 
-When exporting through `export_scene` or `export_to_image`, hand off an openable output location:
+When exporting through `export_scene` or `export_to_image`, write finalized images into the injected `Visuals:` path (it resolves to the main repo's `.work/visuals/` even from a worktree, so exports survive `worktree clean`); fall back to a temp dir only when no `Visuals:` path was injected. Then hand off an openable output location:
 - Clickable absolute file link: `[diagram.png](/absolute/path/to/diagram.png)`
 - Plain browser URI when useful: `file:///absolute/path/to/diagram.png`
 - Remote share URL from `export_to_excalidraw_url`, if generated

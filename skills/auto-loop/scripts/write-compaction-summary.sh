@@ -12,7 +12,7 @@ cd "$ws"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(dirname "$SCRIPT_DIR")"
-state_dir=".auto-loop"
+source "$SCRIPT_DIR/_state-dir.sh"
 state_file="$state_dir/goal-state.json"
 heartbeat="$state_dir/heartbeat.json"
 gate_log="$state_dir/gate-history.jsonl"

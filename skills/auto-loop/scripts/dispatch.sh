@@ -19,7 +19,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(dirname "$SCRIPT_DIR")"
-WS="${VD_AUTOLOOP_WORKSPACE:-$(pwd)}"
+WS="${VD_AUTOLOOP_WORKSPACE:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 
 usage() {
   cat "$SKILL_DIR/references/usage.md"

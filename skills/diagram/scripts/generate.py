@@ -93,6 +93,29 @@ def find_git_root(start: Path | None = None) -> Path | None:
     return None
 
 
+def find_artifact_root(start: Path | None = None) -> Path | None:
+    """Main worktree root, so artifacts survive `git worktree remove`.
+
+    Equals find_git_root in a normal checkout; from inside a linked worktree it
+    points back to the main checkout (first entry of `git worktree list`). Use for
+    non-tracked outputs (.diagrams, .work/visuals) — NOT for docs/ which stay local.
+    """
+    git_root = find_git_root(start)
+    if git_root is None:
+        return None
+    try:
+        out = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=str(git_root), capture_output=True, text=True, timeout=5,
+        ).stdout
+        for line in out.splitlines():
+            if line.startswith("worktree "):
+                return Path(line[len("worktree "):].strip())
+    except Exception:
+        pass
+    return git_root
+
+
 def find_file_browser_server() -> Path | None:
     primary = find_skill_root().parent / "file-browser" / "scripts" / "server.cjs"
     if primary.exists():
@@ -111,7 +134,7 @@ def slugify(text: str) -> str:
 def resolve_output_dir(slug: str) -> tuple[Path, Path]:
     """Return (parent_diagrams_dir, session_dir)."""
     stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M")
-    git_root = find_git_root()
+    git_root = find_artifact_root()
     if git_root:
         parent = git_root / ".diagrams"
     else:
@@ -469,7 +492,7 @@ def _resolve_parent_dir(versioned: bool = False) -> Path:
     ck_visuals = os.environ.get("VD_VISUALS_PATH", "")
     if ck_visuals:
         return Path(ck_visuals)
-    git_root = find_git_root()
+    git_root = find_artifact_root()
     if git_root and (git_root / ".work").exists():
         return git_root / ".work" / "visuals"
     if git_root:

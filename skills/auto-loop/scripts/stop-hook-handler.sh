@@ -26,8 +26,9 @@ if [[ ! -t 0 ]]; then
 fi
 stop_hook_active=$(printf '%s' "$hook_payload" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
 
-# Resolve workspace from CWD (Claude Code runs hooks at workspace root).
-ws="$(pwd)"
+# Resolve workspace from the working-tree root (Claude Code runs hooks at the
+# workspace root; the worktree itself when inside one — keeps the cache tree-local).
+ws="${VD_AUTOLOOP_WORKSPACE:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 state_dir="$ws/.auto-loop"
 heartbeat="$state_dir/heartbeat.json"
 state_file="$state_dir/goal-state.json"
