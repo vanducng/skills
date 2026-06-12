@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.39.1](https://github.com/vanducng/skills/compare/v0.39.0...v0.39.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* **worktree:** make artifact paths worktree-aware in path-resolving skills ([#154](https://github.com/vanducng/skills/issues/154)) ([5600457](https://github.com/vanducng/skills/commit/5600457aa16a47dd8690843068f2057b2f89bee2))
+
 ## [0.39.0](https://github.com/vanducng/skills/compare/v0.38.0...v0.39.0) (2026-06-12)
 
 
