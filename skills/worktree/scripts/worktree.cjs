@@ -18,7 +18,7 @@
  *   --prefix <type>        Branch prefix (feat|fix|refactor|docs|test|chore|perf)
  *   --base <branch>        Override auto-detected base branch (default: dev→develop→main→master)
  *   --checkout-submodules  Initialize submodules in the new worktree after create
- *   --worktree-root <path> Explicit worktree directory (default: <git-root>/.work/trees)
+ *   --worktree-root <path> Explicit worktree directory (default: <git-root>/.work/worktrees)
  *   --json                 Output in JSON format for LLM consumption
  *   --env <files>          Comma-separated list of .env files to copy (legacy)
  *   --no-copy-env          Skip auto-copy of untracked .env* files
@@ -480,17 +480,17 @@ function validateWorktreeRoot(rootPath) {
   return { valid: false, error: `Cannot create worktree directory: parent path does not exist: ${parent}` };
 }
 
-// Standard worktree location: <topmost-git-root>/.work/trees/
+// Standard worktree location: <topmost-git-root>/.work/worktrees/
 // One rule for all repo types — standalone, monorepo, submodule (worktrees
 // land at the superproject root). The .work umbrella is gitignored (or
 // auto-excluded via .git/info/exclude), so worktrees never show as noise.
 const UMBRELLA_DIR = '.work';
-const TREES_SUBDIR = 'trees';
+const TREES_SUBDIR = 'worktrees';
 
 // Determine the worktree root directory with priority:
 // 1. Explicit --worktree-root flag (Claude's decision)
 // 2. WORKTREE_ROOT env var (explicit override)
-// 3. <topmost-git-root>/.work/trees/ (standard umbrella location)
+// 3. <topmost-git-root>/.work/worktrees/ (standard umbrella location)
 function getWorktreeRoot(gitRoot, isMonorepo, explicitRoot = null) {
   // Priority 0: Explicit --worktree-root flag (Claude's decision)
   if (explicitRoot) {
@@ -515,7 +515,7 @@ function getWorktreeRoot(gitRoot, isMonorepo, explicitRoot = null) {
     return { dir: validation.path, source: 'WORKTREE_ROOT env' };
   }
 
-  // Priority 2: .work/trees at the topmost root (superproject for submodules)
+  // Priority 2: .work/worktrees at the topmost root (superproject for submodules)
   const topmostRoot = findTopmostSuperproject(gitRoot);
   const dir = path.join(topmostRoot, UMBRELLA_DIR, TREES_SUBDIR);
   const source = topmostRoot !== gitRoot
@@ -1880,7 +1880,7 @@ Options:
   --checkout-submodules    Initialize submodules in the new worktree after create
   --post-create-hook <x>   Explicit post-create script path or command (e.g. "make worktree-init")
   --no-post-create-hook    Disable auto-detection (.worktree/hooks/post-create, scripts/setup-worktree)
-  --worktree-root <path>   Explicit worktree directory (default: <git-root>/.work/trees)
+  --worktree-root <path>   Explicit worktree directory (default: <git-root>/.work/worktrees)
   --json                   Output in JSON format for LLM consumption
   --env <files>            Comma-separated list of .env files to copy (legacy)
   --no-copy-env            Skip auto-copy of untracked .env* files from source checkout
