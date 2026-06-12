@@ -1,0 +1,13 @@
+{
+  "name": "myapp",
+  "baseUrl": "https://myapp.test",
+  "profile": "myapp-dev",
+  "insecureTLS": true,
+  "health": [{ "url": "https://myapp.test/login", "expect": 200 }],
+  "checks": [{ "name": "queue-worker", "cmd": "pgrep -f 'artisan queue:(work|listen)'" }],
+  "auth": {
+    "strategy": "oauth-interactive",
+    "probeUrl": "https://myapp.test/dashboard",
+    "loginUrlPattern": "/login|accounts\\.google\\.com"
+  }
+}

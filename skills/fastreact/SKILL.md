@@ -54,7 +54,7 @@ Auth/RBAC/S3 patterns: `references/auth-rbac.md`.
 `make up` builds + starts postgres, then backend (migrate + seed on entrypoint), then frontend (nginx). Pick host ports that are free (`lsof -iTCP:<port>`; common conflicts with other local stacks). `make logs`, `make seed`, `make clean` (down -v resets DB). Local setup + entrypoint: `references/local-setup.md`.
 
 ### 6. Seed + verify end-to-end
-Seed deterministic test users per role. Verify the real flow with `agent-browser` (login → core feature → RBAC) and curl the API (incl. real S3 upload/delete). Loop on fixes until the stack is healthy and the flow passes.
+Seed deterministic test users per role. Verify the real flow in the browser via `vd:web-e2e` (scaffold `.e2e/config.json` from its compose-spa example: readyz gate, form login, persistent profile per role) — login → core feature → RBAC — and curl the API (incl. real S3 upload/delete). The `agent-browser` CLI works as a lighter alternative when traces aren't needed. Loop on fixes until the stack is healthy and the flow passes.
 
 ## Reusable assets
 - `scripts/scaffold.sh` — generates the project skeleton (run it; do not hand-create dirs).

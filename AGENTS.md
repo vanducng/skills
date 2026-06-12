@@ -24,9 +24,9 @@ When documenting skill handoffs or examples, use canonical skill IDs without a l
 
 The `skills/` directory is the source of truth for the catalog; `docs/` must track it. When you add, remove, or rename a skill — or materially change what one does — update the docs in the same change:
 
-- `docs/skills.md`: place the skill in the taxonomy tables and keep the catalog count accurate.
-- `docs/llms-full.txt`: mirror the same taxonomy for agents.
-- `docs/index.md`: update the skill-count and release-version metrics when they change.
+- `docs/content/skills.md`: place the skill in the taxonomy tables and keep the catalog count accurate.
+- `docs/content/index.mdx`: update the skill-count metric when it changes.
+- `llms.txt` / `llms-full.txt` are generated at docs build time by the starlight-llms-txt plugin — no manual edits.
 
 Validate before committing with `bash scripts/check-docs-site.sh --check`. A skill change that ships without the matching docs update is incomplete.
 

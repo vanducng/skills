@@ -1,0 +1,17 @@
+{
+  "name": "myapp",
+  "baseUrl": "http://localhost:8082",
+  "profile": "myapp-dev",
+  "boot": { "up": "make up", "down": "make down" },
+  "health": [
+    { "url": "http://localhost:8000/api/v1/readyz" },
+    { "url": "http://localhost:8082/" }
+  ],
+  "auth": {
+    "strategy": "form",
+    "probeUrl": "http://localhost:8082/",
+    "loginUrlPattern": "/login",
+    "selectors": { "email": "#signin-email", "password": "#signin-password" },
+    "credentials": { "source": "inline", "email": "admin@example.com", "password": "dev-seeded-only" }
+  }
+}
