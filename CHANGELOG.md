@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.39.0](https://github.com/vanducng/skills/compare/v0.38.0...v0.39.0) (2026-06-12)
+
+
+### Features
+
+* **worktree:** top-level .worktrees root, clean command, ultracook alignment ([#152](https://github.com/vanducng/skills/issues/152)) ([5f7d0e3](https://github.com/vanducng/skills/commit/5f7d0e341a2244c4215b4235844a37ae71d8a2e5))
+
 ## [0.38.0](https://github.com/vanducng/skills/compare/v0.37.0...v0.38.0) (2026-06-11)
 
 
