@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Launch headed Chrome for <profile-name>. Creates the user-data-dir on first run.
-# Refuses to open if a SingletonLock already exists (use `attach` instead).
+# Refuses to open if a live Chrome already owns the profile (use `attach` instead).
+# Stale locks from crashed/dead sessions are cleared automatically.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,7 +15,12 @@ PORT="$(port_for "$NAME")"
 require_chrome
 
 if is_open "$DIR"; then
-  die "profile '$NAME' is already open (SingletonLock present). Use profile-attach.sh, or profile-close.sh first."
+  die "profile '$NAME' is already open (pid $(lock_pid "$DIR")). Use profile-attach.sh, or profile-close.sh first."
+fi
+
+if lock_present "$DIR"; then
+  warn "clearing stale SingletonLock left by dead Chrome (pid $(lock_pid "$DIR" || echo '?'))"
+  rm -f "$DIR/SingletonLock" "$DIR/SingletonCookie" "$DIR/SingletonSocket"
 fi
 
 if [[ ! -d "$DIR" ]]; then

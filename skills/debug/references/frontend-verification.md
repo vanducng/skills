@@ -1,6 +1,6 @@
 # Frontend Verification
 
-Visual verification of frontend changes via Chrome MCP (Claude Chrome Extension) or `ck:chrome-devtools` skill fallback.
+Visual verification of frontend changes via Chrome MCP (Claude Chrome Extension) or the `vd:browser` / `vd:web-e2e` stack as fallback.
 
 ## Applicability check
 
@@ -17,7 +17,7 @@ If none match, skip this technique.
 Check via `ListMcpResourcesTool` for tools prefixed `chrome__` (e.g. `chrome__navigate`, `chrome__screenshot`).
 
 - **Available** → Step 2A (Chrome MCP)
-- **Not available** → Step 2B (`ck:chrome-devtools` fallback)
+- **Not available** → Step 2B (`vd:browser` fallback)
 
 ## Step 2A — Chrome MCP available
 
@@ -51,22 +51,21 @@ chrome__get_content → DOM/text dump to verify rendered output matches expectat
 
 ## Step 2B — Chrome MCP not available
 
-Fall back to the `ck:chrome-devtools` skill (Puppeteer with bundled Chromium):
+Fall back to the `vd:browser` stack (`browse` CLI; against an authed app, attach to a `vd:browser-profile` profile first — see `vd:web-e2e`):
 
 ```bash
-SKILL_DIR="$HOME/.claude/skills/chrome-devtools/scripts"
-
-# First-time install
-npm install --prefix "$SKILL_DIR" 2>/dev/null
-
-# Screenshot + console error capture
-node "$SKILL_DIR/screenshot.js" --url http://localhost:3000 --output ./verification-screenshot.png
-node "$SKILL_DIR/console.js"    --url http://localhost:3000 --types error,pageerror --duration 5000
+browse open http://localhost:3000 --local
+browse screenshot -o ./verification-screenshot.png
+browse snapshot                       # rendered structure
+browse eval "JSON.stringify(window.__consoleErrors || [])"
+browse stop
 ```
 
-If `ck:chrome-devtools` is also unavailable, **skip visual verification** and note in the report:
+For console/network evidence over a whole session, capture with `vd:browser-trace` instead of polling.
 
-> Visual verification skipped — no Chrome MCP or chrome-devtools available.
+If `browse` is also unavailable (`npm install -g @browserbasehq/browse-cli`), **skip visual verification** and note in the report:
+
+> Visual verification skipped — no Chrome MCP or browse CLI available.
 
 ## Step 3 — analyze
 
@@ -87,7 +86,7 @@ Report block:
 
 ```
 ## Frontend verification
-- Method:        [Chrome MCP | chrome-devtools | skipped]
+- Method:        [Chrome MCP | browse | skipped]
 - Screenshot:    ./verification-screenshot.png
 - Console errors: [none | <list>]
 - Visual check:  [pass | issues found]

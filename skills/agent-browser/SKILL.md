@@ -1,0 +1,128 @@
+---
+name: agent-browser
+description: Drive web pages with the agent-browser CLI (Playwright engine) — snapshot with @e refs, fill/click, video recording, network mocking, persistent --profile and storage-state auth. The alternative driver to vd:browser for when you need WebM recordings of a flow, request mocking/blocking, device emulation, or Playwright wait semantics. Use when the user says "agent-browser", "record a video of the flow", "mock that API call in the browser", or asks for browser automation with built-in waiting.
+license: MIT
+compatibility: Requires the agent-browser CLI (`npm install -g agent-browser`, verified against 0.27.x) and a one-time `agent-browser install` to fetch its Chromium. Profile mode is mutually exclusive with CDP attach.
+argument-hint: "[url or flow description]"
+metadata:
+  author: vanducng
+  version: "0.1.0"
+  attribution: wraps vercel-labs/agent-browser; command-surface notes adapted from claudekit agent-browser (Apache-2.0)
+---
+
+# agent-browser
+
+The second browser-driving stack in this catalog, and deliberately so. The primary stack (`vd:browser-profile` + `vd:browser` + `vd:browser-trace`) wins whenever a persistent human-shareable login or trace evidence matters, because everything attaches to one CDP port. agent-browser brings what that stack lacks: **video recording** of flows, **network route mocking/blocking**, device emulation, and Playwright's auto-waiting — at the cost of the one constraint that decides everything: **`--profile` mode cannot combine with CDP connections**, so `vd:browser-trace` cannot observe a profile session and no human shares the window.
+
+Pick per task, not per preference:
+
+| Need | Use |
+|---|---|
+| Persistent login shared with the human, trace evidence, e2e flows | `vd:browser` trio via `vd:web-e2e` |
+| WebM recording of a flow, request mocking, device/geolocation emulation | this skill |
+| Drive the profile Chrome *and* record | not possible — profile ⊕ CDP; record on agent-browser's own profile instead |
+
+## Prerequisites
+
+```bash
+which agent-browser || npm install -g agent-browser
+agent-browser --version          # 0.27.x verified; ≥0.20 required for --state/--session-name
+agent-browser install            # one-time Chromium download
+```
+
+A background daemon (socket under `~/.agent-browser/`) keeps the browser alive between invocations; `idleTimeout` in `agent-browser.json` controls auto-shutdown.
+
+## Quick start
+
+```bash
+agent-browser open https://myapp.test/login
+agent-browser snapshot -i                  # interactive elements with @e refs
+agent-browser fill @e2 "user@example.com"
+agent-browser fill @e3 "secret"
+agent-browser click @e1
+agent-browser wait --url "**/dashboard"
+```
+
+## Auth persistence — three mechanisms, one decision
+
+| Mechanism | What persists | When |
+|---|---|---|
+| `--profile <dir>` / `AGENT_BROWSER_PROFILE` | Everything (launchPersistentContext: cookies, localStorage, service workers) | Long-lived logins for *this* stack; use a dedicated dir like `~/.cache/agent-browser-profiles/<app>` — never a real Chrome profile (macOS keychain encryption breaks it) |
+| `state save/load <file>` or `--state` | Cookies + storage snapshot | Portable, per-repo (gitignored `.browser/auth.json` convention); pairs with CI |
+| `--session-name <name>` | Auto-saved/restored session state | Convenience for recurring tasks |
+
+Profile mode excludes `--cdp`, `--state`, and extensions — documented upstream, not a bug to debug.
+
+## Command surface (high-traffic subset)
+
+```bash
+agent-browser snapshot -i | -c | -d 3 | -s "nav"        # refs, compact, depth, scoped
+agent-browser click|dblclick|hover @e1 · fill|type @e2 "text" · press Enter
+agent-browser get text|html|value|attr|title|url|count|box [@ref|selector]
+agent-browser wait @e1 | --text "Done" | --url "**/x" | --idle | --fn "() => window.ready"
+agent-browser find role|text|label|placeholder|testid <value>
+agent-browser screenshot [--full] [-o f.png] · pdf -o page.pdf
+agent-browser record start [out.webm] · record stop · record restart
+agent-browser network route "**/api/*" --body '{"data":[]}' · --abort · network requests
+agent-browser cookies|storage local|state save f.json
+agent-browser viewport 1920 1080 · device "iPhone 14" · color-scheme dark
+agent-browser tabs · tab new|<n>|close · frame <n> · dialog accept · eval "expr"
+agent-browser --session <name> ...                       # parallel isolated instances
+agent-browser -p browserbase ...                         # cloud (BROWSERBASE_API_KEY)
+```
+
+`--json` on any command for machine-readable output. Full reference: `agent-browser --help` and the upstream README.
+
+## Recipes
+
+**Record an e2e flow** (e.g. evidence for a UI bug report):
+
+```bash
+agent-browser --profile ~/.cache/agent-browser-profiles/myapp open https://myapp.test
+agent-browser record start flow.webm
+# ... drive the flow via snapshot/click/fill ...
+agent-browser record stop
+```
+
+**Mock an external API during a flow** — the answer to "test the UI without hitting the real vendor" (RetellAi-style test calls):
+
+```bash
+agent-browser network route "**/api.vendor.com/**" --body '{"ok":true}'
+# drive the flow; the page sees the mock
+agent-browser network unroute "**/api.vendor.com/**"
+```
+
+**Reuse a login across runs** (repo-local, gitignored):
+
+```bash
+agent-browser open https://myapp.test/login   # log in once (headed: --headed)
+agent-browser state save .browser/auth.json
+# later runs:
+agent-browser --state .browser/auth.json open https://myapp.test/dashboard
+```
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `command not found` after install | Stale bin symlink from another tool's vendored copy | `rm $(which agent-browser); npm i -g agent-browser` |
+| Profile flags seem ignored | Pre-0.2x version | `npm i -g agent-browser@latest` (`--state`/`--session-name` landed in 0.2x) |
+| Refs go stale | Page changed since snapshot | Re-run `snapshot -i` after every navigation/mutation |
+| Can't trace a profile session | Profile ⊕ CDP exclusivity | Use the `vd:browser` trio when trace evidence is required |
+| Logins vanish on real-Chrome profile reuse | macOS keychain cookie encryption | Dedicated automation profile, log in once there |
+
+## Security
+
+- `state` files and profile dirs are bearer credentials: gitignore `.browser/`, never commit, never print.
+- `network route` mocks are visible app-wide in that session — unroute before measuring anything real.
+
+## Integration points
+
+- **`vd:web-e2e`** — flows that need video or mocking can run on this driver; note in the flow file that trace assertions don't apply.
+- **`vd:browser`** — the default driver; this skill is the documented alternative, not a replacement.
+- **`vd:gopass`** — credential source for scripted logins.
+
+## Future (deliberately out of scope for MVP)
+
+- Browserbase cloud recipes beyond `-p browserbase` (the `vd:browser` skill owns cloud contexts).
+- Wiring `--state` exports into `vd:web-testing`'s storageState replay.

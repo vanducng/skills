@@ -5,6 +5,7 @@
 set -euo pipefail
 
 PROFILES_ROOT="${BROWSER_PROFILE_ROOT:-$HOME/.claude/browser-profiles}"
+PROFILES_ROOT="${PROFILES_ROOT%/}"
 CHROME_BIN="${BROWSER_PROFILE_CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
 PORT_BASE=9300
 PORT_RANGE=100
@@ -32,9 +33,31 @@ port_for() {
   echo $((PORT_BASE + sum % PORT_RANGE))
 }
 
+# SingletonLock is a dangling symlink to "<hostname>-<pid>"; -f/-e follow it and see nothing.
+lock_present() {
+  local dir="${1%/}"
+  [[ -L "$dir/SingletonLock" || -e "$dir/SingletonLock" ]]
+}
+
+lock_pid() {
+  local dir="${1%/}" target
+  target="$(readlink "$dir/SingletonLock" 2>/dev/null || true)"
+  [[ -n "$target" ]] && echo "${target##*-}"
+}
+
+chrome_owns_dir() {
+  local pid="$1" dir="${2%/}" cmd
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  cmd="$(ps -p "$pid" -o command= 2>/dev/null)" || return 1
+  # Exact-arg match: a substring test would let /x/app claim /x/app-2's Chrome.
+  [[ "$cmd" == *"--user-data-dir=$dir "* || "$cmd" == *"--user-data-dir=$dir" ]]
+}
+
 is_open() {
-  local dir="$1"
-  [[ -f "$dir/SingletonLock" ]]
+  local dir="${1%/}"
+  lock_present "$dir" || return 1
+  chrome_owns_dir "$(lock_pid "$dir" || true)" "$dir"
 }
 
 cdp_alive() {

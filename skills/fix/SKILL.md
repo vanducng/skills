@@ -175,7 +175,7 @@ Output: `✓ Verified + prevented — before/after attached, N tests added, M gu
 - **Airflow** — task logs (UI), `airflow tasks logs`, scheduler logs, `airflow tasks clear` for backfill
 - **Tracing** — APM (Datadog, Sentry), OpenTelemetry
 - **Secrets** — `sops -d` for infra repo (age key per `.mise.toml`); never paste decrypted contents into reports/commits
-- **Frontend verification** — Chrome MCP / `ck:chrome-devtools` to confirm UI fix
+- **Frontend verification** — Chrome MCP / `vd:web-e2e` (persistent-profile browser + trace evidence) to confirm UI fix
 - **Skills:** `vd:debug` (Step 2), `vd:scout` (Step 1), `vd:research` (unknown libs/CVEs surfaced mid-fix), `vd:gopass` (creds)
 
 ## Workflow position
