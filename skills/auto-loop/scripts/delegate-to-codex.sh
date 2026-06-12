@@ -47,8 +47,9 @@ else
   goal_text="$goal_arg"
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Concurrent-loop guard
-state_dir=".auto-loop"
+source "$SCRIPT_DIR/_state-dir.sh"
 heartbeat="$state_dir/heartbeat.json"
 if [[ -f "$heartbeat" ]]; then
   pid=$(jq -r '.pid // empty' "$heartbeat" 2>/dev/null || true)
