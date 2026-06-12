@@ -21,7 +21,9 @@ for d in "$PROFILES_ROOT"/*/; do
   status="closed"
   if is_open "$d"; then
     status="open"
-    cdp_alive "$port" || status="stale"
+    cdp_alive "$port" || status="no-cdp"
+  elif lock_present "$d"; then
+    status="stale"
   fi
   size="$(du -sh "$d" 2>/dev/null | awk '{print $1}')"
   printf "%-25s  %-7s  %-5s  %-8s  %s\n" "$name" "$status" "$port" "$size" "$d"

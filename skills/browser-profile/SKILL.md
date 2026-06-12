@@ -78,13 +78,13 @@ $HOME/.claude/browser-profiles/
 ├── retell-staging/
 │   ├── Default/                 # Chrome user data (cookies.db, Local Storage/, IndexedDB/, Cache/, …)
 │   ├── DevToolsActivePort       # written by Chrome on launch; contains the actual port + WS path
-│   ├── SingletonLock            # presence => profile is currently open
+│   ├── SingletonLock            # dangling symlink to "<hostname>-<pid>"; may be stale after a crash
 │   └── .browser-profile.pid     # PID of the Chrome process we launched (for `close`)
 └── goclaw-admin/
     └── ...
 ```
 
-`SingletonLock` is Chrome's own collision marker. We honor it.
+`SingletonLock` is Chrome's own collision marker — a *dangling symlink* whose target encodes `<hostname>-<pid>` (so `-f`/`-e` tests see nothing; only `-L` does). The scripts treat a profile as open only when that PID is a live Chrome whose command line carries this `--user-data-dir`; stale locks left by crashed sessions are cleared automatically on `open`.
 
 ## Security
 
@@ -97,13 +97,15 @@ $HOME/.claude/browser-profiles/
 
 - **`vd:cook` flows that hit authenticated dashboards** — start a step with `profile-attach.sh <name>` so the `browse` CLI is pre-pointed at the right session.
 - **`vd:browser-trace`** — attaches as a third CDP client on the same target, gets a full trace without interfering. Use the profile's deterministic port as the trace target.
-- **`ck:web-testing` Playwright fixtures** — export `storageState.json` once, then any Playwright test (local or CI) gets the same identity via `{ storageState: '<path>' }`.
+- **`vd:web-e2e`** — project-aware full e2e on top of these profiles: boot/health checks, auth-state probing, flows, and reports. The e2e config's `profile` field names a profile managed here.
+- **Playwright `storageState` fixtures** — export `storageState.json` once, then any Playwright test (local or CI) gets the same identity via `{ storageState: '<path>' }`.
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `open` refuses: "profile already open" | `SingletonLock` exists | Run `profile-close.sh <name>` first, or use `profile-attach.sh` if you intended to share |
+| `open` refuses: "profile already open" | A live Chrome owns this profile | Run `profile-close.sh <name>` first, or use `profile-attach.sh` if you intended to share |
+| `list` shows `no-cdp` | Chrome is running but not answering on the deterministic port (launched without the debug flag, or another Chrome took over) | `profile-close.sh <name>` then `profile-open.sh <name>` |
 | `attach` says "no CDP endpoint" | Chrome not running on that port | Run `profile-open.sh <name>` first |
 | Cookies disappear after sleep/wake | Service-worker eviction by Chrome | Re-login. Chrome's call, not ours. Open issue if reproducible. |
 | Port collision between two profiles | cksum hash collision | Rename one of them (e.g., add a `-2` suffix) |
