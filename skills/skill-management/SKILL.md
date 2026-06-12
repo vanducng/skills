@@ -1,6 +1,6 @@
 ---
 name: skill-management
-description: "Manage the lifecycle of agent skills in this repo — create new skills via ck:skill-creator, pull/sync upstream skills with the `vd` CLI, validate frontmatter, bump versions, and ship releases through conventional commits. Use when the user says 'create a skill', 'add a skill', 'sync skills', 'release vd', 'bump version', 'update tracked skills', 'validate skills', or asks how to publish a new vd version."
+description: "Manage the lifecycle of agent skills in this repo — create new skills via skill-creator, pull/sync upstream skills with the `vd` CLI, validate frontmatter, bump versions, and ship releases through conventional commits. Use when the user says 'create a skill', 'add a skill', 'sync skills', 'release vd', 'bump version', 'update tracked skills', 'validate skills', or asks how to publish a new vd version."
 license: MIT
 argument-hint: "[--create <name> | --add <src> | --list | --sync | --update | --remove <name> | --diff <name> | --doctor | --validate | --release [patch|minor|major]]"
 metadata:
@@ -11,7 +11,7 @@ metadata:
 # skill-management
 
 One entry point for everything skill-lifecycle in `vanducng/skills`:
-authoring (delegates to `ck:skill-creator`), vendoring (delegates to the
+authoring (delegates to `skill-creator`), vendoring (delegates to the
 `vd` CLI), and releases (driven by conventional commits + release-please).
 
 Use canonical skill IDs in docs and handoffs: write
@@ -19,13 +19,13 @@ Use canonical skill IDs in docs and handoffs: write
 runtime prefix when invoking it: slash in Claude Code, dollar in Codex.
 
 Pick the flag that matches user intent. Never re-implement what
-`ck:skill-creator` or `vd` already does — orchestrate them.
+`skill-creator` or `vd` already does — orchestrate them.
 
 ## Modes
 
 | Flag | What it does | Underlying tool |
 |---|---|---|
-| `--create [name]` | Author a new skill (eval-driven loop) | `ck:skill-creator` Skill |
+| `--create [name]` | Author a new skill (eval-driven loop) | `skill-creator` Skill |
 | `--list` | Show tracked skills from `skills.toml` | `vd list` |
 | `--add <src>` | Track a new upstream skill | `vd add` |
 | `--sync` | Vendor tracked skills into `skills/` | `vd sync` |
@@ -55,11 +55,11 @@ If no flag is given, ask the user which lifecycle stage they want
 
 ## --create
 
-Delegate. Invoke the `ck:skill-creator` skill via the Skill tool with
+Delegate. Invoke the `skill-creator` skill via the Skill tool with
 the user's name/description as args:
 
 ```
-Skill(skill="ck:skill-creator", args="<name-or-description>")
+Skill(skill="skill-creator", args="<name-or-description>")
 ```
 
 After the creator finishes its eval-driven loop and produces a skill
@@ -83,7 +83,7 @@ $EDITOR skills/<name>/SKILL.md
 bash scripts/validate.sh
 ```
 
-Prefer `ck:skill-creator` whenever the skill is non-trivial (has
+Prefer `skill-creator` whenever the skill is non-trivial (has
 scripts, references, or needs description tuning).
 
 ## --add / --list / --sync / --update / --remove / --diff / --doctor

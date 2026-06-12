@@ -98,7 +98,7 @@ Multi-step investigation → task-management-debugging.md
 - **Codebase scout** — `vd:scout` to map files before diving in
 - **Frontend** — Chrome MCP / `vd:web-e2e` (persistent-profile browser + trace evidence) for visual verification
 - **Secrets** — `sops -d` for the infra repo (age key per `.mise.toml`); never paste decrypted contents into reports
-- **Skills:** `vd:research` for unknown libs; `ck:problem-solving` when stuck; `vd:gopass` for credentials
+- **Skills:** `vd:research` for unknown libs; `problem-solving` when stuck; `vd:gopass` for credentials
 
 ## Red flags — STOP and follow process
 
