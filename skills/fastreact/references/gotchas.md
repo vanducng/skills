@@ -50,7 +50,7 @@ The visible "Choose files" button hides the real `<input type=file>`; target the
 These recurred across the reference build's review rounds. They're skill-scoped design defaults (rule-miner correctly rejected them as *global* rules; apply them here, not everywhere).
 
 ### 11. Default to minimal, consistent, data-focused UI
-Prioritize content over decoration. Do NOT add, unless explicitly asked: oversized icons (clamp stat-card icons ~16px in a ~30px badge; trend arrows ≤14px), decorative cards, drag-drop zones (a single Upload button is enough), a global top search bar, a notifications bell, or security/encryption boilerplate copy in the product chrome (keep that in a Help/Learn-more page). Drop metadata clutter (e.g. message-count suffixes). Truncate overflowing labels to their control. Keep buttons mockup-sized (e.g. h-9, not h-12).
+Prioritize content over decoration. Do NOT add, unless explicitly asked: oversized icons (clamp stat-card icons ~16px in a ~30px badge; trend arrows ≤14px), decorative cards, drag-drop zones (a single Upload button is enough), a global top search bar, a notifications bell, or security/encryption boilerplate copy in the product chrome (keep that in a Help/Learn-more page). Drop metadata clutter (e.g. message-count suffixes). Truncate overflowing labels to their control. Keep buttons mockup-sized (e.g. h-9, not h-12). When a table has more than a couple of action filters, use a select/dropdown instead of a flat pill row that wraps badly.
 
 ### 12. Don't frame one feature as the whole product
 Copy and IA should stay extensible (e.g. "your workspace for hire data, starting with uploads" — not "the upload portal"). A first feature is the first of many.
@@ -65,7 +65,7 @@ No em-dash (—) anywhere — UI copy, placeholders, comments, generated text. U
 The shadcn `DialogContent` must render the top-right `DialogPrimitive.Close` (X). Put it in `components/ui/dialog.tsx` once so every dialog (upload, confirm, etc.) inherits it; don't rely on click-outside/Esc alone.
 
 ### 16. Tables should hold their shape with few rows
-Give the `DataTable` body a consistent min-height (e.g. `min-h-[420px]`, ~ pageSize rows) and keep the pagination footer pinned below. A 1-row table that collapses to a stub looks broken; a fixed frame reads as a real table. (Common, tasteful; not a scroll hack.)
+Give the `DataTable` body a consistent min-height (e.g. `min-h-[420px]`, ~ pageSize rows) and keep the pagination footer pinned below. A 1-row table that collapses to a stub looks broken; a fixed frame reads as a real table. (Common, tasteful; not a scroll hack.) Design all states: loading skeleton, empty database, filtered-empty, and error. Filtered-empty should show a compact message and a clear/reset action instead of a lonely "No rows" string floating in a huge frame.
 
 ### 17. Login footer + single version constant
 Add a centered login footer `© <Brand> · v<APP_VERSION>` and reuse the SAME `APP_VERSION` (one `src/config/version.ts`) in the sidebar status chip. The brand lockup should be a link to `/` (home).
@@ -110,3 +110,20 @@ Pinning `family = "postgres16"` with an 18 engine fails at APPLY (InvalidParamet
 
 ### 30. AWS SSM names/descriptions reject `+` and math symbols
 SSM patch-baseline (and similar) fields allow `\p{P}` punctuation but NOT `\p{S}` symbols, so a `+` in a description fails apply with a regex ValidationException. Use plain words/commas.
+
+## Later portal UI corrections
+
+### 31. Client-side table search only searches loaded rows
+If the API returns only the first page or a capped recent window, frontend search will silently miss valid records. Use client-side search only when the full result set is already loaded and small. For audit logs, files, users, or anything expected to grow, add backend query params (`q`, filters, sort, limit, offset) and include the active filter state in the query key.
+
+### 32. Avatar/photo display must be shared
+Google OAuth often provides a profile photo, but pages drift if each table/menu renders its own initials badge. Capture `picture` as `avatar_url` in the backend user model/schema, then use one frontend Avatar primitive everywhere: topbar, profile, user tables, audit rows, and menus. If no image exists, use the same initials and deterministic color helper in all locations.
+
+### 33. Profile pages should be useful, not tall side rails
+Profile/account screens are utility surfaces. Keep identity, editable display settings, theme, and recent activity balanced in a constrained layout. Cap recent activity and link to the audit view for long history. Do not let an uncapped activity feed stretch one column far past the rest of the page.
+
+### 34. Sticky elements must be tested in the real scroll container
+Many SPA shells scroll inside `<main>`, not `window`. `position: sticky` is relative to that scroll container, so a TOC or right rail can sit too low after scroll if the offset is guessed from the viewport. Test initial and scrolled positions in the running app, including dark mode if supported.
+
+### 35. Mobile E2E is part of frontend done
+Desktop screenshots can hide broken mobile filters, oversized login cards, clipped table actions, and horizontal overflow. After shell, login, table, profile, or sticky-layout changes, run browser checks at a mobile viewport and a desktop viewport against the Docker stack. Verify the logged-in route, not just a static mockup.

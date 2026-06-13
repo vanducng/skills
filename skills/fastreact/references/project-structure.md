@@ -36,10 +36,10 @@ Two apps in one repo, composed by `docker-compose.yml` at the root.
     │   ├── features/       vertical slices: <slice>/{schemas.ts, queries.ts, components/}
     │   │   └── shared/components/data-table.tsx   reusable paginated TanStack Table
     │   ├── components/
-    │   │   ├── ui/         hand-written shadcn primitives (Radix + cva + cn)
+    │   │   ├── ui/         hand-written shadcn primitives (Radix + cva + cn), avatar.tsx
     │   │   └── layout/     app-shell, app-sidebar (collapse rail), top-bar, brand
     │   ├── lib/            api-client (axios+interceptors), query-client, permissions,
-    │   │                   route-guards, theme, timezone, utils (cn)
+    │   │                   route-guards, theme, timezone, avatar-colors, utils (cn)
     │   ├── config/env.ts   Zod-validated import.meta.env (VITE_API_BASE_URL)
     │   ├── index.css       Tailwind + ported brand theme tokens (shadcn HSL vars)
     │   └── main.tsx        createRouter + RouterProvider
@@ -53,7 +53,7 @@ Two apps in one repo, composed by `docker-compose.yml` at the root.
 ## Naming conventions
 - Files: kebab-case, descriptive (a reader knows the purpose from the name).
 - Backend: `models/` = SQLModel `table=True`; `schemas/` = Pydantic (no envelope, return bare models; errors `{"detail": str}`). Router prefixes plural lowercase (`/files`, `/users`). Service methods = async static methods. Keep files focused.
-- Frontend: import a feature only via its `index.ts` barrel; no feature→feature imports (shared layer only). Query keys: `<thing>Keys = { all, list(), detail(id) }`.
+- Frontend: import a feature only via its `index.ts` barrel; no feature→feature imports (shared layer only). Query keys: `<thing>Keys = { all, list(), detail(id) }`. Keep avatars and table shells shared: one Avatar component, one deterministic fallback color helper, and one DataTable shell with loading, empty, filtered-empty, mobile toolbar, and pinned-pagination behavior.
 - One Alembic migration per schema change; hand-write `0001_init.py` to match models (don't rely on autogenerate for the first one).
 
 ## Reference implementation

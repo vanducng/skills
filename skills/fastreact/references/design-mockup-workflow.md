@@ -29,11 +29,19 @@ Before building, present the visual direction with concise preview options. Lock
 - Hand-write shadcn-style `components/ui/*` (Radix + cva) styled to the tokens.
 - Build each screen to MATCH the mockup. Re-screenshot the running app (Puppeteer or agent-browser) and diff against the mockup; fix drift.
 
+## Operational portal defaults
+- Use dense, quiet layouts for admin/client portals. Avoid marketing-page spacing, oversized hero type, decorative cards, and giant sparse panels unless the screen is truly a landing page.
+- Tables need a compact toolbar: search on the left, select/dropdown filters on the right for role, company, status, or action. On mobile, stack filters under search and keep actions reachable.
+- Design table states up front: loading skeleton, empty database, filtered-empty, error, and a stable table body height with pagination pinned below.
+- Profile and account pages should group identity, editable preferences, theme, and recent activity into balanced sections. Cap long activity lists and link to the full audit view when available.
+- Use one Avatar treatment across topbar, profile, tables, audit rows, and menus. If a Google image exists, use it; otherwise use initials with the same deterministic fallback color.
+
 ## Brand lockup gotcha
 If the wordmark stacks under/next to the icon via CSS grid (icon col1, name row1, tagline row2), the wordmark wrapper element needs `display: contents` so its children become grid items — otherwise the tagline renders inline next to the name. See `gotchas.md`.
 
 ## Docs / help pages
 - Put the table-of-contents on the RIGHT rail (content left), sticky on wide screens, hidden/stacked on narrow. A left TOC reads awkwardly.
+- If the app scrolls inside an internal `<main>` container instead of `window`, test sticky offsets in that container. `position: sticky` is relative to the scroll container, so a right-rail TOC can sit too low or fail to follow content if the top offset is guessed.
 - Manage help content as Markdown (react-markdown + remark-gfm), auto-generate the TOC from headings.
 - Keep client/tenant docs free of internal role tables and audit internals (those are internal-only).
 - Realign multi-step "how it works" blocks (number + label column, description column) so labels don't wrap awkwardly.
