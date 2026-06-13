@@ -136,7 +136,7 @@ If the plan and the codebase disagree (e.g. plan says "add to file X" but X has 
 After all files for the phase are written:
 
 - Run the full type-check / lint (not just per-file)
-- Run any smoke command the phase implies (start dev server, hit endpoint, run script)
+- Run the phase's `Verify` command if it has one (vd:plan writes a literal command line); else run any smoke command the phase implies (start dev server, hit endpoint, run script)
 - Walk each item in the phase's `Success Criteria` and confirm with evidence, not vibes (`curl /api/foo → 200, body matches`)
 
 If a success criterion fails: fix inside this phase. Don't tick it and move on.

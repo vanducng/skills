@@ -91,6 +91,13 @@ Decompose the approach into 3–7 phases. Rules:
 - **Last phase = integration + validation.** The plan ends with the system working end-to-end against success criteria.
 - **Each phase has a single owner concern.** "Add migration + endpoint + UI" is three phases. "Add migration" is one.
 - **Name phases with the verb.** `phase-03-add-rate-limit-middleware.md`, not `phase-03-rate-limit.md`.
+- **Phase-sizing ceiling.** A phase touches ≤5 files and ships in one focused session. Tripwires that mean *split it*: an `and` in the title, spanning two independent subsystems, or a Success-Criteria list past ~4 items.
+
+**Slicing strategy** — pick one per plan (they compose with dependency ordering):
+
+- **Vertical** (default) — each phase is one complete path through the stack, shippable on its own.
+- **Contract-first** — when work fans out across a shared interface, make Slice 0 *freeze the contract* (the API/type/schema), then later phases build against it in parallel. Stops integration churn.
+- **Risk-first** — sequence the riskiest unknown first (the spike that could invalidate the design), so a dead end is found cheaply before dependent work is built on it.
 
 Sketch the dependency graph in your reply (text or mermaid) before writing files. Catch ordering bugs cheap.
 
@@ -208,6 +215,10 @@ depends_on: [{phase ids}]
 
 ## Success Criteria
 - [ ] {observable — runs, returns X, no regression in Y}
+
+## Verify
+`{one command that proves this phase works — e.g. `npm test -- rate-limit`, `curl -s localhost:3000/health | jq .ok`}`
+<!-- The deterministic check cook runs at Step C. A command, not a checkbox. -->
 
 ## Risks
 - {risk} → {mitigation}
