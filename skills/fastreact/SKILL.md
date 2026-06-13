@@ -54,7 +54,7 @@ Auth/RBAC/S3 patterns: `references/auth-rbac.md`.
 `make up` builds + starts postgres, then backend (migrate + seed on entrypoint), then frontend (nginx). Pick host ports that are free (`lsof -iTCP:<port>`; common conflicts with other local stacks). `make logs`, `make seed`, `make clean` (down -v resets DB). Local setup + entrypoint: `references/local-setup.md`.
 
 ### 6. Seed + verify end-to-end
-Seed deterministic test users per role. Verify the real flow in the browser via `vd:web-e2e` (scaffold `.e2e/config.json` from its compose-spa example: readyz gate, form login, persistent profile per role) — login → core feature → RBAC — and curl the API (incl. real S3 upload/delete). The `agent-browser` CLI works as a lighter alternative when traces aren't needed. Loop on fixes until the stack is healthy and the flow passes.
+Seed deterministic test users per role. Verify the real flow in the browser via `vd:web-e2e` (scaffold `.e2e/config.json` from its compose-spa example: readyz gate, form login, persistent profile per role) — login → core feature → RBAC — and curl the API (incl. real S3 upload/delete). For frontend layout work, run desktop and mobile viewport checks against the Docker stack and verify no horizontal overflow, hidden action controls, stale bundles, or console errors. The `agent-browser` CLI works as a lighter alternative when traces aren't needed. Loop on fixes until the stack is healthy and the flow passes.
 
 ## Reusable assets
 - `scripts/scaffold.sh` — generates the project skeleton (run it; do not hand-create dirs).
@@ -72,3 +72,7 @@ Seed deterministic test users per role. Verify the real flow in the browser via 
 4. **Brand lockup grid:** if the wordmark stacks under the icon via CSS grid, the `.wm` wrapper needs `display:contents` so the `<b>`/`<span>` become grid items, else the tagline renders inline.
 5. **Ports:** other local stacks squat 5173/5432/8000/8080; pick free host ports in compose and set CORS + `VITE_API_BASE_URL` to match the chosen frontend origin/backend port.
 6. **Secrets:** `.env` is gitignored; scan staged files for key patterns (`AKIA…`, `GOCSPX-`) before any push.
+7. **Tables and search:** every table needs loading, empty, filtered-empty, and error states, plus a body frame that keeps pagination pinned. Client-side search is only acceptable when the full result set is loaded and small; otherwise add backend `q`, filter, sort, limit, and offset params.
+8. **Admin filters:** use a compact toolbar with search plus select/dropdown filters for role, company, status, and action. Avoid long flat pill rows that wrap badly on mobile.
+9. **Avatar consistency:** expose `avatar_url` from auth/user schemas when available, capture Google `picture`, and render one shared Avatar primitive everywhere (topbar, profile, user tables, audit rows). Fallback initials must use one deterministic color function.
+10. **Responsive verification:** after login, table, profile, or shell changes, run local browser E2E in desktop and mobile widths before shipping. Check screenshots, not just typecheck/build.
