@@ -151,7 +151,7 @@ If a success criterion fails: fix inside this phase. Don't tick it and move on.
 
 - Spawn a reviewer subagent: `Agent(subagent_type="code-reviewer", description="Review phase N changes", prompt="Review the diff for phase N at [plan-path]. Files touched: [list]. Check for: bugs, missed edge cases, security issues, style mismatch, broken contracts, premature abstractions, throwaway comments.")`. Fallback to `general-purpose` if no code-reviewer agent. Give it the diff and the phase's success criteria — **not your account of why the code is correct**; the independent look is only worth spawning if it isn't primed to agree.
 - Apply critical fixes inline before declaring the phase done.
-- Defer non-critical polish to a follow-up section in the phase's notes — don't let suggestions stall the phase.
+- Defer non-critical polish to a follow-up section in the phase's notes — don't let suggestions stall the phase. If the reviewer flags complexity (not bugs), run `vd:simplify` as a *separate* commit after the phase, never tangled into the feature diff.
 
 ### Step F — Update status
 
