@@ -132,9 +132,15 @@ _Captured during vd:plan on {YYYY-MM-DD}_
 
 ## Constraints accepted
 - **{constraint}** — {context}
+
+## Agent boundaries
+_Optional. Write only if the build has dangerous edges. cook and plan-audit honor these as guardrails._
+- **Always:** {things the implementer may do without asking — e.g. add tests, refactor within a touched file}
+- **Ask first:** {things needing a checkpoint — e.g. schema migrations, new dependencies, touching auth}
+- **Never:** {hard lines — e.g. delete prod data, edit generated files, commit secrets, change the public API}
 ```
 
-Keep it flat: bullets, not prose. The audit subagent treats listed non-goals as out-of-scope and won't report them as gaps.
+Keep it flat: bullets, not prose. The audit subagent treats listed non-goals as out-of-scope and won't report them as gaps; it treats `Ask first`/`Never` items as guardrails the plan must respect.
 
 ### `plan.md` template (≤80 lines)
 
