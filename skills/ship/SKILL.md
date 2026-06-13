@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[official|staging|beta] [--auto] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-journal] [--skip-docs] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.2.2"
+  version: "1.3.0"
 ---
 
 # Ship
@@ -87,6 +87,21 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
    auto-merge disabled), re-confirm CI state is `SUCCESS` **first** — GitHub's
    `mergeable` field reports merge *conflicts*, not CI status, so it is not a
    substitute for a green-CI check.
+   - **Read the named check list, never the watcher exit code.** `gh pr checks --watch`
+     exits **0 even when non-required checks fail** (only branch-protection-required
+     checks gate its exit) — treating that 0 as "green" merges a red PR. Always parse
+     the per-check states (`gh pr checks <n>` → look for any `fail`) before merging.
+     A path-filtered `skipping` is fine; a `fail` is not, required or not. (This exact
+     trap merged a PR whose whole test matrix was red.)
+12. **Ship acts on the *current* repo (cwd).** Before any `git`/`gh` step, confirm
+   the branch you mean to land lives in the cwd repo. When landing a sibling repo's
+   branch while a different repo is the working dir (e.g. shipping a skills repo mid-task
+   in a product repo), do **not** invoke the pipeline blindly — it targets cwd and can
+   push/PR the wrong repo. Scope every command with `git -C <repo>` / `gh -R <owner/repo>`,
+   or `cd` there first.
+13. **Auto-release repos** (release-please / semantic-release / changesets): do **not**
+   hand-edit `CHANGELOG.md` or the version file — the conventional-commit message drives
+   them and CI cuts the version. Detect the tooling (Step 14) and skip the manual bump.
 
 ## Pipeline
 
