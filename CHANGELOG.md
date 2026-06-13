@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.40.2](https://github.com/vanducng/skills/compare/v0.40.1...v0.40.2) (2026-06-13)
+
+
+### Bug Fixes
+
+* **cook,ship:** encode parallel-fan-out and merge-discipline learnings ([#162](https://github.com/vanducng/skills/issues/162)) ([07c4e21](https://github.com/vanducng/skills/commit/07c4e212122ab863bae8ec6a6af9b8dd5b8c483f))
+
 ## [0.40.1](https://github.com/vanducng/skills/compare/v0.40.0...v0.40.1) (2026-06-13)
 
 
