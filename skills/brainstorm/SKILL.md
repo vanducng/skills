@@ -222,6 +222,8 @@ After self-review, surface the file with an openable location and stop. Do not a
 
 > Brief saved to `[brainstorm-topic.md](/absolute/path/to/brainstorm-topic.md)` (`file:///absolute/path/to/brainstorm-topic.md`). Recommendation: **{Option X}**, runner-up **{Option Y}** if {condition}. Please review and tell me if you want changes — or say "plan it" and I'll hand off to `vd:plan`.
 
+If the decision is consequential and hard to reverse (datastore, framework, auth model, a public contract), offer to record it permanently: `vd:docs adr` writes an ADR under `docs/decisions/` capturing the why and the rejected alternatives. The brief is a working artifact; the ADR is the durable team-facing record.
+
 If the user requests changes, edit the brief and re-run the self-review checklist before re-surfacing. Only invoke `vd:plan` after explicit approval.
 
 **Read approval critically — not every "yes" is a real yes.** Watch for these and probe instead of proceeding:
