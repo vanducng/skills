@@ -7,7 +7,7 @@ compatibility: Requires Node 18+, the browse CLI (`npm install -g @browserbasehq
 argument-hint: "[status|--wait|flow-name] (run from the app repo; reads .e2e/config.json)"
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # web-e2e
@@ -101,11 +101,11 @@ node "$E2E" status --json     # full machine-readable result; exit 0 = READY
 
 ## Workflow
 
-1. **Ready the app** — `node "$E2E" status --wait --json`. Fix what's red before touching the browser: failed health = app down; failed check = e.g. start `php artisan queue:listen` before async flows.
-2. **Ensure auth** — on `logged-out`: `form` → drive the login form per `references/auth-strategies.md`; `token-inject` → always re-inject (skip probing); `oauth-interactive` → run `profile-open.sh <profile>` and ask the human to log in once, then re-run status. Never ask the human to run scripts — run them, ask only for the in-browser login.
-3. **Start evidence** — `vd:browser-trace` `start-capture.mjs` against the profile's port (in `status --json` output).
-4. **Drive the flow** — `profile-attach.sh <profile>`, then execute the flow file's steps with `browse open/snapshot/click/fill`. `browse fill` presses Enter by default — use `--no-press-enter` on every field except the final submit.
-5. **Stop + bisect** — `stop-capture.mjs`, `bisect-cdp.mjs`; `query.mjs errors` for exceptions and failed requests.
+1. **Ready the app** — `node "$E2E" status --wait --json`. Fix what's red before touching the browser: failed health = app down; failed check = e.g. start `php artisan queue:listen` before async flows. **Embedded-SPA gotcha:** for apps that bake the frontend into a server binary (Go `go:embed`, Rust `rust-embed`), a 200 only proves the *container* is up — it may serve a **stale** build. After any frontend change rebuild the image and confirm the *current* build is served (asset hash / `<title>` changed), not just that the port answers.
+2. **Ensure auth** — on `logged-out`: `form` → drive the login form per `references/auth-strategies.md`; `token-inject` → always re-inject (skip probing); `oauth-interactive` → run `profile-open.sh <profile>` and ask the human to log in once, then re-run status. **Dev auto-login** (`MIO_WEB_AUTH_MODE=dev`, seeded-session apps): the probe lands stable on the app, never on `loginUrlPattern` — treat as already-authed and skip the login drive entirely (set `auth.strategy: "none"`). Never ask the human to run scripts — run them, ask only for the in-browser login.
+3. **Start evidence** — `vd:browser-trace` `start-capture.mjs` against the profile's port (from `status --json`). **Args are positional, not flags** — `node "$BT/start-capture.mjs" <port> <run-id>` (a bare `--port` errors). Pick a stable `<run-id>` (e.g. the flow name); every later trace command takes it as its first positional arg.
+4. **Drive the flow** — `profile-attach.sh <profile>`, then execute the flow file's steps with `browse open/snapshot/click/fill`. `browse fill` presses Enter by default — use `--no-press-enter` on every field except the final submit. `browse snapshot` returns an a11y tree with `@e` refs; pipe it through `python3 -c` to slice the region you care about rather than dumping the whole tree. Capture `browse screenshot <path> --full-page` at key states — then `Read` the PNG back to *visually* confirm a render (the a11y tree won't show layout/spacing/color defects).
+5. **Stop + bisect** — run **in this order**, each with the same `<run-id>`: `stop-capture.mjs <run-id>` → `bisect-cdp.mjs <run-id>` (this produces `summary.json`; skipping it makes the next step error `no summary.json — run bisect-cdp.mjs first`) → `query.mjs <run-id> errors all` (console exceptions + failed requests) and `query.mjs <run-id> hosts all` (catches surprise external deps, e.g. an SPA pulling fonts off a CDN). A clean run = zero errors and only your own origin in `hosts`.
 6. **Verdict** — per-flow PASS/FAIL with absolute evidence paths, per `references/flows-and-reports.md`. Reports go to the hook-injected Reports path when present, else `<repo>/.e2e/runs/`.
 
 ## Troubleshooting
@@ -119,6 +119,9 @@ node "$E2E" status --json     # full machine-readable result; exit 0 = READY
 | Another app answers on the profile port | cksum port collision (100 slots) | Rename one profile |
 | External API calls fail mid-flow | Live third-party dependency (payments, voice APIs) | Mock at the network layer or scope the flow to exclude it |
 | Probe says logged-in on a fresh profile | Cold SPA boot: the client-side redirect to `/login` fires *after* JS boot + an auth API round-trip, slower than the settle window | Raise `auth.settleMs` (default 3000); server-side-redirecting probe URLs (Laravel `/dashboard` 302) don't have this race |
+| `boot.up` fails: port already allocated | Default ports (8080/5432/4222/9000) taken by other local containers — common on busy dev machines | Remap every published port via an env file (e.g. `18080`/`15432`/… range), `source` it before compose, and point `baseUrl`/`health[]` at the remapped ports. Keep the env file out of git. |
+| `trace: no summary.json` on `query.mjs` | `bisect-cdp.mjs <run-id>` was skipped (it's what writes `summary.json`) | Run `stop-capture` → `bisect-cdp` → `query`, each with the same run-id, in that order |
+| UI change "not showing" though code is merged | Server-embedded SPA serving a stale baked build | Rebuild the image (not just restart the container); verify the served asset hash / `<title>` changed before driving the flow |
 
 Chrome ≥136 ignores `--remote-debugging-port` on the *default* profile dir — a forward-looking constraint browser-profile already satisfies with dedicated dirs. Don't "simplify" to the real Chrome profile; on macOS its cookies are keychain-encrypted and unreadable to automation anyway.
 
