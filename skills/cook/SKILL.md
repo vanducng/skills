@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[plan-dir | plan.md | task] [--auto | --quick] [--tdd] [--no-test]"
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Cook
@@ -205,6 +205,7 @@ After the last phase passes:
 - **UI work** — Step C must include manual browser verification. Type errors and visual bugs are orthogonal.
 - **Library upgrades** — every phase ends with a smoke of one feature touched by the upgraded library. Don't lump smokes into a final QA phase.
 - **Bug fixes** (`--quick`) — write the test that reproduces the bug *first*, watch it fail, then fix. Without the failing test you have no proof the bug existed.
+- **Parallel fan-out** (phases cooked concurrently by separate agents in one checkout, e.g. via `Workflow`/`Task`) — four rules earn the speedup without corruption: (1) **scaffold the shared surface in the foundation phase** — route registry, barrel imports, type stubs — so parallel phases fill *disjoint* files and never both touch the registry; (2) **strict glob ownership per phase** + "commit only your paths, never `git add -A`"; the one phase that edits or deletes a shared file (the registry, the god-component) owns that edit *alone*; (3) **resume from uncommitted state on agent death** — long fan-outs lose agents to session limits and transient API socket drops mid-phase; recover by reading the uncommitted tree, amending the phase prompt with a `RESUME NOTE: read git status/diff, continue from there`, and re-running (`Workflow resumeFromRunId` returns completed phases from cache); (4) **run the full integrated gate at HEAD after the fan-out** — per-phase "DONE" claims don't catch cross-phase compile/test gaps, and a generated/gitignored dir (e.g. `proto/gen`) can throw phantom "undefined X" errors that look like a broken merge — regenerate before trusting a red build.
 
 ## Workflow position
 
