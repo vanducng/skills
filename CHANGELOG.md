@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.40.1](https://github.com/vanducng/skills/compare/v0.40.0...v0.40.1) (2026-06-13)
+
+
+### Bug Fixes
+
+* **web-e2e,opendesign:** encode session-hardened guidance ([#159](https://github.com/vanducng/skills/issues/159)) ([d9af3c1](https://github.com/vanducng/skills/commit/d9af3c10d8b6d60a7cf9a3e7cdaabe3128ae3195))
+
 ## [0.40.0](https://github.com/vanducng/skills/compare/v0.39.1...v0.40.0) (2026-06-12)
 
 
