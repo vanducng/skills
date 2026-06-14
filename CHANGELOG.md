@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.46.0](https://github.com/vanducng/skills/compare/v0.45.0...v0.46.0) (2026-06-14)
+
+
+### Features
+
+* **cook:** shared eval-dod runner for the goal gate ([#175](https://github.com/vanducng/skills/issues/175)) ([054439a](https://github.com/vanducng/skills/commit/054439a1c9835dff4ee509a76019915ed9cc412c))
+
 ## [0.45.0](https://github.com/vanducng/skills/compare/v0.44.0...v0.45.0) (2026-06-14)
 
 
