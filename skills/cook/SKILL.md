@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[plan-dir | plan.md | task] [--auto | --quick] [--tdd] [--no-test]"
 metadata:
   author: vanducng
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # Cook
@@ -176,7 +176,11 @@ Wait for confirmation. `--auto` skips this gate.
 
 After the last phase passes:
 
-1. **Goal gate** — run the plan's `## Definition of Done` verifiers (the typed, runtime-neutral contract `vd:plan` writes; vocab: `vd:ultracook` `references/verifier-vocab.md`). Execute each as plain shell and confirm with **evidence**, not vibes (`npm test → exit 0`, `curl /api/foo → 200`). **All must pass to declare the plan done.** Any failure → the goal is *unmet*: report which verifier failed with its evidence and kick back to the relevant phase — do not claim done. (No `## Definition of Done` block → fall back to verifying the plan-level `## Success Criteria`.)
+1. **Goal gate** — run the shared runner against the plan's `## Definition of Done`:
+   ```bash
+   bash $HOME/skills/skills/cook/scripts/eval-dod.sh <plan.md>   # or $HOME/.claude/skills/cook/scripts/eval-dod.sh
+   ```
+   It evaluates every verifier with evidence and **exits 0 only if all pass** — gate "done" on exit 0. Exit 1 → goal *unmet*: it prints which verifier failed; report that and kick back to the relevant phase, do **not** claim done. A `manual_confirm` verifier surfaces as needs-user → resolve it with `AskUserQuestion`, then re-run. If the runner is unavailable, fall back to executing each verifier by hand (same vocab). No `## Definition of Done` block (runner exits 1 with "fall back") → verify the plan-level `## Success Criteria` instead.
 2. **Reconcile** — sweep all phase files; tick stale unchecked items that did get done; sync `plan.md` (`pending` → `completed`).
 3. **Docs** — if changes warrant updates (new public APIs, changed behavior, new env vars, new commands) → update `docs/` directly. Otherwise say so: "Docs impact: none."
 4. **Smoke** — one final end-to-end check. Run the most user-facing command this plan changed.
