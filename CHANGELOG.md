@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.47.0](https://github.com/vanducng/skills/compare/v0.46.1...v0.47.0) (2026-06-14)
+
+
+### Features
+
+* **code-review:** add codex-adapted review prompt ([#179](https://github.com/vanducng/skills/issues/179)) ([1b1a633](https://github.com/vanducng/skills/commit/1b1a633ad194df78abf5ffb5219b1ed4e3ca1e2b))
+
 ## [0.46.1](https://github.com/vanducng/skills/compare/v0.46.0...v0.46.1) (2026-06-14)
 
 
