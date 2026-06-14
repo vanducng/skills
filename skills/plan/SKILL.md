@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[task or path to brainstorm brief] [--quick | --deep] [--tdd]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Plan
@@ -53,6 +53,7 @@ Before writing any plan file, in your reply, capture:
 - **Goal** — one sentence. What ships at the end.
 - **Approach** — one paragraph. The chosen design (from brainstorm brief, or stated by user).
 - **Success criteria** — observable signals that the goal is met (not "code works" — "endpoint X returns 200 with shape Y", "page loads in <500ms on 3G").
+- **Definition of Done** — the goal's *machine-checkable* form: 1–5 typed verifiers from the shared vocab (`test_suite_passes`, `cmd_exits_zero`, `http_status`, `shell`, `manual_confirm` — see `vd:ultracook` `references/verifier-vocab.md`). Plain commands + expected results only, **no tool-specific constructs**, so the goal runs identically under Claude Code and Codex. `vd:cook` runs these as a final goal gate; `vd:ultracook` already speaks the same vocab.
 - **Scope boundary** — what's *out* of scope. Out-of-scope items get listed but not planned.
 - **Constraints** — language, runtime, team size, existing systems that can't change.
 
@@ -164,6 +165,12 @@ mode: default            # quick | default | deep
 ## Success Criteria
 - [ ] {observable signal}
 - [ ] {observable signal}
+
+## Definition of Done
+<!-- Typed verifiers vd:cook runs as the final goal gate. Plain shell → identical in Claude Code & Codex. Vocab: vd:ultracook references/verifier-vocab.md -->
+- type: test_suite_passes   { target: "{test command, e.g. npm test}" }
+- type: cmd_exits_zero      { cmd: "{build or lint command}" }
+# add http_status / shell / manual_confirm as the goal needs
 
 ## Out of Scope
 - {explicit non-goal} — {why deferred}
