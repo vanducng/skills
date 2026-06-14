@@ -249,6 +249,13 @@ This is the always-on lens. Repo-specific rules (i18n, SQL store conventions, mo
 - N+1 queries — loop over IDs each issuing a DB call.
 - Full table scans on hot paths — verify WHERE/JOIN/ORDER BY against existing indexes (check migrations).
 - Allocations in hot loops (Go: profile-guided only; don't pre-optimize).
+- Framework AI-slop: `useEffect` for data already in render scope, missing `key`/`useMemo` on heavy lists, `SELECT *` then filter in app code, await-in-loop where a batch call exists. Real, common, cheap to flag.
+
+**Dependencies**
+- New dependency for something the stdlib or an existing dep already does → ask "why not the one we have?"
+- A heavy/transitive-heavy package for a few lines of logic → flag (supply-chain surface + bundle/binary weight).
+- Version bumps that cross a major, or lockfile churn unrelated to the PR's purpose → call out.
+- Unpinned/`latest` or a brand-new low-adoption package on a critical path → security finding, not a nit.
 
 **API surface & breakage**
 - Renamed/removed exports → downstream breaks.
@@ -260,8 +267,13 @@ This is the always-on lens. Repo-specific rules (i18n, SQL store conventions, mo
 - Tests touching real DB or mocks — match the repo's existing convention. Don't mix.
 - Are there tests that would catch the bug if the author re-introduced it tomorrow? If no, ask for one.
 
+**Change shape**
+- Refactor + new behavior in one PR → ask to split. A reviewer can't tell a behavior change from a move when they're tangled, and a bad refactor hides inside the feature diff.
+- Dead/zombie code: a function/flag/branch the diff stops calling but leaves behind → flag and *ask* (it may be load-bearing elsewhere — don't assert "remove it"). Same for commented-out blocks.
+
 **Project conventions**
 - Read `CLAUDE.md`, `docs/code-standards.md`, `docs/system-architecture.md` if present. Apply repo-specific rules (i18n keys in 3 locales, h-dvh not h-screen, parameterized SQL, etc.).
+- Calibrate: this is a review, not a rewrite. If the code is correct, safe, and readable, ship it — don't manufacture findings to look thorough. "Different from how I'd write it" is not a finding.
 
 ## CI handling
 
@@ -295,6 +307,16 @@ Approved. <one sentence on what shipped well>.
 - **Ghost suggestions.** "Consider refactoring this." → useless. Either propose the refactor with code, or drop the comment.
 - **Re-reviewing on every push.** If the author pushed a 3-line fix to address your Critical, look at those 3 lines — don't re-review the whole PR.
 - **Hidden assumptions.** "This should use the foo pattern." → name the file, name the pattern, link the prior art.
+
+### Common rationalizations to catch (in the code, and in yourself)
+
+| The author says (or the diff implies) | The reviewer's job |
+|---|---|
+| "It works, ship it" | Working ≠ correct. Check the edge cases the happy path skipped. |
+| "I'll add tests in a follow-up" | The follow-up rarely comes. Untested new logic is a finding now. |
+| "It's just a small change" | Small diffs hide auth/data/migration blast radius. Size ≠ risk. |
+| "TODO / fix later" added in this PR | Either it matters (do it) or it doesn't (delete it). A new TODO on a critical path is a finding. |
+| "Temporary workaround" | Temporary code is permanent code. Demand the real fix or a tracked issue link. |
 
 ## Workflow position
 

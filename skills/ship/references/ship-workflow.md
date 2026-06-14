@@ -133,6 +133,8 @@ git fetch origin <target> && git merge origin/<target> --no-edit
 
 **Skip if** `--skip-review`.
 
+**Blast-radius auto-skip.** A full reviewer fan-out is wasted on a truly trivial diff. Skip the review delegation **only if all** hold: ≤2 files changed **AND** <50 lines **AND** the diff touches no auth, payments, data/migrations, security, or config/secrets. If any condition fails — including any doubt — review runs. Print `Review: skipped (trivial diff: N files, M lines, no sensitive paths)` so the skip is visible, never silent.
+
 1. `git diff origin/<target>` → diff payload.
 2. Delegate to `code-reviewer` subagent. Two-pass model:
    - **Critical:** security holes, injection, race conditions, auth bypass, data loss, broken contract.

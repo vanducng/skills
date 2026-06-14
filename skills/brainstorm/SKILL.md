@@ -45,6 +45,8 @@ Before generating options, write down (in your reply, briefly):
 - **The decision** — one sentence, in the user's words, restated precisely
 - **Constraints** — what's fixed (language, team, deadline, existing systems, cost ceiling)
 - **Success criteria** — what makes a chosen option "good" for *this* user
+- **Want vs should-want** — the stated ask is sometimes a guess at the real need. Probe once: "you asked for X — is the underlying goal Y?" A wrong-framed problem produces three right answers to the wrong question.
+- **Out of scope** — name what this decision explicitly is *not* solving, so options don't sprawl. Carry these into the brief's Non-goals.
 - **Reversibility** — how expensive to switch later. High reversibility → bias toward speed. Low reversibility → bias toward depth.
 
 If any of those are unclear or assumed, **ask before generating options**. Generating 3 wrong-shaped options because you assumed the constraints wastes the whole session.
@@ -68,6 +70,18 @@ Generate at least **3 genuinely different options**. Force divergence:
 - **Option C** — the one that violates a shared assumption of A and B (no DB, no service, build vs buy, manual vs automated, do nothing)
 
 If you find yourself generating "X with Postgres / X with MySQL / X with SQLite" — that's one option, not three. Restart.
+
+**Name the lens behind each option** so divergence is deliberate, not luck. Pick a different generative lens per option — say which:
+
+- **Inversion** — solve the opposite ("don't store it" vs "store it better").
+- **Constraint removal** — drop a constraint everyone assumed ("what if cost/latency/consistency didn't matter here?").
+- **Audience shift** — design for a different user (the operator, not the end user; the future maintainer).
+- **Combination** — fuse two existing approaches into one.
+- **Simplification** — the do-less / do-nothing option.
+- **10x** — what would you build if this had to handle 10x the scale/users/data.
+- **Expert lens** — how would a {distributed-systems / security / data} specialist frame it.
+
+For a deeper toolkit (SCAMPER, How-Might-We, JTBD, pre-mortem), see [`references/ideation-frameworks.md`](references/ideation-frameworks.md).
 
 Where helpful, pull in proven patterns: search the web (`WebSearch`), read library docs, scan the codebase. Don't invent in a vacuum when the wheel exists. But also don't *only* surface known options — the user could have searched too.
 
@@ -208,7 +222,18 @@ After self-review, surface the file with an openable location and stop. Do not a
 
 > Brief saved to `[brainstorm-topic.md](/absolute/path/to/brainstorm-topic.md)` (`file:///absolute/path/to/brainstorm-topic.md`). Recommendation: **{Option X}**, runner-up **{Option Y}** if {condition}. Please review and tell me if you want changes — or say "plan it" and I'll hand off to `vd:plan`.
 
+If the decision is consequential and hard to reverse (datastore, framework, auth model, a public contract), offer to record it permanently: `vd:docs adr` writes an ADR under `docs/decisions/` capturing the why and the rejected alternatives. The brief is a working artifact; the ADR is the durable team-facing record.
+
 If the user requests changes, edit the brief and re-run the self-review checklist before re-surfacing. Only invoke `vd:plan` after explicit approval.
+
+**Read approval critically — not every "yes" is a real yes.** Watch for these and probe instead of proceeding:
+
+- **Polite yes** — "sounds good" with no engagement on the tradeoffs. Ask which part resonated; a real yes can name why.
+- **Tired yes** — agreeing to end the conversation after a long thread. Offer to pause rather than bank a fatigue decision.
+- **Deferring yes** — "you're the expert, whatever you think." Push the one judgment call back to them; you can't own a constraint only they know.
+- **Misunderstood yes** — agreeing to a different thing than you proposed. Restate the recommendation in one line and confirm it's the same picture.
+
+A decision banked on a fake yes resurfaces as rework two phases later.
 
 `--quick` mode skips Phase 6 entirely — verbal output only.
 

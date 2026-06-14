@@ -41,6 +41,7 @@ Closes #456
 - **Scope is optional but preferred** — match the directory or feature, not the file
 - **Focus on WHAT, not HOW**
 - For changes inside `.claude/` (skills, agents, hooks), use `feat`, `fix`, or `perf` with scope `skill` — not `docs`
+- **Never mix `refactor:` with `feat:`/`fix:` in one commit.** A behavior change hidden inside a restructuring diff is unreviewable — split them so each commit is one type (see `vd:simplify`)
 
 > **PR titles are the exception** — they use **past tense (v-ed)** because they describe what the branch did (e.g. `feat(auth): added OAuth2 provider`). Commit messages stay imperative. See `workflow-pr.md`.
 

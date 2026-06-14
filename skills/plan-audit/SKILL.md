@@ -26,7 +26,7 @@ It's a **second pair of eyes**, not a redesign tool. Findings are advisory — t
 ## Hard rules
 
 1. **Never edit source code.** This skill only edits plan files (and only with `--fix`, only HIGH/CRITICAL findings, with per-finding confirmation by default — or single up-front confirmation when `--apply-all` is set). Never touches the actual codebase.
-2. **Always use a clean-context subagent.** Inline reasoning shares the same blind spots as the author. The point of audit is independence — `Agent` tool, fresh context, plan files as the only input.
+2. **Always use a clean-context subagent.** Inline reasoning shares the same blind spots as the author. The point of audit is independence — `Agent` tool, fresh context, plan files as the only input. Hand the subagent the plan and the goal, **not the author's argument for why the plan is sound** — withholding the claim is what keeps the second look honest. "Confirm this is right" invites agreement; "does this hold up?" invites scrutiny.
 3. **Findings are advisory, not blocking.** Audit prints a report and exits. It never blocks `vd:plan` completion or `vd:cook` execution. The author decides.
 4. **Only HIGH/CRITICAL are eligible for `--fix`.** MEDIUM/LOW are observational — surfacing them is the value, fixing them auto would be over-reach.
 5. **Respect `decisions.md`.** If the plan dir contains `decisions.md`, listed non-goals are intentional exclusions — drop those findings entirely. "Trade-offs" entries: drop the unchosen-side findings. "Constraints accepted" entries: a finding that contradicts the constraint may surface as MEDIUM with note "constraint may need revisiting" — never CRITICAL/HIGH.

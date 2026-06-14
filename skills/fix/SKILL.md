@@ -156,6 +156,18 @@ See `references/verify-and-prevent.md`. Highlights:
 - **Regression found ≠ verification failed**: if the original symptom is gone but the sweep/contract check broke something else, **STOP — don't patch around it.** Present what broke + why + 2–4 options (revert / update dependents / narrow scope / accept) via `AskUserQuestion`. See `references/verify-and-prevent.md` → "When the sweep finds a regression". Hard stop even in `--auto`.
 - **Verification loop**: if it fails, back to Step 2. After **3 failed verification cycles → stop and question architecture**, surface to user.
 
+**CI failures — reproduce the check locally before re-pushing.** A red GH Actions job is not a debugger: pushing a guess to watch CI is a slow, public loop. Pull the failing job (`gh run view <run-id> --log-failed`), then reproduce and fix locally by failure type:
+
+| Failure | Local loop before re-push |
+|---|---|
+| lint / format | run the repo's lint/format with `--fix`; re-run clean |
+| type error | read the exact location from the log; fix; `tsc --noEmit` / `mypy` / `go vet` locally |
+| test | reproduce the named test locally (drop to `vd:debug`); green locally before pushing |
+| build | match CI's Node/Go/Python version + flags; reproduce the build locally |
+| flake (passes on re-run, no code cause) | re-enqueue once; if it re-fails, treat as real |
+
+Only push once the same check passes on your machine. This closes the loop that would otherwise need a standalone CI skill.
+
 Output: `✓ Verified + prevented — before/after attached, N tests added, M guards added`
 
 ### 7. Finalize
