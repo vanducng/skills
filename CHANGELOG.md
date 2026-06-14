@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.45.0](https://github.com/vanducng/skills/compare/v0.44.0...v0.45.0) (2026-06-14)
+
+
+### Features
+
+* **plan,cook:** typed Definition of Done + cook final goal gate ([#173](https://github.com/vanducng/skills/issues/173)) ([b56e569](https://github.com/vanducng/skills/commit/b56e5697638aeb9fe3248898fdd66f41fdb44d99))
+
 ## [0.44.0](https://github.com/vanducng/skills/compare/v0.43.0...v0.44.0) (2026-06-14)
 
 
