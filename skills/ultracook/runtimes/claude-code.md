@@ -48,7 +48,7 @@ run autonomously (`acceptEdits` / `auto`) to a terminal state. The Stop-hook loo
 
 ## Hard rules
 
-1. **State on disk is source of truth.** `<state-base>/{slug}/goal.yaml` + `state.json` + `iterations/NNN-*.md` survive context compaction. Re-invoking `vd:ultracook` reads them and resumes; never trust in-memory cache across sessions. State base = `$VD_STATE_PATH` → `<git-root>/.work/state` (when `.work` exists) → `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default). Legacy `plans/goals` is read for old runs only.
+1. **State on disk is source of truth.** `<state-base>/{slug}/goal.yaml` + `state.json` + `iterations/NNN-*.md` survive context compaction. Re-invoking `vd:ultracook` reads them and resumes; never trust in-memory cache across sessions. State base = `$VD_STATE_PATH` → `<git-root>/.workbench/state` (when `.workbench` exists) → `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default). Legacy `plans/goals` is read for old runs only.
 2. **Loop primitive = `vd:auto-loop` (Stop hook).** Do NOT use `ScheduleWakeup` for iteration. `Monitor` is only for event-driven async waits (CI, image build, rollout).
 3. **No auto-merge on the skills repo.** `vd:ship official` (no `--auto`). User merges main manually.
 4. **Closed-set verifier vocabulary + `shell` escape.** Six built-ins: `ci_green`, `pod_image_matches`, `http_status`, `cmd_exits_zero`, `test_suite_passes`, `manual_confirm`. Plus `shell` for everything else.
@@ -84,7 +84,7 @@ Mode is set at intake time (`goal.yaml.autonomy`) and can be edited in-place mid
 ```
 if $1 is empty (bare `vd:ultracook`):
   # Resume mode — find in-progress goal-dirs (terminal == null).
-  # State base resolution: $VD_STATE_PATH → <git-root>/.work/state (when .work exists) → XDG user state.
+  # State base resolution: $VD_STATE_PATH → <git-root>/.workbench/state (when .workbench exists) → XDG user state.
   # Discovery scans BOTH the resolved state base AND legacy plans/goals (read-either).
   candidates = scan [state_base, "plans/goals"] dedup sort-r \
                | filter: jq -e '.terminal == null' "$d/state.json"
@@ -121,7 +121,7 @@ The "Resume mode" mirrors `scripts/status.sh`'s auto-detect logic. **Phase 5's k
    - autonomy (manual / semi / auto; default semi)
 2. Computes slug from short goal (kebab-case, max 40 chars).
 3. Optionally creates a worktree: `git worktree add .worktrees/{repo}-{slug} -b {branch}` (standard `.worktrees/` location) (skip if `--reuse`).
-4. Writes `<state-base>/{date}-{slug}/goal.yaml` + `state.json` (terminal=null, current_phase=intake-complete). State base = `$VD_STATE_PATH` → `<git-root>/.work/state` (when `.work` exists) → `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default).
+4. Writes `<state-base>/{date}-{slug}/goal.yaml` + `state.json` (terminal=null, current_phase=intake-complete). State base = `$VD_STATE_PATH` → `<git-root>/.workbench/state` (when `.workbench` exists) → `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default).
 5. Prints the goal-dir path so the next step (Phase 2 `resolve`) can chain.
 
 **Implementation:** `scripts/init-goal.sh` is called from this SKILL.md after the 4 `AskUserQuestion` prompts populate env vars (`ULTRACOOK_TARGET_KIND`, `ULTRACOOK_ACTION_SHAPE`, `ULTRACOOK_BRANCH`, `ULTRACOOK_AUTONOMY`, `ULTRACOOK_REUSE_WORKTREE`). The script handles slug derivation, worktree creation, and file writes. **`AskUserQuestion` cannot be called from bash** — it must be invoked from this SKILL.md and the answers passed to the script via env vars. See `references/architecture.md` for the two-layer pattern.

@@ -98,7 +98,7 @@ detail. If release facts conflict, say which source won in `Facts used`.
 
 Also inspect likely context files when present:
 
-- `.work/plans/**/plan.md` and `plans/**/plan.md` (check both), latest phase/report/journal files
+- `.workbench/plans/**/plan.md` and `plans/**/plan.md` (check both), latest phase/report/journal files
 - `CHANGELOG.md`, release notes, PR body, issue text
 - recent `README.md` or docs changes
 - command outputs from this session if the user references them

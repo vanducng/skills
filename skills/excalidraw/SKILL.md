@@ -315,7 +315,7 @@ If any check fails: STOP. Use `update_element` or delete + recreate. Re-screensh
 | Projects | `list_projects`, `switch_project` |
 | Conversion | `create_from_mermaid` (low-quality preview only) |
 
-When exporting through `export_scene` or `export_to_image`, write finalized images into the injected `Visuals:` path (it resolves to the main repo's `.work/visuals/` even from a worktree, so exports survive `worktree clean`); fall back to a temp dir only when no `Visuals:` path was injected. Then hand off an openable output location:
+When exporting through `export_scene` or `export_to_image`, write finalized images into the injected `Visuals:` path (it resolves to the main repo's `.workbench/visuals/` even from a worktree, so exports survive `worktree clean`); fall back to a temp dir only when no `Visuals:` path was injected. Then hand off an openable output location:
 - Clickable absolute file link: `[diagram.png](/absolute/path/to/diagram.png)`
 - Plain browser URI when useful: `file:///absolute/path/to/diagram.png`
 - Remote share URL from `export_to_excalidraw_url`, if generated

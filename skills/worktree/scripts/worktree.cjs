@@ -19,7 +19,7 @@
  *   --prefix <type>        Branch prefix (feat|fix|refactor|docs|test|chore|perf)
  *   --base <branch>        Override auto-detected base branch (default: dev→develop→main→master)
  *   --checkout-submodules  Initialize submodules in the new worktree after create
- *   --worktree-root <path> Explicit worktree directory (default: <git-root>/.work/worktrees)
+ *   --worktree-root <path> Explicit worktree directory (default: <git-root>/.worktrees)
  *   --json                 Output in JSON format for LLM consumption
  *   --env <files>          Comma-separated list of .env files to copy (legacy)
  *   --no-copy-env          Skip auto-copy of untracked .env* files
@@ -603,9 +603,9 @@ function validateWorktreeRoot(rootPath) {
 // Standard worktree location: <topmost-git-root>/.worktrees/
 // One rule for all repo types — standalone, monorepo, submodule (worktrees
 // land at the superproject root). Deliberately a top-level sibling of the
-// .work artifact umbrella, NOT nested under it: worktrees are full checkouts
+// .workbench artifact umbrella, NOT nested under it: worktrees are full checkouts
 // (heavy, contain source), so nesting would pollute artifact globs and bloat
-// .work. Auto-excluded via .git/info/exclude so worktrees never show as noise.
+// .workbench. Auto-excluded via .git/info/exclude so worktrees never show as noise.
 const TREES_DIRNAME = '.worktrees';
 
 // Determine the worktree root directory with priority:
@@ -2238,7 +2238,7 @@ Options:
   --checkout-submodules    Initialize submodules in the new worktree after create
   --post-create-hook <x>   Explicit post-create script path or command (e.g. "make worktree-init")
   --no-post-create-hook    Disable auto-detection (.worktree/hooks/post-create, scripts/setup-worktree)
-  --worktree-root <path>   Explicit worktree directory (default: <git-root>/.work/worktrees)
+  --worktree-root <path>   Explicit worktree directory (default: <git-root>/.worktrees)
   --json                   Output in JSON format for LLM consumption
   --env <files>            Comma-separated list of .env files to copy (legacy)
   --no-copy-env            Skip auto-copy of untracked .env* files from source checkout

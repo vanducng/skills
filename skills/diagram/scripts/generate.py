@@ -98,7 +98,7 @@ def find_artifact_root(start: Path | None = None) -> Path | None:
 
     Equals find_git_root in a normal checkout; from inside a linked worktree it
     points back to the main checkout (first entry of `git worktree list`). Use for
-    non-tracked outputs (.diagrams, .work/visuals) — NOT for docs/ which stay local.
+    non-tracked outputs (.diagrams, .workbench/visuals) — NOT for docs/ which stay local.
     """
     git_root = find_git_root(start)
     if git_root is None:
@@ -493,9 +493,10 @@ def _resolve_parent_dir(versioned: bool = False) -> Path:
     if ck_visuals:
         return Path(ck_visuals)
     git_root = find_artifact_root()
-    if git_root and (git_root / ".work").exists():
-        return git_root / ".work" / "visuals"
     if git_root:
+        for umbrella in (".workbench", ".work"):  # prefer new name, fall back to legacy
+            if (git_root / umbrella).exists():
+                return git_root / umbrella / "visuals"
         return git_root / ".diagrams"
     return Path.home() / "Documents" / "llm-diagrams" / Path.cwd().name
 

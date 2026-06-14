@@ -9,7 +9,7 @@
 node_modules/
 
 # Runtime artifacts produced by skills (brainstorm/plan/preview etc.)
-.work/
+.workbench/
 plans/
 docs/journals/
 
