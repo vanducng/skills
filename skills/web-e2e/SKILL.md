@@ -65,6 +65,7 @@ The per-project layer encodes what cannot be detected: how the app boots, what "
 
 - `references/examples/laravel-herd.config.json` — Herd-served, OAuth-only login, queue-worker check
 - `references/examples/compose-spa.config.json` — docker compose boot, readyz gate, form login
+- `references/examples/worktree-portable.config.json` — `${PORT}`-parameterized, one config that follows every worktree
 
 ```
 <repo>/.e2e/
@@ -84,6 +85,16 @@ Schema (only non-derivable facts; commit it — no secrets allowed, see Security
 | `health[]` | GET-only checks: `{url, expect?, bodyContains?}`. Redirects are not followed — expect the 3xx explicitly |
 | `checks[]` | `{name, cmd}` process checks, e.g. queue worker via `pgrep` — async flows silently hang without it |
 | `auth` | `strategy` + `probeUrl` (an authed route) + `loginUrlPattern` (regex; include IdP origins like `accounts\.google\.com`) + per-strategy fields |
+
+### One config per worktree — `${VAR}` resolution
+
+Each `vd:worktree` checkout gets its own deterministic port block in `.env.worktree` (`PORT`, `WORKTREE_PORT_BASE`, `WORKTREE_NAME`). `e2e.cjs` loads that file (walking up from `.e2e/`) and expands `${VAR}` placeholders in `baseUrl`, `health[].url`, `auth.probeUrl`, and `profile` against it (falling back to `process.env`). So a single **committed** `.e2e/config.json` serves the main checkout *and* every worktree — no per-worktree editing:
+
+- `"baseUrl": "http://localhost:${PORT}"` → resolves to the worktree's assigned port (e.g. `:21460`), or whatever `PORT` is exported in the main checkout.
+- `"profile": "myapp-${WORKTREE_NAME}"` → a **separate** browser profile (hence a separate CDP port) per worktree, so two worktrees' logins never collide. Omit the var for a shared profile.
+- An unresolved `${VAR}` (no `.env.worktree`, not exported) fails loudly with the variable name — never a silently malformed URL.
+
+Run `e2e.cjs status` from inside the worktree; it resolves to that worktree's instance automatically. `status --json` echoes the resolved `baseUrl` and a `worktree` field naming the active worktree.
 
 ## Command reference
 
@@ -135,7 +146,7 @@ Chrome ≥136 ignores `--remote-debugging-port` on the *default* profile dir —
 ## Integration points
 
 - **`vd:browser-profile` / `vd:browser` / `vd:browser-trace`** — the substrate; this skill never reimplements them.
-- **`vd:worktree`** — per-worktree app instance + its own profile name = parallel e2e without port or cookie collisions.
+- **`vd:worktree`** — `.e2e/config.json` with `${PORT}`/`${WORKTREE_NAME}` placeholders resolves against the worktree's `.env.worktree`, so each worktree runs its own e2e instance (own port, own profile) with no per-worktree config edits. See "One config per worktree" above.
 - **`vd:gopass`** — credential source for `form` and `token-inject` strategies.
 - **`vd:cook` / `vd:fix`** — use a flow run as the verification step after implementing or fixing UI-facing work.
 

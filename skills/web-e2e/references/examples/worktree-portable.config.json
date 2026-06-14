@@ -1,0 +1,13 @@
+{
+  "name": "myapp",
+  "baseUrl": "http://localhost:${PORT}",
+  "profile": "myapp-${WORKTREE_NAME}",
+  "boot": { "up": "php artisan serve --port=${PORT}" },
+  "health": [{ "url": "http://localhost:${PORT}/login", "expect": 200 }],
+  "checks": [{ "name": "queue-worker", "cmd": "pgrep -f 'artisan queue:(work|listen)'" }],
+  "auth": {
+    "strategy": "oauth-interactive",
+    "probeUrl": "http://localhost:${PORT}/dashboard",
+    "loginUrlPattern": "/login$|accounts\\.google\\.com"
+  }
+}

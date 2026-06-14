@@ -15,6 +15,9 @@ const {
   runCheck,
   profilePort,
   probeAuth,
+  loadWorktreeEnv,
+  expandVars,
+  resolveConfig,
 } = require('./e2e.cjs');
 
 const EXAMPLES = path.join(__dirname, '..', 'references', 'examples');
@@ -29,9 +32,12 @@ function validBase() {
   };
 }
 
-test('validateConfig accepts both shipped example configs', () => {
+test('every shipped example config validates clean (after ${VAR} resolution)', () => {
+  const sampleEnv = { PORT: '21460', WORKTREE_PORT_BASE: '21460', WORKTREE_NAME: 'myapp-feat-x' };
   for (const f of fs.readdirSync(EXAMPLES)) {
-    const cfg = JSON.parse(fs.readFileSync(path.join(EXAMPLES, f), 'utf8'));
+    const raw = JSON.parse(fs.readFileSync(path.join(EXAMPLES, f), 'utf8'));
+    const { cfg, unresolved } = resolveConfig(raw, sampleEnv);
+    assert.deepStrictEqual(unresolved, [], `${f} should resolve with the standard worktree vars`);
     assert.deepStrictEqual(validateConfig(cfg), [], `${f} should validate clean`);
   }
 });
@@ -64,6 +70,50 @@ test('normalizeHealth maps strings to objects', () => {
     { url: 'http://a' },
     { url: 'http://b', expect: 302 },
   ]);
+});
+
+test('expandVars substitutes ${VAR} and collects unresolved', () => {
+  const unresolved = [];
+  assert.strictEqual(expandVars('http://localhost:${PORT}/x', { PORT: '21460' }, unresolved), 'http://localhost:21460/x');
+  assert.deepStrictEqual(unresolved, []);
+  assert.strictEqual(expandVars('a-${NOPE}', {}, unresolved), 'a-${NOPE}');
+  assert.deepStrictEqual(unresolved, ['NOPE']);
+});
+
+test('loadWorktreeEnv parses .env.worktree walking up, ignores comments', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-wt-'));
+  const sub = path.join(root, '.e2e');
+  fs.mkdirSync(sub, { recursive: true });
+  fs.writeFileSync(path.join(root, '.env.worktree'),
+    '# header\nWORKTREE_NAME=myapp-feat-x\nPORT=21460\nWORKTREE_PORT_BASE=21460\n');
+  const { vars, file } = loadWorktreeEnv(sub);
+  assert.strictEqual(vars.PORT, '21460');
+  assert.strictEqual(vars.WORKTREE_NAME, 'myapp-feat-x');
+  assert.ok(file.endsWith('.env.worktree'));
+  assert.deepStrictEqual(loadWorktreeEnv(os.tmpdir()).vars, loadWorktreeEnv(os.tmpdir()).vars); // no throw when absent
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('resolveConfig expands baseUrl, health, profile, probeUrl per worktree port', () => {
+  const env = { PORT: '21460', WORKTREE_NAME: 'myapp-feat-x' };
+  const template = {
+    name: 'myapp',
+    baseUrl: 'http://localhost:${PORT}',
+    profile: 'myapp-${WORKTREE_NAME}',
+    health: ['http://localhost:${PORT}/readyz', { url: 'http://localhost:${PORT}/', expect: 200 }],
+    auth: { strategy: 'form', probeUrl: 'http://localhost:${PORT}/', loginUrlPattern: '/login' },
+  };
+  const { cfg, unresolved } = resolveConfig(template, env);
+  assert.deepStrictEqual(unresolved, []);
+  assert.strictEqual(cfg.baseUrl, 'http://localhost:21460');
+  assert.strictEqual(cfg.profile, 'myapp-myapp-feat-x');
+  assert.strictEqual(cfg.health[0], 'http://localhost:21460/readyz');
+  assert.strictEqual(cfg.health[1].url, 'http://localhost:21460/');
+  assert.strictEqual(cfg.auth.probeUrl, 'http://localhost:21460/');
+  // The resolved config must pass validation (profile stays kebab-safe).
+  assert.deepStrictEqual(validateConfig(cfg), []);
+  // Missing var is reported, not silently dropped.
+  assert.ok(resolveConfig({ ...template, baseUrl: 'http://x:${MISSING}' }, env).unresolved.includes('MISSING'));
 });
 
 test('findConfig walks up to the nearest .e2e/config.json', () => {

@@ -28,6 +28,53 @@ function normalizeHealth(health) {
   return (health || []).map((h) => (typeof h === 'string' ? { url: h } : h));
 }
 
+// Each worktree (vd:worktree) gets its own deterministic port block in
+// .env.worktree (PORT / WORKTREE_PORT_BASE / WORKTREE_NAME). Loading it lets a
+// single committed .e2e/config.json with ${PORT}-style placeholders resolve to
+// THIS worktree's port — so every worktree has its own e2e instance without
+// per-worktree config authoring. Walks up from startDir like findConfig.
+function loadWorktreeEnv(startDir) {
+  let dir = path.resolve(startDir);
+  for (;;) {
+    const candidate = path.join(dir, '.env.worktree');
+    if (fs.existsSync(candidate)) {
+      const vars = {};
+      for (const line of fs.readFileSync(candidate, 'utf8').split('\n')) {
+        const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+        if (m && !line.trimStart().startsWith('#')) vars[m[1]] = m[2].replace(/^["']|["']$/g, '');
+      }
+      return { vars, file: candidate };
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) return { vars: {}, file: null };
+    dir = parent;
+  }
+}
+
+// Substitute ${VAR} from env; collect any that don't resolve so the caller can
+// fail loudly instead of silently hitting a malformed URL.
+function expandVars(value, env, unresolved) {
+  if (typeof value !== 'string') return value;
+  return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (whole, name) => {
+    if (env[name] !== undefined && env[name] !== '') return env[name];
+    unresolved.push(name);
+    return whole;
+  });
+}
+
+// Expand placeholders across every config field that can carry one. Returns the
+// resolved config plus the list of unresolved variable names (empty = clean).
+function resolveConfig(cfg, env) {
+  const unresolved = [];
+  const exp = (v) => expandVars(v, env, unresolved);
+  const out = { ...cfg, baseUrl: exp(cfg.baseUrl), profile: exp(cfg.profile) };
+  if (Array.isArray(cfg.health)) {
+    out.health = cfg.health.map((h) => (typeof h === 'string' ? exp(h) : { ...h, url: exp(h.url) }));
+  }
+  if (cfg.auth) out.auth = { ...cfg.auth, probeUrl: exp(cfg.auth.probeUrl) };
+  return { cfg: out, unresolved: [...new Set(unresolved)] };
+}
+
 function validateConfig(cfg) {
   const errors = [];
   if (!cfg || typeof cfg !== 'object') return ['config is not an object'];
@@ -253,15 +300,27 @@ async function main() {
     console.error('no .e2e/config.json found (searched cwd upward). See vd:web-e2e references/examples/.');
     process.exit(2);
   }
-  const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  const rawCfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  const projectDir = path.dirname(path.dirname(configPath));
+
+  // Resolve ${PORT}-style placeholders against this checkout's .env.worktree
+  // (so the same config works in the main repo and in every worktree).
+  const worktree = loadWorktreeEnv(projectDir);
+  const env = { ...process.env, ...worktree.vars };
+  const { cfg, unresolved } = resolveConfig(rawCfg, env);
+  if (unresolved.length) {
+    console.error(`invalid ${configPath}: unresolved variable(s) ${unresolved.map((v) => '${' + v + '}').join(', ')}` +
+      `${worktree.file ? ` (not in ${path.relative(process.cwd(), worktree.file)})` : ' (no .env.worktree found; export them or run from a worktree)'}`);
+    process.exit(2);
+  }
+
   const errors = validateConfig(cfg);
   if (errors.length) {
     console.error(`invalid ${configPath}:\n  - ${errors.join('\n  - ')}`);
     process.exit(2);
   }
-  const projectDir = path.dirname(path.dirname(configPath));
   const health = normalizeHealth(cfg.health && cfg.health.length ? cfg.health : [cfg.baseUrl]);
-  const out = { name: cfg.name, baseUrl: cfg.baseUrl, configPath };
+  const out = { name: cfg.name, baseUrl: cfg.baseUrl, configPath, worktree: worktree.file ? worktree.vars.WORKTREE_NAME || true : false };
 
   out.health = await checkHealth(health, { insecureTLS: cfg.insecureTLS });
   let healthy = out.health.every((h) => h.pass);
@@ -334,6 +393,9 @@ module.exports = {
   inspectProfile,
   cdpAlive,
   probeAuth,
+  loadWorktreeEnv,
+  expandVars,
+  resolveConfig,
 };
 
 if (require.main === module) {
