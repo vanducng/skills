@@ -38,7 +38,7 @@ Output is an input to test-writing / QA / `vd:plan` risk sections — not execut
 2. **Walk the 12 dimensions** — see [`references/dimensions.md`](references/dimensions.md). For each, ask "what input/condition in this category breaks the target?"
 3. **Emit scenarios** — group by dimension; each: a one-line condition, **severity** (Critical/High/Med/Low), why it breaks, suggested test/assertion.
 4. **(saturation)** — repeat with a completeness critic ("which dimension or angle is still thin?"); dedupe against the seen-set; stop per the rules in [`references/saturation-loop.md`](references/saturation-loop.md).
-5. **Save** the report — write to the injected path (`.work/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Filename: `scenario-{date}-{slug}.md`.
+5. **Save** the report — write to the injected path (`.workbench/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Filename: `scenario-{date}-{slug}.md`.
    Final handoff must include an openable report location, such as
    `[scenario-report.md](/absolute/path/to/scenario-report.md)` or
    `file:///absolute/path/to/scenario-report.md`, not just the basename.

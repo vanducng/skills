@@ -105,7 +105,7 @@ Sketch the dependency graph in your reply (text or mermaid) before writing files
 
 ### Directory layout
 
-Write to the injected path (`.work/plans/` when the project is migrated, else legacy `plans/`); when reading prior artifacts, check both.
+Write to the injected path (`.workbench/plans/` when the project is migrated, else legacy `plans/`); when reading prior artifacts, check both.
 
 ```
 {plans-path}/{YYYYMMDD-HHMM}-{slug}/

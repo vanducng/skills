@@ -1026,7 +1026,7 @@ test('integration: .env.worktree written with identity vars', () => {
 test('integration: git status stays clean (info/exclude updated)', () => {
   assert(integration, 'create must have succeeded');
   const mainStatus = sh('git status --porcelain', TMP_REPO);
-  assert(!mainStatus.includes('.work/'), `main checkout shows .work noise: ${mainStatus}`);
+  assert(!mainStatus.includes('.workbench/'), `main checkout shows .workbench noise: ${mainStatus}`);
   const wtStatus = sh('git status --porcelain', integration.worktreePath);
   assert(!wtStatus.includes('.env.worktree'), `worktree shows .env.worktree noise: ${wtStatus}`);
 });

@@ -1,6 +1,6 @@
 ---
 name: cktovd
-description: "Migrate from claudekit (ck) to the vd-cli control plane — install clean-room hooks, convert .ck.json to .vd.json, audit CK_*→VD_* env consumers, and move a repo's plans/ artifacts into the .work umbrella (plans, reports, journals, visuals, state as siblings under <git-root>/.work/). Use when the user says 'cktovd', 'migrate to vd', 'migrate plans to .work', 'enable the .work umbrella', or 'switch this repo off claudekit'."
+description: "Migrate from claudekit (ck) to the vd-cli control plane — install clean-room hooks, convert .ck.json to .vd.json, audit CK_*→VD_* env consumers, and move a repo's plans/ artifacts into the .workbench umbrella (plans, reports, journals, visuals, state as siblings under <git-root>/.workbench/). Use when the user says 'cktovd', 'migrate to vd', 'migrate plans to .workbench', 'enable the .workbench umbrella', or 'switch this repo off claudekit'."
 license: MIT
 argument-hint: "[repo-path] [--machine] [--check]"
 metadata:
@@ -13,22 +13,22 @@ metadata:
 Migrate two layers, in order:
 
 1. **Machine** (once): vd-cli owns the Claude Code control plane — clean-room hooks in `~/.claude/hooks/`, config in `~/.claude/.vd.json`.
-2. **Repo** (per project): opt into the `.work` umbrella via `<git-root>/.vd.json` and physically move `plans/` artifacts.
+2. **Repo** (per project): opt into the `.workbench` umbrella via `<git-root>/.vd.json` and physically move `plans/` artifacts.
 
 Detect scope from the argument: `--machine` → machine layer only; a repo path (default: cwd git root) → repo layer (runs a machine preflight first); `--check` → verify only, change nothing.
 
 ## Layout contract (source of truth: vd-cli `internal/hooks/assets/lib/paths.cjs`)
 
-| Artifact | Legacy (no umbrella) | Umbrella on (`.work`) |
+| Artifact | Legacy (no umbrella) | Umbrella on (`.workbench`) |
 |---|---|---|
-| Plans | `<cwd>/plans/` | `<git-root>/.work/plans/` |
-| Reports | `plans/reports/` | `<git-root>/.work/reports/` (**sibling** of plans, not nested) |
-| Journals | `plans/journals/` | `<git-root>/.work/journals/` |
-| Visuals | `plans/visuals/` | `<git-root>/.work/visuals/` |
-| State | `plans/goals/` | `<git-root>/.work/state/` (**renamed**: goals → state) |
+| Plans | `<cwd>/plans/` | `<git-root>/.workbench/plans/` |
+| Reports | `plans/reports/` | `<git-root>/.workbench/reports/` (**sibling** of plans, not nested) |
+| Journals | `plans/journals/` | `<git-root>/.workbench/journals/` |
+| Visuals | `plans/visuals/` | `<git-root>/.workbench/visuals/` |
+| State | `plans/goals/` | `<git-root>/.workbench/state/` (**renamed**: goals → state) |
 | Docs | `<cwd>/docs/` | `<cwd>/docs/` — **never moves**: git-tracked team deliverables, umbrella-blind by design |
 
-The umbrella dir is named tool-neutrally (`.work`, not `.vd`) because multiple agents share the repo. Git worktrees are a separate top-level `<git-root>/.worktrees/` (not under `.work`); artifacts written from *inside* a worktree resolve to the **main** repo's `.work/` (they survive `git worktree remove`), while `docs/` stays branch-local.
+The umbrella dir is named tool-neutrally (`.workbench`, not `.vd`) because multiple agents share the repo. Git worktrees are a separate top-level `<git-root>/.worktrees/` (not under `.workbench`); artifacts written from *inside* a worktree resolve to the **main** repo's `.workbench/` (they survive `git worktree remove`), while `docs/` stays branch-local.
 
 Config precedence: DEFAULT ← global `~/.claude/.vd.json` ← project `<git-root>/.vd.json`. **There is no `.ck.json` read fallback** (removed): vd reads `.vd.json` only. A lingering `.ck.json` *without* its `.vd.json` is no longer silently honored — it **raises a migration error** ("run the cktovd skill / rename to `.vd.json`"). So the cutover is: **create the `.vd.json`** (from `.ck.json` if present). Once `.vd.json` exists the old file is inert (ignored); it's safe to delete — the master backup is your real safety net. vd never writes `.ck.json`.
 
@@ -63,21 +63,23 @@ Config precedence: DEFAULT ← global `~/.claude/.vd.json` ← project `<git-roo
 1. **Opt in** at the git root (commit this file — it's the project's umbrella marker; keep it to exactly this minimal form):
    ```sh
    cd "$(git rev-parse --show-toplevel)"
-   printf '{\n  "paths": {\n    "umbrella": ".work"\n  }\n}\n' > .vd.json
+   printf '{\n  "paths": {\n    "umbrella": ".workbench"\n  }\n}\n' > .vd.json
    ```
 2. **Move artifacts** (named subdirs first so plan dirs don't swallow them; ONE rename to remember: goals → state):
    ```sh
-   mkdir -p .work/plans
-   [ -d plans/reports ]  && mv plans/reports  .work/reports
-   [ -d plans/journals ] && mv plans/journals .work/journals
-   [ -d plans/visuals ]  && mv plans/visuals  .work/visuals
-   [ -d plans/goals ]    && mv plans/goals    .work/state
-   find plans -mindepth 1 -maxdepth 1 -exec mv {} .work/plans/ \; 2>/dev/null
+   mkdir -p .workbench/plans
+   [ -d plans/reports ]  && mv plans/reports  .workbench/reports
+   [ -d plans/journals ] && mv plans/journals .workbench/journals
+   [ -d plans/visuals ]  && mv plans/visuals  .workbench/visuals
+   [ -d plans/goals ]    && mv plans/goals    .workbench/state
+   find plans -mindepth 1 -maxdepth 1 -exec mv {} .workbench/plans/ \; 2>/dev/null
    rmdir plans
    ```
-   Missing sources are fine — absent subdirs appear lazily on first use. If the **current session** is writing into a plan dir, move that dir last (or from a copy). Follow-ups that bite: rewrite embedded `plans/goals` paths inside moved state files; `git ls-files .work/ | xargs -r git rm -r --cached` for anything previously tracked under `plans/` (a `mv` into an ignored dir doesn't untrack it).
-3. **Gitignore:** replace the `plans` entry with `.work`. Don't keep both — if a non-migrated tool recreates `plans/`, it should show up untracked as a signal. The whole migration commit is tiny (5-line `.vd.json` + 1 gitignore line); the file moves are untracked filesystem ops.
+   Missing sources are fine — absent subdirs appear lazily on first use. If the **current session** is writing into a plan dir, move that dir last (or from a copy). Follow-ups that bite: rewrite embedded `plans/goals` paths inside moved state files; `git ls-files .workbench/ | xargs -r git rm -r --cached` for anything previously tracked under `plans/` (a `mv` into an ignored dir doesn't untrack it).
+3. **Gitignore:** replace the `plans` entry with `.workbench`. Don't keep both — if a non-migrated tool recreates `plans/`, it should show up untracked as a signal. The whole migration commit is tiny (5-line `.vd.json` + 1 gitignore line); the file moves are untracked filesystem ops.
 4. **Stale references:** grep the repo (`CLAUDE.md`, `AGENTS.md`, `docs/`, `.github/`, scripts) for hardcoded `plans/` paths and point them at the hook-injected paths instead.
+
+**Already on the legacy `.work` umbrella?** A repo migrated before the `.workbench` rename just needs the dir + config flipped: `git mv .work .workbench` (or `mv` if untracked), set `paths.umbrella` to `.workbench` in `.vd.json`, and swap the `.gitignore` entry `.work/` → `.workbench/`. The hook re-resolves to `.workbench/` on the next prompt; legacy `.work/` is still recognized read-only by the resume probes during the transition.
 
 ## Verify (also the whole of `--check`)
 
@@ -85,16 +87,16 @@ Run **from inside the target repo** — `loadConfig()` resolves the project `.vd
 
 ```sh
 cd "$(git rev-parse --show-toplevel)"
-git check-ignore -v .work/reports/x && echo "OK .work ignored"
+git check-ignore -v .workbench/reports/x && echo "OK .workbench ignored"
 git check-ignore -v docs/x; [ $? -eq 1 ] && echo "OK docs NOT ignored"
 echo "{\"cwd\":\"$PWD\",\"session_id\":\"check\"}" | node ~/.claude/hooks/dev-rules-reminder.cjs
 ```
 
-Pass = the injected `## Paths` block shows **six** paths (Reports/Plans/Docs/Visuals/Journals/State) with everything except Docs under `.work/`. **Three paths = umbrella did not activate** (invalid umbrella value, missing `.vd.json`, or you ran from outside the repo). A malformed `.vd.json` doesn't crash — it silently falls back to the 3-path legacy injection, so assert on output, never trust the config edit. **No paths at all = a legacy `.ck.json` lingers without a `.vd.json`**: the loader now raises a migration error and the fail-open hook injects nothing — create the `.vd.json` (step 4 / repo step 1). New paths take effect on the **next prompt**; the current session's earlier injection still shows old paths — don't chase that as a bug.
+Pass = the injected `## Paths` block shows **six** paths (Reports/Plans/Docs/Visuals/Journals/State) with everything except Docs under `.workbench/`. **Three paths = umbrella did not activate** (invalid umbrella value, missing `.vd.json`, or you ran from outside the repo). A malformed `.vd.json` doesn't crash — it silently falls back to the 3-path legacy injection, so assert on output, never trust the config edit. **No paths at all = a legacy `.ck.json` lingers without a `.vd.json`**: the loader now raises a migration error and the fail-open hook injects nothing — create the `.vd.json` (step 4 / repo step 1). New paths take effect on the **next prompt**; the current session's earlier injection still shows old paths — don't chase that as a bug.
 
 ## Rollback
 
-- Repo: delete `<git-root>/.vd.json` (or set umbrella null) and reverse the gitignore swap → legacy layout resumes byte-identically; `mv` the `.work` trees back if needed.
+- Repo: delete `<git-root>/.vd.json` (or set umbrella null) and reverse the gitignore swap → legacy layout resumes byte-identically; `mv` the `.workbench` trees back if needed.
 - Machine: `vd hooks rollback` (restore newest `*.bak.*` + `settings.json.bak`) or `vd hooks uninstall` (remove + unregister vd-managed files only; third-party hooks untouched). Both support `--dry-run`. Caution: the uninstall allowlist can lag the deployed asset set — check `--dry-run` output and remove orphans by hand.
 - Full restore: copy the master backup back over `~/.claude/hooks` + `settings.json`, then `npm i -g claudekit-cli`.
 
@@ -102,6 +104,6 @@ Pass = the injected `## Paths` block shows **six** paths (Reports/Plans/Docs/Vis
 
 - Reports under the umbrella is a **direct sibling** of plans — anything string-concatenating `plans/reports/...` breaks; only a session-active plan still redirects reports into the plan dir. Always use the hook-injected `Reports:` path.
 - `task-completed-handler.cjs` / `teammate-idle-handler.cjs` live in `~/.claude/hooks` but are deliberately **not** in settings.json (team-runtime invoked) — an "unregistered hook" finding there is not a bug; don't register or delete them.
-- Subagent prompts must pass the **work-context** repo's `.work/` paths, not the cwd's, when editing another project.
-- Monorepos: the umbrella anchors to the **git root**, not cwd — one `.vd.json` and one `.work/` per repo, even when working from a subdirectory.
+- Subagent prompts must pass the **work-context** repo's `.workbench/` paths, not the cwd's, when editing another project.
+- Monorepos: the umbrella anchors to the **git root**, not cwd — one `.vd.json` and one `.workbench/` per repo, even when working from a subdirectory.
 - A corrupted ancestor `.git/config` (e.g. a stray repo at `$HOME`) silently disables git-root resolution for loose dirs beneath it — umbrella just stays off, no error.

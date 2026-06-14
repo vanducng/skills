@@ -31,8 +31,8 @@ done
 
 PYBIN="${HOME}/.claude/skills/.venv/bin/python3"; [ -x "$PYBIN" ] || PYBIN="$(command -v python3)"
 
-# Resolve state bases: $VD_STATE_PATH → <git-root>/.work/state (if .work) →
-# XDG user state. Legacy plans/goals is still included for read-only resume.
+# Resolve state bases: $VD_STATE_PATH → <git-root>/.workbench/state (or legacy
+# .work) → XDG user state. Legacy plans/goals is still included for read-only resume.
 # Returns newline-separated list of glob patterns (may include both new + legacy).
 _hash12() {
   if command -v shasum >/dev/null 2>&1; then
@@ -67,7 +67,9 @@ _state_globs() {
     echo "${VD_STATE_PATH}/*/state.json"
   fi
   REPO_ROOT_S="$(git rev-parse --show-toplevel 2>/dev/null || echo '')"
-  if [ -n "$REPO_ROOT_S" ] && [ -d "${REPO_ROOT_S}/.work" ]; then
+  if [ -n "$REPO_ROOT_S" ] && [ -d "${REPO_ROOT_S}/.workbench" ]; then
+    echo "${REPO_ROOT_S}/.workbench/state/*/state.json"
+  elif [ -n "$REPO_ROOT_S" ] && [ -d "${REPO_ROOT_S}/.work" ]; then
     echo "${REPO_ROOT_S}/.work/state/*/state.json"
   fi
   if [ -n "$REPO_ROOT_S" ]; then

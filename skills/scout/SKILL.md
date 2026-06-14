@@ -124,7 +124,7 @@ Skip task registration if SCALE ≤ 2 (overhead > benefit) or if Task tools are 
 - Skip non-responders after 3 minutes — log them as "timed out" in the report.
 - `TaskUpdate` completed tasks. Mark timeouts in metadata, don't drop them silently.
 - Deduplicate paths (different agents may surface the same file). Merge descriptions.
-- Write to the injected path (`.work/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Filename: `scout-{YYYYMMDD-HHMM}-{slug}.md`. Save **only** when the user is going to act on it; for one-shot lookups, print the report inline.
+- Write to the injected path (`.workbench/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Filename: `scout-{YYYYMMDD-HHMM}-{slug}.md`. Save **only** when the user is going to act on it; for one-shot lookups, print the report inline.
 
 ## Report format
 

@@ -71,7 +71,7 @@ List anything that remains unclear:
 
 ## Report File Naming
 
-Write to the injected path (`.work/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Use the naming pattern from `## Naming` injected by hooks.
+Write to the injected path (`.workbench/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Use the naming pattern from `## Naming` injected by hooks.
 
 **Example:** `debugger-260205-2215-api-500-investigation.md` (placed in the injected reports path)
 
