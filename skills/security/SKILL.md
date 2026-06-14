@@ -38,7 +38,7 @@ This is an LLM-driven threat-modeled review + bounded fix loop — **not** a rep
 3. **Categorize** — each finding: title, STRIDE category, OWASP ref, **severity** (Critical/High/Med/Low), location (`file:line`), masked PoC, remediation.
 4. **`--red-team`** (optional) — run attacker personas iteratively; dedupe vs seen; stop on a dry round or `--iterations` cap (default 5). Bounded.
 5. **`--fix`** (optional) — see Fix loop.
-6. **Report** — write to the injected path (`.work/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Filename: `security-{date}-{slug}.md`.
+6. **Report** — write to the injected path (`.workbench/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Filename: `security-{date}-{slug}.md`.
    Final handoff must include an openable report location, such as
    `[security-report.md](/absolute/path/to/security-report.md)` or
    `file:///absolute/path/to/security-report.md`, not just the basename.

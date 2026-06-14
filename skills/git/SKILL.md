@@ -18,7 +18,7 @@ Low-level git toolkit for the moments when you don't want the full `vd:ship` pip
 |---|---|---|
 | **`vd:git`** | **"Run one git operation cleanly."** | One verb: commit, push, PR, or merge |
 | `vd:ship` | "Land the branch." | Full pipeline: merge target → test → review → version → commit → push → PR → journal |
-| `vd:journal` | "What just happened?" | Personal entry in `.work/journals/` or `plans/journals/` |
+| `vd:journal` | "What just happened?" | Personal entry in `.workbench/journals/` or `plans/journals/` |
 
 Use `vd:git` when you're mid-work and want to checkpoint, hand off a PR, or merge an upstream branch without invoking the whole ship pipeline. Use `vd:ship` when the branch is done and you want everything.
 

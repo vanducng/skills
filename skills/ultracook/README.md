@@ -98,7 +98,7 @@ When an action has a verifier defined (`cook`, `test`), ultracook delegates iter
 
 ## On-disk state
 
-State base resolves to `$VD_STATE_PATH`, then `<git-root>/.work/state` when `.work/` exists, then `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default). Legacy `plans/goals` is still scanned for old runs but is not used for new writes.
+State base resolves to `$VD_STATE_PATH`, then `<git-root>/.workbench/state` when `.workbench/` exists, then `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default). Legacy `plans/goals` is still scanned for old runs but is not used for new writes.
 
 ```
 <state-base>/{YYMMDD-HHMM}-{slug}/

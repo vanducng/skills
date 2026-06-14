@@ -67,7 +67,7 @@ if [ -z "$SLUG" ]; then
 fi
 
 # ── Compute goal-dir path: <state-base>/{YYMMDD-HHMM}-{slug}/ ─────────────────
-# Resolution: $VD_STATE_PATH → <git-root>/.work/state (when .work exists) →
+# Resolution: $VD_STATE_PATH → <git-root>/.workbench/state (or legacy .work) →
 # XDG user state. `plans/goals` is legacy read-only state and is never the
 # default write target.
 
@@ -106,6 +106,8 @@ _state_base() {
   local root="$1"
   if [ -n "${VD_STATE_PATH:-}" ]; then
     echo "$VD_STATE_PATH"
+  elif [ -d "${root}/.workbench" ]; then
+    echo "${root}/.workbench/state"
   elif [ -d "${root}/.work" ]; then
     echo "${root}/.work/state"
   else

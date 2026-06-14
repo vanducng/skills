@@ -19,7 +19,7 @@ Design the look BEFORE app code, so the frontend has a fixed contract to build a
 ## Step 2 — page mockups + theme (opendesign)
 - Use `opendesign` to produce the key screens (login, overview/dashboard, data table, detail, admin) and an `index.html` gallery.
 - Produce ONE `theme.css` = the source of truth: color tokens (brand scale + ink/neutral + semantic), type scale (font + sizes/weights), spacing, radius, shadows, and component classes (buttons, cards, badges, tables, sidebar, status chips). The brand color is the accent (~10% of UI), not large fills.
-- Save under `.work/visuals/{app-slug}/` (umbrella) or `plans/visuals/{app-slug}/`: `index.html`, `screens/*.html`, `assets/theme.css`, `assets/logo/*`. Use a kebab-case app/feature slug so each design has its own subfolder.
+- Save under `.workbench/visuals/{app-slug}/` (umbrella) or `plans/visuals/{app-slug}/`: `index.html`, `screens/*.html`, `assets/theme.css`, `assets/logo/*`. Use a kebab-case app/feature slug so each design has its own subfolder.
 
 ## Step 3 — approve direction (gate)
 Before building, present the visual direction with concise preview options. Lock: style/mood, screen list, scope, logo treatment. Cheap to change now, expensive after code.
