@@ -1,0 +1,13 @@
+{
+  "rules": [
+    {
+      "path": "**/*.py",
+      "rule": "Python: type hints on public functions, no bare except, validate inputs, handle errors explicitly, and never hardcode secrets/tokens. Keep comments terse (non-obvious why only)."
+    },
+    {
+      "path": "**/*.{sh,bash}",
+      "rule": "Shell: quote expansions, prefer `set -euo pipefail`, validate inputs; never commit secrets or tokens."
+    }
+  ],
+  "exclude": ["**/.venv/**", "**/__pycache__/**", "**/*.lock"]
+}
