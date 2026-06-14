@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.41.0](https://github.com/vanducng/skills/compare/v0.40.2...v0.41.0) (2026-06-14)
+
+
+### Features
+
+* adopt SDLC improvements from addyosmani/agent-skills ([#164](https://github.com/vanducng/skills/issues/164)) ([560f72b](https://github.com/vanducng/skills/commit/560f72bc1c8507a9179ec5f19ac10a639c272080))
+
 ## [0.40.2](https://github.com/vanducng/skills/compare/v0.40.1...v0.40.2) (2026-06-13)
 
 
