@@ -12,6 +12,7 @@
  *   list                        List existing worktrees
  *   status                      Show worktree health and branch status
  *   clean                       Bulk-remove merged/stale worktrees + prune metadata to free disk (dry-run; --yes to execute)
+ *   repair                      Relocate worktrees nested inside another worktree to the main root + fix admin links (dry-run; --yes to execute)
  *   ports                       Show per-worktree port block assignments
  *
  * Options:
@@ -22,6 +23,7 @@
  *   --json                 Output in JSON format for LLM consumption
  *   --env <files>          Comma-separated list of .env files to copy (legacy)
  *   --no-copy-env          Skip auto-copy of untracked .env* files
+ *   --no-enter             Don't switch the agent session into the new worktree (default: enter)
  *   --no-pre-remove-hook   Skip .worktree/hooks/pre-remove on remove
  *   --dry-run              Show what would be done without executing
  *   --no-prefix            Skip branch prefix and preserve original case
@@ -182,6 +184,12 @@ const noCopyEnvIndex = args.indexOf('--no-copy-env');
 const noCopyEnv = noCopyEnvIndex > -1;
 if (noCopyEnvIndex > -1) args.splice(noCopyEnvIndex, 1);
 
+// --no-enter: stay in the current directory instead of switching the agent
+// session into the new worktree. Default is to enter (WORKTREE_NO_ENTER=1 also opts out).
+const noEnterIndex = args.indexOf('--no-enter');
+const noEnter = noEnterIndex > -1 || process.env.WORKTREE_NO_ENTER === '1';
+if (noEnterIndex > -1) args.splice(noEnterIndex, 1);
+
 // --no-pre-remove-hook: skip .worktree/hooks/pre-remove on remove
 const noPreRemoveHookIndex = args.indexOf('--no-pre-remove-hook');
 const noPreRemoveHook = noPreRemoveHookIndex > -1;
@@ -224,6 +232,27 @@ function detectAgentRuntime() {
   return { name: 'unknown', openCmd: 'claude  # or: codex' };
 }
 
+// After create, the new worktree becomes the working session by default. The
+// script can't switch a parent session itself, so it emits a machine-readable
+// signal telling the caller HOW: Claude Code switches in-session via the
+// EnterWorktree tool; Codex has no in-session cwd switch, so it relaunches
+// rooted there (codex --cd) or runs subsequent commands from the worktree.
+function buildSessionSwitch(worktreePath, enter) {
+  const runtime = detectAgentRuntime();
+  const sw = { enter, path: worktreePath, runtime: runtime.name };
+  if (!enter) return sw;
+  if (runtime.name === 'claude-code') {
+    sw.action = `EnterWorktree({ path: "${worktreePath}" })`;
+    sw.exit = 'ExitWorktree({ action: "keep" })';
+  } else if (runtime.name === 'codex') {
+    sw.action = `codex --cd "${worktreePath}"`;
+    sw.note = 'Codex has no in-session cwd switch: relaunch rooted at the worktree, or run subsequent commands from it.';
+  } else {
+    sw.action = `cd "${worktreePath}"`;
+  }
+  return sw;
+}
+
 // Output helpers
 function output(data) {
   if (jsonOutput) {
@@ -232,11 +261,22 @@ function output(data) {
     if (data.success) {
       console.log(`\n✅ ${data.message}`);
       if (data.worktreePath) {
-        const runtime = detectAgentRuntime();
+        const sw = data.sessionSwitch;
         console.log(`\n📋 Next Steps:`);
-        console.log(`   1. cd ${data.worktreePath}`);
-        console.log(`   2. ${runtime.openCmd}`);
-        console.log(`   3. Start working on your feature`);
+        if (sw && sw.enter) {
+          console.log(`   → ${sw.action}`);
+          if (sw.runtime === 'claude-code') {
+            console.log(`     (session switches into the worktree; ${sw.exit} to leave)`);
+          } else if (sw.note) {
+            console.log(`     (${sw.note})`);
+          }
+          console.log(`   Then start working. Pass --no-enter to stay in the current dir.`);
+        } else {
+          const runtime = detectAgentRuntime();
+          console.log(`   1. cd ${data.worktreePath}`);
+          console.log(`   2. ${runtime.openCmd}`);
+          console.log(`   3. Start working on your feature`);
+        }
         console.log(`\n🧹 Cleanup when done:`);
         console.log(`   node ${path.relative(process.cwd(), __filename) || __filename} remove ${data.worktreePath}`);
         console.log(`   # or manually:`);
@@ -457,6 +497,71 @@ function findTopmostSuperproject(gitRoot) {
   return topmost;
 }
 
+// Resolve the MAIN worktree (primary checkout) from wherever we're invoked.
+// Running `create` from INSIDE a linked worktree would otherwise nest a new
+// .worktrees under that worktree, because `git rev-parse --show-toplevel`
+// returns the LINKED worktree's path. A linked worktree is detected by its
+// per-worktree git dir (.git/worktrees/<name>) differing from the shared
+// common dir; the main worktree is the first entry of `worktree list`.
+function resolveMainWorktree(currentToplevel) {
+  const resolveDir = (out) => {
+    if (!out) return null;
+    const abs = path.resolve(process.cwd(), out);
+    try { return fs.realpathSync(abs); } catch { return abs; }
+  };
+  const gitDir = git('rev-parse --git-dir', { silent: true });
+  const commonDir = git('rev-parse --git-common-dir', { silent: true });
+  const linked = gitDir.success && commonDir.success &&
+    resolveDir(gitDir.output) !== resolveDir(commonDir.output);
+  if (!linked) {
+    return { main: currentToplevel, insideLinkedWorktree: false };
+  }
+
+  // Inside a linked worktree: the main worktree is the first porcelain entry.
+  const list = git('worktree list --porcelain', { silent: true });
+  if (list.success) {
+    const line = list.output.split('\n').find((l) => l.startsWith('worktree '));
+    if (line) {
+      const mainPath = line.slice('worktree '.length).trim();
+      return {
+        main: mainPath,
+        insideLinkedWorktree: path.resolve(mainPath) !== path.resolve(currentToplevel),
+      };
+    }
+  }
+  // Fallback: the shared common dir is <main>/.git → its parent is the root.
+  const common = resolveDir(commonDir.output);
+  if (common && path.basename(common) === '.git') {
+    return { main: path.dirname(common), insideLinkedWorktree: true };
+  }
+  return { main: currentToplevel, insideLinkedWorktree: false };
+}
+
+// A linked worktree is "nested" when its path lives inside ANOTHER linked
+// worktree (not the main repo — .worktrees under main is normal). This is the
+// corrupt state that creating from inside a worktree used to produce. Each
+// offender carries its canonical home so repair can relocate it.
+function detectNestedWorktrees(records, treesRoot) {
+  const items = records.map((r) => ({ ...r, abs: path.resolve(r.path) }));
+  const nested = [];
+  for (const w of items) {
+    if (w.isMainWorktree) continue;
+    const parent = items.find((other) =>
+      !other.isMainWorktree &&
+      other.abs !== w.abs &&
+      w.abs.startsWith(other.abs + path.sep));
+    if (parent) {
+      nested.push({
+        path: w.path,
+        branch: w.branch,
+        insideOf: parent.path,
+        canonical: path.join(treesRoot, TREES_DIRNAME, path.basename(w.path)),
+      });
+    }
+  }
+  return nested;
+}
+
 // Validate that a path can be used as worktree root (exists or can be created)
 function validateWorktreeRoot(rootPath) {
   if (typeof rootPath !== 'string' || rootPath.trim().length === 0) {
@@ -531,13 +636,21 @@ function getWorktreeRoot(gitRoot, isMonorepo, explicitRoot = null) {
     return { dir: validation.path, source: 'WORKTREE_ROOT env' };
   }
 
-  // Priority 2: .worktrees at the topmost root (superproject for submodules)
-  const topmostRoot = findTopmostSuperproject(gitRoot);
+  // Priority 2: .worktrees at the main worktree's topmost root.
+  // Resolve a linked worktree → main FIRST so an invocation from inside a
+  // worktree never nests .worktrees under that worktree, THEN walk submodule
+  // superprojects. Order matters: main-resolution undoes worktree nesting,
+  // superproject-resolution undoes submodule nesting.
+  const { main, insideLinkedWorktree } = resolveMainWorktree(gitRoot);
+  const topmostRoot = findTopmostSuperproject(main);
   const dir = path.join(topmostRoot, TREES_DIRNAME);
-  const source = topmostRoot !== gitRoot
-    ? `.worktrees (superproject ${path.basename(topmostRoot)})`
-    : '.worktrees';
-  return { dir, source, treesRoot: topmostRoot };
+  let source = '.worktrees';
+  if (insideLinkedWorktree && topmostRoot !== gitRoot) {
+    source = `.worktrees (redirected to main worktree ${path.basename(topmostRoot)})`;
+  } else if (topmostRoot !== gitRoot) {
+    source = `.worktrees (superproject ${path.basename(topmostRoot)})`;
+  }
+  return { dir, source, treesRoot: topmostRoot, redirectedFromWorktree: insideLinkedWorktree };
 }
 
 // Make git ignore a path without touching tracked files: append to
@@ -1261,11 +1374,17 @@ function cmdStatus() {
 
   const currentWorktree = worktrees.find(worktree => worktree.isCurrentWorktree) || null;
 
+  // Flag worktrees physically nested inside another linked worktree — the
+  // corrupt state an older create-from-inside-a-worktree could produce.
+  const treesRoot = getWorktreeRoot(gitRoot, false).treesRoot || gitRoot;
+  const nested = detectNestedWorktrees(worktrees, treesRoot);
+
   if (jsonOutput) {
     console.log(JSON.stringify({
       success: true,
       currentWorktree,
-      worktrees
+      worktrees,
+      nested
     }, null, 2));
     return;
   }
@@ -1298,6 +1417,11 @@ function cmdStatus() {
     .reduce((sum, w) => sum + w.sizeBytes, 0);
   if (reclaimable > 0) {
     console.log(`\n   💾 ~${humanBytes(reclaimable)} reclaimable via: worktree clean --yes`);
+  }
+  if (nested.length > 0) {
+    console.log(`\n   ⚠️  ${nested.length} nested worktree(s) — created inside another worktree:`);
+    nested.forEach(n => console.log(`      ${n.path}\n         inside ${n.insideOf} → should live at ${n.canonical}`));
+    console.log(`   Fix: worktree repair --yes  (relocates them to the main root)`);
   }
 }
 
@@ -1451,9 +1575,21 @@ function cmdCreate() {
   const worktreeRoot = getWorktreeRoot(gitRoot, isMonorepo, explicitWorktreeRoot);
   const worktreesDir = worktreeRoot.dir;
 
-  // Build worktree name: always include repo name for clarity
+  // Invoked from inside a linked worktree: the new worktree was redirected to
+  // the main repo's .worktrees (a sibling), NOT nested under the current one.
+  // Warn so the user understands why the path isn't where they're standing.
+  if (worktreeRoot.redirectedFromWorktree && !explicitWorktreeRoot) {
+    warnings.push(
+      `Ran from inside a linked worktree — creating the new worktree at the main repo root (${worktreesDir}), not nested under the current one.`
+    );
+  }
+
+  // Build worktree name: always include repo name for clarity.
+  // Use the MAIN worktree's basename (treesRoot), never the current toplevel —
+  // inside a linked worktree path.basename(gitRoot) would be the worktree's
+  // dir name and produce a doubled name like "repo-feat-x-newfeat".
   // Flatten slashes to dashes for filesystem-safe directory names
-  const repoName = path.basename(gitRoot);
+  const repoName = path.basename(worktreeRoot.treesRoot || gitRoot);
   const flatFeature = flattenForDirectoryName(sanitizedFeature);
   const worktreeName = isMonorepo
     ? `${projectName}-${flatFeature}`
@@ -1681,6 +1817,7 @@ function cmdCreate() {
     envTemplatesCopied: envResult.copied,
     includeCopied: includeResult.copied,
     suggestedInstalls: detectInstallCommands(worktreePath),
+    sessionSwitch: buildSessionSwitch(worktreePath, !noEnter),
     postCreateHook: hookResult ? { ran: true, hook: hookResult.display } : { ran: false },
     warnings: warnings.length > 0 ? warnings : undefined
   });
@@ -1968,6 +2105,82 @@ function cmdClean() {
   console.log(`\n   Reclaimed ${humanBytes(reclaimedBytes)} across ${removed.length} worktree(s).`);
 }
 
+// Repair worktree integrity: fix admin gitdir links and relocate any worktree
+// that was created nested inside another worktree back to the canonical root.
+// Dry-run by default; --yes executes. --force allows moving a dirty worktree.
+function cmdRepair() {
+  const gitRoot = checkGitRepo();
+  checkGitVersion();
+
+  const treesRoot = getWorktreeRoot(gitRoot, false).treesRoot || gitRoot;
+  const records = getWorktreeRecords(gitRoot, gitRoot);
+  const nested = detectNestedWorktrees(records, treesRoot);
+
+  // Plan a move for each nested worktree; flag blockers (dirty / target taken).
+  const plan = nested.map((n) => {
+    const dirty = checkDirtyState(n.path);
+    let blocker = null;
+    if (fs.existsSync(n.canonical)) blocker = `target already exists: ${n.canonical}`;
+    else if (dirty && !cleanForce) blocker = 'worktree is dirty (commit/stash, or use --force)';
+    return { ...n, dirty, blocker };
+  });
+
+  const willExecute = confirmYes && !dryRun;
+
+  if (!willExecute) {
+    const message = nested.length
+      ? `${nested.length} nested worktree(s) to relocate — pass --yes to repair`
+      : 'No nested worktrees; nothing to relocate';
+    if (jsonOutput) {
+      console.log(JSON.stringify({ success: true, dryRun: true, message, treesRoot, plan }, null, 2));
+      return;
+    }
+    console.log(`\n🔧 Worktree Repair (dry-run)`);
+    console.log(`   ${message}`);
+    plan.forEach((p) => {
+      console.log(`   ${p.blocker ? '✗' : '→'} ${p.path}`);
+      console.log(`      inside ${p.insideOf} → ${p.canonical}${p.blocker ? `  [blocked: ${p.blocker}]` : ''}`);
+    });
+    if (nested.length) console.log(`\n   Run: worktree repair --yes${plan.some(p => p.dirty) ? ' --force' : ''}`);
+    return;
+  }
+
+  // Always repair admin links first (safe, idempotent) — fixes gitdir pointers
+  // left dangling by manual moves so subsequent `git worktree move` succeeds.
+  git('worktree repair', { silent: true });
+
+  const moved = [];
+  const failed = [];
+  for (const p of plan) {
+    if (p.blocker && !(p.dirty && cleanForce && !fs.existsSync(p.canonical))) {
+      failed.push({ path: p.path, error: p.blocker });
+      continue;
+    }
+    fs.mkdirSync(path.dirname(p.canonical), { recursive: true });
+    const moveArgs = ['worktree', 'move'];
+    if (cleanForce) moveArgs.push('--force');
+    moveArgs.push(p.path, p.canonical);
+    const res = gitArgs(moveArgs, { cwd: treesRoot });
+    if (res.success) moved.push({ from: p.path, to: p.canonical });
+    else failed.push({ path: p.path, error: res.stderr || res.error });
+  }
+  git('worktree repair', { silent: true });
+  git('worktree prune', { silent: true });
+
+  if (jsonOutput) {
+    console.log(JSON.stringify({
+      success: failed.length === 0,
+      message: `Relocated ${moved.length} nested worktree(s)`,
+      moved, failed, treesRoot
+    }, null, 2));
+    return;
+  }
+  console.log(`\n🔧 Worktree Repair`);
+  moved.forEach((m) => console.log(`   ✓ moved ${m.from}\n        → ${m.to}`));
+  failed.forEach((f) => console.log(`   ✗ ${f.path}: ${f.error}`));
+  console.log(`\n   Relocated ${moved.length} worktree(s); ${failed.length} blocked.`);
+}
+
 function cmdPorts() {
   const gitRoot = checkGitRepo();
   checkGitVersion();
@@ -2010,6 +2223,7 @@ Commands:
   list                        List existing worktrees
   status                      Inspect worktree health and branch status (with disk usage)
   clean                       Bulk-remove merged/stale worktrees + prune metadata to free disk (dry-run; --yes to execute)
+  repair                      Relocate worktrees nested inside another worktree to the main root + fix admin links (dry-run; --yes; --force for dirty)
   ports                       Show per-worktree port block assignments
 
 Clean options:
@@ -2028,6 +2242,7 @@ Options:
   --json                   Output in JSON format for LLM consumption
   --env <files>            Comma-separated list of .env files to copy (legacy)
   --no-copy-env            Skip auto-copy of untracked .env* files from source checkout
+  --no-enter               Stay in the current dir; don't switch the session into the worktree
   --no-pre-remove-hook     Skip .worktree/hooks/pre-remove teardown on remove
   --dry-run                Show what would be done without executing
   --no-prefix              Skip branch prefix and preserve original case
@@ -2072,12 +2287,15 @@ function main() {
     case 'clean':
       cmdClean();
       break;
+    case 'repair':
+      cmdRepair();
+      break;
     case 'ports':
       cmdPorts();
       break;
     default:
       outputError('UNKNOWN_COMMAND', `Unknown command: ${command || '(none)'}`, {
-        suggestion: 'Available commands: create, remove, info, list, status, clean, ports. Use --help for usage.'
+        suggestion: 'Available commands: create, remove, info, list, status, clean, repair, ports. Use --help for usage.'
       });
   }
 }

@@ -1104,6 +1104,57 @@ test('integration: status reports disk size and merged flag', () => {
   run(`remove "${path.basename(created.worktreePath)}" --json`, { cwd: TMP_REPO });
 });
 
+test('integration: create from INSIDE a worktree redirects to main root, no nesting', () => {
+  const parent = assertJSON(run('create "outer feat" --json', { cwd: TMP_REPO }).output);
+  assert(fs.existsSync(parent.worktreePath), 'parent worktree created');
+  // Run create FROM the worktree — the historic nesting trigger.
+  const inner = assertJSON(run('create "inner feat" --json', { cwd: parent.worktreePath }).output);
+  const treesRoot = path.join(fs.realpathSync(TMP_REPO), '.worktrees');
+  assert(path.resolve(inner.worktreePath).startsWith(treesRoot + path.sep),
+    `new worktree must live under main .worktrees, got ${inner.worktreePath}`);
+  assert(!path.resolve(inner.worktreePath).startsWith(path.resolve(parent.worktreePath) + path.sep),
+    'new worktree must NOT be nested inside the parent worktree');
+  // Name uses the main repo basename, not the worktree dir name (no doubling).
+  assert(path.basename(inner.worktreePath) === 'repo-inner-feat',
+    `expected repo-inner-feat, got ${path.basename(inner.worktreePath)}`);
+  assert((inner.warnings || []).some(w => /inside a linked worktree/i.test(w)),
+    'warns about the redirect');
+  run(`remove "${path.basename(inner.worktreePath)}" --json`, { cwd: TMP_REPO });
+  run(`remove "${path.basename(parent.worktreePath)}" --json`, { cwd: TMP_REPO });
+});
+
+test('integration: status + repair detect and relocate a nested worktree', () => {
+  const parent = assertJSON(run('create "nest host" --json', { cwd: TMP_REPO }).output);
+  // Force the corrupt state directly via git, bypassing the skill's guard.
+  const nestedPath = path.join(parent.worktreePath, '.worktrees', 'legacy-nested');
+  fs.mkdirSync(path.dirname(nestedPath), { recursive: true });
+  sh(`git worktree add -q --detach "${nestedPath}"`, TMP_REPO);
+
+  const status = assertJSON(run('status --json', { cwd: TMP_REPO }).output);
+  assert(Array.isArray(status.nested) && status.nested.some(n => path.resolve(n.path) === path.resolve(nestedPath)),
+    'status flags the nested worktree');
+
+  const dry = assertJSON(run('repair --json', { cwd: TMP_REPO }).output);
+  assert(dry.dryRun === true && dry.plan.some(p => path.resolve(p.path) === path.resolve(nestedPath)),
+    'repair dry-run plans the relocation');
+
+  const done = assertJSON(run('repair --yes --json', { cwd: TMP_REPO }).output);
+  assert(done.moved.length >= 1, 'repair moved the nested worktree');
+  const canonical = path.join(fs.realpathSync(TMP_REPO), '.worktrees', 'legacy-nested');
+  assert(fs.existsSync(canonical), 'nested worktree relocated to main .worktrees');
+  assert(!fs.existsSync(nestedPath), 'nested worktree gone from its old location');
+
+  const after = assertJSON(run('status --json', { cwd: TMP_REPO }).output);
+  assert(after.nested.length === 0, 'no nested worktrees remain after repair');
+  run(`remove "legacy-nested" --json`, { cwd: TMP_REPO });
+  run(`remove "${path.basename(parent.worktreePath)}" --json`, { cwd: TMP_REPO });
+});
+
+test('integration: status nested is empty for a healthy repo', () => {
+  const json = assertJSON(run('status --json', { cwd: TMP_REPO }).output);
+  assert(Array.isArray(json.nested) && json.nested.length === 0, 'no nested worktrees in a clean repo');
+});
+
 try {
   fs.rmSync(TMP_BASE, { recursive: true, force: true });
 } catch { /* temp dir cleanup is best-effort */ }
