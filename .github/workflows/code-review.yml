@@ -12,5 +12,13 @@ permissions:
 
 jobs:
   review:
+    # Explicit secrets (not `inherit`): the reusable workflow is in a different
+    # account (dataplanelabs), and `secrets: inherit` does not cross owners.
     uses: dataplanelabs/workflows/.github/workflows/code-review.yml@main
-    secrets: inherit
+    secrets:
+      OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
+      OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+      OCR_LLM_MODEL: ${{ secrets.OCR_LLM_MODEL }}
+      OCR_LLM_USE_ANTHROPIC: ${{ secrets.OCR_LLM_USE_ANTHROPIC }}
+      GH_APP_ID: ${{ secrets.GH_APP_ID }}
+      GH_APP_MUNMIU_PRIVATE_KEY: ${{ secrets.GH_APP_MUNMIU_PRIVATE_KEY }}
