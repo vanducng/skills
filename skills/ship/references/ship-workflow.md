@@ -370,7 +370,7 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
    STATE=$(gh pr checks "$PR_NUMBER" --json state -q '[.[].state] | unique | join(",")')
    ```
 3. Branch on `$STATE`:
-   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the selected PR template with the latest verification status. For canonical fallback bodies, update the italic stripe (`_Tests: ✓ N · …_`). For repo-template bodies, update the appropriate checklist or notes field without changing section names. Continue to Step 16.
+   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the selected PR template with the latest verification status. For canonical fallback bodies, update the italic stripe (`_Tests: ✓ N · …_`). For repo-template bodies, update the appropriate checklist or notes field without changing section names. Continue to **Step 15b**, then Step 16.
    - **Any `FAILURE` / `CANCELLED` / `TIMED_OUT`** → **STOP**. `AskUserQuestion` (regardless of `--auto`):
      - `Investigate failure` (recommended) — print failing checks via `gh pr checks --json name,state,link -q '.[]|select(.state!="SUCCESS")'`, exit so user can fix
      - `Merge anyway` — proceed to Step 16 noting CI was red
@@ -378,9 +378,44 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
    - **Still pending after timeout** → in `--auto` mode rely on `gh pr merge --auto` (Step 16 queues until green); in interactive mode print "CI still running" with the PR URL and exit cleanly.
 4. CI failures are **never** silently bypassed by `--auto` — same prompt fires.
 
+## Step 15b: Re-check PR comments after CI (merge gate)
+
+**Why this exists.** Step 13 runs once at PR creation, but a code-review **bot**
+(`review/code-review`, CodeRabbit, Codex review, etc.) runs *as a CI job* — so its
+inline comments only land *after* Step 15 turns green, never in time for Step 13.
+A green code-review check means "the bot finished", not "its findings are resolved".
+Without this re-fetch, those comments slip straight to merge. (Exact trap: goclaw
+#304 merged with 9 unresolved bot comments, real bugs included.)
+
+**Run after Step 15 is green, before Step 16, in every mode** (including `--auto`).
+Skip only when `--skip-pr-comments` was passed.
+
+1. Re-fetch unresolved review threads — same GraphQL query as Step 13, one call:
+   ```bash
+   gh api graphql -f query='
+     query($owner:String!,$repo:String!,$pr:Int!){
+       repository(owner:$owner,name:$repo){
+         pullRequest(number:$pr){
+           reviewThreads(first:100){ nodes{
+             isResolved isOutdated
+             comments(first:1){ nodes{ author{login} body path line } }
+           }}
+         }}}' -F owner="$OWNER" -F repo="$REPO" -F pr="$PR_NUMBER"
+   ```
+2. Keep threads where `isResolved == false && isOutdated == false`. These are the
+   actionable ones — human or bot, no distinction.
+3. **0 actionable threads → done, continue to Step 16.** Otherwise **STOP merge** and
+   triage each (same blocking model as Step 13 / Rule 4b):
+   - Valid + actionable → fix at root cause (re-run **Step 4** tests after fixes),
+     reply on the thread explaining the fix, resolve it.
+   - Invalid / false-positive → reply with the reasoning, resolve it.
+   - Loop until 0 actionable threads remain.
+4. This is a **safety floor**: `--auto` does **not** suppress it. A green
+   `review/code-review` check never counts as "comments addressed".
+
 ## Step 16: Auto-merge (conditional)
 
-**Run only if** `--auto` flag is set AND Step 15 reported green (or user explicitly chose "Merge anyway").
+**Run only if** `--auto` flag is set AND Step 15 reported green AND Step 15b is clear (0 unresolved actionable threads) (or user explicitly chose "Merge anyway").
 
 1. Detect the repo's preferred merge strategy and queue / immediate-merge:
    ```bash
@@ -414,6 +449,7 @@ When `--auto` is set, replace each `AskUserQuestion` with the listed default. Cr
 | No test runner detected | Skip tests, warn | No |
 | Critical review issue | — | **Yes**, stop per issue |
 | Unresolved PR review comment | Apply GitHub suggestion blocks; otherwise stop per comment | **Yes** (non-suggestion) |
+| Unresolved comment after CI green (Step 15b) | — | **Yes**, re-fetch + block (safety floor) |
 | Major/minor/patch bump prompt | Patch (or minor if branch starts with `feat/` or commits include `feat:`) | No |
 | Auto-release with manual fallback | Patch bump, tag automatically | No |
 | Push rejected | — | **Yes**, stop |

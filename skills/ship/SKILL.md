@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[official|staging|beta] [--auto] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-journal] [--skip-docs] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # Ship
@@ -93,6 +93,16 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
      the per-check states (`gh pr checks <n>` → look for any `fail`) before merging.
      A path-filtered `skipping` is fine; a `fail` is not, required or not. (This exact
      trap merged a PR whose whole test matrix was red.)
+   - **CI green ≠ comments addressed.** A passing code-review-bot check (e.g.
+     `review/code-review`) means the bot *ran*, not that its findings are resolved. Bot
+     reviewers post inline comments **as a CI job**, so they land *during* Step 15 —
+     after Step 13 already looked and found nothing. So **re-run Step 13's review-thread
+     fetch after CI is green and before merge** (Step 15b), and block on any thread that is
+     `isResolved==false && isOutdated==false` and actionable (human or bot). Triage,
+     fix the valid ones (re-run Step 4 after fixes), reply + resolve each, then merge.
+     **0 unresolved actionable threads is a merge precondition, alongside green CI** — a
+     safety floor `--auto` does not suppress. (This exact trap merged goclaw #304 with 9
+     unresolved bot comments, real bugs included.)
 12. **Ship acts on the *current* repo (cwd).** Before any `git`/`gh` step, confirm
    the branch you mean to land lives in the cwd repo. When landing a sibling repo's
    branch while a different repo is the working dir (e.g. shipping a skills repo mid-task
@@ -128,8 +138,11 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 13. PR comments   → fetch review threads + human/bot reviews + top-level comments; triage, then fix/reply/resolve valid feedback (re-run Step 4 after any fix)
 14. Release       → `--release` only: detect auto-release tool; tag + push if manual
 15. CI watch      → wait for PR checks; on failure prompt user (every mode)
-16. Auto-merge    → `--auto` only: `gh pr merge --auto` once Step 15 is green
+15b. Re-check comments → after CI green, RE-RUN Step 13: code-review bots post inline comments as a CI job, so they appear only now. Block merge on any unresolved actionable thread (Rule 11). Not suppressed by `--auto`.
+16. Auto-merge    → `--auto` only: `gh pr merge --auto` once Step 15 green AND 15b clear
 ```
+
+> **Ordering matters.** Step 13 runs once at PR creation (catches pre-existing human reviews), but a code-review **bot** reviews *as CI* — its comments land during Step 15, after Step 13. **Step 15b re-fetches** so bot findings can't slip to merge. Without it, a green `review/code-review` check reads as "approved" when it only means "the bot finished."
 
 **Detailed steps:** see `references/ship-workflow.md`
 **Auto-detection logic:** see `references/auto-detect.md`
@@ -146,7 +159,8 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 - Step 13 (PR comments) runs when the PR exists and has unresolved review threads, `CHANGES_REQUESTED` reviews, substantive `COMMENTED` reviews from humans/bots, or top-level PR comments. Fresh PR with no comments → skip silently. One GraphQL call, no polling. Skipped entirely with `--skip-pr-comments`.
 - Step 14 runs only with `--release`. If auto-release tooling detected, it's a no-op (CI handles tagging).
 - Step 15 (CI watch) always runs after PR creation. CI failure prompts the user even in `--auto`.
-- Step 16 runs only with `--auto`, only after Step 15 reports green (or user explicitly opted to merge anyway). Uses `gh pr merge --auto`, which respects branch protection — queues the merge; never bypasses.
+- Step 15b (re-check comments) always runs after CI green when any check is a code-review bot (e.g. `review/code-review`) — those post inline comments as a CI job, so they only exist post-CI. Re-runs Step 13's fetch; one GraphQL call. Blocks merge on unresolved actionable threads even in `--auto` (not suppressible — safety floor, Rule 11).
+- Step 16 runs only with `--auto`, only after Step 15 reports green **and** Step 15b is clear (or user explicitly opted to merge anyway). Uses `gh pr merge --auto`, which respects branch protection — queues the merge; never bypasses.
 
 ## Output
 
