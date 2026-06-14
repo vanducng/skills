@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[plan-dir | plan.md | task] [--auto | --quick] [--tdd] [--no-test]"
 metadata:
   author: vanducng
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Cook
@@ -176,10 +176,11 @@ Wait for confirmation. `--auto` skips this gate.
 
 After the last phase passes:
 
-1. **Reconcile** — sweep all phase files; tick stale unchecked items that did get done; sync `plan.md` (`pending` → `completed`).
-2. **Docs** — if changes warrant updates (new public APIs, changed behavior, new env vars, new commands) → update `docs/` directly. Otherwise say so: "Docs impact: none."
-3. **Smoke** — one final end-to-end check. Run the most user-facing command this plan changed.
-4. **Hand off** — ask the user:
+1. **Goal gate** — run the plan's `## Definition of Done` verifiers (the typed, runtime-neutral contract `vd:plan` writes; vocab: `vd:ultracook` `references/verifier-vocab.md`). Execute each as plain shell and confirm with **evidence**, not vibes (`npm test → exit 0`, `curl /api/foo → 200`). **All must pass to declare the plan done.** Any failure → the goal is *unmet*: report which verifier failed with its evidence and kick back to the relevant phase — do not claim done. (No `## Definition of Done` block → fall back to verifying the plan-level `## Success Criteria`.)
+2. **Reconcile** — sweep all phase files; tick stale unchecked items that did get done; sync `plan.md` (`pending` → `completed`).
+3. **Docs** — if changes warrant updates (new public APIs, changed behavior, new env vars, new commands) → update `docs/` directly. Otherwise say so: "Docs impact: none."
+4. **Smoke** — one final end-to-end check. Run the most user-facing command this plan changed.
+5. **Hand off** — ask the user:
    - Commit? (suggest a conventional-commit message)
    - Open a PR? (if on a feature branch)
    - Anything missing? Don't claim done unilaterally.
