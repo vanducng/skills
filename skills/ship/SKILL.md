@@ -102,6 +102,13 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 13. **Auto-release repos** (release-please / semantic-release / changesets): do **not**
    hand-edit `CHANGELOG.md` or the version file — the conventional-commit message drives
    them and CI cuts the version. Detect the tooling (Step 14) and skip the manual bump.
+14. **Only `feat`/`fix`/breaking cut a release** under release-please. A branch whose
+   commits are all non-releasing types (`refactor`, `docs`, `chore`, `perf`, `test`,
+   `style`, `ci`, `build`) lands on main but **no version is cut** — these can't be made
+   release-triggering by config. So when a *substantive* change ships under one of those
+   types and should be released, either: (a) title the headline commit `feat:`/`fix:`, or
+   (b) force it after merge with an empty commit `git commit --allow-empty -m "chore: release X.Y.Z" -m "Release-As: X.Y.Z"` pushed to the release branch. In `--auto`, if the
+   whole branch is non-releasing and substantive, surface this and offer the `Release-As` force.
 
 ## Pipeline
 
