@@ -2,15 +2,15 @@
 name: worktree
 description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under a top-level .worktrees/ dir, auto-copies .env files (nested included), assigns each worktree a deterministic port block, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
 license: MIT
-argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | remove <name>"
+argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | repair | remove <name>"
 metadata:
   author: vanducng
-  version: "2.0.0"
+  version: "2.2.0"
 ---
 
 # Worktree
 
-Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run lives on its own branch and its own filesystem path — without disturbing your main checkout. Each worktree arrives ready to run: env files copied, a private port block assigned, install commands detected. Pairs naturally with `vd:cook` and `vd:fix` (implement in the worktree) and `vd:ship` (land it).
+Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run lives on its own branch and its own filesystem path — without disturbing your main checkout. Each worktree arrives ready to run: env files copied, a private port block assigned, install commands detected. **By default the agent session moves into the new worktree** so subsequent work happens there — pass `--no-enter` to stay put. Pairs naturally with `vd:cook` and `vd:fix` (implement in the worktree) and `vd:ship` (land it).
 
 ## What this skill is — and isn't
 
@@ -34,6 +34,8 @@ All worktrees live at **`<git-root>/.worktrees/<repo>-<feature>/`** — one rule
 **Hazard:** `git clean -fdx` in the main checkout can delete in-repo worktrees (single `-f` skips dirs containing `.git`, double `-ff` does not). Run `clean` afterward to tidy stale metadata.
 
 **Overrides:** `--worktree-root <path>` flag → `WORKTREE_ROOT` env → `.worktrees` default. Older worktrees in sibling `worktrees/` or `.work/worktrees/` dirs keep working (`list`/`status`/`remove`/`clean` find them via git); new ones land in `.worktrees/`.
+
+**No nested worktrees.** Running `create` from *inside* a linked worktree does **not** nest a new `.worktrees` under it — the script resolves back to the main checkout (first entry of `git worktree list`) and lands the new worktree as a sibling at the main root, emitting a redirect warning. If a repo already has a worktree created the old (nested) way, `status` flags it and `repair` relocates it: `worktree repair` (dry-run) → `worktree repair --yes` runs `git worktree move` to the canonical root + `git worktree repair` to fix admin links (`--force` for a dirty worktree).
 
 ## Script path
 
@@ -138,6 +140,7 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs create "<PROJECT>" "<SLUG
 | `--base <branch>` | Override auto-detected base (default: `dev → develop → main → master`) |
 | `--no-prefix` | Preserve original case + slashes (Jira keys, `user/type/feature`); attaches if branch exists |
 | `--no-copy-env` | Skip auto-copy of untracked `.env*` files |
+| `--no-enter` | Stay in the current dir; don't switch the session into the new worktree (default: enter). Also via `WORKTREE_NO_ENTER=1` |
 | `--checkout-submodules` | Run `git submodule update --init --checkout --recursive` after create |
 | `--post-create-hook <x>` | Explicit hook script path or shell command (overrides auto-detect) |
 | `--no-post-create-hook` | Disable hook auto-detection |
@@ -159,6 +162,22 @@ Run the `suggestedInstalls` from the create output in the new worktree (backgrou
 ```
 
 Each entry runs in `<worktreePath>/<dir>`. This replaces guessing from lockfiles by hand. Repos that need more than installs should check in a post-create hook (below).
+
+### Step 7 — Enter the worktree (default)
+
+Unless `--no-enter` was passed, **move the working session into the new worktree** as soon as `create` returns, so all subsequent edits, commands, and git ops land there. The script can't switch a parent session itself — it reports *how* in the `sessionSwitch` block of the create output (`{ enter, path, runtime, action }`); the agent performs the switch per its runtime:
+
+- **Claude Code** — call the `EnterWorktree` tool with the worktree path:
+  ```javascript
+  EnterWorktree({ path: "<worktreePath>" })   // seamless in-session cwd switch
+  ```
+  Later, leave with `ExitWorktree({ action: "keep" })` (keeps the branch + files) or `{ action: "remove" }` (deletes both). The path is already registered in `git worktree list`, so `EnterWorktree` accepts it even though it lives under `.worktrees/`, not `.claude/worktrees/`.
+- **Codex** — there is **no in-session cwd switch**. Either relaunch rooted at the worktree (`codex --cd "<worktreePath>"`) or run subsequent commands from it. The `sessionSwitch.action` field gives the exact `codex --cd` command.
+- **Plain shell / unknown** — `cd "<worktreePath>"`.
+
+Installs (Step 6) run with explicit `<worktreePath>/<dir>` paths, so entering before or after them is equivalent — kick the installs off in the background and enter immediately.
+
+**Skip entering when:** the user said "stay" / "don't switch", you're scripting multiple creates in a loop, or you need to keep operating in the main checkout. Pass `--no-enter` (or set `WORKTREE_NO_ENTER=1`); the `sessionSwitch` block then reports `enter: false`.
 
 ## Per-worktree isolation kit
 
@@ -237,9 +256,10 @@ docker compose -p "$COMPOSE_PROJECT_NAME" down -v 2>/dev/null || true
 | `create` | `create [project] <feature>` | Create worktree + branch + env + ports |
 | `remove` | `remove <name-or-path>` | Remove **one** worktree: backup env → pre-remove hook → remove + delete branch |
 | `clean` | `clean [--merged\|--stale] [--force] [--yes]` | Sweep **all** dead worktrees + prune metadata to free disk |
+| `repair` | `repair [--yes] [--force]` | Relocate worktrees nested inside another worktree to the main root + fix admin links |
 | `info` | `info` | Repo type, base branch, projects, worktree location |
 | `list` | `list` | All existing worktrees (normalized paths) |
-| `status` | `status` | Health audit + divergence + disk usage; flags merged/prunable + reclaimable total |
+| `status` | `status` | Health audit + divergence + disk usage; flags merged/prunable, **nested worktrees**, + reclaimable total |
 | `ports` | `ports` | Port block assignment per worktree |
 
 **`remove` vs `clean`:** `remove` takes a name and removes that one. `clean` takes no target — it finds every worktree whose branch is merged into its base or gone from the remote, shows them with disk sizes (dry-run by default), and removes them on `--yes`. `clean` also prunes stale git metadata (the old `prune` command folded in here). Both rescue untracked `.env*` files to `<trees-root>/.env-backups/<name>/` before deletion.
@@ -262,6 +282,7 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs clean --merged --force --
 | `portBase` | First port of this worktree's 10-port block |
 | `worktreeId` | DB-name-safe identifier |
 | `suggestedInstalls` | `[{dir, command}]` — run these in the worktree |
+| `sessionSwitch` | `{enter, path, runtime, action, exit?, note?}` — how to move the session into the worktree (`enter:false` if `--no-enter`) |
 | `envFilesCopied` | Untracked `.env*` files copied (incl. nested paths) |
 | `envTemplatesCopied` | `.env*.example` → `.env*` mappings (gap-fill only) |
 | `includeCopied` | `.worktreeinclude` entries copied |
@@ -290,6 +311,7 @@ JSON output (`--json`) embeds the same `exitCode` inside `error` for parsing wit
 | Variable | Effect |
 |---|---|
 | `WORKTREE_ROOT` | Override default `.worktrees/` root directory |
+| `WORKTREE_NO_ENTER` | Set to `1` to default to *not* switching the session into new worktrees (same as `--no-enter`) |
 | `WORKTREE_AGENT_CMD` | Override the "Next steps" CLI hint (for runtimes the script can't auto-detect) |
 | `WORKTREE_*` (exported to hooks) | `NAME`, `BRANCH`, `ID`, `PORT_BASE`, `PATH`, `SOURCE` + `PORT`, `COMPOSE_PROJECT_NAME` |
 
