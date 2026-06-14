@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.46.1](https://github.com/vanducng/skills/compare/v0.46.0...v0.46.1) (2026-06-14)
+
+
+### Bug Fixes
+
+* **cook,plan:** resolve eval-dod runner across install roots ([#177](https://github.com/vanducng/skills/issues/177)) ([50cdf9f](https://github.com/vanducng/skills/commit/50cdf9f46d263771d02dea2292ef0633fd021fce))
+
 ## [0.46.0](https://github.com/vanducng/skills/compare/v0.45.0...v0.46.0) (2026-06-14)
 
 
