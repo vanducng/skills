@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.43.0](https://github.com/vanducng/skills/compare/v0.42.0...v0.43.0) (2026-06-14)
+
+
+### Miscellaneous Chores
+
+* release 0.43.0 ([d6b120a](https://github.com/vanducng/skills/commit/d6b120aba5a58a85f509c6a6dcd5416ff1663f6e))
+
 ## [0.42.0](https://github.com/vanducng/skills/compare/v0.41.0...v0.42.0) (2026-06-14)
 
 
