@@ -12,6 +12,11 @@ type = 'git'
 url = 'https://github.com/browserbase/skills'
 ref = ''
 
+[sources.alibaba]
+type = 'git'
+url = 'https://github.com/alibaba/open-code-review'
+ref = ''
+
 [skills]
 [skills.browser]
 source = 'browserbase'
@@ -22,6 +27,12 @@ pin = ''
 [skills.browser-trace]
 source = 'browserbase'
 path = 'skills/browser-trace'
+mode = 'tracked'
+pin = ''
+
+[skills.open-code-review]
+source = 'alibaba'
+path = 'skills/open-code-review'
 mode = 'tracked'
 pin = ''
 
