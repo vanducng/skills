@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 54 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 55 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -13,7 +13,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Discover | `vd:scout`, `vd:research`, `vd:brainstorm` |
 | Plan | `vd:plan`, `vd:plan-audit`, `vd:scenario` |
 | Execute | `vd:cook`, `vd:fix`, `vd:debug` |
-| Review and ship | `vd:code-review`, `vd:simplify`, `vd:security`, `vd:ship`, `vd:git` |
+| Review and ship | `vd:code-review`, `vd:open-code-review`, `vd:simplify`, `vd:security`, `vd:ship`, `vd:git` |
 | Iterate | `vd:auto-loop`, `vd:optimize-loop` |
 | Orchestrate | `vd:ultracook` |
 
