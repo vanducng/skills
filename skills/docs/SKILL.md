@@ -1,8 +1,8 @@
 ---
 name: docs
-description: "Manage project documentation in ./docs/ — initialize, update, or check. Canonical set is intentionally small: development guidelines, system architecture, tech stack, deployment. Scouts the codebase, delegates writing to the docs-manager subagent (or stays inline with --inline)."
+description: "Manage project documentation in ./docs/ — initialize, update, check, or record an ADR (architecture decision record). Canonical set is intentionally small: development guidelines, system architecture, tech stack, deployment; plus append-only decision history under docs/decisions/. Scouts the codebase, delegates writing to the docs-manager subagent (or stays inline with --inline)."
 license: MIT
-argument-hint: "init|update|check [topic] [--inline] [--dry-run]"
+argument-hint: "init|update|check|adr [topic] [--inline] [--dry-run]"
 metadata:
   author: vanducng
   version: "1.0.0"
@@ -29,10 +29,11 @@ Keep `./docs/` honest. Scout the code, diff it against what the docs claim, writ
 | `init` | `references/init-workflow.md` | Fresh repo — no `./docs/` yet, or only a stub README |
 | `update` | `references/update-workflow.md` | Code drifted from docs after a feature, refactor, or migration |
 | `check` | `references/check-workflow.md` | Validate-only: required files, size, freshness, broken refs. No writes. |
+| `adr` | `references/adr-workflow.md` | Record an architecture decision (the *why* behind an irreversible choice) under `docs/decisions/` |
 
 Parse `$ARGUMENTS` first word:
-- `init` / `update` / `check` → load the matching reference
-- empty / unclear → `AskUserQuestion` with the three options. Don't auto-run `init` — it writes files.
+- `init` / `update` / `check` / `adr` → load the matching reference
+- empty / unclear → `AskUserQuestion` with the options. Don't auto-run `init` — it writes files.
 
 ## Flags
 
@@ -60,6 +61,8 @@ Intentionally short. Every file here earns its place — code-derivable, frequen
 - PRD / requirements → product artifact, not a code-derivable doc
 
 If a project has good reasons to maintain those, add them outside `vd:docs`'s automated touch — this skill won't read, write, or validate them.
+
+**`docs/decisions/` (ADRs) is a special case** — append-only decision history written by the `adr` subcommand, not current-state docs. It is **exempt from freshness, size-budget, and citation validation**: an old ADR is *correct* (it records what was decided then), and a superseded one stays in place with its status flipped. `check` must skip `docs/decisions/`.
 
 ## Pre-flight: missing `./docs/`
 

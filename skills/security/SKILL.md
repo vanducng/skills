@@ -1,6 +1,6 @@
 ---
 name: security
-description: "Threat-modeled security audit using STRIDE + OWASP, scanning code from multiple attacker perspectives, with optional red-team discovery loop and an autoresearch-style fix loop. Use for defensive security review, vulnerability discovery, threat modeling, and authorized remediation. Triggers: 'security audit', 'STRIDE', 'OWASP', 'find vulnerabilities', 'threat model', 'red-team this', 'is this secure'."
+description: "Threat-modeled security audit using STRIDE + OWASP (incl. the OWASP LLM Top-10 lens for AI/agent code), scanning code from multiple attacker perspectives, with optional red-team discovery loop and an autoresearch-style fix loop. Use for defensive security review, vulnerability discovery, threat modeling, prompt-injection / LLM security, and authorized remediation. Triggers: 'security audit', 'STRIDE', 'OWASP', 'find vulnerabilities', 'threat model', 'red-team this', 'is this secure', 'prompt injection', 'LLM security'."
 license: MIT
 argument-hint: "<scope glob or 'full'> [--fix] [--red-team] [--iterations N]"
 metadata:
@@ -34,7 +34,7 @@ This is an LLM-driven threat-modeled review + bounded fix loop — **not** a rep
 ## Workflow
 
 1. **Scope** — resolve `<scope>` glob (or `full` = whole repo). List the files/surfaces in play.
-2. **Threat pass** — walk STRIDE × OWASP per [`references/stride-owasp.md`](references/stride-owasp.md): for each category, grep/inspect the relevant sinks.
+2. **Threat pass** — walk STRIDE × OWASP per [`references/stride-owasp.md`](references/stride-owasp.md): for each category, grep/inspect the relevant sinks. If the scope calls an LLM, drives an agent, or builds a prompt from user/tool data, also run the LLM lens in [`references/llm-owasp.md`](references/llm-owasp.md).
 3. **Categorize** — each finding: title, STRIDE category, OWASP ref, **severity** (Critical/High/Med/Low), location (`file:line`), masked PoC, remediation.
 4. **`--red-team`** (optional) — run attacker personas iteratively; dedupe vs seen; stop on a dry round or `--iterations` cap (default 5). Bounded.
 5. **`--fix`** (optional) — see Fix loop.
