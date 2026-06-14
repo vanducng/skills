@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.42.0](https://github.com/vanducng/skills/compare/v0.41.0...v0.42.0) (2026-06-14)
+
+
+### Features
+
+* **worktree:** prevent nested worktrees + repair, enter-by-default ([#166](https://github.com/vanducng/skills/issues/166)) ([00dc677](https://github.com/vanducng/skills/commit/00dc677112e1737cf25f289ba565f68283f1641c))
+
 ## [0.41.0](https://github.com/vanducng/skills/compare/v0.40.2...v0.41.0) (2026-06-14)
 
 
