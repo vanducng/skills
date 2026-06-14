@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.48.2](https://github.com/vanducng/skills/compare/v0.48.1...v0.48.2) (2026-06-14)
+
+
+### Bug Fixes
+
+* **ship:** re-check PR comments after CI green before merge ([#186](https://github.com/vanducng/skills/issues/186)) ([11b474f](https://github.com/vanducng/skills/commit/11b474fb3520d216aacee24d44f89ce5ee8dbad1))
+
 ## [0.48.1](https://github.com/vanducng/skills/compare/v0.48.0...v0.48.1) (2026-06-14)
 
 
