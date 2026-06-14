@@ -1,6 +1,6 @@
 {
   "name": "vd",
-  "version": "0.47.0",
+  "version": "0.48.0",
   "description": "A daily-driver collection of skills for agentic coding, namespaced under `vd:` to avoid conflicts with other plugins.",
   "author": {
     "name": "vanducng",
