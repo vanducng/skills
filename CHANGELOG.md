@@ -2,6 +2,14 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.48.1](https://github.com/vanducng/skills/compare/v0.48.0...v0.48.1) (2026-06-14)
+
+
+### Bug Fixes
+
+* remove outdated sqlit skill ([847a843](https://github.com/vanducng/skills/commit/847a843e38a814421eb1eb7261db9324eeb5988d))
+* remove outdated sqlit skill ([f2747cd](https://github.com/vanducng/skills/commit/f2747cd628ef959a54df20f35353fe0ac49f2270))
+
 ## [0.48.0](https://github.com/vanducng/skills/compare/v0.47.0...v0.48.0) (2026-06-14)
 
 
