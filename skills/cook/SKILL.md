@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[plan-dir | plan.md | task] [--auto | --quick] [--tdd] [--no-test]"
 metadata:
   author: vanducng
-  version: "1.4.0"
+  version: "1.4.1"
 ---
 
 # Cook
@@ -176,9 +176,12 @@ Wait for confirmation. `--auto` skips this gate.
 
 After the last phase passes:
 
-1. **Goal gate** — run the shared runner against the plan's `## Definition of Done`:
+1. **Goal gate** — run the shared runner against the plan's `## Definition of Done`. Resolve it wherever this skill is installed (Claude / Codex / dev clone), never a hardcoded clone path:
    ```bash
-   bash $HOME/skills/skills/cook/scripts/eval-dod.sh <plan.md>   # or $HOME/.claude/skills/cook/scripts/eval-dod.sh
+   for r in "$HOME/.claude/skills" "$HOME/.agents/skills" "$HOME/skills/skills"; do
+     [ -f "$r/cook/scripts/eval-dod.sh" ] && DOD="$r/cook/scripts/eval-dod.sh" && break
+   done
+   bash "$DOD" <plan.md>
    ```
    It evaluates every verifier with evidence and **exits 0 only if all pass** — gate "done" on exit 0. Exit 1 → goal *unmet*: it prints which verifier failed; report that and kick back to the relevant phase, do **not** claim done. A `manual_confirm` verifier surfaces as needs-user → resolve it with `AskUserQuestion`, then re-run. If the runner is unavailable, fall back to executing each verifier by hand (same vocab). No `## Definition of Done` block (runner exits 1 with "fall back") → verify the plan-level `## Success Criteria` instead.
 2. **Reconcile** — sweep all phase files; tick stale unchecked items that did get done; sync `plan.md` (`pending` → `completed`).
