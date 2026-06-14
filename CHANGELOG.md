@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.48.0](https://github.com/vanducng/skills/compare/v0.47.0...v0.48.0) (2026-06-14)
+
+
+### Features
+
+* add open-code-review skill (tracked from alibaba/open-code-review) ([#181](https://github.com/vanducng/skills/issues/181)) ([05e5ced](https://github.com/vanducng/skills/commit/05e5ced4e7f7d3d1eae59dcec45c0a21835a0e5c))
+
 ## [0.47.0](https://github.com/vanducng/skills/compare/v0.46.1...v0.47.0) (2026-06-14)
 
 
