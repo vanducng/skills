@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 55 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 54 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -26,7 +26,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
-| Data and workspace | `vd:miudb`, `vd:sqlit`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:qmd` |
+| Data and workspace | `vd:miudb`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:qmd` |
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:gopass`, `vd:journal`, `vd:cktovd` |
 | Skill lifecycle | `vd:skill-management`, `vd:rule-miner` |
 
