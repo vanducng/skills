@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.44.0](https://github.com/vanducng/skills/compare/v0.43.0...v0.44.0) (2026-06-14)
+
+
+### Features
+
+* **ship:** flag non-releasing commit types + Release-As force ([#171](https://github.com/vanducng/skills/issues/171)) ([620a914](https://github.com/vanducng/skills/commit/620a9142757a1b6220eb0d52cc5b1b1ab0f4af4f))
+
 ## [0.43.0](https://github.com/vanducng/skills/compare/v0.42.0...v0.43.0) (2026-06-14)
 
 
