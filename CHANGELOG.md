@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.51.0](https://github.com/vanducng/skills/compare/v0.50.0...v0.51.0) (2026-06-15)
+
+
+### Features
+
+* **hooks:** wire codex.notify so Codex shares the managed agent-notify copy ([ab7f625](https://github.com/vanducng/skills/commit/ab7f625f23fbd44e0c3dd664ef2b54b1d8b3c237))
+
 ## [0.50.0](https://github.com/vanducng/skills/compare/v0.49.0...v0.50.0) (2026-06-15)
 
 
