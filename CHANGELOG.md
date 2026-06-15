@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.56.0](https://github.com/vanducng/skills/compare/v0.55.0...v0.56.0) (2026-06-15)
+
+
+### Features
+
+* **hooks:** extend preview cap 700→3500 chars for longer expandable quotes ([c471cc1](https://github.com/vanducng/skills/commit/c471cc1da097d11cb3b317f22e28ad0d3c80fe9f))
+
 ## [0.55.0](https://github.com/vanducng/skills/compare/v0.54.0...v0.55.0) (2026-06-15)
 
 
