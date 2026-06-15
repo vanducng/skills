@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.50.0](https://github.com/vanducng/skills/compare/v0.49.0...v0.50.0) (2026-06-15)
+
+
+### Features
+
+* **devlog:** materialize vault posts and covers ([#189](https://github.com/vanducng/skills/issues/189)) ([d588e2b](https://github.com/vanducng/skills/commit/d588e2b2374233dc0b8a41ece94603fe0a4dc2fa))
+
 ## [0.49.0](https://github.com/vanducng/skills/compare/v0.48.2...v0.49.0) (2026-06-15)
 
 
