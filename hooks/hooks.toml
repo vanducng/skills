@@ -76,3 +76,10 @@ file = "pr-merge-guard.py"
 runtime = "python3"
 event = "PreToolUse"
 matcher = "Bash"
+
+# Also fire the notifier on Codex turns (wires ~/.codex/config.toml notify).
+[[hook]]
+file = "agent-notify.py"
+runtime = "python3"
+event = "codex.notify"
+args = ["codex"]
