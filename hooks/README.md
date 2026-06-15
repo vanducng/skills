@@ -14,7 +14,7 @@ expandable blockquote (tap to expand) so long turns stay tidy.
 🕒 14:42 · Mon 15 Jun  💻 host         🕒 …  💻 host
 📂 vd-cli                             📂 shop-app
 📁 ~/git/personal/agents/vd-cli       📁 ~/git/work/acme/products/shop-app
-🖥 main:vdcli  (tmux session:window)  🖥 vendor:vdcli
+🖥 vendor:vdcli:0  (session:window:pane) 🖥 work:api:2
 ❝ expandable preview of the last     ❝ expandable preview… ❞
   assistant message… ❞
 ```
