@@ -1,11 +1,11 @@
 ---
 name: devlog
-description: "Turn recent engineering work into build-in-public devlogs for X/Twitter. Use when the user asks to draft or post a devlog, start today's dev log on x.com, publish a ship/debug/lesson thread, or turn recent commits into a public update."
+description: "Turn recent engineering work into build-in-public devlogs for X/Twitter. Use when the user asks to draft or write a devlog/post, create a vault post and cover, start today's dev log on x.com, publish a ship/debug/lesson thread, or turn recent commits into a public update."
 license: MIT
-argument-hint: "[today|ship|fix|debug|lesson|idea|week] [short|long|thread|article] [draft|post] [blunt|polished|technical] [--since <ref>] [--topic <text>] [--url <url>] [--repo <path>]"
+argument-hint: "[today|ship|fix|debug|lesson|idea|week] [short|long|thread|article] [draft|artifact|post] [cover|no-cover] [blunt|polished|technical] [--since <ref>] [--topic <text>] [--url <url>] [--repo <path>] [--project <slug>]"
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
 # Devlog
@@ -43,7 +43,9 @@ Parse free-form args additively. If args conflict, later/more specific args win.
 | `thread` | 3-7 tweets, each <= 280 chars | no |
 | `article` | Long-form X article style, <= 3000 chars | no |
 | `draft` | Return text only | yes |
-| `post` / `publish` | Publish through `twitter` CLI after validation | no |
+| `artifact` / `vault` | Persist the draft as a devlog vault post when `vault/` + `pub` are available | auto |
+| `cover` / `no-cover` | Generate and attach a cover image for a vault post | auto in vault mode |
+| `post` / `publish` | Publish through `twitter` CLI after validation; noun phrase "write a post" does not count | no |
 | `blunt` | More direct, sharper cuts, fewer qualifiers | no |
 | `polished` | Smoother public phrasing, still not hype | no |
 | `technical` | Keep implementation terms and exact artifacts | no |
@@ -51,6 +53,7 @@ Parse free-form args additively. If args conflict, later/more specific args win.
 | `--topic <text>` | User-supplied angle/title | inferred |
 | `--url <url>` | Include PR/demo/post URL if relevant | none |
 | `--repo <path>` | Gather facts from another repo | current dir |
+| `--project <slug>` | Devlog vault project bucket for saved artifacts | inferred |
 | `--dry-run` | Show intended post command, do not publish | false |
 
 Examples:
@@ -60,6 +63,7 @@ devlog today long post
 devlog ship short --url https://github.com/me/repo/pull/42
 devlog debug thread blunt --since HEAD~5
 devlog lesson polished --topic "worktrees as default isolation"
+devlog ship artifact cover --project workflows
 ```
 
 ## Workflow
@@ -117,6 +121,20 @@ devlog style guide, prefer that too:
 
 Treat empty/stub style guides as no-op.
 
+When working inside the devlog vault and the style guide is empty/stubbed, read
+2-4 recent files from `vault/projects/*/posts/*.md` before drafting. Infer the
+current house style from those posts and prefer it over the generic examples:
+
+- sectioned long-form notes (`what shipped`, `the thing that clicked`, `proud`,
+  `uneasy`, `next`, `quote to self`, `facts used`) when the examples use them;
+- lowercase first-person fragments when present;
+- concrete artifact bullets before reflective prose;
+- explicit `facts used` at the end when the post depends on verified repos,
+  PRs, releases, or command output.
+
+Do not copy unsupported metrics or structure from examples blindly. Use the
+shape and voice; keep facts scoped to the current task.
+
 ### 4. Choose a post shape
 
 Use the source arg to decide structure:
@@ -172,10 +190,59 @@ For every draft:
   inspect `git diff --cached`/`git diff` for accidental key material.
 - Prefer draft-only if the post depends on missing facts.
 
-### 7. Publish when requested
+### 7. Materialize vault artifacts in the same turn
 
-Only publish when args include `post` or `publish`, or the user explicitly says
-to post/start it on X. Otherwise return the draft.
+Do this before returning when any of these are true:
+
+- the user says "write a post", "make a post", "create the devlog", "cover",
+  or asks where the post/cover is;
+- args include `artifact`, `vault`, or `cover`;
+- the current repo has `vault/` and `uv run pub --help` works, unless the user
+  explicitly asked for text-only output.
+
+In vault mode, do not stop at returning draft text. Create the actual files in
+the same turn.
+
+Use the repo CLI as the only frontmatter writer:
+
+```bash
+uv run pub new "<title>" --project <project>
+uv run pub draft <id> --project <project> --format <format> --body-file <body-file>
+uv run pub set-cover <id> <cover-path> --alt "<alt text>"
+uv run pub doctor
+```
+
+Vault artifact rules:
+
+- Infer `<project>` from `--project`, then from the central artifact/repo named
+  in the post (`dataplanelabs/workflows` -> `workflows`), then current repo
+  basename. Use kebab-case.
+- Use a concise title derived from the post angle; let `pub new` generate the
+  dated id and capture it from command output.
+- Put the body in a temp file for `--body-file`. Include `# <title>` when local
+  examples under `vault/projects/*/posts/*.md` use headings.
+- Save posts under `vault/projects/<project>/posts/<id>.md`.
+- Save covers under `vault/projects/<project>/assets/<id>-cover.png`.
+- Generate a bitmap cover in the same turn when cover is auto/required. Use the
+  image generation tool/skill when available, copy the selected output into the
+  vault assets directory, inspect it, then attach it with `pub set-cover`.
+- Normalize X post covers to `1200x675` PNG (16:9) by default, keep important
+  content centered, and keep the file under 5 MB. If generation returns another
+  size, resize/crop/extent before `pub set-cover`; use `1600x900` only when the
+  user explicitly asks for a higher-resolution cover.
+- If image generation is unavailable, create the post anyway and clearly say the
+  cover is the only missing artifact.
+- Run `uv run pub doctor` before final response.
+
+When the vault CLI is absent or the current directory is not a devlog vault,
+fall back to text-only output and say no vault artifact was created.
+
+### 8. Publish when requested
+
+Only publish when args include the verb `publish`, or the user explicitly says
+to post/start it on X now. Do not treat "write a post", "draft a post", or
+"make a post about this" as publishing permission. Otherwise return or save the
+draft only.
 
 Use `vd:twitter` CLI:
 
@@ -196,13 +263,23 @@ post.
 
 ## Output
 
-For `draft`, return:
+For text-only `draft`, return:
 
 ```text
 Draft (<format>, <style>, <source>)
 
 <post text>
 
+Facts used: <short list>
+```
+
+For vault/artifact draft, return:
+
+```text
+Draft saved: <post-path>
+Cover saved: <cover-path-or-missing reason>
+Idea note: <idea-path>
+Validation: <pub doctor result>
 Facts used: <short list>
 ```
 
