@@ -73,7 +73,7 @@ def tmux_ctx():
     if not pane:
         return ""
     try:
-        r = subprocess.run(["tmux", "display-message", "-p", "-t", pane, "#S:#W"],
+        r = subprocess.run(["tmux", "display-message", "-p", "-t", pane, "#S:#W:#P"],
                            capture_output=True, text=True, timeout=2)
         return r.stdout.strip()
     except Exception:
