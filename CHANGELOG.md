@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.53.0](https://github.com/vanducng/skills/compare/v0.52.0...v0.53.0) (2026-06-15)
+
+
+### Features
+
+* **hooks:** distinct agent icons — Claude 🟠, Codex 🟢 ([48a3fd2](https://github.com/vanducng/skills/commit/48a3fd2d74daa8694dbafb1dfd10c9e1c5c6f4c3))
+
 ## [0.52.0](https://github.com/vanducng/skills/compare/v0.51.0...v0.52.0) (2026-06-15)
 
 
