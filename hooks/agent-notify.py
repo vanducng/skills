@@ -112,7 +112,10 @@ def build(agent, agent_icon, status_icon, what, cwd, preview):
     if tx:
         lines.append(f"🖥 <code>{esc(tx)}</code>")
     if preview:
-        lines.append(f"💬 {esc(' '.join(preview.split())[:300])}")
+        # Collapse whitespace + drop markdown code fences, then put it in an
+        # expandable blockquote (Bot API 7.0) so long messages stay tidy.
+        clean = " ".join(preview.replace("```", "").split())[:700]
+        lines.append(f"<blockquote expandable>{esc(clean)}</blockquote>")
     return "\n".join(lines)
 
 
