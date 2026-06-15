@@ -117,7 +117,8 @@ def build(agent, agent_icon, status_icon, what, cwd, preview):
         # 7.0) so long messages stay tidy.
         body = preview.replace("```", "")
         body = "\n".join(re.sub(r"[ \t]+", " ", ln).strip() for ln in body.splitlines())
-        body = re.sub(r"\n{3,}", "\n\n", body).strip()[:700]
+        # Telegram caps a message at 4096 chars; leave room for the header lines.
+        body = re.sub(r"\n{3,}", "\n\n", body).strip()[:3500]
         lines.append(f"<blockquote expandable>{esc(body)}</blockquote>")
     return "\n".join(lines)
 
