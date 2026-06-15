@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.54.0](https://github.com/vanducng/skills/compare/v0.53.0...v0.54.0) (2026-06-15)
+
+
+### Features
+
+* **hooks:** Codex icon 🟢→🔵 for clearer contrast with Claude 🟠 ([f601898](https://github.com/vanducng/skills/commit/f60189851cbc1dae74cf888ecc2a60b4ee5161ae))
+
 ## [0.53.0](https://github.com/vanducng/skills/compare/v0.52.0...v0.53.0) (2026-06-15)
 
 
