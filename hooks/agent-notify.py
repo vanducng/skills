@@ -147,7 +147,7 @@ def main():
             "approval-requested": ("🔔", "needs approval"),
             "agent-turn-complete": ("✅", "turn complete"),
         }.get(ctype, ("ℹ️", ctype or "event"))
-        text = build("CODEX", "🟢", icon, what, payload.get("cwd", ""), payload.get("last-assistant-message", ""))
+        text = build("CODEX", "🔵", icon, what, payload.get("cwd", ""), payload.get("last-assistant-message", ""))
         fwd, arg = cfg["CODEX_NOTIFY_FORWARD"], cfg["CODEX_NOTIFY_FORWARD_ARG"]
         if fwd and os.access(fwd, os.X_OK):  # chain a previously-configured notify
             try:
