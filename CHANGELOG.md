@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.49.0](https://github.com/vanducng/skills/compare/v0.48.2...v0.49.0) (2026-06-15)
+
+
+### Features
+
+* **hooks:** add agent-notify + pr-merge-guard, managed via vd manifest ([e0e0d78](https://github.com/vanducng/skills/commit/e0e0d78e14bc32056bddc571e43b931ffed158e4))
+
 ## [0.48.2](https://github.com/vanducng/skills/compare/v0.48.1...v0.48.2) (2026-06-14)
 
 
