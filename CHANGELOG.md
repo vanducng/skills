@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.55.0](https://github.com/vanducng/skills/compare/v0.54.0...v0.55.0) (2026-06-15)
+
+
+### Features
+
+* **hooks:** preserve line breaks in preview; update README for 🟠/🔵 icons ([85d78e4](https://github.com/vanducng/skills/commit/85d78e4847f375536e51ee16357530e58f9cb827))
+
 ## [0.54.0](https://github.com/vanducng/skills/compare/v0.53.0...v0.54.0) (2026-06-15)
 
 
