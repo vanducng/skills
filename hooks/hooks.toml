@@ -1,0 +1,78 @@
+# vd-cli Claude hooks manifest.
+# `vd install hooks` copies these files into ~/.claude/hooks and registers the
+# non-lib entries in ~/.claude/settings.json. lib entries are copied only.
+
+[[hook]]
+file = "session-init.cjs"
+runtime = "node"
+event = "SessionStart"
+matcher = "startup|resume|clear|compact"
+
+[[hook]]
+file = "subagent-init.cjs"
+runtime = "node"
+event = "SubagentStart"
+matcher = "*"
+
+[[hook]]
+file = "team-context-inject.cjs"
+runtime = "node"
+event = "SubagentStart"
+matcher = "*"
+
+[[hook]]
+file = "dev-rules-reminder.cjs"
+runtime = "node"
+event = "UserPromptSubmit"
+
+[[hook]]
+file = "scout-block.cjs"
+runtime = "node"
+event = "PreToolUse"
+matcher = "Bash|Glob|Grep|Read|Edit|Write"
+
+[[hook]]
+file = "statusline.cjs"
+runtime = "node"
+event = "statusLine"
+
+# Copied but not registered (invoked by the team runtime, not a CC event).
+[[hook]]
+file = "task-completed-handler.cjs"
+lib = true
+
+[[hook]]
+file = "teammate-idle-handler.cjs"
+lib = true
+
+[[hook]]
+file = "lib/config.cjs"
+lib = true
+
+[[hook]]
+file = "lib/paths.cjs"
+lib = true
+
+[[hook]]
+file = "lib/state.cjs"
+lib = true
+
+# Telegram notifier (Python) — pings on turn-complete and approval.
+[[hook]]
+file = "agent-notify.py"
+runtime = "python3"
+event = "Stop"
+args = ["claude", "stop"]
+
+[[hook]]
+file = "agent-notify.py"
+runtime = "python3"
+event = "Notification"
+args = ["claude", "notification"]
+
+# Pre-merge guard — blocks `gh pr merge` while the PR has unresolved review threads.
+[[hook]]
+file = "pr-merge-guard.py"
+runtime = "python3"
+event = "PreToolUse"
+matcher = "Bash"
