@@ -135,7 +135,7 @@ def main():
             icon, what, preview = "🔔", "needs you", payload.get("message", "")
         else:
             icon, what, preview = "✅", "turn complete", ""
-        text = build("CLAUDE", "✳️", icon, what, payload.get("cwd", ""), preview)
+        text = build("CLAUDE", "🟠", icon, what, payload.get("cwd", ""), preview)
     elif src == "codex":
         raw = sys.argv[2] if len(sys.argv) > 2 else "{}"
         try:
