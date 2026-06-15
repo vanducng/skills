@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.57.0](https://github.com/vanducng/skills/compare/v0.56.0...v0.57.0) (2026-06-15)
+
+
+### Features
+
+* **hooks:** include tmux pane index in location (session:window:pane) ([c1c7b52](https://github.com/vanducng/skills/commit/c1c7b52ae78f01c1fe9bc6573922fa360a4db865))
+
 ## [0.56.0](https://github.com/vanducng/skills/compare/v0.55.0...v0.56.0) (2026-06-15)
 
 
