@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.52.0](https://github.com/vanducng/skills/compare/v0.51.0...v0.52.0) (2026-06-15)
+
+
+### Features
+
+* **hooks:** expandable blockquote preview for agent-notify ([f91b33c](https://github.com/vanducng/skills/commit/f91b33c571c4c51b8f31780046683e0b11f8437c))
+
 ## [0.51.0](https://github.com/vanducng/skills/compare/v0.50.0...v0.51.0) (2026-06-15)
 
 
