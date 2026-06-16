@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.59.0](https://github.com/vanducng/skills/compare/v0.58.0...v0.59.0) (2026-06-16)
+
+
+### Features
+
+* **skill-evolve:** add session-driven skill-improvement skill ([3192fb6](https://github.com/vanducng/skills/commit/3192fb6438fbf46fb5011cccbcc542271cbd15b1))
+
 ## [0.58.0](https://github.com/vanducng/skills/compare/v0.57.0...v0.58.0) (2026-06-16)
 
 
