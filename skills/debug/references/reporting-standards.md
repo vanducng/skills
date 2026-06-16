@@ -71,9 +71,13 @@ List anything that remains unclear:
 
 ## Report File Naming
 
-Write to the injected path (`.workbench/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Use the naming pattern from `## Naming` injected by hooks.
+One folder per feature — resolve it once, then reuse it for every artifact this feature produces:
+- **Plan active** (`{plan_dir}` / Plan Context injected) → `{plan_dir}/reports/`.
+- **No plan** → reuse the session **feature folder**: read `.workbench/state/feature-folder.json`; if its `slug` is the same feature you're working on, save into its `dir`. Otherwise create `.workbench/reports/{YYMMDD-HHMM}-{slug}/` and write `{ "slug", "dir", "updated" }` back to that file. (Legacy, no `.workbench/`: `plans/reports/{slug}/`.)
 
-**Example:** `debugger-260205-2215-api-500-investigation.md` (placed in the injected reports path)
+Use the naming pattern from `## Naming` injected by hooks.
+
+**Example:** `debugger-260205-2215-api-500-investigation.md` (inside the resolved feature folder)
 
 ## Writing Guidelines
 

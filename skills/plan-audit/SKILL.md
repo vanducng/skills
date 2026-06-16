@@ -137,7 +137,7 @@ verdict "proceed". Do not pad. Do not invent gaps to look thorough.
 ## Phase 4 — Apply findings
 
 - Parse subagent JSON output. Validate shape; if malformed, ask the subagent to retry once.
-- Render report — write to the injected path (`.workbench/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Filename: `audit-{YYMMDD-HHMM}-{plan-slug}.md`. Date format matches the session-hook `## Naming` block (6-digit YY). `plan-slug` = the date-stripped slug of the plan dir (e.g. `260510-0938-vd-plan-audit-skill` → `vd-plan-audit-skill`). If the plan dir doesn't follow `{date}-{slug}` pattern, fall back to the dir name itself as the slug.
+- Render report — write into the audited plan's own folder so every artifact for this feature stays grouped: `{plan-dir}/reports/`. Filename: `audit-{YYMMDD-HHMM}-{plan-slug}.md`. Date format matches the session-hook `## Naming` block (6-digit YY). `plan-slug` = the date-stripped slug of the plan dir (e.g. `260510-0938-vd-plan-audit-skill` → `vd-plan-audit-skill`). If the plan dir doesn't follow `{date}-{slug}` pattern, fall back to the dir name itself as the slug.
 - If `--fix` mode (per-finding):
   - Walk findings filtered to severity in {CRITICAL, HIGH}.
   - For each, print finding + suggested fix, ask user `Apply? (y/n/skip-rest)`.
@@ -147,7 +147,7 @@ verdict "proceed". Do not pad. Do not invent gaps to look thorough.
 - If `--fix --apply-all` mode (batch):
   - Filter findings to severity in {CRITICAL, HIGH}. If the filtered list is empty, print "No HIGH/CRITICAL findings to apply" and exit without prompting.
   - Compute the concrete edit for each finding (the exact `old_string`/`new_string` pair that the Edit tool will use). If any edit cannot be made concrete from the `suggested_fix` (ambiguous instruction, target line missing) → mark that finding `unactionable` and exclude it from the batch.
-  - Print a single unified preview: for each actionable finding, show `phase-NN.md @ Lstart-Lend` + a 3-line context diff (old → new). Group by file. Cap at 60 lines total — if longer, write the full preview to the same injected reports path as the audit report (`.workbench/reports/` when migrated, else `plans/reports/`), filename `audit-{date}-{slug}.preview.diff`, and print only the file/line summary inline.
+  - Print a single unified preview: for each actionable finding, show `phase-NN.md @ Lstart-Lend` + a 3-line context diff (old → new). Group by file. Cap at 60 lines total — if longer, write the full preview alongside the audit report in `{plan-dir}/reports/`, filename `audit-{date}-{slug}.preview.diff`, and print only the file/line summary inline.
   - Ask **one** prompt: `Apply N HIGH/CRITICAL edits across M files? (y/n)`. Default is `n`. No `skip-rest` — it's all-or-nothing.
   - On `y`: apply each edit in order. **If any edit fails** (file changed since audit read, `old_string` not unique, etc.) → stop, mark already-applied as `applied`, the failing one as `failed`, remaining as `deferred`. Surface the failure inline and in the report so the author can re-audit. Do **not** roll back applied edits — they're plan-file edits, not code, and partial progress is recoverable via `git`.
   - On `n`: leave all findings unfixed, note them as `deferred`. Skill exits with a one-line summary.
