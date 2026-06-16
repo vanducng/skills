@@ -17,6 +17,11 @@ type = 'git'
 url = 'https://github.com/alibaba/open-code-review'
 ref = ''
 
+[sources.mvanhorn]
+type = 'git'
+url = 'https://github.com/mvanhorn/last30days-skill'
+ref = ''
+
 [skills]
 [skills.browser]
 source = 'browserbase'
@@ -33,6 +38,12 @@ pin = ''
 [skills.open-code-review]
 source = 'alibaba'
 path = 'skills/open-code-review'
+mode = 'tracked'
+pin = ''
+
+[skills.last30days]
+source = 'mvanhorn'
+path = 'skills/last30days'
 mode = 'tracked'
 pin = ''
 
