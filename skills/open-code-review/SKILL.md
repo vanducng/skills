@@ -204,8 +204,37 @@ To preview which rule applies to a file before reviewing:
 ocr rules check src/main/java/com/example/Foo.java
 ```
 
+## Re-triggering the GitHub PR bot
+
+When OCR runs as a GitHub check (the `review / code-review` job posting inline comments as the **OpenCodeReview** app), re-review a PR after pushing fixes by commenting **`/ocr`** on the PR — not by re-running the local `ocr` CLI.
+
+**Find the PR and its branches first**, so you act on the right one on the first turn:
+
+```bash
+# from the PR's head branch:
+gh pr view --json number,headRefName,baseRefName,url
+# or look it up by head branch name:
+gh pr list --head "$(git branch --show-current)" --json number,baseRefName,url
+```
+
+**Re-trigger the review:**
+
+```bash
+gh pr comment <number> --body "/ocr"
+```
+
+- The bot's gate is `startsWith(comment.body, '/ocr')` (or `'@ocr'`). **Only `/ocr` / `@ocr` work** — `/cr` / `@cr` do not match the gate and the job silently skips. Prefer the slash form `/ocr`: `@ocr` / `@cr` *mention a GitHub user* instead of triggering the bot.
+- The re-review fires on an `issue_comment` event, so its check attaches to the **default-branch SHA** — it does **not** appear in `gh pr view <n>`'s `statusCheckRollup`. Watch the workflow run instead:
+
+```bash
+gh run list --workflow=code-review.yml -L1 --json status,conclusion,databaseId
+```
+
+- After fixing, resolve the review threads, then `/ocr` to verify. A red `review / code-review` check usually means *issues found*; on a large PR it can also mean the bot tripped GitHub's **secondary rate limit** while posting many inline comments — an infra failure, not a code problem. Read the run log to tell them apart, then re-run `/ocr`.
+
 ## Gotchas
 
+- **PR bot ≠ local CLI** — the `review / code-review` GitHub check is re-triggered with a `/ocr` PR comment (see [Re-triggering the GitHub PR bot](#re-triggering-the-github-pr-bot)), and its check is invisible to `gh pr view` (watch `gh run list`). The `ocr` CLI documented in this skill is the *local* path.
 - **LLM must be configured first** — `ocr review` will fail loudly if no LLM is reachable. Always run `ocr llm test` before the first review.
 - **Working directory matters** — `ocr review` operates on the Git repo at the current directory. Use `--repo /path/to/repo` to run from elsewhere.
 - **Untracked files are reviewed in workspace mode** — running bare `ocr review` includes staged, unstaged, *and* untracked changes. Stage selectively if you want narrower scope.
