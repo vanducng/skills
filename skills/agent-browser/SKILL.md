@@ -65,7 +65,7 @@ agent-browser screenshot [--full] [-o f.png] · pdf -o page.pdf
 agent-browser record start [out.webm] · record stop · record restart
 agent-browser network route "**/api/*" --body '{"data":[]}' · --abort · network requests
 agent-browser cookies|storage local|state save f.json
-agent-browser viewport 1920 1080 · device "iPhone 14" · color-scheme dark
+agent-browser set viewport 1920 1080 · set device "iPhone 14" · set media dark   # browser-settings are `set` subcommands
 agent-browser tabs · tab new|<n>|close · frame <n> · dialog accept · eval "expr"
 agent-browser --session <name> ...                       # parallel isolated instances
 agent-browser -p browserbase ...                         # cloud (BROWSERBASE_API_KEY)
@@ -101,12 +101,28 @@ agent-browser state save .browser/auth.json
 agent-browser --state .browser/auth.json open https://myapp.test/dashboard
 ```
 
+**Render + validate a static HTML artifact** (design references, mockups) at multiple widths, and catch page-level horizontal overflow that `overflow-x:hidden` would hide:
+
+```bash
+F="file://$PWD/page.html"
+agent-browser --session r open "$F"
+agent-browser --session r set viewport 1440 1024 && agent-browser --session r screenshot --full desktop.png
+agent-browser --session r set viewport 390 844  && agent-browser --session r screenshot --full narrow.png
+# overflow check — measure documentElement, NOT body: body.scrollWidth can read clean while the page overflows
+agent-browser --session r eval 'JSON.stringify({iw:innerWidth, sw:document.documentElement.scrollWidth, overflow:document.documentElement.scrollWidth>innerWidth})'
+agent-browser --session r close
+```
+
+- Use `screenshot --full` for the whole page — Chrome's own `--headless --screenshot` captures only the viewport.
+- If `documentElement.scrollWidth > innerWidth` but `body.scrollWidth` looks fine, an absolutely-positioned descendant (e.g. an `sr-only`/visually-hidden cell) is escaping a horizontally-scrolling container; give that container `position:relative` rather than papering over it with a width hack.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
 | `command not found` after install | Stale bin symlink from another tool's vendored copy | `rm $(which agent-browser); npm i -g agent-browser` |
 | Profile flags seem ignored | Pre-0.2x version | `npm i -g agent-browser@latest` (`--state`/`--session-name` landed in 0.2x) |
+| `Unknown command: viewport` (or `device`/`media`) | Those are `set` subcommands | `agent-browser set viewport <w> <h>` — same for `set device`, `set media` |
 | Refs go stale | Page changed since snapshot | Re-run `snapshot -i` after every navigation/mutation |
 | Can't trace a profile session | Profile ⊕ CDP exclusivity | Use the `vd:browser` trio when trace evidence is required |
 | Logins vanish on real-Chrome profile reuse | macOS keychain cookie encryption | Dedicated automation profile, log in once there |
