@@ -1,0 +1,37 @@
+[project]
+name = "last30days-skill"
+version = "3.3.2"
+description = "Multi-source last-30-days research skill"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "pytest>=9.0.3,<10",
+  "pytest-cov>=7,<8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = [
+  "-q",
+  "--tb=short",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["scripts", "tests"]
+omit = [
+  "scripts/lib/vendor/*",
+  "dist/*",
+]
+
+[tool.coverage.report]
+skip_empty = true
+show_missing = true
+omit = [
+  "scripts/lib/vendor/*",
+  "dist/*",
+]
