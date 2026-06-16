@@ -108,6 +108,8 @@ Sketch the dependency graph in your reply (text or mermaid) before writing files
 
 Write to the injected path (`.workbench/plans/` when the project is migrated, else legacy `plans/`); when reading prior artifacts, check both.
 
+**Adopt the feature folder.** If `.workbench/state/feature-folder.json` exists and its `slug` is this same feature, reuse that `slug` for `{slug}` below so the plan dir and any pre-plan reports stay correlated. Then repoint the state file's `dir` to `{this-plan-dir}/reports/` (keep `slug`, refresh `updated`) so later scout/debug/audit reports nest under the plan instead of the flat feature folder.
+
 ```
 {plans-path}/{YYYYMMDD-HHMM}-{slug}/
   plan.md

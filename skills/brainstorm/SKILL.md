@@ -120,8 +120,9 @@ If you genuinely cannot pick because a constraint is missing, identify the missi
 
 ### Where to save
 
-- Active plan context (from session hooks): `{plan_dir}/brainstorm-{YYYYMMDD}-{slug}.md`
-- Otherwise: write to the injected path (`.workbench/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Filename: `brainstorm-{YYYYMMDD-HHMM}-{slug}.md`.
+One folder per feature — resolve it once, then reuse it for every artifact this feature produces:
+- **Plan active** (`{plan_dir}` / Plan Context injected) → `{plan_dir}/reports/brainstorm-{YYYYMMDD}-{slug}.md`.
+- **No plan** → reuse the session **feature folder**: read `.workbench/state/feature-folder.json`; if its `slug` is the same feature you're working on, save into its `dir`. Otherwise create `.workbench/reports/{YYMMDD-HHMM}-{slug}/` and write `{ "slug", "dir", "updated" }` back to that file. (Legacy, no `.workbench/`: `plans/reports/{slug}/`.) Filename: `brainstorm-{YYYYMMDD-HHMM}-{slug}.md`.
 - `--quick` mode: skip the file. Verbal output only.
 
 ### Template (default mode)
