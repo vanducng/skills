@@ -9,5 +9,5 @@
       "rule": "Shell: quote expansions, prefer `set -euo pipefail`, validate inputs; never commit secrets or tokens."
     }
   ],
-  "exclude": ["**/.venv/**", "**/__pycache__/**", "**/*.lock"]
+  "exclude": ["**/.venv/**", "**/__pycache__/**", "**/*.lock", "**/vendor/**"]
 }
