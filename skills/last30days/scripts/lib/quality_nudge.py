@@ -4,7 +4,7 @@ Computes a quality score based on 5 core sources and builds
 a nudge message describing what the user missed and how to fix it.
 """
 
-from typing import List
+from typing import List, Optional
 
 
 # The 5 core sources
@@ -36,7 +36,7 @@ def _is_youtube_active(config: dict, research_results: dict) -> bool:
     try:
         from . import youtube_yt
         has_ytdlp = youtube_yt.is_ytdlp_installed()
-    except Exception:
+    except (ImportError, OSError):
         has_ytdlp = False
     if not has_ytdlp:
         return False
@@ -108,7 +108,10 @@ def _is_instagram_silent_failure(config: dict, research_results: dict) -> bool:
     count = research_results.get("instagram_items_count")
     if count is None:
         return False  # source not run this invocation
-    return int(count) == 0
+    try:
+        return int(count) == 0
+    except (TypeError, ValueError):
+        return False
 
 
 def compute_quality_score(config: dict, research_results: dict) -> dict:
@@ -162,7 +165,10 @@ def compute_quality_score(config: dict, research_results: dict) -> dict:
         # level. But search-success + transcript-failure is the canonical
         # stale-binary failure mode that the footer used to hide. Flag as
         # degraded so the user gets an actionable nudge to update the binary.
-        threshold = float(config.get("DEGRADED_TRANSCRIPT_THRESHOLD") or DEFAULT_DEGRADED_TRANSCRIPT_THRESHOLD)
+        try:
+            threshold = float(config.get("DEGRADED_TRANSCRIPT_THRESHOLD") or DEFAULT_DEGRADED_TRANSCRIPT_THRESHOLD)
+        except (TypeError, ValueError):
+            threshold = DEFAULT_DEGRADED_TRANSCRIPT_THRESHOLD
         if _is_youtube_degraded(research_results, threshold):
             core_degraded.append("youtube")
     else:
@@ -171,7 +177,7 @@ def compute_quality_score(config: dict, research_results: dict) -> dict:
         try:
             from . import youtube_yt
             has_ytdlp = youtube_yt.is_ytdlp_installed()
-        except Exception:
+        except (ImportError, OSError):
             has_ytdlp = False
         if has_ytdlp and research_results.get("youtube_error"):
             core_errored.append("youtube")
@@ -209,11 +215,11 @@ def compute_quality_score(config: dict, research_results: dict) -> dict:
 def _build_nudge_text(
     core_missing: List[str],
     core_errored: List[str],
-    core_degraded: List[str] = None,
-    research_results: dict = None,
+    core_degraded: Optional[List[str]] = None,
+    research_results: Optional[dict] = None,
     has_sc: bool = False,
-    active_sources: list = None,
-    bonus_errored: List[str] = None,
+    active_sources: Optional[list] = None,
+    bonus_errored: Optional[List[str]] = None,
 ) -> str:
     """Build human-readable nudge text describing what was missed or degraded.
 

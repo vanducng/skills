@@ -486,7 +486,7 @@ class TestClipboardDeviceAuth:
     @patch("lib.setup_wizard.run_device_auth")
     @patch("lib.setup_wizard.poll_device_auth", return_value=None)
     @patch("webbrowser.open")
-    @patch("subprocess.run", side_effect=Exception("pbcopy not found"))
+    @patch("subprocess.run", side_effect=FileNotFoundError("pbcopy not found"))
     def test_pbcopy_failure_continues(self, mock_subproc, mock_browser, mock_poll, mock_start):
         """pbcopy failing -> flow continues, browser still opens."""
         mock_start.return_value = ("dev123", "CLIP-CODE", "https://github.com/login/device", 5)

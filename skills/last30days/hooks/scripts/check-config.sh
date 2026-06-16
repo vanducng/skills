@@ -36,9 +36,10 @@ load_env_vars() {
       # Strip inline comments (# preceded by whitespace) to prevent
       # command substitution in backtick-containing comments
       value="${value%%[[:space:]]#*}"
-      if [[ -n "$key" && -n "$value" ]]; then
+      if [[ -n "$key" && -n "$value" && "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
         # printf -v writes via assignment semantics (global from inside a
         # function), works on macOS's /bin/bash 3.2 — `declare -g` is 4.2+.
+        # Key is validated as a safe identifier to avoid array/metachar corruption.
         printf -v "ENV_${key}" '%s' "$value"
       fi
     done < "$file"

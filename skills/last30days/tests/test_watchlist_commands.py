@@ -1,7 +1,6 @@
 """Tests for watchlist.py command functions."""
 
 import json
-import sqlite3
 import subprocess
 import tempfile
 from pathlib import Path
@@ -11,7 +10,6 @@ import pytest
 
 import store
 import watchlist
-from lib import schema
 
 @pytest.fixture
 

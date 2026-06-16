@@ -442,7 +442,7 @@ def run_full_device_auth(timeout: int = 300) -> Dict[str, Any]:
                 ["pbcopy"], input=user_code.encode(), check=True, timeout=5,
             )
             clipboard_ok = True
-        except Exception:
+        except (OSError, subprocess.SubprocessError):
             pass  # pbcopy unavailable or failed, fall through
 
     # Step 3: Show code prominently, then open browser
@@ -472,7 +472,7 @@ def run_full_device_auth(timeout: int = 300) -> Dict[str, Any]:
     if access_token is None:
         return {"status": "timeout", "user_code": user_code, "clipboard_ok": clipboard_ok}
 
-    # Step 4: Fetch API key
+    # Step 5: Fetch API key
     api_key = fetch_api_key(access_token)
     if api_key is None:
         return {

@@ -292,5 +292,18 @@ class HtmlCliIntegrationTests(unittest.TestCase):
         self.assertIn("comparing 2: OpenClaw, Hermes", saved)
         self.assertNotIn("last30days · OpenClaw</title>", saved)
 
+
+class InlineMarkdownLinkSafetyTest(unittest.TestCase):
+    def test_safe_schemes_render_anchor(self) -> None:
+        out = html_render._inline_markdown("see [docs](https://example.test/x)")
+        self.assertIn('<a href="https://example.test/x">docs</a>', out)
+
+    def test_dangerous_scheme_is_stripped(self) -> None:
+        out = html_render._inline_markdown("[click](javascript:alert(document.cookie))")
+        self.assertNotIn("<a", out)
+        self.assertNotIn("javascript:", out)
+        self.assertIn("click", out)
+
+
 if __name__ == "__main__":
     unittest.main()
