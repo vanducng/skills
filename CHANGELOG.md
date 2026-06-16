@@ -2,6 +2,18 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.58.0](https://github.com/vanducng/skills/compare/v0.57.0...v0.58.0) (2026-06-16)
+
+
+### Features
+
+* **skills:** nest reports in one folder per feature ([a2752d8](https://github.com/vanducng/skills/commit/a2752d8718c898ffe6953e659bc6fe92a25d7755))
+
+
+### Bug Fixes
+
+* **agent-browser:** correct viewport command and add static-render recipe ([e4c82ba](https://github.com/vanducng/skills/commit/e4c82bac2a6f61d9427f504eb5168e75f59dca37))
+
 ## [0.57.0](https://github.com/vanducng/skills/compare/v0.56.0...v0.57.0) (2026-06-15)
 
 
