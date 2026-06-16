@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.60.0](https://github.com/vanducng/skills/compare/v0.59.0...v0.60.0) (2026-06-16)
+
+
+### Features
+
+* add last30days research skill (tracked from mvanhorn/last30days-skill) ([03074da](https://github.com/vanducng/skills/commit/03074da2c46a47e13bd588d0f677887a161b3038))
+
 ## [0.59.0](https://github.com/vanducng/skills/compare/v0.58.0...v0.59.0) (2026-06-16)
 
 
