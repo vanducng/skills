@@ -144,4 +144,10 @@ else
   failed=$((failed + 1))
 fi
 
+echo
+# Phase 6 flips this to `--enforce` once producer skills are one-lined (feature-first).
+if ! bash "${REPO}/scripts/check-skill-paths.sh"; then
+  failed=$((failed + 1))
+fi
+
 [[ $failed -eq 0 ]]
