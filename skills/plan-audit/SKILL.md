@@ -45,8 +45,8 @@ Detect mode from the explicit flags. `--apply-all` without `--fix` is a usage er
 ## Phase 1 — Resolve plan dir
 
 - If a plan-dir path is provided as an argument → use it. Verify it exists and contains `plan.md`. If missing, error and stop.
-- If no argument → check `.workbench/plans/` then `plans/` for entries matching `{YYYYMMDD-HHMM}-*` or `{YYMMDD-HHMM}-*`; sort by date prefix descending, pick the most recent that contains `plan.md`. Print "Auditing most-recent plan: {path}" so the user can confirm.
-- If no plan dir is found → error: "No plan dir argument and no recent plan found under `.workbench/plans/` or `plans/`. Pass a path explicitly."
+- If no argument → check the injected Plans path for entries matching `{YYYYMMDD-HHMM}-*` or `{YYMMDD-HHMM}-*`; sort by date prefix descending, pick the most recent that contains `plan.md`. Print "Auditing most-recent plan: {path}" so the user can confirm.
+- If no plan dir is found → error: "No plan dir argument and no recent plan found under the injected Plans path. Pass a path explicitly."
 
 ## Phase 2 — Read inputs
 

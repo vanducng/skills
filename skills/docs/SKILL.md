@@ -17,7 +17,7 @@ Keep `./docs/` honest. Scout the code, diff it against what the docs claim, writ
 | Skill | Question it answers | Output |
 |---|---|---|
 | `vd:scout` | "Where does X live in this repo?" | File map, no writes |
-| `vd:journal` | "What did *I* just learn / decide / break?" | Personal entry in `.workbench/journals/` or `plans/journals/` |
+| `vd:journal` | "What did *I* just learn / decide / break?" | Personal entry in the injected Journals path |
 | **`vd:docs`** | **"Are the shared `./docs/` files true and current?"** | **Updated files in `./docs/`** |
 
 `./docs/` is **team-facing** truth. Journals are personal. Plans/reports live under `./plans/`. Changelog, roadmap, and PR-style narrative are intentionally **not** in this skill's scope — those rot fastest and `vd:ship` / `vd:journal` already cover them.

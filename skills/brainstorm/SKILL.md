@@ -120,10 +120,7 @@ If you genuinely cannot pick because a constraint is missing, identify the missi
 
 ### Where to save
 
-One folder per feature — resolve it once, then reuse it for every artifact this feature produces:
-- **Plan active** (`{plan_dir}` / Plan Context injected) → `{plan_dir}/reports/brainstorm-{YYYYMMDD}-{slug}.md`.
-- **No plan** → reuse the session **feature folder**: read `.workbench/state/feature-folder.json`; if its `slug` is the same feature you're working on, save into its `dir`. Otherwise create `.workbench/reports/{YYMMDD-HHMM}-{slug}/` and write `{ "slug", "dir", "updated" }` back to that file. (Legacy, no `.workbench/`: `plans/reports/{slug}/`.) Filename: `brainstorm-{YYYYMMDD-HHMM}-{slug}.md`.
-- `--quick` mode: skip the file. Verbal output only.
+Write to the injected `Reports:` path. Filename: `brainstorm-{YYYYMMDD-HHMM}-{slug}.md`. `--quick` mode: skip the file. Verbal output only.
 
 ### Template (default mode)
 
@@ -262,7 +259,7 @@ If you can express the decision as A/B/C bullet points without losing fidelity, 
 Use the active plan context (injected by session hooks) — **do not invent new directories**, especially not under hidden dotdirs:
 
 - **Plan active:** `{plan_dir}/visuals/brainstorm-{slug}/comparison-{N}.html`
-- **No plan:** write to the injected path (`.workbench/visuals/` when the project is migrated, else legacy `plans/visuals/`); when reading prior artifacts, check both. Subdir: `brainstorm-{YYYYMMDD-HHMM}-{slug}/comparison-{N}.html`.
+- **No plan:** write to the injected `Visuals:` path. Subdir: `brainstorm-{YYYYMMDD-HHMM}-{slug}/comparison-{N}.html`.
 
 Increment `{N}` per iteration: `comparison-1.html`, `comparison-2.html`. Never overwrite — the trail of drafts is part of the brainstorm record.
 
