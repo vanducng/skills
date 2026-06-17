@@ -51,16 +51,50 @@ async function loadPuppeteer() {
   }
 }
 
+let sharpPromise = null;
+async function loadSharp() {
+  if (!sharpPromise) {
+    sharpPromise = import('sharp').then((mod) => mod.default).catch(() => null);
+  }
+  return sharpPromise;
+}
+
+function normalizeFormat(value = 'png') {
+  const requested = String(value).toLowerCase();
+  if (requested === 'png') return { type: 'png', extension: 'png' };
+  if (requested === 'jpg') return { type: 'jpeg', extension: 'jpg' };
+  if (requested === 'jpeg') return { type: 'jpeg', extension: 'jpeg' };
+  throw new Error('Unsupported --format. Use png, jpg, or jpeg.');
+}
+
+function parseQuality(value = '90') {
+  if (!/^\d+$/.test(String(value))) {
+    throw new Error('Invalid --quality. Use an integer from 0 to 100.');
+  }
+  const quality = Number.parseInt(String(value), 10);
+  if (!Number.isInteger(quality) || quality < 0 || quality > 100) {
+    throw new Error('Invalid --quality. Use an integer from 0 to 100.');
+  }
+  return quality;
+}
+
+function parseMaxSize(value = '5') {
+  if (!/^\d+(\.\d+)?$/.test(String(value))) {
+    throw new Error('Invalid --max-size. Use a positive number of megabytes.');
+  }
+  const maxSize = Number.parseFloat(String(value));
+  if (!Number.isFinite(maxSize) || maxSize <= 0) {
+    throw new Error('Invalid --max-size. Use a positive number of megabytes.');
+  }
+  return maxSize;
+}
+
 // Viewport presets per ratio name
 const VIEWPORTS = {
   horizontal: { width: 1920, height: 1080, label: 'horizontal' },  // 16:9
   vertical:   { width: 1080, height: 1920, label: 'vertical' },    // 9:16
   square:     { width: 1080, height: 1080, label: 'square' },      // 1:1
 };
-
-// Optional sharp for compression (mirrors chrome-devtools approach)
-let sharp = null;
-try { sharp = (await import('sharp')).default; } catch { /* noop */ }
 
 /**
  * Wait until the page is visually ready:
@@ -129,6 +163,7 @@ async function waitForRender(page, { settleDelay = 500, timeout = 15000 } = {}) 
 async function compressIfNeeded(filePath, maxSizeMB = 5) {
   const stats = await fs.stat(filePath);
   if (stats.size <= maxSizeMB * 1024 * 1024) return { compressed: false, size: stats.size };
+  const sharp = await loadSharp();
   if (!sharp) return { compressed: false, size: stats.size };
 
   const ext = path.extname(filePath).toLowerCase();
@@ -166,9 +201,9 @@ async function main() {
   // `--settle-delay` is a preferred alias. `--render-timeout` bounds each readiness check.
   const settleDelay = parseInt(args['settle-delay'] || args.delay || '1500', 10);
   const renderTimeout = parseInt(args['render-timeout'] || '15000', 10);
-  const format = args.format || 'png';
-  const quality = parseInt(args.quality || '90', 10);
-  const maxSize = parseFloat(args['max-size'] || '5');
+  const format = normalizeFormat(args.format || 'png');
+  const quality = parseQuality(args.quality || '90');
+  const maxSize = parseMaxSize(args['max-size'] || '5');
 
   await fs.mkdir(outputDir, { recursive: true });
 
@@ -183,6 +218,7 @@ async function main() {
   // but different ratios run in parallel (each gets its own page context via browser.newPage).
   const results = [];
   const errors = [];
+  const warnings = [];
 
   try {
     const ratioTasks = ratios.map(async (ratio) => {
@@ -209,14 +245,22 @@ async function main() {
             await waitForRender(ratioPage, { settleDelay: Math.min(settleDelay, 400), timeout: renderTimeout });
 
             const sectionName = selector.replace(/^[#.]/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
-            const fileName = `${vp.label}-${sectionName}.${format}`;
+            const fileName = `${vp.label}-${sectionName}.${format.extension}`;
             const filePath = path.join(outputDir, fileName);
 
-            const opts = { path: filePath, type: format };
-            if (format !== 'png' && quality) opts.quality = quality;
+            const opts = { path: filePath, type: format.type };
+            if (format.type === 'jpeg') opts.quality = quality;
 
             await el.screenshot(opts);
             const comp = await compressIfNeeded(filePath, maxSize);
+            if (!comp.compressed && comp.size > maxSize * 1024 * 1024) {
+              warnings.push({
+                section: selector,
+                ratio,
+                file: filePath,
+                warning: 'Image exceeds max size and sharp is not installed; compression skipped.',
+              });
+            }
 
             results.push({
               section: selector,
@@ -253,6 +297,7 @@ async function main() {
     total: results.length,
     captured: results,
     errors: errors.length > 0 ? errors : undefined,
+    warnings: warnings.length > 0 ? warnings : undefined,
   });
 
   process.exit(errors.length > 0 ? 1 : 0);

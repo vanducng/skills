@@ -137,7 +137,6 @@ def extract_document_content(file_path: Path, verbose: bool = False) -> str:
     with tempfile.NamedTemporaryFile(
         prefix=f'.temp_{file_path.stem}_',
         suffix='_extraction.md',
-        dir=STYLES_DIR,
         delete=False,
     ) as temp_file:
         output_file = Path(temp_file.name)
@@ -297,7 +296,7 @@ def format_output(data: Dict[str, Any], as_json: bool = False) -> str:
 
     output = []
 
-    if 'files' in data:
+    if 'files' in data and 'directory' in data:
         # List mode
         output.append('# Available Writing Styles\n')
         output.append(f"Directory: {data['directory']}\n")
@@ -311,6 +310,26 @@ def format_output(data: Dict[str, Any], as_json: bool = False) -> str:
                 size_kb = f['size'] / 1024
                 output.append(f"| {f['name']} | {f['type']} | {size_kb:.1f}KB |")
 
+    elif 'files' in data:
+        # All-extraction mode
+        output.append(f"# {data.get('title', 'All Writing Styles')}\n")
+        if not data['files']:
+            output.append('No style files found.')
+        for f in data['files']:
+            output.append(f"\n## {f.get('name', 'Unknown')}")
+            if 'error' in f:
+                output.append(f"Error: {f['error']}")
+                continue
+            output.append(f"**File Type:** {f.get('type', 'unknown')}")
+            if f.get('styles'):
+                output.append(f"\n### Extracted Styles ({len(f['styles'])})")
+                for s in f['styles']:
+                    output.append(f"- **{s['name']}**: {s['keywords']}")
+            if f.get('sections'):
+                output.append('\n### Sections')
+                for s in f['sections']:
+                    output.append(f"- {s['title']} (line {s['lineNumber']})")
+
     elif 'title' in data:
         # Single style extraction
         if data.get('title'):
@@ -320,7 +339,7 @@ def format_output(data: Dict[str, Any], as_json: bool = False) -> str:
 
         if data.get('styles'):
             output.append(f"\n## Extracted Styles ({len(data['styles'])})\n")
-            for s in data['styles'][:30]:  # Limit to 30 styles
+            for s in data['styles']:
                 output.append(f"### {s['name']}")
                 output.append(f"**Keywords:** {s['keywords']}\n")
 
@@ -359,7 +378,9 @@ Examples:
 
     args = parser.parse_args()
 
-    if args.style:
+    if args.list or (not args.style and not args.all):
+        result = get_style_files()
+    elif args.style:
         # Find the file with matching name
         style_files = get_style_files()
         if 'error' in style_files:
@@ -370,7 +391,7 @@ Examples:
                 result = extract_style_content(Path(selected['file']['path']), args.verbose)
             else:
                 result = {'error': selected['error']}
-    elif args.all:
+    else:
         style_files = get_style_files()
         if 'error' in style_files:
             result = style_files
@@ -382,8 +403,6 @@ Examples:
             for f in style_files['files']:
                 extracted = extract_style_content(Path(f['path']), args.verbose)
                 result['files'].append({'name': f['name'], **extracted})
-    else:
-        result = get_style_files()
 
     print(format_output(result, args.json))
 

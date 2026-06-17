@@ -4,6 +4,7 @@
   --sidebar-width: 280px;
   --sidebar-min-width: 220px;
   --sidebar-max-width: 560px;
+  --sidebar-effective-width: clamp(var(--sidebar-min-width), var(--sidebar-width), var(--sidebar-max-width));
   --sidebar-bg: var(--bg-elev, var(--bg-secondary, #232323));
   --sidebar-fg: var(--fg, var(--text-primary, #e8e6e1));
   --sidebar-muted: var(--fg-muted, var(--text-muted, #9b9890));
@@ -32,7 +33,7 @@
 body.gallery,
 body.single {
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-columns: var(--sidebar-effective-width) 1fr;
   grid-template-rows: var(--header-h) 1fr;
   height: 100vh;
   overflow: hidden;
@@ -41,14 +42,14 @@ body.single {
 /* Markdown reader: fixed left column for fb-sidebar; reader's own TOC + content
  * flow within the remaining right column. */
 body.markdown.has-fb-sidebar {
-  margin-left: var(--sidebar-width);
+  margin-left: var(--sidebar-effective-width);
 }
 body.markdown.has-fb-sidebar > .fb-sidebar {
   position: fixed;
   top: 0;
   left: 0;
   bottom: 0;
-  width: var(--sidebar-width);
+  width: var(--sidebar-effective-width);
 }
 body.markdown.has-fb-sidebar.sidebar-collapsed {
   margin-left: 36px;
@@ -60,7 +61,7 @@ body.markdown.has-fb-sidebar.sidebar-collapsed > .fb-sidebar {
 /* Push reader's fixed-position TOC sidebar (left:0) to sit beside the fb-sidebar. */
 body.markdown.has-fb-sidebar aside#sidebar,
 body.markdown.has-fb-sidebar .reader-header {
-  left: var(--sidebar-width) !important;
+  left: var(--sidebar-effective-width) !important;
 }
 body.markdown.has-fb-sidebar.sidebar-collapsed aside#sidebar,
 body.markdown.has-fb-sidebar.sidebar-collapsed .reader-header {
@@ -557,7 +558,7 @@ body.markdown.has-fb-sidebar .content pre {
   .fb-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    width: var(--sidebar-width);
+    width: var(--sidebar-effective-width);
     z-index: 150;
     transform: translateX(-100%);
   }

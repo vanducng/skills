@@ -312,16 +312,26 @@
   let searchTimer = null;
   const SEARCH_MIN = 2;
   const SEARCH_DEBOUNCE = 250;
-  const SIDEBAR_MIN_WIDTH = 220;
-  const SIDEBAR_MAX_WIDTH = 560;
+
+  function readSidebarWidthVar(name, fallback) {
+    const parsed = parseInt(getComputedStyle(document.documentElement).getPropertyValue(name), 10);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  function getSidebarBounds() {
+    const min = readSidebarWidthVar('--sidebar-min-width', 220);
+    const max = readSidebarWidthVar('--sidebar-max-width', 560);
+    return { min, max: Math.max(min, max) };
+  }
 
   function clampSidebarWidth(width) {
-    return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width));
+    const { min, max } = getSidebarBounds();
+    return Math.min(max, Math.max(min, width));
   }
 
   function getSidebarWidth() {
     const cssWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10);
-    if (Number.isFinite(cssWidth)) return cssWidth;
+    if (Number.isFinite(cssWidth)) return clampSidebarWidth(cssWidth);
     return clampSidebarWidth(Math.round(sidebar.getBoundingClientRect().width || 280));
   }
 
@@ -337,6 +347,9 @@
 
   function initSidebarResize() {
     if (!resizeHandle) return;
+    const { min, max } = getSidebarBounds();
+    resizeHandle.setAttribute('aria-valuemin', String(min));
+    resizeHandle.setAttribute('aria-valuemax', String(max));
 
     try {
       const saved = parseInt(localStorage.getItem(WIDTH_KEY) || '', 10);
@@ -393,10 +406,10 @@
           next = current + 16;
           break;
         case 'Home':
-          next = SIDEBAR_MIN_WIDTH;
+          next = getSidebarBounds().min;
           break;
         case 'End':
-          next = SIDEBAR_MAX_WIDTH;
+          next = getSidebarBounds().max;
           break;
         default:
           return;
