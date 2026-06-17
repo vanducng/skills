@@ -2,6 +2,8 @@
  * (--bg-secondary/--text-*) so the sidebar follows whichever theme owns the page. */
 :root {
   --sidebar-width: 280px;
+  --sidebar-min-width: 220px;
+  --sidebar-max-width: 560px;
   --sidebar-bg: var(--bg-elev, var(--bg-secondary, #232323));
   --sidebar-fg: var(--fg, var(--text-primary, #e8e6e1));
   --sidebar-muted: var(--fg-muted, var(--text-muted, #9b9890));
@@ -84,6 +86,7 @@ body.sidebar-collapsed .fb-sidebar-help {
 .fb-sidebar {
   grid-column: 1;
   grid-row: 1 / span 2;
+  position: relative;
   background: var(--sidebar-bg);
   color: var(--sidebar-fg);
   border-right: 1px solid var(--sidebar-border);
@@ -92,6 +95,44 @@ body.sidebar-collapsed .fb-sidebar-help {
   min-height: 0;
   overflow: hidden;
   transition: transform 0.18s ease;
+}
+
+.fb-sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 30;
+}
+.fb-sidebar-resize::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.fb-sidebar-resize:hover::after,
+.fb-sidebar-resize:focus-visible::after,
+.fb-sidebar-resize.dragging::after {
+  background: var(--sidebar-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--sidebar-accent) 25%, transparent);
+}
+.fb-sidebar-resize:focus-visible {
+  outline: 2px solid var(--sidebar-accent);
+  outline-offset: -2px;
+}
+body.fb-sidebar-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+body.sidebar-collapsed .fb-sidebar-resize {
+  display: none;
 }
 
 body.gallery > .topbar,
@@ -523,5 +564,8 @@ body.markdown.has-fb-sidebar .content pre {
   body:not(.sidebar-collapsed) .fb-sidebar {
     transform: translateX(0);
     box-shadow: var(--shadow);
+  }
+  .fb-sidebar-resize {
+    display: none;
   }
 }

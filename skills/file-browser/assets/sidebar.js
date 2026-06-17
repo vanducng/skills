@@ -27,6 +27,7 @@
   const themeBtn = sidebar.querySelector('.fb-sidebar-theme');
   const hiddenBtn = sidebar.querySelector('.fb-sidebar-hidden');
   const helpBtn = sidebar.querySelector('.fb-sidebar-help');
+  const resizeHandle = sidebar.querySelector('.fb-sidebar-resize');
   const helpOverlay = sidebar.querySelector('.fb-sidebar-help-overlay');
   // Lift to <body> so the overlay's `position: fixed` anchors to the viewport
   // rather than being clipped by the sidebar's `overflow: hidden`.
@@ -35,6 +36,7 @@
   }
   const fontBtns = sidebar.querySelectorAll('.fb-sidebar-font');
   const STORAGE_KEY = 'fb-sidebar-collapsed';
+  const WIDTH_KEY = 'fb-sidebar-width';
   const HIDDEN_KEY = 'fb-show-hidden';
   // Shared with reader.js so toggling from either surface stays in sync.
   const THEME_KEY = 'theme';
@@ -310,6 +312,99 @@
   let searchTimer = null;
   const SEARCH_MIN = 2;
   const SEARCH_DEBOUNCE = 250;
+  const SIDEBAR_MIN_WIDTH = 220;
+  const SIDEBAR_MAX_WIDTH = 560;
+
+  function clampSidebarWidth(width) {
+    return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width));
+  }
+
+  function getSidebarWidth() {
+    const cssWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10);
+    if (Number.isFinite(cssWidth)) return cssWidth;
+    return clampSidebarWidth(Math.round(sidebar.getBoundingClientRect().width || 280));
+  }
+
+  function setSidebarWidth(width, persist = false) {
+    const next = clampSidebarWidth(Math.round(width));
+    document.documentElement.style.setProperty('--sidebar-width', next + 'px');
+    if (resizeHandle) resizeHandle.setAttribute('aria-valuenow', String(next));
+    if (persist) {
+      try { localStorage.setItem(WIDTH_KEY, String(next)); } catch {}
+    }
+    return next;
+  }
+
+  function initSidebarResize() {
+    if (!resizeHandle) return;
+
+    try {
+      const saved = parseInt(localStorage.getItem(WIDTH_KEY) || '', 10);
+      if (Number.isFinite(saved)) setSidebarWidth(saved);
+      else resizeHandle.setAttribute('aria-valuenow', String(getSidebarWidth()));
+    } catch {
+      resizeHandle.setAttribute('aria-valuenow', String(getSidebarWidth()));
+    }
+
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    function finishResize(e) {
+      if (!isResizing) return;
+      isResizing = false;
+      resizeHandle.classList.remove('dragging');
+      document.body.classList.remove('fb-sidebar-resizing');
+      setSidebarWidth(getSidebarWidth(), true);
+      if (e && resizeHandle.releasePointerCapture) {
+        try { resizeHandle.releasePointerCapture(e.pointerId); } catch {}
+      }
+    }
+
+    resizeHandle.addEventListener('pointerdown', (e) => {
+      if (window.innerWidth <= 720 || document.body.classList.contains('sidebar-collapsed')) return;
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = sidebar.getBoundingClientRect().width || getSidebarWidth();
+      resizeHandle.classList.add('dragging');
+      document.body.classList.add('fb-sidebar-resizing');
+      resizeHandle.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+    });
+
+    resizeHandle.addEventListener('pointermove', (e) => {
+      if (!isResizing) return;
+      setSidebarWidth(startWidth + e.clientX - startX);
+      e.preventDefault();
+    });
+    resizeHandle.addEventListener('pointerup', finishResize);
+    resizeHandle.addEventListener('pointercancel', finishResize);
+
+    resizeHandle.addEventListener('keydown', (e) => {
+      let next = null;
+      const current = getSidebarWidth();
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'ArrowDown':
+          next = current - 16;
+          break;
+        case 'ArrowRight':
+        case 'ArrowUp':
+          next = current + 16;
+          break;
+        case 'Home':
+          next = SIDEBAR_MIN_WIDTH;
+          break;
+        case 'End':
+          next = SIDEBAR_MAX_WIDTH;
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+      setSidebarWidth(next, true);
+    });
+  }
 
   function clearLocalFilter() {
     Array.from(treeEl.querySelectorAll('li.node')).forEach((li) => {
@@ -550,6 +645,7 @@
   // Focus the tree on click so tree-nav keys engage on markdown pages.
   sidebar.addEventListener('mousedown', (e) => {
     if (e.target.closest('.fb-sidebar-filter')) return;
+    if (e.target.closest('.fb-sidebar-resize')) return;
     treeNav.focus();
   });
 
@@ -701,6 +797,7 @@
   });
 
   (async function boot() {
+    initSidebarResize();
     await loadInto(treeEl, 0);
     await rehydrateExpansions();
     await revealActivePath();
