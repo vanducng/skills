@@ -362,36 +362,49 @@
     let isResizing = false;
     let startX = 0;
     let startWidth = 0;
+    let activePointerId = null;
+
+    function updateResize(e) {
+      if (!isResizing || e.pointerId !== activePointerId) return;
+      setSidebarWidth(startWidth + e.clientX - startX);
+      e.preventDefault();
+    }
+
+    function removeDocumentResizeListeners() {
+      document.removeEventListener('pointermove', updateResize, true);
+      document.removeEventListener('pointerup', finishResize, true);
+      document.removeEventListener('pointercancel', finishResize, true);
+    }
 
     function finishResize(e) {
-      if (!isResizing) return;
+      if (!isResizing || (e && e.pointerId !== activePointerId)) return;
       isResizing = false;
+      removeDocumentResizeListeners();
       resizeHandle.classList.remove('dragging');
       document.body.classList.remove('fb-sidebar-resizing');
       setSidebarWidth(getSidebarWidth(), true);
       if (e && resizeHandle.releasePointerCapture) {
         try { resizeHandle.releasePointerCapture(e.pointerId); } catch {}
       }
+      activePointerId = null;
     }
 
     resizeHandle.addEventListener('pointerdown', (e) => {
       if (window.innerWidth <= 720 || document.body.classList.contains('sidebar-collapsed')) return;
       isResizing = true;
+      activePointerId = e.pointerId;
       startX = e.clientX;
       startWidth = sidebar.getBoundingClientRect().width || getSidebarWidth();
       resizeHandle.classList.add('dragging');
       document.body.classList.add('fb-sidebar-resizing');
-      resizeHandle.setPointerCapture?.(e.pointerId);
+      document.addEventListener('pointermove', updateResize, true);
+      document.addEventListener('pointerup', finishResize, true);
+      document.addEventListener('pointercancel', finishResize, true);
+      if (resizeHandle.setPointerCapture) {
+        try { resizeHandle.setPointerCapture(e.pointerId); } catch {}
+      }
       e.preventDefault();
     });
-
-    resizeHandle.addEventListener('pointermove', (e) => {
-      if (!isResizing) return;
-      setSidebarWidth(startWidth + e.clientX - startX);
-      e.preventDefault();
-    });
-    resizeHandle.addEventListener('pointerup', finishResize);
-    resizeHandle.addEventListener('pointercancel', finishResize);
 
     resizeHandle.addEventListener('keydown', (e) => {
       let next = null;

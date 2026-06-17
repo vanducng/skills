@@ -134,14 +134,15 @@ def extract_document_content(file_path: Path, verbose: bool = False) -> str:
     if not converter.exists():
         return f'Error: document_converter.py not found at {converter}'
 
-    with tempfile.NamedTemporaryFile(
-        prefix=f'.temp_{file_path.stem}_',
-        suffix='_extraction.md',
-        delete=False,
-    ) as temp_file:
-        output_file = Path(temp_file.name)
-
+    output_file = None
     try:
+        with tempfile.NamedTemporaryFile(
+            prefix=f'.temp_{file_path.stem}_',
+            suffix='_extraction.md',
+            delete=False,
+        ) as temp_file:
+            output_file = Path(temp_file.name)
+
         cmd = [
             sys.executable, str(converter),
             '--input', str(file_path),
@@ -168,7 +169,7 @@ Output as structured markdown with clear sections.'''
     except (OSError, UnicodeDecodeError) as e:
         return f'Error: {e}'
     finally:
-        if output_file.exists():
+        if output_file and output_file.exists():
             try:
                 output_file.unlink(missing_ok=True)
             except OSError:
@@ -199,7 +200,11 @@ Output as structured analysis.'''
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
             return f'Error: Media analysis failed (exit {result.returncode}): {result.stderr}'
-        return result.stdout if result.stdout else result.stderr
+        if result.stdout:
+            return result.stdout
+        if result.stderr:
+            return f'Error: Media analysis produced no stdout: {result.stderr}'
+        return 'Error: Media analysis produced no output'
 
     except subprocess.TimeoutExpired:
         return 'Error: Media analysis timed out'
@@ -402,7 +407,10 @@ Examples:
             }
             for f in style_files['files']:
                 extracted = extract_style_content(Path(f['path']), args.verbose)
-                result['files'].append({'name': f['name'], **extracted})
+                if 'error' in extracted:
+                    result['files'].append({'name': f['name'], 'file': f['path'], 'error': extracted['error']})
+                else:
+                    result['files'].append({'name': f['name'], **extracted})
 
     print(format_output(result, args.json))
 

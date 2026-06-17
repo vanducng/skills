@@ -20,9 +20,6 @@ function renderSidebar({ treeRoot, activePath }) {
     role="separator"
     aria-orientation="vertical"
     aria-label="Resize file tree sidebar"
-    aria-valuemin="220"
-    aria-valuemax="560"
-    aria-valuenow="280"
     tabindex="0"
     title="Drag to resize sidebar"
   ></div>

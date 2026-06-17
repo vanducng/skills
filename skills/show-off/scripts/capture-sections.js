@@ -131,7 +131,8 @@ async function waitForRender(page, { settleDelay = 500, timeout = 15000 } = {}) 
     );
 
     const bgUrls = new Set();
-    for (const el of document.querySelectorAll('*')) {
+    const bgCandidates = Array.from(document.querySelectorAll('*')).slice(0, 2000);
+    for (const el of bgCandidates) {
       const bg = getComputedStyle(el).backgroundImage;
       if (!bg || bg === 'none') continue;
       for (const m of bg.matchAll(/url\(["']?([^"')]+)["']?\)/g)) bgUrls.add(m[1]);
@@ -160,26 +161,28 @@ async function waitForRender(page, { settleDelay = 500, timeout = 15000 } = {}) 
 /**
  * Compress image if it exceeds maxSizeMB.
  */
-async function compressIfNeeded(filePath, maxSizeMB = 5) {
+async function compressIfNeeded(filePath, maxSizeMB = 5, quality = 80) {
   const stats = await fs.stat(filePath);
   if (stats.size <= maxSizeMB * 1024 * 1024) return { compressed: false, size: stats.size };
   const sharp = await loadSharp();
-  if (!sharp) return { compressed: false, size: stats.size };
+  if (!sharp) return { compressed: false, size: stats.size, warning: 'sharp is not installed; compression skipped.' };
 
-  const ext = path.extname(filePath).toLowerCase();
-  const buf = await fs.readFile(filePath);
-  let out;
-  if (ext === '.png') {
-    out = await sharp(buf).png({ compressionLevel: 9 }).toBuffer();
-  } else if (ext === '.jpg' || ext === '.jpeg') {
-    out = await sharp(buf).jpeg({ quality: 80, progressive: true, mozjpeg: true }).toBuffer();
-  } else if (ext === '.webp') {
-    out = await sharp(buf).webp({ quality: 80 }).toBuffer();
-  } else {
-    out = await sharp(buf).jpeg({ quality: 80, progressive: true }).toBuffer();
+  try {
+    const ext = path.extname(filePath).toLowerCase();
+    const buf = await fs.readFile(filePath);
+    let out;
+    if (ext === '.png') {
+      out = await sharp(buf).png({ compressionLevel: 9 }).toBuffer();
+    } else if (ext === '.jpg' || ext === '.jpeg') {
+      out = await sharp(buf).jpeg({ quality, progressive: true, mozjpeg: true }).toBuffer();
+    } else {
+      out = await sharp(buf).jpeg({ quality, progressive: true }).toBuffer();
+    }
+    await fs.writeFile(filePath, out);
+    return { compressed: true, size: out.length };
+  } catch (error) {
+    return { compressed: false, size: stats.size, warning: `Compression failed: ${error.message}` };
   }
-  await fs.writeFile(filePath, out);
-  return { compressed: true, size: out.length };
 }
 
 /**
@@ -189,8 +192,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
 
   if (!args.url || !args['output-dir'] || !args.sections) {
-    outputError(new Error('Required: --url, --output-dir, --sections'));
-    process.exit(1);
+    throw new Error('Required: --url, --output-dir, --sections');
   }
 
   const url = args.url;
@@ -252,13 +254,13 @@ async function main() {
             if (format.type === 'jpeg') opts.quality = quality;
 
             await el.screenshot(opts);
-            const comp = await compressIfNeeded(filePath, maxSize);
-            if (!comp.compressed && comp.size > maxSize * 1024 * 1024) {
+            const comp = await compressIfNeeded(filePath, maxSize, quality);
+            if (comp.warning) {
               warnings.push({
                 section: selector,
                 ratio,
                 file: filePath,
-                warning: 'Image exceeds max size and sharp is not installed; compression skipped.',
+                warning: comp.warning,
               });
             }
 
