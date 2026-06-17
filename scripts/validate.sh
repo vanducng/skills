@@ -145,8 +145,8 @@ else
 fi
 
 echo
-# Phase 6 flips this to `--enforce` once producer skills are one-lined (feature-first).
-if ! bash "${REPO}/scripts/check-skill-paths.sh"; then
+# Enforced: producer skills must write to the injected paths, not hardcoded umbrella paths.
+if ! bash "${REPO}/scripts/check-skill-paths.sh" --enforce; then
   failed=$((failed + 1))
 fi
 

@@ -46,4 +46,4 @@ Verdict: 1/2 failed. <one paragraph: what broke, where the evidence says so>
 
 - One line per flow: `PASS` or `FAIL — <symptom>`. Absolute paths so they're clickable from anywhere.
 - Evidence comes from the `vd:browser-trace` run captured during the flow (`bisect-cdp.mjs` buckets + `query.mjs errors`); screenshots land in the same run dir.
-- Destination: the hook-injected Reports path when present (`.workbench/reports/e2e-...md`), else `<repo>/.e2e/runs/<yymmdd-hhmm>-<flow>.md`. Tool-neutral — works the same under Codex or plain shell.
+- Destination: the injected `Reports:` path when present; else `<repo>/.e2e/runs/<yymmdd-hhmm>-<flow>.md`. Tool-neutral — works the same under Codex or plain shell.

@@ -3,9 +3,9 @@
 # instead of writing to the hook-injected Reports:/Visuals:/Journals: paths.
 #
 # Default: REPORT-ONLY (prints findings, exits 0). Pass --enforce to exit 1 on any
-# violation. Enforcement flips on in Phase 6 (feature-first restructure) once every
-# producer skill is one-lined; until then the dual-read prose legitimately names these
-# paths, so enforcing now would be a false positive across ~28 files.
+# violation. validate.sh runs it with --enforce (producer skills are one-lined to the
+# injected paths). Consumers/layout-docs that legitimately reference the umbrella are
+# allowlisted below.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -17,8 +17,9 @@ ENFORCE=0
 
 # Hardcoded artifact paths + the retired interim mechanism (feature-folder.json).
 FORBIDDEN='(\.workbench/|plans/(reports|visuals|journals)|feature-folder\.json)'
-# Skills allowed to mention these: the migrator, the lifecycle owner, and skill-authoring docs.
-ALLOWLIST_RE='^(cktovd|workbench|skill-creator|template-skill)$'
+# Allowed to reference umbrella paths: migrator + lifecycle owner + skill-authoring docs,
+# plus consumers that READ the layout (devlog) and skills that DOCUMENT it (worktree, ultracook).
+ALLOWLIST_RE='^(cktovd|workbench|skill-creator|template-skill|worktree|ultracook|devlog)$'
 
 violations=0
 flagged_files=0

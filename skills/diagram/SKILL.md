@@ -199,7 +199,7 @@ All presets share the same iconography, line weights, density limits, and label-
 
 ## Output location
 
-Scratch (non-versioned) output: write to the injected path (`.workbench/visuals/` when the project is migrated, else legacy `<git-root>/.diagrams/`); when reading prior artifacts, check both. Each session gets a `<YYYYMMDD-HHMM>-<slug>/` subdir.
+Scratch (non-versioned) output: write to the injected `Visuals:` path. Each session gets a `<YYYYMMDD-HHMM>-<slug>/` subdir.
 
 - Outside a git repo → `~/Documents/llm-diagrams/<cwd-basename>-<YYYYMMDD-HHMM>-<slug>/`
 - With `--versioned` → `<git-root>/docs/diagrams/<slug>/` (always; versioned diagrams stay in `docs/`)

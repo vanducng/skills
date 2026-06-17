@@ -223,7 +223,7 @@ Use Browser, Chrome, Playwright, or local image inspection to visually inspect e
 
 ### Step 7: Generate Summary Report
 
-Save report to `plans/reports/` with naming pattern from session hooks.
+Save report to the injected `Reports:` path with naming pattern from session hooks.
 
 Report structure:
 
@@ -267,7 +267,7 @@ Report structure:
 
 Organize all output files and reports:
 - Move/copy exported PNGs to proper asset directories
-- Ensure reports are in `plans/reports/` with correct naming
+- Ensure reports are in the injected `Reports:` path with correct naming
 - Clean up intermediate HTML files if requested
 - Tag outputs with metadata (platform, size, concept name)
 
