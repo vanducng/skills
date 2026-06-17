@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.61.0](https://github.com/vanducng/skills/compare/v0.60.0...v0.61.0) (2026-06-17)
+
+
+### Features
+
+* feature-first .workbench — workbench skill + producer one-lining + CI gate ([#206](https://github.com/vanducng/skills/issues/206)) ([55fdabe](https://github.com/vanducng/skills/commit/55fdabe95e564a7df1ca1f31b2c58e2a1580a9f9))
+
 ## [0.60.0](https://github.com/vanducng/skills/compare/v0.59.0...v0.60.0) (2026-06-16)
 
 
