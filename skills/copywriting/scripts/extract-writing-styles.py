@@ -89,14 +89,17 @@ def get_style_files() -> Dict[str, Any]:
         return {'files': [], 'directory': str(STYLES_DIR)}
 
     files = []
-    for f in STYLES_DIR.iterdir():
-        if f.is_file() and f.suffix.lower() in ALL_FORMATS:
-            files.append({
-                'name': f.stem,
-                'path': str(f),
-                'type': get_file_type(f),
-                'size': f.stat().st_size
-            })
+    try:
+        for f in STYLES_DIR.iterdir():
+            if f.is_file() and f.suffix.lower() in ALL_FORMATS:
+                files.append({
+                    'name': f.stem,
+                    'path': str(f),
+                    'type': get_file_type(f),
+                    'size': f.stat().st_size
+                })
+    except (OSError, PermissionError) as e:
+        return {'files': [], 'directory': str(STYLES_DIR), 'error': f'Error reading directory: {e}'}
 
     return {'files': sorted(files, key=lambda x: x['name']), 'directory': str(STYLES_DIR)}
 
@@ -145,17 +148,21 @@ Output as structured markdown with clear sections.'''
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
 
+        if result.returncode != 0:
+            return f'Error: Conversion failed (exit {result.returncode}): {result.stderr}'
+
         if output_file.exists():
             content = output_file.read_text(encoding='utf-8')
-            output_file.unlink()  # Clean up temp file
             return content
-        else:
-            return f'Conversion failed: {result.stderr}'
+        return f'Error: Conversion failed: No output produced ({result.stderr})'
 
     except subprocess.TimeoutExpired:
         return 'Error: Document conversion timed out'
     except Exception as e:
         return f'Error: {e}'
+    finally:
+        if output_file.exists():
+            output_file.unlink(missing_ok=True)
 
 
 def extract_media_content(file_path: Path, verbose: bool = False) -> str:
@@ -178,6 +185,8 @@ Output as structured analysis.'''
         ]
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            return f'Error: Media analysis failed (exit {result.returncode}): {result.stderr}'
         return result.stdout if result.stdout else result.stderr
 
     except subprocess.TimeoutExpired:
@@ -202,6 +211,11 @@ def extract_style_content(file_path: Path, verbose: bool = False) -> Dict[str, A
     else:
         return {'error': f'Unsupported file type: {file_path.suffix}'}
 
+    if isinstance(content, str) and (
+        content.startswith('Error') or content.startswith('Conversion failed')
+    ):
+        return {'error': content}
+
     # Parse the content for style information
     result = {
         'file': str(file_path),
@@ -218,7 +232,7 @@ def extract_style_content(file_path: Path, verbose: bool = False) -> Dict[str, A
         result['title'] = title_match.group(1).strip()
 
     # Extract sections (H2 headers)
-    for i, match in enumerate(re.finditer(r'^##\s+(.+)$', content, re.MULTILINE)):
+    for match in re.finditer(r'^##\s+(.+)$', content, re.MULTILINE):
         result['sections'].append({
             'title': match.group(1).strip(),
             'lineNumber': content[:match.start()].count('\n') + 1

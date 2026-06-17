@@ -148,44 +148,6 @@ async function compressIfNeeded(filePath, maxSizeMB = 5) {
 }
 
 /**
- * Capture a single section at a given viewport ratio.
- * Returns result metadata object.
- */
-async function captureOne(page, selector, ratio, outputDir, format, quality, maxSize) {
-  const vp = VIEWPORTS[ratio];
-  if (!vp) throw new Error(`Unknown ratio: ${ratio}. Use: ${Object.keys(VIEWPORTS).join(', ')}`);
-
-  // Resize viewport
-  await page.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: 2 });
-
-  // Scroll section into view and wait for any lazy-loaded content
-  const el = await page.$(selector);
-  if (!el) throw new Error(`Section not found: ${selector}`);
-  await el.scrollIntoView();
-  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
-
-  // Build filename: {ratio}-{sectionName}.{format}
-  const sectionName = selector.replace(/^[#.]/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
-  const fileName = `${vp.label}-${sectionName}.${format}`;
-  const filePath = path.join(outputDir, fileName);
-
-  const opts = { path: filePath, type: format };
-  if (format !== 'png' && quality) opts.quality = quality;
-
-  await el.screenshot(opts);
-
-  const comp = await compressIfNeeded(filePath, maxSize);
-
-  return {
-    section: selector,
-    ratio,
-    file: filePath,
-    size: comp.size,
-    compressed: comp.compressed,
-  };
-}
-
-/**
  * Main: parse args, open page, capture all section+ratio combos in parallel.
  */
 async function main() {
@@ -215,11 +177,6 @@ async function main() {
     headless: args.headless === 'false' ? false : true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
-  const page = await browser.newPage();
-
-  // Navigate and wait for full network+asset+font readiness before any capture.
-  await page.goto(url, { waitUntil: 'networkidle0', timeout: renderTimeout + 15000 });
-  await waitForRender(page, { settleDelay, timeout: renderTimeout });
 
   // Build capture tasks: one per (section, ratio) pair
   // Group by ratio to minimise viewport switches — captures within same ratio run sequentially,
@@ -228,53 +185,59 @@ async function main() {
   const errors = [];
 
   const ratioTasks = ratios.map(async (ratio) => {
-    // Each ratio gets a fresh page so viewport changes don't conflict
-    const ratioPage = await browser.newPage();
-    const vp = VIEWPORTS[ratio];
-    await ratioPage.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: 2 });
-    await ratioPage.goto(url, { waitUntil: 'networkidle0', timeout: renderTimeout + 15000 });
-    await waitForRender(ratioPage, { settleDelay, timeout: renderTimeout });
+    let ratioPage;
+    try {
+      // Each ratio gets a fresh page so viewport changes don't conflict
+      ratioPage = await browser.newPage();
+      const vp = VIEWPORTS[ratio];
+      if (!vp) throw new Error(`Unknown ratio: ${ratio}. Use: ${Object.keys(VIEWPORTS).join(', ')}`);
 
-    for (const selector of sections) {
-      try {
-        const el = await ratioPage.$(selector);
-        if (!el) {
-          errors.push({ section: selector, ratio, error: `Element not found: ${selector}` });
-          continue;
+      await ratioPage.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: 2 });
+      await ratioPage.goto(url, { waitUntil: 'networkidle0', timeout: renderTimeout + 15000 });
+      await waitForRender(ratioPage, { settleDelay, timeout: renderTimeout });
+
+      for (const selector of sections) {
+        try {
+          const el = await ratioPage.$(selector);
+          if (!el) {
+            errors.push({ section: selector, ratio, error: `Element not found: ${selector}` });
+            continue;
+          }
+          await el.scrollIntoView();
+          // Let scroll-linked animations / IntersectionObserver reveals trigger, then repaint.
+          await waitForRender(ratioPage, { settleDelay: Math.min(settleDelay, 400), timeout: renderTimeout });
+
+          const sectionName = selector.replace(/^[#.]/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
+          const fileName = `${vp.label}-${sectionName}.${format}`;
+          const filePath = path.join(outputDir, fileName);
+
+          const opts = { path: filePath, type: format };
+          if (format !== 'png' && quality) opts.quality = quality;
+
+          await el.screenshot(opts);
+          const comp = await compressIfNeeded(filePath, maxSize);
+
+          results.push({
+            section: selector,
+            ratio,
+            file: filePath,
+            size: comp.size,
+            compressed: comp.compressed,
+          });
+        } catch (err) {
+          errors.push({ section: selector, ratio, error: err.message });
         }
-        await el.scrollIntoView();
-        // Let scroll-linked animations / IntersectionObserver reveals trigger, then repaint.
-        await waitForRender(ratioPage, { settleDelay: Math.min(settleDelay, 400), timeout: renderTimeout });
-
-        const sectionName = selector.replace(/^[#.]/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
-        const fileName = `${vp.label}-${sectionName}.${format}`;
-        const filePath = path.join(outputDir, fileName);
-
-        const opts = { path: filePath, type: format };
-        if (format !== 'png' && quality) opts.quality = quality;
-
-        await el.screenshot(opts);
-        const comp = await compressIfNeeded(filePath, maxSize);
-
-        results.push({
-          section: selector,
-          ratio,
-          file: filePath,
-          size: comp.size,
-          compressed: comp.compressed,
-        });
-      } catch (err) {
-        errors.push({ section: selector, ratio, error: err.message });
       }
+    } catch (err) {
+      errors.push({ ratio, error: err.message });
+    } finally {
+      if (ratioPage) await ratioPage.close();
     }
-
-    await ratioPage.close();
   });
 
   // Run all ratios in parallel
   await Promise.all(ratioTasks);
 
-  await page.close();
   await browser.close();
 
   outputJSON({
