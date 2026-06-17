@@ -493,6 +493,17 @@ async function main() {
     }
   });
 
+  await test('Sidebar exposes resize handle', async () => {
+    const r = await get(port, `/browse?dir=${encodeURIComponent(sandbox)}`);
+    const body = r.body.toString();
+    if (!body.includes('class="fb-sidebar-resize"')) {
+      throw new Error('resize handle missing');
+    }
+    if (!body.includes('aria-label="Resize file tree sidebar"')) {
+      throw new Error('resize handle missing accessible label');
+    }
+  });
+
   await test('Gallery + single-view + markdown inject sidebar', async () => {
     const g = await get(port, `/browse?dir=${encodeURIComponent(sandbox)}`);
     if (!g.body.toString().includes('class="fb-sidebar"')) throw new Error('gallery missing fb-sidebar');
@@ -509,6 +520,7 @@ async function main() {
     if (js.status !== 200) throw new Error(`status ${js.status}`);
     const body = js.body.toString();
     if (!body.includes("'fb-tree-root'")) throw new Error('ROOT_KEY constant missing');
+    if (!body.includes("'fb-sidebar-width'")) throw new Error('WIDTH_KEY constant missing');
   });
 
   await test('pages with sidebar inject blocking <head> redirect script', async () => {
