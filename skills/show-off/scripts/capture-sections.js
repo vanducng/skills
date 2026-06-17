@@ -135,7 +135,7 @@ async function compressIfNeeded(filePath, maxSizeMB = 5) {
   const buf = await fs.readFile(filePath);
   let out;
   if (ext === '.png') {
-    out = await sharp(buf).png({ quality: 80, compressionLevel: 9 }).toBuffer();
+    out = await sharp(buf).png({ compressionLevel: 9 }).toBuffer();
   } else if (ext === '.jpg' || ext === '.jpeg') {
     out = await sharp(buf).jpeg({ quality: 80, progressive: true, mozjpeg: true }).toBuffer();
   } else if (ext === '.webp') {
@@ -184,61 +184,69 @@ async function main() {
   const results = [];
   const errors = [];
 
-  const ratioTasks = ratios.map(async (ratio) => {
-    let ratioPage;
-    try {
-      // Each ratio gets a fresh page so viewport changes don't conflict
-      ratioPage = await browser.newPage();
-      const vp = VIEWPORTS[ratio];
-      if (!vp) throw new Error(`Unknown ratio: ${ratio}. Use: ${Object.keys(VIEWPORTS).join(', ')}`);
+  try {
+    const ratioTasks = ratios.map(async (ratio) => {
+      let ratioPage;
+      try {
+        // Each ratio gets a fresh page so viewport changes don't conflict
+        ratioPage = await browser.newPage();
+        const vp = VIEWPORTS[ratio];
+        if (!vp) throw new Error(`Unknown ratio: ${ratio}. Use: ${Object.keys(VIEWPORTS).join(', ')}`);
 
-      await ratioPage.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: 2 });
-      await ratioPage.goto(url, { waitUntil: 'networkidle0', timeout: renderTimeout + 15000 });
-      await waitForRender(ratioPage, { settleDelay, timeout: renderTimeout });
+        await ratioPage.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: 2 });
+        await ratioPage.goto(url, { waitUntil: 'networkidle0', timeout: renderTimeout + 15000 });
+        await waitForRender(ratioPage, { settleDelay, timeout: renderTimeout });
 
-      for (const selector of sections) {
-        try {
-          const el = await ratioPage.$(selector);
-          if (!el) {
-            errors.push({ section: selector, ratio, error: `Element not found: ${selector}` });
-            continue;
+        for (const selector of sections) {
+          try {
+            const el = await ratioPage.$(selector);
+            if (!el) {
+              errors.push({ section: selector, ratio, error: `Element not found: ${selector}` });
+              continue;
+            }
+            await el.scrollIntoView();
+            // Let scroll-linked animations / IntersectionObserver reveals trigger, then repaint.
+            await waitForRender(ratioPage, { settleDelay: Math.min(settleDelay, 400), timeout: renderTimeout });
+
+            const sectionName = selector.replace(/^[#.]/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
+            const fileName = `${vp.label}-${sectionName}.${format}`;
+            const filePath = path.join(outputDir, fileName);
+
+            const opts = { path: filePath, type: format };
+            if (format !== 'png' && quality) opts.quality = quality;
+
+            await el.screenshot(opts);
+            const comp = await compressIfNeeded(filePath, maxSize);
+
+            results.push({
+              section: selector,
+              ratio,
+              file: filePath,
+              size: comp.size,
+              compressed: comp.compressed,
+            });
+          } catch (err) {
+            errors.push({ section: selector, ratio, error: err.message });
           }
-          await el.scrollIntoView();
-          // Let scroll-linked animations / IntersectionObserver reveals trigger, then repaint.
-          await waitForRender(ratioPage, { settleDelay: Math.min(settleDelay, 400), timeout: renderTimeout });
-
-          const sectionName = selector.replace(/^[#.]/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
-          const fileName = `${vp.label}-${sectionName}.${format}`;
-          const filePath = path.join(outputDir, fileName);
-
-          const opts = { path: filePath, type: format };
-          if (format !== 'png' && quality) opts.quality = quality;
-
-          await el.screenshot(opts);
-          const comp = await compressIfNeeded(filePath, maxSize);
-
-          results.push({
-            section: selector,
-            ratio,
-            file: filePath,
-            size: comp.size,
-            compressed: comp.compressed,
-          });
-        } catch (err) {
-          errors.push({ section: selector, ratio, error: err.message });
+        }
+      } catch (err) {
+        errors.push({ ratio, error: err.message });
+      } finally {
+        if (ratioPage) {
+          try {
+            await ratioPage.close();
+          } catch (err) {
+            errors.push({ ratio, error: `Page close failed: ${err.message}` });
+          }
         }
       }
-    } catch (err) {
-      errors.push({ ratio, error: err.message });
-    } finally {
-      if (ratioPage) await ratioPage.close();
-    }
-  });
+    });
 
-  // Run all ratios in parallel
-  await Promise.all(ratioTasks);
-
-  await browser.close();
+    // Run all ratios in parallel
+    await Promise.all(ratioTasks);
+  } finally {
+    await browser.close();
+  }
 
   outputJSON({
     success: errors.length === 0,

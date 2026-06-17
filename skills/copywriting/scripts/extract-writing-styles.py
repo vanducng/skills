@@ -20,8 +20,9 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 # File type categories
@@ -94,6 +95,7 @@ def get_style_files() -> Dict[str, Any]:
             if f.is_file() and f.suffix.lower() in ALL_FORMATS:
                 files.append({
                     'name': f.stem,
+                    'filename': f.name,
                     'path': str(f),
                     'type': get_file_type(f),
                     'size': f.stat().st_size
@@ -101,7 +103,7 @@ def get_style_files() -> Dict[str, Any]:
     except (OSError, PermissionError) as e:
         return {'files': [], 'directory': str(STYLES_DIR), 'error': f'Error reading directory: {e}'}
 
-    return {'files': sorted(files, key=lambda x: x['name']), 'directory': str(STYLES_DIR)}
+    return {'files': sorted(files, key=lambda x: (x['name'], x['filename'])), 'directory': str(STYLES_DIR)}
 
 
 def get_file_type(file_path: Path) -> str:
@@ -122,7 +124,7 @@ def extract_text_content(file_path: Path) -> str:
     """Extract content from text files (.md, .txt)."""
     try:
         return file_path.read_text(encoding='utf-8')
-    except Exception as e:
+    except (OSError, UnicodeDecodeError) as e:
         return f'Error reading file: {e}'
 
 
@@ -132,7 +134,13 @@ def extract_document_content(file_path: Path, verbose: bool = False) -> str:
     if not converter.exists():
         return f'Error: document_converter.py not found at {converter}'
 
-    output_file = STYLES_DIR / f'.temp_{file_path.stem}_extraction.md'
+    with tempfile.NamedTemporaryFile(
+        prefix=f'.temp_{file_path.stem}_',
+        suffix='_extraction.md',
+        dir=STYLES_DIR,
+        delete=False,
+    ) as temp_file:
+        output_file = Path(temp_file.name)
 
     try:
         cmd = [
@@ -158,11 +166,14 @@ Output as structured markdown with clear sections.'''
 
     except subprocess.TimeoutExpired:
         return 'Error: Document conversion timed out'
-    except Exception as e:
+    except (OSError, UnicodeDecodeError) as e:
         return f'Error: {e}'
     finally:
         if output_file.exists():
-            output_file.unlink(missing_ok=True)
+            try:
+                output_file.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def extract_media_content(file_path: Path, verbose: bool = False) -> str:
@@ -183,6 +194,8 @@ Output as structured analysis.'''
             '--task', 'analyze',
             '--prompt', prompt
         ]
+        if verbose:
+            cmd.append('--verbose')
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
@@ -191,7 +204,7 @@ Output as structured analysis.'''
 
     except subprocess.TimeoutExpired:
         return 'Error: Media analysis timed out'
-    except Exception as e:
+    except OSError as e:
         return f'Error: {e}'
 
 
@@ -252,6 +265,26 @@ def extract_style_content(file_path: Path, verbose: bool = False) -> Dict[str, A
                 })
 
     return result
+
+
+def find_style_file(style_files: List[Dict[str, Any]], style_name: str) -> Dict[str, Any]:
+    """Find a style by stem or filename, rejecting ambiguous stem matches."""
+    exact_filename = [f for f in style_files if f.get('filename') == style_name]
+    if exact_filename:
+        return {'file': exact_filename[0]}
+
+    stem_matches = [f for f in style_files if f.get('name') == style_name]
+    if len(stem_matches) == 1:
+        return {'file': stem_matches[0]}
+    if len(stem_matches) > 1:
+        choices = ', '.join(f.get('filename') or Path(f['path']).name for f in stem_matches)
+        return {'error': f"Style '{style_name}' is ambiguous; use one of: {choices}"}
+
+    path_matches = [f for f in style_files if f.get('path') == style_name]
+    if path_matches:
+        return {'file': path_matches[0]}
+
+    return {'error': f"Style '{style_name}' not found"}
 
 
 def format_output(data: Dict[str, Any], as_json: bool = False) -> str:
@@ -317,27 +350,26 @@ Examples:
         '''
     )
 
-    parser.add_argument('--list', action='store_true', help='List available style files')
-    parser.add_argument('--style', type=str, help='Extract specific style by name')
-    parser.add_argument('--all', action='store_true', help='Extract all styles')
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument('--list', action='store_true', help='List available style files')
+    action.add_argument('--style', type=str, help='Extract specific style by name')
+    action.add_argument('--all', action='store_true', help='Extract all styles')
     parser.add_argument('--json', action='store_true', help='Output as JSON')
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
 
     args = parser.parse_args()
 
-    if args.list or (not args.style and not args.all):
-        result = get_style_files()
-    elif args.style:
+    if args.style:
         # Find the file with matching name
         style_files = get_style_files()
         if 'error' in style_files:
             result = style_files
         else:
-            matching = [f for f in style_files['files'] if f['name'] == args.style]
-            if matching:
-                result = extract_style_content(Path(matching[0]['path']), args.verbose)
+            selected = find_style_file(style_files['files'], args.style)
+            if 'file' in selected:
+                result = extract_style_content(Path(selected['file']['path']), args.verbose)
             else:
-                result = {'error': f"Style '{args.style}' not found"}
+                result = {'error': selected['error']}
     elif args.all:
         style_files = get_style_files()
         if 'error' in style_files:
