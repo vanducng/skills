@@ -1,0 +1,419 @@
+#!/usr/bin/env python3
+"""
+Extract Writing Styles from assets/writing-styles/ directory.
+
+Supports multiple file types:
+- Text: .md, .txt
+- Documents: .pdf, .docx, .xlsx, .pptx (via document_converter.py)
+- Media: .jpg, .jpeg, .png, .webp, .mp4, .mov (via gemini_batch_process.py)
+
+Usage:
+    python extract-writing-styles.py --list         # List available style files
+    python extract-writing-styles.py --style <name> # Extract specific style
+    python extract-writing-styles.py --all          # Extract all styles
+    python extract-writing-styles.py --all --json   # Output as JSON
+"""
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any, Dict, List
+
+
+# File type categories
+TEXT_FORMATS = {'.md', '.txt'}
+DOC_FORMATS = {'.pdf', '.docx', '.xlsx', '.pptx'}
+IMAGE_FORMATS = {'.jpg', '.jpeg', '.png', '.webp', '.heic'}
+VIDEO_FORMATS = {'.mp4', '.mov', '.avi', '.mkv'}
+ALL_FORMATS = TEXT_FORMATS | DOC_FORMATS | IMAGE_FORMATS | VIDEO_FORMATS
+
+
+def find_project_root(start_dir: Path) -> Path:
+    """Find the nearest useful project root for writing-style assets."""
+    candidates = [Path.cwd(), start_dir] + list(start_dir.parents)
+    for parent in candidates:
+        if (parent / 'assets' / 'writing-styles').exists():
+            return parent
+    for parent in candidates:
+        if (parent / '.git').exists():
+            return parent
+    return Path.cwd()
+
+
+def resolve_styles_dir(project_root: Path) -> Path:
+    """Resolve the writing styles directory, honoring explicit overrides."""
+    override = os.environ.get('COPYWRITING_STYLES_DIR')
+    if override:
+        return Path(override).expanduser()
+
+    candidates = [
+        project_root / 'assets' / 'writing-styles',
+        Path.home() / 'www' / 'writing-styles',
+        Path.home() / 'writing-styles',
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+def resolve_omnimedia_scripts(start_dir: Path) -> Path:
+    """Find the sibling vd:omnimedia scripts directory when installed together."""
+    override = os.environ.get('OMNIMEDIA_SCRIPTS_DIR')
+    if override:
+        return Path(override).expanduser()
+
+    for parent in [start_dir] + list(start_dir.parents):
+        candidate = parent / 'omnimedia' / 'scripts'
+        if candidate.exists():
+            return candidate
+        candidate = parent / 'skills' / 'omnimedia' / 'scripts'
+        if candidate.exists():
+            return candidate
+    return Path.home() / '.agents' / 'skills' / 'omnimedia' / 'scripts'
+
+
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_ROOT = find_project_root(SCRIPT_DIR)
+STYLES_DIR = resolve_styles_dir(PROJECT_ROOT)
+AI_MULTIMODAL_SCRIPTS = resolve_omnimedia_scripts(SCRIPT_DIR)
+
+
+def get_style_files() -> Dict[str, Any]:
+    """List all style files in the writing-styles directory."""
+    if not STYLES_DIR.exists():
+        return {'files': [], 'directory': str(STYLES_DIR)}
+
+    files = []
+    try:
+        for f in STYLES_DIR.iterdir():
+            if f.is_file() and f.suffix.lower() in ALL_FORMATS:
+                files.append({
+                    'name': f.stem,
+                    'filename': f.name,
+                    'path': str(f),
+                    'type': get_file_type(f),
+                    'size': f.stat().st_size
+                })
+    except (OSError, PermissionError) as e:
+        return {'files': [], 'directory': str(STYLES_DIR), 'error': f'Error reading directory: {e}'}
+
+    return {'files': sorted(files, key=lambda x: (x['name'], x['filename'])), 'directory': str(STYLES_DIR)}
+
+
+def get_file_type(file_path: Path) -> str:
+    """Categorize file by type."""
+    ext = file_path.suffix.lower()
+    if ext in TEXT_FORMATS:
+        return 'text'
+    if ext in DOC_FORMATS:
+        return 'document'
+    if ext in IMAGE_FORMATS:
+        return 'image'
+    if ext in VIDEO_FORMATS:
+        return 'video'
+    return 'unknown'
+
+
+def extract_text_content(file_path: Path) -> str:
+    """Extract content from text files (.md, .txt)."""
+    try:
+        return file_path.read_text(encoding='utf-8')
+    except (OSError, UnicodeDecodeError) as e:
+        return f'Error reading file: {e}'
+
+
+def extract_document_content(file_path: Path, verbose: bool = False) -> str:
+    """Extract content from documents using document_converter.py."""
+    converter = AI_MULTIMODAL_SCRIPTS / 'document_converter.py'
+    if not converter.exists():
+        return f'Error: document_converter.py not found at {converter}'
+
+    output_file = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix=f'.temp_{file_path.stem}_',
+            suffix='_extraction.md',
+            delete=False,
+        ) as temp_file:
+            output_file = Path(temp_file.name)
+
+        cmd = [
+            sys.executable, str(converter),
+            '--input', str(file_path),
+            '--output', str(output_file),
+            '--prompt', '''Extract the writing style characteristics from this document.
+Identify: tone, vocabulary, sentence structure, rhetorical devices, formatting patterns.
+Output as structured markdown with clear sections.'''
+        ]
+        if verbose:
+            cmd.append('--verbose')
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+
+        if result.returncode != 0:
+            return f'Error: Conversion failed (exit {result.returncode}): {result.stderr}'
+
+        if output_file.exists():
+            content = output_file.read_text(encoding='utf-8')
+            return content
+        return f'Error: Conversion failed: No output produced ({result.stderr})'
+
+    except subprocess.TimeoutExpired:
+        return 'Error: Document conversion timed out'
+    except (OSError, UnicodeDecodeError) as e:
+        return f'Error: {e}'
+    finally:
+        if output_file and output_file.exists():
+            try:
+                output_file.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def extract_media_content(file_path: Path, verbose: bool = False) -> str:
+    """Extract writing style from media using gemini_batch_process.py."""
+    processor = AI_MULTIMODAL_SCRIPTS / 'gemini_batch_process.py'
+    if not processor.exists():
+        return f'Error: gemini_batch_process.py not found at {processor}'
+
+    try:
+        prompt = '''Analyze this content and identify any writing style characteristics visible.
+Look for: text overlays, captions, typography choices, messaging tone, branding voice.
+Describe the writing style in terms of: tone, vocabulary level, sentence structure, key phrases.
+Output as structured analysis.'''
+
+        cmd = [
+            sys.executable, str(processor),
+            '--files', str(file_path),
+            '--task', 'analyze',
+            '--prompt', prompt
+        ]
+        if verbose:
+            cmd.append('--verbose')
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            return f'Error: Media analysis failed (exit {result.returncode}): {result.stderr}'
+        if result.stdout:
+            return result.stdout
+        if result.stderr:
+            return f'Error: Media analysis produced no stdout: {result.stderr}'
+        return 'Error: Media analysis produced no output'
+
+    except subprocess.TimeoutExpired:
+        return 'Error: Media analysis timed out'
+    except OSError as e:
+        return f'Error: {e}'
+
+
+def extract_style_content(file_path: Path, verbose: bool = False) -> Dict[str, Any]:
+    """Extract writing style content from any supported file type."""
+    if not file_path.exists():
+        return {'error': f'File not found: {file_path}'}
+
+    file_type = get_file_type(file_path)
+
+    if file_type == 'text':
+        content = extract_text_content(file_path)
+    elif file_type == 'document':
+        content = extract_document_content(file_path, verbose)
+    elif file_type in ('image', 'video'):
+        content = extract_media_content(file_path, verbose)
+    else:
+        return {'error': f'Unsupported file type: {file_path.suffix}'}
+
+    if isinstance(content, str) and (
+        content.startswith('Error') or content.startswith('Conversion failed')
+    ):
+        return {'error': content}
+
+    # Parse the content for style information
+    result = {
+        'file': str(file_path),
+        'type': file_type,
+        'title': '',
+        'sections': [],
+        'styles': [],
+        'rawContent': content
+    }
+
+    # Extract title from first H1
+    title_match = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
+    if title_match:
+        result['title'] = title_match.group(1).strip()
+
+    # Extract sections (H2 headers)
+    for match in re.finditer(r'^##\s+(.+)$', content, re.MULTILINE):
+        result['sections'].append({
+            'title': match.group(1).strip(),
+            'lineNumber': content[:match.start()].count('\n') + 1
+        })
+
+    # Extract style entries from tables
+    table_pattern = r'\|.*?\|.*?\|.*?\|'
+    for match in re.finditer(table_pattern, content, re.MULTILINE):
+        row = match.group(0)
+        if '---' not in row and 'Style' not in row:
+            cols = [c.strip() for c in row.split('|') if c.strip()]
+            if len(cols) >= 2:
+                result['styles'].append({
+                    'name': re.sub(r'\*+', '', cols[0]),
+                    'keywords': cols[1] if len(cols) > 1 else '',
+                    'description': ' | '.join(cols[2:]) if len(cols) > 2 else ''
+                })
+
+    return result
+
+
+def find_style_file(style_files: List[Dict[str, Any]], style_name: str) -> Dict[str, Any]:
+    """Find a style by stem or filename, rejecting ambiguous stem matches."""
+    exact_filename = [f for f in style_files if f.get('filename') == style_name]
+    if exact_filename:
+        return {'file': exact_filename[0]}
+
+    stem_matches = [f for f in style_files if f.get('name') == style_name]
+    if len(stem_matches) == 1:
+        return {'file': stem_matches[0]}
+    if len(stem_matches) > 1:
+        choices = ', '.join(f.get('filename') or Path(f['path']).name for f in stem_matches)
+        return {'error': f"Style '{style_name}' is ambiguous; use one of: {choices}"}
+
+    path_matches = [f for f in style_files if f.get('path') == style_name]
+    if path_matches:
+        return {'file': path_matches[0]}
+
+    return {'error': f"Style '{style_name}' not found"}
+
+
+def format_output(data: Dict[str, Any], as_json: bool = False) -> str:
+    """Format output for display."""
+    if as_json:
+        return json.dumps(data, indent=2, ensure_ascii=False)
+
+    if 'error' in data:
+        return f"Error: {data['error']}"
+
+    output = []
+
+    if 'files' in data and 'directory' in data:
+        # List mode
+        output.append('# Available Writing Styles\n')
+        output.append(f"Directory: {data['directory']}\n")
+
+        if not data['files']:
+            output.append('\nNo style files found. Add files to assets/writing-styles/')
+        else:
+            output.append('\n| Style | Type | Size |')
+            output.append('|---|---|---|')
+            for f in data['files']:
+                size_kb = f['size'] / 1024
+                output.append(f"| {f['name']} | {f['type']} | {size_kb:.1f}KB |")
+
+    elif 'files' in data:
+        # All-extraction mode
+        output.append(f"# {data.get('title', 'All Writing Styles')}\n")
+        if not data['files']:
+            output.append('No style files found.')
+        for f in data['files']:
+            output.append(f"\n## {f.get('name', 'Unknown')}")
+            if 'error' in f:
+                output.append(f"Error: {f['error']}")
+                continue
+            output.append(f"**File Type:** {f.get('type', 'unknown')}")
+            if f.get('styles'):
+                output.append(f"\n### Extracted Styles ({len(f['styles'])})")
+                for s in f['styles']:
+                    output.append(f"- **{s['name']}**: {s['keywords']}")
+            if f.get('sections'):
+                output.append('\n### Sections')
+                for s in f['sections']:
+                    output.append(f"- {s['title']} (line {s['lineNumber']})")
+
+    elif 'title' in data:
+        # Single style extraction
+        if data.get('title'):
+            output.append(f"# {data['title']}\n")
+
+        output.append(f"**File Type:** {data.get('type', 'unknown')}\n")
+
+        if data.get('styles'):
+            output.append(f"\n## Extracted Styles ({len(data['styles'])})\n")
+            for s in data['styles']:
+                output.append(f"### {s['name']}")
+                output.append(f"**Keywords:** {s['keywords']}\n")
+
+        if data.get('sections'):
+            output.append('\n## Sections\n')
+            for s in data['sections']:
+                output.append(f"- {s['title']} (line {s['lineNumber']})")
+
+    return '\n'.join(output)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Extract writing styles from assets/writing-styles/ directory',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Supported formats:
+  Text:      .md, .txt
+  Documents: .pdf, .docx, .xlsx, .pptx (requires GEMINI_API_KEY)
+  Images:    .jpg, .jpeg, .png, .webp (requires GEMINI_API_KEY)
+  Videos:    .mp4, .mov (requires GEMINI_API_KEY)
+
+Examples:
+  python extract-writing-styles.py --list
+  python extract-writing-styles.py --style default
+  python extract-writing-styles.py --all --json
+        '''
+    )
+
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument('--list', action='store_true', help='List available style files')
+    action.add_argument('--style', type=str, help='Extract specific style by name')
+    action.add_argument('--all', action='store_true', help='Extract all styles')
+    parser.add_argument('--json', action='store_true', help='Output as JSON')
+    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
+
+    args = parser.parse_args()
+
+    if args.list or (not args.style and not args.all):
+        result = get_style_files()
+    elif args.style:
+        # Find the file with matching name
+        style_files = get_style_files()
+        if 'error' in style_files:
+            result = style_files
+        else:
+            selected = find_style_file(style_files['files'], args.style)
+            if 'file' in selected:
+                result = extract_style_content(Path(selected['file']['path']), args.verbose)
+            else:
+                result = {'error': selected['error']}
+    else:
+        style_files = get_style_files()
+        if 'error' in style_files:
+            result = style_files
+        else:
+            result = {
+                'title': 'All Writing Styles',
+                'files': []
+            }
+            for f in style_files['files']:
+                extracted = extract_style_content(Path(f['path']), args.verbose)
+                if 'error' in extracted:
+                    result['files'].append({'name': f['name'], 'file': f['path'], 'error': extracted['error']})
+                else:
+                    result['files'].append({'name': f['name'], **extracted})
+
+    print(format_output(result, args.json))
+
+
+if __name__ == '__main__':
+    main()

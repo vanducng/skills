@@ -249,12 +249,13 @@ git push -u origin "$(git branch --show-current)"
 
 ## Step 13: PR review comments
 
-**Skip if** `--skip-pr-comments`.
+**Skip only if** `--skip-pr-comments`.
 
-Handles GitHub-side feedback that landed on the PR: unresolved review threads
-(line comments), reviews left in `CHANGES_REQUESTED` state, substantive
-`COMMENTED` reviews from humans/bots, and top-level PR comments. Fresh PR with
-zero comments → skip silently.
+Always fetch GitHub-side feedback that landed on the PR before merge: unresolved
+review threads (line comments), reviews left in `CHANGES_REQUESTED` state,
+substantive `COMMENTED` reviews from humans/bots, and top-level PR comments.
+Fresh PR with zero comments still performs the fetch, then reports
+`PR comments: 0 actionable`.
 
 1. Fetch review threads, reviews, and top-level PR comments in one GraphQL call:
    ```bash
@@ -306,7 +307,7 @@ zero comments → skip silently.
    - skip as non-blocking
    For bot comments, prefer reply-only for false positives/noise and fix-now for verified bugs.
 7. **For `CHANGES_REQUESTED` reviews not tied to a thread**, prompt once: address (commit + push + request re-review via `gh pr edit --add-reviewer @<author>`) / acknowledge in PR comment / skip.
-8. After all loops, refetch state. If everything is resolved, replied to, or skipped: continue to Step 14. Output: `PR comments: N addressed, M replied, K skipped`.
+8. After any code fix, re-run Step 4 verification before pushing the feedback commit. After all loops, refetch state. If everything is resolved, replied to, or skipped: continue to Step 14. Output: `PR comments: N addressed, M replied, K skipped`.
 9. If any fixes were committed and pushed in this step, Step 15 (CI watch) will pick up the new commit's checks automatically.
 
 ### Reply style for reviewed comments

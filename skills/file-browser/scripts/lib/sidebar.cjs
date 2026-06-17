@@ -15,6 +15,14 @@ function renderSidebar({ treeRoot, activePath }) {
   const rootName = path.basename(treeRoot) || treeRoot;
   return `
 <aside class="fb-sidebar" data-tree-root="${esc(treeRoot)}" data-active-path="${esc(activePath || '')}">
+  <div
+    class="fb-sidebar-resize"
+    role="separator"
+    aria-orientation="vertical"
+    aria-label="Resize file tree sidebar"
+    tabindex="0"
+    title="Drag to resize sidebar"
+  ></div>
   <header class="fb-sidebar-header">
     <button class="fb-sidebar-toggle" type="button" title="Toggle sidebar (\\)">≡</button>
     <button class="fb-sidebar-up" type="button" title="Rebase tree to parent folder">↑</button>
