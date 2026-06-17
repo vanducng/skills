@@ -558,7 +558,7 @@ body.markdown.has-fb-sidebar .content pre {
   .fb-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    width: min(100vw, var(--sidebar-effective-width));
+    width: 100vw;
     z-index: 150;
     transform: translateX(-100%);
   }

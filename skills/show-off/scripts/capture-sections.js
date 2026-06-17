@@ -37,7 +37,7 @@ function outputJSON(payload) {
   console.log(JSON.stringify(payload, null, 2));
 }
 
-function outputError(error) {
+function printErrorPayload(error) {
   console.error(JSON.stringify({ success: false, error: error.message }, null, 2));
 }
 
@@ -131,7 +131,16 @@ async function waitForRender(page, { settleDelay = 500, timeout = 15000 } = {}) 
     );
 
     const bgUrls = new Set();
-    const bgCandidates = Array.from(document.querySelectorAll('*')).slice(0, 2000);
+    const walker = document.createTreeWalker(
+      document.body || document.documentElement,
+      NodeFilter.SHOW_ELEMENT,
+    );
+    const bgCandidates = [];
+    while (bgCandidates.length < 2000) {
+      const node = walker.nextNode();
+      if (!node) break;
+      bgCandidates.push(node);
+    }
     for (const el of bgCandidates) {
       const bg = getComputedStyle(el).backgroundImage;
       if (!bg || bg === 'none') continue;
@@ -306,6 +315,6 @@ async function main() {
 }
 
 main().catch(err => {
-  outputError(err);
+  printErrorPayload(err);
   process.exit(1);
 });
