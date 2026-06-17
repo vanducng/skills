@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [0.62.0](https://github.com/vanducng/skills/compare/v0.61.0...v0.62.0) (2026-06-17)
+
+
+### Features
+
+* add promo skills and resizable file-browser sidebar ([e7c142b](https://github.com/vanducng/skills/commit/e7c142be5fe8cee26c419c12806d6098aecd4750))
+
 ## [0.61.0](https://github.com/vanducng/skills/compare/v0.60.0...v0.61.0) (2026-06-17)
 
 
