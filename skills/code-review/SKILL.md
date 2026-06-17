@@ -222,7 +222,7 @@ It composes two patterns:
 
 ### `codebase` / `codebase parallel`
 
-Out of scope for the polished PR path. Spawn `Task(Explore)` subagents per top-level dir; each returns a findings list with file:line:severity:body. Synthesize into a single markdown report. Write to the injected path (`.workbench/reports/` when the project is migrated, else legacy `plans/reports/`); when reading prior artifacts, check both. Filename: `code-review-<date>-<slug>.md`.
+Out of scope for the polished PR path. Spawn `Task(Explore)` subagents per top-level dir; each returns a findings list with file:line:severity:body. Synthesize into a single markdown report. Write to the injected `Reports:` path. Filename: `code-review-<date>-<slug>.md`.
 
 ## Checklist (apply to every diff)
 

@@ -283,7 +283,7 @@ Load `references/social-photos-design.md` for sizes, templates, best practices.
 4. **Design** — apply brand tokens from the brief; build HTML per idea × size
 5. **Export** — Browser or Playwright screenshot at exact px (2x deviceScaleFactor)
 6. **Verify** — visually inspect exported designs; fix layout/styling issues and re-export
-7. **Report** — Summary to `plans/reports/` with design decisions
+7. **Report** — Summary to the injected `Reports:` path with design decisions
 8. **Organize** — sort output files and reports under the chosen artifact directory
 
 ### Social Photos: Key Sizes

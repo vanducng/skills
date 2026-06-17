@@ -86,11 +86,7 @@ In `--deep` mode, additionally produce:
 
 ### Where to save
 
-One folder per feature — resolve it once, then reuse it for every artifact this feature produces:
-- **Plan active** (`{plan_dir}` / Plan Context injected) → `{plan_dir}/reports/`.
-- **No plan** → reuse the session **feature folder**: read `.workbench/state/feature-folder.json`; if its `slug` is the same feature you're working on, save into its `dir`. Otherwise create `.workbench/reports/{YYMMDD-HHMM}-{slug}/` and write `{ "slug", "dir", "updated" }` back to that file. (Legacy, no `.workbench/`: `plans/reports/{slug}/`.)
-
-Default filename: `research-{topic-slug}-{YYYYMMDD}.md`. If the user provided an output path, use that instead.
+Write to the injected `Reports:` path. Default filename: `research-{topic-slug}-{YYYYMMDD}.md`. If the user provided an output path, use that instead.
 
 ### Template (default mode)
 

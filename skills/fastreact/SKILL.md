@@ -27,7 +27,7 @@ It does NOT: deploy to cloud, generate raster brand art itself (delegates to `vd
 ## Workflow (numbered)
 
 ### 1. Mockup first (design before code)
-Lock the look before writing app code. Save artifacts under `.workbench/visuals/{app-slug}/` (or `plans/visuals/{app-slug}/`), where `{app-slug}` is a kebab-case name for the app/feature.
+Lock the look before writing app code. Save artifacts under the injected `Visuals:` path in a `mockup-{ts}-{app-slug}/` subdir, where `{app-slug}` is a kebab-case name for the app/feature.
 1. **Brand/logo (raster):** use `marketing-design` (`design logo` / `create CIP`) for the mark + favicons. Engine: Codex `gpt-image-2` via ChatGPT, falls back to Gemini. To stay faithful to an existing logo, pass it as a reference image (`codex exec -i <ref>` or the cip `--logo`).
 2. **HTML page mockups:** use `opendesign` for the screens (login, dashboard, tables, detail) plus an `index.html` gallery and ONE source-of-truth `theme.css` (color tokens, type scale, spacing, components). marketing-design defers HTML/dashboards to opendesign.
 3. Get approval on direction (style, screens) with concise preview options before building.

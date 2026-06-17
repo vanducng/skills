@@ -144,4 +144,10 @@ else
   failed=$((failed + 1))
 fi
 
+echo
+# Enforced: producer skills must write to the injected paths, not hardcoded umbrella paths.
+if ! bash "${REPO}/scripts/check-skill-paths.sh" --enforce; then
+  failed=$((failed + 1))
+fi
+
 [[ $failed -eq 0 ]]
