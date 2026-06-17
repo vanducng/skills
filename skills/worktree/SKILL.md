@@ -31,6 +31,8 @@ All worktrees live at **`<git-root>/.worktrees/<repo>-<feature>/`** — one rule
 
 `.worktrees/` is a **top-level sibling of the `.workbench/` artifact umbrella**, deliberately not nested under it. Worktrees are full checkouts (heavy, contain source), so nesting them inside `.workbench/` would pollute artifact globs (`reports/`, `plans/`) and bloat the umbrella. The script auto-appends `/.worktrees/` and `.env.worktree` to `.git/info/exclude` when the repo doesn't already ignore them, so `git status` stays clean without touching tracked files.
 
+**Worktrees + the umbrella (artifacts survive worktree removal).** Artifact paths anchor to the **main** worktree, so work done from any linked worktree writes back to the *main* checkout's `.workbench/` — surviving `git worktree remove`. Under `paths.layout: feature-first`, each worktree's branch resolves its own feature (e.g. `feat/ELT-3316-…` → `.workbench/features/elt-3316-…/`), so parallel worktrees on different tickets land in **separate feature folders under the one shared main umbrella** — never colliding, never duplicated. A linked worktree has no local `.workbench/`.
+
 **Hazard:** `git clean -fdx` in the main checkout can delete in-repo worktrees (single `-f` skips dirs containing `.git`, double `-ff` does not). Run `clean` afterward to tidy stale metadata.
 
 **Overrides:** `--worktree-root <path>` flag → `WORKTREE_ROOT` env → `.worktrees` default. Older worktrees in sibling `worktrees/` or legacy `.work/worktrees/` dirs keep working (`list`/`status`/`remove`/`clean` find them via git); new ones land in `.worktrees/`.
