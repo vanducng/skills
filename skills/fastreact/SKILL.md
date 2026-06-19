@@ -22,7 +22,7 @@ Build a production-shaped full-stack web app from a mockup to a running Docker C
 
 ## Scope
 This skill handles scaffolding, conventions, and local setup for a FastAPI+React+Postgres+S3 webapp.
-It does NOT: deploy to cloud, generate raster brand art itself (delegates to `vd:marketing-design`), or design HTML pages itself (delegates to `vd:opendesign`). For pure UI-token/Tailwind work use `vd:webdesign`. Never put secrets in tracked files; always a gitignored `.env`.
+It does NOT: deploy to cloud, generate raster brand art itself (delegates to `vd:marketing-design`), or design HTML pages itself (delegates to `vd:opendesign`). For pure UI-token/Tailwind work use `vd:uiuxdesign`. Never put secrets in tracked files; always a gitignored `.env`.
 
 ## Workflow (numbered)
 

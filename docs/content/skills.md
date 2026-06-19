@@ -22,7 +22,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Area | Skills |
 | --- | --- |
 | Browser automation and e2e | `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-testing`, `vd:web-perf` |
-| Web and frontend | `vd:webdesign`, `vd:opendesign`, `vd:fastreact` |
+| Web and frontend | `vd:uiuxdesign`, `vd:opendesign`, `vd:fastreact` |
 | Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog`, `vd:last30days` |
 | Design | `vd:apidesign`, `vd:dbdesign` |

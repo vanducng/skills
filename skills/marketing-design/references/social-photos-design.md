@@ -55,7 +55,7 @@ Present ideas to the user for approval before designing.
 
 ### Step 4: Design HTML Files
 
-Use existing project brand context when available, or derive a compact token set from the prompt and generated assets. For app/frontend implementation, hand off to `vd:webdesign`; for static HTML gallery or deck artifacts, hand off to `vd:opendesign`.
+Use existing project brand context when available, or derive a compact token set from the prompt and generated assets. For app/frontend implementation, hand off to `vd:uiuxdesign`; for static HTML gallery or deck artifacts, hand off to `vd:opendesign`.
 
 For each approved idea + each target size, create an HTML file:
 
