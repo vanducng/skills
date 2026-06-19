@@ -22,7 +22,7 @@ Unified marketing brand-asset skill: logo, CIP, banners, SVG icons, social photo
 - Poster design (event, editorial, marketing) with locked-style + varied-composition prompts
 - SVG icons and icon sets
 
-> Not this skill: HTML/web pages, dashboards, and slide decks → `opendesign`. Token systems / shadcn-Tailwind code → `vd:webdesign`.
+> Not this skill: HTML/web pages, dashboards, and slide decks → `opendesign`. Token systems / shadcn-Tailwind code → `vd:uiuxdesign`.
 
 ## Sub-skill Routing
 
@@ -31,7 +31,7 @@ All built-in modules are self-contained (references + scripts + data in this ski
 | Task | Sub-skill | Details |
 |------|-----------|---------|
 | Static HTML artifacts, decks | `vd:opendesign` | Self-contained HTML/CSS artifacts |
-| Frontend UI, tokens, shadcn/Tailwind code | `vd:webdesign` | App UI design/build/review/test |
+| Frontend UI, tokens, shadcn/Tailwind code | `vd:uiuxdesign` | App UI design/build/review/test |
 | Full-stack FastAPI + React apps | `vd:fastreact` | Mockup-first app scaffolding |
 | Logo creation, AI generation | Logo (built-in) | `references/logo-design.md` |
 | CIP mockups, deliverables | CIP (built-in) | `references/cip-design.md` |
@@ -307,7 +307,7 @@ Load `references/social-photos-design.md` for sizes, templates, best practices.
 
 1. **Brand assets** (this skill) → Define visual direction and generate marks/mockups
 2. **HTML artifact** (`vd:opendesign`) → Explore page/deck direction
-3. **Implement** (`vd:webdesign`) → Configure Tailwind, shadcn/ui, and frontend screens
+3. **Implement** (`vd:uiuxdesign`) → Configure Tailwind, shadcn/ui, and frontend screens
 
 ## References
 
@@ -354,4 +354,4 @@ pip install google-genai pillow
 
 ## Integration
 
-**Related skills:** `vd:opendesign`, `vd:webdesign`, `vd:fastreact`, `vd:omnimedia`
+**Related skills:** `vd:opendesign`, `vd:uiuxdesign`, `vd:fastreact`, `vd:omnimedia`

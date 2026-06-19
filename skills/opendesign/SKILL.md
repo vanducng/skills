@@ -16,7 +16,7 @@ Compose a single self-contained HTML artifact from the upstream `nexu-io/open-de
 
 **This skill handles:** static HTML/CSS/SVG artifacts (landings, marketing pages, dashboards, mobile screens, decks, posters, emails, e-guides, internal docs).
 
-**Does NOT handle:** live React/Vue apps or backend wiring (use `vd:webdesign` or `vd:fastreact`), AI-generated raster brand imagery (use `vd:marketing-design`), multimodal media (use `vd:omnimedia`), production release work (use `vd:ship`).
+**Does NOT handle:** live React/Vue apps or backend wiring (use `vd:uiuxdesign` or `vd:fastreact`), AI-generated raster brand imagery (use `vd:marketing-design`), multimodal media (use `vd:omnimedia`), production release work (use `vd:ship`).
 
 **Special case — GitHub README / repo hero banner:** the catalog has no banner template (`search` returns social-cards that override the repo's brand). Skip the catalog and follow `references/github-readme-banner.md` — author/evolve a brand-locked `banner.html`, render to PNG at 2× via headless Chrome, and **verify the render (measure margins + view) before shipping**.
 

@@ -6,7 +6,7 @@ Design the look BEFORE app code, so the frontend has a fixed contract to build a
 |------|-------|--------|
 | Logo / brand mark, favicons, CIP, social/banner art (raster) | **`marketing-design`** | PNG/SVG mark + favicon set + brand assets |
 | HTML page mockups, dashboards, landing/portal screens, slide decks | **`opendesign`** | Self-contained HTML pages + a shared `theme.css` |
-| Tailwind/shadcn token system, component code | `vd:webdesign` | CSS vars / components |
+| Tailwind/shadcn token system, component code | `vd:uiuxdesign` | CSS vars / components |
 
 `marketing-design` explicitly defers HTML/dashboards/decks to `opendesign`. Use both.
 
