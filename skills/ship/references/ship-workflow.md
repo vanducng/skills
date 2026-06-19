@@ -230,7 +230,7 @@ git push -u origin "$(git branch --show-current)"
    - Canonical template: `~/skills/skills/git/references/pr-template.md`
 3. Resolve title and body from those loaded rules:
    - Title: branch contains `[A-Z]+-[0-9]+` → `TICKET: <past-tense summary>`. Otherwise → `type(scope): <past-tense summary>`.
-   - Body: prefer `.github/pull_request_template.md` if present and fill it without adding, removing, or renaming sections. Otherwise fill the canonical fallback (3 labelled bullets — Why / What / Risks — plus an italic verification stripe). Never use ad hoc `Summary`, `Changes`, `Validation`, or mixed template bodies.
+   - Body: prefer `.github/pull_request_template.md` if present and fill it without adding, removing, or renaming sections. Otherwise fill the canonical fallback (3 labelled bullets — Why / What / Risks — plus a multi-line verification block, one field per line). Never use ad hoc `Summary`, `Changes`, `Validation`, or mixed template bodies.
 4. Create / update PR:
    ```bash
    gh pr create --base <target> --title "<title>" --body "$(cat <<'EOF'
@@ -371,7 +371,7 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
    STATE=$(gh pr checks "$PR_NUMBER" --json state -q '[.[].state] | unique | join(",")')
    ```
 3. Branch on `$STATE`:
-   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the selected PR template with the latest verification status. For canonical fallback bodies, update the italic stripe (`_Tests: ✓ N · …_`). For repo-template bodies, update the appropriate checklist or notes field without changing section names. Continue to **Step 15b**, then Step 16.
+   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the selected PR template with the latest verification status. For canonical fallback bodies, update the verification block (`**Tests:** …` / `**Docs:** …` / `**Breaking:** …`, one field per line). For repo-template bodies, update the appropriate checklist or notes field without changing section names. Continue to **Step 15b**, then Step 16.
    - **Any `FAILURE` / `CANCELLED` / `TIMED_OUT`** → **STOP**. `AskUserQuestion` (regardless of `--auto`):
      - `Investigate failure` (recommended) — print failing checks via `gh pr checks --json name,state,link -q '.[]|select(.state!="SUCCESS")'`, exit so user can fix
      - `Merge anyway` — proceed to Step 16 noting CI was red
