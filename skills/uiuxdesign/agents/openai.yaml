@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI/UX Design"
+  short_description: "Design-quality review/build/test for modern UIs"
+  default_prompt: "Use $uiuxdesign to drive UI/UX design quality and ship a polished, accessible interface."

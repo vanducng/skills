@@ -8,7 +8,7 @@ Use this guide to route design work between the local skills in this catalog.
 | --- | --- | --- |
 | Logo, CIP mockups, banners, social images, SVG icons, posters | `vd:marketing-design` | Use the built-in modules in this skill. |
 | Static HTML pages, decks, repo banners, email/doc artifacts | `vd:opendesign` | Produces self-contained HTML/CSS artifacts. |
-| Frontend UI, shadcn/Tailwind components, responsive app screens | `vd:webdesign` | Design/build/review/test live frontend surfaces. |
+| Frontend UI, shadcn/Tailwind components, responsive app screens | `vd:uiuxdesign` | Design/build/review/test live frontend surfaces. |
 | Full-stack FastAPI + React app scaffold | `vd:fastreact` | Runs mockup-first, then ports design to app code. |
 | Multimodal extraction, OCR, transcription, model routing | `vd:omnimedia` | Use when media analysis or model orchestration is the task. |
 
@@ -34,8 +34,8 @@ Use this guide to route design work between the local skills in this catalog.
 | "Make a website hero banner image" | Banner module |
 | "Generate a settings icon" | Icon module |
 | "Create a pitch deck" | `vd:opendesign` |
-| "Design a dashboard page" | `vd:opendesign` for mockup, `vd:webdesign` for app implementation |
-| "Build this in React" | `vd:webdesign` or `vd:fastreact` |
+| "Design a dashboard page" | `vd:opendesign` for mockup, `vd:uiuxdesign` for app implementation |
+| "Build this in React" | `vd:uiuxdesign` or `vd:fastreact` |
 
 ## Multi-Skill Workflows
 
@@ -49,7 +49,7 @@ Use this guide to route design work between the local skills in this catalog.
 
 1. `vd:marketing-design`: generate logo and core visual assets.
 2. `vd:opendesign`: produce HTML mockups and theme direction.
-3. `vd:webdesign` or `vd:fastreact`: implement the UI/app.
+3. `vd:uiuxdesign` or `vd:fastreact`: implement the UI/app.
 
 ### Campaign Assets
 
