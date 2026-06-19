@@ -146,6 +146,11 @@ Three labelled bullets + one verification stripe. No section headings — elimin
 _Tests: <✓ N | ✗ N | – skipped> · Docs: <✓ | – N/A> · Breaking: <– | ⚠ see CHANGELOG>_
 ```
 
+> The stripe is a **one-line status summary, not a test report**. Each field is a count or a word. `Tests:` is a single token — sum the suites (`✓ 64`) or summarize (`✓ pass`) — **never** a `+`-joined enumeration. Detail about *what ran* goes in **What/Risks**, not the stripe.
+>
+> ❌ `Tests: ✓ backend ruff + 64 backend tests + frontend Prettier + browser UI check · Docs: – N/A · Breaking: –` — wraps to two lines, pushes `Breaking:` onto its own row.
+> ✅ `Tests: ✓ 64 · Docs: – N/A · Breaking: –`
+
 ## Per-bullet fill rules
 
 | Bullet | Source | Synthesis rule |
@@ -153,7 +158,7 @@ _Tests: <✓ N | ✗ N | – skipped> · Docs: <✓ | – N/A> · Breaking: <–
 | **Why** | Top of `[Unreleased]` / `[X.Y.Z]` changelog entry → top commit body → branch name verbalized | Default: one sentence; drop low-signal verbs (`add`, `update`), promote the noun, end inline with `Closes #N`. Multiple distinct drivers (compliance + performance + UX) → nest as bullets. Hard cap 4 nested bullets; more means the PR has too many goals. |
 | **What** | Commit subjects on the branch, deduped, grouped by behavioral domain | ≤3 items: semicolon-joined on one line. >3: nested bullets. Each item is a *behavior change*, not a file change. Reject "renamed file X" — keep "renamed cookie from `sid` to `__Host-session`". Hard cap 7 nested bullets — more is a scope smell. |
 | **Risks** | Breaking-change scan on diff: removed exports, schema migrations, env var changes, removed CLI flags, `BREAKING CHANGE:` in commit body | Lead with severity word: `Breaking — …` / `Migration — …` / `none`. Keep `none` explicit; never omit the bullet. |
-| **Verification** | Live `gh pr checks` output for tests; `docs/` files in diff for Docs; same breaking-change scan for Breaking | One italic stripe with compact labels, not raw shell commands. Prefer `✓ validation · ✓ docs site · ✓ syntax` over backticked command lists. Keep the stripe to one readable line when possible, and regenerate after CI reports green so reviewers see live status, not commit-time snapshot. |
+| **Verification** | Live `gh pr checks` output for tests; `docs/` files in diff for Docs; same breaking-change scan for Breaking | One italic stripe, **one line**. Each field is a *short status token*: `Tests:` is a count or pass/fail (`✓ 64`, `✓ pass`, `✗ 3`, `– skipped`) — **never** a `+`-joined list of every suite/tool (it wraps and reads as a report). Multiple suites → sum (`✓ 64`) or summarize (`✓ pass`); the detail belongs in **What/Risks**. Compact labels over backticked command lists. Regenerate after CI reports green so reviewers see live status, not a commit-time snapshot. |
 
 ## Body examples
 
