@@ -68,7 +68,7 @@ and Jira/Linear traceability aligned.
 **Title + body rules** live in `pr-template.md` — the canonical PR convention shared with `vd:ship`. Load it for:
 - Past-tense (v-ed) title rules + ticket-prefix detection
 - Repo-template-wins detection (`.github/pull_request_template.md`)
-- Fallback Why / What / Risks + verification stripe body shape
+- Fallback Why / What / Risks + verification block body shape
 - Per-bullet fill rules and worked examples
 - `gh pr create --fill` post-edit rule
 
@@ -84,7 +84,9 @@ gh pr create --base "$TO" --head "$FROM" \
 - **What:** ...
 - **Risks:** none.
 
-_Tests: ✓ N · Docs: – N/A · Breaking: –_
+**Tests:** ✓ N
+**Docs:** – N/A
+**Breaking:** –
 EOF
 )"
 ```

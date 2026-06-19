@@ -8,7 +8,7 @@ Used by Step 12 (`gh pr create` / `gh pr edit`) and refreshed by Step 14 once CI
 
 > `~/skills/skills/git/references/pr-template.md`
 
-Load that file for: past-tense (v-ed) titles, ticket-prefix detection, repo-template detection, fallback Why / What / Risks + verification stripe, examples.
+Load that file for: past-tense (v-ed) titles, ticket-prefix detection, repo-template detection, fallback Why / What / Risks + verification block, examples.
 
 ## Ship-specific integration
 
@@ -16,5 +16,5 @@ Load that file for: past-tense (v-ed) titles, ticket-prefix detection, repo-temp
 |---|---|
 | **Step 12 — Create PR** | Resolve title + body via the canonical rules. Existing PR for this branch → `gh pr edit`. |
 | **Step 12 — Inline issue refs** | `Closes #N` / `Relates to #M` from Step 2 go inline in the **Why** bullet — no separate Linked-Issues section. |
-| **Step 14 — Verification stripe refresh** | After CI watch reports green, regenerate the italic stripe (`_Tests: ✓ N · Docs: ✓ · Breaking: –_`) so reviewers see live status, not commit-time snapshot. |
+| **Step 14 — Verification block refresh** | After CI watch reports green, regenerate the three-line verification block (`**Tests:** …` / `**Docs:** …` / `**Breaking:** …`, one field per line) so reviewers see live status, not commit-time snapshot. |
 | **Beta channel** | Beta PRs target `dev` / `beta` branch, not `main`. Title and body shape are unchanged. |

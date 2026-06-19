@@ -31,7 +31,9 @@ gh pr create --base main \
 - **What:** added OAuth2 provider; refresh-token rotation; rate-limited /login.
 - **Risks:** Breaking — sessions invalidated on deploy.
 
-_Tests: ✓ 127 · Docs: ✓ · Breaking: ⚠_
+**Tests:** ✓ 127
+**Docs:** ✓
+**Breaking:** ⚠ see CHANGELOG
 EOF
 )"
 
