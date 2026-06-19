@@ -2,6 +2,27 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.0.0](https://github.com/vanducng/skills/compare/v0.62.0...v1.0.0) (2026-06-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **uiuxdesign:** skill renamed webdesign -> uiuxdesign
+
+### Features
+
+* **dbdesign:** validate DBML with dbdocs before finishing a design ([464c98f](https://github.com/vanducng/skills/commit/464c98fb339a51bf0a08cf596c4ffcf64e460668))
+
+
+### Bug Fixes
+
+* **agent-browser:** correct screenshot path syntax; add animated-drawer capture recipe + troubleshooting ([346f80c](https://github.com/vanducng/skills/commit/346f80c9936033a6e39a30e94bbbd6c80e051cc4))
+
+
+### Code Refactoring
+
+* **uiuxdesign:** rename webdesign -&gt; uiuxdesign; fold design-quality (anti-slop + 9/10 render-score-refactor loop) ([4100cd2](https://github.com/vanducng/skills/commit/4100cd2b7dc42c34ecd8497e12d5af7954fde642))
+
 ## [0.62.0](https://github.com/vanducng/skills/compare/v0.61.0...v0.62.0) (2026-06-17)
 
 
