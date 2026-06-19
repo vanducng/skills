@@ -68,6 +68,23 @@ git push origin --delete feature/<name>
 git fetch --prune
 ```
 
+### Reusing a branch after a squash-merge
+
+A branch that was **squash-merged** but kept for more work is a trap. The squash lands a *new* commit on the base that shares no identity with the branch's commits, so a follow-up PR's three-dot diff (computed from the merge-base) **re-lists every already-merged file** — bloating the diff and re-triggering any `paths:`-filtered CI (e.g. a schema/ERD preview firing on files you never touched).
+
+Confirm it's a pure squash artifact (content identical to base), then collapse the branch onto the base with a **soft reset** — conflict-free, unlike `git rebase origin/<base>` which replays the old commits and conflicts on the already-final state:
+
+```bash
+git diff origin/<base> origin/<branch> -- <already-merged-path>   # empty ⇒ identical, safe to drop
+git fetch origin
+git reset --soft origin/<base>     # branch tip → base, working tree + index kept
+git status                          # identical files vanish from the diff; only new work staged
+git commit -m "feat(scope): ..."
+git push --force-with-lease origin <branch>   # feature branch only; updates the open PR in place
+```
+
+The already-merged files drop out automatically (no diff vs base), so the PR diff is just the new work and the path-filtered CI stops firing.
+
 ## Branch strategies
 
 ### Trunk-based (preferred for solo / small teams)
