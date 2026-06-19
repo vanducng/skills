@@ -61,7 +61,7 @@ agent-browser click|dblclick|hover @e1 · fill|type @e2 "text" · press Enter
 agent-browser get text|html|value|attr|title|url|count|box [@ref|selector]
 agent-browser wait @e1 | --text "Done" | --url "**/x" | --idle | --fn "() => window.ready"
 agent-browser find role|text|label|placeholder|testid <value>
-agent-browser screenshot [--full] [-o f.png] · pdf -o page.pdf
+agent-browser screenshot [selector] [path] [--full]    # positional path (NOT -o); pass an ABSOLUTE path · pdf -o page.pdf
 agent-browser record start [out.webm] · record stop · record restart
 agent-browser network route "**/api/*" --body '{"data":[]}' · --abort · network requests
 agent-browser cookies|storage local|state save f.json
@@ -116,6 +116,17 @@ agent-browser --session r close
 - Use `screenshot --full` for the whole page — Chrome's own `--headless --screenshot` captures only the viewport.
 - If `documentElement.scrollWidth > innerWidth` but `body.scrollWidth` looks fine, an absolutely-positioned descendant (e.g. an `sr-only`/visually-hidden cell) is escaping a horizontally-scrolling container; give that container `position:relative` rather than papering over it with a width hack.
 
+**Screenshot an animated drawer / Sheet / Dialog** (shadcn/reka-ui `slide-in`) — headless Chromium throttles the open animation, so the panel stays translated off-screen (`getBoundingClientRect().left === innerWidth`) and the capture is blank or right-clipped; `wait --idle` also times out when an HMR websocket keeps the page busy. Force it open before capturing:
+
+```bash
+agent-browser open https://myapp.test/page
+# click the trigger scoped to ITS row — closest('tr'); going N parents up matches a container holding every row and opens the wrong one
+agent-browser eval "(() => { const b=[...document.querySelectorAll('button')].find(x => x.closest('tr')?.textContent.includes('Brianna')); b.click(); })()"
+agent-browser wait --text "Workflow run"
+agent-browser eval '(() => { const d=document.querySelector("[role=dialog]"); if (d) { d.style.animation="none"; d.style.transition="none"; d.style.transform="none"; } })()'
+agent-browser screenshot /abs/path/drawer.png      # positional, ABSOLUTE path
+```
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
@@ -126,6 +137,9 @@ agent-browser --session r close
 | Refs go stale | Page changed since snapshot | Re-run `snapshot -i` after every navigation/mutation |
 | Can't trace a profile session | Profile ⊕ CDP exclusivity | Use the `vd:browser` trio when trace evidence is required |
 | Logins vanish on real-Chrome profile reuse | macOS keychain cookie encryption | Dedicated automation profile, log in once there |
+| Sheet/Dialog drawer captured blank or right-clipped | Headless throttles the `slide-in` enter-animation; drawer stuck translated off-screen | Force `transform/animation/transition:none` on `[role=dialog]` via `eval` before `screenshot` (see Recipes) |
+| `screenshot -o file.png` saves to a temp dir instead | `-o` is not a flag; usage is `screenshot [selector] [path]` | Pass a positional, **absolute** path (relative paths resolve to the daemon cwd, not yours) |
+| Daemon pinned to a stale tab; flags ignored after `close` | Half-dead daemon kept the old session | `pkill -9 -f agent-browser; rm ~/.agent-browser/default.*`, then reopen (add `--ignore-https-errors` for Herd/self-signed TLS) |
 
 ## Security
 
