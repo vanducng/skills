@@ -80,6 +80,10 @@ function stripTrailing(p) {
   return s || null;
 }
 
+function withTrailingSep(p) {
+  return p.endsWith(path.sep) ? p : p + path.sep;
+}
+
 // Public alias used by callers expecting normalizePath
 const normalizePath = stripTrailing;
 
@@ -115,8 +119,8 @@ function resolveUmbrellaRoot(config, baseDir) {
  * Umbrella-on: <gitRoot>/.workbench/plans
  * Umbrella-off: <baseDir>/plans  (legacy, byte-identical)
  */
-function getPlansPath(baseDir, config) {
-  const featureRoot = resolveFeatureRoot(config, baseDir); // == umbrellaRoot unless feature-first
+function getPlansPath(baseDir, config, sessionId, readState) {
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState);
   if (featureRoot) {
     return path.join(featureRoot, stripTrailing(config.paths?.plans) || 'plans');
   }
@@ -133,24 +137,24 @@ function getDocsPath(baseDir, config) {
   return path.join(baseDir, stripTrailing(pathsConfig?.docs) || 'docs');
 }
 
-function getVisualsPath(baseDir, config) {
-  const featureRoot = resolveFeatureRoot(config, baseDir);
+function getVisualsPath(baseDir, config, sessionId, readState) {
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState);
   const name = stripTrailing(config?.paths?.visuals) || 'visuals';
   return featureRoot
     ? path.join(featureRoot, name)
     : path.join(baseDir, 'plans', name); // legacy fallback mirrors plans/visuals
 }
 
-function getJournalsPath(baseDir, config) {
-  const featureRoot = resolveFeatureRoot(config, baseDir);
+function getJournalsPath(baseDir, config, sessionId, readState) {
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState);
   const name = stripTrailing(config?.paths?.journals) || 'journals';
   return featureRoot
     ? path.join(featureRoot, name)
     : path.join(baseDir, 'plans', name); // legacy fallback: plans/journals
 }
 
-function getStatePath(baseDir, config) {
-  const featureRoot = resolveFeatureRoot(config, baseDir);
+function getStatePath(baseDir, config, sessionId, readState) {
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState);
   const name = stripTrailing(config?.paths?.state) || 'state';
   return featureRoot
     ? path.join(featureRoot, name)
@@ -169,14 +173,14 @@ function getStatePath(baseDir, config) {
  * Umbrella-off: default = <plansDir>/reports (legacy, byte-identical to P2).
  * Session-active plan always overrides the default.
  */
-function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, config) {
+function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, config, sessionId, readState) {
   const subdir = stripTrailing(planConfig?.reportsDir) || 'reports';
 
   // Feature-first: reports nest in the FEATURE dir (not the plan subdir) — kills the split-brain.
   if (config && config.paths?.layout === 'feature-first') {
-    const featureRoot = resolveFeatureRoot(config, anchor || process.cwd());
+    const featureRoot = resolveFeatureRoot(config, anchor || process.cwd(), sessionId, readState);
     if (featureRoot) {
-      if (!anchor) return `${featureRoot}/${subdir}/`;
+      if (!anchor) return withTrailingSep(path.join(featureRoot, subdir));
       return path.join(featureRoot, subdir);
     }
   }
@@ -193,7 +197,7 @@ function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, c
       // Umbrella: reports is a direct sibling of plans under the umbrella root.
       // Return early — no subdir nesting needed, the subdir IS the leaf.
       const reportsLeaf = subdir; // 'reports' by default
-      if (!anchor) return `${umbrellaRoot}/${reportsLeaf}/`;
+      if (!anchor) return withTrailingSep(path.join(umbrellaRoot, reportsLeaf));
       return path.join(umbrellaRoot, reportsLeaf);
     }
     reportsBase = stripTrailing(pathsConfig?.plans) || 'plans';
@@ -203,7 +207,7 @@ function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, c
 
   if (!anchor) {
     // Relative mode: trailing slash
-    return `${reportsBase}/${subdir}/`;
+    return withTrailingSep(path.join(reportsBase, subdir));
   }
 
   // Absolute mode: isAbsolute guard prevents double-anchoring
@@ -416,6 +420,7 @@ function ensureFeatureMeta(featuresDir, id, meta) {
   } catch { /* never block resolution on a write failure */ }
 }
 
+// ponytail: single-invocation cache. If hooks become long-lived, add TTL or export clearFeatureIdCache().
 const _featureIdCache = new Map();
 
 /**
@@ -517,6 +522,7 @@ module.exports = {
   getGitBranch,
   getGitRoot,
   getMainWorktreeRoot,
+  realpathSafe,
   slugFromBranch,
   extractIssueFromBranch,
   resolveUmbrellaRoot,

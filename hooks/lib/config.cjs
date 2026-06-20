@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
-const { getMainWorktreeRoot } = require('./paths.cjs');
+const { getMainWorktreeRoot, realpathSafe } = require('./paths.cjs');
 
 const DEFAULT_CONFIG = {
   schemaVersion: 2,
@@ -158,6 +158,8 @@ function assertMigrated(vdPath, ckPath) {
 function getMainWorktreeConfig(cwd) {
   const mainRoot = getMainWorktreeRoot(cwd);
   if (!mainRoot) return null;
+  const home = os.homedir();
+  if (home && realpathSafe(mainRoot) === realpathSafe(home)) return null;
   return readJson(path.join(mainRoot, '.vd.json'));
 }
 
@@ -188,12 +190,19 @@ function loadConfig() {
 
   const globalCfg = readJson(globalPath);
   const localCfg = localPath ? readJson(localPath) : null;
+  const gitMetadata = gitRoot ? path.join(gitRoot, '.git') : null;
+  let maybeLinkedWorktree = false;
+  try {
+    maybeLinkedWorktree = gitMetadata && fs.existsSync(gitMetadata) && !fs.statSync(gitMetadata).isDirectory();
+  } catch { /* ignore */ }
 
   try {
     let merged = layerConfigs({}, DEFAULT_CONFIG);
     if (globalCfg) merged = layerConfigs(merged, globalCfg);
     if (localCfg) merged = layerConfigs(merged, localCfg);
-    merged = applyMainWorktreeLayout(merged, getMainWorktreeConfig(process.cwd()));
+    if (globalCfg || localCfg || maybeLinkedWorktree) {
+      merged = applyMainWorktreeLayout(merged, getMainWorktreeConfig(process.cwd()));
+    }
     return buildResult(merged, gitRoot);
   } catch {
     return buildResult(layerConfigs({}, DEFAULT_CONFIG), gitRoot);

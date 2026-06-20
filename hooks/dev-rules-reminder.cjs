@@ -42,15 +42,15 @@ try {
     const gitBranch = getGitBranch(baseDir);
     const namePattern = resolveNamingPattern(config.plan, gitBranch);
 
-    const resolved = resolvePlanPath(sessionId, config, readSessionState);
-    const reportsPath = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config);
-    const plansPath = getPlansPath(baseDir, config);
+    const resolved = resolvePlanPath(sessionId, config, readSessionState, baseDir);
+    const reportsPath = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionState);
+    const plansPath = getPlansPath(baseDir, config, sessionId, readSessionState);
     const docsPath = getDocsPath(baseDir, config);
 
     const umbrellaVal = config.paths?.umbrella || null;
-    const visualsPath  = umbrellaVal ? getVisualsPath(baseDir, config)  : null;
-    const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config) : null;
-    const statePath    = umbrellaVal ? getStatePath(baseDir, config)    : null;
+    const visualsPath  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionState)  : null;
+    const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionState) : null;
+    const statePath    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionState)    : null;
 
     const skillsVenv = resolveSkillsVenv(baseDir);
 
@@ -74,6 +74,7 @@ try {
     lines.push('## Rules');
     lines.push(`- Reports → ${reportsPath}`);
     lines.push('- YAGNI / KISS / DRY');
+    lines.push('- Before PR merge/next ship step: fetch review comments, validate, fix valid ones, reply/resolve, re-check');
     lines.push('- Concise, list unresolved Qs at end');
     if (skillsVenv) {
       lines.push(`- Python scripts in .claude/skills/: Use \`${skillsVenv}\``);

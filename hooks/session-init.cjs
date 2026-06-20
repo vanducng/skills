@@ -119,7 +119,7 @@ try {
     const config = loadConfig();
 
     // Resolve plan (session lookup needs the state reader injected)
-    const resolved = resolvePlanPath(sessionId, config, readSessionState);
+    const resolved = resolvePlanPath(sessionId, config, readSessionState, baseDir);
 
     // Persist session state
     if (sessionId) {
@@ -141,14 +141,14 @@ try {
     // activePlan paths correctly (avoids double-anchoring).
     // Append trailing '/' explicitly to match golden (contract §3.5).
     // Pass full config so getReportsPath can resolve umbrella root when active.
-    const reportsPathAbs = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config) + '/';
-    const plansPathAbs = getPlansPath(baseDir, config);
+    const reportsPathAbs = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionState) + '/';
+    const plansPathAbs = getPlansPath(baseDir, config, sessionId, readSessionState);
     const docsPathAbs = getDocsPath(baseDir, config);
     // Umbrella siblings — only computed when umbrella is active (additive, zero parity risk)
     const umbrellaVal = config.paths?.umbrella || null;
-    const visualsPathAbs  = umbrellaVal ? getVisualsPath(baseDir, config)  : null;
-    const journalsPathAbs = umbrellaVal ? getJournalsPath(baseDir, config) : null;
-    const statePathAbs    = umbrellaVal ? getStatePath(baseDir, config)    : null;
+    const visualsPathAbs  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionState)  : null;
+    const journalsPathAbs = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionState) : null;
+    const statePathAbs    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionState)    : null;
 
     const taskListId = extractTaskListId(resolved);
 

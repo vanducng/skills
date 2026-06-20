@@ -21,37 +21,75 @@ function git(cwd, ...args) {
 // its own) must anchor .workbench to itself, not to $HOME.
 test('umbrella does not hijack to an ancestor repo rooted at $HOME', () => {
   const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-home-'));
-  git(fakeHome, 'init', '-b', 'main');
-  git(fakeHome, 'config', 'user.email', 't@t.t');
-  git(fakeHome, 'config', 'user.name', 't');
-  git(fakeHome, 'commit', '--allow-empty', '-m', 'stray home repo');
+  try {
+    git(fakeHome, 'init', '-b', 'main');
+    git(fakeHome, 'config', 'user.email', 't@t.t');
+    git(fakeHome, 'config', 'user.name', 't');
+    git(fakeHome, 'commit', '--allow-empty', '-m', 'stray home repo');
+    fs.writeFileSync(path.join(fakeHome, '.vd.json'), JSON.stringify({ paths: { umbrella: '.bad' } }));
 
-  const project = path.join(fakeHome, 'git', 'personal', 'proj');
-  fs.mkdirSync(project, { recursive: true });
+    const project = path.join(fakeHome, 'git', 'personal', 'proj');
+    fs.mkdirSync(project, { recursive: true });
 
-  // os.homedir() reads $HOME on POSIX; resolve the umbrella in a child process so
-  // we can point HOME at the stray repo without mutating this process.
-  const script =
-    "const p=require(process.env.PCJS);" +
-    "process.stdout.write(p.resolveUmbrellaRoot({paths:{umbrella:'.workbench'}}, process.env.BASE)||'NULL');";
-  const out = execFileSync(process.execPath, ['-e', script], {
-    env: { ...process.env, PCJS: require.resolve('./paths.cjs'), BASE: project, HOME: fakeHome },
-    encoding: 'utf8',
-  }).trim();
+    // os.homedir() reads HOME/USERPROFILE; use a child so this process is untouched.
+    const script =
+      "const p=require(process.env.PCJS);const c=require(process.env.CCJS);" +
+      "process.stdout.write(JSON.stringify({root:p.resolveUmbrellaRoot({paths:{umbrella:'.workbench'}},process.env.BASE),main:c.getMainWorktreeConfig(process.env.BASE)}));";
+    const out = JSON.parse(execFileSync(process.execPath, ['-e', script], {
+      env: {
+        ...process.env,
+        PCJS: require.resolve('./paths.cjs'),
+        CCJS: require.resolve('./config.cjs'),
+        BASE: project,
+        HOME: fakeHome,
+        USERPROFILE: fakeHome
+      },
+      encoding: 'utf8',
+    }).trim());
 
-  assert.notStrictEqual(realpath(out), realpath(path.join(fakeHome, '.workbench')),
-    'umbrella must NOT anchor to $HOME');
-  assert.strictEqual(realpath(out), realpath(path.join(project, '.workbench')),
-    'umbrella must anchor to the project dir');
+    assert.notStrictEqual(realpath(out.root), realpath(path.join(fakeHome, '.workbench')),
+      'umbrella must NOT anchor to $HOME');
+    assert.strictEqual(realpath(out.root), realpath(path.join(project, '.workbench')),
+      'umbrella must anchor to the project dir');
+    assert.strictEqual(out.main, null, 'main worktree config must ignore a stray $HOME repo');
+  } finally {
+    fs.rmSync(fakeHome, { recursive: true, force: true });
+  }
 });
 
 // Regression: a normal repo (git root != $HOME) is unaffected by the guard.
 test('normal repo anchors umbrella to its own git root', () => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-repo-'));
-  git(repo, 'init', '-b', 'main');
-  const got = paths.resolveUmbrellaRoot({ paths: { umbrella: '.workbench' }, _gitRoot: repo }, repo);
-  // Compare via the existing parent dir (git realpaths /var → /private/var; the
-  // not-yet-created .workbench leaf can't be symlink-normalized directly).
-  assert.strictEqual(path.basename(got), '.workbench');
-  assert.strictEqual(realpath(path.dirname(got)), realpath(repo));
+  try {
+    git(repo, 'init', '-b', 'main');
+    const got = paths.resolveUmbrellaRoot({ paths: { umbrella: '.workbench' }, _gitRoot: repo }, repo);
+    // Compare via the existing parent dir (git realpaths /var → /private/var; the
+    // not-yet-created .workbench leaf can't be symlink-normalized directly).
+    assert.strictEqual(path.basename(got), '.workbench');
+    assert.strictEqual(realpath(path.dirname(got)), realpath(repo));
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('feature-first getters use session feature state when provided', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-feature-'));
+  try {
+    git(repo, 'init', '-b', 'main');
+    const cfg = {
+      _gitRoot: repo,
+      plan: { reportsDir: 'reports' },
+      paths: { umbrella: '.workbench', layout: 'feature-first', plans: 'plans' }
+    };
+    const readState = () => ({ featureId: 'demo-feature' });
+    const featureRoot = path.join(realpath(repo), '.workbench', 'features', 'demo-feature');
+
+    assert.strictEqual(paths.getPlansPath(repo, cfg, 's1', readState), path.join(featureRoot, 'plans'));
+    assert.strictEqual(
+      paths.getReportsPath(null, null, cfg.plan, cfg.paths, repo, cfg, 's1', readState),
+      path.join(featureRoot, 'reports')
+    );
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
 });
