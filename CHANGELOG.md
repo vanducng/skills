@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.0.1](https://github.com/vanducng/skills/compare/v1.0.0...v1.0.1) (2026-06-20)
+
+
+### Bug Fixes
+
+* **hooks:** fan out agent-notify Telegram to multiple chat ids ([6790dc0](https://github.com/vanducng/skills/commit/6790dc0428e0e3c57b6e7d5097ae28e0b69b9baa))
+
 ## [1.0.0](https://github.com/vanducng/skills/compare/v0.62.0...v1.0.0) (2026-06-19)
 
 
