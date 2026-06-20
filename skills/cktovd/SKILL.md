@@ -106,4 +106,5 @@ Pass = the injected `## Paths` block shows **six** paths (Reports/Plans/Docs/Vis
 - `task-completed-handler.cjs` / `teammate-idle-handler.cjs` live in `~/.claude/hooks` but are deliberately **not** in settings.json (team-runtime invoked) — an "unregistered hook" finding there is not a bug; don't register or delete them.
 - Subagent prompts must pass the **work-context** repo's `.workbench/` paths, not the cwd's, when editing another project.
 - Monorepos: the umbrella anchors to the **git root**, not cwd — one `.vd.json` and one `.workbench/` per repo, even when working from a subdirectory.
+- Dotfiles repos at `$HOME`: stray-home protection anchors child projects to themselves by default; set `paths.allowHomeRoot: true` only when `$HOME` is intentionally the artifact root.
 - A corrupted ancestor `.git/config` (e.g. a stray repo at `$HOME`) silently disables git-root resolution for loose dirs beneath it — umbrella just stays off, no error.

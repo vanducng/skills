@@ -97,9 +97,10 @@ EOF
 
 ## Tool 4 — PR feedback pass
 
-Run one feedback pass after creating/updating the PR, especially when editing an
-existing PR or when bot review comments have already appeared. This is a
-lighter version of `vd:ship` Step 13; do not watch indefinitely.
+Run a feedback loop after creating/updating the PR, especially when editing an
+existing PR or when bot review comments have already appeared. This is the
+small `vd:ship` Step 13 loop: fetch, triage, fix valid comments, re-run the bot
+if available, then fetch again until there are no actionable unresolved items.
 
 Fetch review threads, review bodies, and top-level comments:
 
@@ -157,7 +158,12 @@ After a valid fix:
 2. Push normally.
 3. Reply to the thread with the short SHA + rationale.
 4. Resolve only threads that were fixed or proven false/stale.
-5. Re-run the narrow relevant checks; for full CI watching use `vd:ship`.
+5. Re-run the narrow relevant checks.
+6. If the repo has OpenCodeReview (`code-review.yml`), comment `/ocr`, wait for
+   the `issue_comment` run, then fetch threads again.
+7. Repeat this feedback loop until `reviewThreads` has zero
+   `isResolved == false && isOutdated == false` actionable threads. For full CI
+   watching and merge gating use `vd:ship`.
 
 ## Tool 5 — Report
 

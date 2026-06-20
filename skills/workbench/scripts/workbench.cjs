@@ -108,9 +108,20 @@ function cmdNew({ pos, flags }) {
 function cmdResolve({ flags }) {
   const c = ctx();
   const ff = c.cfg.paths?.layout === 'feature-first';
-  // Only resolve (and possibly create feature.json) when feature-first — keep resolve read-only on type-first.
-  const id = ff ? P.resolveFeatureId(c.cfg, c.cwd) : null;
-  const root = ff ? P.resolveFeatureRoot(c.cfg, c.cwd) : c.umbrella;
+  // resolve is a query/display command; keep feature resolution read-only.
+  const opts = { readOnly: true };
+  const sid = process.env.VD_SESSION_ID || null;
+  const stateCache = new Map();
+  const readState = sid ? ((sessionId) => {
+    const key = sessionId || '';
+    if (!stateCache.has(key)) stateCache.set(key, state.readSessionState(sessionId));
+    return stateCache.get(key);
+  }) : null;
+  const root = ff ? P.resolveFeatureRoot(c.cfg, c.cwd, sid, readState, opts) : c.umbrella;
+  const relFeature = ff && root ? path.relative(c.featuresDir, root) : '';
+  const id = relFeature && !relFeature.startsWith('..') && !path.isAbsolute(relFeature)
+    ? relFeature.split(path.sep)[0]
+    : null;
   const out = {
     layout: c.cfg.paths?.layout || 'type-first',
     feature: id, featureRoot: ff ? root : null,
