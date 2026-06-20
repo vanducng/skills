@@ -34,14 +34,21 @@ DEBUG = bool(os.environ.get("AGENT_NOTIFY_DEBUG"))
 
 def load_config():
     cfg = {k: os.environ.get(k) for k in KEYS}
-    # Fall back to ~/.envrc exports so the hook works even when the agent process
-    # wasn't started with direnv loaded.
-    if not (cfg["TELEGRAM_BOT_TOKEN"] and cfg["TELEGRAM_CHAT_ID"]):
-        envrc = os.path.expanduser("~/.envrc")
-        if os.path.isfile(envrc):
-            parsed = parse_envrc(envrc)
-            for k in KEYS:
-                cfg[k] = cfg[k] or parsed.get(k)
+    # ~/.envrc exports as fallback so the hook works without direnv loaded.
+    envrc = os.path.expanduser("~/.envrc")
+    parsed = parse_envrc(envrc) if os.path.isfile(envrc) else {}
+    for k in KEYS:
+        cfg[k] = cfg[k] or parsed.get(k)
+    # Chat ids: UNION env + ~/.envrc (deduped). A session started before an
+    # ~/.envrc edit keeps the old value in its process env (unchangeable while
+    # live) — merging means newly-added chats still get notified without restart.
+    ids = []
+    for src in (os.environ.get("TELEGRAM_CHAT_ID"), parsed.get("TELEGRAM_CHAT_ID")):
+        for cid in (c.strip() for c in (src or "").split(",")):
+            if cid and cid not in ids:
+                ids.append(cid)
+    if ids:
+        cfg["TELEGRAM_CHAT_ID"] = ",".join(ids)
     return cfg
 
 
@@ -81,20 +88,21 @@ def tmux_ctx():
 
 
 def send(token, chat, text):
-    body = parse.urlencode({
-        "chat_id": chat,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": "true",
-        "text": text,
-    }).encode()
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    try:
-        resp = request.urlopen(request.Request(url, data=body), timeout=8).read()
-        if DEBUG:
-            print(resp.decode())
-    except Exception as e:  # never fail the hook
-        if DEBUG:
-            print("ERROR", e)
+    for cid in (c.strip() for c in chat.split(",") if c.strip()):  # comma-separated → fan out
+        body = parse.urlencode({
+            "chat_id": cid,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": "true",
+            "text": text,
+        }).encode()
+        try:
+            resp = request.urlopen(request.Request(url, data=body), timeout=8).read()
+            if DEBUG:
+                print(resp.decode())
+        except Exception as e:  # never fail the hook
+            if DEBUG:
+                print("ERROR", e)
 
 
 def build(agent, agent_icon, status_icon, what, cwd, preview):
