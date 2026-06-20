@@ -156,16 +156,18 @@ function assertMigrated(vdPath, ckPath) {
  * Read the MAIN worktree's .vd.json (or null). Layout-determining keys (umbrella,
  * layout) come from here so linked worktrees can't disagree about the artifact layout.
  */
-function getMainWorktreeConfigDetails(cwd) {
+function getMainWorktreeConfigDetails(cwd, allowHomeRoot) {
   const mainRoot = getMainWorktreeRoot(cwd);
   if (!mainRoot) return null;
-  if (isHomeDir(mainRoot)) return null;
-  return { root: mainRoot, config: readJson(path.join(mainRoot, '.vd.json')) };
+  const config = readJson(path.join(mainRoot, '.vd.json'));
+  const allowed = allowHomeRoot || config?.paths?.allowHomeRoot === true;
+  if (isHomeDir(mainRoot) && !allowed) return null;
+  return { root: mainRoot, config };
 }
 
 /** Public compatibility helper: returns only the main worktree .vd.json payload. */
 function getMainWorktreeConfig(cwd) {
-  const details = getMainWorktreeConfigDetails(cwd);
+  const details = getMainWorktreeConfigDetails(cwd, false);
   return details ? details.config : null;
 }
 
@@ -211,7 +213,7 @@ function loadConfig() {
     // Keep this merge path even when global/local configs are absent: linked
     // worktrees still need the main checkout's layout overlay.
     if (gitDirIsFile) {
-      const mainWorktree = getMainWorktreeConfigDetails(process.cwd());
+      const mainWorktree = getMainWorktreeConfigDetails(process.cwd(), merged.paths?.allowHomeRoot === true);
       merged = applyMainWorktreeLayout(merged, mainWorktree ? mainWorktree.config : null);
       if (mainWorktree) {
         umbrellaGitRoot = mainWorktree.root;

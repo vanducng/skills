@@ -75,6 +75,8 @@ const sid = `wbt-${process.pid}-${Date.now()}`;
 S.updateSessionState(sid, { featureId: 'session-feature' });
 const sr = JSON.parse(wbEnv(d, { VD_SESSION_ID: sid }, 'resolve', '--json'));
 ok('resolve honors session feature', sr.feature === 'session-feature');
+try { fs.unlinkSync(S.getSessionTempPath(sid)); } catch { /* already gone */ }
+try { fs.unlinkSync(`${S.getSessionTempPath(sid)}.lock`); } catch { /* already gone */ }
 wb(d, 'reindex');
 ok('reindex writes INDEX.md', fs.existsSync(path.join(d, '.workbench', 'INDEX.md')));
 fs.mkdirSync(path.join(d, '.workbench', 'tmp'), { recursive: true });

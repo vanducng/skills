@@ -218,6 +218,7 @@ function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, c
     const featureRoot = resolveFeatureRoot(config, anchor || process.cwd(), sessionId, readState, opts);
     if (featureRoot) {
       if (!anchor) return withTrailingSlash(path.join(featureRoot, subdir));
+      // Callers that append "/" themselves must use absolute mode (anchor set).
       return path.join(featureRoot, subdir);
     }
   }
@@ -462,13 +463,21 @@ function findFeature(featuresDir, ticket, slug) {
   let dirs;
   try { dirs = fs.readdirSync(featuresDir, { withFileTypes: true }).filter(e => e.isDirectory()); }
   catch { return null; }
-  let stamp;
-  try { stamp = fs.statSync(featuresDir).mtimeMs; } catch { stamp = 0; }
+  let maxMtime = 0;
+  let sizeSum = 0;
+  try {
+    const st = fs.statSync(featuresDir);
+    maxMtime = st.mtimeMs;
+    sizeSum += st.size;
+  } catch { /* use zero stamp */ }
   for (const d of dirs) {
     try {
-      stamp = Math.max(stamp, fs.statSync(path.join(featuresDir, d.name, 'feature.json')).mtimeMs);
+      const st = fs.statSync(path.join(featuresDir, d.name, 'feature.json'));
+      if (st.mtimeMs > maxMtime) maxMtime = st.mtimeMs;
+      sizeSum += st.size;
     } catch { /* missing feature.json does not affect the metadata stamp */ }
   }
+  const stamp = `${maxMtime}:${sizeSum}`;
   const cacheKey = `${featuresDir}|${stamp}|${ticket || ''}|${slug || ''}`;
   const cached = cacheGet(_featureFindCache, cacheKey);
   if (cached !== undefined) return cached;
@@ -531,6 +540,8 @@ const _featureIdCache = new Map();
  * Resolve the feature id for the current context. Pure read except a one-time idempotent
  * feature.json create on first strong-signal resolution. First hit wins; no call-time date,
  * no LLM slug. Returns null on no signal (caller routes to _global/scratch).
+ * Read-only by default; lifecycle commands that intentionally create metadata pass
+ * { readOnly: false } explicitly.
  */
 function resolveFeatureId(config, baseDir, sessionId, readState, opts) {
   baseDir = baseDir || process.cwd();
