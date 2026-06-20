@@ -122,3 +122,46 @@ test('branch plan resolution scans the session feature plans dir', () => {
     fs.rmSync(repo, { recursive: true, force: true });
   }
 });
+
+test('linked worktree overlays main worktree umbrella layout', () => {
+  const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-home-'));
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-main-'));
+  const linked = path.join(os.tmpdir(), `vd-linked-${process.pid}-${Date.now()}`);
+  try {
+    git(repo, 'init', '-b', 'main');
+    git(repo, 'config', 'user.email', 't@t.t');
+    git(repo, 'config', 'user.name', 't');
+    git(repo, 'commit', '--allow-empty', '-m', 'init');
+    git(repo, 'worktree', 'add', '-b', 'linked', linked);
+
+    fs.writeFileSync(path.join(repo, '.vd.json'), JSON.stringify({
+      paths: { umbrella: '.main-workbench', layout: 'feature-first' }
+    }));
+    fs.writeFileSync(path.join(linked, '.vd.json'), JSON.stringify({
+      paths: { umbrella: '.linked-workbench', layout: 'type-first' }
+    }));
+
+    const script =
+      "const c=require(process.env.CCJS);" +
+      "process.chdir(process.env.BASE);" +
+      "process.stdout.write(JSON.stringify(c.loadConfig().paths));";
+    const got = JSON.parse(execFileSync(process.execPath, ['-e', script], {
+      env: {
+        ...process.env,
+        CCJS: require.resolve('./config.cjs'),
+        BASE: linked,
+        HOME: fakeHome,
+        USERPROFILE: fakeHome
+      },
+      encoding: 'utf8'
+    }));
+
+    assert.strictEqual(got.umbrella, '.main-workbench');
+    assert.strictEqual(got.layout, 'feature-first');
+  } finally {
+    try { git(repo, 'worktree', 'remove', '--force', linked); } catch { /* ignore */ }
+    fs.rmSync(linked, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(fakeHome, { recursive: true, force: true });
+  }
+});

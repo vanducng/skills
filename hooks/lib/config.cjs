@@ -192,16 +192,16 @@ function loadConfig() {
   const globalCfg = readJson(globalPath);
   const localCfg = localPath ? readJson(localPath) : null;
   const gitMetadata = gitRoot ? path.join(gitRoot, '.git') : null;
-  let maybeLinkedWorktree = false;
+  let gitDirIsFile = false;
   try {
-    maybeLinkedWorktree = !!(gitMetadata && fs.existsSync(gitMetadata) && !fs.statSync(gitMetadata).isDirectory());
+    gitDirIsFile = !!(gitMetadata && fs.existsSync(gitMetadata) && !fs.statSync(gitMetadata).isDirectory());
   } catch { /* ignore */ }
 
   try {
     let merged = layerConfigs({}, DEFAULT_CONFIG);
     if (globalCfg) merged = layerConfigs(merged, globalCfg);
     if (localCfg) merged = layerConfigs(merged, localCfg);
-    if (maybeLinkedWorktree) {
+    if (gitDirIsFile) {
       merged = applyMainWorktreeLayout(merged, getMainWorktreeConfig(process.cwd()));
     }
     return buildResult(merged, gitRoot);

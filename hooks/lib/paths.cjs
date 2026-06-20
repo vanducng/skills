@@ -303,6 +303,10 @@ function cleanSlug(raw) {
     .slice(0, 100);
 }
 
+function escapeRe(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function slugFromBranch(branch, pattern) {
   if (!branch) return null;
   const re = pattern
@@ -375,7 +379,6 @@ function extractTaskListId(resolved) {
 function extractTicketFromBranch(branch, prefixes) {
   if (!branch) return null;
   const list = (Array.isArray(prefixes) && prefixes.length) ? prefixes : ['ELT', 'GH', 'PROJ'];
-  const escapeRe = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const re = new RegExp(`\\b(${list.map(escapeRe).join('|')})-?(\\d+)\\b`, 'i');
   const m = branch.match(re);
   return m ? `${m[1].toUpperCase()}-${m[2]}` : null;
@@ -387,7 +390,7 @@ function extractTicketFromBranch(branch, prefixes) {
 function computeFeatureId(ticket, slug) {
   if (ticket) {
     const [pre, num] = ticket.split('-');
-    const desc = slug ? slug.replace(new RegExp(`^${pre}-?${num}-?`, 'i'), '') : '';
+    const desc = slug ? slug.replace(new RegExp(`^${escapeRe(pre)}-?${escapeRe(num)}-?`, 'i'), '') : '';
     return cleanSlug((desc ? `${ticket}-${desc}` : ticket).toLowerCase());
   }
   if (slug) return cleanSlug(slug.toLowerCase()); // lowercase for parity with the ticket branch
