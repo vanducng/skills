@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.1.1](https://github.com/vanducng/skills/compare/v1.1.0...v1.1.1) (2026-06-20)
+
+
+### Bug Fixes
+
+* **hooks:** anchor .workbench to project, not a stray $HOME repo ([#218](https://github.com/vanducng/skills/issues/218)) ([758bd7d](https://github.com/vanducng/skills/commit/758bd7d6b4f5818817061845d22f3534fd1897d7))
+
 ## [1.1.0](https://github.com/vanducng/skills/compare/v1.0.1...v1.1.0) (2026-06-20)
 
 
