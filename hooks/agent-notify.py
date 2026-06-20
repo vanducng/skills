@@ -17,13 +17,15 @@ Config comes from the ENV (installable on any machine), e.g. in ~/.envrc:
   export TELEGRAM_CHAT_ID=...
   export CODEX_NOTIFY_FORWARD=...        # optional: chain a prior Codex notify
   export CODEX_NOTIFY_FORWARD_ARG=...    # optional
-  export AGENT_NOTIFY_STOP=off|always   # claude turn-complete push (default off)
-  export AGENT_NOTIFY_DRYRUN=1          # optional: print text, skip the send
+  export AGENT_NOTIFY_STOP=off|always   # claude turn-complete sound+push (default off)
+  export AGENT_NOTIFY_SOUND=on|off      # macOS afplay ping (default on)
+  export AGENT_NOTIFY_DRYRUN=1          # optional: print text/sound intent, skip side effects
 Stdlib only — no pip installs, no jq.
 """
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -107,6 +109,28 @@ def send(token, chat, text):
                 print("ERROR", e)
 
 
+def play_sound(kind):
+    """macOS afplay ping for claude events. Fail-open; off via AGENT_NOTIFY_SOUND=off."""
+    if os.environ.get("AGENT_NOTIFY_SOUND", "on").lower() == "off":
+        return
+    nmp3 = os.path.expanduser("~/.claude/notification.mp3")
+    sound = {
+        "needs": nmp3 if os.path.isfile(nmp3) else "/System/Library/Sounds/Ping.aiff",
+        "done": "/System/Library/Sounds/Glass.aiff",
+    }.get(kind)
+    if not sound:
+        return
+    if os.environ.get("AGENT_NOTIFY_DRYRUN"):
+        print(f"SOUND {kind} -> {sound}")
+        return
+    if sys.platform != "darwin" or not shutil.which("afplay") or not os.path.isfile(sound):
+        return
+    try:
+        subprocess.Popen(["afplay", sound], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+
 def build(agent, agent_icon, status_icon, what, cwd, preview):
     cwd = cwd or os.getcwd()
     project = os.path.basename(cwd.rstrip("/")) or cwd
@@ -135,8 +159,7 @@ def build(agent, agent_icon, status_icon, what, cwd, preview):
 
 def main():
     cfg = load_config()
-    if not (cfg["TELEGRAM_BOT_TOKEN"] and cfg["TELEGRAM_CHAT_ID"]):
-        return  # not configured → silent no-op
+    configured = bool(cfg["TELEGRAM_BOT_TOKEN"] and cfg["TELEGRAM_CHAT_ID"])
 
     src = sys.argv[1] if len(sys.argv) > 1 else ""
     if src == "claude":
@@ -146,20 +169,26 @@ def main():
         except Exception:
             payload = {}
         if event == "notification":
+            play_sound("needs")  # plays even when Telegram is unconfigured
             msg = payload.get("message", "")
             what = "needs approval" if "permission" in msg.lower() else "needs you"
             icon, preview = "🔔", msg
         else:
-            # Per-turn "turn complete" pushes spam during autonomous / auto-accept
+            # Per-turn "turn complete" sound+push spam during autonomous / auto-accept
             # runs; the real "your turn" ping is the idle Notification event.
-            # AGENT_NOTIFY_STOP=always restores the legacy per-turn push.
+            # AGENT_NOTIFY_STOP=always restores the legacy per-turn sound + push.
             if os.environ.get("AGENT_NOTIFY_STOP", "off").lower() != "always":
                 if DEBUG:
                     print("SUPPRESS claude stop (AGENT_NOTIFY_STOP=off)")
                 return
+            play_sound("done")
             icon, what, preview = "✅", "turn complete", ""
+        if not configured:
+            return  # sound done; no Telegram creds → nothing to send
         text = build("CLAUDE", "🟠", icon, what, payload.get("cwd", ""), preview)
     elif src == "codex":
+        if not configured:
+            return
         raw = sys.argv[2] if len(sys.argv) > 2 else "{}"
         try:
             payload = json.loads(raw)
