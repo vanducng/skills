@@ -140,7 +140,8 @@ try {
     // Pass baseDir so getReportsPath's isAbsolute guard handles absolute
     // activePlan paths correctly (avoids double-anchoring).
     // Append trailing '/' explicitly to match golden (contract §3.5).
-    // Pass full config so getReportsPath can resolve umbrella root when active.
+    // Pass full config plus session state so umbrella and feature-first layouts
+    // resolve through the same path logic as the producer skills.
     const reportsPathAbs = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionState) + '/';
     const plansPathAbs = getPlansPath(baseDir, config, sessionId, readSessionState);
     const docsPathAbs = getDocsPath(baseDir, config);

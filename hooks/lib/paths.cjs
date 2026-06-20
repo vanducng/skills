@@ -73,6 +73,11 @@ function realpathSafe(p) {
   try { return fs.realpathSync(p); } catch { return path.resolve(p); }
 }
 
+function isHomeDir(p) {
+  const home = os.homedir();
+  return !!(p && home && realpathSafe(p) === realpathSafe(home));
+}
+
 /** Strip trailing slashes; return null if blank after trim. */
 function stripTrailing(p) {
   if (!p || typeof p !== 'string') return null;
@@ -80,8 +85,9 @@ function stripTrailing(p) {
   return s || null;
 }
 
-function withTrailingSep(p) {
-  return p.endsWith(path.sep) ? p : p + path.sep;
+function withTrailingSlash(p) {
+  const s = p.replace(/\\/g, '/');
+  return s.endsWith('/') ? s : `${s}/`;
 }
 
 // Public alias used by callers expecting normalizePath
@@ -106,10 +112,9 @@ function resolveUmbrellaRoot(config, baseDir) {
   // .workbench into the home dir. When the resolved root is exactly $HOME but the
   // working dir is a real subdir below it, anchor to the working dir so artifacts
   // stay with the project (matches docs, which are always baseDir-anchored).
-  const home = os.homedir();
-  if (home && baseDir && !config?.paths?.allowHomeRoot
-      && realpathSafe(gitRoot) === realpathSafe(home)
-      && realpathSafe(baseDir) !== realpathSafe(home)) {
+  if (baseDir && !config?.paths?.allowHomeRoot
+      && isHomeDir(gitRoot)
+      && !isHomeDir(baseDir)) {
     gitRoot = baseDir;
   }
   return path.join(gitRoot, umbrella);
@@ -120,8 +125,8 @@ function resolveUmbrellaRoot(config, baseDir) {
  * Umbrella-on: <gitRoot>/.workbench/plans
  * Umbrella-off: <baseDir>/plans  (legacy, byte-identical)
  */
-function getPlansPath(baseDir, config, sessionId, readState) {
-  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState);
+function getPlansPath(baseDir, config, sessionId, readState, opts) {
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, opts);
   if (featureRoot) {
     return path.join(featureRoot, stripTrailing(config.paths?.plans) || 'plans');
   }
@@ -176,19 +181,19 @@ function getStatePath(baseDir, config, sessionId, readState) {
  */
 function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, config, sessionId, readState) {
   const subdir = stripTrailing(planConfig?.reportsDir) || 'reports';
+  const activePlan = (planPath && resolvedBy === 'session') ? stripTrailing(planPath) : null;
 
-  // Feature-first: reports nest in the FEATURE dir (not the plan subdir) — kills the split-brain.
-  if (config && config.paths?.layout === 'feature-first') {
+  // Feature-first: reports nest in the FEATURE dir, unless a session-active plan
+  // explicitly pins reports to that plan.
+  if (!activePlan && config && config.paths?.layout === 'feature-first') {
     const featureRoot = resolveFeatureRoot(config, anchor || process.cwd(), sessionId, readState);
     if (featureRoot) {
-      if (!anchor) return withTrailingSep(path.join(featureRoot, subdir));
+      if (!anchor) return withTrailingSlash(path.join(featureRoot, subdir));
       return path.join(featureRoot, subdir);
     }
   }
 
   // Session-active plan overrides everything
-  const activePlan = (planPath && resolvedBy === 'session') ? stripTrailing(planPath) : null;
-
   let reportsBase;
   if (activePlan) {
     reportsBase = activePlan;
@@ -198,7 +203,7 @@ function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, c
       // Umbrella: reports is a direct sibling of plans under the umbrella root.
       // Return early — no subdir nesting needed, the subdir IS the leaf.
       const reportsLeaf = subdir; // 'reports' by default
-      if (!anchor) return withTrailingSep(path.join(umbrellaRoot, reportsLeaf));
+      if (!anchor) return withTrailingSlash(path.join(umbrellaRoot, reportsLeaf));
       return path.join(umbrellaRoot, reportsLeaf);
     }
     reportsBase = stripTrailing(pathsConfig?.plans) || 'plans';
@@ -208,7 +213,7 @@ function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, c
 
   if (!anchor) {
     // Relative mode: trailing slash
-    return withTrailingSep(path.join(reportsBase, subdir));
+    return withTrailingSlash(path.join(reportsBase, subdir));
   }
 
   // Absolute mode: isAbsolute guard prevents double-anchoring
@@ -348,7 +353,7 @@ function resolvePlanPath(sessionId, config, readState, baseDir) {
         if (!slug) continue;
         // Anchor to the umbrella/main-worktree plans dir — the old cwd-relative
         // `plansDir` silently no-op'd inside linked worktrees.
-        const plansDir = getPlansPath(baseDir, config, sessionId, readState);
+        const plansDir = getPlansPath(baseDir, config, sessionId, readState, { readOnly: true });
         if (!fs.existsSync(plansDir)) continue;
         const dirs = fs.readdirSync(plansDir, { withFileTypes: true })
           .filter(e => e.isDirectory());
@@ -397,19 +402,23 @@ function computeFeatureId(ticket, slug) {
   return null;
 }
 
-/** Scan features/<id>/feature.json for field===value; return the id, or null (refuse on >1). */
-function findFeatureBy(featuresDir, field, value) {
+/** Scan features/<id>/feature.json once; return a unique ticket match, then unique slug match. */
+function findFeature(featuresDir, ticket, slug) {
   let dirs;
   try { dirs = fs.readdirSync(featuresDir, { withFileTypes: true }).filter(e => e.isDirectory()); }
   catch { return null; }
-  const hits = [];
+  const ticketHits = [];
+  const slugHits = [];
   for (const d of dirs) {
     try {
       const meta = JSON.parse(fs.readFileSync(path.join(featuresDir, d.name, 'feature.json'), 'utf8'));
-      if (meta && meta[field] === value) hits.push(d.name);
+      if (ticket && meta && meta.ticket === ticket) ticketHits.push(d.name);
+      if (slug && meta && meta.slug === slug) slugHits.push(d.name);
     } catch { /* missing/invalid feature.json — skip */ }
   }
-  return hits.length === 1 ? hits[0] : null;
+  if (ticketHits.length === 1) return ticketHits[0];
+  if (slugHits.length === 1) return slugHits[0];
+  return null;
 }
 
 /** Create features/<id>/feature.json if absent. Idempotent, atomic (rename), best-effort. */
@@ -425,7 +434,7 @@ function ensureFeatureMeta(featuresDir, id, meta) {
   } catch { /* never block resolution on a write failure */ }
 }
 
-// ponytail: per-process cache, keyed by session and branch. Add TTL if hooks become long-lived.
+// NOTE: per-process cache, keyed by session and branch. Add TTL if hooks become long-lived.
 const _featureIdCache = new Map();
 
 /**
@@ -433,13 +442,14 @@ const _featureIdCache = new Map();
  * feature.json create on first strong-signal resolution. First hit wins; no call-time date,
  * no LLM slug. Returns null on no signal (caller routes to _global/scratch).
  */
-function resolveFeatureId(config, baseDir, sessionId, readState) {
+function resolveFeatureId(config, baseDir, sessionId, readState, opts) {
   baseDir = baseDir || process.cwd();
   const umbrellaRoot = resolveUmbrellaRoot(config, baseDir);
   if (!umbrellaRoot) return null;
   const state = readState ? readState(sessionId) : null;
   const branch = getGitBranch(baseDir);
-  const cacheKey = `${umbrellaRoot}|${sessionId || ''}|${state?.featureId || ''}|${branch || ''}|${state?.activePlan || ''}`;
+  const readOnly = opts?.readOnly === true;
+  const cacheKey = `${umbrellaRoot}|${sessionId || ''}|${state?.featureId || ''}|${branch || ''}|${state?.activePlan || ''}|ro:${readOnly ? '1' : '0'}`;
   if (_featureIdCache.has(cacheKey)) return _featureIdCache.get(cacheKey);
 
   const featuresDir = path.join(umbrellaRoot, 'features');
@@ -453,17 +463,19 @@ function resolveFeatureId(config, baseDir, sessionId, readState) {
   const slug = slugFromBranch(branch, config?.plan?.resolution?.branchPattern);
 
   // 2-3. match an EXISTING feature (survives slug drift / relabel)
-  if (ticket) { const m = findFeatureBy(featuresDir, 'ticket', ticket); if (m) return remember(m); }
-  if (slug)   { const m = findFeatureBy(featuresDir, 'slug', slug);     if (m) return remember(m); }
+  const existing = findFeature(featuresDir, ticket, slug);
+  if (existing) return remember(existing);
 
   // 4. strong branch signal, no existing match → compute id + create the anchor (idempotent)
   const computed = computeFeatureId(ticket, slug);
   if (computed) {
-    ensureFeatureMeta(featuresDir, computed, {
-      id: computed, ticket: ticket || null, slug: slug || null, label: slug || computed,
-      status: 'active', created: new Date().toISOString(), parentId: null,
-      supersededBy: null, relatedDocs: [], branches: branch ? [branch] : []
-    });
+    if (!readOnly) {
+      ensureFeatureMeta(featuresDir, computed, {
+        id: computed, ticket: ticket || null, slug: slug || null, label: slug || computed,
+        status: 'active', created: new Date().toISOString(), parentId: null,
+        supersededBy: null, relatedDocs: [], branches: branch ? [branch] : []
+      });
+    }
     return remember(computed);
   }
 
@@ -480,11 +492,11 @@ function resolveFeatureId(config, baseDir, sessionId, readState) {
 }
 
 /** Feature root: umbrella root verbatim when not feature-first (byte-identical); else features/<id> or _global/scratch. */
-function resolveFeatureRoot(config, baseDir, sessionId, readState) {
+function resolveFeatureRoot(config, baseDir, sessionId, readState, opts) {
   baseDir = baseDir || process.cwd();
   const u = resolveUmbrellaRoot(config, baseDir);
   if (!u || config?.paths?.layout !== 'feature-first') return u;
-  const id = resolveFeatureId(config, baseDir, sessionId, readState);
+  const id = resolveFeatureId(config, baseDir, sessionId, readState, opts);
   return id ? path.join(u, 'features', id) : path.join(u, '_global', 'scratch');
 }
 
@@ -528,6 +540,7 @@ module.exports = {
   getGitRoot,
   getMainWorktreeRoot,
   realpathSafe,
+  isHomeDir,
   slugFromBranch,
   extractIssueFromBranch,
   resolveUmbrellaRoot,

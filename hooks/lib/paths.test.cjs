@@ -91,6 +91,43 @@ test('feature-first getters use session feature state when provided', () => {
       paths.getReportsPath(null, null, cfg.plan, cfg.paths, repo, cfg, 's1', readState),
       path.join(featureRoot, 'reports')
     );
+    assert.strictEqual(
+      paths.getReportsPath(path.join(repo, 'plans', 'active'), 'session', cfg.plan, cfg.paths, repo, cfg, 's1', readState),
+      path.join(repo, 'plans', 'active', 'reports')
+    );
+    assert.strictEqual(
+      paths.getReportsPath(null, null, cfg.plan, cfg.paths, null, cfg, 's1', readState).endsWith('/reports/'),
+      true
+    );
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('read-only feature-first plan lookup does not create feature metadata', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-readonly-feature-'));
+  try {
+    git(repo, 'init', '-b', 'main');
+    git(repo, 'checkout', '-b', 'feat/demo-work');
+    const cfg = {
+      _gitRoot: repo,
+      plan: {
+        reportsDir: 'reports',
+        resolution: {
+          order: ['branch'],
+          branchPattern: '(?:feat|fix|chore|refactor|docs)/(?:[^/]+/)?(.+)'
+        }
+      },
+      paths: { umbrella: '.workbench', layout: 'feature-first', plans: 'plans' }
+    };
+
+    const plansDir = paths.getPlansPath(repo, cfg, 's1', () => null, { readOnly: true });
+
+    assert.strictEqual(plansDir.endsWith(path.join('.workbench', 'features', 'demo-work', 'plans')), true);
+    assert.strictEqual(
+      fs.existsSync(path.join(repo, '.workbench', 'features', 'demo-work', 'feature.json')),
+      false
+    );
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }

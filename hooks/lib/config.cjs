@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
-const { getMainWorktreeRoot, realpathSafe } = require('./paths.cjs');
+const { getMainWorktreeRoot, isHomeDir } = require('./paths.cjs');
 
 const DEFAULT_CONFIG = {
   schemaVersion: 2,
@@ -156,12 +156,16 @@ function assertMigrated(vdPath, ckPath) {
  * Read the MAIN worktree's .vd.json (or null). Layout-determining keys (umbrella,
  * layout) come from here so linked worktrees can't disagree about the artifact layout.
  */
-function getMainWorktreeConfig(cwd) {
+function getMainWorktreeConfigDetails(cwd) {
   const mainRoot = getMainWorktreeRoot(cwd);
   if (!mainRoot) return null;
-  const home = os.homedir();
-  if (home && realpathSafe(mainRoot) === realpathSafe(home)) return null;
-  return readJson(path.join(mainRoot, '.vd.json'));
+  if (isHomeDir(mainRoot)) return null;
+  return { root: mainRoot, config: readJson(path.join(mainRoot, '.vd.json')) };
+}
+
+function getMainWorktreeConfig(cwd) {
+  const details = getMainWorktreeConfigDetails(cwd);
+  return details ? details.config : null;
 }
 
 /** Overlay the repo-wide layout keys (umbrella, layout) from the main worktree config. */
@@ -199,21 +203,28 @@ function loadConfig() {
 
   try {
     let merged = layerConfigs({}, DEFAULT_CONFIG);
+    let umbrellaGitRoot = gitRoot;
     if (globalCfg) merged = layerConfigs(merged, globalCfg);
     if (localCfg) merged = layerConfigs(merged, localCfg);
+    // Keep this merge path even when global/local configs are absent: linked
+    // worktrees still need the main checkout's layout overlay.
     if (gitDirIsFile) {
-      merged = applyMainWorktreeLayout(merged, getMainWorktreeConfig(process.cwd()));
+      const mainWorktree = getMainWorktreeConfigDetails(process.cwd());
+      merged = applyMainWorktreeLayout(merged, mainWorktree ? mainWorktree.config : null);
+      if (mainWorktree?.config?.paths && typeof mainWorktree.config.paths.umbrella === 'string') {
+        umbrellaGitRoot = mainWorktree.root;
+      }
     }
-    return buildResult(merged, gitRoot);
+    return buildResult(merged, gitRoot, umbrellaGitRoot);
   } catch {
-    return buildResult(layerConfigs({}, DEFAULT_CONFIG), gitRoot);
+    return buildResult(layerConfigs({}, DEFAULT_CONFIG), gitRoot, gitRoot);
   }
 }
 
-function buildResult(merged, gitRoot) {
+function buildResult(merged, gitRoot, umbrellaGitRoot) {
   const rawPaths = merged.paths || DEFAULT_CONFIG.paths;
   // Sanitize umbrella: coerce to null if invalid; needs gitRoot to check confinement
-  const umbrella = sanitizeUmbrella(rawPaths.umbrella, gitRoot || null);
+  const umbrella = sanitizeUmbrella(rawPaths.umbrella, umbrellaGitRoot || gitRoot || null);
 
   return {
     schemaVersion: merged.schemaVersion ?? DEFAULT_CONFIG.schemaVersion,
