@@ -23,6 +23,7 @@ try {
     resolveNamingPattern,
     resolvePlanPath,
     resolveFeatureId,
+    resolveUmbrellaRoot,
     extractTaskListId,
     getGitBranch,
     getGitRoot
@@ -152,10 +153,12 @@ try {
     const visualsPathAbs  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts)  : null;
     const journalsPathAbs = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts) : null;
     const statePathAbs    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionState, pathResolveOpts)    : null;
-    const featureId = umbrellaVal && config.paths?.layout === 'feature-first'
+    const umbrellaRoot = umbrellaVal ? resolveUmbrellaRoot(config, baseDir) : null;
+    const featureFirst = umbrellaVal && !!umbrellaRoot && config.paths?.layout === 'feature-first';
+    const featureId = featureFirst
       ? resolveFeatureId(config, baseDir, sessionId, readSessionState, pathResolveOpts)
       : null;
-    const scratchFeature = umbrellaVal && config.paths?.layout === 'feature-first' && featureId === null;
+    const scratchFeature = featureFirst && featureId === null;
 
     const taskListId = extractTaskListId(resolved);
 

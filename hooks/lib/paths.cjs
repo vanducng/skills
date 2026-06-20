@@ -91,9 +91,12 @@ function realpathSafe(p) {
   try { return fs.realpathSync(p); } catch { return path.resolve(p); }
 }
 
+let _homeRealpath;
 function isHomeDir(p) {
   const home = os.homedir();
-  return !!(p && home && realpathSafe(p) === realpathSafe(home));
+  if (!p || !home) return false;
+  if (_homeRealpath === undefined) _homeRealpath = realpathSafe(home);
+  return realpathSafe(p) === _homeRealpath;
 }
 
 /** Strip trailing slashes; return null if blank after trim. */
@@ -115,8 +118,12 @@ function sameOrChildPath(child, parent) {
   const c = stripTrailing(child);
   const p = stripTrailing(parent);
   if (!c || !p) return false;
-  const cn = c.replace(/\\/g, '/');
-  const pn = p.replace(/\\/g, '/');
+  let cn = c.replace(/\\/g, '/');
+  let pn = p.replace(/\\/g, '/');
+  if (process.platform === 'win32') {
+    cn = cn.toLowerCase();
+    pn = pn.toLowerCase();
+  }
   return cn === pn || cn.startsWith(`${pn}/`);
 }
 
@@ -374,7 +381,7 @@ function resolvePlanPath(sessionId, config, readState, baseDir) {
     }
     return stateCache;
   };
-  const readStateOnce = readState ? (() => getState()) : null;
+  const readStateOnce = readState ? ((_sid) => getState()) : null;
 
   for (const step of order) {
     if (step === 'session') {
@@ -477,7 +484,7 @@ function findFeature(featuresDir, ticket, slug) {
       sizeSum += st.size;
     } catch { /* missing feature.json does not affect the metadata stamp */ }
   }
-  const stamp = `${maxMtime}:${sizeSum}`;
+  const stamp = `${maxMtime}:${sizeSum}:${dirs.length}`;
   const cacheKey = `${featuresDir}|${stamp}|${ticket || ''}|${slug || ''}`;
   const cached = cacheGet(_featureFindCache, cacheKey);
   if (cached !== undefined) return cached;

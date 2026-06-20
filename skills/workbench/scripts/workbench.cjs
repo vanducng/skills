@@ -113,8 +113,7 @@ function cmdResolve({ flags }) {
   const sid = process.env.VD_SESSION_ID || null;
   const readState = sid ? state.readSessionState : null;
   const root = ff ? P.resolveFeatureRoot(c.cfg, c.cwd, sid, readState, opts) : c.umbrella;
-  const rel = ff && root ? path.relative(c.featuresDir, root) : '';
-  const id = rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel.split(path.sep)[0] : null;
+  const id = ff ? P.resolveFeatureId(c.cfg, c.cwd, sid, readState, opts) : null;
   const out = {
     layout: c.cfg.paths?.layout || 'type-first',
     feature: id, featureRoot: ff ? root : null,

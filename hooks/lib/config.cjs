@@ -15,7 +15,6 @@ const { execFileSync } = require('child_process');
 const { getMainWorktreeRoot, isHomeDir } = require('./paths.cjs');
 
 const DEFAULT_CONFIG = {
-  schemaVersion: 2,
   plan: {
     namingFormat: '{date}-{issue}-{slug}',
     dateFormat: 'YYMMDD-HHmm',
@@ -156,18 +155,17 @@ function assertMigrated(vdPath, ckPath) {
  * Read the MAIN worktree's .vd.json (or null). Layout-determining keys (umbrella,
  * layout) come from here so linked worktrees can't disagree about the artifact layout.
  */
-function getMainWorktreeConfigDetails(cwd, allowHomeRoot) {
+function getMainWorktreeConfigDetails(cwd) {
   const mainRoot = getMainWorktreeRoot(cwd);
   if (!mainRoot) return null;
   const config = readJson(path.join(mainRoot, '.vd.json'));
-  const allowed = allowHomeRoot || config?.paths?.allowHomeRoot === true;
-  if (isHomeDir(mainRoot) && !allowed) return null;
+  if (isHomeDir(mainRoot) && config?.paths?.allowHomeRoot !== true) return null;
   return { root: mainRoot, config };
 }
 
 /** Public compatibility helper: returns only the main worktree .vd.json payload. */
 function getMainWorktreeConfig(cwd) {
-  const details = getMainWorktreeConfigDetails(cwd, false);
+  const details = getMainWorktreeConfigDetails(cwd);
   return details ? details.config : null;
 }
 
@@ -213,7 +211,7 @@ function loadConfig() {
     // Keep this merge path even when global/local configs are absent: linked
     // worktrees still need the main checkout's layout overlay.
     if (gitDirIsFile) {
-      const mainWorktree = getMainWorktreeConfigDetails(process.cwd(), merged.paths?.allowHomeRoot === true);
+      const mainWorktree = getMainWorktreeConfigDetails(process.cwd());
       merged = applyMainWorktreeLayout(merged, mainWorktree ? mainWorktree.config : null);
       if (mainWorktree) {
         umbrellaGitRoot = mainWorktree.root;
@@ -238,8 +236,6 @@ function buildResult(merged, gitRoot, umbrellaGitRoot) {
   const umbrella = sanitizeUmbrella(rawPaths.umbrella, umbrellaGitRoot || gitRoot || null);
 
   return {
-    // Pass-through marker only; config migration/validation is not implemented yet.
-    schemaVersion: typeof merged.schemaVersion === 'number' ? merged.schemaVersion : DEFAULT_CONFIG.schemaVersion,
     plan: merged.plan || DEFAULT_CONFIG.plan,
     paths: {
       docs:     rawPaths.docs     || DEFAULT_CONFIG.paths.docs,

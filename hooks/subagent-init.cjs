@@ -52,15 +52,22 @@ try {
     // Re-derive naming pattern independently (not from env)
     const namePattern = resolveNamingPattern(config.plan, gitBranch);
 
-    const resolved = resolvePlanPath(sessionId, config, readSessionState, baseDir);
     const pathResolveOpts = { readOnly: true };
-    const reportsPath = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionState, pathResolveOpts);
-    const plansPath = getPlansPath(baseDir, config, sessionId, readSessionState, pathResolveOpts);
+    let stateLoaded = false;
+    let stateCache = null;
+    const readSessionStateOnce = (sid) => {
+      if (!stateLoaded) { stateCache = readSessionState(sid); stateLoaded = true; }
+      return stateCache;
+    };
+
+    const resolved = resolvePlanPath(sessionId, config, readSessionStateOnce, baseDir);
+    const reportsPath = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts);
+    const plansPath = getPlansPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts);
     const docsPath = getDocsPath(baseDir, config);
     const umbrellaVal = config.paths?.umbrella || null;
-    const visualsPath  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts)  : null;
-    const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts) : null;
-    const statePath    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionState, pathResolveOpts)    : null;
+    const visualsPath  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts)  : null;
+    const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts) : null;
+    const statePath    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts)    : null;
     const scratchFeature = umbrellaVal && config.paths?.layout === 'feature-first'
       && isGlobalScratchPath(reportsPath, baseDir, config);
 
