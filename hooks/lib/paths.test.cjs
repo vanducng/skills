@@ -145,6 +145,28 @@ test('read-only feature-first plan lookup does not create feature metadata', () 
   }
 });
 
+test('isGlobalScratchPath detects only the global scratch subtree', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-scratch-path-'));
+  try {
+    git(repo, 'init', '-b', 'main');
+    const cfg = {
+      _gitRoot: repo,
+      paths: { umbrella: '.workbench', layout: 'feature-first' }
+    };
+    const globalRoot = paths.getGlobalPath(repo, cfg);
+    assert.strictEqual(
+      paths.isGlobalScratchPath(path.join(globalRoot, 'scratch', 'reports'), repo, cfg),
+      true
+    );
+    assert.strictEqual(
+      paths.isGlobalScratchPath(path.join(globalRoot, '..', 'features', '_global-scratch', 'reports'), repo, cfg),
+      false
+    );
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test('computeFeatureId strips multi-segment ticket prefixes from slug', () => {
   assert.strictEqual(
     paths.computeFeatureId('PROJ-SUB-123', 'proj-sub-123-manual-upload'),

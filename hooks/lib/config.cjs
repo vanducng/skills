@@ -219,6 +219,8 @@ function loadConfig() {
     }
     return buildResult(merged, gitRoot, umbrellaGitRoot);
   } catch {
+    // DEFAULT_CONFIG has umbrella: null, so umbrellaGitRoot is irrelevant here.
+    // Keep gitRoot for both to avoid another worktree lookup on the error path.
     return buildResult(layerConfigs({}, DEFAULT_CONFIG), gitRoot, gitRoot);
   }
 }

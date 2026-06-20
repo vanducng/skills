@@ -14,6 +14,16 @@ const { execFileSync } = require('child_process');
 
 // ── git helpers ───────────────────────────────────────────────────────────
 
+const CACHE_MAX = 1024;
+function cacheSet(map, key, value) {
+  if (!map.has(key) && map.size >= CACHE_MAX) {
+    const oldest = map.keys().next().value;
+    if (oldest !== undefined) map.delete(oldest);
+  }
+  map.set(key, value);
+  return value;
+}
+
 // Memoize git-root per (cwd, process) — one subprocess call max per hook invocation.
 const _gitRootCache = new Map();
 
@@ -36,8 +46,7 @@ function getGitRoot(cwd) {
   const key = cwd || process.cwd();
   if (_gitRootCache.has(key)) return _gitRootCache.get(key);
   const result = runGit(['rev-parse', '--show-toplevel'], cwd);
-  _gitRootCache.set(key, result);
-  return result;
+  return cacheSet(_gitRootCache, key, result);
 }
 
 // The MAIN worktree root — always the first entry of `git worktree list`.
@@ -62,8 +71,7 @@ function getMainWorktreeRoot(cwd) {
       break;
     }
   }
-  _mainRootCache.set(key, result);
-  return result;
+  return cacheSet(_mainRootCache, key, result);
 }
 
 // ── path helpers ──────────────────────────────────────────────────────────
@@ -97,6 +105,15 @@ function readOnlyFeatureOpts(opts) {
   const out = Object.assign({}, opts);
   if (out.readOnly !== false) out.readOnly = true;
   return out;
+}
+
+function sameOrChildPath(child, parent) {
+  const c = stripTrailing(child);
+  const p = stripTrailing(parent);
+  if (!c || !p) return false;
+  const cn = c.replace(/\\/g, '/');
+  const pn = p.replace(/\\/g, '/');
+  return cn === pn || cn.startsWith(`${pn}/`);
 }
 
 /**
@@ -413,8 +430,15 @@ function computeFeatureId(ticket, slug) {
   return null;
 }
 
+const _featureFindCache = new Map();
+
 /** Scan features/<id>/feature.json once; return a unique ticket match, then unique slug match. */
 function findFeature(featuresDir, ticket, slug) {
+  let stamp;
+  try { stamp = fs.statSync(featuresDir).mtimeMs; } catch { return null; }
+  const cacheKey = `${featuresDir}|${stamp}|${ticket || ''}|${slug || ''}`;
+  if (_featureFindCache.has(cacheKey)) return _featureFindCache.get(cacheKey);
+
   let dirs;
   try { dirs = fs.readdirSync(featuresDir, { withFileTypes: true }).filter(e => e.isDirectory()); }
   catch { return null; }
@@ -427,9 +451,10 @@ function findFeature(featuresDir, ticket, slug) {
       if (slug && meta && meta.slug === slug) slugHits.push(d.name);
     } catch { /* missing/invalid feature.json — skip */ }
   }
-  if (ticketHits.length === 1) return ticketHits[0];
-  if (slugHits.length === 1) return slugHits[0];
-  return null;
+  const found = ticketHits.length === 1 ? ticketHits[0]
+    : slugHits.length === 1 ? slugHits[0]
+    : null;
+  return cacheSet(_featureFindCache, cacheKey, found);
 }
 
 /** Create features/<id>/feature.json if absent. Idempotent, atomic (rename), best-effort. */
@@ -437,15 +462,21 @@ function ensureFeatureMeta(featuresDir, id, meta) {
   const dir = path.join(featuresDir, id);
   const metaPath = path.join(dir, 'feature.json');
   if (fs.existsSync(metaPath)) return;
+  let tmp = null;
   try {
     fs.mkdirSync(dir, { recursive: true });
-    const tmp = `${metaPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+    tmp = `${metaPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(meta, null, 2));
     fs.renameSync(tmp, metaPath); // atomic commit; first rename wins (created/branches may differ on a race)
-  } catch { /* never block resolution on a write failure */ }
+    tmp = null;
+  } catch {
+    // Never block resolution on a write failure.
+  } finally {
+    try { if (tmp && fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch { /* ignore cleanup failure */ }
+  }
 }
 
-// NOTE: per-process cache, keyed by session and branch. Add TTL if hooks become long-lived.
+// NOTE: per-process cache, keyed by session and branch, with a soft cap for long-lived hosts.
 const _featureIdCache = new Map();
 
 /**
@@ -458,16 +489,20 @@ function resolveFeatureId(config, baseDir, sessionId, readState, opts) {
   const umbrellaRoot = resolveUmbrellaRoot(config, baseDir);
   if (!umbrellaRoot) return null;
   const state = readState ? readState(sessionId) : null;
-  const branch = getGitBranch(baseDir);
   const readOnly = opts?.readOnly === true;
+
+  if (state && typeof state.featureId === 'string' && state.featureId) {
+    const stateKey = `${umbrellaRoot}|${sessionId || ''}|${state.featureId}|state|${state?.activePlan || ''}|ro:${readOnly ? '1' : '0'}`;
+    if (_featureIdCache.has(stateKey)) return _featureIdCache.get(stateKey);
+    return cacheSet(_featureIdCache, stateKey, state.featureId);
+  }
+
+  const branch = getGitBranch(baseDir);
   const cacheKey = `${umbrellaRoot}|${sessionId || ''}|${state?.featureId || ''}|${branch || ''}|${state?.activePlan || ''}|ro:${readOnly ? '1' : '0'}`;
   if (_featureIdCache.has(cacheKey)) return _featureIdCache.get(cacheKey);
 
   const featuresDir = path.join(umbrellaRoot, 'features');
-  const remember = (id) => { _featureIdCache.set(cacheKey, id); return id; };
-
-  // 1. explicit per-session override (workbench switch)
-  if (state && typeof state.featureId === 'string' && state.featureId) return remember(state.featureId);
+  const remember = (id) => cacheSet(_featureIdCache, cacheKey, id);
 
   // branch signals
   const ticket = extractTicketFromBranch(branch, config?.plan?.ticketPrefixes);
@@ -523,6 +558,11 @@ function getArchivePath(baseDir, config) {
   return u ? path.join(u, '_archive') : null;
 }
 
+function isGlobalScratchPath(candidate, baseDir, config) {
+  const globalRoot = getGlobalPath(baseDir, config);
+  return !!(globalRoot && sameOrChildPath(candidate, path.join(globalRoot, 'scratch')));
+}
+
 // ── venv resolution ───────────────────────────────────────────────────────
 
 /** Check project-local then global ~/.claude for a skills venv python binary. */
@@ -563,5 +603,6 @@ module.exports = {
   resolveFeatureId,
   resolveFeatureRoot,
   getGlobalPath,
-  getArchivePath
+  getArchivePath,
+  isGlobalScratchPath
 };

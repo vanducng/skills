@@ -24,7 +24,8 @@ try {
     resolvePlanPath,
     extractTaskListId,
     getGitBranch,
-    resolveSkillsVenv
+    resolveSkillsVenv,
+    isGlobalScratchPath
   } = require('./lib/paths.cjs');
   const { readSessionState } = require('./lib/state.cjs');
 
@@ -61,7 +62,7 @@ try {
     const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts) : null;
     const statePath    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionState, pathResolveOpts)    : null;
     const scratchFeature = umbrellaVal && config.paths?.layout === 'feature-first'
-      && reportsPath.includes(`${path.sep}_global${path.sep}scratch`);
+      && isGlobalScratchPath(reportsPath, baseDir, config);
 
     const activePlan = resolved.resolvedBy === 'session' ? resolved.path : '';
     const suggestedPlan = resolved.resolvedBy === 'branch' ? resolved.path : '';

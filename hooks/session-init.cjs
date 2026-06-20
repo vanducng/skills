@@ -24,7 +24,8 @@ try {
     resolvePlanPath,
     extractTaskListId,
     getGitBranch,
-    getGitRoot
+    getGitRoot,
+    isGlobalScratchPath
   } = require('./lib/paths.cjs');
   const { readSessionState, updateSessionState } = require('./lib/state.cjs');
 
@@ -152,7 +153,7 @@ try {
     const journalsPathAbs = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts) : null;
     const statePathAbs    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionState, pathResolveOpts)    : null;
     const scratchFeature = umbrellaVal && config.paths?.layout === 'feature-first'
-      && reportsPathAbs.includes(`${path.sep}_global${path.sep}scratch`);
+      && isGlobalScratchPath(reportsPathAbs, baseDir, config);
 
     const taskListId = extractTaskListId(resolved);
 
