@@ -152,8 +152,8 @@ function assertMigrated(vdPath, ckPath) {
 }
 
 /**
- * Read the MAIN worktree's .vd.json (or null). Layout-determining keys (umbrella,
- * layout) come from here so linked worktrees can't disagree about the artifact layout.
+ * Read the MAIN worktree's .vd.json (or null). Layout-determining keys come
+ * from here so linked worktrees can't disagree about artifact resolution.
  */
 function getMainWorktreeConfigDetails(cwd) {
   const mainRoot = getMainWorktreeRoot(cwd);
@@ -169,20 +169,32 @@ function getMainWorktreeConfig(cwd) {
   return details ? details.config : null;
 }
 
-/** Overlay the repo-wide layout keys (umbrella, layout) from the main worktree config. */
+/** Overlay repo-wide layout/resolution keys from the main worktree config. */
 function applyMainWorktreeLayout(merged, mainCfg) {
-  if (!mainCfg || !mainCfg.paths) return merged;
+  if (!mainCfg) return merged;
   const out = Object.assign({}, merged);
-  out.paths = Object.assign({}, merged.paths);
-  if (typeof mainCfg.paths.umbrella === 'string') out.paths.umbrella = mainCfg.paths.umbrella;
-  if (typeof mainCfg.paths.layout === 'string') out.paths.layout = mainCfg.paths.layout;
-  if (typeof mainCfg.paths.allowHomeRoot === 'boolean') out.paths.allowHomeRoot = mainCfg.paths.allowHomeRoot;
+  if (mainCfg.paths) {
+    out.paths = Object.assign({}, merged.paths);
+    if (typeof mainCfg.paths.umbrella === 'string') out.paths.umbrella = mainCfg.paths.umbrella;
+    if (typeof mainCfg.paths.layout === 'string') out.paths.layout = mainCfg.paths.layout;
+    if (typeof mainCfg.paths.allowHomeRoot === 'boolean') out.paths.allowHomeRoot = mainCfg.paths.allowHomeRoot;
+  }
+  if (mainCfg.plan) {
+    out.plan = Object.assign({}, merged.plan);
+    if (Array.isArray(mainCfg.plan.ticketPrefixes)) {
+      out.plan.ticketPrefixes = mainCfg.plan.ticketPrefixes.slice();
+    }
+    if (mainCfg.plan.resolution && typeof mainCfg.plan.resolution.branchPattern === 'string') {
+      out.plan.resolution = Object.assign({}, merged.plan?.resolution);
+      out.plan.resolution.branchPattern = mainCfg.plan.resolution.branchPattern;
+    }
+  }
   return out;
 }
 
 /**
  * Load config: DEFAULT ← global (~/.claude/.vd.json) ← project (<git-root>/.vd.json),
- * then overlay layout+umbrella from the MAIN worktree (repo-wide artifact-layout keys).
+ * then overlay repo-wide layout/resolution keys from the MAIN worktree.
  * No .ck.json fallback — a lingering legacy file raises a migration error.
  * Falls back to defaults on any error.
  */

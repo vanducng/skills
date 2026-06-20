@@ -21,6 +21,19 @@ const wbEnv = (cwd, env, ...a) => {
   catch (e) { return (e.stdout || '') + (e.stderr || ''); }
 };
 
+function cleanupSession(sid) {
+  const sessionPath = S.getSessionTempPath(sid);
+  try { fs.unlinkSync(sessionPath); } catch { /* already gone */ }
+  try { fs.unlinkSync(`${sessionPath}.lock`); } catch { /* already gone */ }
+  try {
+    for (const name of fs.readdirSync(path.dirname(sessionPath))) {
+      if (name.startsWith(`${path.basename(sessionPath)}.`) && name.endsWith('.json')) {
+        try { fs.unlinkSync(path.join(path.dirname(sessionPath), name)); } catch { /* already gone */ }
+      }
+    }
+  } catch { /* temp dir missing or unreadable */ }
+}
+
 function repo(branch) {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'wbt-'));
   git(d, 'init', '-q'); git(d, 'checkout', '-q', '-b', branch);
@@ -73,16 +86,13 @@ ok('resolve reports path', r.reports.endsWith(path.join('features', 'elt-9-gamma
 wb(d, 'new', 'session-feature');
 const sid = `wbt-${process.pid}-${Date.now()}`;
 S.updateSessionState(sid, { featureId: 'session-feature' });
-const sr = JSON.parse(wbEnv(d, { VD_SESSION_ID: sid }, 'resolve', '--json'));
-ok('resolve honors session feature', sr.feature === 'session-feature');
-const sessionPath = S.getSessionTempPath(sid);
-try { fs.unlinkSync(sessionPath); } catch { /* already gone */ }
-try { fs.unlinkSync(`${sessionPath}.lock`); } catch { /* already gone */ }
-for (const name of fs.readdirSync(path.dirname(sessionPath))) {
-  if (name.startsWith(`${path.basename(sessionPath)}.`) && name.endsWith('.json')) {
-    try { fs.unlinkSync(path.join(path.dirname(sessionPath), name)); } catch { /* already gone */ }
-  }
+let sr = {};
+try {
+  sr = JSON.parse(wbEnv(d, { VD_SESSION_ID: sid }, 'resolve', '--json'));
+} finally {
+  cleanupSession(sid);
 }
+ok('resolve honors session feature', sr.feature === 'session-feature');
 wb(d, 'reindex');
 ok('reindex writes INDEX.md', fs.existsSync(path.join(d, '.workbench', 'INDEX.md')));
 fs.mkdirSync(path.join(d, '.workbench', 'tmp'), { recursive: true });

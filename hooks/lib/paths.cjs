@@ -413,9 +413,7 @@ function resolvePlanPath(sessionId, config, readState, baseDir) {
         const substr = dirs.filter(e => e.name.includes(slug));
         const ambiguous = exact.length > 1 || (exact.length === 0 && substr.length > 1);
         if (ambiguous) {
-          if (process.env.VD_DEBUG_PATHS) {
-            process.stderr.write(`[paths] ambiguous branch plan resolution for slug "${slug}" in ${plansDir}\n`);
-          }
+          process.stderr.write(`[paths] ambiguous branch plan resolution for slug "${slug}" in ${plansDir}; skipping branch fallback\n`);
           continue;
         }
         const pick = exact.length === 1 ? exact[0]
@@ -484,7 +482,7 @@ function findFeature(featuresDir, ticket, slug) {
       sizeSum += st.size;
     } catch { /* missing feature.json does not affect the metadata stamp */ }
   }
-  const stamp = `${maxMtime}:${sizeSum}:${dirs.length}`;
+  const stamp = `${maxMtime}:${sizeSum}:${dirs.length}:${Math.floor(Date.now() / 5000)}`;
   const cacheKey = `${featuresDir}|${stamp}|${ticket || ''}|${slug || ''}`;
   const cached = cacheGet(_featureFindCache, cacheKey);
   if (cached !== undefined) return cached;
@@ -533,8 +531,11 @@ function ensureFeatureMeta(featuresDir, id, meta) {
     // a race. Either way, the first committed writer wins and losers are ignored.
     fs.renameSync(tmp, metaPath);
     tmp = null;
-  } catch {
+  } catch (e) {
     // Never block resolution on a write failure.
+    if (process.env.VD_DEBUG_PATHS) {
+      process.stderr.write(`[paths] ensureFeatureMeta failed for ${id}: ${e?.message || e}\n`);
+    }
   } finally {
     try { if (tmp && fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch { /* ignore cleanup failure */ }
   }

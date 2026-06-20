@@ -112,8 +112,12 @@ function cmdResolve({ flags }) {
   const opts = { readOnly: true };
   const sid = process.env.VD_SESSION_ID || null;
   const readState = sid ? state.readSessionState : null;
-  const root = ff ? P.resolveFeatureRoot(c.cfg, c.cwd, sid, readState, opts) : c.umbrella;
   const id = ff ? P.resolveFeatureId(c.cfg, c.cwd, sid, readState, opts) : null;
+  // Derive display root from the resolved id so `resolve` remains a single
+  // read-only feature lookup.
+  const root = ff
+    ? (id ? path.join(c.featuresDir, id) : path.join(c.globalDir, 'scratch'))
+    : c.umbrella;
   const out = {
     layout: c.cfg.paths?.layout || 'type-first',
     feature: id, featureRoot: ff ? root : null,
