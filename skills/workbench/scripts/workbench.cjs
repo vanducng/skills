@@ -111,11 +111,11 @@ function cmdResolve({ flags }) {
   // resolve is a query/display command; keep feature resolution read-only.
   const opts = { readOnly: true };
   const sid = process.env.VD_SESSION_ID || null;
-  let stateLoaded = false;
-  let stateCache = null;
+  const stateCache = new Map();
   const readState = sid ? ((sessionId) => {
-    if (!stateLoaded) { stateCache = state.readSessionState(sessionId); stateLoaded = true; }
-    return stateCache;
+    const key = sessionId || '';
+    if (!stateCache.has(key)) stateCache.set(key, state.readSessionState(sessionId));
+    return stateCache.get(key);
   }) : null;
   const root = ff ? P.resolveFeatureRoot(c.cfg, c.cwd, sid, readState, opts) : c.umbrella;
   const relFeature = ff && root ? path.relative(c.featuresDir, root) : '';

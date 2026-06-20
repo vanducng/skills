@@ -121,11 +121,11 @@ try {
     const config = loadConfig();
 
     // Resolve plan (session lookup needs the state reader injected)
-    let stateLoaded = false;
-    let stateCache = null;
+    const stateCache = new Map();
     const readSessionStateOnce = (sid) => {
-      if (!stateLoaded) { stateCache = readSessionState(sid); stateLoaded = true; }
-      return stateCache;
+      const key = sid || '';
+      if (!stateCache.has(key)) stateCache.set(key, readSessionState(sid));
+      return stateCache.get(key);
     };
 
     const resolved = resolvePlanPath(sessionId, config, readSessionStateOnce, baseDir);

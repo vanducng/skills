@@ -54,11 +54,11 @@ try {
     const namePattern = resolveNamingPattern(config.plan, gitBranch);
 
     const pathResolveOpts = { readOnly: true };
-    let stateLoaded = false;
-    let stateCache = null;
+    const stateCache = new Map();
     const readSessionStateOnce = (sid) => {
-      if (!stateLoaded) { stateCache = readSessionState(sid); stateLoaded = true; }
-      return stateCache;
+      const key = sid || '';
+      if (!stateCache.has(key)) stateCache.set(key, readSessionState(sid));
+      return stateCache.get(key);
     };
 
     const resolved = resolvePlanPath(sessionId, config, readSessionStateOnce, baseDir);
