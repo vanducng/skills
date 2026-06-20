@@ -46,7 +46,7 @@ That registers:
 ### Notes
 
 - **Stdlib only** — no `pip`, no `jq`, no Node. Secrets never live in this repo (env only).
-- Claude `Stop` fires on **every** turn — expect a ping per completed response.
+- Claude `Stop` (turn-complete) pushes are **suppressed by default** to avoid per-turn spam during autonomous / auto-accept runs — the "your turn" ping comes from the idle `Notification` event instead. Set `AGENT_NOTIFY_STOP=always` to restore the legacy ping on every turn. `AGENT_NOTIFY_DRYRUN=1` prints the message text instead of sending.
 - Uninstall: remove the two entries from `settings.json`, restore `config.toml` from its `.bak.*`, and unset the env vars.
 
 ## get the chat id
