@@ -26,7 +26,7 @@ Status icons: ✅ turn complete · 🔔 needs you / needs approval.
 1. Export the bot token + chat id in your environment — e.g. `~/.envrc` (direnv):
    ```sh
    export TELEGRAM_BOT_TOKEN=123456:xxxx
-   export TELEGRAM_CHAT_ID=000000000          # DM the bot, then GET /getUpdates
+   export TELEGRAM_CHAT_ID=000000000          # DM the bot, then GET /getUpdates; comma-separate for several chats
    # optional — chain a previously-configured Codex notify program:
    export CODEX_NOTIFY_FORWARD="/path/to/old-notify"
    export CODEX_NOTIFY_FORWARD_ARG="turn-ended"
