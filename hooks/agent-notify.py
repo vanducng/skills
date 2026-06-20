@@ -17,6 +17,8 @@ Config comes from the ENV (installable on any machine), e.g. in ~/.envrc:
   export TELEGRAM_CHAT_ID=...
   export CODEX_NOTIFY_FORWARD=...        # optional: chain a prior Codex notify
   export CODEX_NOTIFY_FORWARD_ARG=...    # optional
+  export AGENT_NOTIFY_STOP=off|always   # claude turn-complete push (default off)
+  export AGENT_NOTIFY_DRYRUN=1          # optional: print text, skip the send
 Stdlib only — no pip installs, no jq.
 """
 import json
@@ -144,8 +146,17 @@ def main():
         except Exception:
             payload = {}
         if event == "notification":
-            icon, what, preview = "🔔", "needs you", payload.get("message", "")
+            msg = payload.get("message", "")
+            what = "needs approval" if "permission" in msg.lower() else "needs you"
+            icon, preview = "🔔", msg
         else:
+            # Per-turn "turn complete" pushes spam during autonomous / auto-accept
+            # runs; the real "your turn" ping is the idle Notification event.
+            # AGENT_NOTIFY_STOP=always restores the legacy per-turn push.
+            if os.environ.get("AGENT_NOTIFY_STOP", "off").lower() != "always":
+                if DEBUG:
+                    print("SUPPRESS claude stop (AGENT_NOTIFY_STOP=off)")
+                return
             icon, what, preview = "✅", "turn complete", ""
         text = build("CLAUDE", "🟠", icon, what, payload.get("cwd", ""), preview)
     elif src == "codex":
@@ -170,6 +181,9 @@ def main():
     else:
         return
 
+    if os.environ.get("AGENT_NOTIFY_DRYRUN"):
+        print(text)
+        return
     send(cfg["TELEGRAM_BOT_TOKEN"], cfg["TELEGRAM_CHAT_ID"], text)
 
 
