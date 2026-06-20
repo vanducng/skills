@@ -32,8 +32,9 @@ function cacheSet(map, key, value) {
   return value;
 }
 
-// Memoize git-root per (cwd, process) — one subprocess call max per hook invocation.
+// Memoize git lookups per (cwd, process) — one subprocess call max per hook invocation.
 const _gitRootCache = new Map();
+const _gitBranchCache = new Map();
 
 function runGit(args, cwd) {
   try {
@@ -48,7 +49,13 @@ function runGit(args, cwd) {
   }
 }
 
-function getGitBranch(cwd) { return runGit(['branch', '--show-current'], cwd); }
+function getGitBranch(cwd) {
+  const key = cwd || process.cwd();
+  const cached = cacheGet(_gitBranchCache, key);
+  if (cached !== undefined) return cached;
+  const result = runGit(['branch', '--show-current'], cwd);
+  return cacheSet(_gitBranchCache, key, result);
+}
 
 function getGitRoot(cwd) {
   const key = cwd || process.cwd();
@@ -465,27 +472,18 @@ const _featureFindCache = new Map();
 
 /** Scan features/<id>/feature.json once; return a unique ticket match, then unique slug match. */
 function findFeature(featuresDir, ticket, slug) {
+  let dirStamp;
+  try {
+    const st = fs.statSync(featuresDir);
+    dirStamp = `${st.mtimeMs}:${st.size}`;
+  } catch { return null; }
+  const cacheKey = `${featuresDir}|${dirStamp}|${ticket || ''}|${slug || ''}`;
+  const cached = cacheGet(_featureFindCache, cacheKey);
+  if (cached !== undefined) return cached;
+
   let dirs;
   try { dirs = fs.readdirSync(featuresDir, { withFileTypes: true }).filter(e => e.isDirectory()); }
   catch { return null; }
-  let maxMtime = 0;
-  let sizeSum = 0;
-  try {
-    const st = fs.statSync(featuresDir);
-    maxMtime = st.mtimeMs;
-    sizeSum += st.size;
-  } catch { /* use zero stamp */ }
-  for (const d of dirs) {
-    try {
-      const st = fs.statSync(path.join(featuresDir, d.name, 'feature.json'));
-      if (st.mtimeMs > maxMtime) maxMtime = st.mtimeMs;
-      sizeSum += st.size;
-    } catch { /* missing feature.json does not affect the metadata stamp */ }
-  }
-  const stamp = `${maxMtime}:${sizeSum}:${dirs.length}:${Math.floor(Date.now() / 5000)}`;
-  const cacheKey = `${featuresDir}|${stamp}|${ticket || ''}|${slug || ''}`;
-  const cached = cacheGet(_featureFindCache, cacheKey);
-  if (cached !== undefined) return cached;
 
   const ticketHits = [];
   const slugHits = [];
@@ -502,7 +500,7 @@ function findFeature(featuresDir, ticket, slug) {
   return cacheSet(_featureFindCache, cacheKey, found);
 }
 
-/** Create features/<id>/feature.json if absent. Idempotent, atomic (rename), best-effort. */
+/** Remove orphaned feature.json temp files from interrupted metadata writes. */
 function cleanupStaleFeatureTemps(dir, olderThanMs) {
   let entries;
   try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
@@ -517,6 +515,7 @@ function cleanupStaleFeatureTemps(dir, olderThanMs) {
   }
 }
 
+/** Create features/<id>/feature.json if absent. Idempotent, atomic (rename), best-effort. */
 function ensureFeatureMeta(featuresDir, id, meta) {
   const dir = path.join(featuresDir, id);
   const metaPath = path.join(dir, 'feature.json');
@@ -543,6 +542,21 @@ function ensureFeatureMeta(featuresDir, id, meta) {
 
 // NOTE: per-process cache, keyed by session and branch, with a soft cap for long-lived hosts.
 const _featureIdCache = new Map();
+const _featureStateCache = new WeakMap();
+
+function readFeatureState(readState, sessionId) {
+  if (!readState) return null;
+  let bySession = _featureStateCache.get(readState);
+  if (!bySession) {
+    bySession = new Map();
+    _featureStateCache.set(readState, bySession);
+  }
+  const key = sessionId || '';
+  if (bySession.has(key)) return bySession.get(key);
+  const state = readState(sessionId);
+  cacheSet(bySession, key, state);
+  return state;
+}
 
 /**
  * Resolve the feature id for the current context. Pure read except a one-time idempotent
@@ -555,7 +569,7 @@ function resolveFeatureId(config, baseDir, sessionId, readState, opts) {
   baseDir = baseDir || process.cwd();
   const umbrellaRoot = resolveUmbrellaRoot(config, baseDir);
   if (!umbrellaRoot) return null;
-  const state = readState ? readState(sessionId) : null;
+  const state = readFeatureState(readState, sessionId);
   const readOnly = opts?.readOnly !== false;
 
   if (state && typeof state.featureId === 'string' && state.featureId) {

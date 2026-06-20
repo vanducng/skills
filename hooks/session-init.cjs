@@ -121,7 +121,14 @@ try {
     const config = loadConfig();
 
     // Resolve plan (session lookup needs the state reader injected)
-    const resolved = resolvePlanPath(sessionId, config, readSessionState, baseDir);
+    let stateLoaded = false;
+    let stateCache = null;
+    const readSessionStateOnce = (sid) => {
+      if (!stateLoaded) { stateCache = readSessionState(sid); stateLoaded = true; }
+      return stateCache;
+    };
+
+    const resolved = resolvePlanPath(sessionId, config, readSessionStateOnce, baseDir);
 
     // Persist session state
     if (sessionId) {
@@ -145,14 +152,14 @@ try {
     // Pass full config plus session state so umbrella and feature-first layouts
     // resolve through the same path logic as the producer skills.
     const pathResolveOpts = { readOnly: true };
-    const reportsPathAbs = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionState, pathResolveOpts) + '/';
-    const plansPathAbs = getPlansPath(baseDir, config, sessionId, readSessionState, pathResolveOpts);
+    const reportsPathAbs = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts) + '/';
+    const plansPathAbs = getPlansPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts);
     const docsPathAbs = getDocsPath(baseDir, config);
     // Umbrella siblings — only computed when umbrella is active (additive, zero parity risk)
     const umbrellaVal = config.paths?.umbrella || null;
-    const visualsPathAbs  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts)  : null;
-    const journalsPathAbs = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts) : null;
-    const statePathAbs    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionState, pathResolveOpts)    : null;
+    const visualsPathAbs  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts)  : null;
+    const journalsPathAbs = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts) : null;
+    const statePathAbs    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts)    : null;
     const umbrellaRoot = umbrellaVal ? resolveUmbrellaRoot(config, baseDir) : null;
     const featureFirst = umbrellaVal && !!umbrellaRoot && config.paths?.layout === 'feature-first';
     const scratchFeature = featureFirst && isGlobalScratchPath(reportsPathAbs, baseDir, config);

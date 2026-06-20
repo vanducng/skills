@@ -221,14 +221,14 @@ test('linked worktree overlays main worktree umbrella layout', () => {
       paths: { umbrella: '.main-workbench', layout: 'feature-first', allowHomeRoot: true },
       plan: {
         ticketPrefixes: ['MAIN'],
-        resolution: { branchPattern: 'main/(.+)' }
+        resolution: { order: ['branch'], branchPattern: 'main/(.+)' }
       }
     }));
     fs.writeFileSync(path.join(linked, '.vd.json'), JSON.stringify({
       paths: { umbrella: '.linked-workbench', layout: 'type-first', allowHomeRoot: false },
       plan: {
         ticketPrefixes: ['LINKED'],
-        resolution: { branchPattern: 'linked/(.+)' }
+        resolution: { order: ['session'], branchPattern: 'linked/(.+)' }
       }
     }));
 
@@ -252,6 +252,7 @@ test('linked worktree overlays main worktree umbrella layout', () => {
     assert.strictEqual(got.paths.layout, 'feature-first');
     assert.strictEqual(got.paths.allowHomeRoot, true);
     assert.deepStrictEqual(got.plan.ticketPrefixes, ['MAIN']);
+    assert.deepStrictEqual(got.plan.resolution.order, ['branch']);
     assert.strictEqual(got.plan.resolution.branchPattern, 'main/(.+)');
   } finally {
     try { git(repo, 'worktree', 'remove', '--force', linked); } catch { /* ignore */ }

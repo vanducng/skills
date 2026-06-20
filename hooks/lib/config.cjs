@@ -184,9 +184,8 @@ function applyMainWorktreeLayout(merged, mainCfg) {
     if (Array.isArray(mainCfg.plan.ticketPrefixes)) {
       out.plan.ticketPrefixes = mainCfg.plan.ticketPrefixes.slice();
     }
-    if (mainCfg.plan.resolution && typeof mainCfg.plan.resolution.branchPattern === 'string') {
-      out.plan.resolution = Object.assign({}, merged.plan?.resolution);
-      out.plan.resolution.branchPattern = mainCfg.plan.resolution.branchPattern;
+    if (mainCfg.plan.resolution && typeof mainCfg.plan.resolution === 'object') {
+      out.plan.resolution = layerConfigs(merged.plan?.resolution || {}, mainCfg.plan.resolution);
     }
   }
   return out;

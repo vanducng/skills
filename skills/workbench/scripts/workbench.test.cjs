@@ -85,10 +85,15 @@ ok('resolve --json feature', r.feature === 'elt-9-gamma');
 ok('resolve reports path', r.reports.endsWith(path.join('features', 'elt-9-gamma', 'reports')));
 wb(d, 'new', 'session-feature');
 const sid = `wbt-${process.pid}-${Date.now()}`;
-S.updateSessionState(sid, { featureId: 'session-feature' });
+ok('session state write succeeds', S.updateSessionState(sid, { featureId: 'session-feature' }));
 let sr = {};
+let rawResolve = '';
 try {
-  sr = JSON.parse(wbEnv(d, { VD_SESSION_ID: sid }, 'resolve', '--json'));
+  rawResolve = wbEnv(d, { VD_SESSION_ID: sid }, 'resolve', '--json');
+  sr = JSON.parse(rawResolve);
+} catch (e) {
+  console.error(rawResolve);
+  throw e;
 } finally {
   cleanupSession(sid);
 }

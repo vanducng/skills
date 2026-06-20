@@ -25,6 +25,7 @@ try {
     getStatePath,
     resolveNamingPattern,
     resolvePlanPath,
+    resolveUmbrellaRoot,
     getGitBranch,
     resolveSkillsVenv,
     isGlobalScratchPath
@@ -60,7 +61,8 @@ try {
     const visualsPath  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts)  : null;
     const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts) : null;
     const statePath    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts)    : null;
-    const scratchFeature = umbrellaVal && config.paths?.layout === 'feature-first'
+    const umbrellaRoot = umbrellaVal ? resolveUmbrellaRoot(config, baseDir) : null;
+    const scratchFeature = umbrellaVal && !!umbrellaRoot && config.paths?.layout === 'feature-first'
       && isGlobalScratchPath(reportsPath, baseDir, config);
 
     const skillsVenv = resolveSkillsVenv(baseDir);
