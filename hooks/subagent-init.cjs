@@ -52,13 +52,16 @@ try {
     const namePattern = resolveNamingPattern(config.plan, gitBranch);
 
     const resolved = resolvePlanPath(sessionId, config, readSessionState, baseDir);
-    const reportsPath = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionState);
-    const plansPath = getPlansPath(baseDir, config, sessionId, readSessionState);
+    const pathResolveOpts = { readOnly: true };
+    const reportsPath = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionState, pathResolveOpts);
+    const plansPath = getPlansPath(baseDir, config, sessionId, readSessionState, pathResolveOpts);
     const docsPath = getDocsPath(baseDir, config);
     const umbrellaVal = config.paths?.umbrella || null;
-    const visualsPath  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionState)  : null;
-    const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionState) : null;
-    const statePath    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionState)    : null;
+    const visualsPath  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts)  : null;
+    const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts) : null;
+    const statePath    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionState, pathResolveOpts)    : null;
+    const scratchFeature = umbrellaVal && config.paths?.layout === 'feature-first'
+      && reportsPath.includes(`${path.sep}_global${path.sep}scratch`);
 
     const activePlan = resolved.resolvedBy === 'session' ? resolved.path : '';
     const suggestedPlan = resolved.resolvedBy === 'branch' ? resolved.path : '';
@@ -91,6 +94,7 @@ try {
     // Umbrella-on: append sibling dirs after docs; umbrella-off: legacy two-dir line
     if (umbrellaVal) {
       lines.push(`- Paths: ${plansPath}/ | ${docsPath}/ | Visuals: ${visualsPath}/ | Journals: ${journalsPath}/ | State: ${statePath}/`);
+      if (scratchFeature) lines.push('- Feature: none; artifacts use _global/scratch until `workbench new` or `workbench switch` selects a feature.');
     } else {
       lines.push(`- Paths: ${plansPath}/ | ${docsPath}/`);
     }

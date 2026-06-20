@@ -95,10 +95,16 @@ test('feature-first getters use session feature state when provided', () => {
       paths.getReportsPath(path.join(repo, 'plans', 'active'), 'session', cfg.plan, cfg.paths, repo, cfg, 's1', readState),
       path.join(repo, 'plans', 'active', 'reports')
     );
-    assert.strictEqual(
-      paths.getReportsPath(null, null, cfg.plan, cfg.paths, null, cfg, 's1', readState).endsWith('/reports/'),
-      true
-    );
+    const prevCwd = process.cwd();
+    try {
+      process.chdir(repo);
+      assert.strictEqual(
+        paths.getReportsPath(null, null, cfg.plan, cfg.paths, null, cfg, 's1', readState),
+        `${path.join(featureRoot, 'reports').replace(/\\/g, '/')}/`
+      );
+    } finally {
+      process.chdir(prevCwd);
+    }
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
@@ -121,16 +127,33 @@ test('read-only feature-first plan lookup does not create feature metadata', () 
       paths: { umbrella: '.workbench', layout: 'feature-first', plans: 'plans' }
     };
 
-    const plansDir = paths.getPlansPath(repo, cfg, 's1', () => null, { readOnly: true });
+    const plansDir = paths.getPlansPath(repo, cfg, 's1', () => null);
 
     assert.strictEqual(plansDir.endsWith(path.join('.workbench', 'features', 'demo-work', 'plans')), true);
     assert.strictEqual(
       fs.existsSync(path.join(repo, '.workbench', 'features', 'demo-work', 'feature.json')),
       false
     );
+
+    paths.getPlansPath(repo, cfg, 's2', () => null, { readOnly: false });
+    assert.strictEqual(
+      fs.existsSync(path.join(repo, '.workbench', 'features', 'demo-work', 'feature.json')),
+      true
+    );
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
+});
+
+test('computeFeatureId strips multi-segment ticket prefixes from slug', () => {
+  assert.strictEqual(
+    paths.computeFeatureId('PROJ-SUB-123', 'proj-sub-123-manual-upload'),
+    'proj-sub-123-manual-upload'
+  );
+  assert.strictEqual(
+    paths.computeFeatureId('ELT-3316', '3316-manual-upload'),
+    'elt-3316-manual-upload'
+  );
 });
 
 test('branch plan resolution scans the session feature plans dir', () => {
@@ -172,10 +195,10 @@ test('linked worktree overlays main worktree umbrella layout', () => {
     git(repo, 'worktree', 'add', '-b', 'linked', linked);
 
     fs.writeFileSync(path.join(repo, '.vd.json'), JSON.stringify({
-      paths: { umbrella: '.main-workbench', layout: 'feature-first' }
+      paths: { umbrella: '.main-workbench', layout: 'feature-first', allowHomeRoot: true }
     }));
     fs.writeFileSync(path.join(linked, '.vd.json'), JSON.stringify({
-      paths: { umbrella: '.linked-workbench', layout: 'type-first' }
+      paths: { umbrella: '.linked-workbench', layout: 'type-first', allowHomeRoot: false }
     }));
 
     const script =
@@ -195,6 +218,7 @@ test('linked worktree overlays main worktree umbrella layout', () => {
 
     assert.strictEqual(got.umbrella, '.main-workbench');
     assert.strictEqual(got.layout, 'feature-first');
+    assert.strictEqual(got.allowHomeRoot, true);
   } finally {
     try { git(repo, 'worktree', 'remove', '--force', linked); } catch { /* ignore */ }
     fs.rmSync(linked, { recursive: true, force: true });

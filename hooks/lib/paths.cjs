@@ -93,6 +93,12 @@ function withTrailingSlash(p) {
 // Public alias used by callers expecting normalizePath
 const normalizePath = stripTrailing;
 
+function readOnlyFeatureOpts(opts) {
+  const out = Object.assign({}, opts);
+  if (out.readOnly !== false) out.readOnly = true;
+  return out;
+}
+
 /**
  * Resolve the umbrella root directory when umbrella is active.
  * Anchored to the MAIN worktree so artifacts written from inside a linked
@@ -126,7 +132,7 @@ function resolveUmbrellaRoot(config, baseDir) {
  * Umbrella-off: <baseDir>/plans  (legacy, byte-identical)
  */
 function getPlansPath(baseDir, config, sessionId, readState, opts) {
-  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, opts);
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, readOnlyFeatureOpts(opts));
   if (featureRoot) {
     return path.join(featureRoot, stripTrailing(config.paths?.plans) || 'plans');
   }
@@ -143,24 +149,24 @@ function getDocsPath(baseDir, config) {
   return path.join(baseDir, stripTrailing(pathsConfig?.docs) || 'docs');
 }
 
-function getVisualsPath(baseDir, config, sessionId, readState) {
-  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState);
+function getVisualsPath(baseDir, config, sessionId, readState, opts) {
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, readOnlyFeatureOpts(opts));
   const name = stripTrailing(config?.paths?.visuals) || 'visuals';
   return featureRoot
     ? path.join(featureRoot, name)
     : path.join(baseDir, 'plans', name); // legacy fallback mirrors plans/visuals
 }
 
-function getJournalsPath(baseDir, config, sessionId, readState) {
-  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState);
+function getJournalsPath(baseDir, config, sessionId, readState, opts) {
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, readOnlyFeatureOpts(opts));
   const name = stripTrailing(config?.paths?.journals) || 'journals';
   return featureRoot
     ? path.join(featureRoot, name)
     : path.join(baseDir, 'plans', name); // legacy fallback: plans/journals
 }
 
-function getStatePath(baseDir, config, sessionId, readState) {
-  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState);
+function getStatePath(baseDir, config, sessionId, readState, opts) {
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, readOnlyFeatureOpts(opts));
   const name = stripTrailing(config?.paths?.state) || 'state';
   return featureRoot
     ? path.join(featureRoot, name)
@@ -179,14 +185,14 @@ function getStatePath(baseDir, config, sessionId, readState) {
  * Umbrella-off: default = <plansDir>/reports (legacy, byte-identical to P2).
  * Session-active plan always overrides the default.
  */
-function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, config, sessionId, readState) {
+function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, config, sessionId, readState, opts) {
   const subdir = stripTrailing(planConfig?.reportsDir) || 'reports';
   const activePlan = (planPath && resolvedBy === 'session') ? stripTrailing(planPath) : null;
 
   // Feature-first: reports nest in the FEATURE dir, unless a session-active plan
   // explicitly pins reports to that plan.
   if (!activePlan && config && config.paths?.layout === 'feature-first') {
-    const featureRoot = resolveFeatureRoot(config, anchor || process.cwd(), sessionId, readState);
+    const featureRoot = resolveFeatureRoot(config, anchor || process.cwd(), sessionId, readState, readOnlyFeatureOpts(opts));
     if (featureRoot) {
       if (!anchor) return withTrailingSlash(path.join(featureRoot, subdir));
       return path.join(featureRoot, subdir);
@@ -394,8 +400,13 @@ function extractTicketFromBranch(branch, prefixes) {
  *  → `elt-3316-manual-upload`, not `elt-3316-elt-3316-manual-upload`. */
 function computeFeatureId(ticket, slug) {
   if (ticket) {
-    const [pre, num] = ticket.split('-');
-    const desc = slug ? slug.replace(new RegExp(`^${escapeRe(pre)}-?${escapeRe(num)}-?`, 'i'), '') : '';
+    const dashIdx = ticket.lastIndexOf('-');
+    const pre = dashIdx >= 0 ? ticket.slice(0, dashIdx) : ticket;
+    const num = dashIdx >= 0 ? ticket.slice(dashIdx + 1) : '';
+    const ticketPrefix = num
+      ? `^(?:${escapeRe(pre)}-?)?${escapeRe(num)}-?`
+      : `^${escapeRe(pre)}-?`;
+    const desc = slug ? slug.replace(new RegExp(ticketPrefix, 'i'), '') : '';
     return cleanSlug((desc ? `${ticket}-${desc}` : ticket).toLowerCase());
   }
   if (slug) return cleanSlug(slug.toLowerCase()); // lowercase for parity with the ticket branch
@@ -497,6 +508,8 @@ function resolveFeatureRoot(config, baseDir, sessionId, readState, opts) {
   const u = resolveUmbrellaRoot(config, baseDir);
   if (!u || config?.paths?.layout !== 'feature-first') return u;
   const id = resolveFeatureId(config, baseDir, sessionId, readState, opts);
+  // No feature signal: use the documented scratch staging area. Hook context
+  // surfaces this path, and `workbench new --from-scratch` can promote it later.
   return id ? path.join(u, 'features', id) : path.join(u, '_global', 'scratch');
 }
 

@@ -142,14 +142,17 @@ try {
     // Append trailing '/' explicitly to match golden (contract §3.5).
     // Pass full config plus session state so umbrella and feature-first layouts
     // resolve through the same path logic as the producer skills.
-    const reportsPathAbs = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionState) + '/';
-    const plansPathAbs = getPlansPath(baseDir, config, sessionId, readSessionState);
+    const pathResolveOpts = { readOnly: true };
+    const reportsPathAbs = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionState, pathResolveOpts) + '/';
+    const plansPathAbs = getPlansPath(baseDir, config, sessionId, readSessionState, pathResolveOpts);
     const docsPathAbs = getDocsPath(baseDir, config);
     // Umbrella siblings — only computed when umbrella is active (additive, zero parity risk)
     const umbrellaVal = config.paths?.umbrella || null;
-    const visualsPathAbs  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionState)  : null;
-    const journalsPathAbs = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionState) : null;
-    const statePathAbs    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionState)    : null;
+    const visualsPathAbs  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts)  : null;
+    const journalsPathAbs = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionState, pathResolveOpts) : null;
+    const statePathAbs    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionState, pathResolveOpts)    : null;
+    const scratchFeature = umbrellaVal && config.paths?.layout === 'feature-first'
+      && reportsPathAbs.includes(`${path.sep}_global${path.sep}scratch`);
 
     const taskListId = extractTaskListId(resolved);
 
@@ -236,6 +239,7 @@ try {
     if (packageManager) parts.push(`PM: ${packageManager}`);
     parts.push(`Plan naming: ${config.plan.namingFormat}`);
     if (planPart) parts.push(planPart);
+    if (scratchFeature) parts.push('Feature: _global/scratch');
     process.stdout.write(parts.join(' | ') + '\n');
 
     process.exit(0);

@@ -163,6 +163,7 @@ function getMainWorktreeConfigDetails(cwd) {
   return { root: mainRoot, config: readJson(path.join(mainRoot, '.vd.json')) };
 }
 
+/** Public compatibility helper: returns only the main worktree .vd.json payload. */
 function getMainWorktreeConfig(cwd) {
   const details = getMainWorktreeConfigDetails(cwd);
   return details ? details.config : null;
@@ -175,6 +176,7 @@ function applyMainWorktreeLayout(merged, mainCfg) {
   out.paths = Object.assign({}, merged.paths);
   if (typeof mainCfg.paths.umbrella === 'string') out.paths.umbrella = mainCfg.paths.umbrella;
   if (typeof mainCfg.paths.layout === 'string') out.paths.layout = mainCfg.paths.layout;
+  if (typeof mainCfg.paths.allowHomeRoot === 'boolean') out.paths.allowHomeRoot = mainCfg.paths.allowHomeRoot;
   return out;
 }
 
