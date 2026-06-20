@@ -216,6 +216,9 @@ function loadConfig() {
       if (mainWorktree) {
         umbrellaGitRoot = mainWorktree.root;
       }
+      // If mainWorktree is null, no safe main root exists (for example, a
+      // stray HOME repo). Keep the local root so sanitizeUmbrella preserves
+      // the same guard.
     }
     return buildResult(merged, gitRoot, umbrellaGitRoot);
   } catch {
@@ -232,7 +235,7 @@ function buildResult(merged, gitRoot, umbrellaGitRoot) {
 
   return {
     // Pass-through marker only; config migration/validation is not implemented yet.
-    schemaVersion: merged.schemaVersion ?? DEFAULT_CONFIG.schemaVersion,
+    schemaVersion: typeof merged.schemaVersion === 'number' ? merged.schemaVersion : DEFAULT_CONFIG.schemaVersion,
     plan: merged.plan || DEFAULT_CONFIG.plan,
     paths: {
       docs:     rawPaths.docs     || DEFAULT_CONFIG.paths.docs,

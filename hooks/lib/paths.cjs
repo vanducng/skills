@@ -163,7 +163,9 @@ function getPlansPath(baseDir, config, sessionId, readState, opts) {
 }
 
 /**
- * Docs path is ALWAYS repo-root (CWD) anchored — never moves under umbrella.
+ * Docs path is ALWAYS repo-root (CWD) anchored — never moves under umbrella
+ * or feature-first folders. Docs are source-controlled project material, not
+ * generated per-feature workbench artifacts.
  */
 function getDocsPath(baseDir, config) {
   const pathsConfig = config?.paths ? config.paths : config;
@@ -380,6 +382,9 @@ function resolvePlanPath(sessionId, config, readState, baseDir) {
         if (!slug) continue;
         // Anchor to the umbrella/main-worktree plans dir — the old cwd-relative
         // `plansDir` silently no-op'd inside linked worktrees.
+        // readOnly=true prevents ensureFeatureMeta writes during plan resolution.
+        // Ensure readState stays a pure reader; if it called resolvePlanPath
+        // lazily this chain could recurse.
         const plansDir = getPlansPath(baseDir, config, sessionId, readState, { readOnly: true });
         if (!fs.existsSync(plansDir)) continue;
         const dirs = fs.readdirSync(plansDir, { withFileTypes: true })
@@ -463,6 +468,20 @@ function findFeature(featuresDir, ticket, slug) {
 }
 
 /** Create features/<id>/feature.json if absent. Idempotent, atomic (rename), best-effort. */
+function cleanupStaleFeatureTemps(dir, olderThanMs) {
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+  const cutoff = Date.now() - olderThanMs;
+  for (const e of entries) {
+    if (!e.isFile() || !e.name.startsWith('feature.json.') || !e.name.endsWith('.tmp')) continue;
+    const p = path.join(dir, e.name);
+    try {
+      const st = fs.statSync(p);
+      if (st.mtimeMs < cutoff) fs.unlinkSync(p);
+    } catch { /* ignore stale temp cleanup failures */ }
+  }
+}
+
 function ensureFeatureMeta(featuresDir, id, meta) {
   const dir = path.join(featuresDir, id);
   const metaPath = path.join(dir, 'feature.json');
@@ -470,6 +489,7 @@ function ensureFeatureMeta(featuresDir, id, meta) {
   let tmp = null;
   try {
     fs.mkdirSync(dir, { recursive: true });
+    cleanupStaleFeatureTemps(dir, 60 * 60 * 1000);
     tmp = `${metaPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(meta, null, 2));
     // POSIX can atomically replace; Windows throws if the destination appears in

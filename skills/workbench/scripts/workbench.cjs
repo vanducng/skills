@@ -108,7 +108,8 @@ function cmdNew({ pos, flags }) {
 function cmdResolve({ flags }) {
   const c = ctx();
   const ff = c.cfg.paths?.layout === 'feature-first';
-  // Only resolve (and possibly create feature.json) when feature-first — keep resolve read-only on type-first.
+  // In feature-first mode, resolve may create feature.json on first strong signal.
+  // In type-first mode, these feature resolvers are not called.
   const writeOpts = { readOnly: false };
   const id = ff ? P.resolveFeatureId(c.cfg, c.cwd, null, null, writeOpts) : null;
   const root = ff ? P.resolveFeatureRoot(c.cfg, c.cwd, null, null, writeOpts) : c.umbrella;

@@ -158,8 +158,9 @@ test('isGlobalScratchPath detects only the global scratch subtree', () => {
       paths.isGlobalScratchPath(path.join(globalRoot, 'scratch', 'reports'), repo, cfg),
       true
     );
+    const featurePath = path.join(path.dirname(globalRoot), 'features', 'some-feature', 'reports');
     assert.strictEqual(
-      paths.isGlobalScratchPath(path.join(globalRoot, '..', 'features', '_global-scratch', 'reports'), repo, cfg),
+      paths.isGlobalScratchPath(featurePath, repo, cfg),
       false
     );
   } finally {
