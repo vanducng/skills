@@ -13,7 +13,7 @@ function realpath(p) {
   try { return fs.realpathSync(p); } catch { return path.resolve(p); }
 }
 function git(cwd, ...args) {
-  execFileSync('git', args, { cwd, stdio: ['ignore', 'ignore', 'inherit'] });
+  execFileSync('git', args, { cwd, stdio: 'ignore' });
 }
 
 // Stray-ancestor guard: a coincidental repo rooted at $HOME must not hijack a

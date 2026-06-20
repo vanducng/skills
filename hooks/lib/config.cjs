@@ -213,7 +213,7 @@ function loadConfig() {
     if (gitDirIsFile) {
       const mainWorktree = getMainWorktreeConfigDetails(process.cwd());
       merged = applyMainWorktreeLayout(merged, mainWorktree ? mainWorktree.config : null);
-      if (mainWorktree?.config?.paths && typeof mainWorktree.config.paths.umbrella === 'string') {
+      if (mainWorktree) {
         umbrellaGitRoot = mainWorktree.root;
       }
     }
@@ -231,6 +231,7 @@ function buildResult(merged, gitRoot, umbrellaGitRoot) {
   const umbrella = sanitizeUmbrella(rawPaths.umbrella, umbrellaGitRoot || gitRoot || null);
 
   return {
+    // Pass-through marker only; config migration/validation is not implemented yet.
     schemaVersion: merged.schemaVersion ?? DEFAULT_CONFIG.schemaVersion,
     plan: merged.plan || DEFAULT_CONFIG.plan,
     paths: {

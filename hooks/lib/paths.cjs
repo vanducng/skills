@@ -15,6 +15,14 @@ const { execFileSync } = require('child_process');
 // ── git helpers ───────────────────────────────────────────────────────────
 
 const CACHE_MAX = 1024;
+function cacheGet(map, key) {
+  if (!map.has(key)) return undefined;
+  const value = map.get(key);
+  map.delete(key);
+  map.set(key, value);
+  return value;
+}
+
 function cacheSet(map, key, value) {
   if (!map.has(key) && map.size >= CACHE_MAX) {
     const oldest = map.keys().next().value;
@@ -44,7 +52,8 @@ function getGitBranch(cwd) { return runGit(['branch', '--show-current'], cwd); }
 
 function getGitRoot(cwd) {
   const key = cwd || process.cwd();
-  if (_gitRootCache.has(key)) return _gitRootCache.get(key);
+  const cached = cacheGet(_gitRootCache, key);
+  if (cached !== undefined) return cached;
   const result = runGit(['rev-parse', '--show-toplevel'], cwd);
   return cacheSet(_gitRootCache, key, result);
 }
@@ -56,7 +65,8 @@ function getGitRoot(cwd) {
 const _mainRootCache = new Map();
 function getMainWorktreeRoot(cwd) {
   const key = cwd || process.cwd();
-  if (_mainRootCache.has(key)) return _mainRootCache.get(key);
+  const cached = cacheGet(_mainRootCache, key);
+  if (cached !== undefined) return cached;
   let result = null;
   const out = runGit(['worktree', 'list', '--porcelain'], cwd);
   if (out) {
@@ -101,12 +111,6 @@ function withTrailingSlash(p) {
 // Public alias used by callers expecting normalizePath
 const normalizePath = stripTrailing;
 
-function readOnlyFeatureOpts(opts) {
-  const out = Object.assign({}, opts);
-  if (out.readOnly !== false) out.readOnly = true;
-  return out;
-}
-
 function sameOrChildPath(child, parent) {
   const c = stripTrailing(child);
   const p = stripTrailing(parent);
@@ -149,7 +153,7 @@ function resolveUmbrellaRoot(config, baseDir) {
  * Umbrella-off: <baseDir>/plans  (legacy, byte-identical)
  */
 function getPlansPath(baseDir, config, sessionId, readState, opts) {
-  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, readOnlyFeatureOpts(opts));
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, opts);
   if (featureRoot) {
     return path.join(featureRoot, stripTrailing(config.paths?.plans) || 'plans');
   }
@@ -167,7 +171,7 @@ function getDocsPath(baseDir, config) {
 }
 
 function getVisualsPath(baseDir, config, sessionId, readState, opts) {
-  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, readOnlyFeatureOpts(opts));
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, opts);
   const name = stripTrailing(config?.paths?.visuals) || 'visuals';
   return featureRoot
     ? path.join(featureRoot, name)
@@ -175,7 +179,7 @@ function getVisualsPath(baseDir, config, sessionId, readState, opts) {
 }
 
 function getJournalsPath(baseDir, config, sessionId, readState, opts) {
-  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, readOnlyFeatureOpts(opts));
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, opts);
   const name = stripTrailing(config?.paths?.journals) || 'journals';
   return featureRoot
     ? path.join(featureRoot, name)
@@ -183,7 +187,7 @@ function getJournalsPath(baseDir, config, sessionId, readState, opts) {
 }
 
 function getStatePath(baseDir, config, sessionId, readState, opts) {
-  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, readOnlyFeatureOpts(opts));
+  const featureRoot = resolveFeatureRoot(config, baseDir, sessionId, readState, opts);
   const name = stripTrailing(config?.paths?.state) || 'state';
   return featureRoot
     ? path.join(featureRoot, name)
@@ -209,7 +213,7 @@ function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, c
   // Feature-first: reports nest in the FEATURE dir, unless a session-active plan
   // explicitly pins reports to that plan.
   if (!activePlan && config && config.paths?.layout === 'feature-first') {
-    const featureRoot = resolveFeatureRoot(config, anchor || process.cwd(), sessionId, readState, readOnlyFeatureOpts(opts));
+    const featureRoot = resolveFeatureRoot(config, anchor || process.cwd(), sessionId, readState, opts);
     if (featureRoot) {
       if (!anchor) return withTrailingSlash(path.join(featureRoot, subdir));
       return path.join(featureRoot, subdir);
@@ -437,7 +441,8 @@ function findFeature(featuresDir, ticket, slug) {
   let stamp;
   try { stamp = fs.statSync(featuresDir).mtimeMs; } catch { return null; }
   const cacheKey = `${featuresDir}|${stamp}|${ticket || ''}|${slug || ''}`;
-  if (_featureFindCache.has(cacheKey)) return _featureFindCache.get(cacheKey);
+  const cached = cacheGet(_featureFindCache, cacheKey);
+  if (cached !== undefined) return cached;
 
   let dirs;
   try { dirs = fs.readdirSync(featuresDir, { withFileTypes: true }).filter(e => e.isDirectory()); }
@@ -467,7 +472,9 @@ function ensureFeatureMeta(featuresDir, id, meta) {
     fs.mkdirSync(dir, { recursive: true });
     tmp = `${metaPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(meta, null, 2));
-    fs.renameSync(tmp, metaPath); // atomic commit; first rename wins (created/branches may differ on a race)
+    // POSIX can atomically replace; Windows throws if the destination appears in
+    // a race. Either way, the first committed writer wins and losers are ignored.
+    fs.renameSync(tmp, metaPath);
     tmp = null;
   } catch {
     // Never block resolution on a write failure.
@@ -489,17 +496,19 @@ function resolveFeatureId(config, baseDir, sessionId, readState, opts) {
   const umbrellaRoot = resolveUmbrellaRoot(config, baseDir);
   if (!umbrellaRoot) return null;
   const state = readState ? readState(sessionId) : null;
-  const readOnly = opts?.readOnly === true;
+  const readOnly = opts?.readOnly !== false;
 
   if (state && typeof state.featureId === 'string' && state.featureId) {
     const stateKey = `${umbrellaRoot}|${sessionId || ''}|${state.featureId}|state|${state?.activePlan || ''}|ro:${readOnly ? '1' : '0'}`;
-    if (_featureIdCache.has(stateKey)) return _featureIdCache.get(stateKey);
+    const cached = cacheGet(_featureIdCache, stateKey);
+    if (cached !== undefined) return cached;
     return cacheSet(_featureIdCache, stateKey, state.featureId);
   }
 
   const branch = getGitBranch(baseDir);
   const cacheKey = `${umbrellaRoot}|${sessionId || ''}|${state?.featureId || ''}|${branch || ''}|${state?.activePlan || ''}|ro:${readOnly ? '1' : '0'}`;
-  if (_featureIdCache.has(cacheKey)) return _featureIdCache.get(cacheKey);
+  const cached = cacheGet(_featureIdCache, cacheKey);
+  if (cached !== undefined) return cached;
 
   const featuresDir = path.join(umbrellaRoot, 'features');
   const remember = (id) => cacheSet(_featureIdCache, cacheKey, id);
