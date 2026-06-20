@@ -364,10 +364,20 @@ function resolvePlanPath(sessionId, config, readState, baseDir) {
   baseDir = baseDir || process.cwd();
   const resolution = config?.plan?.resolution || {};
   const order = resolution.order || ['session', 'branch'];
+  let stateLoaded = false;
+  let stateCache = null;
+  const getState = () => {
+    if (!stateLoaded) {
+      stateCache = readState ? readState(sessionId) : null;
+      stateLoaded = true;
+    }
+    return stateCache;
+  };
+  const readStateOnce = readState ? (() => getState()) : null;
 
   for (const step of order) {
     if (step === 'session') {
-      const state = readState ? readState(sessionId) : null;
+      const state = getState();
       if (state?.activePlan) {
         let resolved = state.activePlan;
         if (!path.isAbsolute(resolved) && state.sessionOrigin) {
@@ -385,7 +395,7 @@ function resolvePlanPath(sessionId, config, readState, baseDir) {
         // readOnly=true prevents ensureFeatureMeta writes during plan resolution.
         // Ensure readState stays a pure reader; if it called resolvePlanPath
         // lazily this chain could recurse.
-        const plansDir = getPlansPath(baseDir, config, sessionId, readState, { readOnly: true });
+        const plansDir = getPlansPath(baseDir, config, sessionId, readStateOnce, { readOnly: true });
         if (!fs.existsSync(plansDir)) continue;
         const dirs = fs.readdirSync(plansDir, { withFileTypes: true })
           .filter(e => e.isDirectory());
@@ -393,8 +403,14 @@ function resolvePlanPath(sessionId, config, readState, baseDir) {
         // On >1 candidate, REFUSE — the old `matches[last]` silently mis-converged.
         const exact = dirs.filter(e => planDirSlug(e.name) === slug);
         const substr = dirs.filter(e => e.name.includes(slug));
+        const ambiguous = exact.length > 1 || (exact.length === 0 && substr.length > 1);
+        if (ambiguous) {
+          if (process.env.VD_DEBUG_PATHS) {
+            process.stderr.write(`[paths] ambiguous branch plan resolution for slug "${slug}" in ${plansDir}\n`);
+          }
+          continue;
+        }
         const pick = exact.length === 1 ? exact[0]
-          : exact.length > 1 ? null
           : substr.length === 1 ? substr[0]
           : null;
         if (pick) return { path: path.join(plansDir, pick.name), resolvedBy: 'branch' };
@@ -443,15 +459,20 @@ const _featureFindCache = new Map();
 
 /** Scan features/<id>/feature.json once; return a unique ticket match, then unique slug match. */
 function findFeature(featuresDir, ticket, slug) {
+  let dirs;
+  try { dirs = fs.readdirSync(featuresDir, { withFileTypes: true }).filter(e => e.isDirectory()); }
+  catch { return null; }
   let stamp;
-  try { stamp = fs.statSync(featuresDir).mtimeMs; } catch { return null; }
+  try { stamp = fs.statSync(featuresDir).mtimeMs; } catch { stamp = 0; }
+  for (const d of dirs) {
+    try {
+      stamp = Math.max(stamp, fs.statSync(path.join(featuresDir, d.name, 'feature.json')).mtimeMs);
+    } catch { /* missing feature.json does not affect the metadata stamp */ }
+  }
   const cacheKey = `${featuresDir}|${stamp}|${ticket || ''}|${slug || ''}`;
   const cached = cacheGet(_featureFindCache, cacheKey);
   if (cached !== undefined) return cached;
 
-  let dirs;
-  try { dirs = fs.readdirSync(featuresDir, { withFileTypes: true }).filter(e => e.isDirectory()); }
-  catch { return null; }
   const ticketHits = [];
   const slugHits = [];
   for (const d of dirs) {

@@ -219,6 +219,8 @@ function loadConfig() {
       // If mainWorktree is null, no safe main root exists (for example, a
       // stray HOME repo). Keep the local root so sanitizeUmbrella preserves
       // the same guard.
+      // NOTE: that fallback makes artifacts worktree-local instead of shared;
+      // fixing the unsafe main root or enabling allowHomeRoot is required to share.
     }
     return buildResult(merged, gitRoot, umbrellaGitRoot);
   } catch {

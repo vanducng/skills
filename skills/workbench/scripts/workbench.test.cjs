@@ -11,10 +11,15 @@ const { execFileSync } = require('child_process');
 
 const WB = path.join(__dirname, 'workbench.cjs');
 const P = require(path.join(os.homedir(), '.claude', 'hooks', 'lib', 'paths.cjs'));
+const S = require(path.join(os.homedir(), '.claude', 'hooks', 'lib', 'state.cjs'));
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log('  ✓', n); } else { fail++; console.log('  ✗', n); } };
 const git = (cwd, ...a) => execFileSync('git', a, { cwd, stdio: ['ignore', 'ignore', 'ignore'] });
 const wb = (cwd, ...a) => { try { return execFileSync('node', [WB, ...a], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch (e) { return (e.stdout || '') + (e.stderr || ''); } };
+const wbEnv = (cwd, env, ...a) => {
+  try { return execFileSync('node', [WB, ...a], { cwd, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); }
+  catch (e) { return (e.stdout || '') + (e.stderr || ''); }
+};
 
 function repo(branch) {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'wbt-'));
@@ -65,6 +70,11 @@ d = repo('feat/ELT-9-gamma'); wb(d, 'new');
 const r = JSON.parse(wb(d, 'resolve', '--json'));
 ok('resolve --json feature', r.feature === 'elt-9-gamma');
 ok('resolve reports path', r.reports.endsWith(path.join('features', 'elt-9-gamma', 'reports')));
+wb(d, 'new', 'session-feature');
+const sid = `wbt-${process.pid}-${Date.now()}`;
+S.updateSessionState(sid, { featureId: 'session-feature' });
+const sr = JSON.parse(wbEnv(d, { VD_SESSION_ID: sid }, 'resolve', '--json'));
+ok('resolve honors session feature', sr.feature === 'session-feature');
 wb(d, 'reindex');
 ok('reindex writes INDEX.md', fs.existsSync(path.join(d, '.workbench', 'INDEX.md')));
 fs.mkdirSync(path.join(d, '.workbench', 'tmp'), { recursive: true });

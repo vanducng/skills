@@ -111,8 +111,12 @@ function cmdResolve({ flags }) {
   // In feature-first mode, resolve may create feature.json on first strong signal.
   // In type-first mode, these feature resolvers are not called.
   const writeOpts = { readOnly: false };
-  const id = ff ? P.resolveFeatureId(c.cfg, c.cwd, null, null, writeOpts) : null;
-  const root = ff ? P.resolveFeatureRoot(c.cfg, c.cwd, null, null, writeOpts) : c.umbrella;
+  const sid = process.env.VD_SESSION_ID || null;
+  const readState = sid ? state.readSessionState : null;
+  const id = ff ? P.resolveFeatureId(c.cfg, c.cwd, sid, readState, writeOpts) : null;
+  const root = ff
+    ? (id ? path.join(c.featuresDir, id) : path.join(c.globalDir, 'scratch'))
+    : c.umbrella;
   const out = {
     layout: c.cfg.paths?.layout || 'type-first',
     feature: id, featureRoot: ff ? root : null,
