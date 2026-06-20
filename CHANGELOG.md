@@ -2,6 +2,18 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.1.0](https://github.com/vanducng/skills/compare/v1.0.1...v1.1.0) (2026-06-20)
+
+
+### Features
+
+* **hooks:** route needs-you/turn-complete sounds through agent-notify ([d6d1905](https://github.com/vanducng/skills/commit/d6d19054038d2760f911af0fd3719281efe02785))
+
+
+### Bug Fixes
+
+* **hooks:** suppress per-turn Telegram turn-complete pings by default ([cf1d15a](https://github.com/vanducng/skills/commit/cf1d15af9245ef2ae808620bc8d7b060969db2f2))
+
 ## [1.0.1](https://github.com/vanducng/skills/compare/v1.0.0...v1.0.1) (2026-06-20)
 
 
