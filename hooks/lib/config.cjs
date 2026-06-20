@@ -42,6 +42,7 @@ const DEFAULT_CONFIG = {
     // Layout: 'type-first' (flat type siblings) | 'feature-first' (per-feature folders).
     // Default 'type-first' → byte-identical to legacy; opt in per-repo via .vd.json.
     layout: 'type-first',
+    allowHomeRoot: false,
     visuals: 'visuals',
     journals: 'journals',
     state: 'state'
@@ -193,14 +194,14 @@ function loadConfig() {
   const gitMetadata = gitRoot ? path.join(gitRoot, '.git') : null;
   let maybeLinkedWorktree = false;
   try {
-    maybeLinkedWorktree = gitMetadata && fs.existsSync(gitMetadata) && !fs.statSync(gitMetadata).isDirectory();
+    maybeLinkedWorktree = !!(gitMetadata && fs.existsSync(gitMetadata) && !fs.statSync(gitMetadata).isDirectory());
   } catch { /* ignore */ }
 
   try {
     let merged = layerConfigs({}, DEFAULT_CONFIG);
     if (globalCfg) merged = layerConfigs(merged, globalCfg);
     if (localCfg) merged = layerConfigs(merged, localCfg);
-    if (globalCfg || localCfg || maybeLinkedWorktree) {
+    if (maybeLinkedWorktree) {
       merged = applyMainWorktreeLayout(merged, getMainWorktreeConfig(process.cwd()));
     }
     return buildResult(merged, gitRoot);
@@ -222,6 +223,7 @@ function buildResult(merged, gitRoot) {
       plans:    rawPaths.plans    || DEFAULT_CONFIG.paths.plans,
       umbrella,
       layout:   rawPaths.layout === 'feature-first' ? 'feature-first' : 'type-first',
+      allowHomeRoot: rawPaths.allowHomeRoot === true,
       visuals:  rawPaths.visuals  || DEFAULT_CONFIG.paths.visuals,
       journals: rawPaths.journals || DEFAULT_CONFIG.paths.journals,
       state:    rawPaths.state    || DEFAULT_CONFIG.paths.state

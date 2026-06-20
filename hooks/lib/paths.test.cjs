@@ -13,7 +13,7 @@ function realpath(p) {
   try { return fs.realpathSync(p); } catch { return path.resolve(p); }
 }
 function git(cwd, ...args) {
-  execFileSync('git', args, { cwd, stdio: ['ignore', 'ignore', 'ignore'] });
+  execFileSync('git', args, { cwd, stdio: ['ignore', 'ignore', 'inherit'] });
 }
 
 // Stray-ancestor guard: a coincidental repo rooted at $HOME must not hijack a
@@ -34,7 +34,7 @@ test('umbrella does not hijack to an ancestor repo rooted at $HOME', () => {
     // os.homedir() reads HOME/USERPROFILE; use a child so this process is untouched.
     const script =
       "const p=require(process.env.PCJS);const c=require(process.env.CCJS);" +
-      "process.stdout.write(JSON.stringify({root:p.resolveUmbrellaRoot({paths:{umbrella:'.workbench'}},process.env.BASE),main:c.getMainWorktreeConfig(process.env.BASE)}));";
+      "process.stdout.write(JSON.stringify({root:p.resolveUmbrellaRoot({paths:{umbrella:'.workbench'}},process.env.BASE),allowed:p.resolveUmbrellaRoot({paths:{umbrella:'.workbench',allowHomeRoot:true}},process.env.BASE),main:c.getMainWorktreeConfig(process.env.BASE)}));";
     const out = JSON.parse(execFileSync(process.execPath, ['-e', script], {
       env: {
         ...process.env,
@@ -52,6 +52,8 @@ test('umbrella does not hijack to an ancestor repo rooted at $HOME', () => {
     assert.strictEqual(realpath(out.root), realpath(path.join(project, '.workbench')),
       'umbrella must anchor to the project dir');
     assert.strictEqual(out.main, null, 'main worktree config must ignore a stray $HOME repo');
+    assert.strictEqual(realpath(path.dirname(out.allowed)), realpath(fakeHome),
+      'allowHomeRoot keeps the home repo anchor');
   } finally {
     fs.rmSync(fakeHome, { recursive: true, force: true });
   }
@@ -89,6 +91,33 @@ test('feature-first getters use session feature state when provided', () => {
       paths.getReportsPath(null, null, cfg.plan, cfg.paths, repo, cfg, 's1', readState),
       path.join(featureRoot, 'reports')
     );
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('branch plan resolution scans the session feature plans dir', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-branch-plan-'));
+  try {
+    git(repo, 'init', '-b', 'main');
+    git(repo, 'checkout', '-b', 'feat/demo-work');
+    const cfg = {
+      _gitRoot: repo,
+      plan: {
+        reportsDir: 'reports',
+        resolution: {
+          order: ['branch'],
+          branchPattern: '(?:feat|fix|chore|refactor|docs)/(?:[^/]+/)?(.+)'
+        }
+      },
+      paths: { umbrella: '.workbench', layout: 'feature-first', plans: 'plans' }
+    };
+    const featureRoot = path.join(realpath(repo), '.workbench', 'features', 'demo-feature');
+    const planDir = path.join(featureRoot, 'plans', '260620-1200-demo-work');
+    fs.mkdirSync(planDir, { recursive: true });
+
+    const resolved = paths.resolvePlanPath('s1', cfg, () => ({ featureId: 'demo-feature' }), repo);
+    assert.deepStrictEqual(resolved, { path: planDir, resolvedBy: 'branch' });
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }

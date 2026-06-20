@@ -107,7 +107,8 @@ function resolveUmbrellaRoot(config, baseDir) {
   // working dir is a real subdir below it, anchor to the working dir so artifacts
   // stay with the project (matches docs, which are always baseDir-anchored).
   const home = os.homedir();
-  if (home && baseDir && realpathSafe(gitRoot) === realpathSafe(home)
+  if (home && baseDir && !config?.paths?.allowHomeRoot
+      && realpathSafe(gitRoot) === realpathSafe(home)
       && realpathSafe(baseDir) !== realpathSafe(home)) {
     gitRoot = baseDir;
   }
@@ -343,7 +344,7 @@ function resolvePlanPath(sessionId, config, readState, baseDir) {
         if (!slug) continue;
         // Anchor to the umbrella/main-worktree plans dir — the old cwd-relative
         // `plansDir` silently no-op'd inside linked worktrees.
-        const plansDir = getPlansPath(baseDir, config);
+        const plansDir = getPlansPath(baseDir, config, sessionId, readState);
         if (!fs.existsSync(plansDir)) continue;
         const dirs = fs.readdirSync(plansDir, { withFileTypes: true })
           .filter(e => e.isDirectory());
@@ -374,7 +375,8 @@ function extractTaskListId(resolved) {
 function extractTicketFromBranch(branch, prefixes) {
   if (!branch) return null;
   const list = (Array.isArray(prefixes) && prefixes.length) ? prefixes : ['ELT', 'GH', 'PROJ'];
-  const re = new RegExp(`\\b(${list.join('|')})-?(\\d+)\\b`, 'i');
+  const escapeRe = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`\\b(${list.map(escapeRe).join('|')})-?(\\d+)\\b`, 'i');
   const m = branch.match(re);
   return m ? `${m[1].toUpperCase()}-${m[2]}` : null;
 }
@@ -414,13 +416,13 @@ function ensureFeatureMeta(featuresDir, id, meta) {
   if (fs.existsSync(metaPath)) return;
   try {
     fs.mkdirSync(dir, { recursive: true });
-    const tmp = `${metaPath}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+    const tmp = `${metaPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(meta, null, 2));
     fs.renameSync(tmp, metaPath); // atomic commit; first rename wins (created/branches may differ on a race)
   } catch { /* never block resolution on a write failure */ }
 }
 
-// ponytail: single-invocation cache. If hooks become long-lived, add TTL or export clearFeatureIdCache().
+// ponytail: per-process cache, keyed by session and branch. Add TTL if hooks become long-lived.
 const _featureIdCache = new Map();
 
 /**
@@ -432,18 +434,18 @@ function resolveFeatureId(config, baseDir, sessionId, readState) {
   baseDir = baseDir || process.cwd();
   const umbrellaRoot = resolveUmbrellaRoot(config, baseDir);
   if (!umbrellaRoot) return null;
-  const cacheKey = `${umbrellaRoot}|${sessionId || ''}`;
+  const state = readState ? readState(sessionId) : null;
+  const branch = getGitBranch(baseDir);
+  const cacheKey = `${umbrellaRoot}|${sessionId || ''}|${state?.featureId || ''}|${branch || ''}|${state?.activePlan || ''}`;
   if (_featureIdCache.has(cacheKey)) return _featureIdCache.get(cacheKey);
 
   const featuresDir = path.join(umbrellaRoot, 'features');
   const remember = (id) => { _featureIdCache.set(cacheKey, id); return id; };
 
   // 1. explicit per-session override (workbench switch)
-  const state = readState ? readState(sessionId) : null;
   if (state && typeof state.featureId === 'string' && state.featureId) return remember(state.featureId);
 
   // branch signals
-  const branch = getGitBranch(baseDir);
   const ticket = extractTicketFromBranch(branch, config?.plan?.ticketPrefixes);
   const slug = slugFromBranch(branch, config?.plan?.resolution?.branchPattern);
 
