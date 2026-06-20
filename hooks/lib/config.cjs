@@ -12,12 +12,15 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
+const { getMainWorktreeRoot } = require('./paths.cjs');
 
 const DEFAULT_CONFIG = {
+  schemaVersion: 2,
   plan: {
     namingFormat: '{date}-{issue}-{slug}',
     dateFormat: 'YYMMDD-HHmm',
     issuePrefix: null,
+    ticketPrefixes: ['ELT', 'GH', 'PROJ'],
     reportsDir: 'reports',
     resolution: {
       order: ['session', 'branch'],
@@ -36,6 +39,9 @@ const DEFAULT_CONFIG = {
     // Umbrella: null = legacy CWD-anchored layout.
     // Set to a relative name (e.g. ".workbench") in <git-root>/.vd.json to opt in.
     umbrella: null,
+    // Layout: 'type-first' (flat type siblings) | 'feature-first' (per-feature folders).
+    // Default 'type-first' → byte-identical to legacy; opt in per-repo via .vd.json.
+    layout: 'type-first',
     visuals: 'visuals',
     journals: 'journals',
     state: 'state'
@@ -146,7 +152,28 @@ function assertMigrated(vdPath, ckPath) {
 }
 
 /**
- * Load config: DEFAULT ← global (~/.claude/.vd.json) ← project (<git-root>/.vd.json).
+ * Read the MAIN worktree's .vd.json (or null). Layout-determining keys (umbrella,
+ * layout) come from here so linked worktrees can't disagree about the artifact layout.
+ */
+function getMainWorktreeConfig(cwd) {
+  const mainRoot = getMainWorktreeRoot(cwd);
+  if (!mainRoot) return null;
+  return readJson(path.join(mainRoot, '.vd.json'));
+}
+
+/** Overlay the repo-wide layout keys (umbrella, layout) from the main worktree config. */
+function applyMainWorktreeLayout(merged, mainCfg) {
+  if (!mainCfg || !mainCfg.paths) return merged;
+  const out = Object.assign({}, merged);
+  out.paths = Object.assign({}, merged.paths);
+  if (typeof mainCfg.paths.umbrella === 'string') out.paths.umbrella = mainCfg.paths.umbrella;
+  if (typeof mainCfg.paths.layout === 'string') out.paths.layout = mainCfg.paths.layout;
+  return out;
+}
+
+/**
+ * Load config: DEFAULT ← global (~/.claude/.vd.json) ← project (<git-root>/.vd.json),
+ * then overlay layout+umbrella from the MAIN worktree (repo-wide artifact-layout keys).
  * No .ck.json fallback — a lingering legacy file raises a migration error.
  * Falls back to defaults on any error.
  */
@@ -162,12 +189,11 @@ function loadConfig() {
   const globalCfg = readJson(globalPath);
   const localCfg = localPath ? readJson(localPath) : null;
 
-  if (!globalCfg && !localCfg) return buildResult(layerConfigs({}, DEFAULT_CONFIG), gitRoot);
-
   try {
     let merged = layerConfigs({}, DEFAULT_CONFIG);
     if (globalCfg) merged = layerConfigs(merged, globalCfg);
     if (localCfg) merged = layerConfigs(merged, localCfg);
+    merged = applyMainWorktreeLayout(merged, getMainWorktreeConfig(process.cwd()));
     return buildResult(merged, gitRoot);
   } catch {
     return buildResult(layerConfigs({}, DEFAULT_CONFIG), gitRoot);
@@ -180,11 +206,13 @@ function buildResult(merged, gitRoot) {
   const umbrella = sanitizeUmbrella(rawPaths.umbrella, gitRoot || null);
 
   return {
+    schemaVersion: merged.schemaVersion ?? DEFAULT_CONFIG.schemaVersion,
     plan: merged.plan || DEFAULT_CONFIG.plan,
     paths: {
       docs:     rawPaths.docs     || DEFAULT_CONFIG.paths.docs,
       plans:    rawPaths.plans    || DEFAULT_CONFIG.paths.plans,
       umbrella,
+      layout:   rawPaths.layout === 'feature-first' ? 'feature-first' : 'type-first',
       visuals:  rawPaths.visuals  || DEFAULT_CONFIG.paths.visuals,
       journals: rawPaths.journals || DEFAULT_CONFIG.paths.journals,
       state:    rawPaths.state    || DEFAULT_CONFIG.paths.state
@@ -201,4 +229,4 @@ function buildResult(merged, gitRoot) {
   };
 }
 
-module.exports = { DEFAULT_CONFIG, layerConfigs, loadConfig, getGitRoot, sanitizeUmbrella, assertMigrated };
+module.exports = { DEFAULT_CONFIG, layerConfigs, loadConfig, getGitRoot, sanitizeUmbrella, assertMigrated, getMainWorktreeConfig, applyMainWorktreeLayout };

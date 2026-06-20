@@ -1,0 +1,57 @@
+'use strict';
+// Run: node --test hooks/lib/paths.test.cjs
+const { test } = require('node:test');
+const assert = require('node:assert');
+const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const paths = require('./paths.cjs');
+
+function realpath(p) {
+  try { return fs.realpathSync(p); } catch { return path.resolve(p); }
+}
+function git(cwd, ...args) {
+  execFileSync('git', args, { cwd, stdio: ['ignore', 'ignore', 'ignore'] });
+}
+
+// Stray-ancestor guard: a coincidental repo rooted at $HOME must not hijack a
+// nested project's umbrella. The project (a child dir below $HOME, with no git of
+// its own) must anchor .workbench to itself, not to $HOME.
+test('umbrella does not hijack to an ancestor repo rooted at $HOME', () => {
+  const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-home-'));
+  git(fakeHome, 'init', '-b', 'main');
+  git(fakeHome, 'config', 'user.email', 't@t.t');
+  git(fakeHome, 'config', 'user.name', 't');
+  git(fakeHome, 'commit', '--allow-empty', '-m', 'stray home repo');
+
+  const project = path.join(fakeHome, 'git', 'personal', 'proj');
+  fs.mkdirSync(project, { recursive: true });
+
+  // os.homedir() reads $HOME on POSIX; resolve the umbrella in a child process so
+  // we can point HOME at the stray repo without mutating this process.
+  const script =
+    "const p=require(process.env.PCJS);" +
+    "process.stdout.write(p.resolveUmbrellaRoot({paths:{umbrella:'.workbench'}}, process.env.BASE)||'NULL');";
+  const out = execFileSync(process.execPath, ['-e', script], {
+    env: { ...process.env, PCJS: require.resolve('./paths.cjs'), BASE: project, HOME: fakeHome },
+    encoding: 'utf8',
+  }).trim();
+
+  assert.notStrictEqual(realpath(out), realpath(path.join(fakeHome, '.workbench')),
+    'umbrella must NOT anchor to $HOME');
+  assert.strictEqual(realpath(out), realpath(path.join(project, '.workbench')),
+    'umbrella must anchor to the project dir');
+});
+
+// Regression: a normal repo (git root != $HOME) is unaffected by the guard.
+test('normal repo anchors umbrella to its own git root', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-repo-'));
+  git(repo, 'init', '-b', 'main');
+  const got = paths.resolveUmbrellaRoot({ paths: { umbrella: '.workbench' }, _gitRoot: repo }, repo);
+  // Compare via the existing parent dir (git realpaths /var → /private/var; the
+  // not-yet-created .workbench leaf can't be symlink-normalized directly).
+  assert.strictEqual(path.basename(got), '.workbench');
+  assert.strictEqual(realpath(path.dirname(got)), realpath(repo));
+});
