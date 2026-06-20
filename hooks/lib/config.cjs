@@ -12,12 +12,14 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
+const { getMainWorktreeRoot, isHomeDir } = require('./paths.cjs');
 
 const DEFAULT_CONFIG = {
   plan: {
     namingFormat: '{date}-{issue}-{slug}',
     dateFormat: 'YYMMDD-HHmm',
     issuePrefix: null,
+    ticketPrefixes: ['ELT', 'GH', 'PROJ'],
     reportsDir: 'reports',
     resolution: {
       order: ['session', 'branch'],
@@ -36,6 +38,10 @@ const DEFAULT_CONFIG = {
     // Umbrella: null = legacy CWD-anchored layout.
     // Set to a relative name (e.g. ".workbench") in <git-root>/.vd.json to opt in.
     umbrella: null,
+    // Layout: 'type-first' (flat type siblings) | 'feature-first' (per-feature folders).
+    // Default 'type-first' → byte-identical to legacy; opt in per-repo via .vd.json.
+    layout: 'type-first',
+    allowHomeRoot: false,
     visuals: 'visuals',
     journals: 'journals',
     state: 'state'
@@ -146,7 +152,48 @@ function assertMigrated(vdPath, ckPath) {
 }
 
 /**
- * Load config: DEFAULT ← global (~/.claude/.vd.json) ← project (<git-root>/.vd.json).
+ * Read the MAIN worktree's .vd.json (or null). Layout-determining keys come
+ * from here so linked worktrees can't disagree about artifact resolution.
+ */
+function getMainWorktreeConfigDetails(cwd) {
+  const mainRoot = getMainWorktreeRoot(cwd);
+  if (!mainRoot) return null;
+  const config = readJson(path.join(mainRoot, '.vd.json'));
+  if (isHomeDir(mainRoot) && config?.paths?.allowHomeRoot !== true) return null;
+  return { root: mainRoot, config };
+}
+
+/** Public compatibility helper: returns only the main worktree .vd.json payload. */
+function getMainWorktreeConfig(cwd) {
+  const details = getMainWorktreeConfigDetails(cwd);
+  return details ? details.config : null;
+}
+
+/** Overlay repo-wide layout/resolution keys from the main worktree config. */
+function applyMainWorktreeLayout(merged, mainCfg) {
+  if (!mainCfg) return merged;
+  const out = Object.assign({}, merged);
+  if (mainCfg.paths) {
+    out.paths = Object.assign({}, merged.paths);
+    if (typeof mainCfg.paths.umbrella === 'string') out.paths.umbrella = mainCfg.paths.umbrella;
+    if (typeof mainCfg.paths.layout === 'string') out.paths.layout = mainCfg.paths.layout;
+    if (typeof mainCfg.paths.allowHomeRoot === 'boolean') out.paths.allowHomeRoot = mainCfg.paths.allowHomeRoot;
+  }
+  if (mainCfg.plan) {
+    out.plan = Object.assign({}, merged.plan);
+    if (Array.isArray(mainCfg.plan.ticketPrefixes)) {
+      out.plan.ticketPrefixes = mainCfg.plan.ticketPrefixes.slice();
+    }
+    if (mainCfg.plan.resolution && typeof mainCfg.plan.resolution === 'object') {
+      out.plan.resolution = layerConfigs(merged.plan?.resolution || {}, mainCfg.plan.resolution);
+    }
+  }
+  return out;
+}
+
+/**
+ * Load config: DEFAULT ← global (~/.claude/.vd.json) ← project (<git-root>/.vd.json),
+ * then overlay repo-wide layout/resolution keys from the MAIN worktree.
  * No .ck.json fallback — a lingering legacy file raises a migration error.
  * Falls back to defaults on any error.
  */
@@ -161,23 +208,43 @@ function loadConfig() {
 
   const globalCfg = readJson(globalPath);
   const localCfg = localPath ? readJson(localPath) : null;
-
-  if (!globalCfg && !localCfg) return buildResult(layerConfigs({}, DEFAULT_CONFIG), gitRoot);
+  const gitMetadata = gitRoot ? path.join(gitRoot, '.git') : null;
+  let gitDirIsFile = false;
+  try {
+    gitDirIsFile = !!(gitMetadata && fs.existsSync(gitMetadata) && !fs.statSync(gitMetadata).isDirectory());
+  } catch { /* ignore */ }
 
   try {
     let merged = layerConfigs({}, DEFAULT_CONFIG);
+    let umbrellaGitRoot = gitRoot;
     if (globalCfg) merged = layerConfigs(merged, globalCfg);
     if (localCfg) merged = layerConfigs(merged, localCfg);
-    return buildResult(merged, gitRoot);
+    // Keep this merge path even when global/local configs are absent: linked
+    // worktrees still need the main checkout's layout overlay.
+    if (gitDirIsFile) {
+      const mainWorktree = getMainWorktreeConfigDetails(process.cwd());
+      merged = applyMainWorktreeLayout(merged, mainWorktree ? mainWorktree.config : null);
+      if (mainWorktree) {
+        umbrellaGitRoot = mainWorktree.root;
+      }
+      // If mainWorktree is null, no safe main root exists (for example, a
+      // stray HOME repo). Keep the local root so sanitizeUmbrella preserves
+      // the same guard.
+      // NOTE: that fallback makes artifacts worktree-local instead of shared;
+      // fixing the unsafe main root or enabling allowHomeRoot is required to share.
+    }
+    return buildResult(merged, gitRoot, umbrellaGitRoot);
   } catch {
-    return buildResult(layerConfigs({}, DEFAULT_CONFIG), gitRoot);
+    // DEFAULT_CONFIG has umbrella: null, so umbrellaGitRoot is irrelevant here.
+    // Keep gitRoot for both to avoid another worktree lookup on the error path.
+    return buildResult(layerConfigs({}, DEFAULT_CONFIG), gitRoot, gitRoot);
   }
 }
 
-function buildResult(merged, gitRoot) {
+function buildResult(merged, gitRoot, umbrellaGitRoot) {
   const rawPaths = merged.paths || DEFAULT_CONFIG.paths;
   // Sanitize umbrella: coerce to null if invalid; needs gitRoot to check confinement
-  const umbrella = sanitizeUmbrella(rawPaths.umbrella, gitRoot || null);
+  const umbrella = sanitizeUmbrella(rawPaths.umbrella, umbrellaGitRoot || gitRoot || null);
 
   return {
     plan: merged.plan || DEFAULT_CONFIG.plan,
@@ -185,6 +252,8 @@ function buildResult(merged, gitRoot) {
       docs:     rawPaths.docs     || DEFAULT_CONFIG.paths.docs,
       plans:    rawPaths.plans    || DEFAULT_CONFIG.paths.plans,
       umbrella,
+      layout:   rawPaths.layout === 'feature-first' ? 'feature-first' : 'type-first',
+      allowHomeRoot: rawPaths.allowHomeRoot === true,
       visuals:  rawPaths.visuals  || DEFAULT_CONFIG.paths.visuals,
       journals: rawPaths.journals || DEFAULT_CONFIG.paths.journals,
       state:    rawPaths.state    || DEFAULT_CONFIG.paths.state
@@ -201,4 +270,4 @@ function buildResult(merged, gitRoot) {
   };
 }
 
-module.exports = { DEFAULT_CONFIG, layerConfigs, loadConfig, getGitRoot, sanitizeUmbrella, assertMigrated };
+module.exports = { DEFAULT_CONFIG, layerConfigs, loadConfig, getGitRoot, sanitizeUmbrella, assertMigrated, getMainWorktreeConfig, applyMainWorktreeLayout };

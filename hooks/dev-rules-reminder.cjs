@@ -25,8 +25,10 @@ try {
     getStatePath,
     resolveNamingPattern,
     resolvePlanPath,
+    resolveUmbrellaRoot,
     getGitBranch,
-    resolveSkillsVenv
+    resolveSkillsVenv,
+    isGlobalScratchPath
   } = require('./lib/paths.cjs');
   const { readSessionState } = require('./lib/state.cjs');
 
@@ -42,15 +44,26 @@ try {
     const gitBranch = getGitBranch(baseDir);
     const namePattern = resolveNamingPattern(config.plan, gitBranch);
 
-    const resolved = resolvePlanPath(sessionId, config, readSessionState);
-    const reportsPath = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config);
-    const plansPath = getPlansPath(baseDir, config);
+    const pathResolveOpts = { readOnly: true };
+    const stateCache = new Map();
+    const readSessionStateOnce = (sid) => {
+      const key = sid || '';
+      if (!stateCache.has(key)) stateCache.set(key, readSessionState(sid));
+      return stateCache.get(key);
+    };
+
+    const resolved = resolvePlanPath(sessionId, config, readSessionStateOnce, baseDir);
+    const reportsPath = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts);
+    const plansPath = getPlansPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts);
     const docsPath = getDocsPath(baseDir, config);
 
     const umbrellaVal = config.paths?.umbrella || null;
-    const visualsPath  = umbrellaVal ? getVisualsPath(baseDir, config)  : null;
-    const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config) : null;
-    const statePath    = umbrellaVal ? getStatePath(baseDir, config)    : null;
+    const visualsPath  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts)  : null;
+    const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts) : null;
+    const statePath    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts)    : null;
+    const umbrellaRoot = umbrellaVal ? resolveUmbrellaRoot(config, baseDir) : null;
+    const scratchFeature = umbrellaVal && !!umbrellaRoot && config.paths?.layout === 'feature-first'
+      && isGlobalScratchPath(reportsPath, baseDir, config);
 
     const skillsVenv = resolveSkillsVenv(baseDir);
 
@@ -59,6 +72,7 @@ try {
     lines.push('## Paths');
     if (umbrellaVal) {
       lines.push(`Reports: ${reportsPath}/ | Plans: ${plansPath}/ | Docs: ${docsPath}/ | Visuals: ${visualsPath}/ | Journals: ${journalsPath}/ | State: ${statePath}/`);
+      if (scratchFeature) lines.push('- Feature: none; artifacts use _global/scratch until `workbench new` or `workbench switch` selects a feature.');
     } else {
       lines.push(`Reports: ${reportsPath}/ | Plans: ${plansPath}/ | Docs: ${docsPath}/`);
     }
@@ -74,6 +88,7 @@ try {
     lines.push('## Rules');
     lines.push(`- Reports → ${reportsPath}`);
     lines.push('- YAGNI / KISS / DRY');
+    lines.push('- Before PR merge/next ship step: fetch review comments, validate, fix valid ones, reply/resolve, re-check');
     lines.push('- Concise, list unresolved Qs at end');
     if (skillsVenv) {
       lines.push(`- Python scripts in .claude/skills/: Use \`${skillsVenv}\``);

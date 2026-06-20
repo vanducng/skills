@@ -22,7 +22,9 @@ try {
     getStatePath,
     resolveNamingPattern,
     resolvePlanPath,
+    resolveUmbrellaRoot,
     extractTaskListId,
+    isGlobalScratchPath,
     getGitBranch,
     getGitRoot
   } = require('./lib/paths.cjs');
@@ -119,7 +121,14 @@ try {
     const config = loadConfig();
 
     // Resolve plan (session lookup needs the state reader injected)
-    const resolved = resolvePlanPath(sessionId, config, readSessionState);
+    const stateCache = new Map();
+    const readSessionStateOnce = (sid) => {
+      const key = sid || '';
+      if (!stateCache.has(key)) stateCache.set(key, readSessionState(sid));
+      return stateCache.get(key);
+    };
+
+    const resolved = resolvePlanPath(sessionId, config, readSessionStateOnce, baseDir);
 
     // Persist session state
     if (sessionId) {
@@ -140,15 +149,20 @@ try {
     // Pass baseDir so getReportsPath's isAbsolute guard handles absolute
     // activePlan paths correctly (avoids double-anchoring).
     // Append trailing '/' explicitly to match golden (contract §3.5).
-    // Pass full config so getReportsPath can resolve umbrella root when active.
-    const reportsPathAbs = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config) + '/';
-    const plansPathAbs = getPlansPath(baseDir, config);
+    // Pass full config plus session state so umbrella and feature-first layouts
+    // resolve through the same path logic as the producer skills.
+    const pathResolveOpts = { readOnly: true };
+    const reportsPathAbs = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts) + '/';
+    const plansPathAbs = getPlansPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts);
     const docsPathAbs = getDocsPath(baseDir, config);
     // Umbrella siblings — only computed when umbrella is active (additive, zero parity risk)
     const umbrellaVal = config.paths?.umbrella || null;
-    const visualsPathAbs  = umbrellaVal ? getVisualsPath(baseDir, config)  : null;
-    const journalsPathAbs = umbrellaVal ? getJournalsPath(baseDir, config) : null;
-    const statePathAbs    = umbrellaVal ? getStatePath(baseDir, config)    : null;
+    const visualsPathAbs  = umbrellaVal ? getVisualsPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts)  : null;
+    const journalsPathAbs = umbrellaVal ? getJournalsPath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts) : null;
+    const statePathAbs    = umbrellaVal ? getStatePath(baseDir, config, sessionId, readSessionStateOnce, pathResolveOpts)    : null;
+    const umbrellaRoot = umbrellaVal ? resolveUmbrellaRoot(config, baseDir) : null;
+    const featureFirst = umbrellaVal && !!umbrellaRoot && config.paths?.layout === 'feature-first';
+    const scratchFeature = featureFirst && isGlobalScratchPath(reportsPathAbs, baseDir, config);
 
     const taskListId = extractTaskListId(resolved);
 
@@ -235,6 +249,7 @@ try {
     if (packageManager) parts.push(`PM: ${packageManager}`);
     parts.push(`Plan naming: ${config.plan.namingFormat}`);
     if (planPart) parts.push(planPart);
+    if (scratchFeature) parts.push('Feature: _global/scratch');
     process.stdout.write(parts.join(' | ') + '\n');
 
     process.exit(0);
