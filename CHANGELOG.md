@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.4.0](https://github.com/vanducng/skills/compare/v1.3.2...v1.4.0) (2026-06-21)
+
+
+### Features
+
+* add herd-worktree skill (Laravel + Herd Pro worktrees) ([3f862b9](https://github.com/vanducng/skills/commit/3f862b90f43c9e3d12340bb78456d5bf8266f3b4))
+
 ## [1.3.2](https://github.com/vanducng/skills/compare/v1.3.1...v1.3.2) (2026-06-21)
 
 
