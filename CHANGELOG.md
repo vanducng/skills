@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.2.0](https://github.com/vanducng/skills/compare/v1.1.1...v1.2.0) (2026-06-21)
+
+
+### Features
+
+* add graphify knowledge-graph skill ([f3eb6b5](https://github.com/vanducng/skills/commit/f3eb6b539808aa7b2fb9978f0a0191d498532d72))
+
 ## [1.1.1](https://github.com/vanducng/skills/compare/v1.1.0...v1.1.1) (2026-06-20)
 
 
