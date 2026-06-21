@@ -32,11 +32,20 @@ try {
   } = require('./lib/paths.cjs');
   const { readSessionState } = require('./lib/state.cjs');
 
-  async function main() {
-    const raw = fs.readFileSync(0, 'utf-8').trim();
-    if (!raw) { process.exit(0); }
+  function readPayload() {
+    let raw = '';
+    if (!process.stdin.isTTY) raw = fs.readFileSync(0, 'utf-8').trim();
+    if (!raw) {
+      raw = process.argv.slice(2).reverse().find(arg => arg.trim().startsWith('{')) || '';
+    }
+    if (!raw) return null;
+    return JSON.parse(raw);
+  }
 
-    const payload = JSON.parse(raw);
+  async function main() {
+    const payload = readPayload();
+    if (!payload) { process.exit(0); }
+
     const sessionId = payload.session_id || process.env.VD_SESSION_ID || null;
     const baseDir = (payload.cwd && payload.cwd.trim()) ? payload.cwd.trim() : process.cwd();
 
@@ -97,7 +106,7 @@ try {
 
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: {
-        hookEventName: 'UserPromptSubmit',
+        hookEventName: payload.hook_event_name || payload.hookEventName || 'UserPromptSubmit',
         additionalContext: lines.join('\n')
       }
     }) + '\n');
