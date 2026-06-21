@@ -113,7 +113,7 @@ secondary context, but never hand off only a basename.
 
 ## Hard rules
 
-1. **Never write outside `./docs/` or `./README.md`.** Plans, journals, and reports have their own homes.
+1. **Never write outside `./docs/` or `./README.md`, unless the user explicitly names a project guidance file such as `AGENTS.md` or `CLAUDE.md`.** Plans, journals, and reports have their own homes.
 2. **Never invent.** If the scout digest doesn't support a claim, the docs don't make it.
 3. **Never run `init` on a populated `./docs/`.** `update` is the right verb — `init` is for empty trees.
 4. **`--dry-run` before any big sync.** Especially on repos you don't own well.
