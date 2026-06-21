@@ -26,6 +26,11 @@ runtime = "node"
 event = "UserPromptSubmit"
 
 [[hook]]
+file = "dev-rules-reminder.cjs"
+runtime = "node"
+event = "codex.UserPromptSubmit"
+
+[[hook]]
 file = "scout-block.cjs"
 runtime = "node"
 event = "PreToolUse"
