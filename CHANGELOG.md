@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.3.0](https://github.com/vanducng/skills/compare/v1.2.0...v1.3.0) (2026-06-21)
+
+
+### Features
+
+* **hooks:** registered Codex context hook ([#221](https://github.com/vanducng/skills/issues/221)) ([a868cfe](https://github.com/vanducng/skills/commit/a868cfe693067925bb18c68bd3f0cb586d63584e))
+
 ## [1.2.0](https://github.com/vanducng/skills/compare/v1.1.1...v1.2.0) (2026-06-21)
 
 
