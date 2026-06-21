@@ -11,13 +11,15 @@ metadata:
 # vd:diagram
 
 Turn natural-language descriptions into reviewable diagram images and version-controlled diagram artifacts. Two render paths:
-- **PNG** (default): refines the prompt with `claude-haiku-4-5`, then generates the image. Default image provider is **codex** (`gpt-image-2` via your ChatGPT subscription — cost-optimized, no per-image API spend), with automatic fallback to OpenRouter `gpt-5.4-image-2` when codex is unavailable. Force the API path with `--provider openrouter`.
+- **PNG** (default): refines the prompt with `claude-haiku-4-5`, then generates the image. Default image provider is **codex** (`gpt-image-2` via your ChatGPT subscription — cost-optimized, no per-image API spend), with automatic fallback to OpenRouter `gpt-5.4-image-2` when codex is unavailable. Force the API path with `--provider openrouter`. The current CLI still requires `OPEN_ROUTER_KEY` / `OPENROUTER_API_KEY` before provider selection because prompt refinement uses OpenRouter.
 - **SVG** (`--format svg`): the LLM emits the SVG markup directly. Cheaper, crisper labels, hand-editable.
 
-Use `--versioned` when the diagram belongs in docs, ADRs, specs, or PR review. It writes a stable folder under `docs/diagrams/<slug>/` with:
+Use `--versioned` only when the diagram source, variants, and manifest are themselves review artifacts for an ADR/spec/PR. It writes a stable folder under `docs/diagrams/<slug>/` with:
 - `diagram.spec.yaml` — reviewable source intent (type, preset, engine, description, latest variant)
 - `manifest.json` — deterministic metadata for automation
 - `v1.svg`, `v2.svg`, ... or `v1.png`, `v2.png`, ... — rendered variants
+
+For a diagram that merely illustrates a docs page, keep the generation session in the injected `Visuals:` path, copy the final rendered image into the docs' local assets folder (for example `docs/design/assets/<slug>.svg`), and link that one asset from Markdown. Do not create `docs/diagrams/` just because a docs page references an image.
 
 ## Quick Start
 
@@ -171,6 +173,7 @@ Get a key at <https://openrouter.ai/settings/keys>.
 | Workflow/process maps | `--type workflow --format svg --versioned` | Swimlane/stage-friendly layout with decision and handoff conventions. |
 | ERD/database design (static, diffable) | `--type er --format svg --versioned` | Entities and relationships stay hand-editable and diffable. |
 | Explorable/living DB docs (filter, search, per-table docs) | `er_html.py --schema … --meta …` | Self-contained interactive HTML ERD; no LLM/API key. |
+| Explanatory image embedded in docs | scratch output, then copy final asset to `docs/**/assets/` | Keeps specs/manifests out of project docs when only the image matters. |
 | Presentation or executive visuals | `--format png --preset pastel` | Higher visual richness; keep as scratch unless the image belongs in docs. |
 | Fast iteration on a draft | default scratch output or `--regen` | Avoids polluting docs until the shape stabilizes. |
 
@@ -199,7 +202,7 @@ All presets share the same iconography, line weights, density limits, and label-
 
 ## Output location
 
-Scratch (non-versioned) output: write to the injected `Visuals:` path. Each session gets a `<YYYYMMDD-HHMM>-<slug>/` subdir.
+Scratch (non-versioned) output: write to the injected `Visuals:` path. Each session gets a `<YYYYMMDD-HHMM>-<slug>/` subdir. Treat this as the home for brainstorming, reports, and review iterations; promote only the final rendered image to a docs assets folder when a docs page needs a visual.
 
 - Outside a git repo → `~/Documents/llm-diagrams/<cwd-basename>-<YYYYMMDD-HHMM>-<slug>/`
 - With `--versioned` → `<git-root>/docs/diagrams/<slug>/` (always; versioned diagrams stay in `docs/`)
@@ -260,6 +263,7 @@ Edit these once and every future diagram inherits the change. Keep type refs ≤
 
 - PNG text labels can render garbled when there are >12 elements with long names. Workarounds: shorten labels, switch to `--format svg`.
 - SVG layouts overlap on >20-element diagrams (LLM spatial reasoning weakness). Workaround: split into two diagrams, or use PNG and re-render with a shorter description.
+- `--provider codex` is not fully keyless in the current CLI: startup still fails without `OPEN_ROUTER_KEY` / `OPENROUTER_API_KEY` before the Codex provider branch runs.
 - `--regen` operates on the **latest** session under the current `.diagrams/` dir. Running it from a different repo won't find the original session.
 
 ## Dependencies
