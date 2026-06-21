@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.3.1](https://github.com/vanducng/skills/compare/v1.3.0...v1.3.1) (2026-06-21)
+
+
+### Bug Fixes
+
+* **diagram:** clarify docs asset workflow ([f9801ed](https://github.com/vanducng/skills/commit/f9801ed68d3e954ee7ae78dfdaa045a1906dff40))
+
 ## [1.3.0](https://github.com/vanducng/skills/compare/v1.2.0...v1.3.0) (2026-06-21)
 
 
