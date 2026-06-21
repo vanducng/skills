@@ -58,7 +58,7 @@ Files to evaluate (canonical set — only edit if drift digest touches them):
 | `docs/tech-stack.md` | Lockfile bump for a notable lib, new framework/runtime adopted, infra service swapped |
 | `docs/deployment.md` | CI workflow added/changed, new environment, new env var, new rollback procedure |
 
-Out-of-scope files — do **not** touch even if drift suggests them: `changelog.md`, `roadmap.md`, `codebase-summary.md`, `prd.md`. If user explicitly names one in `$ARGUMENTS`, surface that they're outside `vd:docs` scope and let them decide.
+Out-of-scope files — do **not** touch even if drift suggests them: `changelog.md`, `roadmap.md`, `codebase-summary.md`, `prd.md`. If user explicitly names one in `$ARGUMENTS`, surface that they're outside `vd:docs` scope and let them decide. `AGENTS.md` / `CLAUDE.md` are allowed only when the user explicitly asks for project guidance docs to change.
 
 ## Additional requests
 
@@ -80,6 +80,6 @@ Out-of-scope files — do **not** touch even if drift suggests them: `changelog.
 ## Hard rules
 
 - **Use `./docs/` as the source of truth** for what's currently claimed — drift digest tells you what to change, doc-state digest tells you what's already there.
-- **Do not** write code, fix bugs, or modify anything outside `./docs/` and `./README.md`.
+- **Do not** write code, fix bugs, or modify anything outside `./docs/` and `./README.md`, except explicitly requested project guidance files (`AGENTS.md` / `CLAUDE.md`).
 - **Do not** rewrite a file from scratch unless drift touches >50% of it — preserve voice and structure.
 - **Do not** invent — every new claim cites a path, SHA, version, or config key.
