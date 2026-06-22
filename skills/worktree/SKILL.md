@@ -1,11 +1,11 @@
 ---
 name: worktree
-description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under a top-level .worktrees/ dir, auto-copies .env files (nested included), assigns each worktree a deterministic port block, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
+description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under a top-level .worktrees/ dir, auto-copies .env files (nested included), assigns each worktree a deterministic port block, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Hands Laravel Herd projects to herd-worktree for site/env/database setup. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
 license: MIT
 argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | repair | remove <name>"
 metadata:
   author: vanducng
-  version: "2.2.0"
+  version: "2.3.0"
 ---
 
 # Worktree
@@ -20,6 +20,7 @@ Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run
 | `vd:git` | How do I stage/commit/push *this branch*? | Conventional commits on the current branch |
 | `vd:ship` | Is this branch ready to land? | Tests → review → version → PR |
 | `vd:scout` / `vd:plan` | What am I going to build? | Reports + phase files |
+| `vd:herd-worktree` | How should a Laravel app served by Herd be isolated? | This skill's worktree mechanics + Herd link/secure/env/DB/Vite setup |
 
 ## Standard location: `.worktrees/`
 
@@ -42,6 +43,12 @@ All worktrees live at **`<git-root>/.worktrees/<repo>-<feature>/`** — one rule
 ## Script path
 
 Canonical: `node $HOME/skills/skills/worktree/scripts/worktree.cjs`. If the repo isn't at `$HOME/skills`, use the installed symlink `node $HOME/.claude/skills/worktree/scripts/worktree.cjs`. Pick one at the start of the session and stick with it — don't retry both paths every call.
+
+## Laravel Herd auto-handoff
+
+Before creating a worktree, check whether the current/source repo is a Laravel app served by Herd. Treat it as Laravel when `artisan` exists and `composer.json` requires `laravel/framework`. Treat it as Herd-served when the user says Herd, the `herd` CLI is available and `herd links` includes the repo/site path, or `.env` has an `APP_URL` ending in `.test`.
+
+If both are true, activate `vd:herd-worktree` and let it compose this skill. Do not hand-roll Herd link/secure, `APP_URL`, session/Sanctum, database isolation, Vite TLS/CORS, or teardown-hook rules here; `vd:herd-worktree` owns that layer. This skill still owns the generic worktree mechanics underneath it.
 
 ## Workflow
 
