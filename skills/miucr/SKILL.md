@@ -152,6 +152,7 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
 | `--suggest` | OFF | Native one-click suggestions for proven single-line replacements; requires `--post`; author-applied, never pushed. |
 | `--approve-clean` | OFF | Submit `Event=APPROVE` only on a clean, non-fork, trusted-author PR; else degrades to COMMENT (never errors); requires `--post`. |
 | `--filter-mode added\|diff_context\|file\|nofilter` | `diff_context` | Inline-eligibility filter on `--pr`. `file`/`nofilter` route off-diff findings to summary/SARIF/local, never inline (GitHub 422s an off-diff comment). |
+| `--mode review\|checks` | `review` | GitHub reporter on `--pr --post`. `review` posts inline comments + a summary. `checks` posts a GitHub CheckRun with annotations (survives force-push, works on fork PRs, can be a **required** check); conclusion maps from the gate (gate-clean→`success`, gate-hit→`failure`); needs `checks: write`. |
 | `--sarif-out <path>` | — | Also write a SARIF 2.1.0 report to `<path>` from the SAME single review run (in addition to `--output`/posting). Written only on success (atomic temp+rename); a failed run leaves no file. This is how the Action does single-pass SARIF — no second LLM call. |
 | `--no-save` | off | Skip persisting this run to the local history store (every review is saved by default). |
 | `-v, --verbose` / `-q, --quiet` | auto | Progress to **stderr** (stdout envelope unchanged). Auto-on when stderr is a TTY; `-v` forces on, `-q` forces off; mutually exclusive. Piped/CI stays silent. |
@@ -175,7 +176,11 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
   "pr": {  // only on --pr
     "owner": "owner", "repo": "repo", "number": 123, "head_sha": "deadbeef",
     "is_fork": false, "posted": false, "posted_inline": 0, "summary_action": "none",
-    "approve_action": "commented", "approve_reason": "not_requested", "suggestions_posted": 0 }
+    "approve_action": "commented", "approve_reason": "not_requested", "suggestions_posted": 0,
+    // additive, omitted when empty:
+    "mode": "review",                 // review (default) | checks
+    "check_run_id": 0, "check_conclusion": "",  // --mode checks only (success|failure)
+    "fallback_annotations": 0 }       // >0 when a fork-PR 403 under Actions fell back to ::error:: workflow annotations (review did NOT hard-fail); summary_action then "fork_fallback"
 }
 ```
 
