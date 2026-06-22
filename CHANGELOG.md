@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.13.0](https://github.com/vanducng/skills/compare/v1.12.0...v1.13.0) (2026-06-22)
+
+
+### Features
+
+* **miucr:** document [review] category_urls (rule-link) ([bfd56d7](https://github.com/vanducng/skills/commit/bfd56d78842eaf237f24a4eb82f92714e6afd38f))
+
 ## [1.12.0](https://github.com/vanducng/skills/compare/v1.11.0...v1.12.0) (2026-06-22)
 
 
