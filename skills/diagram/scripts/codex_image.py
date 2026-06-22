@@ -22,6 +22,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
+import re
 from pathlib import Path
 from typing import Any
 
@@ -66,10 +67,32 @@ def _png_from_last_message(last_msg: Path) -> Path | None:
     text = last_msg.read_text(encoding="utf-8", errors="replace").strip()
     if not text:
         return None
-    candidate = Path(text.splitlines()[-1].strip().strip("`'\" "))
-    if candidate.is_file() and candidate.suffix.lower() == ".png":
-        return candidate
+    candidates = [text.splitlines()[-1].strip().strip("`'\" ")]
+    candidates.extend(match.group(0).strip("`'\" ") for match in re.finditer(r"(?:/|\./|~)?[^\s`'\"]+\.png", text))
+    for raw in candidates:
+        candidate = Path(raw).expanduser()
+        if candidate.is_file() and candidate.suffix.lower() == ".png":
+            return candidate
     return None
+
+
+def _codex_exec_cmd(tmpdir: Path, last_msg: Path, agent_prompt: str, reference_images: list[str] | None) -> list[str]:
+    image_args = []
+    for image in reference_images or []:
+        image_args.extend(["--image", str(Path(image).expanduser().resolve())])
+    return [
+        "codex", "exec",
+        "--skip-git-repo-check",
+        "--ephemeral",
+        "--ignore-rules",
+        "--ignore-user-config",
+        "--sandbox", "workspace-write",
+        "-C", str(tmpdir),
+        "-o", str(last_msg),
+        *image_args,
+        "--",
+        agent_prompt,
+    ]
 
 
 def generate_image(
@@ -79,6 +102,7 @@ def generate_image(
     aspect_ratio: str | None = None,
     quality: str | None = None,
     image_size: str | None = None,
+    reference_images: list[str] | None = None,
     timeout: int = 900,
 ) -> dict[str, Any]:
     """Generate one image via Codex, save to output_path, return metadata.
@@ -102,14 +126,7 @@ def generate_image(
         tmpdir = Path(td)
         last_msg = tmpdir / "last.txt"
         agent_prompt = _FORCE_PREFIX + hint + prompt
-        cmd = [
-            "codex", "exec",
-            "--skip-git-repo-check",
-            "--sandbox", "workspace-write",
-            "-C", str(tmpdir),
-            "-o", str(last_msg),
-            agent_prompt,
-        ]
+        cmd = _codex_exec_cmd(tmpdir, last_msg, agent_prompt, reference_images)
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         except subprocess.TimeoutExpired as exc:

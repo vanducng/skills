@@ -126,19 +126,25 @@ def find_file_browser_server() -> Path | None:
     return None
 
 
+def find_workbench_script() -> Path | None:
+    primary = find_skill_root().parent / "workbench" / "scripts" / "workbench.cjs"
+    if primary.exists():
+        return primary
+    home_path = Path(os.environ.get("HOME", "")) / "skills/skills/workbench/scripts/workbench.cjs"
+    if home_path.exists():
+        return home_path
+    return None
+
+
 def slugify(text: str) -> str:
     s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return (s or "diagram")[:40].rstrip("-")
 
 
 def resolve_output_dir(slug: str) -> tuple[Path, Path]:
-    """Return (parent_diagrams_dir, session_dir)."""
+    """Return (parent_dir, session_dir)."""
     stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M")
-    git_root = find_artifact_root()
-    if git_root:
-        parent = git_root / ".diagrams"
-    else:
-        parent = Path.home() / "Documents" / "llm-diagrams" / Path.cwd().name
+    parent = _resolve_parent_dir(versioned=False)
     session = parent / f"{stamp}-{slug}"
     if session.exists():
         session = parent / f"{stamp}{_dt.datetime.now().strftime('%S')}-{slug}"
@@ -163,6 +169,28 @@ def ensure_self_ignore(parent_diagrams_dir: Path) -> None:
     gitignore = parent_diagrams_dir / ".gitignore"
     if not gitignore.exists():
         gitignore.write_text("*\n!.gitignore\n")
+
+
+def resolve_workbench_visuals() -> Path | None:
+    script = find_workbench_script()
+    git_root = find_git_root()
+    if not script or not git_root:
+        return None
+    try:
+        proc = subprocess.run(
+            ["node", str(script), "resolve", "--json"],
+            cwd=str(git_root),
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if proc.returncode != 0:
+            return None
+        visuals = json.loads(proc.stdout).get("visuals")
+        return Path(visuals) if visuals else None
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -428,6 +456,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--quality", choices=["low", "medium", "high"], default="medium")
     parser.add_argument("--aspect-ratio", default="16:9")
+    parser.add_argument(
+        "--reference-image",
+        action="append",
+        default=[],
+        help="Attach a reference image to Codex PNG generation. Repeat for multiple images.",
+    )
     parser.add_argument("--no-open", action="store_true", help="Do not auto-open the browser.")
     parser.add_argument("--slug", default=None, help="Override slug for the session dir name.")
     parser.add_argument("--regen", default=None, help="Regenerate latest session with feedback applied.")
@@ -492,6 +526,9 @@ def _resolve_parent_dir(versioned: bool = False) -> Path:
     ck_visuals = os.environ.get("VD_VISUALS_PATH", "")
     if ck_visuals:
         return Path(ck_visuals)
+    workbench_visuals = resolve_workbench_visuals()
+    if workbench_visuals:
+        return workbench_visuals
     git_root = find_artifact_root()
     if git_root:
         for umbrella in (".workbench", ".work"):  # prefer new name, fall back to legacy
@@ -653,6 +690,7 @@ def _produce_image(
     revise: bool = True,
     engine: str = "free",
     image_provider: str = "codex",
+    reference_images: list[str] | None = None,
 ) -> tuple[str, str]:
     """Return (refined_text_or_svg, image_model_or_none)."""
     want_skeleton = (fmt == "svg" and engine == "skeleton")
@@ -691,12 +729,18 @@ def _produce_image(
                     output_path=str(output_path),
                     aspect_ratio=aspect_ratio,
                     quality=quality,
+                    reference_images=reference_images,
                 )
                 return refined, CODEX_IMAGE_MODEL
             except CodexImageError as exc:
+                if reference_images:
+                    raise
                 print(f"⚠ codex image failed ({exc}); falling back to OpenRouter", file=sys.stderr, flush=True)
         else:
             print("⚠ codex unavailable (not installed / not logged in); using OpenRouter", file=sys.stderr, flush=True)
+
+    if reference_images:
+        print("⚠ reference images are only supported by the Codex provider; OpenRouter fallback ignores them", file=sys.stderr, flush=True)
 
     print(f"→ generating PNG (model: {IMAGE_MODEL}, ~30–90s)…", flush=True)
     generate_image(
@@ -770,6 +814,7 @@ def main(argv: list[str] | None = None) -> int:
             preset=preset,
             revise=not args.no_revise,
             image_provider=args.provider,
+            reference_images=args.reference_image,
         )
         append_iteration(
             session_dir,
@@ -845,6 +890,7 @@ def main(argv: list[str] | None = None) -> int:
         revise=not args.no_revise,
         engine=engine,
         image_provider=args.provider,
+        reference_images=args.reference_image,
     )
     if variant == 1 or not (session_dir / "prompt.md").exists():
         write_session_artifacts(
