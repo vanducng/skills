@@ -437,6 +437,7 @@ Skip only when `--skip-pr-comments` was passed.
      print the failing/pending checks + PR URL and exit (honor an explicit
      "Merge anyway" only if the user picked it in Step 15).
    - Not mergeable → print the PR URL and exit cleanly; user merges manually.
+   - If `gh pr merge` exits non-zero, re-read `gh pr view "$PR_NUMBER" --json state,mergedAt,mergeCommit` before retrying. A local cleanup failure can happen after the remote merge, especially when `--delete-branch` collides with another local worktree that has the base branch checked out; if state is `MERGED`, report success and clean the feature worktree/branch separately.
 3. Output: `Auto-merge queued: <PR URL>` (or `Merged: <PR URL>` for immediate).
 
 ## `--auto` gate behavior
