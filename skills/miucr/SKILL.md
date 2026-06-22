@@ -73,21 +73,31 @@ Repo rules at `.miu/cr/rules/*.md` — **never a flat `.miucr/`**.
 
 ## Onboarding (`miucr init`)
 
-`miucr init` is the fastest path to a working config. It walks **provider →
-API-key source → project rules**, then writes `~/.config/miu/cr/config.toml`
-(dir `0700`, file `0600`, **deltas only** — the chosen provider block, never the
-full built-in defaults) and ends on the literal `miucr review --staged`.
+`miucr init` is the fastest path to a working config. It walks a clean, sectioned
+wizard — **provider → provider-aware auth → project rules** — then writes
+`~/.config/miu/cr/config.toml` (dir `0700`, file `0600`, **deltas only** — the
+chosen provider block, never the full built-in defaults) and ends on the literal
+`miucr review --staged`.
 
 ```sh
 miucr init                                  # interactive wizard (idempotent: Overwrite? y/N)
 miucr init --non-interactive --provider anthropic --auth-env ANTHROPIC_API_KEY --yes
 ```
 
+- **Provider-aware auth menu**: `openai` offers **browser login (OAuth, default)**
+  — review on your ChatGPT/Codex plan, no API key — plus env-var or paste; it runs
+  the same PKCE loopback flow as `miucr login` and caches the token in `oauth.json`
+  (config records just `default_provider = "openai"`, no secret). `anthropic` offers
+  env-var (default) or paste — **no OAuth** (Anthropic ToS). `custom` asks kind +
+  base URL, then env-var or paste.
 - **Default writes no secret** — only the env-var **name** (`auth_env`). A literal
-  `auth_token` lands only on explicit paste-now + confirm (after a plaintext-on-disk warning).
-- Flags: `--provider anthropic|openai`, `--auth-env <NAME>`, `--base-url <gateway>`,
-  `--no-rules`, `--force`, `--yes`, `--non-interactive`. Envelope `kind: init.result`
-  (`data.next` = `miucr review --staged`); errors `init.aborted` / `config.write_failed`.
+  `auth_token` lands only on explicit paste + confirm (after a plaintext-on-disk warning).
+- Flags: `--provider anthropic|openai|custom`, `--auth oauth|env|paste` (non-interactive
+  selector), `--auth-env <NAME>`, `--base-url <gateway>`, `--no-rules`, `--force`,
+  `--yes`, `--non-interactive`. `--auth oauth` is interactive-only (needs a browser) —
+  non-interactive errors `init.aborted` toward `miucr login`. Envelope `kind: init.result`
+  (`data.auth_method` = `oauth|env|paste`, `data.next` = `miucr review --staged`); errors
+  `init.aborted` / `config.write_failed`.
 - `init` is **optional** — zero-config still works when a provider key is on the env.
   With no config **and** no key, `review` prints a soft one-line nudge to run `init`.
 
