@@ -377,6 +377,9 @@ mode             = "pat"                # pat (default) | app
 app_id           = "123456"             # app mode: numeric App ID
 installation_id  = "78901234"           # app mode: numeric installation id
 private_key_path = "/etc/miucr/app-key.pem"   # app mode: PATH to RSA PEM (never inline)
+
+[review]                                # render a finding's Category as a docs link (TRUSTED config only)
+category_urls = { security = "https://docs.example.com/security" }   # case-insensitive key -> http(s) URL; sets PR-comment/summary link + SARIF helpUri
 ```
 
 **Provider resolution** — `auto` picks OpenAI when `OPENAI_API_KEY` is set and no Anthropic credential is
