@@ -57,7 +57,10 @@ class GenerateCliTest(unittest.TestCase):
                 self.assertEqual(_resolve_parent_dir(), visuals)
 
     def test_codex_reference_image_keeps_prompt_after_separator(self):
-        cmd = _codex_exec_cmd(Path("/tmp/work"), Path("/tmp/work/last.txt"), "render this", ["draft.png"])
+        with tempfile.TemporaryDirectory() as tmp:
+            draft = Path(tmp) / "draft.png"
+            draft.write_bytes(b"png")
+            cmd = _codex_exec_cmd(Path("/tmp/work"), Path("/tmp/work/last.txt"), "render this", [str(draft)])
 
         self.assertIn("--image", cmd)
         self.assertIn("--ephemeral", cmd)

@@ -68,7 +68,7 @@ def _png_from_last_message(last_msg: Path) -> Path | None:
     if not text:
         return None
     candidates = [text.splitlines()[-1].strip().strip("`'\" ")]
-    candidates.extend(match.group(0).strip("`'\" ") for match in re.finditer(r"(?:/|\./|~)?[^\s`'\"]+\.png", text))
+    candidates.extend(match.group(0).strip("`'\" ") for match in re.finditer(r"[^\s`'\"]+\.png", text))
     for raw in candidates:
         candidate = Path(raw).expanduser()
         if candidate.is_file() and candidate.suffix.lower() == ".png":
@@ -79,7 +79,10 @@ def _png_from_last_message(last_msg: Path) -> Path | None:
 def _codex_exec_cmd(tmpdir: Path, last_msg: Path, agent_prompt: str, reference_images: list[str] | None) -> list[str]:
     image_args = []
     for image in reference_images or []:
-        image_args.extend(["--image", str(Path(image).expanduser().resolve())])
+        resolved = Path(image).expanduser().resolve()
+        if not resolved.is_file():
+            raise CodexImageError(f"reference image not found: {image}")
+        image_args.extend(["--image", str(resolved)])
     return [
         "codex", "exec",
         "--skip-git-repo-check",

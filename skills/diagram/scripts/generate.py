@@ -130,7 +130,7 @@ def find_workbench_script() -> Path | None:
     primary = find_skill_root().parent / "workbench" / "scripts" / "workbench.cjs"
     if primary.exists():
         return primary
-    home_path = Path(os.environ.get("HOME", "")) / "skills/skills/workbench/scripts/workbench.cjs"
+    home_path = Path.home() / "skills/skills/workbench/scripts/workbench.cjs"
     if home_path.exists():
         return home_path
     return None
@@ -188,8 +188,13 @@ def resolve_workbench_visuals() -> Path | None:
         if proc.returncode != 0:
             return None
         visuals = json.loads(proc.stdout).get("visuals")
-        return Path(visuals) if visuals else None
-    except Exception:
+        if not visuals:
+            return None
+        resolved = Path(visuals).expanduser()
+        if not resolved.is_absolute():
+            resolved = (git_root / resolved).resolve()
+        return resolved
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, json.JSONDecodeError, OSError):
         return None
 
 
