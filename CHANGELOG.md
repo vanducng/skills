@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.6.0](https://github.com/vanducng/skills/compare/v1.5.0...v1.6.0) (2026-06-22)
+
+
+### Features
+
+* **worktree:** hand off Laravel Herd setup ([d5cd0f0](https://github.com/vanducng/skills/commit/d5cd0f0e82b16850b2e7df9c7e7928c6c30dfbd4))
+
 ## [1.5.0](https://github.com/vanducng/skills/compare/v1.4.0...v1.5.0) (2026-06-22)
 
 
