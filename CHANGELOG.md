@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.9.1](https://github.com/vanducng/skills/compare/v1.9.0...v1.9.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **herd-worktree:** document vite manifest setup ([#233](https://github.com/vanducng/skills/issues/233)) ([beaae7a](https://github.com/vanducng/skills/commit/beaae7a4dcbea5844eafcf2001d14f7796ca8735))
+
 ## [1.9.0](https://github.com/vanducng/skills/compare/v1.8.0...v1.9.0) (2026-06-22)
 
 
