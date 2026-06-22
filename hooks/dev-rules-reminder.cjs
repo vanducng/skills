@@ -104,12 +104,14 @@ try {
       lines.push('- Never use global pip install');
     }
 
-    process.stdout.write(JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: payload.hook_event_name || payload.hookEventName || 'UserPromptSubmit',
-        additionalContext: lines.join('\n')
-      }
-    }) + '\n');
+    // Codex wants top-level additionalContext; Claude wants nested hookSpecificOutput.
+    // Detect by the hook's own install dir so one source is correct in either copy.
+    const ctx = lines.join('\n');
+    const eventName = payload.hook_event_name || payload.hookEventName || 'UserPromptSubmit';
+    const out = __dirname.includes('/.codex/')
+      ? { additionalContext: ctx }
+      : { hookSpecificOutput: { hookEventName: eventName, additionalContext: ctx } };
+    process.stdout.write(JSON.stringify(out) + '\n');
 
     process.exit(0);
   }
