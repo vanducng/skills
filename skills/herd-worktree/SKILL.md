@@ -151,7 +151,7 @@ php artisan config:clear && php artisan cache:clear
 [ -n "$DBNAME" ] && php artisan migrate     # only when DB was isolated; add --seed if wanted
 
 pkill -f "node.*vite" 2>/dev/null; rm -f public/hot   # free a stale Vite/hot file
-npm run dev
+npm run build     # or keep `npm run dev` running while browsing through Herd
 ```
 
 Site: `$SCHEME://$SITE_NAME.test`.
@@ -188,6 +188,7 @@ Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` 
 | Mixed Content (HTTPS page, HTTP assets) | Vite served HTTP under an HTTPS site → confirm `herd secure` ran and `laravel-vite-plugin` sees the cert; restart `npm run dev` |
 | CORS blocked (HTTP site) | Vite `host: '0.0.0.0'` → set `host: 'localhost'`, `cors: true`, restart |
 | Migrations hit the wrong/shared DB | `.env` still points at main DB → isolate (step 4) and rewrite `DB_DATABASE` |
+| Vite manifest not found | no `public/build/manifest.json` and no Vite dev server → `npm install`, then `npm run build` (or keep `npm run dev` running) |
 | Assets not loading / wrong port | stale Vite → `pkill -f "node.*vite"`, `rm -f public/hot`, `npm run dev` from the worktree |
 | Missing vendor/ or node_modules/ | worktrees don't share them → `composer install` / `npm install` in the worktree |
 
@@ -199,7 +200,7 @@ Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` 
 - [ ] Database decision made (isolated DB + `DB_DATABASE` rewritten, or explicitly sharing)
 - [ ] `.worktree/hooks/pre-remove` written (Herd unlink + isolated-DB drop on `worktree remove`/`clean`)
 - [ ] `vite.config.{ts,js}` correct for the scheme
-- [ ] `composer install` + `npm install` done; migrations run if isolated
+- [ ] `composer install` + `npm install` done; `npm run build` done or `npm run dev` running; migrations run if isolated
 - [ ] Site reachable at `$SCHEME://$SITE_NAME.test`
 
 ## CRITICAL: working directory after setup
