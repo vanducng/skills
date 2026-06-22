@@ -271,7 +271,7 @@ docker compose -p "$COMPOSE_PROJECT_NAME" down -v 2>/dev/null || true
 | `status` | `status` | Health audit + divergence + disk usage; flags merged/prunable, **nested worktrees**, + reclaimable total |
 | `ports` | `ports` | Port block assignment per worktree |
 
-**`remove` vs `clean`:** `remove` takes a name and removes that one. `clean` takes no target — it finds every worktree whose branch is merged into its base or gone from the remote, shows them with disk sizes (dry-run by default), and removes them on `--yes`. `clean` also prunes stale git metadata (the old `prune` command folded in here). Both rescue untracked `.env*` files to `<trees-root>/.env-backups/<name>/` before deletion.
+**`remove` vs `clean`:** `remove` takes a name and removes that one. It force-removes a dirty checkout but keeps an unmerged branch; if the user explicitly asked to discard it too, run `git branch -D <branch>` after `remove` reports `branchKept`. `clean` takes no target — it finds every worktree whose branch is merged into its base or gone from the remote, shows them with disk sizes (dry-run by default), and removes them on `--yes`. `clean` also prunes stale git metadata (the old `prune` command folded in here). Both rescue untracked `.env*` files to `<trees-root>/.env-backups/<name>/` before deletion.
 
 ```bash
 # See what's reclaimable (safe, read-only)
