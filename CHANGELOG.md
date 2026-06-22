@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.9.3](https://github.com/vanducng/skills/compare/v1.9.2...v1.9.3) (2026-06-22)
+
+
+### Bug Fixes
+
+* **worktree:** document dirty remove branch cleanup ([#236](https://github.com/vanducng/skills/issues/236)) ([44f3f45](https://github.com/vanducng/skills/commit/44f3f4590121a630b3f871a12ff90c034e576085))
+
 ## [1.9.2](https://github.com/vanducng/skills/compare/v1.9.1...v1.9.2) (2026-06-22)
 
 
