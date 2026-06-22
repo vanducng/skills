@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.8.0](https://github.com/vanducng/skills/compare/v1.7.0...v1.8.0) (2026-06-22)
+
+
+### Features
+
+* **miucr:** init OAuth auth method + cleaner UX ([1880206](https://github.com/vanducng/skills/commit/1880206d940265a054a2a25d7acde9ce5a6e9149))
+
 ## [1.7.0](https://github.com/vanducng/skills/compare/v1.6.0...v1.7.0) (2026-06-22)
 
 
