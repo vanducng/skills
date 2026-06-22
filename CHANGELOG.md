@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.9.2](https://github.com/vanducng/skills/compare/v1.9.1...v1.9.2) (2026-06-22)
+
+
+### Bug Fixes
+
+* **hooks:** emit Codex-compatible UserPromptSubmit output ([77e1f75](https://github.com/vanducng/skills/commit/77e1f7575318218dc94918e96b70f7227c5c8d26))
+
 ## [1.9.1](https://github.com/vanducng/skills/compare/v1.9.0...v1.9.1) (2026-06-22)
 
 
