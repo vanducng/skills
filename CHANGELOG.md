@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.11.0](https://github.com/vanducng/skills/compare/v1.10.1...v1.11.0) (2026-06-22)
+
+
+### Features
+
+* **miucr:** document -o sarif/pretty, --filter-mode, --sarif-out ([38caaae](https://github.com/vanducng/skills/commit/38caaaed058c108e00c7d681c331d188fa4c1e00))
+
 ## [1.10.1](https://github.com/vanducng/skills/compare/v1.10.0...v1.10.1) (2026-06-22)
 
 
