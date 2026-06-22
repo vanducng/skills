@@ -114,8 +114,15 @@ for `miucr serve`). Onboarding walkthrough lives at the docs
 
 ## Commands & exact flags
 
-Global flags (all commands): `-o, --output json|pretty` (default `json`), `--timeout <dur>`
+Global flags (all commands): `-o, --output json|pretty|sarif` (default `json`), `--timeout <dur>`
 (default `30s`; `review` auto-bumps to `300s` unless `--timeout` is set explicitly).
+`sarif` is **review-only**: it emits a SARIF 2.1.0 document (NOT the envelope) for
+code-scanning/IDEs — `ruleId`=category, `level` from severity, repo-relative paths;
+upload it with `github/codeql-action/upload-sarif`. `pretty` is a local reporter
+(jumpable `file:line`, excerpt, patch; color on a TTY). `review --pr` also takes
+`--filter-mode added|diff_context|file|nofilter` (default `diff_context`) controlling
+which findings are inline-eligible; `file`/`nofilter` route off-diff findings to the
+summary/SARIF/local output, never inline.
 
 ### `review` — needs **exactly one** mode
 
@@ -144,6 +151,8 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
 | `--post` / `--no-post` | `--no-post` (for `--pr`) | Publish vs dry-run; mutually exclusive (`flags.conflict`). |
 | `--suggest` | OFF | Native one-click suggestions for proven single-line replacements; requires `--post`; author-applied, never pushed. |
 | `--approve-clean` | OFF | Submit `Event=APPROVE` only on a clean, non-fork, trusted-author PR; else degrades to COMMENT (never errors); requires `--post`. |
+| `--filter-mode added\|diff_context\|file\|nofilter` | `diff_context` | Inline-eligibility filter on `--pr`. `file`/`nofilter` route off-diff findings to summary/SARIF/local, never inline (GitHub 422s an off-diff comment). |
+| `--sarif-out <path>` | — | Also write a SARIF 2.1.0 report to `<path>` from the SAME single review run (in addition to `--output`/posting). Written only on success (atomic temp+rename); a failed run leaves no file. This is how the Action does single-pass SARIF — no second LLM call. |
 | `--no-save` | off | Skip persisting this run to the local history store (every review is saved by default). |
 | `-v, --verbose` / `-q, --quiet` | auto | Progress to **stderr** (stdout envelope unchanged). Auto-on when stderr is a TTY; `-v` forces on, `-q` forces off; mutually exclusive. Piped/CI stays silent. |
 
