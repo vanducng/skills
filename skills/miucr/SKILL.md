@@ -43,7 +43,8 @@ Every command prints **one JSON object** on stdout (default `-o json`). Field or
              "retryable": false, "safe_to_retry": false } }
 ```
 
-`kind` per command: `version`, `review.result`, `rules.check`, `rules.init`, `init.result`, `login.result`, `error`
+`kind` per command: `version`, `review.result`, `rules.check`, `rules.init`, `init.result`, `login.result`,
+`history.list`, `history.record`, `history.prune`, `error`
 (REST: `review.accepted` / `review.result`). **Secrets never appear** in the envelope, logs, or on disk
 (credential-named fields are scrubbed; finding `rationale`/`suggested_patch` prose is exempt).
 
@@ -143,6 +144,7 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
 | `--post` / `--no-post` | `--no-post` (for `--pr`) | Publish vs dry-run; mutually exclusive (`flags.conflict`). |
 | `--suggest` | OFF | Native one-click suggestions for proven single-line replacements; requires `--post`; author-applied, never pushed. |
 | `--approve-clean` | OFF | Submit `Event=APPROVE` only on a clean, non-fork, trusted-author PR; else degrades to COMMENT (never errors); requires `--post`. |
+| `--no-save` | off | Skip persisting this run to the local history store (every review is saved by default). |
 | `-v, --verbose` / `-q, --quiet` | auto | Progress to **stderr** (stdout envelope unchanged). Auto-on when stderr is a TTY; `-v` forces on, `-q` forces off; mutually exclusive. Piped/CI stays silent. |
 
 **`review.result` data** (local and `--pr`):
@@ -160,6 +162,7 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
              "findings_dropped": 1, "max_severity": "high", "gate": "high",
              "truncation_level": "full",            // full | hunks_only | filenames_only
              "rules_applied": 5, "rules_truncated": false },
+  "review_id": "rev_...",  // additive: the saved history record id ("" with --no-save)
   "pr": {  // only on --pr
     "owner": "owner", "repo": "repo", "number": 123, "head_sha": "deadbeef",
     "is_fork": false, "posted": false, "posted_inline": 0, "summary_action": "none",
@@ -240,6 +243,31 @@ context-only, byte-capped, and **dropped on fork PRs**; the finding-JSON schema 
 system prompt so injected prose can't redefine it. `rules check` data lists each applicable rule with
 `provenance`, `stem`, `globs`/`always_apply`, `trusted`, plus skipped `body_only` files.
 
+### `history` — browse saved reviews
+
+Every review auto-saves a **full record** (findings + stats + per-turn transcript + raw prompt/response)
+to the local store; `--no-save` opts out per run. Records are local only (`~/.config/miu/cr/state.db`,
+gitignored); **no tokens are ever stored**.
+
+```sh
+miucr history                                 # list recent reviews, newest first (kind: history.list)
+miucr history --repo owner/repo               # filter by repo (PR) or repo dir (local)
+miucr history --pr owner/repo#7               # filter to one PR
+miucr history --since 7d                       # 7d / 24h / 2026-06-01
+miucr history --limit 50                        # cap rows (default 20; 0 = no limit)
+miucr history show <id>                         # one full record (kind: history.record; 404 → history.not_found)
+miucr history show <id> -o pretty --raw         # pretty, with raw prompt/response inline
+miucr history prune --keep 200 --yes            # keep newest N (kind: history.prune; reports deleted count)
+miucr history prune --older-than 30d --yes      # delete records older than a span
+```
+
+`prune` needs at least one of `--keep`/`--older-than` plus `--yes` (destructive). An optional
+`[history] max_records = N` auto-prunes oldest on save. List rows carry
+`{id, created_at, target, mode, findings, max_severity, status}`; `show` data adds
+`provider`, `model`, `head_sha`, `findings`, `stats`, `transcript`, `raw_prompt`, `raw_response`.
+Errors: `history.unavailable`, `history.not_found`, `history.prune_policy_required`,
+`history.prune_confirm_required`, `history.bad_pr`, `history.bad_time`.
+
 ### `mcp` — review engine over stdio
 
 ```sh
@@ -319,6 +347,10 @@ auth_env = "ZAI_API_KEY"                # RECOMMENDED: name of env var holding t
 [store]
 backend = "sqlite"                      # sqlite (default) | postgres ; or MIUCR_STORE_BACKEND
 # dsn   = "postgres://user@host:5432/miucr?sslmode=require"   # prefer MIUCR_PG_DSN env
+
+[history]                               # local review-history store (auto-save ON by default)
+enabled     = true                      # set false to disable auto-save globally
+max_records = 0                         # 0 = no cap; >0 auto-prunes oldest on save
 
 [embedding]                             # opt-in semantic code-recall (advisory context only)
 enabled  = true                         # MUST be true AND backend=postgres + pgvector ext
