@@ -1,6 +1,6 @@
 ---
 name: diagram
-description: "Generate modern reviewable diagrams (system architecture, workflow, data flow, sequence, ER, state-machine, C4) via OpenRouter image-gen or LLM-emitted SVG. Auto-classifies diagram type from prompt; --type to override. Default outputs to <git-root>/.diagrams/; --versioned writes git-trackable specs and variants under docs/diagrams/."
+description: "Generate modern reviewable diagrams (system architecture, workflow, data flow, sequence, ER, state-machine, C4) via OpenRouter image-gen or LLM-emitted SVG. Auto-classifies diagram type from prompt; --type to override. Default scratch output goes to the resolved workbench visuals path; --versioned writes git-trackable specs and variants under docs/diagrams/."
 license: MIT
 argument-hint: "[description] [--type TYPE] [--preset PRESET] [--format png|svg] [--versioned] [--regen FEEDBACK] [--new]"
 metadata:
@@ -46,6 +46,11 @@ For a diagram that merely illustrates a docs page, keep the generation session i
 ~/.claude/skills/.venv/bin/python3 $HOME/skills/skills/diagram/scripts/generate.py \
   --preset cyberpunk \
   "data flow: Kafka → Spark → ClickHouse → Grafana"
+
+# Use a clear draft/screenshot as layout guidance for Codex PNG generation
+~/.claude/skills/.venv/bin/python3 $HOME/skills/skills/diagram/scripts/generate.py \
+  --format png --provider codex --reference-image draft.png \
+  "polished cloud architecture diagram; follow the reference layout exactly"
 ```
 
 ## Interactive HTML ERD (`er_html.py`)
@@ -129,7 +134,7 @@ Get a key at <https://openrouter.ai/settings/keys>.
 ## How it works
 
 1. **Parse args** — description + flags.
-2. **Resolve session dir** — `<git-root>/.diagrams/<YYYYMMDD-HHMM>-<slug>/`. Outside a git repo: `~/Documents/llm-diagrams/<cwd>-<slug>/`.
+2. **Resolve session dir** — `VD_VISUALS_PATH` when set, else the current repo's resolved workbench visuals path, else `<git-root>/.diagrams/<YYYYMMDD-HHMM>-<slug>/`. Outside a git repo: `~/Documents/llm-diagrams/<cwd>-<slug>/`.
 3. **Classify type** — if `--type` not provided, OpenRouter classifies into one of 8 types.
 4. **Load refs** — preset style tokens, `references/style-foundations.md`, `references/composition-rules.md`, `references/types/<type>.md`, plus `references/svg-contract.md` for SVG runs.
 5. **Refine OR emit** — PNG: refine to image-gen prompt → image API. SVG: LLM emits markup directly.
@@ -159,6 +164,7 @@ Get a key at <https://openrouter.ai/settings/keys>.
 | `--provider` | `codex` | PNG image backend. `codex`: `gpt-image-2` via ChatGPT subscription — cost-optimized, OpenRouter fallback. `openrouter`: `gpt-5.4-image-2` via API. |
 | `--quality` | `medium` | `low`, `medium`, `high`. PNG only; OpenRouter passes through. |
 | `--aspect-ratio` | `16:9` | PNG only. |
+| `--reference-image` | none | Attach a draft/screenshot to Codex PNG generation; repeat for multiple images. Ignored by SVG and OpenRouter fallback. |
 | `--regen "<feedback>"` | — | Iterate on the most recent session. Inherits preset/type/format from prior session. |
 | `--new` | off | Force a fresh session even when a recent one exists. |
 | `--no-open` | off | Skip auto-opening the browser tab. |
@@ -169,7 +175,8 @@ Get a key at <https://openrouter.ai/settings/keys>.
 
 | Need | Recommended mode | Why |
 | --- | --- | --- |
-| Architecture or C4 diagrams for PR/RFC review | `--format svg --versioned --engine skeleton` | Stable coordinates, crisp labels, deterministic spec + manifest. |
+| Architecture or C4 diagrams for PR/RFC review | `--format png --provider codex --reference-image draft.png` | Use a simple draft to lock layout, then let gpt-image-2 render a cleaner cloud diagram. |
+| Diffable architecture specs | `--format svg --versioned --engine skeleton` | Stable coordinates, crisp labels, deterministic spec + manifest. |
 | Workflow/process maps | `--type workflow --format svg --versioned` | Swimlane/stage-friendly layout with decision and handoff conventions. |
 | ERD/database design (static, diffable) | `--type er --format svg --versioned` | Entities and relationships stay hand-editable and diffable. |
 | Explorable/living DB docs (filter, search, per-table docs) | `er_html.py --schema … --meta …` | Self-contained interactive HTML ERD; no LLM/API key. |
@@ -202,12 +209,12 @@ All presets share the same iconography, line weights, density limits, and label-
 
 ## Output location
 
-Scratch (non-versioned) output: write to the injected `Visuals:` path. Each session gets a `<YYYYMMDD-HHMM>-<slug>/` subdir. Treat this as the home for brainstorming, reports, and review iterations; promote only the final rendered image to a docs assets folder when a docs page needs a visual.
+Scratch (non-versioned) output: write to `VD_VISUALS_PATH` when set; otherwise use the repo workbench resolver. In feature-first repos this is usually the injected `Visuals:` path, falling back to the global scratch visuals path when there is no feature signal. Each session gets a `<YYYYMMDD-HHMM>-<slug>/` subdir. Treat this as the home for brainstorming, reports, and review iterations; promote only the final rendered image to a docs assets folder when a docs page needs a visual.
 
 - Outside a git repo → `~/Documents/llm-diagrams/<cwd-basename>-<YYYYMMDD-HHMM>-<slug>/`
 - With `--versioned` → `<git-root>/docs/diagrams/<slug>/` (always; versioned diagrams stay in `docs/`)
 
-Inside a git repo, scratch output is auto-ignored by the gitignore managed in the session dir. Your repo's root `.gitignore` is never touched.
+Inside a git repo, scratch output is auto-ignored by the `.gitignore` managed in the resolved visuals/session parent. Your repo's root `.gitignore` is never touched.
 
 Each session dir contains:
 - `v1.<png|svg>`, `v2.<png|svg>`, … — the variants
@@ -231,7 +238,7 @@ Repo-relative paths are fine as secondary context, but the final handoff must in
 
 ## Iteration: `--regen` vs `--new`
 
-- `--regen "<feedback>"` — finds the **most recent** session under the current repo's `.diagrams/`, re-uses its type and format, appends `<feedback>` to the original description, drops `v2.<ext>` (or `v3`, `v4`, …) alongside the original. The positional description is ignored when `--regen` is used.
+- `--regen "<feedback>"` — finds the **most recent** session under the current resolved scratch parent, re-uses its type and format, appends `<feedback>` to the original description, drops `v2.<ext>` (or `v3`, `v4`, …) alongside the original. The positional description is ignored when `--regen` is used.
 - `--versioned --regen "<feedback>"` — same iteration behavior, but searches `docs/diagrams/` and updates `diagram.spec.yaml` / `manifest.json` to point at the newest variant.
 - `--new` — forces a fresh session dir even if a recent one exists. Requires a positional description.
 - Default — creates a new session dir from the current description.
