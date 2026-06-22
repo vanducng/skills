@@ -43,7 +43,7 @@ Every command prints **one JSON object** on stdout (default `-o json`). Field or
              "retryable": false, "safe_to_retry": false } }
 ```
 
-`kind` per command: `version`, `review.result`, `rules.check`, `rules.init`, `error`
+`kind` per command: `version`, `review.result`, `rules.check`, `rules.init`, `init.result`, `login.result`, `error`
 (REST: `review.accepted` / `review.result`). **Secrets never appear** in the envelope, logs, or on disk
 (credential-named fields are scrubbed; finding `rationale`/`suggested_patch` prose is exempt).
 
@@ -70,6 +70,36 @@ go install github.com/vanducng/miu-cr/cmd/miucr@latest                          
 Verify: `miucr version` → `{"ok":true,...,"data":{"version":"v0.11.0"}}`.
 Config (optional) at `~/.config/miu/cr/config.toml`; state DB at `~/.config/miu/cr/state.db`.
 Repo rules at `.miu/cr/rules/*.md` — **never a flat `.miucr/`**.
+
+## Onboarding (`miucr init`)
+
+`miucr init` is the fastest path to a working config. It walks **provider →
+API-key source → project rules**, then writes `~/.config/miu/cr/config.toml`
+(dir `0700`, file `0600`, **deltas only** — the chosen provider block, never the
+full built-in defaults) and ends on the literal `miucr review --staged`.
+
+```sh
+miucr init                                  # interactive wizard (idempotent: Overwrite? y/N)
+miucr init --non-interactive --provider anthropic --auth-env ANTHROPIC_API_KEY --yes
+```
+
+- **Default writes no secret** — only the env-var **name** (`auth_env`). A literal
+  `auth_token` lands only on explicit paste-now + confirm (after a plaintext-on-disk warning).
+- Flags: `--provider anthropic|openai`, `--auth-env <NAME>`, `--base-url <gateway>`,
+  `--no-rules`, `--force`, `--yes`, `--non-interactive`. Envelope `kind: init.result`
+  (`data.next` = `miucr review --staged`); errors `init.aborted` / `config.write_failed`.
+- `init` is **optional** — zero-config still works when a provider key is on the env.
+  With no config **and** no key, `review` prints a soft one-line nudge to run `init`.
+
+## Examples (copy-paste starters)
+
+The repo ships an [`examples/`](https://github.com/vanducng/miu-cr/tree/main/examples)
+tree: `rules/{go-api,typescript-node,python-data}.md`,
+`github-action/code-review.yml` (fork-safe `pull_request_target`),
+`mcp-setup/{claude-code,cursor,codex}` + `README-mcp.md`, and
+`docker/{Dockerfile,docker-compose.yml}` (pure-Go `CGO_ENABLED=0` distroless image
+for `miucr serve`). Onboarding walkthrough lives at the docs
+[Getting started](https://miucr.vanducng.dev/onboarding/) page.
 
 ## Commands & exact flags
 
@@ -217,6 +247,44 @@ fails `review.output_too_large` (narrow the review).
 Register in Claude Code: `claude mcp add --transport stdio miucr -- miucr mcp --transport stdio`
 (provide a provider key via the host's `env`, e.g. `ANTHROPIC_API_KEY`).
 
+### `login` — OAuth to review on your ChatGPT plan
+
+```sh
+miucr login --provider openai     # PKCE loopback OAuth; caches token at ~/.config/miu/cr/oauth.json (0600)
+miucr login --no-browser          # headless/SSH: print the authorize URL instead of opening a browser
+```
+
+Reviews authed by this token route to the **codex backend** (`chatgpt.com/backend-api/codex`,
+Responses protocol) so they run on the user's **ChatGPT Pro/Max subscription**, not a billed key.
+`--provider` is an explicit flag backed by a registry — `openai` is the only entry
+(`--provider anthropic`/unknown → `login.provider_unsupported`; Anthropic OAuth is ToS-prohibited).
+Loopback binds an allow-listed port (`1455`, then `1457`). Envelope `kind: init.result`-style
+**secret-free** payload: `{provider, oauth_path, expires_at, account_id, has_api_key}` — **no tokens**.
+Errors: `login.provider_unsupported`, `login.port_unavailable`, `login.timeout`, `login.exchange_failed`, `login.write_failed`.
+
+**Precedence**: the cached OAuth credential sits **below** an explicit `--api-key` / `OPENAI_API_KEY`
+in OpenAI resolution — an explicit key always wins; OAuth is consulted only when no OpenAI key is set.
+`oauth.json` is gitignored, `0600`, never logged/in-envelope. No `miucr logout` (delete the file by hand).
+**CI uses an `OPENAI_API_KEY` secret, not OAuth** (browser-interactive) — `miucr review --provider openai`.
+
+### `upgrade` (alias `update`) — self-update from GitHub Releases
+
+```sh
+miucr upgrade            # download + verify + atomically replace the running binary
+miucr upgrade --check    # report only whether a newer version exists (no download)
+miucr upgrade --version v0.13.0   # install a specific tag instead of latest
+```
+
+Resolves the latest release tag (honors `GITHUB_TOKEN`/`GH_TOKEN` Bearer to dodge
+rate limits; never logged), downloads the matching `miucr_<os>_<arch>.tar.gz`
+(`.zip` on Windows) asset, **verifies its SHA-256 against `checksums.txt`**, then
+atomically `os.Rename`s the new binary over `os.Executable()` (symlinks resolved).
+Envelope `kind: upgrade.result`, `data`: `{from_version, to_version, asset, path,
+action}` where `action` ∈ `upgraded | already_latest | check_only`. Errors:
+`upgrade.fetch_failed`, `upgrade.no_asset`, `upgrade.checksum_mismatch`,
+`upgrade.not_writable` (re-run with write perms or via the install script),
+`upgrade.extract_failed`.
+
 ### `version`
 
 ```sh
@@ -255,7 +323,9 @@ private_key_path = "/etc/miucr/app-key.pem"   # app mode: PATH to RSA PEM (never
 ```
 
 **Provider resolution** — `auto` picks OpenAI when `OPENAI_API_KEY` is set and no Anthropic credential is
-present, else `default_provider` (Anthropic). Env: Anthropic = `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN`
+present, else `default_provider` (Anthropic). OpenAI order: explicit `--api-key` > `OPENAI_API_KEY` > profile key >
+a cached `miucr login` OAuth token (routes to the codex/ChatGPT-plan backend) — an explicit key always wins.
+Env: Anthropic = `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN`
 (Bearer, for compatible gateways) / `ANTHROPIC_BASE_URL` / `ANTHROPIC_MODEL` (default `claude-sonnet-4-5-20250929`);
 OpenAI = `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` (default `gpt-4o`). `--auth-token` is Anthropic-only.
 
