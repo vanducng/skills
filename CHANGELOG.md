@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.10.1](https://github.com/vanducng/skills/compare/v1.10.0...v1.10.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **worktree:** document detach before removing base-branch checkout ([#240](https://github.com/vanducng/skills/issues/240)) ([85e4ef2](https://github.com/vanducng/skills/commit/85e4ef23ba589d83373d319d4b90e39fbbac026f))
+
 ## [1.10.0](https://github.com/vanducng/skills/compare/v1.9.3...v1.10.0) (2026-06-22)
 
 
