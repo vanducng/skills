@@ -171,6 +171,7 @@ Default behavior:
 - PR mode + no `--dry-run` → **post** via single `gh api` call (see below).
 - PR mode + `--dry-run` → **print** the JSON payload, exit, do not call the API.
 - Non-PR modes → **print** the findings as a markdown report. Never post.
+- GitHub rejects `APPROVE` reviews from the PR author. If the authenticated user is the author and the verdict is `Approve`, submit the same body as `COMMENT` and say a different reviewer is required for branch-protection approval.
 
 ```bash
 gh api \
