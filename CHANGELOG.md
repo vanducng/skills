@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.14.0](https://github.com/vanducng/skills/compare/v1.13.0...v1.14.0) (2026-06-22)
+
+
+### Features
+
+* **diagram:** support workbench visuals and reference images ([5e9cae9](https://github.com/vanducng/skills/commit/5e9cae949e31157df473982ebdd0eedbbe9dab7d))
+
 ## [1.13.0](https://github.com/vanducng/skills/compare/v1.12.0...v1.13.0) (2026-06-22)
 
 
