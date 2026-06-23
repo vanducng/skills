@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.14.1](https://github.com/vanducng/skills/compare/v1.14.0...v1.14.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* **miucr:** example context_files -&gt; AGENTS.md (drop dangling docs/architecture.md) ([591eb94](https://github.com/vanducng/skills/commit/591eb948cbd8577583d3c4fb91d84ad07c8dea1e))
+
 ## [1.14.0](https://github.com/vanducng/skills/compare/v1.13.0...v1.14.0) (2026-06-22)
 
 
