@@ -245,7 +245,7 @@ globs:
   - "internal/**/*.go"
 alwaysApply: false
 context_files:
-  - "docs/architecture.md"
+  - "AGENTS.md"
 ---
 # Prose below the fence is injected as CONTEXT for the reviewer.
 ```
