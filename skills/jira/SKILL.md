@@ -56,6 +56,8 @@ Activate when user mentions:
 ### View & Search
 ```bash
 jira issue view ISSUE-KEY                    # View issue
+jira issue view ISSUE-KEY --raw             # Raw fields for parent/sprint/custom fields
+jira issue view ISSUE-KEY --raw | jq '{key:.key,parent:.fields.parent.key,sprint:.fields.customfield_10016}'
 jira issue list -a$(jira me)                 # My issues
 jira issue list -s"In Progress"              # By status
 jira issue list -q"JQL_QUERY"               # Raw JQL
@@ -69,6 +71,8 @@ jira issue create -tTask -s"Summary" -a$(jira me) --no-input
 ```
 
 **Multi-line descriptions:** Write to `/tmp` first, then use `-b"$(cat /tmp/jira_body.md)"`.
+
+**Structured descriptions:** Use REST API with Atlassian Document Format (ADF), not CLI `-b`, when headings/lists need to render cleanly. Paragraphs containing `- item` render as plain text; native `heading` and `bulletList` nodes render correctly.
 
 **CRITICAL — Underscore escaping bug:** The `jira` CLI escapes `_` to `\_` in descriptions, breaking code blocks. After creating/editing an issue with code snippets or underscored identifiers, ALWAYS update the description via REST API:
 ```bash
@@ -84,6 +88,35 @@ Use Atlassian Document Format (ADF) with `codeBlock` node for code. See memory f
 jira issue move ISSUE-KEY "In Progress"      # Transition
 jira issue assign ISSUE-KEY $(jira me)       # Assign to self
 jira issue comment add ISSUE-KEY -b"Comment" # Add comment
+jira sprint add SPRINT-ID ISSUE-KEY          # Add to active/known sprint
+jira issue link ISSUE-1 ISSUE-2 Relates      # Link issues
+```
+
+### REST ADF Description Pattern
+Use this for clean Jira descriptions with sections and bullets:
+```bash
+payload=$(jq -n '{
+  fields: {
+    description: {
+      type: "doc",
+      version: 1,
+      content: [
+        {type: "heading", attrs: {level: 3}, content: [{type: "text", text: "Goal"}]},
+        {type: "paragraph", content: [{type: "text", text: "Make staging and production consistent."}]},
+        {type: "heading", attrs: {level: 3}, content: [{type: "text", text: "Scope"}]},
+        {type: "bulletList", content: [
+          {type: "listItem", content: [{type: "paragraph", content: [{type: "text", text: "Add production deploy path."}]}]}
+        ]}
+      ]
+    }
+  }
+}')
+curl -sS -X PUT "${JIRA_BASE_URL}/rest/api/3/issue/<KEY>" \
+  -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d "$payload" \
+  -w "\nHTTP %{http_code}\n"
 ```
 
 ### Other
