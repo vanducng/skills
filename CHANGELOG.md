@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.15.0](https://github.com/vanducng/skills/compare/v1.14.1...v1.15.0) (2026-06-23)
+
+
+### Features
+
+* **miucr:** document codex model config + summary blocks + incremental + stack rules ([e564767](https://github.com/vanducng/skills/commit/e5647676919e2b40b64e8f5976cba5d906af980b))
+
 ## [1.14.1](https://github.com/vanducng/skills/compare/v1.14.0...v1.14.1) (2026-06-23)
 
 
