@@ -11,7 +11,10 @@ SCRIPT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from generate import (  # noqa: E402
+    CODEX_IMAGE_MODEL,
     _generate_valid_skeleton,
+    _openrouter_key_reason,
+    _produce_image,
     _resolve_parent_dir,
     parse_args,
     resolve_output_dir,
@@ -41,6 +44,44 @@ class GenerateCliTest(unittest.TestCase):
 
     def test_workflow_defaults_to_skeleton_engine(self):
         self.assertEqual(resolve_engine(None, "workflow", "svg"), "skeleton")
+
+    def test_codex_png_with_explicit_type_does_not_require_openrouter(self):
+        args = parse_args([
+            "--type", "workflow",
+            "--format", "png",
+            "--provider", "codex",
+            "call lookup workflow",
+        ])
+
+        self.assertIsNone(_openrouter_key_reason(args))
+
+    def test_auto_type_requires_openrouter_for_classification(self):
+        args = parse_args([
+            "--format", "png",
+            "--provider", "codex",
+            "call lookup workflow",
+        ])
+
+        self.assertEqual(_openrouter_key_reason(args), "auto-classifying the diagram type")
+
+    def test_openrouter_provider_requires_openrouter(self):
+        args = parse_args([
+            "--type", "workflow",
+            "--format", "png",
+            "--provider", "openrouter",
+            "call lookup workflow",
+        ])
+
+        self.assertEqual(_openrouter_key_reason(args), "using --provider openrouter")
+
+    def test_svg_requires_openrouter(self):
+        args = parse_args([
+            "--type", "workflow",
+            "--format", "svg",
+            "call lookup workflow",
+        ])
+
+        self.assertEqual(_openrouter_key_reason(args), "generating SVG diagrams")
 
     def test_visuals_env_overrides_scratch_output_parent(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {"VD_VISUALS_PATH": tmp}):
@@ -76,6 +117,31 @@ class GenerateCliTest(unittest.TestCase):
             last.write_text(f"codex\n{image}\ntokens used\n123")
 
             self.assertEqual(_png_from_last_message(last), image)
+
+    def test_codex_image_path_skips_openrouter_refiner(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out_path = Path(tmp) / "v1.png"
+            with (
+                patch("generate.find_api_key", return_value=None),
+                patch("generate.refine_prompt") as refine_prompt,
+                patch("generate.codex_available", return_value=True),
+                patch("generate.codex_generate_image") as codex_generate,
+            ):
+                refined, image_model = _produce_image(
+                    description="call lookup workflow",
+                    diagram_type="workflow",
+                    fmt="png",
+                    quality="medium",
+                    aspect_ratio="16:9",
+                    output_path=out_path,
+                    preset="pastel",
+                    image_provider="codex",
+                )
+
+        refine_prompt.assert_not_called()
+        codex_generate.assert_called_once()
+        self.assertEqual(image_model, CODEX_IMAGE_MODEL)
+        self.assertIn("call lookup workflow", refined)
 
     def test_versioned_spec_and_manifest_are_reviewable(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -514,6 +514,29 @@ def resolve_engine(arg_engine: str | None, diagram_type: str, fmt: str) -> str:
     return engine
 
 
+def _openrouter_key_reason(args: argparse.Namespace, fmt: str | None = None) -> str | None:
+    effective_fmt = fmt or args.format
+    if not args.regen and args.type is None:
+        return "auto-classifying the diagram type"
+    if effective_fmt == "svg":
+        return "generating SVG diagrams"
+    if effective_fmt == "png" and args.provider == "openrouter":
+        return "using --provider openrouter"
+    return None
+
+
+def _require_openrouter_key(reason: str) -> bool:
+    if find_api_key() is not None:
+        return True
+    print(
+        "OPEN_ROUTER_KEY (or OPENROUTER_API_KEY) not set. "
+        f"It is required for {reason}. "
+        "Get a key at https://openrouter.ai/settings/keys",
+        file=sys.stderr,
+    )
+    return False
+
+
 def _resolve_type(arg_type: str | None, description: str) -> tuple[str, float]:
     if arg_type:
         resolved = TYPE_ALIASES.get(arg_type, arg_type)
@@ -683,6 +706,35 @@ def _generate_valid_skeleton(
     raise RuntimeError(f"pass-1 emitted invalid skeleton after retry: {last_error}") from last_error
 
 
+def _build_codex_image_prompt(
+    *,
+    description: str,
+    diagram_type: str,
+    preset: str,
+    type_ref: str,
+    style_tokens: str,
+    composition_rules: str,
+    has_reference_images: bool = False,
+) -> str:
+    reference_note = (
+        "Use the attached reference image only as layout guidance; redraw the diagram cleanly."
+        if has_reference_images
+        else "No reference image is attached; compose the diagram from the written description."
+    )
+    return (
+        f"Create one polished {diagram_type} diagram as a clean raster image. "
+        "Follow the described systems and labels exactly, keep labels short and readable, "
+        "avoid incident/person-specific narrative unless it appears in the description, "
+        "and do not invent extra services or steps.\n\n"
+        f"{reference_note}\n\n"
+        f"## User description\n{description}\n\n"
+        f"## Active preset\n{preset}\n\n"
+        f"## Style tokens and foundations\n{style_tokens}\n\n"
+        f"## Composition rules\n{composition_rules}\n\n"
+        f"## Type-specific reference\n{type_ref}"
+    )
+
+
 def _produce_image(
     *,
     description: str,
@@ -718,13 +770,25 @@ def _produce_image(
             description=description, output_path=output_path,
             refs=refs, style_tokens=style_tokens, preset=preset, revise=revise,
         )
-    print(f"→ refining prompt (preset: {preset}, model: {REFINE_MODEL}, ~5–10s)…", flush=True)
-    refined = refine_prompt(
-        description=description,
-        type_ref=refs["type_ref"],
-        style_tokens=style_tokens,
-        composition_rules=refs["composition_rules"],
-    )
+    if image_provider == "codex":
+        print(f"→ building codex image prompt (preset: {preset})…", flush=True)
+        refined = _build_codex_image_prompt(
+            description=description,
+            diagram_type=diagram_type,
+            preset=preset,
+            type_ref=refs["type_ref"],
+            style_tokens=style_tokens,
+            composition_rules=refs["composition_rules"],
+            has_reference_images=bool(reference_images),
+        )
+    else:
+        print(f"→ refining prompt (preset: {preset}, model: {REFINE_MODEL}, ~5–10s)…", flush=True)
+        refined = refine_prompt(
+            description=description,
+            type_ref=refs["type_ref"],
+            style_tokens=style_tokens,
+            composition_rules=refs["composition_rules"],
+        )
     if image_provider == "codex":
         if codex_available():
             print(f"→ generating PNG via codex ({CODEX_IMAGE_MODEL}, ~30–120s)…", flush=True)
@@ -740,8 +804,16 @@ def _produce_image(
             except CodexImageError as exc:
                 if reference_images:
                     raise
+                if find_api_key() is None:
+                    raise RuntimeError(
+                        f"codex image failed ({exc}) and no OPEN_ROUTER_KEY is set for fallback"
+                    ) from exc
                 print(f"⚠ codex image failed ({exc}); falling back to OpenRouter", file=sys.stderr, flush=True)
         else:
+            if find_api_key() is None:
+                raise RuntimeError(
+                    "codex unavailable (not installed / not logged in) and no OPEN_ROUTER_KEY is set for fallback"
+                )
             print("⚠ codex unavailable (not installed / not logged in); using OpenRouter", file=sys.stderr, flush=True)
 
     if reference_images:
@@ -761,13 +833,6 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 
     print("→ resolving config…", flush=True)
-    if find_api_key() is None:
-        print(
-            "OPEN_ROUTER_KEY (or OPENROUTER_API_KEY) not set. "
-            "Get a key at https://openrouter.ai/settings/keys",
-            file=sys.stderr,
-        )
-        return 1
 
     parent_dir = _resolve_parent_dir(versioned=args.versioned)
     parent_dir.mkdir(parents=True, exist_ok=True)
@@ -800,6 +865,9 @@ def main(argv: list[str] | None = None) -> int:
         fmt = meta.get("format") or args.format
         preset = meta.get("preset") or args.preset
         engine = meta.get("engine") or resolve_engine(args.engine, diagram_type, fmt)
+        key_reason = _openrouter_key_reason(args, fmt=fmt)
+        if key_reason and not _require_openrouter_key(key_reason):
+            return 1
         effective = f"{original}\n\nFeedback for next iteration: {args.regen}"
         variant = next_variant_index(session_dir, fmt)
         out_path = session_dir / f"v{variant}.{fmt}"
@@ -861,6 +929,10 @@ def main(argv: list[str] | None = None) -> int:
             "no description and no --regen — pass a description or use --regen with feedback",
             file=sys.stderr,
         )
+        return 1
+
+    key_reason = _openrouter_key_reason(args)
+    if key_reason and not _require_openrouter_key(key_reason):
         return 1
 
     diagram_type, confidence = _resolve_type(args.type, args.description)
