@@ -19,6 +19,8 @@ Snap **every** `x`, `y`, `width`, `height` to a multiple of 20. Most of the "off
 - Edges never cross node bounding boxes. Route through the gutters between nodes; if a gutter doesn't exist, the layout is too dense — pick wider node spacing, not a diagonal shortcut.
 - Bidirectional flows collapse to **one** path with `marker-start` AND `marker-end` — never two parallel arrows on the same line.
 - For an arrow label on a long edge, place the `<g class="arrow-label">` at the midpoint of a straight segment with a literal-hex `<rect>` occluder behind the text. Do not place labels on bends.
+- Every visible line must have a clear role: border, connector, arrow, or intentional lane boundary. Delete stray, dangling, or unfinished line segments.
+- Connectors must terminate at a node boundary or with a clear arrowhead. Lane dividers must stop cleanly at their container edge; do not leave partial divider remnants in gutters.
 
 ## Hierarchy
 
