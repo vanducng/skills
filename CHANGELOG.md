@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.17.0](https://github.com/vanducng/skills/compare/v1.16.0...v1.17.0) (2026-06-24)
+
+
+### Features
+
+* **miucr:** document finding title + rule grounding in the output contract ([750b8d2](https://github.com/vanducng/skills/commit/750b8d2375dc78dc6a341b3363df5bfe5fe81d9a))
+
 ## [1.16.0](https://github.com/vanducng/skills/compare/v1.15.2...v1.16.0) (2026-06-24)
 
 
