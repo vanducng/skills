@@ -152,7 +152,7 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
 | `--suggest` | OFF | Native one-click suggestions for proven single-line replacements; requires `--post`; author-applied, never pushed. |
 | `--approve-clean` | OFF | Submit `Event=APPROVE` only on a clean, non-fork, trusted-author PR; else degrades to COMMENT (never errors); requires `--post`. |
 | `--filter-mode added\|diff_context\|file\|nofilter` | `diff_context` | Inline-eligibility filter on `--pr`. `file`/`nofilter` route off-diff findings to summary/SARIF/local, never inline (GitHub 422s an off-diff comment). |
-| `--min-severity none\|info\|low\|medium\|high\|critical` | — (no floor) | Minimum severity posted **inline** on `--pr`. Below-threshold findings still appear in the summary histogram + SARIF, never inline. An out-of-set value is rejected (`config.invalid`, exit 2). |
+| `--min-severity none\|info\|low\|medium\|high\|critical` | — (no floor) | Minimum severity posted **inline** on `--pr`. Below-threshold findings still appear in the summary histogram + SARIF, never inline. An out-of-set value is rejected (`flags.invalid_min_severity`, exit 2). |
 | `--walkthrough-diagram` | OFF | Opt in to a Mermaid change diagram in the summary (fenced ```mermaid block GitHub renders). Rides the same single review pass — no extra LLM call. Diagram quality varies; a malformed/omitted diagram degrades to a plain note. |
 | `--mode review\|checks` | `review` | GitHub reporter on `--pr --post`. `review` posts inline comments + a summary. `checks` posts a GitHub CheckRun with annotations (survives force-push, works on fork PRs, can be a **required** check); conclusion maps from the gate (gate-clean→`success`, gate-hit→`failure`); needs `checks: write`. |
 | `--sarif-out <path>` | — | Also write a SARIF 2.1.0 report to `<path>` from the SAME single review run (in addition to `--output`/posting). Written only on success (atomic temp+rename); a failed run leaves no file. This is how the Action does single-pass SARIF — no second LLM call. |
@@ -166,6 +166,8 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
 "data": {
   "findings": [
     { "file": "internal/foo/bar.go", "line": 42, "end_line": 42,
+      "title": "…optional short scannable summary…",   // omitted when the model emits none
+      "rule": "go",                                     // optional: stem of the project rule that motivated this finding (omitted when none)
       "severity": "high", "category": "bug",
       "rationale": "…why this is a problem…",
       "suggested_patch": "…optional minimal fix…",
@@ -263,6 +265,12 @@ A file with **no `---` fence is skipped** (never always-applied). Untrusted repo
 context-only, byte-capped, and **dropped on fork PRs**; the finding-JSON schema stays in the cached
 system prompt so injected prose can't redefine it. `rules check` data lists each applicable rule with
 `provenance`, `stem`, `globs`/`always_apply`, `trusted`, plus skipped `body_only` files.
+
+**Rule grounding.** A finding may carry the `rule` stem of the project rule that motivated it. The
+wire layer validates the stem against the rules actually loaded this review (a hallucinated stem is
+dropped) and renders it as `(per <stem>)` on the inline comment + summary overflow. A repo rule
+(`.miu/cr/rules/*.md`) additionally links to its file, repo-relative at the head SHA; user and
+built-in rules are cited as text only (no link — a user-rule home path never leaks).
 
 ### `history` — browse saved reviews
 
