@@ -2,6 +2,14 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.15.2](https://github.com/vanducng/skills/compare/v1.15.1...v1.15.2) (2026-06-24)
+
+
+### Bug Fixes
+
+* **diagram:** rejected stray generated lines ([a95d0c3](https://github.com/vanducng/skills/commit/a95d0c369fa282f57c7d27fb89aeecb4e4f2a7bc))
+* reject stray diagram lines ([15632d7](https://github.com/vanducng/skills/commit/15632d761c91bb626bd0bbfad72c6dcf8c97ae59))
+
 ## [1.15.1](https://github.com/vanducng/skills/compare/v1.15.0...v1.15.1) (2026-06-24)
 
 
