@@ -75,7 +75,6 @@ The day-1 provider/auth/timeout failures classify into a **stable taxonomy** (sa
 | `github.auth` | PR fetch hit `401`/`403` (bad/missing `GITHUB_TOKEN` or insufficient scope) | `false` | check `GITHUB_TOKEN` / its repo scope |
 | `github.pr_not_found` | PR fetch hit `404` (no such PR, or the token can't see it) | `false` | check the PR exists and the token has access |
 | `github.rate_limited` | PR fetch hit `429` (REST rate limit or abuse-detection) | `true` | GitHub rate limit — wait for the reset and retry |
-| `github.rate_limited` | PR fetch hit `429` (REST rate limit or abuse-detection) | `true` | GitHub rate limit — wait for the reset and retry |
 | `github.unavailable` | PR fetch hit `5xx` / a network error (DNS / refused / timeout) | `true` | GitHub unavailable / unreachable — retry shortly |
 | `github.pr_fetch_failed` | any other unclassified PR-fetch failure | `false` | — |
 | `internal.error` | any unclassified failure (default; bare-wrapped) | `false` | — |
@@ -174,7 +173,7 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
 | `--api-key` / `--base-url` / `--auth-token` / `--model` | — | Provider overrides; **never persisted**. |
 | `--token <pat>` | — | GitHub PAT (overrides `GITHUB_TOKEN`/`GH_TOKEN`); required only for `--post`; never persisted. |
 | `--post` / `--no-post` | `--no-post` (for `--pr`) | Publish vs dry-run; mutually exclusive (`flags.conflict`). |
-| `--suggest` | OFF | Native one-click suggestions for proven single-line replacements; requires `--post`; author-applied, never pushed. |
+| `--suggest` | OFF | Native one-click suggestions for proven fixes — single-line replacements **and** wrap/guard/insert fixes (a multi-line patch on a QuotedCode-proven single-line anchor); requires `--post`; author-applied, never pushed. |
 | `--approve-clean` | OFF | Submit `Event=APPROVE` only on a clean, non-fork, trusted-author PR; else degrades to COMMENT (never errors); requires `--post`. |
 | `--filter-mode added\|diff_context\|file\|nofilter` | `diff_context` | Inline-eligibility filter on `--pr`. `file`/`nofilter` route off-diff findings to summary/SARIF/local, never inline (GitHub 422s an off-diff comment). |
 | `--min-severity none\|info\|low\|medium\|high\|critical` | — (no floor) | Minimum severity posted **inline** on `--pr`. Below-threshold findings still appear in the summary histogram + SARIF, never inline. An out-of-set value is rejected (`flags.invalid_min_severity`, exit 2). |
@@ -194,7 +193,7 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
       "title": "…optional short scannable summary…",   // omitted when the model emits none
       "rule": "go",                                     // optional: stem of the project rule that motivated this finding (omitted when none)
       "severity": "high", "category": "bug",
-      "rationale": "…why this is a problem…",
+      "rationale": "…why this is a problem (may cite a convention the model can see, e.g. \"differs from mapWriteError\")…",
       "suggested_patch": "…optional minimal fix…",
       "quoted_code": "…verbatim source the finding anchors to…" }
   ],
