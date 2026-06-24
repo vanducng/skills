@@ -74,6 +74,8 @@ The day-1 provider/auth/timeout failures classify into a **stable taxonomy** (sa
 | `config.invalid` | malformed `config.toml` / bad enum or `auth` value / an `openai`-kind gateway profile with a key but no `base_url` (exit `2`; same code across review/history/serve) | `false` | fix the named field / set `base_url` for the gateway profile |
 | `github.auth` | PR fetch hit `401`/`403` (bad/missing `GITHUB_TOKEN` or insufficient scope) | `false` | check `GITHUB_TOKEN` / its repo scope |
 | `github.pr_not_found` | PR fetch hit `404` (no such PR, or the token can't see it) | `false` | check the PR exists and the token has access |
+| `github.rate_limited` | PR fetch hit `429` (REST rate limit or abuse-detection) | `true` | GitHub rate limit — wait for the reset and retry |
+| `github.rate_limited` | PR fetch hit `429` (REST rate limit or abuse-detection) | `true` | GitHub rate limit — wait for the reset and retry |
 | `github.unavailable` | PR fetch hit `5xx` / a network error (DNS / refused / timeout) | `true` | GitHub unavailable / unreachable — retry shortly |
 | `github.pr_fetch_failed` | any other unclassified PR-fetch failure | `false` | — |
 | `internal.error` | any unclassified failure (default; bare-wrapped) | `false` | — |
