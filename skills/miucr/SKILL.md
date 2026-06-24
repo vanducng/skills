@@ -59,6 +59,29 @@ Every command prints **one JSON object** on stdout (default `-o json`). Field or
 Severities low→high: `info` < `low` < `medium` < `high` < `critical`. A `review.gate_failed`
 error is emitted *after* the normal `review.result` envelope (the findings still print), then exit 2.
 
+### Typed error codes (branch on `error.code`)
+
+The day-1 provider/auth/timeout failures classify into a **stable taxonomy** (same code across all backends — anthropic/openai/codex), each with an actionable `hint` and a correct `retryable`:
+
+| `error.code` | When | `retryable` | Hint |
+| ------------ | ---- | ----------- | ---- |
+| `agent.auth_failed` | bad/invalid API key (401/403, api-key backends) | `false` | `miucr login …` / set a valid key |
+| `agent.auth_expired` | expired OAuth (401/403; codex incl. still-401-after-refresh) | `false` | `miucr login --provider openai` |
+| `provider.rate_limited` | 429 | `true` | wait for the reset window and retry |
+| `agent.unavailable` | 5xx / 529 | `true` | retry shortly |
+| `review.timeout` | the review exceeded `--timeout` | `true` | raise `--timeout` (e.g. `600s`) or narrow the diff |
+| `review.canceled` | ctx canceled (Ctrl-C / SIGINT) — exit `130` | `false` | — |
+| `config.invalid` | malformed `config.toml` / bad enum or `auth` value / an `openai`-kind gateway profile with a key but no `base_url` (exit `2`; same code across review/history/serve) | `false` | fix the named field / set `base_url` for the gateway profile |
+| `github.auth` | PR fetch hit `401`/`403` (bad/missing `GITHUB_TOKEN` or insufficient scope) | `false` | check `GITHUB_TOKEN` / its repo scope |
+| `github.pr_not_found` | PR fetch hit `404` (no such PR, or the token can't see it) | `false` | check the PR exists and the token has access |
+| `github.unavailable` | PR fetch hit `5xx` / a network error (DNS / refused / timeout) | `true` | GitHub unavailable / unreachable — retry shortly |
+| `github.pr_fetch_failed` | any other unclassified PR-fetch failure | `false` | — |
+| `internal.error` | any unclassified failure (default; bare-wrapped) | `false` | — |
+
+Unknown failures stay `internal.error` (never mislabeled as retryable). Classified messages are redacted — **no token fragment ever appears**.
+
+The **codex** backend retries `429`/`502`/`503`/`504` (and a `response.failed` stream event) with bounded, jittered exponential backoff (≤3 attempts) like the SDK backends, honoring `Retry-After`/`resets_in_seconds` and aborting on cancel/timeout. A persistent rate limit returns `provider.rate_limited` with the usage-cap reset window in `error.details.resets_in_seconds` (or `retry_after_seconds`) — branch on that to decide wait-vs-switch-provider.
+
 ## Install
 
 ```sh
