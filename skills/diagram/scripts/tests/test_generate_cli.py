@@ -12,6 +12,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from generate import (  # noqa: E402
     CODEX_IMAGE_MODEL,
+    _build_codex_image_prompt,
     _generate_valid_skeleton,
     _openrouter_key_reason,
     _produce_image,
@@ -142,6 +143,20 @@ class GenerateCliTest(unittest.TestCase):
         codex_generate.assert_called_once()
         self.assertEqual(image_model, CODEX_IMAGE_MODEL)
         self.assertIn("call lookup workflow", refined)
+
+    def test_codex_prompt_rejects_stray_dangling_lines(self):
+        prompt = _build_codex_image_prompt(
+            description="call lookup workflow",
+            diagram_type="workflow",
+            preset="pastel",
+            type_ref="workflow reference",
+            style_tokens="style tokens",
+            composition_rules="composition rules",
+        )
+
+        self.assertIn("visual QA pass", prompt)
+        self.assertIn("stray, dangling, or unfinished", prompt)
+        self.assertIn("every line must", prompt)
 
     def test_versioned_spec_and_manifest_are_reviewable(self):
         with tempfile.TemporaryDirectory() as tmp:
