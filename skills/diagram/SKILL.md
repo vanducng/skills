@@ -11,7 +11,7 @@ metadata:
 # vd:diagram
 
 Turn natural-language descriptions into reviewable diagram images and version-controlled diagram artifacts. Two render paths:
-- **PNG** (default): refines the prompt with `claude-haiku-4-5`, then generates the image. Default image provider is **codex** (`gpt-image-2` via your ChatGPT subscription — cost-optimized, no per-image API spend), with automatic fallback to OpenRouter `gpt-5.4-image-2` when codex is unavailable. Force the API path with `--provider openrouter`. The current CLI still requires `OPEN_ROUTER_KEY` / `OPENROUTER_API_KEY` before provider selection because prompt refinement uses OpenRouter.
+- **PNG** (default): generates the image. Default image provider is **codex** (`gpt-image-2` via your ChatGPT subscription — cost-optimized, no per-image API spend), with automatic fallback to OpenRouter `gpt-5.4-image-2` when codex is unavailable and an OpenRouter key is set. Force the API path with `--provider openrouter`. With `--provider codex` and an explicit `--type`, no `OPEN_ROUTER_KEY` / `OPENROUTER_API_KEY` is required.
 - **SVG** (`--format svg`): the LLM emits the SVG markup directly. Cheaper, crisper labels, hand-editable.
 
 Use `--versioned` only when the diagram source, variants, and manifest are themselves review artifacts for an ADR/spec/PR. It writes a stable folder under `docs/diagrams/<slug>/` with:
@@ -124,12 +124,12 @@ vs the image/SVG `er` type: **HTML** for living schema docs you click through an
 ## Setup
 
 ```bash
-export OPEN_ROUTER_KEY="sk-or-v1-..."   # or OPENROUTER_API_KEY
+export OPEN_ROUTER_KEY="sk-or-v1-..."   # or OPENROUTER_API_KEY; required for SVG, auto-type classification, or --provider openrouter
 # one-time: ensure file-browser viewer deps are installed
 cd $HOME/skills/skills/file-browser && npm install
 ```
 
-Get a key at <https://openrouter.ai/settings/keys>.
+Get an OpenRouter key at <https://openrouter.ai/settings/keys>. Codex PNG generation uses the Codex CLI ChatGPT login instead.
 
 ## How it works
 
@@ -137,7 +137,7 @@ Get a key at <https://openrouter.ai/settings/keys>.
 2. **Resolve session dir** — `VD_VISUALS_PATH` when set, else the current repo's resolved workbench visuals path, else `<git-root>/.diagrams/<YYYYMMDD-HHMM>-<slug>/`. Outside a git repo: `~/Documents/llm-diagrams/<cwd>-<slug>/`.
 3. **Classify type** — if `--type` not provided, OpenRouter classifies into one of 8 types.
 4. **Load refs** — preset style tokens, `references/style-foundations.md`, `references/composition-rules.md`, `references/types/<type>.md`, plus `references/svg-contract.md` for SVG runs.
-5. **Refine OR emit** — PNG: refine to image-gen prompt → image API. SVG: LLM emits markup directly.
+5. **Prompt OR emit** — PNG: build a Codex prompt locally, or refine through OpenRouter when using `--provider openrouter`. SVG: LLM emits markup directly.
 6. **Save** — scratch mode writes `v1.png` / `v1.svg` + `prompt.md` + `meta.json`; versioned mode also writes `diagram.spec.yaml` + `manifest.json`. Spawn the file-browser gallery.
 
 ## Diagram types
