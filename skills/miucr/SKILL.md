@@ -152,6 +152,8 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
 | `--suggest` | OFF | Native one-click suggestions for proven single-line replacements; requires `--post`; author-applied, never pushed. |
 | `--approve-clean` | OFF | Submit `Event=APPROVE` only on a clean, non-fork, trusted-author PR; else degrades to COMMENT (never errors); requires `--post`. |
 | `--filter-mode added\|diff_context\|file\|nofilter` | `diff_context` | Inline-eligibility filter on `--pr`. `file`/`nofilter` route off-diff findings to summary/SARIF/local, never inline (GitHub 422s an off-diff comment). |
+| `--min-severity none\|info\|low\|medium\|high\|critical` | — (no floor) | Minimum severity posted **inline** on `--pr`. Below-threshold findings still appear in the summary histogram + SARIF, never inline. An out-of-set value is rejected (`config.invalid`, exit 2). |
+| `--walkthrough-diagram` | OFF | Opt in to a Mermaid change diagram in the summary (fenced ```mermaid block GitHub renders). Rides the same single review pass — no extra LLM call. Diagram quality varies; a malformed/omitted diagram degrades to a plain note. |
 | `--mode review\|checks` | `review` | GitHub reporter on `--pr --post`. `review` posts inline comments + a summary. `checks` posts a GitHub CheckRun with annotations (survives force-push, works on fork PRs, can be a **required** check); conclusion maps from the gate (gate-clean→`success`, gate-hit→`failure`); needs `checks: write`. |
 | `--sarif-out <path>` | — | Also write a SARIF 2.1.0 report to `<path>` from the SAME single review run (in addition to `--output`/posting). Written only on success (atomic temp+rename); a failed run leaves no file. This is how the Action does single-pass SARIF — no second LLM call. |
 | `--no-save` | off | Skip persisting this run to the local history store (every review is saved by default). |
@@ -173,9 +175,10 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
              "findings_dropped": 1, "max_severity": "high", "gate": "high",
              "truncation_level": "full",            // full | hunks_only | filenames_only
              "rules_applied": 5, "rules_truncated": false },
-  "review_id": "rev_...",  // additive: the saved history record id ("" with --no-save)
-  // additive, only on --pr when an unchanged head SHA short-circuited (no LLM pass);
-  // both omitted on a normal review:
+  "review_id": "rev_...",  // additive: the saved history record id ("" only with --no-save; on an incremental skip it is the prior review id)
+  // additive, only on a --pr DRY-RUN when an unchanged head SHA short-circuited (no
+  // LLM pass); both omitted on a normal review. --post never short-circuits (it must
+  // publish). On the skip path findings is [] and stats is {} (never null):
   "skipped_unchanged": true, "prior_review_id": "rev_prior",
   "pr": {  // only on --pr
     "owner": "owner", "repo": "repo", "number": 123, "head_sha": "deadbeef",
@@ -433,8 +436,9 @@ Runs on same-repo PRs only (fork-safe automated review is the `serve` path's job
 2. **Review a PR (dry-run)** — `env -u GITHUB_TOKEN -u GH_TOKEN miucr review --pr owner/repo#N --no-post -o json`
    (public repo, no PAT). Read `.data.pr` + `.data.findings`.
 3. **Publish** — `miucr review --pr owner/repo#N --post --token <pat>`; idempotent re-runs (`posted_inline:0`,
-   `summary_action:edited`). Add `--suggest`/`--approve-clean` only when you intend write-actions. A re-review on
-   an **unchanged head SHA** short-circuits (`.data.skipped_unchanged:true`, no LLM pass); pass `--force` to override.
+   `summary_action:edited`). Add `--suggest`/`--approve-clean` only when you intend write-actions. `--post`
+   always publishes — it never short-circuits. Only a **dry-run** (`--no-post`) on an **unchanged head SHA**
+   short-circuits (`.data.skipped_unchanged:true`, no LLM pass); pass `--force` to override.
 4. **Re-trigger the Action / dogfood** — push a new commit, or re-run the `PR Review` workflow from the
    Actions tab / `gh workflow run` / `gh run rerun <id>`. Each new head SHA is a fresh review.
 5. **On `ok:false`** — branch on `.error.code` (e.g. `review.gate_failed`, `github.post_requires_token`,
