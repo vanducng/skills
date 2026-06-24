@@ -2,6 +2,14 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.15.1](https://github.com/vanducng/skills/compare/v1.15.0...v1.15.1) (2026-06-24)
+
+
+### Bug Fixes
+
+* **diagram:** allowed codex PNG without OpenRouter key ([cca93b8](https://github.com/vanducng/skills/commit/cca93b8f71d2548696dde92904d69119d63997c5))
+* let codex diagrams skip openrouter key ([f72d927](https://github.com/vanducng/skills/commit/f72d927b58db72e4df21c7554ceecd9aafe205a0))
+
 ## [1.15.0](https://github.com/vanducng/skills/compare/v1.14.1...v1.15.0) (2026-06-23)
 
 
