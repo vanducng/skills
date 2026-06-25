@@ -43,8 +43,8 @@ Every command prints **one JSON object** on stdout (default `-o json`). Field or
              "retryable": false, "safe_to_retry": false } }
 ```
 
-`kind` per command: `version`, `review.result`, `rules.check`, `rules.init`, `init.result`, `login.result`,
-`history.list`, `history.record`, `history.prune`, `trace.show`, `error`
+`kind` per command: `version`, `review.result`, `config.show`, `rules.check`, `rules.init`, `init.result`, `login.result`,
+`whoami`, `logout`, `history.list`, `history.record`, `history.prune`, `trace.show`, `error`
 (REST: `review.accepted` / `review.result`). **Secrets never appear** in the envelope, logs, or on disk
 (credential-named fields are scrubbed; finding `rationale`/`suggested_patch` prose is exempt).
 
@@ -385,8 +385,21 @@ Errors: `login.provider_unsupported`, `login.port_unavailable`, `login.timeout`,
 
 **Precedence**: the cached OAuth credential sits **below** an explicit `--api-key` / `OPENAI_API_KEY`
 in OpenAI resolution — an explicit key always wins; OAuth is consulted only when no OpenAI key is set.
-`oauth.json` is gitignored, `0600`, never logged/in-envelope. No `miucr logout` (delete the file by hand).
+`oauth.json` is gitignored, `0600`, never logged/in-envelope.
 **CI uses an `OPENAI_API_KEY` secret, not OAuth** (browser-interactive) — `miucr review --provider openai`.
+
+### `whoami` / `logout` — inspect and clear the cached OAuth identity
+
+```sh
+miucr whoami     # {logged_in, provider, account_id, expires_at, expired} — NEVER the token
+miucr logout     # delete oauth.json; idempotent ({removed: bool})
+```
+
+`whoami` whitelists only the non-secret fields from the cached record — the four secret fields
+(access/refresh/id token, api key) are never read into the envelope, so no token can leak (json or
+pretty). No cached record → `kind: whoami` with `{logged_in: false}` (clean exit, not an error).
+`logout` removes `oauth.json`; a missing record reports `{removed: false}` rather than erroring, so
+it is safe to run twice. Both emit the `miucr.cli/v1` envelope (`kind: whoami` / `kind: logout`).
 
 ### `upgrade` (alias `update`) — self-update from GitHub Releases
 
@@ -411,6 +424,16 @@ action}` where `action` ∈ `upgraded | already_latest | check_only`. Errors:
 ```sh
 miucr version            # {"ok":true,...,"data":{"version":"v0.11.0"}}
 ```
+
+### `config show` — inspect the effective config (secrets redacted)
+
+```sh
+miucr config show          # user-set values only (kind: config.show)
+miucr config show --all    # full effective config incl. built-in defaults
+miucr config show -o pretty  # TOML view for humans
+```
+
+Read-only. Every credential (`auth_token`, store `dsn`) is masked by **structural** redaction — a token/DSN can never reach stdout (json or pretty). There is no `config set` write path (deliberate, to avoid a plaintext-secret footgun); edit `config.toml` directly. Envelope `kind: config.show`; `data` is the redacted config table, `summary` = `{all, path}`.
 
 ## Config (`~/.config/miu/cr/config.toml`) — all optional, zero-config works
 
@@ -446,9 +469,17 @@ app_id           = "123456"             # app mode: numeric App ID
 installation_id  = "78901234"           # app mode: numeric installation id
 private_key_path = "/etc/miucr/app-key.pem"   # app mode: PATH to RSA PEM (never inline)
 
-[review]                                # render a finding's Category as a docs link (TRUSTED config only)
-category_urls = { security = "https://docs.example.com/security" }   # case-insensitive key -> http(s) URL; sets PR-comment/summary link + SARIF helpUri
+[review]                                # defaults for `miucr review` flags (TRUSTED config only) — an explicit flag ALWAYS wins
+gate         = "high"                   # default --gate: none|info|low|medium|high|critical
+filter_mode  = "diff_context"           # default --filter-mode (--pr): added|diff_context|file|nofilter
+min_severity = "low"                    # default --min-severity (--pr inline floor)
+timeout      = "300s"                   # default review timeout (Go duration: 300s, 5m, …)
+suggest      = false                    # default --suggest (one-click suggestions on --post)
+category_urls = { security = "https://docs.example.com/security" }   # case-insensitive Category -> http(s) URL; PR-comment/summary link + SARIF helpUri
+# NB: no approve_clean config (write-action default-on is a footgun); a bad [review] enum/timeout → config.invalid (exit 2)
 ```
+
+See the effective config any time with `miucr config show` (below).
 
 **Provider resolution** — `auto` picks OpenAI when `OPENAI_API_KEY` is set and no Anthropic credential is
 present, else `default_provider` (Anthropic). OpenAI order: explicit `--api-key` > `OPENAI_API_KEY` > profile key >
