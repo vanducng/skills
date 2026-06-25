@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.19.0](https://github.com/vanducng/skills/compare/v1.18.0...v1.19.0) (2026-06-25)
+
+
+### Features
+
+* add codex-workflow skill ([8af7632](https://github.com/vanducng/skills/commit/8af7632fc1b958ab27e02e017928f20eb92e5b5c))
+
 ## [1.18.0](https://github.com/vanducng/skills/compare/v1.17.0...v1.18.0) (2026-06-25)
 
 
