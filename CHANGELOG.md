@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.18.0](https://github.com/vanducng/skills/compare/v1.17.0...v1.18.0) (2026-06-25)
+
+
+### Features
+
+* source-control Codex subagent definitions under agents/ ([04079e0](https://github.com/vanducng/skills/commit/04079e022584bbcedbcf015a091f3c8018833243))
+
 ## [1.17.0](https://github.com/vanducng/skills/compare/v1.16.0...v1.17.0) (2026-06-24)
 
 
