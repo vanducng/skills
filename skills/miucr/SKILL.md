@@ -193,6 +193,7 @@ miucr review --pr owner/repo#123 --conversation                   # also read th
 | `--token <pat>` | - | GitHub PAT (overrides `GITHUB_TOKEN`/`GH_TOKEN`); required only for `--post`; never persisted. |
 | `--post` / `--no-post` | `--no-post` (for `--pr`) | Publish vs dry-run; mutually exclusive (`flags.conflict`). |
 | `--suggest` | OFF | Native one-click suggestions for proven fixes: single-line replacements **and** wrap/guard/insert fixes (a multi-line patch on a QuotedCode-proven single-line anchor); requires `--post`; author-applied, never pushed. |
+| `--patch-repair` | OFF | Conditional **2nd LLM pass** that recovers one-click suggestions the first pass *almost* produced: for each single-line finding `>= medium` whose `SuggestedPatch` was rejected for a *repairable* reason (empty / no-op — never a true anchor mismatch), one focused agent call asks for a minimal replacement of the verbatim anchored span, then **re-validates with the same exact-anchor gate**; emits the suggestion only if it now passes, else keeps the fenced hint. **Requires `--suggest`** (`config.invalid`, exit 2, otherwise); inert in dry-run (recovers only on `--post`). Bounded: per-review cap (default 5), highest-severity-first; one extra LLM call per repaired candidate. PR-path only, default OFF. |
 | `--approve-clean` | OFF | Submit `Event=APPROVE` only on a clean, non-fork, trusted-author PR; else degrades to COMMENT (never errors); requires `--post`. |
 | `--filter-mode added\|diff_context\|file\|nofilter` | `diff_context` | Inline-eligibility filter on `--pr`. `file`/`nofilter` route off-diff findings to summary/SARIF/local, never inline (GitHub 422s an off-diff comment). |
 | `--min-severity none\|info\|low\|medium\|high\|critical` | none (no floor) | Minimum severity posted **inline** on `--pr`. Below-threshold findings still appear in the summary header counts + SARIF, never inline. An out-of-set value is rejected (`flags.invalid_min_severity`, exit 2). |
@@ -233,6 +234,7 @@ miucr review --pr owner/repo#123 --conversation                   # also read th
     "is_fork": false, "posted": false, "posted_inline": 0,
     "summary_action": "none",         // fate of the ONE upserted summary issue comment: none | created | edited | fork_fallback
     "approve_action": "commented", "approve_reason": "not_requested", "suggestions_posted": 0,
+    "patches_repaired": 0,            // additive, omitempty: findings whose rejected SuggestedPatch the --patch-repair 2nd pass recovered into a now-clean one-click suggestion (0/absent when --patch-repair is OFF)
     // additive, omitted when empty:
     "mode": "review",                 // review (default) | checks
     "check_run_id": 0, "check_conclusion": "",  // --mode checks only (success|failure)
@@ -508,6 +510,7 @@ filter_mode  = "diff_context"           # default --filter-mode (--pr): added|di
 min_severity = "low"                    # default --min-severity (--pr inline floor)
 timeout      = "300s"                   # default review timeout (Go duration: 300s, 5m, …)
 suggest      = false                    # default --suggest (one-click suggestions on --post)
+patch_repair = false                    # default --patch-repair (2nd-pass one-click recovery; only takes effect with suggest=true)
 category_urls = { security = "https://docs.example.com/security" }   # case-insensitive Category -> http(s) URL; PR-comment/summary link + SARIF helpUri
 # NB: no approve_clean config (write-action default-on is a footgun); a bad [review] enum/timeout → config.invalid (exit 2)
 ```
