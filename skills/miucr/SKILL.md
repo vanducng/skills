@@ -425,15 +425,20 @@ action}` where `action` ∈ `upgraded | already_latest | check_only`. Errors:
 miucr version            # {"ok":true,...,"data":{"version":"v0.11.0"}}
 ```
 
-### `config show` — inspect the effective config (secrets redacted)
+### `config` — inspect (`show`) and update (`set`, `edit`)
 
 ```sh
-miucr config show          # user-set values only (kind: config.show)
-miucr config show --all    # full effective config incl. built-in defaults
-miucr config show -o pretty  # TOML view for humans
+miucr config show              # user-set values only (kind: config.show)
+miucr config show --all        # full effective config incl. built-in defaults
+miucr config show -o pretty    # TOML view for humans
+
+miucr config set review.gate high          # set ONE non-secret key, merged in (kind: config.set)
+miucr config set default_provider zai
+miucr config set providers.zai.model glm-5.2
+miucr config edit              # open config.toml in $VISUAL/$EDITOR, then validate (kind: config.edit)
 ```
 
-Read-only. Every credential (`auth_token`, store `dsn`) is masked by **structural** redaction — a token/DSN can never reach stdout (json or pretty). There is no `config set` write path (deliberate, to avoid a plaintext-secret footgun); edit `config.toml` directly. Envelope `kind: config.show`; `data` is the redacted config table, `summary` = `{all, path}`.
+`show` is read-only; every credential (`auth_token`, store `dsn`) is masked by **structural** redaction, so a token/DSN can never reach stdout (json or pretty). `set` writes ONE dotted key and merges it into the existing config (it does not overwrite like `init`); it validates enums (`config.invalid` on a bad value) and **refuses secret keys** (`*.auth_token`, `store.dsn`) since secrets are read from env at runtime. `edit` opens `config.toml` in `$VISUAL`/`$EDITOR` (interactive; needs a TTY) and reloads it afterward, reporting `valid`.
 
 ## Config (`~/.config/miu/cr/config.toml`) — all optional, zero-config works
 
