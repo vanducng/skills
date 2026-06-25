@@ -47,6 +47,9 @@ Every command prints **one JSON object** on stdout (default `-o json`). Field or
 `whoami`, `logout`, `history.list`, `history.record`, `history.prune`, `trace.show`, `error`
 (REST: `review.accepted` / `review.result`). **Secrets never appear** in the envelope, logs, or on disk
 (credential-named fields are scrubbed; finding `rationale`/`suggested_patch` prose is exempt).
+The `--instruction`/`--conversation` flags and the `/miucr review <prompt>` comment trigger only add
+**input** (a USER-turn context block) — they never change the envelope or the finding JSON (still
+`miucr.cli/v1`); parse the same shape.
 
 ### Exit codes (gate → exit mapping)
 
@@ -131,10 +134,24 @@ miucr init --non-interactive --provider anthropic --auth-env ANTHROPIC_API_KEY -
 The repo ships an [`examples/`](https://github.com/vanducng/miu-cr/tree/main/examples)
 tree: `rules/{go-api,typescript-node,python-data}.md`,
 `github-action/code-review.yml` (fork-safe `pull_request_target`),
+`workflows/miucr-review.yml` (the **dual-trigger** default: `pull_request` + a
+`/miucr review <prompt>` comment trigger),
 `mcp-setup/{claude-code,cursor,codex}` + `README-mcp.md`, and
 `docker/{Dockerfile,docker-compose.yml}` (pure-Go `CGO_ENABLED=0` distroless image
 for `miucr serve`). Onboarding walkthrough lives at the docs
 [Getting started](https://miucr.vanducng.dev/onboarding/) page.
+
+**Comment-triggered review (`/miucr review <prompt>`).** With the dual-trigger workflow
+installed, a **write or admin collaborator** posts `/miucr review <prompt>` as a top-level PR
+comment (e.g. `/miucr review focus on the auth changes`) to steer a re-review with free text.
+The `issue_comment` event runs the trusted base-branch workflow with full secrets even on
+fork PRs, so the workflow self-gates: the commenter must have **write|admin** (an
+`actions/github-script` `repos.getCollaboratorPermissionLevel` check — `author_association`
+alone is insufficient), the comment body is read via an env var (never inline-interpolated
+into `run:`), the released binary is used (fork head code is never built with secrets), and
+miucr adds a 👀 reaction to acknowledge an accepted command. Known limits (v1): only
+top-level `issue_comment` is caught (not inline review comments or review summaries), and an
+unchanged head SHA short-circuits — there is no `--force` on the comment path yet.
 
 ## Commands & exact flags
 
@@ -155,6 +172,8 @@ miucr review --staged                     # staged changes vs the index
 miucr review --from main --to HEAD        # ref range (--from and --to required together)
 miucr review --commit HEAD~1              # one commit vs its parent
 miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
+miucr review --staged --instruction "focus on the auth changes"   # steer this one review
+miucr review --pr owner/repo#123 --conversation                   # also read the prior PR thread
 ```
 
 | Flag | Default | Notes |
@@ -182,6 +201,8 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
 | `--sarif-out <path>` | — | Also write a SARIF 2.1.0 report to `<path>` from the SAME single review run (in addition to `--output`/posting). Written only on success (atomic temp+rename); a failed run leaves no file. This is how the Action does single-pass SARIF — no second LLM call. |
 | `--no-save` | off | Skip persisting this run to the local history store (every review is saved by default). |
 | `--force` | off | On `--pr`, re-review even when the head SHA is unchanged since the last saved review. By default an unchanged head SHA short-circuits (`skipped_unchanged`, no LLM pass); a new commit always re-reviews. |
+| `--instruction <text>` | — | Free-text steer for **this** review (e.g. `"focus on the auth changes"`). Injected into the **USER turn** as a fenced, context-only block — it never changes the finding rules, severity, category, or JSON schema, and rides the same single review pass (no extra LLM call). Trusted (developer-authored CLI flag); still UNTRUSTED when set from an `issue_comment` trigger on a fork PR. |
+| `--conversation` | off | On `--pr`, fetch the prior PR conversation (miucr's summary + finding threads + developer replies) and inject it fenced/context-only as **UNTRUSTED** context (dropped on fork PRs). One extra GitHub **read** pass, no extra LLM call. |
 | `-v, --verbose` / `-q, --quiet` | auto | Progress to **stderr** (stdout envelope unchanged). Auto-on when stderr is a TTY; `-v` forces on, `-q` forces off; mutually exclusive. Piped/CI stays silent. |
 | `--trace` | off | Stream the live review trace (system prompt, diff, rules, prompts, response) as NDJSON to **stderr** (local-only, redacted; distinct from `--verbose`; stdout envelope unchanged). Inspect a saved review's trace with `miucr trace <id>`. |
 
@@ -358,8 +379,10 @@ Reviews the repo in the **current working directory** — launch from (or point 
 Stdout carries only MCP frames; logs/errors go to stderr. Tool outputs are byte-bounded (1 MiB) → oversized
 fails `review.output_too_large` (narrow the review).
 
-- **`review_run`** — args `{ staged, from, to, commit, gate, expand, token_budget }` (exactly one mode, same
-  validation as the CLI). Returns `{ id, findings, stats }`; `id` is the persisted review id.
+- **`review_run`** — args `{ staged, from, to, commit, gate, expand, token_budget, instruction }` (exactly one
+  mode, same validation as the CLI). Optional `instruction` is a free-text steer injected fenced/context-only
+  into the USER turn — it never changes the finding schema (UNTRUSTED, context-only). Returns
+  `{ id, findings, stats }`; `id` is the persisted review id.
 - **`review_get`** — args `{ id }`. Returns `{ id, repo_dir, mode, head_sha, created_at, findings, stats }`.
 
 Register in Claude Code: `claude mcp add --transport stdio miucr -- miucr mcp --transport stdio`
