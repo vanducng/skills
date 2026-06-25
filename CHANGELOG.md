@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.20.0](https://github.com/vanducng/skills/compare/v1.19.0...v1.20.0) (2026-06-25)
+
+
+### Features
+
+* **miucr:** document hybrid PR review loop ([6ef1de4](https://github.com/vanducng/skills/commit/6ef1de4341950a0e001af002785f3abc1f8723a1))
+
 ## [1.19.0](https://github.com/vanducng/skills/compare/v1.18.0...v1.19.0) (2026-06-25)
 
 
