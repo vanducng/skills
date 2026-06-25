@@ -60,7 +60,21 @@ Pairs with `vd:worktree`. One worktree + background `codex exec` per task; `wait
 ## Caveat — regression #26363 (while open)
 Since Codex v0.137.0, custom `~/.codex/agents/*.toml` are not selectable at in-session spawn (generic fallback). `run_workflow` works around it by injecting the named agent's `developer_instructions` as a prompt override. For raw NL spawns, do the same by hand: paste the role's instructions into the spawn prompt. Drop this workaround when OpenAI restores `agent_type` selection.
 
+## Install & enable
+
+The `run_workflow` tool ships as the `codex-workflow` vd extension (Python/uv MCP server). Prereqs: `uv` + `codex login` (model work runs through your Codex login — no extra API key).
+
+```bash
+cd ~/vd-cli && go build -o ~/.local/bin/vd ./cmd/vd   # if vd lacks `mcp` (prefix env -u GOROOT if GOROOT is mise-pinned)
+vd mcp install codex-workflow              # Codex (~/.codex/config.toml) + Claude (project ./.mcp.json)
+vd mcp install codex-workflow --scope user # …or Claude global (~/.claude.json)
+vd mcp list && vd mcp doctor               # verify
+# then RESTART Codex / Claude Code to load the server
+```
+
+Scope only changes the Claude target (`project` → `./.mcp.json`, `user` → `~/.claude.json`); Codex always uses its global `config.toml`.
+
 ## Integration
 - **Composes:** `vd:worktree` (parallel writes), the `~/.codex/agents/*.toml` roles.
-- **Install/manage:** `vd mcp install|list|doctor codex-workflow`.
+- **Install/manage:** `vd mcp install|list|enable|disable|doctor codex-workflow`.
 - **Not this:** FableCodex (a workflow-discipline gate, separate skill).
