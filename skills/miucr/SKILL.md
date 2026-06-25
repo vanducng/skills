@@ -11,7 +11,7 @@ line-anchoring, severity gating, dedupe) and uses the LLM only for judgment (fin
 proposing fixes). It runs four ways:
 
 - **Local review** — `miucr review` over a staged diff, a commit, or a ref range.
-- **GitHub PR review** — `miucr review --pr` (dry-run by default; `--post` publishes one review per commit: summary body + nested inline comments).
+- **GitHub PR review** — `miucr review --pr` (dry-run by default; `--post` upserts ONE summary issue comment + posts inline comments as a PR review).
 - **serve daemon** — HMAC webhook (default) and/or opt-in poll trigger; optional REST API + GitHub App auth.
 - **MCP server** — `miucr mcp` exposes `review_run` / `review_get` over stdio to any agent host.
 
@@ -230,7 +230,8 @@ miucr review --pr owner/repo#123 --conversation                   # also read th
   "skipped_unchanged": true, "prior_review_id": "rev_prior",
   "pr": {  // only on --pr
     "owner": "owner", "repo": "repo", "number": 123, "head_sha": "deadbeef",
-    "is_fork": false, "posted": false, "posted_inline": 0, "summary_action": "none",
+    "is_fork": false, "posted": false, "posted_inline": 0,
+    "summary_action": "none",         // fate of the ONE upserted summary issue comment: none | created | edited | fork_fallback
     "approve_action": "commented", "approve_reason": "not_requested", "suggestions_posted": 0,
     // additive, omitted when empty:
     "mode": "review",                 // review (default) | checks
@@ -240,11 +241,15 @@ miucr review --pr owner/repo#123 --conversation                   # also read th
 ```
 
 `findings_dropped` = findings rejected by line-anchor drift (their quote no longer matches the reviewed
-revision — kills position drift). `--post` posts **one PR review per commit** (Codex-style): the summary
-is the review **body** (leads with `<!-- miu-cr-review -->` + `Reviewed commit: <sha>`), inline comments
-nested under it. `summary_action` is `review` when posted, `skipped` when a review was already posted for
-this head SHA (a same-commit re-run is skipped — reviews aren't editable; `--force` re-posts), `none`/`fork_fallback` otherwise.
-A new commit gets a fresh review; per-comment `<!-- miucr:fp=... -->` line-free fingerprints prevent inline dupes across commits.
+revision — kills position drift). `--post` keeps the summary and the inline findings in **separate
+homes**: inline comments post as a PR **review** (body left empty — never a 422 on a no-inline run), and
+the summary is **ONE issue comment that is UPSERTED** — miu-cr lists the PR's issue comments, finds the
+one carrying the `<!-- miu-cr-review -->` marker, and **edits it in place**; if none exists it creates it.
+So a re-run **updates the single summary** instead of stacking a review per commit. `summary_action` is
+`created` (first summary issue comment), `edited` (upserted in place on a re-run), `fork_fallback` (a fork
+PR lacked comment-write scope — degraded, no hard fail), or `none` (`--no-post`, `--mode checks`, or a
+clean no-summary run). A same-commit `--post` re-run now **edits** the summary (no longer skipped);
+per-comment `<!-- miucr:fp=... -->` line-free fingerprints prevent inline dupes across commits.
 A public-PR dry-run needs **no GitHub PAT** (LLM key still required); `--post` and private repos need a PAT with `repo` scope.
 
 ### `serve` — webhook daemon (default) + opt-in poll
@@ -552,13 +557,14 @@ Runs on same-repo PRs only (fork-safe automated review is the `serve` path's job
    `severity` ≥ your bar. Exit 2 means the gate tripped (findings still printed in the envelope).
 2. **Review a PR (dry-run)** — `env -u GITHUB_TOKEN -u GH_TOKEN miucr review --pr owner/repo#N --no-post -o json`
    (public repo, no PAT). Read `.data.pr` + `.data.findings`.
-3. **Publish** — `miucr review --pr owner/repo#N --post --token <pat>`; posts **one review per commit**
-   (`summary_action:review`). A **same-commit re-run is skipped** (`summary_action:skipped` — reviews aren't
-   editable); a **new commit** gets a fresh review. Add `--suggest`/`--approve-clean` only when you intend
-   write-actions. A **dry-run** (`--no-post`) on an **unchanged head SHA** short-circuits before the LLM pass
-   (`.data.skipped_unchanged:true`); pass `--force` to re-post / re-review.
+3. **Publish** — `miucr review --pr owner/repo#N --post --token <pat>`; **upserts ONE summary issue
+   comment** (`summary_action:created` first time, `edited` on every re-run) and posts inline findings as a
+   PR review. A **same-commit `--post` re-run edits** the summary in place (no longer skipped). Add
+   `--suggest`/`--approve-clean` only when you intend write-actions. A **dry-run** (`--no-post`) on an
+   **unchanged head SHA** short-circuits before the LLM pass (`.data.skipped_unchanged:true`); pass
+   `--force` to re-review.
 4. **Re-trigger the Action / dogfood** — push a new commit, or re-run the `PR Review` workflow from the
-   Actions tab / `gh workflow run` / `gh run rerun <id>`. Each new head SHA is a fresh review.
+   Actions tab / `gh workflow run` / `gh run rerun <id>`. Each run edits the same summary comment in place.
 5. **On `ok:false`** — branch on `.error.code` (e.g. `review.gate_failed`, `github.post_requires_token`,
    `serve.secret_required`, `store.unavailable`, `review.output_too_large`, `flags.conflict`); use `.error.hint`.
 
