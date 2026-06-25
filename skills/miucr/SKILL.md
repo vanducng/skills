@@ -11,7 +11,7 @@ line-anchoring, severity gating, dedupe) and uses the LLM only for judgment (fin
 proposing fixes). It runs four ways:
 
 - **Local review** — `miucr review` over a staged diff, a commit, or a ref range.
-- **GitHub PR review** — `miucr review --pr` (dry-run by default; `--post` publishes inline + summary comments).
+- **GitHub PR review** — `miucr review --pr` (dry-run by default; `--post` publishes one review per commit: summary body + nested inline comments).
 - **serve daemon** — HMAC webhook (default) and/or opt-in poll trigger; optional REST API + GitHub App auth.
 - **MCP server** — `miucr mcp` exposes `review_run` / `review_get` over stdio to any agent host.
 
@@ -176,7 +176,7 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
 | `--suggest` | OFF | Native one-click suggestions for proven fixes — single-line replacements **and** wrap/guard/insert fixes (a multi-line patch on a QuotedCode-proven single-line anchor); requires `--post`; author-applied, never pushed. |
 | `--approve-clean` | OFF | Submit `Event=APPROVE` only on a clean, non-fork, trusted-author PR; else degrades to COMMENT (never errors); requires `--post`. |
 | `--filter-mode added\|diff_context\|file\|nofilter` | `diff_context` | Inline-eligibility filter on `--pr`. `file`/`nofilter` route off-diff findings to summary/SARIF/local, never inline (GitHub 422s an off-diff comment). |
-| `--min-severity none\|info\|low\|medium\|high\|critical` | — (no floor) | Minimum severity posted **inline** on `--pr`. Below-threshold findings still appear in the summary histogram + SARIF, never inline. An out-of-set value is rejected (`flags.invalid_min_severity`, exit 2). |
+| `--min-severity none\|info\|low\|medium\|high\|critical` | — (no floor) | Minimum severity posted **inline** on `--pr`. Below-threshold findings still appear in the summary header counts + SARIF, never inline. An out-of-set value is rejected (`flags.invalid_min_severity`, exit 2). |
 | `--walkthrough-diagram` | OFF | Opt in to a Mermaid change diagram in the summary (fenced ```mermaid block GitHub renders). Rides the same single review pass — no extra LLM call. Diagram quality varies; a malformed/omitted diagram degrades to a plain note. |
 | `--mode review\|checks` | `review` | GitHub reporter on `--pr --post`. `review` posts inline comments + a summary. `checks` posts a GitHub CheckRun with annotations (survives force-push, works on fork PRs, can be a **required** check); conclusion maps from the gate (gate-clean→`success`, gate-hit→`failure`); needs `checks: write`. |
 | `--sarif-out <path>` | — | Also write a SARIF 2.1.0 report to `<path>` from the SAME single review run (in addition to `--output`/posting). Written only on success (atomic temp+rename); a failed run leaves no file. This is how the Action does single-pass SARIF — no second LLM call. |
@@ -219,8 +219,11 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
 ```
 
 `findings_dropped` = findings rejected by line-anchor drift (their quote no longer matches the reviewed
-revision — kills position drift). `summary_action` is `created|edited|none`; re-runs are idempotent
-(sentinel `<!-- miu-cr-review -->` summary + per-comment `<!-- miucr:fp=... -->` line-free fingerprints).
+revision — kills position drift). `--post` posts **one PR review per commit** (Codex-style): the summary
+is the review **body** (leads with `<!-- miu-cr-review -->` + `Reviewed commit: <sha>`), inline comments
+nested under it. `summary_action` is `review` when posted, `skipped` when a review was already posted for
+this head SHA (a same-commit re-run is skipped — reviews aren't editable; `--force` re-posts), `none`/`fork_fallback` otherwise.
+A new commit gets a fresh review; per-comment `<!-- miucr:fp=... -->` line-free fingerprints prevent inline dupes across commits.
 A public-PR dry-run needs **no GitHub PAT** (LLM key still required); `--post` and private repos need a PAT with `repo` scope.
 
 ### `serve` — webhook daemon (default) + opt-in poll
@@ -490,10 +493,11 @@ Runs on same-repo PRs only (fork-safe automated review is the `serve` path's job
    `severity` ≥ your bar. Exit 2 means the gate tripped (findings still printed in the envelope).
 2. **Review a PR (dry-run)** — `env -u GITHUB_TOKEN -u GH_TOKEN miucr review --pr owner/repo#N --no-post -o json`
    (public repo, no PAT). Read `.data.pr` + `.data.findings`.
-3. **Publish** — `miucr review --pr owner/repo#N --post --token <pat>`; idempotent re-runs (`posted_inline:0`,
-   `summary_action:edited`). Add `--suggest`/`--approve-clean` only when you intend write-actions. `--post`
-   always publishes — it never short-circuits. Only a **dry-run** (`--no-post`) on an **unchanged head SHA**
-   short-circuits (`.data.skipped_unchanged:true`, no LLM pass); pass `--force` to override.
+3. **Publish** — `miucr review --pr owner/repo#N --post --token <pat>`; posts **one review per commit**
+   (`summary_action:review`). A **same-commit re-run is skipped** (`summary_action:skipped` — reviews aren't
+   editable); a **new commit** gets a fresh review. Add `--suggest`/`--approve-clean` only when you intend
+   write-actions. A **dry-run** (`--no-post`) on an **unchanged head SHA** short-circuits before the LLM pass
+   (`.data.skipped_unchanged:true`); pass `--force` to re-post / re-review.
 4. **Re-trigger the Action / dogfood** — push a new commit, or re-run the `PR Review` workflow from the
    Actions tab / `gh workflow run` / `gh run rerun <id>`. Each new head SHA is a fresh review.
 5. **On `ok:false`** — branch on `.error.code` (e.g. `review.gate_failed`, `github.post_requires_token`,
