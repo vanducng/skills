@@ -577,5 +577,47 @@ Runs on same-repo PRs only (fork-safe automated review is the `serve` path's job
 5. **On `ok:false`**: branch on `.error.code` (e.g. `review.gate_failed`, `github.post_requires_token`,
    `serve.secret_required`, `store.unavailable`, `review.output_too_large`, `flags.conflict`); use `.error.hint`.
 
+### Hybrid PR review loop
+
+Use this when the user asks to keep reviewing a PR until it is merge-ready or merged. Keep `miucr` as the
+deterministic reviewer/poster, and use the coding agent only for orchestration, thread triage, and fixes.
+
+1. **Preflight**:
+   - Run `miucr version -o json` and `miucr upgrade --check -o json`; upgrade first if the user asked for latest, otherwise report staleness.
+   - Read the repo's `AGENTS.md`/README and relevant `.miu/cr/rules/*.md`; use `miucr rules check <changed-file>` when rule selection is in doubt.
+   - Fetch PR state with `gh pr view <n> --json state,isDraft,headRefOid,reviewDecision,statusCheckRollup,mergeStateStatus`.
+   - Stop on `MERGED`/`CLOSED`; stop on draft or merge conflict and report the blocker.
+   - Treat review decisions and PR comments as Step 4 feedback, not preflight terminal states.
+   - Make one agent or daemon the controller for this PR; do not run this loop beside `miucr serve --poll` on the same PR.
+2. **Post exactly one reviewer pass per new head SHA**:
+   - Track the last reviewed `headRefOid`; re-fetch it immediately before posting.
+   - Run `miucr review --pr owner/repo#N --post --suggest --patch-repair --conversation -o json`.
+   - Add `--force` only for an intentional same-SHA re-review; do not force every poll.
+   - Parse the envelope, not prose. Record `data.review_id`, `data.pr.head_sha`, posted counts, and findings by severity.
+   - Re-fetch `headRefOid` after the run; if it changed, discard local decisions from that run and repeat on the new head.
+3. **Add an independent agent layer without bloating miucr context**:
+   - Give fresh agents only compact inputs: PR diff stat, changed-file list, source hunks for disputed files, miucr JSON findings, and unresolved thread snippets.
+   - Use `run_workflow` for blind parallel checks when available; ask each agent for `{confirmed, risk, evidence, action}`.
+   - Require evidence to be anchored to `file:line`, a test, schema, or rule. Discard vague style opinions and duplicated miucr findings.
+   - If `run_workflow` is unavailable, do one fresh-context manual review over the same compact inputs.
+4. **Triage PR feedback**:
+   - Fetch `reviewThreads`, review bodies, and top-level comments with GraphQL.
+   - Act on unresolved threads only when `isResolved==false && isOutdated==false`; also triage `CHANGES_REQUESTED`, substantive `COMMENTED` reviews, and top-level comments.
+   - Validate every developer/bot suggestion against source, tests, schemas, and rules before applying it.
+   - After any push, re-fetch threads before replying/resolving.
+   - If fixed, reply once per thread+SHA: `Handled in <sha> by <specific change>. <why this matches the contract>.`
+   - Resolve handled or false-positive threads with `resolveReviewThread` after the reply/refetch succeeds; reply to handled top-level comments. Leave uncertain feedback unresolved and ask the user.
+5. **Poll until complete**:
+   - Stop when PR state is `MERGED` or `CLOSED`.
+   - If `headRefOid` changes, re-run Step 2.
+   - If checks are pending, wait with bounded backoff and poll again; after the wait cap, report still-pending checks unless the user explicitly asked to keep watching.
+   - If checks fail, investigate before re-reviewing.
+   - If unresolved actionable threads remain, fix/reply/resolve, then re-run checks and Step 2 on the new head.
+   - If no head change, checks are green, review state is acceptable, and no actionable feedback remains, stop and report merge-ready unless the user granted merge authority.
+   - If merge authority was granted, queue/perform merge only after re-fetching that the head is unchanged and the PR is non-draft, mergeable, green, and free of actionable feedback.
+
+Use `miucr serve --poll --poll-source pulls` for unattended repo-wide polling. For a single PR under agent control,
+prefer the explicit `gh pr view` loop above so every write action is traceable.
+
 **Privacy**: never paste a real API key/PAT/bearer into code, tests, docs, or commits; keys come from
 flags/env at runtime and are never persisted. Use synthetic names/diffs in examples.
