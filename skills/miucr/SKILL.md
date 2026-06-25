@@ -3,7 +3,7 @@ name: miucr
 description: Review code/diffs/PRs with the owned `miucr` CLI (miu-cr, a pure-Go AI code reviewer). Use when asked to review staged changes, a commit, a ref range, or a GitHub PR; to run/parse a gated review; to drive reviews over MCP; or to run the serve webhook/poll daemon or GitHub Action. Output is the stable `miucr.cli/v1` JSON envelope; parse it, don't grep prose.
 ---
 
-# miucr: owned AI code-review CLI (v0.11.0)
+# miucr: owned AI code-review CLI (v0.39.0)
 
 `miucr` (the **miu-cr** project) is a fast, **pure-Go** (`CGO_ENABLED=0`) AI code reviewer.
 It keeps the correctness-critical parts **deterministic** (file selection, context assembly,
@@ -14,6 +14,12 @@ proposing fixes). It runs four ways:
 - **GitHub PR review**: `miucr review --pr` (dry-run by default; `--post` upserts ONE summary issue comment + posts inline comments as a PR review).
 - **serve daemon**: HMAC webhook (default) and/or opt-in poll trigger; optional REST API + GitHub App auth.
 - **MCP server**: `miucr mcp` exposes `review_run` / `review_get` over stdio to any agent host.
+
+**Review behavior worth knowing (design choices that prevent noise):**
+- **One upserted summary, posted first.** `--post` writes ONE summary *issue comment*, edited in place on re-runs (never stacked), and posts it BEFORE the inline review so it anchors on top (overview → details). Inline findings are a separate PR review. `review_id` is NOT shown in the comment (it only resolves on the local store; it stays in the JSON envelope).
+- **One-click suggestions are conservative + model-controlled.** `--suggest` emits a native GitHub ` ```suggestion ` block ONLY when the patch *deterministically* replaces the exact anchored line(s) AND the model is certain of a grounded mechanical fix (a cited rule or an obvious best practice). It NEVER guesses an unverifiable value (a URL, path, route, ID, version, config key, API signature); such concerns become a verification-question in the rationale instead. `--patch-repair` (requires `--suggest`) runs one focused 2nd LLM pass to recover a near-miss single-line patch. `--approve-clean` submits APPROVE only on a clean, non-fork, trusted-author PR.
+- **`-o pretty`** is the human-readable local format; **`-o json`** is for agents; `-o sarif` for editors/CI.
+- **Multi-provider profiles.** Add a named provider (e.g. z.ai/glm) with `config set providers.<name>.{kind,base_url,model,auth_env}`; select with `--provider <name>`. Built-in kinds: `anthropic`, `openai` (ChatGPT-plan OAuth via `miucr login`). Transient GitHub/network errors auto-retry with backoff.
 
 ## Output contract: `miucr.cli/v1` envelope (parse this)
 
