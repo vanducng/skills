@@ -135,7 +135,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 10. Commit        → conventional commit, secret scan
 11. Push          → git push -u origin <branch>
 12. PR            → gh pr create/edit using repo template or canonical fallback
-13. PR comments   → fetch review threads + human/bot reviews + top-level comments; triage, then fix/reply/resolve valid feedback (re-run Step 4 after any fix)
+13. PR comments   → fetch review threads + human/bot reviews + top-level comments; triage, then fix/reply/resolve valid feedback (re-run Step 4 after any fix); after fixing, **re-trigger each bot's re-review** (`@codex review` / `@coderabbitai review` / `/gemini review`; re-run local `ocr`/`miucr`) and loop until zero unresolved actionable threads — see `references/bot-reviewers.md`
 14. Release       → `--release` only: detect auto-release tool; tag + push if manual
 15. CI watch      → wait for PR checks; on failure prompt user (every mode)
 15b. Re-check comments → after CI green, RE-RUN Step 13: code-review bots post inline comments as a CI job, so they appear only now. Block merge on any unresolved actionable thread (Rule 11). Not suppressed by `--auto`.
@@ -147,6 +147,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 **Detailed steps:** see `references/ship-workflow.md`
 **Auto-detection logic:** see `references/auto-detect.md`
 **PR body template:** see `references/pr-template.md`
+**Bot reviewers (inline reply + per-bot re-review triggers):** see `references/bot-reviewers.md`
 
 ## Token efficiency
 
