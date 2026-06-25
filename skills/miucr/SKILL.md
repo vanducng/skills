@@ -1,21 +1,21 @@
 ---
 name: miucr
-description: Review code/diffs/PRs with the owned `miucr` CLI (miu-cr, a pure-Go AI code reviewer). Use when asked to review staged changes, a commit, a ref range, or a GitHub PR; to run/parse a gated review; to drive reviews over MCP; or to run the serve webhook/poll daemon or GitHub Action. Output is the stable `miucr.cli/v1` JSON envelope — parse it, don't grep prose.
+description: Review code/diffs/PRs with the owned `miucr` CLI (miu-cr, a pure-Go AI code reviewer). Use when asked to review staged changes, a commit, a ref range, or a GitHub PR; to run/parse a gated review; to drive reviews over MCP; or to run the serve webhook/poll daemon or GitHub Action. Output is the stable `miucr.cli/v1` JSON envelope; parse it, don't grep prose.
 ---
 
-# miucr — owned AI code-review CLI (v0.11.0)
+# miucr: owned AI code-review CLI (v0.11.0)
 
 `miucr` (the **miu-cr** project) is a fast, **pure-Go** (`CGO_ENABLED=0`) AI code reviewer.
 It keeps the correctness-critical parts **deterministic** (file selection, context assembly,
 line-anchoring, severity gating, dedupe) and uses the LLM only for judgment (finding bugs,
 proposing fixes). It runs four ways:
 
-- **Local review** — `miucr review` over a staged diff, a commit, or a ref range.
-- **GitHub PR review** — `miucr review --pr` (dry-run by default; `--post` upserts ONE summary issue comment + posts inline comments as a PR review).
-- **serve daemon** — HMAC webhook (default) and/or opt-in poll trigger; optional REST API + GitHub App auth.
-- **MCP server** — `miucr mcp` exposes `review_run` / `review_get` over stdio to any agent host.
+- **Local review**: `miucr review` over a staged diff, a commit, or a ref range.
+- **GitHub PR review**: `miucr review --pr` (dry-run by default; `--post` upserts ONE summary issue comment + posts inline comments as a PR review).
+- **serve daemon**: HMAC webhook (default) and/or opt-in poll trigger; optional REST API + GitHub App auth.
+- **MCP server**: `miucr mcp` exposes `review_run` / `review_get` over stdio to any agent host.
 
-## Output contract — `miucr.cli/v1` envelope (parse this)
+## Output contract: `miucr.cli/v1` envelope (parse this)
 
 Every command prints **one JSON object** on stdout (default `-o json`). Field order:
 
@@ -48,23 +48,23 @@ Every command prints **one JSON object** on stdout (default `-o json`). Field or
 (REST: `review.accepted` / `review.result`). **Secrets never appear** in the envelope, logs, or on disk
 (credential-named fields are scrubbed; finding `rationale`/`suggested_patch` prose is exempt).
 The `--instruction`/`--conversation` flags and the `/miucr review <prompt>` comment trigger only add
-**input** (a USER-turn context block) — they never change the envelope or the finding JSON (still
+**input** (a USER-turn context block); they never change the envelope or the finding JSON (still
 `miucr.cli/v1`); parse the same shape.
 
 ### Exit codes (gate → exit mapping)
 
 | Exit | Meaning |
 | ---- | ------- |
-| `0`  | Success — no finding reached `--gate`. |
-| `1`  | Operational error — missing credentials, internal failure, store unavailable. |
+| `0`  | Success: no finding reached `--gate`. |
+| `1`  | Operational error: missing credentials, internal failure, store unavailable. |
 | `2`  | **Gate failed** (a finding's severity ≥ `--gate`) **or** invalid invocation (bad gate, conflicting/zero modes, bad `--output`). |
 
-Severities low→high: `info` < `low` < `medium` < `high` < `critical`. A `review.gate_failed`
+Severities low to high: `info` < `low` < `medium` < `high` < `critical`. A `review.gate_failed`
 error is emitted *after* the normal `review.result` envelope (the findings still print), then exit 2.
 
 ### Typed error codes (branch on `error.code`)
 
-The day-1 provider/auth/timeout failures classify into a **stable taxonomy** (same code across all backends — anthropic/openai/codex), each with an actionable `hint` and a correct `retryable`:
+The day-1 provider/auth/timeout failures classify into a **stable taxonomy** (same code across all backends: anthropic/openai/codex), each with an actionable `hint` and a correct `retryable`:
 
 | `error.code` | When | `retryable` | Hint |
 | ------------ | ---- | ----------- | ---- |
@@ -73,18 +73,18 @@ The day-1 provider/auth/timeout failures classify into a **stable taxonomy** (sa
 | `provider.rate_limited` | 429 | `true` | wait for the reset window and retry |
 | `agent.unavailable` | 5xx / 529 | `true` | retry shortly |
 | `review.timeout` | the review exceeded `--timeout` | `true` | raise `--timeout` (e.g. `600s`) or narrow the diff |
-| `review.canceled` | ctx canceled (Ctrl-C / SIGINT) — exit `130` | `false` | — |
+| `review.canceled` | ctx canceled (Ctrl-C / SIGINT), exit `130` | `false` | - |
 | `config.invalid` | malformed `config.toml` / bad enum or `auth` value / an `openai`-kind gateway profile with a key but no `base_url` (exit `2`; same code across review/history/serve) | `false` | fix the named field / set `base_url` for the gateway profile |
 | `github.auth` | PR fetch hit `401`/`403` (bad/missing `GITHUB_TOKEN` or insufficient scope) | `false` | check `GITHUB_TOKEN` / its repo scope |
 | `github.pr_not_found` | PR fetch hit `404` (no such PR, or the token can't see it) | `false` | check the PR exists and the token has access |
-| `github.rate_limited` | PR fetch hit `429` (REST rate limit or abuse-detection) | `true` | GitHub rate limit — wait for the reset and retry |
-| `github.unavailable` | PR fetch hit `5xx` / a network error (DNS / refused / timeout) | `true` | GitHub unavailable / unreachable — retry shortly |
-| `github.pr_fetch_failed` | any other unclassified PR-fetch failure | `false` | — |
-| `internal.error` | any unclassified failure (default; bare-wrapped) | `false` | — |
+| `github.rate_limited` | PR fetch hit `429` (REST rate limit or abuse-detection) | `true` | GitHub rate limit: wait for the reset and retry |
+| `github.unavailable` | PR fetch hit `5xx` / a network error (DNS / refused / timeout) | `true` | GitHub unavailable / unreachable, retry shortly |
+| `github.pr_fetch_failed` | any other unclassified PR-fetch failure | `false` | - |
+| `internal.error` | any unclassified failure (default; bare-wrapped) | `false` | - |
 
-Unknown failures stay `internal.error` (never mislabeled as retryable). Classified messages are redacted — **no token fragment ever appears**.
+Unknown failures stay `internal.error` (never mislabeled as retryable). Classified messages are redacted: **no token fragment ever appears**.
 
-The **codex** backend retries `429`/`502`/`503`/`504` (and a `response.failed` stream event) with bounded, jittered exponential backoff (≤3 attempts) like the SDK backends, honoring `Retry-After`/`resets_in_seconds` and aborting on cancel/timeout. A persistent rate limit returns `provider.rate_limited` with the usage-cap reset window in `error.details.resets_in_seconds` (or `retry_after_seconds`) — branch on that to decide wait-vs-switch-provider.
+The **codex** backend retries `429`/`502`/`503`/`504` (and a `response.failed` stream event) with bounded, jittered exponential backoff (≤3 attempts) like the SDK backends, honoring `Retry-After`/`resets_in_seconds` and aborting on cancel/timeout. A persistent rate limit returns `provider.rate_limited` with the usage-cap reset window in `error.details.resets_in_seconds` (or `retry_after_seconds`); branch on that to decide wait-vs-switch-provider.
 
 ## Install
 
@@ -97,13 +97,13 @@ go install github.com/vanducng/miu-cr/cmd/miucr@latest                          
 
 Verify: `miucr version` → `{"ok":true,...,"data":{"version":"v0.11.0"}}`.
 Config (optional) at `~/.config/miu/cr/config.toml`; state DB at `~/.config/miu/cr/state.db`.
-Repo rules at `.miu/cr/rules/*.md` — **never a flat `.miucr/`**.
+Repo rules at `.miu/cr/rules/*.md` (**never a flat `.miucr/`**).
 
 ## Onboarding (`miucr init`)
 
 `miucr init` is the fastest path to a working config. It walks a clean, sectioned
-wizard — **provider → provider-aware auth → project rules** — then writes
-`~/.config/miu/cr/config.toml` (dir `0700`, file `0600`, **deltas only** — the
+wizard (**provider → provider-aware auth → project rules**), then writes
+`~/.config/miu/cr/config.toml` (dir `0700`, file `0600`, **deltas only**: the
 chosen provider block, never the full built-in defaults) and ends on the literal
 `miucr review --staged`.
 
@@ -113,20 +113,20 @@ miucr init --non-interactive --provider anthropic --auth-env ANTHROPIC_API_KEY -
 ```
 
 - **Provider-aware auth menu**: `openai` offers **browser login (OAuth, default)**
-  — review on your ChatGPT/Codex plan, no API key — plus env-var or paste; it runs
+  (review on your ChatGPT/Codex plan, no API key) plus env-var or paste; it runs
   the same PKCE loopback flow as `miucr login` and caches the token in `oauth.json`
   (config records just `default_provider = "openai"`, no secret). `anthropic` offers
-  env-var (default) or paste — **no OAuth** (Anthropic ToS). `custom` asks kind +
+  env-var (default) or paste, **no OAuth** (Anthropic ToS). `custom` asks kind +
   base URL, then env-var or paste.
-- **Default writes no secret** — only the env-var **name** (`auth_env`). A literal
+- **Default writes no secret**: only the env-var **name** (`auth_env`). A literal
   `auth_token` lands only on explicit paste + confirm (after a plaintext-on-disk warning).
 - Flags: `--provider anthropic|openai|custom`, `--auth oauth|env|paste` (non-interactive
   selector), `--auth-env <NAME>`, `--base-url <gateway>`, `--no-rules`, `--force`,
-  `--yes`, `--non-interactive`. `--auth oauth` is interactive-only (needs a browser) —
+  `--yes`, `--non-interactive`. `--auth oauth` is interactive-only (needs a browser);
   non-interactive errors `init.aborted` toward `miucr login`. Envelope `kind: init.result`
   (`data.auth_method` = `oauth|env|paste`, `data.next` = `miucr review --staged`); errors
   `init.aborted` / `config.write_failed`.
-- `init` is **optional** — zero-config still works when a provider key is on the env.
+- `init` is **optional**: zero-config still works when a provider key is on the env.
   With no config **and** no key, `review` prints a soft one-line nudge to run `init`.
 
 ## Examples (copy-paste starters)
@@ -146,26 +146,26 @@ installed, a **write or admin collaborator** posts `/miucr review <prompt>` as a
 comment (e.g. `/miucr review focus on the auth changes`) to steer a re-review with free text.
 The `issue_comment` event runs the trusted base-branch workflow with full secrets even on
 fork PRs, so the workflow self-gates: the commenter must have **write|admin** (an
-`actions/github-script` `repos.getCollaboratorPermissionLevel` check — `author_association`
+`actions/github-script` `repos.getCollaboratorPermissionLevel` check; `author_association`
 alone is insufficient), the comment body is read via an env var (never inline-interpolated
 into `run:`), the released binary is used (fork head code is never built with secrets), and
 miucr adds a 👀 reaction to acknowledge an accepted command. Known limits (v1): only
 top-level `issue_comment` is caught (not inline review comments or review summaries), and an
-unchanged head SHA short-circuits — there is no `--force` on the comment path yet.
+unchanged head SHA short-circuits (there is no `--force` on the comment path yet).
 
 ## Commands & exact flags
 
 Global flags (all commands): `-o, --output json|pretty|sarif` (default `json`), `--timeout <dur>`
 (default `30s`; `review` auto-bumps to `300s` unless `--timeout` is set explicitly).
 `sarif` is **review-only**: it emits a SARIF 2.1.0 document (NOT the envelope) for
-code-scanning/IDEs — `ruleId`=category, `level` from severity, repo-relative paths;
+code-scanning/IDEs (`ruleId`=category, `level` from severity, repo-relative paths);
 upload it with `github/codeql-action/upload-sarif`. `pretty` is a local reporter
 (jumpable `file:line`, excerpt, patch; color on a TTY). `review --pr` also takes
 `--filter-mode added|diff_context|file|nofilter` (default `diff_context`) controlling
 which findings are inline-eligible; `file`/`nofilter` route off-diff findings to the
 summary/SARIF/local output, never inline.
 
-### `review` — needs **exactly one** mode
+### `review`: needs **exactly one** mode
 
 ```sh
 miucr review --staged                     # staged changes vs the index
@@ -179,29 +179,29 @@ miucr review --pr owner/repo#123 --conversation                   # also read th
 | Flag | Default | Notes |
 | ---- | ------- | ----- |
 | `--staged` | off | Review the **index** (what you're about to commit), not HEAD. |
-| `--from` / `--to` | — | Range mode; **required together**. |
-| `--commit <ref>` | — | Single commit vs first parent. |
-| `--pr <url\|owner/repo#N>` | — | GitHub PR; `https://github.com/owner/repo/pull/N` or `owner/repo#N`. |
+| `--from` / `--to` | - | Range mode; **required together**. |
+| `--commit <ref>` | - | Single commit vs first parent. |
+| `--pr <url\|owner/repo#N>` | - | GitHub PR; `https://github.com/owner/repo/pull/N` or `owner/repo#N`. |
 | `--gate none\|info\|low\|medium\|high\|critical` | `high` | Exit 2 when a finding reaches this severity. `none` never fails. |
 | `--repo <dir>` | `.` | Repository directory. |
-| `--include` / `--exclude` | — | Repeatable doublestar globs (path must match / drop). |
-| `--ext go,ts,...` | — | Restrict to these file extensions. |
+| `--include` / `--exclude` | - | Repeatable doublestar globs (path must match / drop). |
+| `--ext go,ts,...` | - | Restrict to these file extensions. |
 | `--expand <n>` | `5` | Context lines above/below each hunk (`0` disables). |
 | `--token-budget <n>` | `0` | Approx token budget; over budget degrades context (`0` disables). |
 | `--provider anthropic\|openai\|<name>\|auto` | `auto` | LLM profile. |
-| `--api-key` / `--base-url` / `--auth-token` / `--model` | — | Provider overrides; **never persisted**. |
-| `--token <pat>` | — | GitHub PAT (overrides `GITHUB_TOKEN`/`GH_TOKEN`); required only for `--post`; never persisted. |
+| `--api-key` / `--base-url` / `--auth-token` / `--model` | - | Provider overrides; **never persisted**. |
+| `--token <pat>` | - | GitHub PAT (overrides `GITHUB_TOKEN`/`GH_TOKEN`); required only for `--post`; never persisted. |
 | `--post` / `--no-post` | `--no-post` (for `--pr`) | Publish vs dry-run; mutually exclusive (`flags.conflict`). |
-| `--suggest` | OFF | Native one-click suggestions for proven fixes — single-line replacements **and** wrap/guard/insert fixes (a multi-line patch on a QuotedCode-proven single-line anchor); requires `--post`; author-applied, never pushed. |
+| `--suggest` | OFF | Native one-click suggestions for proven fixes: single-line replacements **and** wrap/guard/insert fixes (a multi-line patch on a QuotedCode-proven single-line anchor); requires `--post`; author-applied, never pushed. |
 | `--approve-clean` | OFF | Submit `Event=APPROVE` only on a clean, non-fork, trusted-author PR; else degrades to COMMENT (never errors); requires `--post`. |
 | `--filter-mode added\|diff_context\|file\|nofilter` | `diff_context` | Inline-eligibility filter on `--pr`. `file`/`nofilter` route off-diff findings to summary/SARIF/local, never inline (GitHub 422s an off-diff comment). |
-| `--min-severity none\|info\|low\|medium\|high\|critical` | — (no floor) | Minimum severity posted **inline** on `--pr`. Below-threshold findings still appear in the summary header counts + SARIF, never inline. An out-of-set value is rejected (`flags.invalid_min_severity`, exit 2). |
-| `--walkthrough-diagram` | OFF | Opt in to a Mermaid change diagram in the summary (fenced ```mermaid block GitHub renders). Rides the same single review pass — no extra LLM call. Diagram quality varies; a malformed/omitted diagram degrades to a plain note. |
+| `--min-severity none\|info\|low\|medium\|high\|critical` | none (no floor) | Minimum severity posted **inline** on `--pr`. Below-threshold findings still appear in the summary header counts + SARIF, never inline. An out-of-set value is rejected (`flags.invalid_min_severity`, exit 2). |
+| `--walkthrough-diagram` | OFF | Opt in to a Mermaid change diagram in the summary (fenced ```mermaid block GitHub renders). Rides the same single review pass, no extra LLM call. Diagram quality varies; a malformed/omitted diagram degrades to a plain note. |
 | `--mode review\|checks` | `review` | GitHub reporter on `--pr --post`. `review` posts inline comments + a summary. `checks` posts a GitHub CheckRun with annotations (survives force-push, works on fork PRs, can be a **required** check); conclusion maps from the gate (gate-clean→`success`, gate-hit→`failure`); needs `checks: write`. |
-| `--sarif-out <path>` | — | Also write a SARIF 2.1.0 report to `<path>` from the SAME single review run (in addition to `--output`/posting). Written only on success (atomic temp+rename); a failed run leaves no file. This is how the Action does single-pass SARIF — no second LLM call. |
+| `--sarif-out <path>` | - | Also write a SARIF 2.1.0 report to `<path>` from the SAME single review run (in addition to `--output`/posting). Written only on success (atomic temp+rename); a failed run leaves no file. This is how the Action does single-pass SARIF, no second LLM call. |
 | `--no-save` | off | Skip persisting this run to the local history store (every review is saved by default). |
 | `--force` | off | On `--pr`, re-review even when the head SHA is unchanged since the last saved review. By default an unchanged head SHA short-circuits (`skipped_unchanged`, no LLM pass); a new commit always re-reviews. |
-| `--instruction <text>` | — | Free-text steer for **this** review (e.g. `"focus on the auth changes"`). Injected into the **USER turn** as a fenced, context-only block — it never changes the finding rules, severity, category, or JSON schema, and rides the same single review pass (no extra LLM call). Trusted (developer-authored CLI flag); still UNTRUSTED when set from an `issue_comment` trigger on a fork PR. |
+| `--instruction <text>` | - | Free-text steer for **this** review (e.g. `"focus on the auth changes"`). Injected into the **USER turn** as a fenced, context-only block; it never changes the finding rules, severity, category, or JSON schema, and rides the same single review pass (no extra LLM call). Trusted (developer-authored CLI flag); still UNTRUSTED when set from an `issue_comment` trigger on a fork PR. |
 | `--conversation` | off | On `--pr`, fetch the prior PR conversation (miucr's summary + finding threads + developer replies) and inject it fenced/context-only as **UNTRUSTED** context (dropped on fork PRs). One extra GitHub **read** pass, no extra LLM call. |
 | `-v, --verbose` / `-q, --quiet` | auto | Progress to **stderr** (stdout envelope unchanged). Auto-on when stderr is a TTY; `-v` forces on, `-q` forces off; mutually exclusive. Piped/CI stays silent. |
 | `--trace` | off | Stream the live review trace (system prompt, diff, rules, prompts, response) as NDJSON to **stderr** (local-only, redacted; distinct from `--verbose`; stdout envelope unchanged). Inspect a saved review's trace with `miucr trace <id>`. |
@@ -241,18 +241,18 @@ miucr review --pr owner/repo#123 --conversation                   # also read th
 ```
 
 `findings_dropped` = findings rejected by line-anchor drift (their quote no longer matches the reviewed
-revision — kills position drift). `--post` keeps the summary and the inline findings in **separate
-homes**: inline comments post as a PR **review** (body left empty — never a 422 on a no-inline run), and
-the summary is **ONE issue comment that is UPSERTED** — miu-cr lists the PR's issue comments, finds the
+revision, kills position drift). `--post` keeps the summary and the inline findings in **separate
+homes**: inline comments post as a PR **review** (body left empty, never a 422 on a no-inline run), and
+the summary is **ONE issue comment that is UPSERTED**: miu-cr lists the PR's issue comments, finds the
 one carrying the `<!-- miu-cr-review -->` marker, and **edits it in place**; if none exists it creates it.
 So a re-run **updates the single summary** instead of stacking a review per commit. `summary_action` is
 `created` (first summary issue comment), `edited` (upserted in place on a re-run), `fork_fallback` (a fork
-PR lacked comment-write scope — degraded, no hard fail), or `none` (`--no-post`, `--mode checks`, or a
+PR lacked comment-write scope, degraded, no hard fail), or `none` (`--no-post`, `--mode checks`, or a
 clean no-summary run). A same-commit `--post` re-run now **edits** the summary (no longer skipped);
 per-comment `<!-- miucr:fp=... -->` line-free fingerprints prevent inline dupes across commits.
 A public-PR dry-run needs **no GitHub PAT** (LLM key still required); `--post` and private repos need a PAT with `repo` scope.
 
-### `serve` — webhook daemon (default) + opt-in poll
+### `serve`: webhook daemon (default) + opt-in poll
 
 ```sh
 WEBHOOK_SECRET=… GITHUB_TOKEN=… ANTHROPIC_API_KEY=… \
@@ -262,8 +262,8 @@ WEBHOOK_SECRET=… GITHUB_TOKEN=… ANTHROPIC_API_KEY=… \
 | Flag | Default | Notes |
 | ---- | ------- | ----- |
 | `--addr` | `:8080` | Webhook listen address. |
-| `--gate` | `high` | **Publish-severity only** — which findings get posted; never affects liveness/exit. |
-| `--repos` | — | **Required** owner/repo allowlist (comma-separated); other repos are ignored. |
+| `--gate` | `high` | **Publish-severity only**: which findings get posted; never affects liveness/exit. |
+| `--repos` | - | **Required** owner/repo allowlist (comma-separated); other repos are ignored. |
 | `--poll` | off | Opt-in trigger: periodically ask GitHub which PRs need review. Webhook stays default. |
 | `--poll-interval` | `1m0s` | Floor; effective = `max(this, X-Poll-Interval)`. |
 | `--poll-source notifications\|pulls` | `notifications` | Candidate source. `pulls` = full coverage / cold-start-complete. |
@@ -272,7 +272,7 @@ Env: `WEBHOOK_SECRET` (required unless poll-only), `GITHUB_TOKEN`/`GH_TOKEN` (re
 `ANTHROPIC_API_KEY` (or compatible). Endpoints: `POST /webhook` (HMAC), `GET /healthz`. Each new head SHA = one full
 LLM review; allowlist + per-head dedup are the only spend guards. serve inherits `--suggest`/`--approve-clean` **OFF**.
 
-**Opt-in REST API** — set `MIUCR_API_TOKEN` (env-only, no flag) to register `/v1`:
+**Opt-in REST API**: set `MIUCR_API_TOKEN` (env-only, no flag) to register `/v1`:
 
 ```sh
 MIUCR_API_TOKEN=$(openssl rand -hex 32) WEBHOOK_SECRET=… GITHUB_TOKEN=… ANTHROPIC_API_KEY=… \
@@ -280,7 +280,7 @@ MIUCR_API_TOKEN=$(openssl rand -hex 32) WEBHOOK_SECRET=… GITHUB_TOKEN=… ANTH
 # Queue (202 + server-generated crypto/rand id):
 curl -sS -X POST https://host/v1/reviews -H "Authorization: Bearer $MIUCR_API_TOKEN" \
   -H 'Content-Type: application/json' -d '{"owner":"acme","repo":"widgets","number":42}'
-# Read back (whitelist: id,status,created_at,findings,stats — never the clone path):
+# Read back (whitelist: id,status,created_at,findings,stats, never the clone path):
 curl -sS https://host/v1/reviews/<id> -H "Authorization: Bearer $MIUCR_API_TOKEN"
 ```
 
@@ -288,9 +288,9 @@ Status lifecycle: `pending` → `done`/`failed`. HTTP map: `400` bad body, `401`
 (empty token can never auth), `403` off-allowlist, `404` unknown id, `405` wrong method, `413` body > 64 KB.
 **Single-operator**: one shared bearer = one trust boundary (not multi-tenant).
 
-**GitHub App auth** (opt-in alternative to PAT) — `[github] mode=app` in config (see below).
+**GitHub App auth** (opt-in alternative to PAT): `[github] mode=app` in config (see below).
 
-### `rules` — project review context
+### `rules`: project review context
 
 ```sh
 miucr rules init             # scaffold annotated .miu/cr/rules/example.md
@@ -324,9 +324,9 @@ system prompt so injected prose can't redefine it. `rules check` data lists each
 wire layer validates the stem against the rules actually loaded this review (a hallucinated stem is
 dropped) and renders it as `(per <stem>)` on the inline comment + summary overflow. A repo rule
 (`.miu/cr/rules/*.md`) additionally links to its file, repo-relative at the head SHA; user and
-built-in rules are cited as text only (no link — a user-rule home path never leaks).
+built-in rules are cited as text only (no link, a user-rule home path never leaks).
 
-### `history` — browse saved reviews
+### `history`: browse saved reviews
 
 Every review auto-saves a **full record** (findings + stats + per-turn transcript + raw prompt/response)
 to the local store; `--no-save` opts out per run. Records are local only (`~/.config/miu/cr/state.db`,
@@ -351,11 +351,11 @@ miucr history prune --older-than 30d --yes      # delete records older than a sp
 Errors: `history.unavailable`, `history.not_found`, `history.prune_policy_required`,
 `history.prune_confirm_required`, `history.bad_pr`, `history.bad_time`.
 
-### `trace` — inspect a review's full trace
+### `trace`: inspect a review's full trace
 
 Every saved review keeps a **redacted trace** (system prompt, diff identification, selected files,
 injected rules, user prompt, model/provider, raw response, tool calls). `miucr trace <id>` renders it
-as ordered steps. The trace holds the prompt (your own code) so it is **local only** — read from the
+as ordered steps. The trace holds the prompt (your own code) so it is **local only**: read from the
 history store, never re-fetched from a provider, never posted, and never in the `review.result`
 envelope; secrets are redacted at persist.
 
@@ -373,27 +373,27 @@ For a **live** trace, pass `--trace` to `review`: each capture seam streams one 
 (`{"step":...,"payload":...}`) to **stderr** as the run proceeds (local-only, redacted; distinct from
 `--verbose`). The stdout result envelope is byte-for-byte unchanged.
 
-### `mcp` — review engine over stdio
+### `mcp`: review engine over stdio
 
 ```sh
 miucr mcp                       # stdio transport (default)
 miucr mcp --transport stdio
 ```
 
-Reviews the repo in the **current working directory** — launch from (or point the host at) the target repo.
+Reviews the repo in the **current working directory**: launch from (or point the host at) the target repo.
 Stdout carries only MCP frames; logs/errors go to stderr. Tool outputs are byte-bounded (1 MiB) → oversized
 fails `review.output_too_large` (narrow the review).
 
-- **`review_run`** — args `{ staged, from, to, commit, gate, expand, token_budget, instruction }` (exactly one
+- **`review_run`**: args `{ staged, from, to, commit, gate, expand, token_budget, instruction }` (exactly one
   mode, same validation as the CLI). Optional `instruction` is a free-text steer injected fenced/context-only
-  into the USER turn — it never changes the finding schema (UNTRUSTED, context-only). Returns
+  into the USER turn; it never changes the finding schema (UNTRUSTED, context-only). Returns
   `{ id, findings, stats }`; `id` is the persisted review id.
-- **`review_get`** — args `{ id }`. Returns `{ id, repo_dir, mode, head_sha, created_at, findings, stats }`.
+- **`review_get`**: args `{ id }`. Returns `{ id, repo_dir, mode, head_sha, created_at, findings, stats }`.
 
 Register in Claude Code: `claude mcp add --transport stdio miucr -- miucr mcp --transport stdio`
 (provide a provider key via the host's `env`, e.g. `ANTHROPIC_API_KEY`).
 
-### `login` — OAuth to review on your ChatGPT plan
+### `login`: OAuth to review on your ChatGPT plan
 
 ```sh
 miucr login --provider openai     # PKCE loopback OAuth; caches token at ~/.config/miu/cr/oauth.json (0600)
@@ -405,31 +405,31 @@ Responses protocol) so they run on the user's **ChatGPT Pro/Max subscription**, 
 On this path the model defaults to `gpt-5.5` (the codex backend rejects api.openai.com models like
 `gpt-4o`); `miucr init` writes `model = "gpt-5.5"` into `[providers.openai]` so it is visible + editable.
 Precedence: `--model` > `MIUCR_CODEX_MODEL` > the config `model` (if not `gpt-4o`) > `gpt-5.5`.
-`--provider` is an explicit flag backed by a registry — `openai` is the only entry
+`--provider` is an explicit flag backed by a registry; `openai` is the only entry
 (`--provider anthropic`/unknown → `login.provider_unsupported`; Anthropic OAuth is ToS-prohibited).
 Loopback binds an allow-listed port (`1455`, then `1457`). Envelope `kind: init.result`-style
-**secret-free** payload: `{provider, oauth_path, expires_at, account_id, has_api_key}` — **no tokens**.
+**secret-free** payload: `{provider, oauth_path, expires_at, account_id, has_api_key}` (**no tokens**).
 Errors: `login.provider_unsupported`, `login.port_unavailable`, `login.timeout`, `login.exchange_failed`, `login.write_failed`.
 
 **Precedence**: the cached OAuth credential sits **below** an explicit `--api-key` / `OPENAI_API_KEY`
-in OpenAI resolution — an explicit key always wins; OAuth is consulted only when no OpenAI key is set.
+in OpenAI resolution: an explicit key always wins; OAuth is consulted only when no OpenAI key is set.
 `oauth.json` is gitignored, `0600`, never logged/in-envelope.
-**CI uses an `OPENAI_API_KEY` secret, not OAuth** (browser-interactive) — `miucr review --provider openai`.
+**CI uses an `OPENAI_API_KEY` secret, not OAuth** (browser-interactive): `miucr review --provider openai`.
 
-### `whoami` / `logout` — inspect and clear the cached OAuth identity
+### `whoami` / `logout`: inspect and clear the cached OAuth identity
 
 ```sh
-miucr whoami     # {logged_in, provider, account_id, expires_at, expired} — NEVER the token
+miucr whoami     # {logged_in, provider, account_id, expires_at, expired} (NEVER the token)
 miucr logout     # delete oauth.json; idempotent ({removed: bool})
 ```
 
-`whoami` whitelists only the non-secret fields from the cached record — the four secret fields
+`whoami` whitelists only the non-secret fields from the cached record: the four secret fields
 (access/refresh/id token, api key) are never read into the envelope, so no token can leak (json or
 pretty). No cached record → `kind: whoami` with `{logged_in: false}` (clean exit, not an error).
 `logout` removes `oauth.json`; a missing record reports `{removed: false}` rather than erroring, so
 it is safe to run twice. Both emit the `miucr.cli/v1` envelope (`kind: whoami` / `kind: logout`).
 
-### `upgrade` (alias `update`) — self-update from GitHub Releases
+### `upgrade` (alias `update`): self-update from GitHub Releases
 
 ```sh
 miucr upgrade            # download + verify + atomically replace the running binary
@@ -453,7 +453,7 @@ action}` where `action` ∈ `upgraded | already_latest | check_only`. Errors:
 miucr version            # {"ok":true,...,"data":{"version":"v0.11.0"}}
 ```
 
-### `config` — inspect (`show`) and update (`set`, `edit`)
+### `config`: inspect (`show`) and update (`set`, `edit`)
 
 ```sh
 miucr config show              # user-set values only (kind: config.show)
@@ -468,7 +468,7 @@ miucr config edit              # open config.toml in $VISUAL/$EDITOR, then valid
 
 `show` is read-only; every credential (`auth_token`, store `dsn`) is masked by **structural** redaction, so a token/DSN can never reach stdout (json or pretty). `set` writes ONE dotted key and merges it into the existing config (it does not overwrite like `init`); it validates enums (`config.invalid` on a bad value) and **refuses secret keys** (`*.auth_token`, `store.dsn`) since secrets are read from env at runtime. `edit` opens `config.toml` in `$VISUAL`/`$EDITOR` (interactive; needs a TTY) and reloads it afterward, reporting `valid`.
 
-## Config (`~/.config/miu/cr/config.toml`) — all optional, zero-config works
+## Config (`~/.config/miu/cr/config.toml`): all optional, zero-config works
 
 Layering, highest wins: **CLI flags > environment > config file > built-in defaults.** Nothing here is persisted at runtime; secrets are never written to disk by miucr.
 
@@ -502,7 +502,7 @@ app_id           = "123456"             # app mode: numeric App ID
 installation_id  = "78901234"           # app mode: numeric installation id
 private_key_path = "/etc/miucr/app-key.pem"   # app mode: PATH to RSA PEM (never inline)
 
-[review]                                # defaults for `miucr review` flags (TRUSTED config only) — an explicit flag ALWAYS wins
+[review]                                # defaults for `miucr review` flags (TRUSTED config only); an explicit flag ALWAYS wins
 gate         = "high"                   # default --gate: none|info|low|medium|high|critical
 filter_mode  = "diff_context"           # default --filter-mode (--pr): added|diff_context|file|nofilter
 min_severity = "low"                    # default --min-severity (--pr inline floor)
@@ -514,9 +514,9 @@ category_urls = { security = "https://docs.example.com/security" }   # case-inse
 
 See the effective config any time with `miucr config show` (below).
 
-**Provider resolution** — `auto` picks OpenAI when `OPENAI_API_KEY` is set and no Anthropic credential is
+**Provider resolution**: `auto` picks OpenAI when `OPENAI_API_KEY` is set and no Anthropic credential is
 present, else `default_provider` (Anthropic). OpenAI order: explicit `--api-key` > `OPENAI_API_KEY` > profile key >
-a cached `miucr login` OAuth token (routes to the codex/ChatGPT-plan backend) — an explicit key always wins.
+a cached `miucr login` OAuth token (routes to the codex/ChatGPT-plan backend): an explicit key always wins.
 Env: Anthropic = `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN`
 (Bearer, for compatible gateways) / `ANTHROPIC_BASE_URL` / `ANTHROPIC_MODEL` (default `claude-sonnet-4-5-20250929`);
 OpenAI = `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` (default `gpt-4o`). `--auth-token` is Anthropic-only.
@@ -553,19 +553,19 @@ Runs on same-repo PRs only (fork-safe automated review is the `serve` path's job
 
 ## Driving a review as an agent
 
-1. **Local pre-PR check** — `miucr review --staged -o json --gate high`, parse `.data.findings`, act on
+1. **Local pre-PR check**: `miucr review --staged -o json --gate high`, parse `.data.findings`, act on
    `severity` ≥ your bar. Exit 2 means the gate tripped (findings still printed in the envelope).
-2. **Review a PR (dry-run)** — `env -u GITHUB_TOKEN -u GH_TOKEN miucr review --pr owner/repo#N --no-post -o json`
+2. **Review a PR (dry-run)**: `env -u GITHUB_TOKEN -u GH_TOKEN miucr review --pr owner/repo#N --no-post -o json`
    (public repo, no PAT). Read `.data.pr` + `.data.findings`.
-3. **Publish** — `miucr review --pr owner/repo#N --post --token <pat>`; **upserts ONE summary issue
+3. **Publish**: `miucr review --pr owner/repo#N --post --token <pat>`; **upserts ONE summary issue
    comment** (`summary_action:created` first time, `edited` on every re-run) and posts inline findings as a
    PR review. A **same-commit `--post` re-run edits** the summary in place (no longer skipped). Add
    `--suggest`/`--approve-clean` only when you intend write-actions. A **dry-run** (`--no-post`) on an
    **unchanged head SHA** short-circuits before the LLM pass (`.data.skipped_unchanged:true`); pass
    `--force` to re-review.
-4. **Re-trigger the Action / dogfood** — push a new commit, or re-run the `PR Review` workflow from the
+4. **Re-trigger the Action / dogfood**: push a new commit, or re-run the `PR Review` workflow from the
    Actions tab / `gh workflow run` / `gh run rerun <id>`. Each run edits the same summary comment in place.
-5. **On `ok:false`** — branch on `.error.code` (e.g. `review.gate_failed`, `github.post_requires_token`,
+5. **On `ok:false`**: branch on `.error.code` (e.g. `review.gate_failed`, `github.post_requires_token`,
    `serve.secret_required`, `store.unavailable`, `review.output_too_large`, `flags.conflict`); use `.error.hint`.
 
 **Privacy**: never paste a real API key/PAT/bearer into code, tests, docs, or commits; keys come from
