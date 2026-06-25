@@ -44,7 +44,7 @@ Every command prints **one JSON object** on stdout (default `-o json`). Field or
 ```
 
 `kind` per command: `version`, `review.result`, `rules.check`, `rules.init`, `init.result`, `login.result`,
-`history.list`, `history.record`, `history.prune`, `error`
+`history.list`, `history.record`, `history.prune`, `trace.show`, `error`
 (REST: `review.accepted` / `review.result`). **Secrets never appear** in the envelope, logs, or on disk
 (credential-named fields are scrubbed; finding `rationale`/`suggested_patch` prose is exempt).
 
@@ -183,6 +183,7 @@ miucr review --pr owner/repo#123          # a GitHub PR (dry-run by default)
 | `--no-save` | off | Skip persisting this run to the local history store (every review is saved by default). |
 | `--force` | off | On `--pr`, re-review even when the head SHA is unchanged since the last saved review. By default an unchanged head SHA short-circuits (`skipped_unchanged`, no LLM pass); a new commit always re-reviews. |
 | `-v, --verbose` / `-q, --quiet` | auto | Progress to **stderr** (stdout envelope unchanged). Auto-on when stderr is a TTY; `-v` forces on, `-q` forces off; mutually exclusive. Piped/CI stays silent. |
+| `--trace` | off | Stream the live review trace (system prompt, diff, rules, prompts, response) as NDJSON to **stderr** (local-only, redacted; distinct from `--verbose`; stdout envelope unchanged). Inspect a saved review's trace with `miucr trace <id>`. |
 
 **`review.result` data** (local and `--pr`):
 
@@ -320,6 +321,28 @@ miucr history prune --older-than 30d --yes      # delete records older than a sp
 `provider`, `model`, `head_sha`, `findings`, `stats`, `transcript`, `raw_prompt`, `raw_response`.
 Errors: `history.unavailable`, `history.not_found`, `history.prune_policy_required`,
 `history.prune_confirm_required`, `history.bad_pr`, `history.bad_time`.
+
+### `trace` — inspect a review's full trace
+
+Every saved review keeps a **redacted trace** (system prompt, diff identification, selected files,
+injected rules, user prompt, model/provider, raw response, tool calls). `miucr trace <id>` renders it
+as ordered steps. The trace holds the prompt (your own code) so it is **local only** — read from the
+history store, never re-fetched from a provider, never posted, and never in the `review.result`
+envelope; secrets are redacted at persist.
+
+```sh
+miucr trace <id>                 # ordered steps (kind: trace.show; 404 → trace.not_found)
+miucr trace <id> -o pretty       # readable per-step view
+```
+
+`trace.show` data is `{id, steps:[{step, payload}]}` ordered: `system_prompt` → `diff_meta` →
+`selected_files` → `injected_rules` → `user_prompt` → `model` → `final_response` → `tool_calls`
+(empty steps omitted; an old review with no trace renders empty). Errors: `trace.id_required`,
+`trace.not_found`, `trace.corrupt`.
+
+For a **live** trace, pass `--trace` to `review`: each capture seam streams one NDJSON line
+(`{"step":...,"payload":...}`) to **stderr** as the run proceeds (local-only, redacted; distinct from
+`--verbose`). The stdout result envelope is byte-for-byte unchanged.
 
 ### `mcp` — review engine over stdio
 
