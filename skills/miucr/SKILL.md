@@ -194,8 +194,8 @@ miucr review --pr owner/repo#123 --conversation                   # also read th
 | `--ext go,ts,...` | - | Restrict to these file extensions. |
 | `--expand <n>` | `5` | Context lines above/below each hunk (`0` disables). |
 | `--token-budget <n>` | `100000` | Approx token budget; over budget degrades context (`0` disables). |
-| `--deep-context` | OFF | Heavier context defaults for large reviews: `--expand 20`, `--token-budget 0`, `--timeout 900s`, `--context-hops 2` unless those flags are set; also reads root `AGENTS.md` / `CLAUDE.md` from the reviewed revision when present. |
-| `--context-hops <n>` | `0` | Related-file context depth from changed files (`0` disables, max `5`); follows Go package imports/reverse imports and basic relative JS/TS/Python imports from the reviewed revision. Skipped on fork PRs. |
+| `--deep-context` | OFF | Heavier context defaults for large reviews: `--expand 20`, `--token-budget 0`, `--timeout 900s`, and auto related-file hop depth unless those flags are set; also reads root `AGENTS.md` / `CLAUDE.md` from the reviewed revision when present. |
+| `--context-hops <n>` | `0` | Override related-file context depth from changed files (`0` disables, max `5`); follows Go package imports/reverse imports and basic relative JS/TS/Python imports from the reviewed revision. Skipped on fork PRs. |
 | `--provider anthropic\|openai\|<name>\|auto` | `auto` | LLM profile. |
 | `--api-key` / `--base-url` / `--auth-token` / `--model` | - | Provider overrides; **never persisted**. |
 | `--token <pat>` | - | GitHub PAT (overrides `GITHUB_TOKEN`/`GH_TOKEN`); required only for `--post`; never persisted. |
