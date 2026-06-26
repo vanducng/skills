@@ -145,7 +145,7 @@ tree: `rules/{go-api,typescript-node,python-data}.md`,
 `mcp-setup/{claude-code,cursor,codex}` + `README-mcp.md`, and
 `docker/{Dockerfile,docker-compose.yml}` (pure-Go `CGO_ENABLED=0` distroless image
 for `miucr serve`). Onboarding walkthrough lives at the docs
-[Getting started](https://miucr.vanducng.dev/onboarding/) page.
+[Getting started](https://cr.miu.sh/onboarding/) page.
 
 **Comment-triggered review (`/miucr review <prompt>`).** With the dual-trigger workflow
 installed, a **write or admin collaborator** posts `/miucr review <prompt>` as a top-level PR
@@ -193,7 +193,9 @@ miucr review --pr owner/repo#123 --conversation                   # also read th
 | `--include` / `--exclude` | - | Repeatable doublestar globs (path must match / drop). |
 | `--ext go,ts,...` | - | Restrict to these file extensions. |
 | `--expand <n>` | `5` | Context lines above/below each hunk (`0` disables). |
-| `--token-budget <n>` | `0` | Approx token budget; over budget degrades context (`0` disables). |
+| `--token-budget <n>` | `100000` | Approx token budget; over budget degrades context (`0` disables). |
+| `--deep-context` | OFF | Heavier context defaults for large reviews: `--expand 20`, `--token-budget 0`, `--timeout 900s`, `--context-hops 2` unless those flags are set; also reads root `AGENTS.md` / `CLAUDE.md` from the reviewed revision when present. |
+| `--context-hops <n>` | `0` | Related-file context depth from changed files (`0` disables, max `5`); follows Go package imports/reverse imports and basic relative JS/TS/Python imports from the reviewed revision. Skipped on fork PRs. |
 | `--provider anthropic\|openai\|<name>\|auto` | `auto` | LLM profile. |
 | `--api-key` / `--base-url` / `--auth-token` / `--model` | - | Provider overrides; **never persisted**. |
 | `--token <pat>` | - | GitHub PAT (overrides `GITHUB_TOKEN`/`GH_TOKEN`); required only for `--post`; never persisted. |
