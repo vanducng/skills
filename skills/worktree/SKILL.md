@@ -271,7 +271,7 @@ docker compose -p "$COMPOSE_PROJECT_NAME" down -v 2>/dev/null || true
 | `status` | `status` | Health audit + divergence + disk usage; flags merged/prunable, **nested worktrees**, + reclaimable total |
 | `ports` | `ports` | Port block assignment per worktree |
 
-**`remove` vs `clean`:** `remove` takes a name and removes that one. It force-removes a dirty checkout but keeps an unmerged branch; if the user explicitly asked to discard it too, run `git branch -D <branch>` after `remove` reports `branchKept`. `clean` takes no target — it finds every worktree whose branch is merged into its base or gone from the remote, shows them with disk sizes (dry-run by default), and removes them on `--yes`. `clean` also prunes stale git metadata (the old `prune` command folded in here). Both rescue untracked `.env*` files to `<trees-root>/.env-backups/<name>/` before deletion.
+**`remove` vs `clean`:** `remove` takes a name and removes that one. It force-removes the checkout and deletes the local branch when `git branch -d` accepts it; Git may accept a branch merged to its upstream even when it is not merged to the base branch. If `remove` reports `branchKept`, leave it unless the user explicitly asked to discard it too, then run `git branch -D <branch>`. `clean` takes no target — it finds every worktree whose branch is merged into its base or gone from the remote, shows them with disk sizes (dry-run by default), and removes them on `--yes`. `clean` also prunes stale git metadata (the old `prune` command folded in here). Both rescue untracked `.env*` files to `<trees-root>/.env-backups/<name>/` before deletion.
 
 After a merge helper such as `gh pr merge --delete-branch`, re-check the linked worktree's current branch before `remove`: the helper may leave it on the base branch. If the worktree is on a branch you must keep (`main`, `staging`, `dev`), detach first so `remove` skips branch deletion:
 
@@ -287,6 +287,37 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs clean
 node $HOME/skills/skills/worktree/scripts/worktree.cjs clean --yes
 # Only merged branches; include dirty ones
 node $HOME/skills/skills/worktree/scripts/worktree.cjs clean --merged --force --yes
+```
+
+**Targeted teardown for one named worktree:** use this when the user points at a specific path and `clean` skips it because the branch is still active, pushed, or unmerged.
+
+```bash
+WT=<worktree-path>
+node $HOME/skills/skills/worktree/scripts/worktree.cjs status --json
+git -C "$WT" status --short --branch
+```
+
+If the worktree ran Docker Compose, stop and remove its resources before deleting the checkout. Do not trust `.env.worktree` alone: Compose launched from a subdirectory may use that directory name as the project. Match containers by their Compose working-dir label, then run `down -v` for that project from the compose directory (or pass `-f <compose-file>`). `down -v` removes named/anonymous volumes, not bind-mounted local paths; delete bind-mount data only when the user names it.
+
+```bash
+docker ps -a --format '{{.Names}}\t{{.Label "com.docker.compose.project"}}\t{{.Label "com.docker.compose.project.working_dir"}}' | rg -F "$WT"
+docker compose -p <project> down -v --remove-orphans
+```
+
+Then remove the worktree and verify no checkout, Compose containers, or named volumes remain:
+
+```bash
+node $HOME/skills/skills/worktree/scripts/worktree.cjs remove "$WT"
+test ! -e "$WT" && echo removed
+git worktree list --porcelain
+docker ps -a --format '{{.Names}}\t{{.Label "com.docker.compose.project"}}\t{{.Label "com.docker.compose.project.working_dir"}}' | rg -F "$WT" || true
+docker volume ls --filter "label=com.docker.compose.project=<project>" --format '{{.Name}}'
+```
+
+If `remove` deleted a pushed branch that should keep a local ref, recreate it from the remote:
+
+```bash
+git branch --track <branch> origin/<branch>
 ```
 
 ## JSON output fields (high-signal)
