@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.21.0](https://github.com/vanducng/skills/compare/v1.20.1...v1.21.0) (2026-06-28)
+
+
+### Features
+
+* **workbench:** producer skills auto-claim a feature instead of scratch ([#263](https://github.com/vanducng/skills/issues/263)) ([bdfda7c](https://github.com/vanducng/skills/commit/bdfda7c38d350b89c6601210ab3c63d680a7e6d1))
+
 ## [1.20.1](https://github.com/vanducng/skills/compare/v1.20.0...v1.20.1) (2026-06-28)
 
 
