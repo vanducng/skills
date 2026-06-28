@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.22.0](https://github.com/vanducng/skills/compare/v1.21.0...v1.22.0) (2026-06-28)
+
+
+### Features
+
+* **graphify:** track graphify v0.8.49 ([#270](https://github.com/vanducng/skills/issues/270)) ([d0b738c](https://github.com/vanducng/skills/commit/d0b738c3900a431187f14fd63821d6ecf13537f7))
+
 ## [1.21.0](https://github.com/vanducng/skills/compare/v1.20.1...v1.21.0) (2026-06-28)
 
 
