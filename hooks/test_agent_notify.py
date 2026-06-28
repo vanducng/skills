@@ -11,9 +11,9 @@ spec.loader.exec_module(agent_notify)
 
 
 class Result:
-    def __init__(self, stdout):
+    def __init__(self, stdout, returncode=0):
         self.stdout = stdout
-        self.returncode = 0
+        self.returncode = returncode
 
 
 class TmuxCtxTest(unittest.TestCase):
@@ -55,6 +55,13 @@ class TmuxCtxTest(unittest.TestCase):
         ])
         with patch.dict(os.environ, {}, clear=True):
             with patch.object(agent_notify.subprocess, "run", return_value=Result(rows)):
+                self.assertEqual(agent_notify.tmux_ctx("/repo/app"), "")
+
+    def test_blank_when_tmux_exits_nonzero(self):
+        # A clear single-pane match is still ignored if tmux itself failed.
+        with patch.dict(os.environ, {}, clear=True):
+            with patch.object(agent_notify.subprocess, "run",
+                              return_value=Result("cnb:cmd:4\t/repo/app\tcodex", returncode=1)):
                 self.assertEqual(agent_notify.tmux_ctx("/repo/app"), "")
 
 
