@@ -3,7 +3,7 @@ name: miucr
 description: Review code/diffs/PRs with the owned `miucr` CLI (miu-cr, a pure-Go AI code reviewer). Use when asked to review staged changes, a commit, a ref range, or a GitHub PR; to run/parse a gated review; compare reviewer quality with eval; to drive reviews over MCP; or to run the serve webhook/poll daemon or GitHub Action. Output is the stable `miucr.cli/v1` JSON envelope; parse it, don't grep prose.
 ---
 
-# miucr: owned AI code-review CLI (v0.48.0)
+# miucr: owned AI code-review CLI (v0.65.0)
 
 `miucr` (the **miu-cr** project) is a fast, **pure-Go** (`CGO_ENABLED=0`) AI code reviewer.
 It keeps the correctness-critical parts **deterministic** (file selection, context assembly,
@@ -18,10 +18,10 @@ proposing fixes). It runs five review ways:
 
 **Review behavior worth knowing (design choices that prevent noise):**
 - **One upserted summary, posted first.** `--post` writes ONE summary *issue comment*, edited in place on re-runs (never stacked), and posts it BEFORE the inline review so it anchors on top (overview → details). Inline findings are a separate PR review. `review_id` is NOT shown in the comment (it only resolves on the local store; it stays in the JSON envelope). On a **fatal review failure** (provider/network/auth, AFTER miucr's internal retries), `--post` upserts that SAME summary comment with a visible error notice instead of failing silently; a later successful run replaces it with findings.
-- **The summary is a per-finding lifecycle ledger, not just the latest run.** Below a concise ≤5-bullet "What changed" summary, it renders two always-visible tracking tables — **⚠️ Open (N)** and **✅ Resolved (N)** — each finding tracked by its line-independent fingerprint across commits: a **Priority** column (P0–P4), status (`open` / `resolved` / `reopened`), the **origin commit** it was first raised on and the **resolved commit** it disappeared on (both linked), **severity before→after** (escalation shown `🟡→🔴`, a fix shown `🟠→✅`), and first-seen / resolved timestamps. A clean review shows **Review passed · all clear 🎉** (not "No findings"). The footer is always the latest reviewed commit + **Last reviewed `<UTC>`** + the miu-cr release. Lifecycle state is **storeless**: it lives in a hidden `<!-- miu-cr-ledger:<base64> -->` marker inside the comment (like the runs counter), so it survives ephemeral CI with no DB. A finding resolves only when it is absent AND its file is still in the diff (absence off-diff ≠ fix).
-- **Inline comments persist; resolving the threads is left to you / your coding agent.** Each finding's inline comment is posted ONCE and deduped across re-runs via a hidden `<!-- miucr:fp=… -->` marker, so a re-review never re-posts or deletes it. miucr does NOT click "Resolve conversation": when a finding is fixed, GitHub auto-marks the thread *Outdated* and the summary ledger moves it to **✅ Resolved**, but the inline thread itself stays open for the developer/coding agent to resolve. So an agent acting on a review should read the inline threads, apply the fixes, reply on each handled inline thread with what changed and why, then resolve the thread — miucr deliberately leaves them in place.
+- **The summary is a per-finding lifecycle ledger, not just the latest run.** Below a concise ≤5-bullet "What changed" summary, it renders two always-visible tracking tables — **⚠️ Open (N)** and **✅ Resolved (N)** — each finding tracked by its line-independent fingerprint across commits: a **Priority** column (P0–P4), status (`open` / `resolved` / `reopened`), the **origin commit** it was first raised on and the **resolved commit** it disappeared on (both linked), **severity before→after** (escalation shown `🟡→🔴`, a fix shown `🟠→✅`), and first-seen / resolved timestamps. A clean review shows **Review passed · all clear 🎉** (not "No findings"). The footer is the latest reviewed commit + the miu-cr release. Lifecycle state is **storeless**: it lives in a hidden `<!-- miu-cr-ledger:<base64> -->` marker inside the comment (like the runs counter), so it survives ephemeral CI with no DB. A finding resolves only when it is absent AND its file is still in the diff (absence off-diff ≠ fix).
+- **Inline comments persist; resolving the threads is left to you / your coding agent.** Each finding's inline comment is posted ONCE and deduped across re-runs via a hidden `<!-- miucr:fp=… -->` marker, so a re-review never re-posts or deletes it. miucr does NOT click "Resolve conversation": when a finding is fixed, GitHub auto-marks the thread *Outdated* and the summary ledger moves it to **✅ Resolved**, but the inline thread itself stays open for the developer/coding agent to resolve. A host config may opt into `thread_resolution_sync.mode: poll` to mirror manual GitHub "Resolve conversation" state into the summary as `conversation resolved`; this never starts an LLM review and never feeds approval. So an agent acting on a review should read the inline threads, apply the fixes, reply on each handled inline thread with what changed and why, then resolve the thread.
 - **Repeat-run stability is deterministic inputs + low-variance generation.** For the same repo/ref/config, file selection, context assembly, rules, anchoring, gating, fingerprints, and comment dedupe are deterministic. SDK-backed Anthropic/OpenAI calls use `temperature: 0`; exact model output can still vary, so PR posting is idempotent rather than duplicate-prone.
-- **One-click suggestions are conservative + model-controlled.** `--suggest` emits a native GitHub ` ```suggestion ` block ONLY when the patch *deterministically* replaces the exact anchored line(s) AND the model is certain of a grounded mechanical fix (a cited rule or an obvious best practice). It NEVER guesses an unverifiable value (a URL, path, route, ID, version, config key, API signature); such concerns become a verification-question in the rationale instead. `--patch-repair` (requires `--suggest`) runs one focused 2nd LLM pass to recover a near-miss single-line patch. `--approve-clean` submits APPROVE only on a clean, non-fork, trusted-author PR.
+- **One-click suggestions and approvals are explicit write actions.** `--suggest` emits a native GitHub ` ```suggestion ` block ONLY when the patch *deterministically* replaces the exact anchored line(s) AND the model is certain of a grounded mechanical fix (a cited rule or an obvious best practice). It NEVER guesses an unverifiable value (a URL, path, route, ID, version, config key, API signature); such concerns become a verification-question in the rationale instead. `--patch-repair` (requires `--suggest`) runs one focused 2nd LLM pass to recover a near-miss single-line patch. `--approval clean|threshold` submits APPROVE only when the policy and safety gates pass; permission/self-approval failures warn and degrade rather than failing the review.
 - **`-o pretty`** is the human-readable local format; **`-o json`** is for agents; `-o sarif` for editors/CI.
 - **Multi-provider profiles.** Add a named provider (e.g. z.ai/glm) with `kind`, `base_url`, `model`, `auth`, and either `auth_env` or `auth_command`; select with `--provider <name>`. Built-in kinds: `anthropic`, `openai` (ChatGPT-plan OAuth via `miucr login`). Transient GitHub/network errors auto-retry with backoff. Optionally cap a provider instance's usage with `[providers.<name>.quota]` (`dimension = tokens|requests`, `limit`, `window = <Go duration like 5h/24h>|monthly`); **uncapped by default**, fail-closed, over-quota → typed `quota.exceeded`.
 - **Thinking on by default; deterministic fallback.** Capable models (Claude, gpt-5/o-series, codex) review with **extended thinking/reasoning** (deeper analysis; temperature is omitted because thinking forces temp 1). Models without thinking (gpt-4o, glm chat) sample at **temperature 0** for stable, reproducible findings. Both are config-exposed: `[review].thinking` (`auto|off|low|medium|high`, default auto) and `[review].temperature` (0–2, default 0).
@@ -210,7 +210,9 @@ miucr review --pr owner/repo#123 --conversation                   # also read th
 | `--post` / `--no-post` | `--no-post` (for `--pr`) | Publish vs dry-run; mutually exclusive (`flags.conflict`). |
 | `--suggest` | OFF | Native one-click suggestions for proven fixes: single-line replacements **and** wrap/guard/insert fixes (a multi-line patch on a QuotedCode-proven single-line anchor); requires `--post`; author-applied, never pushed. |
 | `--patch-repair` | OFF | Conditional **2nd LLM pass** that recovers one-click suggestions the first pass *almost* produced: for each single-line finding `>= medium` whose `SuggestedPatch` was rejected for a *repairable* reason (empty / no-op — never a true anchor mismatch), one focused agent call asks for a minimal replacement of the verbatim anchored span, then **re-validates with the same exact-anchor gate**; emits the suggestion only if it now passes, else keeps the fenced hint. **Requires `--suggest`** (`config.invalid`, exit 2, otherwise); inert in dry-run (recovers only on `--post`). Bounded: per-review cap (default 5), highest-severity-first; one extra LLM call per repaired candidate. PR-path only, default OFF. |
-| `--approve-clean` | OFF | Submit `Event=APPROVE` only on a clean, non-fork, trusted-author PR; else degrades to COMMENT (never errors); requires `--post`. |
+| `--approval off\|clean\|threshold` | `off` | Submit `Event=APPROVE` by policy on `--pr --post`. `clean` requires zero findings; `threshold` allows findings at or below `--approval-max-priority`. Permission/self-approval failures warn and degrade. |
+| `--approval-max-priority P0\|P1\|P2\|P3\|P4` | `P4` | Threshold approval ceiling. `P3` approves P3/P4 only; P0-P2 block approval. |
+| `--approval-note none\|on_findings\|always` | mode default | Controls approval review body text. `threshold` defaults to `on_findings`; clean approvals default to silent. |
 | `--filter-mode added\|diff_context\|file\|nofilter` | `diff_context` | Inline-eligibility filter on `--pr`. `file`/`nofilter` route off-diff findings to summary/SARIF/local, never inline (GitHub 422s an off-diff comment). |
 | `--min-severity none\|info\|low\|medium\|high\|critical` | none (no floor) | Minimum severity posted **inline** on `--pr`. Below-threshold findings still appear in the summary header counts + SARIF, never inline. An out-of-set value is rejected (`flags.invalid_min_severity`, exit 2). |
 | `--walkthrough-diagram` | OFF | Opt in to a Mermaid change diagram in the summary (fenced ```mermaid block GitHub renders). Rides the same single review pass, no extra LLM call. Diagram quality varies; a malformed/omitted diagram degrades to a plain note. |
@@ -294,7 +296,17 @@ WEBHOOK_SECRET=… GITHUB_TOKEN=… ANTHROPIC_API_KEY=… \
 
 Env: `WEBHOOK_SECRET` (required unless poll-only), `GITHUB_TOKEN`/`GH_TOKEN` (required unless `[github] mode=app`),
 `ANTHROPIC_API_KEY` (or compatible). Endpoints: `POST /webhook` (HMAC), `GET /healthz`. Each new head SHA = one full
-LLM review; allowlist + per-head dedup are the only spend guards. serve inherits `--suggest`/`--approve-clean` **OFF**.
+LLM review; allowlist + per-head dedup are the only spend guards. serve inherits `--suggest` **OFF** and `review.approval.mode: off`.
+
+In `serve --host` YAML, `thread_resolution_sync` is an object and defaults off. Enable it per repo when manual GitHub
+conversation resolution should update the summary table between commits:
+
+```yaml
+review:
+  thread_resolution_sync:
+    mode: poll
+    interval: 5m
+```
 
 **Opt-in REST API**: set `MIUCR_API_TOKEN` (env-only, no flag) to register `/v1`:
 
@@ -600,7 +612,12 @@ mode = "auto"                           # off|auto|always
 max_parallel = 2                        # default 2, capped at 8
 min_files = 8                           # auto threshold; 0 uses default
 min_context_bytes = 60000               # auto threshold; 0 uses default
-require_all = true                      # failed subagent prevents approve_clean/check success
+require_all = true                      # failed subagent prevents approval/check success
+
+[review.approval]                       # optional default for --approval on PR --post and host repo policies
+mode = "off"                            # off|clean|threshold
+max_priority = "P4"                     # threshold only; P0|P1|P2|P3|P4
+note = "on_findings"                    # none|on_findings|always
 
 [[review.subagents.agents]]
 name = "go"
@@ -608,7 +625,7 @@ include = ["**/*.go"]
 exclude = ["**/*_test.go"]
 system_prompt = "Focus on correctness, concurrency, error handling, and API compatibility."
 
-# NB: no post/force/approve_clean config (write-action/repeat-spend defaults are footguns); a bad [review] value → config.invalid (exit 2)
+# NB: no post/force config (write-action/repeat-spend defaults are footguns); a bad [review] value → config.invalid (exit 2)
 ```
 
 See the effective config any time with `miucr config show` (below).
@@ -650,7 +667,8 @@ jobs:
 ```
 
 Inputs: `api-key` (required), `github-token` (default `${{ github.token }}`), `gate` (default `high`;
-`none` never blocks), `version` (default `latest`), `base-url`, `model`. Comment-only (no `--suggest`/`--approve-clean`).
+`none` never blocks), `version` (default `latest`), `base-url`, `model`, `suggest` (default `true`), and
+`patch-repair` (default `false`). The action does not expose approval inputs; use the CLI or host config for approval policy.
 Runs on same-repo PRs only (fork-safe automated review is the `serve` path's job).
 
 ## Driving a review as an agent
@@ -662,7 +680,7 @@ Runs on same-repo PRs only (fork-safe automated review is the `serve` path's job
 3. **Publish**: `miucr review --pr owner/repo#N --post --deep-context --conversation --token <pat>`; **upserts ONE summary issue
    comment** (`summary_action:created` first time, `edited` on every re-run) and posts inline findings as a
    PR review. A **same-commit `--post` re-run edits** the summary in place (no longer skipped). Add
-   `--suggest`/`--approve-clean` only when you intend write-actions. A **dry-run** (`--no-post`) on an
+   `--suggest`/`--approval` only when you intend write-actions. A **dry-run** (`--no-post`) on an
    **unchanged head SHA** short-circuits before the LLM pass (`.data.skipped_unchanged:true`); pass
    `--force` to re-review.
 4. **Re-trigger the Action / dogfood**: push a new commit, or re-run the `PR Review` workflow from the
