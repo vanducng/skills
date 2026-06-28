@@ -48,3 +48,5 @@ A feature's id is `{ticket}-{slug}` (or `{slug}` when ticketless), **frozen at c
 ## Workflow position
 
 **Pairs with:** the producer skills (`vd:scout`, `vd:plan`, `vd:debug`, `vd:journal`, …) which write into the injected paths this resolves. **Follows:** `vd migrate` (one-time migration of an existing umbrella to feature-first).
+
+**Auto-claim handshake:** in a feature-first repo with no active feature, the hook context shows `Feature: none` and paths resolve under `_global/scratch/`. The entry-point producer skills (`vd:brainstorm`, `vd:plan`, `vd:cook --quick`, `vd:ultracook`) call `new <slug>` at the start of a unit of work to claim `features/<slug>/`, then write there — so a brand-new project's artifacts get a named home instead of pooling in scratch. `new` is idempotent, so a later skill in the same flow resolves the existing feature rather than duplicating it.
