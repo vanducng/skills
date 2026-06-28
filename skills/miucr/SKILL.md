@@ -586,9 +586,9 @@ filter_mode  = "diff_context"           # default --filter-mode (--pr): added|di
 min_severity = "low"                    # default --min-severity (--pr inline floor)
 format       = "full"                   # default --format (--pr presentation): full | minimal (minimal drops the summary section + all badges)
 timeout      = "900s"                   # default review timeout (Go duration: 900s, 15m, …)
-expand       = 20                       # default --expand
+expand       = 5                        # default --expand (--deep-context raises it to 20)
 token_budget = 0                        # default --token-budget; 0 = no cap
-deep_context = true                     # default --deep-context
+deep_context = false                    # default --deep-context (off; opt in for heavier reviews)
 conversation = true                     # default --conversation on --pr
 suggest      = false                    # default --suggest (one-click suggestions on --post)
 patch_repair = false                    # default --patch-repair (2nd-pass one-click recovery; only takes effect with suggest=true)
