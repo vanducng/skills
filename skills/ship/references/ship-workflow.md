@@ -271,7 +271,7 @@ Fresh PR with zero comments still performs the fetch, then reports
            reviewThreads(first:50){nodes{
              id isResolved isOutdated
              comments(first:10){nodes{
-               id path line body author{login} url
+               id databaseId path line body author{login} url
              }}
            }}
          }
@@ -281,6 +281,7 @@ Fresh PR with zero comments still performs the fetch, then reports
    ```
 2. Parse with `jq`:
    - Unresolved threads: `.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved==false and .isOutdated==false)`
+   - Silently resolved threads: resolved threads whose comment list has no later explanatory inline reply from the agent/maintainer.
    - `CHANGES_REQUESTED` reviews: `.data.repository.pullRequest.reviews.nodes[] | select(.state=="CHANGES_REQUESTED")`
    - Substantive `COMMENTED` reviews: `.data.repository.pullRequest.reviews.nodes[] | select(.state=="COMMENTED" and (.body|length)>0)`
    - Top-level comments: `.data.repository.pullRequest.comments.nodes[]`
@@ -293,7 +294,7 @@ Fresh PR with zero comments still performs the fetch, then reports
    - **Is the risk real under the codebase contract?** Check source of truth: config schema, type definitions, route docs, tests, env loading, database constraints, feature flags, and repo rules.
    - **Is the suggested patch the right fix?** Prefer the smallest root-cause fix that matches local patterns. It is valid to reject a literal suggestion when a better fix exists (for example, fail fast in config validation instead of silently defaulting a bad runtime value).
    - **What evidence proves it?** Add or update tests when the behavior can regress; rerun the narrowest relevant checks plus any ship-level checks required by the repo.
-4. **Nothing actionable/unresolved** → output `PR comments: 0 actionable`, continue.
+4. **Nothing actionable/unresolved and no silent resolves to repair** → output `PR comments: 0 actionable`, continue.
 5. **For each actionable unresolved thread**, run `AskUserQuestion`:
    - Show: `path:line` · author · comment body (truncate to 300 chars, link to full URL)
    - Options:
@@ -307,12 +308,13 @@ Fresh PR with zero comments still performs the fetch, then reports
    - skip as non-blocking
    For bot comments, prefer reply-only for false positives/noise and fix-now for verified bugs.
 7. **For `CHANGES_REQUESTED` reviews not tied to a thread**, prompt once: address (commit + push + request re-review via `gh pr edit --add-reviewer @<author>`) / acknowledge in PR comment / skip.
-8. After any code fix, re-run Step 4 verification before pushing the feedback commit. After all loops, refetch state. If every resolved thread has a prior inline reply, and everything is resolved, replied to, or skipped: continue to Step 14. Output: `PR comments: N addressed, M replied, K skipped`.
-9. If any fixes were committed and pushed in this step, Step 15 (CI watch) will pick up the new commit's checks automatically.
+8. For each already-resolved thread, verify it has an inline reply explaining the fix, false positive, stale state, or deliberate non-fix. If not, post a retrospective reply on the original review comment before treating it as clear. Do not count GitHub's resolved state alone as handled.
+9. After any code fix, re-run Step 4 verification before pushing the feedback commit. After all loops, refetch state. If every resolved thread has a prior inline reply, and everything is resolved, replied to, or skipped: continue to Step 14. Output: `PR comments: N addressed, M replied, K skipped`.
+10. If any fixes were committed and pushed in this step, Step 15 (CI watch) will pick up the new commit's checks automatically.
 
 ### Reply style for reviewed comments
 
-When replying to a handled thread, write a short reasoned note, not just "fixed". This reply is mandatory before resolving a thread:
+When replying to a handled thread, write a short reasoned note, not just "fixed". This reply is mandatory before resolving a thread or accepting an already-resolved thread as clear:
 
 ```text
 Handled in <short-sha> by <specific change>. <Why this matches the codebase contract / why a different root-cause fix was chosen>.
@@ -391,25 +393,27 @@ Without this re-fetch, those comments slip straight to merge. (Exact trap: gocla
 **Run after Step 15 is green, before Step 16, in every mode** (including `--auto`).
 Skip only when `--skip-pr-comments` was passed.
 
-1. Re-fetch unresolved review threads — same GraphQL query as Step 13, one call:
+1. Re-fetch all review threads — same GraphQL query as Step 13, one call:
    ```bash
    gh api graphql -f query='
      query($owner:String!,$repo:String!,$pr:Int!){
        repository(owner:$owner,name:$repo){
          pullRequest(number:$pr){
            reviewThreads(first:100){ nodes{
-             isResolved isOutdated
-             comments(first:1){ nodes{ author{login} body path line } }
+             id isResolved isOutdated
+             comments(first:10){ nodes{ databaseId author{login} body path line url } }
            }}
          }}}' -F owner="$OWNER" -F repo="$REPO" -F pr="$PR_NUMBER"
    ```
 2. Keep threads where `isResolved == false && isOutdated == false`. These are the
-   actionable ones — human or bot, no distinction.
-3. **0 actionable threads → done, continue to Step 16.** Otherwise **STOP merge** and
-   triage each (same blocking model as Step 13 / Rule 4b):
+   actionable ones — human or bot, no distinction. Also keep resolved threads
+   that lack a later explanatory inline reply; those must be repaired before merge.
+3. **0 actionable threads and 0 silent resolves → done, continue to Step 16.** Otherwise **STOP merge** and
+   triage or repair each (same blocking model as Step 13 / Rule 4b):
    - Valid + actionable → fix at root cause (re-run **Step 4** tests after fixes),
      reply on the thread explaining the fix, then resolve it.
    - Invalid / false-positive → reply with the reasoning, then resolve it.
+   - Already resolved without a reply → post the missing rationale inline.
    - Loop until 0 actionable threads remain.
 4. This is a **safety floor**: `--auto` does **not** suppress it. A green
    `review/code-review` check never counts as "comments addressed".

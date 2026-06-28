@@ -63,7 +63,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 2. **Never force push.** Plain `git push` only. If rejected → `git pull --rebase`, retry once, then stop.
 3. **Never skip failing tests.** A red test stops the pipeline. Fix it (kick back to `vd:cook`) or pass `--skip-tests` deliberately.
 4. **Never bypass critical review issues silently.** Each critical finding gets an `AskUserQuestion`: fix now / acknowledge / false-positive.
-4b. **Never silently ignore PR feedback.** After the PR exists, always fetch unresolved review threads, `CHANGES_REQUESTED` reviews, `COMMENTED` reviews from humans/bots, and top-level PR comments before merge. Triage each item for validity/actionability before changing code. Validate every suggestion against codebase contracts, types, config schemas, tests, and local rules; if the comment is valid but the suggested patch is not the best fix, apply the better root-cause fix and explain that in the PR reply. Reply inline with the fix/false-positive rationale before resolving any handled thread, re-run verification after fixes, then re-fetch until there are zero unresolved actionable comments. Same blocking model as critical review issues.
+4b. **Never silently ignore PR feedback.** After the PR exists, always fetch review threads, `CHANGES_REQUESTED` reviews, `COMMENTED` reviews from humans/bots, and top-level PR comments before merge. Triage each item for validity/actionability before changing code. Validate every suggestion against codebase contracts, types, config schemas, tests, and local rules; if the comment is valid but the suggested patch is not the best fix, apply the better root-cause fix and explain that in the PR reply. Reply inline with the fix/false-positive rationale before resolving any handled thread, re-run verification after fixes, then re-fetch until there are zero unresolved actionable comments and zero silently resolved threads. Same blocking model as critical review issues.
 5. **Auto-decide everything else.** Patch-version bumps, changelog content, commit message, PR body — infer from diff and commits. Do not pause to ask.
 6. **Skip silently when a step doesn't apply.** No version file → skip version bump. No CHANGELOG → skip changelog. No test runner detected → ask once, then skip.
 7. **No secrets in commits.** Scan staged diff for API keys / tokens / passwords before commit. If found: stop, warn, suggest `.gitignore`.
@@ -99,7 +99,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
      after Step 13 already looked and found nothing. So **re-run Step 13's review-thread
      fetch after CI is green and before merge** (Step 15b), and block on any thread that is
      `isResolved==false && isOutdated==false` and actionable (human or bot). Triage,
-     fix the valid ones (re-run Step 4 after fixes), reply inline with rationale, resolve each, then merge.
+     fix the valid ones (re-run Step 4 after fixes), reply inline with rationale, resolve each, repair any already-resolved thread that lacks an explanatory inline reply, then merge.
      **0 unresolved actionable threads is a merge precondition, alongside green CI** — a
      safety floor `--auto` does not suppress. (This exact trap merged goclaw #304 with 9
      unresolved bot comments, real bugs included.)
@@ -135,7 +135,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 10. Commit        → conventional commit, secret scan
 11. Push          → git push -u origin <branch>
 12. PR            → gh pr create/edit using repo template or canonical fallback
-13. PR comments   → fetch review threads + human/bot reviews + top-level comments; triage, then fix/reply/resolve valid feedback (re-run Step 4 after any fix); after fixing, **re-trigger each bot's re-review** (`@codex review` / `@coderabbitai review` / `/gemini review`; re-run local `ocr`/`miucr`) and loop until zero unresolved actionable threads — see `references/bot-reviewers.md`
+13. PR comments   → fetch review threads + human/bot reviews + top-level comments; triage, then fix/reply/resolve valid feedback (re-run Step 4 after any fix); repair already-resolved threads that lack explanatory inline replies; after fixing, **re-trigger each bot's re-review** (`@codex review` / `@coderabbitai review` / `/gemini review`; re-run local `ocr`/`miucr`) and loop until zero unresolved actionable threads — see `references/bot-reviewers.md`
 14. Release       → `--release` only: detect auto-release tool; tag + push if manual
 15. CI watch      → wait for PR checks; on failure prompt user (every mode)
 15b. Re-check comments → after CI green, RE-RUN Step 13: code-review bots post inline comments as a CI job, so they appear only now. Block merge on any unresolved actionable thread (Rule 11). Not suppressed by `--auto`.
@@ -157,7 +157,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 - Skip steps via flags when work already done in this session.
 - Staging mode auto-skips journal (Step 8) and docs (Step 9).
 - Beta mode auto-skips docs (Step 9).
-- Step 13 (PR comments) always performs one GraphQL fetch after the PR exists. If there are no unresolved review threads, `CHANGES_REQUESTED` reviews, substantive `COMMENTED` reviews from humans/bots, or top-level PR comments, report `PR comments: 0 actionable` and continue. Skipped entirely only with `--skip-pr-comments`.
+- Step 13 (PR comments) always performs one GraphQL fetch after the PR exists. If there are no unresolved review threads, no silently resolved threads to repair, no `CHANGES_REQUESTED` reviews, no substantive `COMMENTED` reviews from humans/bots, and no top-level PR comments, report `PR comments: 0 actionable` and continue. Skipped entirely only with `--skip-pr-comments`.
 - Step 14 runs only with `--release`. If auto-release tooling detected, it's a no-op (CI handles tagging).
 - Step 15 (CI watch) always runs after PR creation. CI failure prompts the user even in `--auto`.
 - Step 15b (re-check comments) always runs after CI green when any check is a code-review bot (e.g. `review/code-review`) — those post inline comments as a CI job, so they only exist post-CI. Re-runs Step 13's fetch; one GraphQL call. Blocks merge on unresolved actionable threads even in `--auto` (not suppressible — safety floor, Rule 11).
