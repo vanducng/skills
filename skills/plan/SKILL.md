@@ -106,6 +106,8 @@ Sketch the dependency graph in your reply (text or mermaid) before writing files
 
 ### Directory layout
 
+**Feature-first repos — claim a feature first.** If the hook context shows `Feature: none` (paths resolve under `_global/scratch/`), run `workbench new <slug>` (kebab summary of the task) before writing, then use the paths it prints — the plan lands in `features/<slug>/plans/` instead of the shared scratch bin. Idempotent: skip when a feature is already active (a `feat/*` branch, an active plan, or a prior `workbench new`).
+
 Write to the injected `Plans:` path.
 
 ```
