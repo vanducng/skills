@@ -79,16 +79,41 @@ def short(p):
     return "~" + p[len(home):] if p.startswith(home) else p
 
 
-def tmux_ctx():
-    pane = os.environ.get("TMUX_PANE")
-    if not pane:
-        return ""
+def tmux_bin():
+    for path in (shutil.which("tmux"), "/opt/homebrew/bin/tmux", "/usr/local/bin/tmux"):
+        if path and os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return "tmux"
+
+
+def tmux_run(args):
     try:
-        r = subprocess.run(["tmux", "display-message", "-p", "-t", pane, "#S:#W:#P"],
-                           capture_output=True, text=True, timeout=2)
-        return r.stdout.strip()
-    except Exception:
+        r = subprocess.run([tmux_bin()] + args, capture_output=True, text=True, timeout=2)
+        return r.stdout if r.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
         return ""
+
+
+def tmux_ctx(cwd=""):
+    pane = os.environ.get("TMUX_PANE")
+    if pane:
+        tx = tmux_run(["display-message", "-p", "-t", pane, "#S:#W:#P"]).strip()
+        if tx:
+            return tx
+    if not cwd:
+        return ""
+    rows = tmux_run(["list-panes", "-a", "-F",
+                     "#{session_name}:#{window_name}:#{pane_index}\t#{pane_current_path}\t#{pane_current_command}"])
+    wanted = os.path.realpath(cwd)
+    matches = []
+    for row in rows.splitlines():
+        cols = row.split("\t", 2)
+        if len(cols) == 3 and os.path.realpath(cols[1]) == wanted:
+            matches.append((cols[0], cols[2]))
+    if len(matches) == 1:
+        return matches[0][0]
+    codex = [target for target, command in matches if "codex" in command.lower()]
+    return codex[0] if len(codex) == 1 else ""
 
 
 def send(token, chat, text):
@@ -142,7 +167,7 @@ def build(agent, agent_icon, status_icon, what, cwd, preview):
         f"📂 <b>{esc(project)}</b>",
         f"📁 <code>{esc(short(cwd))}</code>",
     ]
-    tx = tmux_ctx()
+    tx = tmux_ctx(cwd)
     if tx:
         lines.append(f"🖥 <code>{esc(tx)}</code>")
     if preview:

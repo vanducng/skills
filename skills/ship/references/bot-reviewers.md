@@ -2,7 +2,7 @@
 
 How to respond to each automated PR reviewer (Step 13 / 15b). Two classes:
 
-- **GitHub PR bots** — review *as a PR/CI job*, post inline review threads. You reply on the thread, resolve it (GraphQL), and **re-trigger a fresh review with a PR comment command**.
+- **GitHub PR bots** — review *as a PR/CI job*, post inline review threads. You reply on the thread with the fix/false-positive rationale, resolve it (GraphQL), and **re-trigger a fresh review with a PR comment command**.
 - **Local CLI reviewers** — run on your machine, not GitHub. There is no PR comment to trigger them; **re-run the CLI** (via its skill) to re-review.
 
 ## GitHub PR bots
@@ -14,6 +14,7 @@ How to respond to each automated PR reviewer (Step 13 / 15b). Two classes:
 | **Codex** | `chatgpt-codex-connector` | `@codex review` | no resolve command → GraphQL `resolveReviewThread` |
 
 - These triggers are **PR-level comments** (`gh pr comment <n> --body "<trigger>"`), not thread replies.
+- Do not use `@coderabbitai resolve` or GraphQL `resolveReviewThread` until every addressed thread has an inline reply explaining the outcome.
 - After pushing fixes, the bot also auto-marks its old threads **outdated** when the cited lines change — those drop out of the unresolved set on their own.
 - Severity tags to triage by: CodeRabbit uses prose + `🛠️ Refactor/⚠️ Potential issue`; Gemini uses `high/medium/low`; Codex uses `P1/P2/P3` badges. Treat P1/high/⚠️ as blocking.
 
@@ -31,7 +32,7 @@ These post line-level findings locally (and can apply fixes); they don't watch t
 1. **Fetch** unresolved actionable threads (GraphQL, `isResolved==false && isOutdated==false`).
 2. **Triage** each — validate against codebase contracts/types/tests, not just the suggested patch. Apply the *root-cause* fix even if it differs from the suggestion.
 3. **Reply inline** on each thread with the resolution (what changed + why, or why it's a deliberate non-fix).
-4. **Resolve** the addressed threads.
+4. **Resolve** only after the reply is posted and the thread is still the intended one.
 5. **Re-trigger** every GH bot with its command above; **re-run** local CLIs.
 6. **Re-fetch** after the bots finish (async, ~1–5 min). Repeat until **zero unresolved actionable threads AND green CI**.
 

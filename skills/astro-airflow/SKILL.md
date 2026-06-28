@@ -88,9 +88,15 @@ Astro CLI does not expose per-task logs or structured DAG run state. Hit the dep
 
 ### Setup helpers (use once per session)
 
+Any Astro API token works as `Authorization: Bearer` for a deployment's Airflow API — **Deployment**
+(narrowest, preferred for prod automation), **Workspace** (any deployment in the workspace), or
+**Organization**. Verified June 2026: the CNB repo's `ASTRO_WORKSPACE_API_KEY` (in `cnb-ds-astro/.env`)
+hits prod's `/api/v2/...` fine. The same value works for the `astro` CLI via `export ASTRO_API_TOKEN=...`.
+
 ```bash
-# Pull token from gopass, never echo it
+# Token: gopass deployment token, OR the repo's workspace key (never echo it)
 export ASTRO_TOKEN="$(gopass show -o <path/to/deployment-token>)"
+# export ASTRO_TOKEN="$(grep -E '^ASTRO_WORKSPACE_API_KEY=' /path/to/repo/.env | cut -d= -f2-)"
 
 # Deployment webserver URL
 export AF_URL="https://<org>.astronomer.run/<deployment-short-id>"
@@ -129,17 +135,27 @@ af "/api/v2/dags/<dag_id>/dagRuns/<run_id>/taskInstances?state=failed" | jq
 af "/api/v2/dags/<dag_id>/dagRuns/<run_id>/taskInstances/<task_id>" | jq
 ```
 
-### Task instance log (the actual log file)
+### Task instance log (Airflow 3.x: structured events, NOT a string)
+
+**Gotcha (verified June 2026, Airflow 3.1):** the log endpoint returns
+`{"content": [ {event, timestamp, sources, ...}, ... ], "continuation_token": "..."}`.
+`content` is a **list of event objects**, not a string — `jq -r '.content'` yields `null`/nothing
+and looks like an "empty log". Iterate the list and read `.event`. (Only Airflow 2.x `/api/v1/`
+returned `.content` as a plain string.) **URL-encode the run_id** — scheduled IDs contain `+`/`:`
+(`scheduled__2026-06-24T10:00:00+00:00`).
 
 ```bash
-# Pick a try_number from the task instance; logs are per-try
-af "/api/v2/dags/<dag_id>/dagRuns/<run_id>/taskInstances/<task_id>/logs/<try_number>" \
-  | jq -r '.content'
+# Airflow 3.x: extract the real log lines (skip ::group:: UI fold markers)
+af "/api/v2/dags/<dag_id>/dagRuns/<run_id>/taskInstances/<task_id>/logs/<try_number>?full_content=true" \
+  | jq -r '.content[] | select(type=="object") | .event' | grep -v '^::' | tail -n 200
 
-# Tail the last 200 lines (logs can be multi-MB)
-af "/api/v2/dags/<dag_id>/dagRuns/<run_id>/taskInstances/<task_id>/logs/<try_number>" \
-  | jq -r '.content' | tail -n 200
+# Stream a long/running task: replay continuation_token as ?token=<...> until it stops advancing
+af ".../logs/<try>?full_content=true" | jq -r '.continuation_token'   # pass back as &token=
 ```
+
+Running tasks DO return logs mid-run. `full_content=true` returns the full first block; without it
+you only get the first chunk. For a long, slow task (e.g. a big backfill), polling Snowflake/state
+for progress is cheaper than streaming the whole log.
 
 ### Other useful read endpoints
 
@@ -153,6 +169,24 @@ af "/api/v2/variables"                                 # list Airflow Variables 
 af "/api/v2/pools"                                     # slot pool status (find queue starvation)
 af "/api/v2/monitor/health"                            # scheduler / metadata DB health
 ```
+
+### Mutations (opt-in — only when the user explicitly asks; skill is read-only by default)
+
+The `af()` wrapper is GET-only; use a write wrapper. Airflow 3.x removed the `dags set-run-state` CLI,
+so terminate runs via the API.
+
+```bash
+afw() { curl -fsSL -X "$1" -H "Authorization: Bearer ${ASTRO_TOKEN}" -H "Content-Type: application/json" "${AF_URL}$2" -d "$3"; }
+
+afw PATCH "/api/v2/dags/<dag_id>?update_mask=is_paused" '{"is_paused": false}'        # unpause (needed before a new DAG's first trigger)
+afw POST  "/api/v2/dags/<dag_id>/dagRuns" '{"dag_run_id":"manual__e2e","logical_date":null}'  # trigger now
+afw PATCH "/api/v2/dags/<dag_id>/dagRuns/<run_id>" '{"state":"failed"}'                # terminate/clear a run (URL-encode run_id)
+```
+
+**`max_active_runs=1` gotcha:** unpausing a DAG can spawn one scheduled run for the latest interval
+(catchup=false → just one), so a manual trigger then sits **queued** behind it — two runs in the UI
+≠ two running concurrently. To run only one, terminate the redundant (preferably the *queued* one, so
+no in-flight work is lost).
 
 ## Decision tree
 

@@ -299,7 +299,7 @@ Fresh PR with zero comments still performs the fetch, then reports
    - Options:
      - **A) Fix now** (recommended for actionable comments) — apply the verified fix (not necessarily the literal suggestion), stage, **re-run Step 4 (tests)**, then on green: commit + push (`type(scope): address review feedback`), reply to thread with the commit SHA plus the codebase rationale, then resolve the thread via `resolveReviewThread` GraphQL mutation.
      - **B) Reply only** — collect a 1-2 sentence rationale grounded in codebase evidence, post via `gh api`, and leave thread unresolved unless the comment is clearly false/stale.
-     - **C) Mark resolved** — call `resolveReviewThread` mutation; no code change.
+     - **C) Reply + mark resolved** — for clearly false/stale/already-handled threads only; post the evidence-backed rationale first, then call `resolveReviewThread`.
      - **D) Skip** — leave as-is, continue.
 6. **For actionable review bodies or top-level comments not tied to a thread**, prompt once:
    - fix now (commit + push, then reply with commit SHA)
@@ -307,12 +307,12 @@ Fresh PR with zero comments still performs the fetch, then reports
    - skip as non-blocking
    For bot comments, prefer reply-only for false positives/noise and fix-now for verified bugs.
 7. **For `CHANGES_REQUESTED` reviews not tied to a thread**, prompt once: address (commit + push + request re-review via `gh pr edit --add-reviewer @<author>`) / acknowledge in PR comment / skip.
-8. After any code fix, re-run Step 4 verification before pushing the feedback commit. After all loops, refetch state. If everything is resolved, replied to, or skipped: continue to Step 14. Output: `PR comments: N addressed, M replied, K skipped`.
+8. After any code fix, re-run Step 4 verification before pushing the feedback commit. After all loops, refetch state. If every resolved thread has a prior inline reply, and everything is resolved, replied to, or skipped: continue to Step 14. Output: `PR comments: N addressed, M replied, K skipped`.
 9. If any fixes were committed and pushed in this step, Step 15 (CI watch) will pick up the new commit's checks automatically.
 
 ### Reply style for reviewed comments
 
-When replying to a handled thread, write a short reasoned note, not just "fixed":
+When replying to a handled thread, write a short reasoned note, not just "fixed". This reply is mandatory before resolving a thread:
 
 ```text
 Handled in <short-sha> by <specific change>. <Why this matches the codebase contract / why a different root-cause fix was chosen>.
@@ -408,8 +408,8 @@ Skip only when `--skip-pr-comments` was passed.
 3. **0 actionable threads → done, continue to Step 16.** Otherwise **STOP merge** and
    triage each (same blocking model as Step 13 / Rule 4b):
    - Valid + actionable → fix at root cause (re-run **Step 4** tests after fixes),
-     reply on the thread explaining the fix, resolve it.
-   - Invalid / false-positive → reply with the reasoning, resolve it.
+     reply on the thread explaining the fix, then resolve it.
+   - Invalid / false-positive → reply with the reasoning, then resolve it.
    - Loop until 0 actionable threads remain.
 4. This is a **safety floor**: `--auto` does **not** suppress it. A green
    `review/code-review` check never counts as "comments addressed".
