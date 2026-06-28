@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.20.1](https://github.com/vanducng/skills/compare/v1.20.0...v1.20.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* **hooks:** anchor umbrella at cwd when no git root ([#261](https://github.com/vanducng/skills/issues/261)) ([bd56b5f](https://github.com/vanducng/skills/commit/bd56b5f8428d094840c403a2a5a23e7d712db5bb))
+
 ## [1.20.0](https://github.com/vanducng/skills/compare/v1.19.0...v1.20.0) (2026-06-25)
 
 
