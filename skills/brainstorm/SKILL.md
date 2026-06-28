@@ -120,6 +120,8 @@ If you genuinely cannot pick because a constraint is missing, identify the missi
 
 ### Where to save
 
+**Feature-first repos — claim a feature first.** If the hook context shows `Feature: none` (paths resolve under `_global/scratch/`), run `workbench new <slug>` (kebab summary of the task) before writing, then use the paths it prints — work lands in `features/<slug>/` instead of the shared scratch bin. Idempotent: skip when a feature is already active (a `feat/*` branch, an active plan, or a prior `workbench new`).
+
 Write to the injected `Reports:` path. Filename: `brainstorm-{YYYYMMDD-HHMM}-{slug}.md`. `--quick` mode: skip the file. Verbal output only.
 
 ### Template (default mode)
