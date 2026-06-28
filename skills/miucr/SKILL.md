@@ -521,6 +521,7 @@ envelope; secrets are redacted at persist.
 
 ```sh
 miucr trace <id>                 # ordered steps (kind: trace.show; 404 → trace.not_found)
+miucr trace owner/repo#123       # resolves to that PR's most recent saved review
 miucr trace <id> -o pretty       # readable per-step view
 ```
 
