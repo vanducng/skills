@@ -99,8 +99,9 @@ EOF
 
 Run a feedback loop after creating/updating the PR, especially when editing an
 existing PR or when bot review comments have already appeared. This is the
-small `vd:ship` Step 13 loop: fetch, triage, fix valid comments, re-run the bot
-if available, then fetch again until there are no actionable unresolved items.
+small `vd:ship` Step 13 loop: fetch, triage, fix valid comments, repair resolved
+threads missing inline rationale, re-run the bot if available, then fetch again
+until there are no actionable unresolved items.
 
 Fetch review threads, review bodies, and top-level comments:
 
@@ -116,7 +117,7 @@ gh api graphql -f query='
         reviews(last:50){nodes{state author{login} body url submittedAt}}
         reviewThreads(first:50){nodes{
           id isResolved isOutdated
-          comments(first:10){nodes{id path line body author{login} url}}
+          comments(first:10){nodes{id databaseId path line body author{login} url}}
         }}
       }
     }
@@ -158,12 +159,14 @@ After a valid fix:
 2. Push normally.
 3. Reply to the thread with the short SHA + rationale.
 4. Resolve only threads that were fixed or proven false/stale, and only after the inline reply succeeds.
-5. Re-run the narrow relevant checks.
-6. If the repo has OpenCodeReview (`code-review.yml`), comment `/ocr`, wait for
+5. For already-resolved threads with no explanatory inline reply, post the retrospective rationale before treating them as clear.
+6. Re-run the narrow relevant checks.
+7. If the repo has OpenCodeReview (`code-review.yml`), comment `/ocr`, wait for
    the `issue_comment` run, then fetch threads again.
-7. Repeat this feedback loop until `reviewThreads` has zero
-   `isResolved == false && isOutdated == false` actionable threads. For full CI
-   watching and merge gating use `vd:ship`.
+8. Repeat this feedback loop until `reviewThreads` has zero
+   `isResolved == false && isOutdated == false` actionable threads and zero
+   resolved threads missing explanatory replies. For full CI watching and merge
+   gating use `vd:ship`.
 
 ## Tool 5 — Report
 
