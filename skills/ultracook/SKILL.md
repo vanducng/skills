@@ -82,6 +82,7 @@ The sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) short-circuit the r
 6. **Hard guardrails.** Global iter cap (30), per-phase retry caps (3 rebases, 2 CI reruns), same-signature failure recognizer, token-cap prompt-back at 80%.
 7. **Composes existing `vd:*` skills** — never reimplements.
 8. **Feature-first repos — claim a feature at intake.** If the hook context shows `Feature: none` (paths under `_global/scratch/`), run `workbench new <slug>` once at intake so the whole run (pipeline slices + any direct artifacts) lands in `features/<slug>/` instead of the shared scratch bin. Idempotent; skip when a feature is already active (`feat/*` branch, active plan, or prior `workbench new`).
+9. **Observability stays in scope.** While routing direct, pipeline, or fan-out work, keep log/debug visibility in the acceptance bar: behavior-changing code should expose stable structured fields, reason codes, decision inputs, timing/counts when useful, and short human reasons, without leaking secrets or large prompt/diff payloads.
 
 ## Architecture
 
