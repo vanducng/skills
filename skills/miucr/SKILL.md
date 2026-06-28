@@ -86,7 +86,7 @@ The day-1 provider/auth/timeout failures classify into a **stable taxonomy** (sa
 | `review.timeout` | the review exceeded `--timeout` | `true` | raise `--timeout` (e.g. `1800s`) or narrow the diff |
 | `review.canceled` | ctx canceled (Ctrl-C / SIGINT), exit `130` | `false` | - |
 | `config.invalid` | malformed `config.toml` / bad enum or `auth` value / an `openai`-kind gateway profile with a key but no `base_url` (exit `2`; same code across review/history/serve) | `false` | fix the named field / set `base_url` for the gateway profile |
-| `quota.exceeded` | the resolved provider's `[providers.<name>.quota]` is exhausted for the current window, or its usage counter can't be read (fail-closed); exit `2`. On the serve host the PR is skipped+logged, not failed | `false` | raise the provider quota `limit` or wait for the window to reset |
+| `quota.exceeded` | the resolved provider's `[providers.<name>.quota]` is exhausted for the current window; exit `2`. On the serve host the PR is skipped+logged, not failed (a later push re-checks). A quota counter that can't be read/opened fails closed as the retryable `store.unavailable` instead (serve retries, not skips) | `false` | raise the provider quota `limit` or wait for the window to reset |
 | `github.auth` | PR fetch hit `401`/`403` (bad/missing `GITHUB_TOKEN` or insufficient scope) | `false` | check `GITHUB_TOKEN` / its repo scope |
 | `github.pr_not_found` | PR fetch hit `404` (no such PR, or the token can't see it) | `false` | check the PR exists and the token has access |
 | `github.rate_limited` | PR fetch hit `429` (REST rate limit or abuse-detection) | `true` | GitHub rate limit: wait for the reset and retry |
