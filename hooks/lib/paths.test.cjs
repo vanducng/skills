@@ -74,6 +74,23 @@ test('normal repo anchors umbrella to its own git root', () => {
   }
 });
 
+// Regression: a brand-new project not yet `git init`'d (no git root anywhere) must
+// still anchor the umbrella at the working dir — returning <cwd>/.workbench — instead
+// of returning null and silently scattering artifacts to the legacy plans/ layout.
+test('no git root anchors umbrella to the working dir', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-nogit-'));
+  try {
+    const got = paths.resolveUmbrellaRoot({ paths: { umbrella: '.workbench' } }, dir);
+    assert.ok(got, 'umbrella must not be null without a git root');
+    assert.strictEqual(path.basename(got), '.workbench');
+    assert.strictEqual(realpath(path.dirname(got)), realpath(dir));
+    // Opt-out is preserved: umbrella unset still returns null (legacy).
+    assert.strictEqual(paths.resolveUmbrellaRoot({ paths: { umbrella: null } }, dir), null);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('feature-first getters use session feature state when provided', () => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-feature-'));
   try {

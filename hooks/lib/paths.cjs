@@ -146,8 +146,11 @@ function resolveUmbrellaRoot(config, baseDir) {
   // Main worktree == local git-root in a normal checkout (byte-identical), and the
   // main checkout when inside a linked worktree. config._gitRoot (the LOCAL root,
   // used for docs which stay branch-local) is only a last-resort fallback.
-  let gitRoot = getMainWorktreeRoot(baseDir) || config._gitRoot || getGitRoot(baseDir);
-  if (!gitRoot) return null;
+  // With NO git root anywhere (brand-new project not yet `git init`'d, or a non-git
+  // tool session), anchor at the working dir so artifacts still land in .workbench/
+  // instead of silently scattering to the legacy plans/ layout at cwd.
+  let gitRoot = getMainWorktreeRoot(baseDir) || config._gitRoot || getGitRoot(baseDir)
+    || baseDir || process.cwd();
   // Stray-ancestor guard: a coincidental repo rooted at $HOME (e.g. an accidental
   // `git init ~`) would otherwise swallow every project below it and scatter
   // .workbench into the home dir. When the resolved root is exactly $HOME but the
