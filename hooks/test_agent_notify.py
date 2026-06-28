@@ -17,6 +17,13 @@ class Result:
 
 
 class TmuxCtxTest(unittest.TestCase):
+    def setUp(self):
+        # Make subprocess.run the sole I/O surface — stub tmux discovery so tests
+        # don't depend on whether tmux is installed in the environment.
+        p = patch.object(agent_notify, "tmux_bin", return_value="tmux")
+        p.start()
+        self.addCleanup(p.stop)
+
     def test_uses_tmux_pane_when_present(self):
         with patch.dict(os.environ, {"TMUX_PANE": "%1"}, clear=True):
             with patch.object(agent_notify.subprocess, "run", return_value=Result("cnb:astro:0\n")) as run:

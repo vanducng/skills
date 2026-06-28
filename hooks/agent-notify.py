@@ -90,7 +90,7 @@ def tmux_run(args):
     try:
         r = subprocess.run([tmux_bin()] + args, capture_output=True, text=True, timeout=2)
         return r.stdout if r.returncode == 0 else ""
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         return ""
 
 
