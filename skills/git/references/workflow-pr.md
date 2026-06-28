@@ -157,7 +157,7 @@ After a valid fix:
 1. Commit on top; never amend a published commit.
 2. Push normally.
 3. Reply to the thread with the short SHA + rationale.
-4. Resolve only threads that were fixed or proven false/stale.
+4. Resolve only threads that were fixed or proven false/stale, and only after the inline reply succeeds.
 5. Re-run the narrow relevant checks.
 6. If the repo has OpenCodeReview (`code-review.yml`), comment `/ocr`, wait for
    the `issue_comment` run, then fetch threads again.
