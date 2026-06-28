@@ -63,7 +63,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 2. **Never force push.** Plain `git push` only. If rejected → `git pull --rebase`, retry once, then stop.
 3. **Never skip failing tests.** A red test stops the pipeline. Fix it (kick back to `vd:cook`) or pass `--skip-tests` deliberately.
 4. **Never bypass critical review issues silently.** Each critical finding gets an `AskUserQuestion`: fix now / acknowledge / false-positive.
-4b. **Never silently ignore PR feedback.** After the PR exists, always fetch unresolved review threads, `CHANGES_REQUESTED` reviews, `COMMENTED` reviews from humans/bots, and top-level PR comments before merge. Triage each item for validity/actionability before changing code. Validate every suggestion against codebase contracts, types, config schemas, tests, and local rules; if the comment is valid but the suggested patch is not the best fix, apply the better root-cause fix and explain that in the PR reply. Reply to and resolve handled threads, re-run verification after fixes, then re-fetch until there are zero unresolved actionable comments. Same blocking model as critical review issues.
+4b. **Never silently ignore PR feedback.** After the PR exists, always fetch unresolved review threads, `CHANGES_REQUESTED` reviews, `COMMENTED` reviews from humans/bots, and top-level PR comments before merge. Triage each item for validity/actionability before changing code. Validate every suggestion against codebase contracts, types, config schemas, tests, and local rules; if the comment is valid but the suggested patch is not the best fix, apply the better root-cause fix and explain that in the PR reply. Reply inline with the fix/false-positive rationale before resolving any handled thread, re-run verification after fixes, then re-fetch until there are zero unresolved actionable comments. Same blocking model as critical review issues.
 5. **Auto-decide everything else.** Patch-version bumps, changelog content, commit message, PR body — infer from diff and commits. Do not pause to ask.
 6. **Skip silently when a step doesn't apply.** No version file → skip version bump. No CHANGELOG → skip changelog. No test runner detected → ask once, then skip.
 7. **No secrets in commits.** Scan staged diff for API keys / tokens / passwords before commit. If found: stop, warn, suggest `.gitignore`.
@@ -99,7 +99,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
      after Step 13 already looked and found nothing. So **re-run Step 13's review-thread
      fetch after CI is green and before merge** (Step 15b), and block on any thread that is
      `isResolved==false && isOutdated==false` and actionable (human or bot). Triage,
-     fix the valid ones (re-run Step 4 after fixes), reply + resolve each, then merge.
+     fix the valid ones (re-run Step 4 after fixes), reply inline with rationale, resolve each, then merge.
      **0 unresolved actionable threads is a merge precondition, alongside green CI** — a
      safety floor `--auto` does not suppress. (This exact trap merged goclaw #304 with 9
      unresolved bot comments, real bugs included.)
