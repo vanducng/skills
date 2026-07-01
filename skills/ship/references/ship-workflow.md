@@ -257,6 +257,15 @@ substantive `COMMENTED` reviews from humans/bots, and top-level PR comments.
 Fresh PR with zero comments still performs the fetch, then reports
 `PR comments: 0 actionable`.
 
+**Mandate — every finding-bearing comment gets an inline reply, valid or not** (Hard rule 4b).
+No review thread or finding-bearing comment (human or bot) is left without an inline reply before
+this step completes:
+- **Valid** → fix it, then reply inline **naming the exact fix commit SHA** and the change.
+- **Invalid / false positive** → reply inline with the concrete rationale (why it's wrong / stale / already handled).
+- **Deferred (valid but out of scope for this PR)** → reply inline saying so and link the follow-up ticket/PR, then resolve.
+A pure summary/FYI review that raises no point needs no reply (still counts toward `0 actionable`).
+"Skip with no reply" is not an option for a finding-bearing comment.
+
 1. Fetch review threads, reviews, and top-level PR comments in one GraphQL call:
    ```bash
    OWNER_REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
@@ -295,13 +304,13 @@ Fresh PR with zero comments still performs the fetch, then reports
    - **Is the suggested patch the right fix?** Prefer the smallest root-cause fix that matches local patterns. It is valid to reject a literal suggestion when a better fix exists (for example, fail fast in config validation instead of silently defaulting a bad runtime value).
    - **What evidence proves it?** Add or update tests when the behavior can regress; rerun the narrowest relevant checks plus any ship-level checks required by the repo.
 4. **Nothing actionable/unresolved and no silent resolves to repair** → output `PR comments: 0 actionable`, continue.
-5. **For each actionable unresolved thread**, run `AskUserQuestion`:
+5. **For each actionable unresolved thread**, run `AskUserQuestion`. Every option below **posts an inline reply** — the difference is fix-vs-not, never reply-vs-silence:
    - Show: `path:line` · author · comment body (truncate to 300 chars, link to full URL)
    - Options:
-     - **A) Fix now** (recommended for actionable comments) — apply the verified fix (not necessarily the literal suggestion), stage, **re-run Step 4 (tests)**, then on green: commit + push (`type(scope): address review feedback`), reply to thread with the commit SHA plus the codebase rationale, then resolve the thread via `resolveReviewThread` GraphQL mutation.
-     - **B) Reply only** — collect a 1-2 sentence rationale grounded in codebase evidence, post via `gh api`, and leave thread unresolved unless the comment is clearly false/stale.
-     - **C) Reply + mark resolved** — for clearly false/stale/already-handled threads only; post the evidence-backed rationale first, then call `resolveReviewThread`.
-     - **D) Skip** — leave as-is, continue.
+     - **A) Fix now** (recommended for valid comments) — apply the verified fix (not necessarily the literal suggestion), stage, **re-run Step 4 (tests)**, then on green: commit + push (`type(scope): address review feedback`), reply to thread **naming the exact fix commit SHA** plus the codebase rationale, then resolve the thread via `resolveReviewThread` GraphQL mutation.
+     - **B) Reply only (unresolved)** — for a valid point you are *not* fixing in this PR: post a rationale grounded in codebase evidence (and the follow-up ticket/PR if deferred), leave the thread unresolved so it's not lost.
+     - **C) Reply + mark resolved** — for clearly false/stale/already-handled/deferred threads; post the evidence-backed rationale (or follow-up link) first, then call `resolveReviewThread`.
+   No "skip without replying" — a finding-bearing thread always gets at least a reply (B or C).
 6. **For actionable review bodies or top-level comments not tied to a thread**, prompt once:
    - fix now (commit + push, then reply with commit SHA)
    - reply only with rationale
@@ -418,9 +427,18 @@ Skip only when `--skip-pr-comments` was passed.
 4. This is a **safety floor**: `--auto` does **not** suppress it. A green
    `review/code-review` check never counts as "comments addressed".
 
-## Step 16: Auto-merge (conditional)
+## Step 16: Merge (conditional — opt-in only)
 
-**Run only if** `--auto` flag is set AND Step 15 reported green AND Step 15b is clear (0 unresolved actionable threads) (or user explicitly chose "Merge anyway").
+**Run only if** (`--auto` **or** `--merge` is set, **or** the user explicitly said "merge"/"land it"/"merge anyway" in this request) AND Step 15 reported green AND Step 15b is clear (0 unresolved actionable threads).
+
+**Bare ship (no `--auto`/`--merge`, no explicit merge ask): STOP here — do not merge** (Hard rule 0). Report the terminal state and hand off:
+```text
+✓ PR: <url> → <target>
+✓ CI: green
+✓ PR comments: 0 actionable
+▸ Merge: left to you — bare ship does not merge. Re-run with --merge, or `gh pr merge <n> --squash`.
+```
+Do **not** treat green CI + zero comments as permission to merge — that gate makes the merge *safe*, not *requested*.
 
 1. Detect the repo's preferred merge strategy and queue / immediate-merge:
    ```bash
