@@ -103,6 +103,13 @@ small `vd:ship` Step 13 loop: fetch, triage, fix valid comments, repair resolved
 threads missing inline rationale, re-run the bot if available, then fetch again
 until there are no actionable unresolved items.
 
+**Mandate — reply inline to every finding-bearing comment, valid or not:**
+- **Valid** → fix it, then reply inline **naming the exact fix commit SHA** (e.g. "Fixed in `a1b2c3d`.") and what changed.
+- **Invalid / false positive** → reply inline with the concrete rationale (why it's wrong / stale / already handled).
+- **Deferred (valid, out of scope for this PR)** → reply inline saying so and link the follow-up ticket/PR, then resolve.
+- **CI failures** → diagnose from the failing job log, fix, commit + push, and re-check; never leave the PR red without an explicit user override.
+No finding-bearing comment (human or bot) is left without an inline reply. A pure summary/FYI with no point raised needs none.
+
 Fetch review threads, review bodies, and top-level comments:
 
 ```bash

@@ -1,8 +1,8 @@
 ---
 name: ship
-description: "Ship a feature branch end-to-end: merge target → test → review → version/changelog → commit → push → PR. Use when ready to land a branch on main/master (official) or dev/beta (beta). Stops only on test failures, critical review issues, or major version bumps."
+description: "Ship a feature branch end-to-end: merge target → test → review → version/changelog → commit → push → PR, then drive CI green and hand off the PR. Use when ready to land a branch on main/master (official) or dev/beta (beta). Merge is opt-in — a bare ship stops at a green PR; it merges only with --auto or --merge. Stops on test failures, critical review issues, or major version bumps."
 license: MIT
-argument-hint: "[official|staging|beta] [--auto] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-journal] [--skip-docs] [--dry-run]"
+argument-hint: "[official|staging|beta] [--auto] [--merge] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-journal] [--skip-docs] [--dry-run]"
 metadata:
   author: vanducng
   version: "1.4.0"
@@ -15,9 +15,9 @@ metadata:
 | Skill | Question it answers | Output |
 |---|---|---|
 | `vd:cook` | "Execute the plan." | Code, tests, plan status |
-| **`vd:ship`** | **"The branch is ready — land it."** | **Merged target, version bump, PR URL** |
+| **`vd:ship`** | **"The branch is ready — open the PR and take it green."** | **PR URL on green CI; merge only with `--auto`/`--merge`** |
 
-Ship **lands** a branch. It does not implement features and does not redesign on the fly. If tests fail or review surfaces a real bug, **stop** and kick back to `vd:cook` — don't paper over issues to keep the pipeline moving.
+Ship **prepares** a branch to land: merge target, test, review, version, PR, then drives CI to green and clears review comments — and by default **hands the PR back to you unmerged**. Merging is opt-in (`--auto` or `--merge`, or an explicit "merge" / "land it"); see **Hard rule 0**. It does not implement features and does not redesign on the fly. If tests fail or review surfaces a real bug, **stop** and kick back to `vd:cook` — don't paper over issues to keep the pipeline moving.
 
 ## Ship modes
 
@@ -45,8 +45,9 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 | `staging` | Target staging/uat/release branch. Skip journal + docs |
 | `beta` | Target dev/development/beta branch. Skip docs update |
 | `--release` | Cut a GitHub release at the end. Tag style follows mode (stable for official, rc/beta prerelease otherwise). Auto-release tool detected → skip manual tag |
-| `--auto` | Fully autonomous — answer every prompt with the recommended default, watch CI, then queue an auto-merge on green. Still stops on critical review issues, secret leaks, test failures, merge conflicts, **and red CI** |
-| (none) | Auto-detect mode from branch name (`feature/*` → official, `release/*` / `uat/*` → staging, `dev/*` → beta) |
+| `--auto` | Fully autonomous — answer every prompt with the recommended default, watch CI, then queue an auto-merge on green (implies merge). Still stops on critical review issues, secret leaks, test failures, merge conflicts, **and red CI** |
+| `--merge` | Merge once all gates pass (green CI + 0 unresolved comments), without full `--auto` autonomy. Use to land a branch you're shepherding interactively. Without `--auto` or `--merge`, ship never merges. |
+| (none) | Auto-detect mode from branch name (`feature/*` → official, `release/*` / `uat/*` → staging, `dev/*` → beta). **Does not merge** — stops at a green PR (Hard rule 0) |
 | `--skip-tests` | Skip test step (use only when tests already passed in this session) |
 | `--skip-review` | Skip pre-landing review (local AI review only — does NOT skip PR-comment handling) |
 | `--skip-pr-comments` | Skip Step 13 and Step 15b PR-comment gates. Use only when explicitly requested; default ship always fetches PR feedback before merge. |
@@ -56,6 +57,8 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 
 ## Hard rules
 
+0. **Merge is opt-in — a bare ship never merges.** A plain `vd:ship` / "ship to main as pr" **stops after the PR is green and comments are clear**; it does **not** merge. Merge only when one of these is true: `--auto` is set, `--merge` is set, or the user explicitly says "merge" / "land it" / "merge anyway" in *this* request. "Ship to main as a PR" is a request to *open and green* the PR, not to merge it. On a bare ship the terminal state is *PR ready on green CI*, reported with the PR URL — leave the merge to the user. This overrides any older "ship lands = merges" reading. (Do not treat CI-green + zero comments as license to merge; that gate makes merge *safe*, not *requested*.)
+
 1. **Never ship from the target branch without a feature branch.** If on `main` / `master` / `dev` / `staging` / `uat` with changes to ship:
    - **`--auto`:** auto-create `feat/<slug>` from current HEAD silently, move pending changes there, continue the pipeline. No prompt. The slug is inferred from (in order of preference) the staged-diff filenames, the latest commit subject, or `auto-{YYYYMMDD-HHMM}` as last resort. The resulting branch still goes through review/PR/CI like any other.
    - **Interactive:** prompt the user with three choices — *create feature branch* (recommended), *direct push to target* (skips review/PR/CI; requires explicit confirm), *abort*.
@@ -63,7 +66,11 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 2. **Never force push.** Plain `git push` only. If rejected → `git pull --rebase`, retry once, then stop.
 3. **Never skip failing tests.** A red test stops the pipeline. Fix it (kick back to `vd:cook`) or pass `--skip-tests` deliberately.
 4. **Never bypass critical review issues silently.** Each critical finding gets an `AskUserQuestion`: fix now / acknowledge / false-positive.
-4b. **Never silently ignore PR feedback.** After the PR exists, always fetch review threads, `CHANGES_REQUESTED` reviews, `COMMENTED` reviews from humans/bots, and top-level PR comments before merge. Triage each item for validity/actionability before changing code. Validate every suggestion against codebase contracts, types, config schemas, tests, and local rules; if the comment is valid but the suggested patch is not the best fix, apply the better root-cause fix and explain that in the PR reply. Reply inline with the fix/false-positive rationale before resolving any handled thread, re-run verification after fixes, then re-fetch until there are zero unresolved actionable comments and zero silently resolved threads. Same blocking model as critical review issues.
+4b. **Never silently ignore PR feedback — always reply inline, valid or not.** After the PR exists (and again after CI in Step 15b), always fetch review threads, `CHANGES_REQUESTED` reviews, `COMMENTED` reviews from humans/bots, and top-level PR comments. Triage each item for validity/actionability before changing code, validating every suggestion against codebase contracts, types, config schemas, tests, and local rules. Then **every** comment gets an inline reply before its thread is resolved — no exceptions, including bot comments and ones you disagree with:
+   - **Valid** → apply the fix (if the suggested patch isn't the best fix, apply the better root-cause fix), then reply inline **naming the exact fix commit SHA** (e.g. "Fixed in `a1b2c3d`.") and what changed. Re-run Step 4 verification after the fix.
+   - **Invalid / false-positive / won't-fix** → reply inline with the concrete rationale (why it's wrong, or why it's out of scope + where it's tracked). Do not resolve with an empty/one-word reply.
+   - **Deferred / out-of-scope** (valid but intentionally not in this PR) → reply inline saying so and link the follow-up (ticket/PR/issue), then resolve.
+   Resolve each thread only after its inline reply exists; repair any already-resolved thread that lacks one. Re-fetch until zero unresolved actionable comments and zero silently-resolved threads. Same blocking model as critical review issues.
 5. **Auto-decide everything else.** Patch-version bumps, changelog content, commit message, PR body — infer from diff and commits. Do not pause to ask.
 6. **Skip silently when a step doesn't apply.** No version file → skip version bump. No CHANGELOG → skip changelog. No test runner detected → ask once, then skip.
 7. **No secrets in commits.** Scan staged diff for API keys / tokens / passwords before commit. If found: stop, warn, suggest `.gitignore`.
@@ -93,6 +100,11 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
      the per-check states (`gh pr checks <n>` → look for any `fail`) before merging.
      A path-filtered `skipping` is fine; a `fail` is not, required or not. (This exact
      trap merged a PR whose whole test matrix was red.)
+   - **A red check must be *addressed*, not just reported.** On any `fail`, open the failing
+     job's log (`gh run view --log-failed` / the job URL), diagnose the root cause, fix it
+     (kick back to `vd:cook`/`vd:fix` if non-trivial), commit + push, and let Step 15 re-watch
+     the new run. Never leave a ship "done" with red CI. The only non-fix exits are an explicit
+     user *"Merge anyway"* or a deliberate `--skip-tests`/documented flake — both stated out loud.
    - **CI green ≠ comments addressed.** A passing code-review-bot check (e.g.
      `review/code-review`) means the bot *ran*, not that its findings are resolved. Bot
      reviewers post inline comments **as a CI job**, so they land *during* Step 15 —
@@ -139,7 +151,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 14. Release       → `--release` only: detect auto-release tool; tag + push if manual
 15. CI watch      → wait for PR checks; on failure prompt user (every mode)
 15b. Re-check comments → after CI green, RE-RUN Step 13: code-review bots post inline comments as a CI job, so they appear only now. Block merge on any unresolved actionable thread (Rule 11). Not suppressed by `--auto`.
-16. Auto-merge    → `--auto` only: `gh pr merge --auto` once Step 15 green AND 15b clear
+16. Merge         → **only** with `--auto`/`--merge` (or an explicit "merge anyway"): `gh pr merge` once Step 15 green AND 15b clear. **A bare ship stops at Step 15b and hands off the PR URL — no merge** (Hard rule 0).
 ```
 
 > **Ordering matters.** Step 13 runs once at PR creation (catches pre-existing human reviews), but a code-review **bot** reviews *as CI* — its comments land during Step 15, after Step 13. **Step 15b re-fetches** so bot findings can't slip to merge. Without it, a green `review/code-review` check reads as "approved" when it only means "the bot finished."
@@ -161,24 +173,30 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 - Step 14 runs only with `--release`. If auto-release tooling detected, it's a no-op (CI handles tagging).
 - Step 15 (CI watch) always runs after PR creation. CI failure prompts the user even in `--auto`.
 - Step 15b (re-check comments) always runs after CI green when any check is a code-review bot (e.g. `review/code-review`) — those post inline comments as a CI job, so they only exist post-CI. Re-runs Step 13's fetch; one GraphQL call. Blocks merge on unresolved actionable threads even in `--auto` (not suppressible — safety floor, Rule 11).
-- Step 16 runs only with `--auto`, only after Step 15 reports green **and** Step 15b is clear (or user explicitly opted to merge anyway). Uses `gh pr merge --auto`, which respects branch protection — queues the merge; never bypasses.
+- Step 16 runs only with `--auto` or `--merge`, only after Step 15 reports green **and** Step 15b is clear (or user explicitly opted to merge anyway). Uses `gh pr merge` (auto-queue under `--auto`), which respects branch protection — queues the merge; never bypasses. A bare ship skips Step 16 entirely and hands off the PR (Hard rule 0).
 
 ## Output
 
+Bare ship (no `--auto`/`--merge`) — ends at a green PR, unmerged:
+
 ```
-✓ Pre-flight: release/1.4.0, 5 commits, +200/-50 (mode: staging, target: staging)
-✓ Issues: linked #42
-✓ Merged: origin/main (already up to date)
-✓ Tests: 42 passed, 0 failed
-✓ Review: 0 critical, 2 informational
-✓ Version: 1.3.4 → 1.4.0-rc.1
-✓ Changelog: updated
-✓ Committed: chore(release): 1.4.0-rc.1
-✓ Pushed: origin/release/1.4.0
-✓ PR: https://github.com/org/repo/pull/123 → staging
+✓ Pre-flight: ELT-3358-heartland, 1 commit, +50/-3 (mode: official, target: main)
+✓ Tests: 419 passed, 0 failed
+✓ Review: 0 critical
+✓ Pushed: origin/ELT-3358-heartland
+✓ PR: https://github.com/org/repo/pull/117 → main
+✓ CI: green
 ✓ PR comments: 0 actionable
-- Journal: skipped (staging)
-- Docs:    skipped (staging)
+▸ Merge: left to you — bare ship does not merge. Re-run with --merge (or `gh pr merge`) to land it.
+```
+
+With `--auto` / `--merge` — same pipeline, then merges on green:
+
+```
+✓ PR: https://github.com/org/repo/pull/123 → staging
+✓ CI: green
+✓ PR comments: 0 actionable
+✓ Merged: #123 (squash, branch deleted)
 ```
 
 ## Workflow position
