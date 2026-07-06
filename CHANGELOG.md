@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.23.0](https://github.com/vanducng/skills/compare/v1.22.0...v1.23.0) (2026-07-06)
+
+
+### Features
+
+* **skill:** add cnb ds eda ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
+
 ## [1.22.0](https://github.com/vanducng/skills/compare/v1.21.0...v1.22.0) (2026-06-28)
 
 
