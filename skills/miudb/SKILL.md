@@ -45,7 +45,7 @@ If the catalog lacks a command you need, run `miudb upgrade`, or build from the
 local checkout:
 
 ```bash
-cd /Users/vanducng/git/personal/miu-db
+cd <your-miu-db-checkout>          # your local clone of the miu-db source repo
 go build -buildvcs=false -o ./.miu-db/miudb ./cmd/miudb
 ```
 
@@ -151,7 +151,11 @@ miudb connections add \
 
 Secret stores for new connections:
 
-- `keyring`: OS Keychain/keyring service named `miudb` by default.
+- `keyring`: OS Keychain/keyring service named `miudb` on CGO-enabled builds.
+  Release binaries (`brew install`) are CGO-disabled and fall back to an
+  encrypted file keyring at `~/.config/miu/db/keyring/<connection>:<kind>`
+  (JWE / PBES2-HS256+A128KW, one file per secret) — NOT the OS Keychain, so
+  `security find-generic-password -s miudb ...` finds nothing there.
 - `file`: local `credentials.json` with mode `0600`.
 - `inline`: leave the value in `connections.json`.
 - `none`: discard the supplied secret and require another resolver later.
@@ -165,6 +169,14 @@ Rules:
   user explicitly wants a file-backed credential.
 - Never print passwords, credential files, private keys, or service account
   JSON.
+
+Verify where a secret landed (cheapest first, never reveals the value):
+
+- `miudb connections list --output json` -> `has_password: true`, and the
+  connection's `secrets[]` shows `provider: keyring` + `ref`.
+- `ls ~/.config/miu/db/keyring/` -> `<connection>:db` file on release builds
+  (contents are JWE-encrypted; the raw password is not in the file).
+- `miudb connections test <CONN>` -> `ok: true` proves it resolves end-to-end.
 
 ## Test one connection
 
