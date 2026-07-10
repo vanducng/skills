@@ -343,6 +343,28 @@ class ScoutBlockTest(HookTestBase):
                                               'tool_input': {'pattern': 'src/**/*.ts'}, 'cwd': '/tmp'})
         self.assertEqual(code, 0, err)
 
+    def test_vdignore_star_wildcards_match(self):
+        # '*' must become [^/]* and '**' .*; the un-escaped '*' used to act as a
+        # regex quantifier (secret* matched 'secre') and '**' failed to compile.
+        home = tempfile.mkdtemp(prefix='vd-ig-')
+        self.addCleanup(shutil.rmtree, home, ignore_errors=True)
+        os.makedirs(os.path.join(home, '.claude'), exist_ok=True)
+        with open(os.path.join(home, '.claude', '.vdignore'), 'w') as f:
+            f.write('secret*\n**/gen\n')
+        env = {'HOME': home}
+        code, _, _ = run_json(SCOUT_BLOCK, {'tool_name': 'Read',
+                                            'tool_input': {'file_path': 'secret-stuff/x.txt'},
+                                            'cwd': '/tmp'}, extra_env=env)
+        self.assertEqual(code, 2, 'secret* must match secret-stuff')
+        code, _, _ = run_json(SCOUT_BLOCK, {'tool_name': 'Read',
+                                            'tool_input': {'file_path': 'a/b/gen/x.txt'},
+                                            'cwd': '/tmp'}, extra_env=env)
+        self.assertEqual(code, 2, '**/gen must match at depth')
+        code, _, _ = run_json(SCOUT_BLOCK, {'tool_name': 'Read',
+                                            'tool_input': {'file_path': 'src/main.py'},
+                                            'cwd': '/tmp'}, extra_env=env)
+        self.assertEqual(code, 0)
+
     def test_absolute_target_path_checks_manifest_at_filesystem_root(self):
         # normalize() strips the leading '/'; the manifest probe must anchor back
         # to the absolute parent, not resolve the stripped prefix against cwd.

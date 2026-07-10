@@ -131,7 +131,11 @@ Before documenting any code reference:
 - Prefer relative links within `docs/`
 
 #### Self-Validation
-After completing documentation updates, re-check every internal link resolves (`ls` each `[text](./path.md)` target) and every documented command/function exists in the code before considering the task complete.
+After completing documentation updates, run validation:
+```bash
+node $HOME/.claude/scripts/validate-docs.cjs docs/
+```
+If the script is absent, re-check manually: every internal link resolves and every documented command/function exists in the code. Fix warnings before considering the task complete.
 
 #### Red Flags (Stop & Verify)
 - Writing `functionName()` without seeing it in code

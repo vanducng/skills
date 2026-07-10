@@ -175,7 +175,6 @@ def main():
         parts.append(cyan(short_model))
 
     # Directory + branch
-    dir_short = basename(cwd)  # noqa: F841 (parity with source)
     branch = vd_paths.get_git_branch(cwd)
     if branch:
         dir_part = '%s %s' % (dim(shorten_dir(cwd)), magenta(branch))

@@ -36,7 +36,7 @@ def count_tasks(team_name):
     try:
         if not os.path.exists(task_dir):
             return None
-        files = [f for f in os.listdir(task_dir) if f.endswith('.json')]
+        files = sorted(f for f in os.listdir(task_dir) if f.endswith('.json'))
         pending = 0
         in_progress = 0
         completed = 0
@@ -65,10 +65,11 @@ def append_completion_log(team_name, task_id, task_subject, teammate_name):
         log_file = os.path.join(reports_path, 'team-%s-completions.md' % team_name)
         ts = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         # single-line log format; embedded newlines would inject extra entries
+        tid = str(task_id).replace('\n', ' ').replace('\r', '')
         subject = str(task_subject).replace('\n', ' ').replace('\r', '')
         author = str(teammate_name).replace('\n', ' ').replace('\r', '')
         with open(log_file, 'a', encoding='utf-8') as f:
-            f.write('- [%s] Task #%s "%s" completed by %s\n' % (ts, task_id, subject, author))
+            f.write('- [%s] Task #%s "%s" completed by %s\n' % (ts, tid, subject, author))
     except Exception:
         pass  # fail-open
 

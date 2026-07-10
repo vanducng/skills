@@ -33,7 +33,7 @@ def get_task_info(team_name):
     try:
         if not os.path.exists(task_dir):
             return None
-        files = [f for f in os.listdir(task_dir) if f.endswith('.json')]
+        files = sorted(f for f in os.listdir(task_dir) if f.endswith('.json'))
         tasks = [t for t in (read_json(os.path.join(task_dir, f)) for f in files)
                  if isinstance(t, dict)]
 

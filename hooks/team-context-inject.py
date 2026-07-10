@@ -113,7 +113,8 @@ def main():
 
     config_path = os.path.join(TEAMS_DIR, team_name, 'config.json')
     config = read_json(config_path)
-    if config is None or config is False or config == 0 or config == '':
+    if not isinstance(config, dict):
+        sys.exit(0)
         sys.exit(0)
 
     peer_list = build_peer_list(config, agent_id)

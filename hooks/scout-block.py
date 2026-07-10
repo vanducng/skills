@@ -47,7 +47,8 @@ try:
     # -- minimal gitignore-style pattern matching -----------------------------
 
     def pattern_to_regex(pat):
-        r = re.sub(r'[.+^${}()|[\]\\]', r'\\\g<0>', pat)
+        # '*' must be escaped here so the __STAR__ conversion below can see it
+        r = re.sub(r'[.+^${}()|[\]\\*]', r'\\\g<0>', pat)
         r = re.sub(r'\\\*', '__STAR__', r)
         r = re.sub(r'\?', '[^/]', r)
         r = re.sub(r'__STAR____STAR__', '.*', r)

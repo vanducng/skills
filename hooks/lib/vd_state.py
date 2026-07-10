@@ -20,7 +20,7 @@ VD_STALE_MS = 5000
 
 def get_session_temp_path(session_id):
     # session_id comes from untrusted hook payloads — keep it a single safe filename segment
-    safe = re.sub(r'[^A-Za-z0-9._-]', '_', str(session_id))
+    safe = re.sub(r'[^A-Za-z0-9._-]', '_', str(session_id))[:64]
     return os.path.join(tempfile.gettempdir(), 'vd-session-%s.json' % safe)
 
 
@@ -93,7 +93,8 @@ def read_session_state(session_id):
 def atomic_write(temp_path, data):
     tmp = '%s.%s.json' % (temp_path, uuid.uuid4().hex)
     try:
-        with open(tmp, 'w', encoding='utf-8') as f:
+        fd = os.open(tmp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
             f.write(json.dumps(data, indent=2))
         os.replace(tmp, temp_path)
         return True
