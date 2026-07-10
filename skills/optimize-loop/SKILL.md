@@ -35,7 +35,7 @@ metadata:
 
 ## Configuration
 
-Parsed from the user message. Missing required fields trigger a single batched `AskUserQuestion`.
+Parsed from the user message. Missing required fields trigger a single batched `AskUserQuestion` in Claude Code; ask the same questions in plain text elsewhere.
 
 ### Required
 

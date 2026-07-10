@@ -89,19 +89,9 @@ If you see a section like this at the start of your context:
 
 Use the naming pattern from the `## Naming` section injected by hooks. The pattern includes the computed date.
 
-**STEP 4: Update session state after creating plan.**
+**STEP 4: Report the plan path.**
 
-After creating the plan folder, update session state so subagents receive the latest context:
-```bash
-node $HOME/.Codex/scripts/set-active-plan.cjs {plan-dir}
-```
-
-Example:
-```bash
-node $HOME/.Codex/scripts/set-active-plan.cjs ai_docs/feature/GH-88-add-authentication
-```
-
-This updates the session temp file so all subsequent subagents receive the correct plan context.
+State the created plan directory path explicitly in your final message so the caller can activate it; session hooks resolve the active plan from branch or session state on the next prompt.
 
 ---
 

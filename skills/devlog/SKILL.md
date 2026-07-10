@@ -116,7 +116,7 @@ Read `references/voice.md` before drafting. If the current repo has a populated
 devlog style guide, prefer that too:
 
 ```bash
-~/.claude/skills/devlog/references/style-guide.md
+references/style-guide.md
 ```
 
 Treat empty/stub style guides as no-op.

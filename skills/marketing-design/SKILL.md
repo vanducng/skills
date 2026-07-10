@@ -59,18 +59,27 @@ Raster generators (`logo`, `cip`) default to **Codex `$imagegen` (gpt-image-2)**
 
 55+ styles, 30 color palettes, 25 industry guides. Default engine: **Codex gpt-image-2** (Gemini fallback).
 
+### Resolve Paths (run once)
+
+Resolve the skill dir and a Python interpreter once, then reuse `$SKILL` / `$PY` in every command below (works under Claude Code, Codex, or a dev clone).
+
+```bash
+SKILL="${CLAUDE_SKILL_DIR:-$(for d in "$HOME/skills/skills/marketing-design" "$HOME/.claude/skills/marketing-design" "$HOME/.agents/skills/marketing-design"; do [ -d "$d" ] && { echo "$d"; break; }; done)}"
+PY="$([ -x "$HOME/.claude/skills/.venv/bin/python3" ] && echo "$HOME/.claude/skills/.venv/bin/python3" || echo python3)"
+```
+
 ### Logo: Generate Design Brief
 
 ```bash
-python3 ~/.claude/skills/marketing-design/scripts/logo/search.py "tech startup modern" --design-brief -p "BrandName"
+python3 $SKILL/scripts/logo/search.py "tech startup modern" --design-brief -p "BrandName"
 ```
 
 ### Logo: Search Styles/Colors/Industries
 
 ```bash
-python3 ~/.claude/skills/marketing-design/scripts/logo/search.py "minimalist clean" --domain style
-python3 ~/.claude/skills/marketing-design/scripts/logo/search.py "tech professional" --domain color
-python3 ~/.claude/skills/marketing-design/scripts/logo/search.py "healthcare medical" --domain industry
+python3 $SKILL/scripts/logo/search.py "minimalist clean" --domain style
+python3 $SKILL/scripts/logo/search.py "tech professional" --domain color
+python3 $SKILL/scripts/logo/search.py "healthcare medical" --domain industry
 ```
 
 ### Logo: Generate with AI
@@ -79,14 +88,14 @@ python3 ~/.claude/skills/marketing-design/scripts/logo/search.py "healthcare med
 
 ```bash
 # Default: Codex gpt-image-2 (run `codex login` once)
-python3 ~/.claude/skills/marketing-design/scripts/logo/generate.py --brand "TechFlow" --style minimalist --industry tech
-python3 ~/.claude/skills/marketing-design/scripts/logo/generate.py --prompt "coffee shop vintage badge" --style vintage
+python3 $SKILL/scripts/logo/generate.py --brand "TechFlow" --style minimalist --industry tech
+python3 $SKILL/scripts/logo/generate.py --prompt "coffee shop vintage badge" --style vintage
 
 # Force Gemini Nano Banana (e.g. for aspect-ratio control or --pro)
-python3 ~/.claude/skills/marketing-design/scripts/logo/generate.py --brand "TechFlow" --provider gemini --pro
+python3 $SKILL/scripts/logo/generate.py --brand "TechFlow" --provider gemini --pro
 
 # Variant batch (Gemini — Codex has no batch mode)
-python3 ~/.claude/skills/marketing-design/scripts/logo/generate.py --brand "TechFlow" --batch 9 --output-dir ./logos
+python3 $SKILL/scripts/logo/generate.py --brand "TechFlow" --batch 9 --output-dir ./logos
 ```
 
 **IMPORTANT:** When scripts fail, try to fix them directly.
@@ -100,35 +109,35 @@ After generation, ask whether the user wants an HTML preview gallery. If yes, us
 ### CIP: Generate Brief
 
 ```bash
-python3 ~/.claude/skills/marketing-design/scripts/cip/search.py "tech startup" --cip-brief -b "BrandName"
+python3 $SKILL/scripts/cip/search.py "tech startup" --cip-brief -b "BrandName"
 ```
 
 ### CIP: Search Domains
 
 ```bash
-python3 ~/.claude/skills/marketing-design/scripts/cip/search.py "business card letterhead" --domain deliverable
-python3 ~/.claude/skills/marketing-design/scripts/cip/search.py "luxury premium elegant" --domain style
-python3 ~/.claude/skills/marketing-design/scripts/cip/search.py "hospitality hotel" --domain industry
-python3 ~/.claude/skills/marketing-design/scripts/cip/search.py "office reception" --domain mockup
+python3 $SKILL/scripts/cip/search.py "business card letterhead" --domain deliverable
+python3 $SKILL/scripts/cip/search.py "luxury premium elegant" --domain style
+python3 $SKILL/scripts/cip/search.py "hospitality hotel" --domain industry
+python3 $SKILL/scripts/cip/search.py "office reception" --domain mockup
 ```
 
 ### CIP: Generate Mockups
 
 ```bash
 # With logo (RECOMMENDED)
-python3 ~/.claude/skills/marketing-design/scripts/cip/generate.py --brand "TopGroup" --logo /path/to/logo.png --deliverable "business card" --industry "consulting"
+python3 $SKILL/scripts/cip/generate.py --brand "TopGroup" --logo /path/to/logo.png --deliverable "business card" --industry "consulting"
 
 # Full CIP set
-python3 ~/.claude/skills/marketing-design/scripts/cip/generate.py --brand "TopGroup" --logo /path/to/logo.png --industry "consulting" --set
+python3 $SKILL/scripts/cip/generate.py --brand "TopGroup" --logo /path/to/logo.png --industry "consulting" --set
 
 # Pro model (4K text)
-python3 ~/.claude/skills/marketing-design/scripts/cip/generate.py --brand "TopGroup" --logo logo.png --deliverable "business card" --model pro
+python3 $SKILL/scripts/cip/generate.py --brand "TopGroup" --logo logo.png --deliverable "business card" --model pro
 
 # Without logo
-python3 ~/.claude/skills/marketing-design/scripts/cip/generate.py --brand "TechFlow" --deliverable "business card" --no-logo-prompt
+python3 $SKILL/scripts/cip/generate.py --brand "TechFlow" --deliverable "business card" --no-logo-prompt
 
 # Force Gemini (faster for large --set)
-python3 ~/.claude/skills/marketing-design/scripts/cip/generate.py --brand "TopGroup" --logo logo.png --industry "consulting" --set --provider gemini
+python3 $SKILL/scripts/cip/generate.py --brand "TopGroup" --logo logo.png --industry "consulting" --set --provider gemini
 ```
 
 Engines: **Codex gpt-image-2** (default, logo attached as reference image). Gemini fallback models — `--model flash` (`gemini-2.5-flash-image`), `--model pro` (`gemini-3-pro-image-preview`).
@@ -136,7 +145,7 @@ Engines: **Codex gpt-image-2** (default, logo attached as reference image). Gemi
 ### CIP: Render HTML Presentation
 
 ```bash
-python3 ~/.claude/skills/marketing-design/scripts/cip/render-html.py --brand "TopGroup" --industry "consulting" --images /path/to/cip-output
+python3 $SKILL/scripts/cip/render-html.py --brand "TopGroup" --industry "consulting" --images /path/to/cip-output
 ```
 
 **Tip:** If no logo exists, use Logo Design section above first.
@@ -195,21 +204,21 @@ Load `references/banner-sizes-and-styles.md` for complete sizes and styles refer
 ### Icon: Generate Single Icon
 
 ```bash
-python3 ~/.claude/skills/marketing-design/scripts/icon/generate.py --prompt "settings gear" --style outlined
-python3 ~/.claude/skills/marketing-design/scripts/icon/generate.py --prompt "shopping cart" --style filled --color "#6366F1"
-python3 ~/.claude/skills/marketing-design/scripts/icon/generate.py --name "dashboard" --category navigation --style duotone
+python3 $SKILL/scripts/icon/generate.py --prompt "settings gear" --style outlined
+python3 $SKILL/scripts/icon/generate.py --prompt "shopping cart" --style filled --color "#6366F1"
+python3 $SKILL/scripts/icon/generate.py --name "dashboard" --category navigation --style duotone
 ```
 
 ### Icon: Generate Batch Variations
 
 ```bash
-python3 ~/.claude/skills/marketing-design/scripts/icon/generate.py --prompt "cloud upload" --batch 4 --output-dir ./icons
+python3 $SKILL/scripts/icon/generate.py --prompt "cloud upload" --batch 4 --output-dir ./icons
 ```
 
 ### Icon: Multi-size Export
 
 ```bash
-python3 ~/.claude/skills/marketing-design/scripts/icon/generate.py --prompt "user profile" --sizes "16,24,32,48" --output-dir ./icons
+python3 $SKILL/scripts/icon/generate.py --prompt "user profile" --sizes "16,24,32,48" --output-dir ./icons
 ```
 
 ### Icon: Top Styles
@@ -237,24 +246,24 @@ Load `references/poster-design.md` for the full guide and `references/poster-pro
 ### Poster: Search Knowledge Base
 
 ```bash
-~/.claude/skills/.venv/bin/python3 ~/.claude/skills/marketing-design/scripts/poster/search.py --domain style --query "swiss editorial"
-~/.claude/skills/.venv/bin/python3 ~/.claude/skills/marketing-design/scripts/poster/search.py --domain palette --query "warm earthy"
-~/.claude/skills/.venv/bin/python3 ~/.claude/skills/marketing-design/scripts/poster/search.py --domain texture --query "risograph"
-~/.claude/skills/.venv/bin/python3 ~/.claude/skills/marketing-design/scripts/poster/search.py --domain layout --query "centered grid"
+$PY $SKILL/scripts/poster/search.py --domain style --query "swiss editorial"
+$PY $SKILL/scripts/poster/search.py --domain palette --query "warm earthy"
+$PY $SKILL/scripts/poster/search.py --domain texture --query "risograph"
+$PY $SKILL/scripts/poster/search.py --domain layout --query "centered grid"
 ```
 
 ### Poster: Build Brief
 
 ```bash
-~/.claude/skills/.venv/bin/python3 ~/.claude/skills/marketing-design/scripts/poster/search.py --poster-brief --topic "AI Conference" --query "minimal grid"
+$PY $SKILL/scripts/poster/search.py --poster-brief --topic "AI Conference" --query "minimal grid"
 ```
 
 ### Poster: Generate Prompt
 
 ```bash
-~/.claude/skills/.venv/bin/python3 ~/.claude/skills/marketing-design/scripts/poster/generate.py --topic "AI Conference"
-~/.claude/skills/.venv/bin/python3 ~/.claude/skills/marketing-design/scripts/poster/generate.py --topic "AI Conference" --query "swiss" --aspect a2
-~/.claude/skills/.venv/bin/python3 ~/.claude/skills/marketing-design/scripts/poster/generate.py --topic "AI Conference" --style "Swiss Editorial Grid" --seed 42
+$PY $SKILL/scripts/poster/generate.py --topic "AI Conference"
+$PY $SKILL/scripts/poster/generate.py --topic "AI Conference" --query "swiss" --aspect a2
+$PY $SKILL/scripts/poster/generate.py --topic "AI Conference" --style "Swiss Editorial Grid" --seed 42
 ```
 
 Pipe stdout into any image-gen model. For series: same `--style`, different `--seed` values (lock identity, vary composition).
@@ -263,10 +272,10 @@ Pipe stdout into any image-gen model. For series: same `--style`, different `--s
 
 ```bash
 # Vision analysis (resume-safe; needs GEMINI_API_KEY)
-~/.claude/skills/.venv/bin/python3 ~/.claude/skills/marketing-design/scripts/poster/analyze.py --input-dir /path/to/posters
+$PY $SKILL/scripts/poster/analyze.py --input-dir /path/to/posters
 
 # Re-cluster + regenerate CSVs
-~/.claude/skills/.venv/bin/python3 ~/.claude/skills/marketing-design/scripts/poster/cluster.py
+$PY $SKILL/scripts/poster/cluster.py
 ```
 
 ## Social Photos (Built-in)

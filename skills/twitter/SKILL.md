@@ -101,6 +101,7 @@ twitter/
 ## Tests
 
 ```bash
-~/.claude/skills/.venv/bin/python3 -m pytest scripts/tests/ -q          # unit (51 tests)
-scripts/tests/integration_smoke.sh                                       # live (post → fetch → delete)
+PY="$([ -x "$HOME/.claude/skills/.venv/bin/python3" ] && echo "$HOME/.claude/skills/.venv/bin/python3" || echo python3)"
+"$PY" -m pytest scripts/tests/ -q          # unit (51 tests); fallback python3 needs: pip install --user -r scripts/requirements.txt
+scripts/tests/integration_smoke.sh          # live (post → fetch → delete)
 ```

@@ -107,7 +107,7 @@ Skip if `--no-prefix`. Otherwise: kebab-case, max 50 chars.
 
 ### Step 4 — Monorepo selection
 
-If `repoType === "monorepo"` and the project wasn't passed in, ask the user which one:
+If `repoType === "monorepo"` and the project wasn't passed in, ask the user which one (AskUserQuestion in Claude Code; ask in prose in Codex / plain shell):
 
 ```javascript
 AskUserQuestion({

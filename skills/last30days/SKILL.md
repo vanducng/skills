@@ -282,11 +282,9 @@ Before proceeding to Step 1, handle first-run setup.
 - If the file exists and contains `SETUP_COMPLETE=true`, skip Step 0 entirely and go to Step 1 (CRITICAL: Parse User Intent below). Do NOT announce that setup is complete. The user does not need a status message on every run.
 
 **If this IS a first run:**
-- Use the Read tool to load `skills/last30days/nux-wizard.md` (relative to the skill root).
-- Follow the wizard's instructions end-to-end. The wizard handles platform detection (OpenClaw vs Claude Code), auto vs manual setup, ScrapeCreators opt-in, and the initial topic picker.
-- After the wizard writes `SETUP_COMPLETE=true` to `~/.config/last30days/.env`, proceed to research.
-
-The wizard lives in a separate file so the common-case (already set up) path through this file is short and the voice-contract rules further down stay in context.
+- Create `~/.config/last30days/.env` (make its parent dir first) and write `SETUP_COMPLETE=true` so this gate does not re-fire on later runs.
+- No API keys are required to start: the engine auto-detects any keys already present and runs the free public sources by default. Optional sources that need auth (X, YouTube, TikTok, etc.) are surfaced *after* research via the Research Coverage nudge, which tells the user how to unlock each one.
+- Then proceed to research.
 
 ---
 
@@ -931,6 +929,7 @@ if [ ! -f "$SKILL_DIR/scripts/last30days.py" ]; then
   exit 1
 fi
 
+# In runtimes without $ARGUMENTS substitution (Codex, OpenClaw), replace $ARGUMENTS with the user's topic and any flags from their message.
 "${LAST30DAYS_PYTHON}" "${SKILL_DIR}/scripts/last30days.py" $ARGUMENTS --emit=compact --save-dir="${LAST30DAYS_MEMORY_DIR}" --save-suffix=v3
 ```
 
@@ -1456,7 +1455,7 @@ If the research output contains a `**🔍 Research Coverage:**` block, render it
 
 **Just-in-time X unlock:** If X returned 0 results because no X auth is configured (no AUTH_TOKEN/CT0, no XAI_API_KEY, no FROM_BROWSER), offer to set it up right there:
 
-**Call AskUserQuestion:**
+**Call AskUserQuestion** (Claude Code; elsewhere ask the same question in plain text)**:**
 Question: "X/Twitter wasn't searched. Want to unlock it?"
 Options:
 - "Scan my browser cookies (free)" - Get consent, run cookie scan, write BROWSER_CONSENT=true + FROM_BROWSER=auto to .env

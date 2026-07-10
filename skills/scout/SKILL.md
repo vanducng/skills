@@ -16,8 +16,10 @@ Token-efficient parallel scouting that finds the right files before you touch th
 
 | Argument | What | When |
 |---|---|---|
-| _(none)_ | **Internal** — Explore subagents in parallel (`references/internal-scouting.md`) | Default. Always available. Best for ≥6 logical segments. |
+| _(none)_ | **Internal** — Explore subagents in parallel (`references/internal-scouting.md`) | Default in Claude Code. Best for ≥6 logical segments. |
 | `ext` | **External** — Gemini / OpenCode CLI in parallel (`references/external-scouting.md`) | Large surfaces (1M+ ctx) and you have one of the CLIs installed. SCALE 1–5. |
+
+Internal mode needs the Task/Explore tool (Claude Code). In a runtime without it (e.g. Codex), use `ext` mode — run its `gemini`/`opencode` bash commands sequentially — or fall back to inline `Glob`/`Grep` sweeps.
 
 ## When to use
 

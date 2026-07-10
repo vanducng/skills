@@ -55,7 +55,9 @@ If no flag is given, ask the user which lifecycle stage they want
 
 ## --create
 
-Delegate. Invoke the `skill-creator` skill via the Skill tool with
+Delegate (Claude Code only — the `skill-creator` Skill tool is
+unavailable on Codex; there, use the `new-skill.sh` scaffold below).
+Invoke the `skill-creator` skill via the Skill tool with
 the user's name/description as args:
 
 ```
