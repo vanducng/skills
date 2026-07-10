@@ -589,10 +589,11 @@ def resolve_feature_id(config, base_dir=None, session_id=None, read_state=None, 
     computed = compute_feature_id(ticket, slug)
     if computed:
         if not read_only:
-            now = time.gmtime()
+            now_ms = time.time()
+            now = time.gmtime(now_ms)
             created = '%04d-%02d-%02dT%02d:%02d:%02d.%03dZ' % (
                 now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec,
-                int(time.time() * 1000) % 1000)
+                int(now_ms * 1000) % 1000)
             ensure_feature_meta(features_dir, computed, {
                 'id': computed, 'ticket': ticket or None, 'slug': slug or None,
                 'label': slug or computed,

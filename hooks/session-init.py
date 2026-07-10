@@ -24,6 +24,8 @@ try:
         s = s.replace('"', '\\"')
         s = s.replace('$', '\\$')
         s = s.replace('`', '\\`')
+        # a raw newline/CR would break out of the double-quoted export line
+        s = s.replace('\n', ' ').replace('\r', '')
         return s
 
     def write_env(env_file, key, value):

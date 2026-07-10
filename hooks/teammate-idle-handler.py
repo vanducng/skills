@@ -20,6 +20,14 @@ def read_json(file_path):
         return None
 
 
+def safe_team_name(name):
+    # team_name arrives in untrusted payloads; must stay a single path segment
+    if not name or not isinstance(name, str):
+        return None
+    if '/' in name or '\\' in name or '..' in name:
+        return None
+    return name
+
 def get_task_info(team_name):
     task_dir = os.path.join(TASKS_DIR, team_name)
     try:
@@ -77,7 +85,7 @@ def main():
         payload = {}
 
     teammate_name = payload.get('teammate_name')
-    team_name = payload.get('team_name')
+    team_name = safe_team_name(payload.get('team_name'))
     if not team_name:
         sys.exit(0)
 

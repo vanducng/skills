@@ -8,6 +8,7 @@ lastTranscriptPath, devRulesReminder).
 
 import json
 import os
+import re
 import tempfile
 import time
 import uuid
@@ -18,7 +19,9 @@ VD_STALE_MS = 5000
 
 
 def get_session_temp_path(session_id):
-    return os.path.join(tempfile.gettempdir(), 'vd-session-%s.json' % session_id)
+    # session_id comes from untrusted hook payloads — keep it a single safe filename segment
+    safe = re.sub(r'[^A-Za-z0-9._-]', '_', str(session_id))
+    return os.path.join(tempfile.gettempdir(), 'vd-session-%s.json' % safe)
 
 
 def get_lock_path(session_id):
@@ -42,7 +45,15 @@ def acquire_lock(session_id):
     while time.time() <= deadline:
         try:
             fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, str(os.getpid()).encode('utf-8'))
+            try:
+                os.write(fd, str(os.getpid()).encode('utf-8'))
+            except Exception:
+                os.close(fd)
+                try:
+                    os.unlink(lock_path)
+                except Exception:
+                    pass
+                raise
             return {'fd': fd, 'lockPath': lock_path}
         except FileExistsError:
             remove_stale(lock_path)
@@ -84,7 +95,7 @@ def atomic_write(temp_path, data):
     try:
         with open(tmp, 'w', encoding='utf-8') as f:
             f.write(json.dumps(data, indent=2))
-        os.rename(tmp, temp_path)
+        os.replace(tmp, temp_path)
         return True
     except Exception:
         try:

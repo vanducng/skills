@@ -23,6 +23,14 @@ def read_json(file_path):
         return None
 
 
+def safe_team_name(name):
+    # team_name arrives in untrusted payloads; must stay a single path segment
+    if not name or not isinstance(name, str):
+        return None
+    if '/' in name or '\\' in name or '..' in name:
+        return None
+    return name
+
 def count_tasks(team_name):
     task_dir = os.path.join(TASKS_DIR, team_name)
     try:
@@ -56,8 +64,11 @@ def append_completion_log(team_name, task_id, task_subject, teammate_name):
         os.makedirs(reports_path, exist_ok=True)
         log_file = os.path.join(reports_path, 'team-%s-completions.md' % team_name)
         ts = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        # single-line log format; embedded newlines would inject extra entries
+        subject = str(task_subject).replace('\n', ' ').replace('\r', '')
+        author = str(teammate_name).replace('\n', ' ').replace('\r', '')
         with open(log_file, 'a', encoding='utf-8') as f:
-            f.write('- [%s] Task #%s "%s" completed by %s\n' % (ts, task_id, task_subject, teammate_name))
+            f.write('- [%s] Task #%s "%s" completed by %s\n' % (ts, task_id, subject, author))
     except Exception:
         pass  # fail-open
 
@@ -74,7 +85,7 @@ def main():
     task_id = payload.get('task_id')
     task_subject = payload.get('task_subject')
     teammate_name = payload.get('teammate_name')
-    team_name = payload.get('team_name')
+    team_name = safe_team_name(payload.get('team_name'))
     if not team_name:
         sys.exit(0)
 

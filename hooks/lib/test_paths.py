@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 
 LIB_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, LIB_DIR)
@@ -211,7 +212,7 @@ class PathsTest(unittest.TestCase):
     def test_linked_worktree_overlays_main_worktree_umbrella_layout(self):
         fake_home = mkdtemp('vd-home-')
         repo = mkdtemp('vd-main-')
-        linked = os.path.join(tempfile.gettempdir(), 'vd-linked-%s-%s' % (os.getpid(), int(os.times()[4] * 1000)))
+        linked = os.path.join(tempfile.gettempdir(), 'vd-linked-%s' % uuid.uuid4().hex)
         self._cleanup(fake_home)
         self._cleanup(repo)
         self.addCleanup(shutil.rmtree, linked, ignore_errors=True)
