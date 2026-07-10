@@ -1,0 +1,564 @@
+#!/usr/bin/env python3
+"""Behavioral tests for the .py hook scripts.
+
+Ports the 18 auxiliary-hook cases from vd-cli hook-tests.mjs plus the
+session-init / subagent-init scenarios from vd-cli parity.mjs. Invokes the
+.py hooks as subprocesses with synthetic stdin, temp HOME, and temp git repos;
+asserts on stdout / exit codes / env-file contents.
+
+Machine-specific values (user, locale, timezone, runtime version, os platform)
+are value-masked the way parity.mjs masks them, so presence/position/format stay
+asserted while the volatile value differs.
+
+Delta from the .cjs contract: session-init emits VD_RUNTIME_VERSION
+("python/<version>") in place of VD_NODE_VERSION — same env-write slot.
+
+Run: python3 -m unittest hooks.test_hooks
+ or: python3 hooks/test_hooks.py
+"""
+
+import json
+import os
+import pwd
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+HOOKS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+SESSION_INIT = os.path.join(HOOKS_DIR, 'session-init.py')
+SUBAGENT_INIT = os.path.join(HOOKS_DIR, 'subagent-init.py')
+STATUSLINE = os.path.join(HOOKS_DIR, 'statusline.py')
+SCOUT_BLOCK = os.path.join(HOOKS_DIR, 'scout-block.py')
+TEAM_INJECT = os.path.join(HOOKS_DIR, 'team-context-inject.py')
+TASK_COMPLETED = os.path.join(HOOKS_DIR, 'task-completed-handler.py')
+TEAMMATE_IDLE = os.path.join(HOOKS_DIR, 'teammate-idle-handler.py')
+
+FIXED_SESSION_ID = '00000000-0000-0000-0000-000000000001'
+REAL_HOME = pwd.getpwuid(os.getuid()).pw_dir  # immune to HOME env changes
+
+
+def run_raw(script, stdin_str, extra_env=None, cwd=None, timeout=30):
+    env = dict(os.environ)
+    env['NO_COLOR'] = '1'
+    if extra_env:
+        env.update(extra_env)
+    r = subprocess.run([sys.executable, script], input=stdin_str, env=env, cwd=cwd,
+                       capture_output=True, text=True, timeout=timeout)
+    return r.returncode, r.stdout or '', r.stderr or ''
+
+
+def run_json(script, payload, extra_env=None, cwd=None, timeout=30):
+    return run_raw(script, json.dumps(payload), extra_env, cwd, timeout)
+
+
+def git(cwd, *args):
+    subprocess.run(['git'] + list(args), cwd=cwd,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+
+def parse_env_map(content):
+    m = {}
+    for line in content.split('\n'):
+        hit = re.match(r'^export ([A-Z_]+)="(.*)"$', line)
+        if hit:
+            m[hit.group(1)] = hit.group(2)
+    return m
+
+
+# ── config fixtures (from parity.mjs) ──────────────────────────────────────
+
+DEFAULT_VD_CONFIG = {
+    'plan': {
+        'namingFormat': '{date}-{issue}-{slug}',
+        'dateFormat': 'YYMMDD-HHmm',
+        'issuePrefix': None,
+        'reportsDir': 'reports',
+        'resolution': {'order': ['session', 'branch'],
+                       'branchPattern': '(?:feat|fix|chore|refactor|docs)/(?:[^/]+/)?(.+)'},
+        'validation': {'mode': 'prompt', 'minQuestions': 3, 'maxQuestions': 8,
+                       'focusAreas': ['assumptions', 'risks', 'tradeoffs', 'architecture']},
+    },
+    'paths': {'docs': 'docs', 'plans': 'plans'},
+}
+
+CUSTOM_VD_CONFIG = {
+    'plan': {
+        'namingFormat': '{date}-{issue}-{slug}',
+        'dateFormat': 'YYMMDD-HHmm',
+        'issuePrefix': 'GH-',
+        'reportsDir': 'my-reports',
+        'resolution': {'order': ['session', 'branch'],
+                       'branchPattern': '(?:feat|fix|chore|refactor|docs)/(?:[^/]+/)?(.+)'},
+        'validation': {'mode': 'prompt', 'minQuestions': 3, 'maxQuestions': 8,
+                       'focusAreas': ['assumptions', 'risks', 'tradeoffs', 'architecture']},
+    },
+    'paths': {'docs': 'docs', 'plans': 'plans'},
+}
+
+
+# ── golden templates (session-init.env with the VD_RUNTIME_VERSION delta) ──
+
+DEFAULT_ENV_GOLDEN = '\n'.join([
+    'export VD_SESSION_ID="{{SESSION_ID}}"',
+    'export VD_PLAN_NAMING_FORMAT="{date}-{issue}-{slug}"',
+    'export VD_PLAN_DATE_FORMAT="YYMMDD-HHmm"',
+    'export VD_PLAN_ISSUE_PREFIX=""',
+    'export VD_PLAN_REPORTS_DIR="reports"',
+    'export VD_NAME_PATTERN="{{DATE}}-{{TIME}}-{slug}"',
+    'export VD_ACTIVE_PLAN=""',
+    'export VD_SUGGESTED_PLAN=""',
+    'export VD_GIT_ROOT="{{GIT_ROOT}}"',
+    'export VD_REPORTS_PATH="{{REPORTS_ABS}}/"',
+    'export VD_DOCS_PATH="{{DOCS_ABS}}"',
+    'export VD_PLANS_PATH="{{PLANS_ABS}}"',
+    'export VD_PROJECT_ROOT="{{GIT_ROOT}}"',
+    'export VD_PROJECT_TYPE="single-repo"',
+    'export VD_PACKAGE_MANAGER=""',
+    'export VD_FRAMEWORK=""',
+    'export VD_RUNTIME_VERSION="{{RUNTIME_VERSION}}"',
+    'export VD_OS_PLATFORM="{{OS_PLATFORM}}"',
+    'export VD_GIT_BRANCH="main"',
+    'export VD_USER="{{USER}}"',
+    'export VD_LOCALE="{{LOCALE}}"',
+    'export VD_TIMEZONE="{{TIMEZONE}}"',
+    'export VD_CLAUDE_SETTINGS_DIR="{{HOME}}/.claude"',
+    'export VD_VALIDATION_MODE="prompt"',
+    'export VD_VALIDATION_MIN_QUESTIONS="3"',
+    'export VD_VALIDATION_MAX_QUESTIONS="8"',
+    'export VD_VALIDATION_FOCUS_AREAS="assumptions,risks,tradeoffs,architecture"',
+    'export VD_CODING_LEVEL="-1"',
+    'export VD_CODING_LEVEL_STYLE="coding-level-5-god"',
+])
+
+CUSTOM_ENV_GOLDEN = (DEFAULT_ENV_GOLDEN
+                     .replace('export VD_PLAN_ISSUE_PREFIX=""', 'export VD_PLAN_ISSUE_PREFIX="GH-"')
+                     .replace('export VD_PLAN_REPORTS_DIR="reports"', 'export VD_PLAN_REPORTS_DIR="my-reports"')
+                     .replace('export VD_REPORTS_PATH="{{REPORTS_ABS}}/"',
+                              'export VD_REPORTS_PATH="{{CUSTOM_REPORTS_ABS}}/"'))
+
+# subagent-init default context (current contract; matches the .cjs line order).
+SUBAGENT_CONTEXT_GOLDEN = '\n'.join([
+    '## Subagent: fullstack-developer',
+    'ID: aaaaaaaa-test-0001 | CWD: {{GIT_ROOT}}',
+    '',
+    '## Context',
+    '- Plan: none',
+    '- Reports: {{REPORTS_ABS}}',
+    '- Paths: {{PLANS_ABS}}/ | {{DOCS_ABS}}/',
+    '',
+    '## Rules',
+    '- Reports → {{REPORTS_ABS}}',
+    '- YAGNI / KISS / DRY',
+    '- Before PR merge/next ship step: fetch review comments, validate, fix valid ones, reply/resolve, re-check',
+    '- Concise, list unresolved Qs at end',
+    '- Python scripts in .claude/skills/: Use `~/.claude/skills/.venv/bin/python3`',
+    '- Never use global pip install',
+    '',
+    '## Naming',
+    '- Report: {{REPORTS_ABS}}/fullstack-developer-{{DATE}}-{{TIME}}-{slug}.md',
+    '- Plan dir: {{PLANS_ABS}}/{{DATE}}-{{TIME}}-{slug}/',
+    '',
+    '## Plan Status Updates',
+    'Edit the plan.md Status column directly: `Pending` → `In Progress` → `Completed`.',
+])
+
+
+def mask(content, repo, fake_home, custom_reports_dir=None):
+    """Value-mask volatile/machine tokens (mirrors parity.mjs mask()).
+
+    OS platform is also value-masked (parity hardcodes darwin) so the golden
+    comparison is portable across hosts.
+    """
+    if custom_reports_dir:
+        reports_path = os.path.join(repo, 'plans', custom_reports_dir)
+        out = content.replace(reports_path, '{{CUSTOM_REPORTS_ABS}}')
+    else:
+        reports_path = os.path.join(repo, 'plans', 'reports')
+        out = content.replace(reports_path, '{{REPORTS_ABS}}')
+
+    out = out.replace(os.path.join(repo, 'plans'), '{{PLANS_ABS}}')
+    out = out.replace(os.path.join(repo, 'docs'), '{{DOCS_ABS}}')
+    out = out.replace(repo, '{{GIT_ROOT}}')
+    out = out.replace(REAL_HOME, '{{HOME}}')
+    out = out.replace(fake_home, '{{FAKE_HOME}}')
+    out = out.replace(FIXED_SESSION_ID, '{{SESSION_ID}}')
+    out = re.sub(r'\b\d{6}-\d{4}\b', '{{DATE}}-{{TIME}}', out)
+
+    out = re.sub(r'(VD_USER=")[^"]*(")', r'\1{{USER}}\2', out)
+    out = re.sub(r'(VD_LOCALE=")[^"]*(")', r'\1{{LOCALE}}\2', out)
+    out = re.sub(r'(VD_TIMEZONE=")[^"]*(")', r'\1{{TIMEZONE}}\2', out)
+    out = re.sub(r'(VD_RUNTIME_VERSION=")[^"]*(")', r'\1{{RUNTIME_VERSION}}\2', out)
+    out = re.sub(r'(VD_OS_PLATFORM=")[^"]*(")', r'\1{{OS_PLATFORM}}\2', out)
+    return out
+
+
+class HookTestBase(unittest.TestCase):
+    def _cleanup(self, path):
+        self.addCleanup(shutil.rmtree, path, ignore_errors=True)
+
+    def mkdtemp(self, prefix):
+        d = tempfile.mkdtemp(prefix=prefix)
+        self._cleanup(d)
+        return d
+
+    def mk_temp_repo(self, label, branch='main'):
+        tmp = self.mkdtemp('vd-parity-%s-' % label)
+        repo = os.path.realpath(tmp)
+        git(repo, 'init', '-b', branch)
+        git(repo, 'config', 'user.email', 'test@example.com')
+        git(repo, 'config', 'user.name', 'Test')
+        with open(os.path.join(repo, 'README.md'), 'w') as f:
+            f.write('# fixture\n')
+        git(repo, 'add', 'README.md')
+        git(repo, 'commit', '-m', 'init')
+        return repo
+
+    def mk_fake_home(self, cfg=None):
+        fake_home = os.path.realpath(self.mkdtemp('vd-fake-home-'))
+        claude = os.path.join(fake_home, '.claude')
+        os.makedirs(claude, exist_ok=True)
+        if cfg is not None:
+            with open(os.path.join(claude, '.vd.json'), 'w') as f:
+                f.write(json.dumps(cfg, indent=2) if isinstance(cfg, dict) else cfg)
+        # Give subagent-init a resolvable skills venv (used by the Naming/Rules block).
+        venv_bin = os.path.join(claude, 'skills', '.venv', 'bin')
+        os.makedirs(venv_bin, exist_ok=True)
+        open(os.path.join(venv_bin, 'python3'), 'w').close()
+        return fake_home
+
+    def run_session_init(self, repo, fake_home, state_dir=None, extra_env=None):
+        state_dir = state_dir or self.mkdtemp('vd-state-')
+        env_file = os.path.join(self.mkdtemp('vd-env-'), 'env.sh')
+        open(env_file, 'w').close()
+        env = {
+            'HOME': fake_home,
+            'CLAUDE_ENV_FILE': env_file,
+            'CLAUDE_SESSION_ID': FIXED_SESSION_ID,
+            'VD_SESSION_ID': FIXED_SESSION_ID,
+            'TMPDIR': state_dir,
+        }
+        if extra_env:
+            env.update(extra_env)
+        run_raw(SESSION_INIT, json.dumps({'session_id': FIXED_SESSION_ID, 'source': 'startup',
+                                          'hook_event_name': 'SessionStart'}), env, cwd=repo)
+        with open(env_file, 'r') as f:
+            return f.read()
+
+    def run_subagent_init(self, repo, fake_home, state_dir=None, extra_env=None):
+        state_dir = state_dir or self.mkdtemp('vd-state-')
+        env = {
+            'HOME': fake_home,
+            'CLAUDE_SESSION_ID': FIXED_SESSION_ID,
+            'VD_SESSION_ID': FIXED_SESSION_ID,
+            'TMPDIR': state_dir,
+        }
+        if extra_env:
+            env.update(extra_env)
+        _, out, _ = run_json(SUBAGENT_INIT, {
+            'session_id': FIXED_SESSION_ID,
+            'agent_id': 'aaaaaaaa-test-0001',
+            'agent_type': 'fullstack-developer',
+            'cwd': repo,
+            'hook_event_name': 'SubagentStart',
+        }, env, cwd=repo)
+        return out
+
+    def extract_context(self, stdout):
+        try:
+            return (json.loads(stdout.strip()).get('hookSpecificOutput') or {}).get('additionalContext') or ''
+        except Exception:
+            return stdout
+
+    def inject_active_plan(self, state_dir, active_plan, session_origin):
+        tmp_file = os.path.join(state_dir, 'vd-session-%s.json' % FIXED_SESSION_ID)
+        state = {}
+        if os.path.exists(tmp_file):
+            with open(tmp_file, 'r') as f:
+                state = json.load(f)
+        state.update({'activePlan': active_plan, 'sessionOrigin': session_origin,
+                      'timestamp': 0, 'source': 'startup'})
+        with open(tmp_file, 'w') as f:
+            f.write(json.dumps(state, indent=2))
+
+
+# ── TASK 1: statusline ─────────────────────────────────────────────────────
+
+@unittest.skipUnless(os.path.exists(STATUSLINE), 'statusline.py not present')
+class StatuslineTest(HookTestBase):
+    def test_exit0_and_nonempty_on_valid_input(self):
+        code, out, _ = run_json(STATUSLINE, {'model': 'claude-sonnet-4-5', 'cwd': '/tmp/myproject',
+                                             'context_window_usage_percent': 42})
+        self.assertEqual(code, 0)
+        self.assertTrue(out.strip())
+
+    def test_stdout_contains_model_name(self):
+        _, out, _ = run_json(STATUSLINE, {'model': 'claude-opus-4', 'cwd': '/tmp',
+                                          'context_window_usage_percent': 20})
+        self.assertIn('opus', out)
+
+    def test_fail_open_empty_stdin(self):
+        code, out, _ = run_raw(STATUSLINE, '')
+        self.assertEqual(code, 0)
+        self.assertTrue(out.strip())
+
+    def test_fail_open_invalid_json(self):
+        code, out, _ = run_raw(STATUSLINE, '{not json}')
+        self.assertEqual(code, 0)
+        self.assertTrue(out.strip())
+
+
+# ── TASK 2: scout-block ────────────────────────────────────────────────────
+
+@unittest.skipUnless(os.path.exists(SCOUT_BLOCK), 'scout-block.py not present')
+class ScoutBlockTest(HookTestBase):
+    def test_allows_normal_source_path(self):
+        code, _, err = run_json(SCOUT_BLOCK, {'tool_name': 'Read',
+                                              'tool_input': {'file_path': 'src/index.ts'}, 'cwd': '/tmp'})
+        self.assertEqual(code, 0, err)
+
+    def test_blocks_node_modules(self):
+        code, _, err = run_json(SCOUT_BLOCK, {'tool_name': 'Read',
+                                              'tool_input': {'file_path': 'node_modules/lodash/index.js'},
+                                              'cwd': '/tmp'})
+        self.assertEqual(code, 2)
+        self.assertTrue('BLOCKED' in err or 'blocked' in err, err)
+
+    def test_blocks_git_path(self):
+        code, _, _ = run_json(SCOUT_BLOCK, {'tool_name': 'Read',
+                                            'tool_input': {'file_path': '.git/config'}, 'cwd': '/tmp'})
+        self.assertEqual(code, 2)
+
+    def test_blocks_broad_glob(self):
+        code, _, err = run_json(SCOUT_BLOCK, {'tool_name': 'Glob',
+                                              'tool_input': {'pattern': '**/*.ts'}, 'cwd': '/tmp'})
+        self.assertEqual(code, 2)
+        self.assertTrue('broad' in err.lower() or 'BLOCKED' in err, err)
+
+    def test_allows_glob_with_specific_prefix(self):
+        code, _, err = run_json(SCOUT_BLOCK, {'tool_name': 'Glob',
+                                              'tool_input': {'pattern': 'src/**/*.ts'}, 'cwd': '/tmp'})
+        self.assertEqual(code, 0, err)
+
+    def test_allows_build_command_mentioning_node_modules(self):
+        code, _, _ = run_json(SCOUT_BLOCK, {'tool_name': 'Bash',
+                                            'tool_input': {'command': 'npm run build'}, 'cwd': '/tmp'})
+        self.assertEqual(code, 0)
+
+    def test_fail_open_empty_stdin(self):
+        code, _, _ = run_raw(SCOUT_BLOCK, '')
+        self.assertEqual(code, 0)
+
+
+# ── TASK 3: team hooks ─────────────────────────────────────────────────────
+
+@unittest.skipUnless(os.path.exists(TEAM_INJECT), 'team-context-inject.py not present')
+class TeamContextInjectTest(HookTestBase):
+    def test_noop_non_team_agent(self):
+        code, out, _ = run_json(TEAM_INJECT, {'agent_id': 'researcher', 'agent_type': 'researcher',
+                                              'cwd': '/tmp'})
+        self.assertEqual(code, 0)
+        self.assertEqual(out.strip(), '')
+
+    def test_noop_when_teams_dir_absent(self):
+        fake_home = self.mkdtemp('vd-test-home-')
+        code, out, _ = run_json(TEAM_INJECT, {'agent_id': 'researcher@my-team',
+                                              'agent_type': 'researcher', 'cwd': '/tmp'},
+                                {'HOME': fake_home})
+        self.assertEqual(code, 0)
+        self.assertEqual(out.strip(), '')
+
+    def test_injects_team_context(self):
+        fake_home = self.mkdtemp('vd-test-home-')
+        teams_dir = os.path.join(fake_home, '.claude', 'teams', 'my-team')
+        os.makedirs(teams_dir, exist_ok=True)
+        with open(os.path.join(teams_dir, 'config.json'), 'w') as f:
+            f.write(json.dumps({'name': 'My Team', 'members': [
+                {'agentId': 'researcher@my-team', 'name': 'researcher', 'agentType': 'researcher'},
+                {'agentId': 'developer@my-team', 'name': 'developer', 'agentType': 'developer'},
+            ]}))
+        code, out, err = run_json(TEAM_INJECT, {'agent_id': 'researcher@my-team',
+                                                'agent_type': 'researcher', 'cwd': '/tmp'},
+                                  {'HOME': fake_home})
+        self.assertEqual(code, 0, err)
+        obj = json.loads(out.strip())
+        self.assertTrue(obj.get('hookSpecificOutput'))
+        ctx = obj['hookSpecificOutput']['additionalContext']
+        self.assertIn('My Team', ctx)
+        self.assertIn('developer', ctx)
+
+
+@unittest.skipUnless(os.path.exists(TASK_COMPLETED), 'task-completed-handler.py not present')
+class TaskCompletedTest(HookTestBase):
+    def test_noop_when_team_name_absent(self):
+        code, out, _ = run_json(TASK_COMPLETED, {'task_id': 1, 'task_subject': 'Do something',
+                                                 'teammate_name': 'dev'})
+        self.assertEqual(code, 0)
+        self.assertEqual(out.strip(), '')
+
+    def test_emits_progress_summary(self):
+        fake_home = self.mkdtemp('vd-test-home-')
+        reports_dir = os.path.join(fake_home, 'reports')
+        tasks_dir = os.path.join(fake_home, '.claude', 'tasks', 'proj')
+        os.makedirs(tasks_dir, exist_ok=True)
+        with open(os.path.join(tasks_dir, '1.json'), 'w') as f:
+            f.write(json.dumps({'id': 1, 'status': 'completed', 'subject': 'Task one'}))
+        with open(os.path.join(tasks_dir, '2.json'), 'w') as f:
+            f.write(json.dumps({'id': 2, 'status': 'pending', 'subject': 'Task two'}))
+        code, out, err = run_json(TASK_COMPLETED, {'task_id': 1, 'task_subject': 'Task one',
+                                                   'teammate_name': 'dev', 'team_name': 'proj'},
+                                  {'HOME': fake_home, 'VD_REPORTS_PATH': reports_dir})
+        self.assertEqual(code, 0, err)
+        obj = json.loads(out.strip())
+        ctx = obj['hookSpecificOutput']['additionalContext']
+        self.assertIn('Task', ctx)
+        self.assertTrue('completed' in ctx or 'Completed' in ctx)
+
+
+@unittest.skipUnless(os.path.exists(TEAMMATE_IDLE), 'teammate-idle-handler.py not present')
+class TeammateIdleTest(HookTestBase):
+    def test_noop_when_team_name_absent(self):
+        code, out, _ = run_json(TEAMMATE_IDLE, {'teammate_name': 'dev'})
+        self.assertEqual(code, 0)
+        self.assertEqual(out.strip(), '')
+
+    def test_emits_idle_summary(self):
+        fake_home = self.mkdtemp('vd-test-home-')
+        tasks_dir = os.path.join(fake_home, '.claude', 'tasks', 'proj')
+        os.makedirs(tasks_dir, exist_ok=True)
+        with open(os.path.join(tasks_dir, '1.json'), 'w') as f:
+            f.write(json.dumps({'id': 1, 'status': 'completed', 'subject': 'Task one'}))
+        with open(os.path.join(tasks_dir, '2.json'), 'w') as f:
+            f.write(json.dumps({'id': 2, 'status': 'pending', 'subject': 'Task two', 'blockedBy': []}))
+        code, out, err = run_json(TEAMMATE_IDLE, {'teammate_name': 'dev', 'team_name': 'proj'},
+                                  {'HOME': fake_home})
+        self.assertEqual(code, 0, err)
+        obj = json.loads(out.strip())
+        ctx = obj['hookSpecificOutput']['additionalContext']
+        self.assertTrue(ctx)
+        self.assertTrue('idle' in ctx or 'Tasks' in ctx)
+
+
+# ── session-init / subagent-init parity scenarios ──────────────────────────
+
+@unittest.skipUnless(os.path.exists(SESSION_INIT), 'session-init.py not present')
+class SessionInitParityTest(HookTestBase):
+    def test_defaults_golden(self):
+        repo = self.mk_temp_repo('defaults')
+        fake_home = self.mk_fake_home(DEFAULT_VD_CONFIG)
+        raw = self.run_session_init(repo, fake_home)
+        ours = mask(raw, repo, fake_home, None).rstrip('\n')
+        self.assertEqual(ours, DEFAULT_ENV_GOLDEN)
+
+    def test_custom_golden(self):
+        repo = self.mk_temp_repo('custom')
+        fake_home = self.mk_fake_home(CUSTOM_VD_CONFIG)
+        raw = self.run_session_init(repo, fake_home)
+        ours = mask(raw, repo, fake_home, 'my-reports').rstrip('\n')
+        self.assertEqual(ours, CUSTOM_ENV_GOLDEN)
+
+    def test_runtime_version_replaces_node_version(self):
+        repo = self.mk_temp_repo('runtime')
+        fake_home = self.mk_fake_home(DEFAULT_VD_CONFIG)
+        env_map = parse_env_map(self.run_session_init(repo, fake_home))
+        self.assertNotIn('VD_NODE_VERSION', env_map)
+        self.assertIn('VD_RUNTIME_VERSION', env_map)
+        self.assertTrue(env_map['VD_RUNTIME_VERSION'].startswith('python/'),
+                        env_map['VD_RUNTIME_VERSION'])
+
+    def test_session_active_plan_relative_reports_consistent(self):
+        repo = self.mk_temp_repo('active-rel')
+        fake_home = self.mk_fake_home(DEFAULT_VD_CONFIG)
+        state_dir = self.mkdtemp('vd-state-')
+        self.inject_active_plan(state_dir, 'plans/260101-1200-my-plan', repo)
+
+        env_map = parse_env_map(self.run_session_init(repo, fake_home, state_dir))
+        si_reports = env_map.get('VD_REPORTS_PATH', '')
+
+        sub_ctx = self.extract_context(self.run_subagent_init(repo, fake_home, state_dir))
+        sub_line = next((l for l in sub_ctx.split('\n') if l.startswith('- Reports:')), '')
+        sub_reports = sub_line.replace('- Reports: ', '').strip()
+
+        si_base = re.sub(r'/$', '', si_reports)
+        sub_base = re.sub(r'/$', '', sub_reports)
+        self.assertTrue(si_base and sub_base and si_base == sub_base,
+                        'session-init: %s  subagent-init: %s' % (si_reports, sub_reports))
+
+    def test_session_active_plan_absolute_no_double_anchor(self):
+        repo = self.mk_temp_repo('active-abs')
+        fake_home = self.mk_fake_home(DEFAULT_VD_CONFIG)
+        state_dir = self.mkdtemp('vd-state-')
+        absolute_plan = os.path.join(repo, 'plans', '260101-1200-abs-plan')
+        self.inject_active_plan(state_dir, absolute_plan, repo)
+
+        env_map = parse_env_map(self.run_session_init(repo, fake_home, state_dir))
+        si_reports = env_map.get('VD_REPORTS_PATH', '')
+
+        # No double-anchor: repo must not appear twice in the resolved path.
+        self.assertLessEqual(len(si_reports.split(repo)), 2,
+                             'double-anchor detected: %s' % si_reports)
+        expected = os.path.join(absolute_plan, 'reports')
+        self.assertEqual(re.sub(r'/$', '', si_reports), expected)
+
+        sub_ctx = self.extract_context(self.run_subagent_init(repo, fake_home, state_dir))
+        sub_line = next((l for l in sub_ctx.split('\n') if l.startswith('- Reports:')), '')
+        sub_reports = sub_line.replace('- Reports: ', '').strip()
+        self.assertEqual(re.sub(r'/$', '', sub_reports), expected)
+
+    def test_issue_branch_naming_with_issue_prefix(self):
+        repo = self.mk_temp_repo('issue-branch', 'feat/gh-88-x')
+        fake_home = self.mk_fake_home(CUSTOM_VD_CONFIG)  # issuePrefix='GH-'
+        env_map = parse_env_map(self.run_session_init(repo, fake_home))
+        pattern = env_map.get('VD_NAME_PATTERN', '')
+        self.assertIn('GH-88', pattern)
+
+    def test_non_git_dir_git_root_empty(self):
+        d = self.mkdtemp('vd-nongit-')
+        fake_home = self.mk_fake_home(DEFAULT_VD_CONFIG)
+        raw = self.run_session_init(d, fake_home)
+        line = next((l for l in raw.split('\n') if l.startswith('export VD_GIT_ROOT=')), None)
+        self.assertIsNotNone(line, 'VD_GIT_ROOT line missing')
+        self.assertIn('VD_GIT_ROOT=""', line)
+
+    def test_detached_head_branch_empty(self):
+        repo = self.mk_temp_repo('detached')
+        fake_home = self.mk_fake_home(DEFAULT_VD_CONFIG)
+        sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=repo,
+                             capture_output=True, text=True).stdout.strip()
+        git(repo, 'checkout', '--detach', sha)
+        raw = self.run_session_init(repo, fake_home)
+        env_map = parse_env_map(raw)
+        self.assertIn('VD_SESSION_ID', env_map)  # ran without throw
+        if 'VD_GIT_BRANCH' in env_map:
+            self.assertEqual(env_map['VD_GIT_BRANCH'], '')
+
+    def test_no_vd_json_defaults_applied(self):
+        repo = self.mk_temp_repo('no-config')
+        fake_home = self.mk_fake_home(None)  # .claude exists, no .vd.json
+        raw = self.run_session_init(repo, fake_home)
+        env_map = parse_env_map(raw)
+        self.assertEqual(env_map.get('VD_PLAN_REPORTS_DIR'), 'reports')
+
+    def test_malformed_vd_json_no_crash(self):
+        repo = self.mk_temp_repo('malformed')
+        fake_home = self.mk_fake_home('{this is not json}')
+        raw = self.run_session_init(repo, fake_home)
+        self.assertIn('VD_SESSION_ID=', raw)
+
+
+@unittest.skipUnless(os.path.exists(SUBAGENT_INIT), 'subagent-init.py not present')
+class SubagentInitParityTest(HookTestBase):
+    def test_defaults_context_golden(self):
+        repo = self.mk_temp_repo('subagent')
+        fake_home = self.mk_fake_home(DEFAULT_VD_CONFIG)
+        ctx = self.extract_context(self.run_subagent_init(repo, fake_home))
+        ours = mask(ctx, repo, fake_home, None)
+        ours = re.sub(r'\b\d{6}-\d{4}\b', '{{DATE}}-{{TIME}}', ours).rstrip('\n')
+        self.assertEqual(ours, SUBAGENT_CONTEXT_GOLDEN)
+
+
+if __name__ == '__main__':
+    unittest.main()
