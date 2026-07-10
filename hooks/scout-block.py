@@ -117,16 +117,21 @@ try:
             out.append(ch)
         return ''.join(out)
 
-    def is_target_build_dir(normalized, match, cwd):
+    def is_target_build_dir(normalized, match, cwd, was_absolute=False):
         try:
             prefix = normalized[:match.start()]
-            parent = os.path.join(cwd, prefix) if prefix else cwd
+            # normalize() strips the leading '/', so an absolute input must anchor
+            # back to the filesystem root, not cwd.
+            if was_absolute:
+                parent = '/' + prefix if prefix else '/'
+            else:
+                parent = os.path.join(cwd, prefix) if prefix else cwd
             return (os.path.exists(os.path.join(parent, 'Cargo.toml'))
                     or os.path.exists(os.path.join(parent, 'pom.xml')))
         except Exception:
             return False
 
-    def test_path(checker, normalized, cwd):
+    def test_path(checker, normalized, cwd, was_absolute=False):
         if not normalized:
             return {'blocked': False, 'pattern': None}
 
@@ -138,7 +143,7 @@ try:
         for regex in checker['allBlocked']:
             m = regex.search(normalized)
             if m:
-                if regex.pattern == TARGET_SOURCE and not is_target_build_dir(normalized, m, cwd):
+                if regex.pattern == TARGET_SOURCE and not is_target_build_dir(normalized, m, cwd, was_absolute):
                     continue
                 return {'blocked': True, 'pattern': js_regex_source(regex.pattern)}
         return {'blocked': False, 'pattern': None}
@@ -380,9 +385,10 @@ try:
         raw_paths = extract_paths(tool_name, tool_input)
         for p in raw_paths:
             norm = normalize(p)
+            was_absolute = p.strip().replace('\\', '/').startswith('/')
             if not norm:
                 continue
-            result = test_path(checker, norm, cwd)
+            result = test_path(checker, norm, cwd, was_absolute)
             if result['blocked']:
                 sys.stderr.write(format_block_msg(norm, result['pattern'] or norm, tool_name, config_hint))
                 sys.exit(2)

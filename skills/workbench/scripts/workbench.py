@@ -281,9 +281,9 @@ def cmd_status(args):
     if not feature_id:
         err('workbench status <id> (or run on a feature branch)')
         sys.exit(1)
-    base = os.path.join(c['featuresDir'], feature_id)
+    base = P.node_join(c['featuresDir'], feature_id)
     if not os.path.exists(base):
-        base = os.path.join(c['archiveDir'], feature_id)
+        base = P.node_join(c['archiveDir'], feature_id)
     if not os.path.exists(base):
         err('workbench status: no feature "%s"' % feature_id)
         sys.exit(1)
@@ -310,11 +310,11 @@ def cmd_archive(args):
     if not feature_id:
         err('workbench archive <id> [--reason r] [--superseded-by id]')
         sys.exit(1)
-    src = os.path.join(c['featuresDir'], feature_id)
+    src = P.node_join(c['featuresDir'], feature_id)
     if not os.path.exists(src):
         err('workbench archive: no active feature "%s"' % feature_id)
         sys.exit(1)
-    dst = os.path.join(c['archiveDir'], feature_id)
+    dst = P.node_join(c['archiveDir'], feature_id)
     if os.path.exists(dst):
         err('workbench archive: _archive/%s already exists' % feature_id)
         sys.exit(1)
@@ -335,11 +335,11 @@ def cmd_restore(args):
     pos = args['pos']
     c = ctx()
     feature_id = pos[0] if pos else None
-    src = os.path.join(c['archiveDir'], feature_id or '')
+    src = P.node_join(c['archiveDir'], feature_id or '')
     if not feature_id or not os.path.exists(src):
         err('workbench restore <id>: no _archive/%s' % (feature_id if feature_id else 'undefined'))
         sys.exit(1)
-    dst = os.path.join(c['featuresDir'], feature_id)
+    dst = P.node_join(c['featuresDir'], feature_id)
     if os.path.exists(dst):
         err('workbench restore: features/%s already exists' % feature_id)
         sys.exit(1)

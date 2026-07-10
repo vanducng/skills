@@ -182,5 +182,9 @@ ok('gc dry-run lists tmp, does not delete',
 wb(d, 'gc', '--force')
 ok('gc --force deletes tmp', not os.path.exists(os.path.join(d, '.workbench', 'tmp')))
 
+print('absolute feature ids stay under the umbrella:')
+ok('status /tmp errors instead of reading /tmp', 'no feature' in wb(d, 'status', '/tmp'))
+ok('archive /tmp errors', 'no active feature' in wb(d, 'archive', '/tmp'))
+
 print('\n%s tests: %s passed, %s failed' % (_pass + _fail, _pass, _fail))
 sys.exit(1 if _fail else 0)

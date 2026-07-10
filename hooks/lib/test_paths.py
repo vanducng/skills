@@ -253,6 +253,24 @@ class PathsTest(unittest.TestCase):
         self.assertEqual(got['plan']['resolution']['order'], ['branch'])
         self.assertEqual(got['plan']['resolution']['branchPattern'], 'main/(.+)')
 
+    def test_absolute_config_and_state_values_cannot_escape_anchor(self):
+        # Node path.join concatenates absolute later segments; os.path.join resets.
+        self.assertEqual(paths.node_join('/repo/.wb/features', '/outside'),
+                         '/repo/.wb/features/outside')
+        cfg = {'paths': {'plans': '/etc', 'docs': '/etc'}}
+        self.assertEqual(paths.get_plans_path('/repo', cfg), '/repo/etc')
+        self.assertEqual(paths.get_docs_path('/repo', cfg), '/repo/etc')
+        ff_cfg = {'paths': {'umbrella': '.wb', 'layout': 'feature-first'},
+                  '_gitRoot': '/repo'}
+        root = paths.resolve_feature_root(
+            ff_cfg, '/repo', 'sid', lambda sid: {'featureId': '/outside'}, {'readOnly': True})
+        self.assertEqual(root, '/repo/.wb/features/outside')
+
+    def test_regexes_are_ascii_like_js(self):
+        self.assertEqual(paths.clean_slug('café-fix'), 'caf-fix')
+        self.assertIsNone(paths.extract_issue_from_branch('gh٠١'))
+        self.assertEqual(paths.extract_ticket_from_branch('feat/ELT-123-x', ['ELT']), 'ELT-123')
+
 
 if __name__ == '__main__':
     unittest.main()

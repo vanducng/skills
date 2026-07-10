@@ -41,9 +41,12 @@ try:
             try:
                 with open('package.json', 'r', encoding='utf-8') as f:
                     pkg = json.load(f)
-                if pkg.get('workspaces'):
+                # JS truthiness: [] and {} count as present (only null/''/0/false don't)
+                def _js_truthy(v):
+                    return not (v is None or v is False or v == '' or v == 0)
+                if _js_truthy(pkg.get('workspaces')):
                     return 'monorepo'
-                if pkg.get('main') or pkg.get('exports'):
+                if _js_truthy(pkg.get('main')) or _js_truthy(pkg.get('exports')):
                     return 'library'
             except Exception:
                 pass

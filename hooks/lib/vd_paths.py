@@ -139,6 +139,15 @@ def with_trailing_slash(p):
     return s if s.endswith('/') else s + '/'
 
 
+def node_join(*parts):
+    # Node path.join semantics: an absolute later segment concatenates instead of
+    # resetting the result (os.path.join would discard everything before it).
+    filtered = [p for p in parts if p]
+    if not filtered:
+        return '.'
+    return os.path.normpath('/'.join(filtered))
+
+
 normalize_path = strip_trailing
 
 
@@ -179,39 +188,39 @@ def resolve_umbrella_root(config, base_dir=None):
 def get_plans_path(base_dir, config, session_id=None, read_state=None, opts=None):
     feature_root = resolve_feature_root(config, base_dir, session_id, read_state, opts)
     if feature_root:
-        return os.path.join(feature_root, strip_trailing(_get(config, 'paths', 'plans')) or 'plans')
+        return node_join(feature_root, strip_trailing(_get(config, 'paths', 'plans')) or 'plans')
     # Legacy: second arg was pathsConfig in P2 — accept both shapes
     paths_config = config.get('paths') if (isinstance(config, dict) and config.get('paths')) else config
-    return os.path.join(base_dir, strip_trailing(_get(paths_config, 'plans')) or 'plans')
+    return node_join(base_dir, strip_trailing(_get(paths_config, 'plans')) or 'plans')
 
 
 def get_docs_path(base_dir, config):
     # Docs are ALWAYS repo-root (CWD) anchored — never under umbrella/feature folders.
     paths_config = config.get('paths') if (isinstance(config, dict) and config.get('paths')) else config
-    return os.path.join(base_dir, strip_trailing(_get(paths_config, 'docs')) or 'docs')
+    return node_join(base_dir, strip_trailing(_get(paths_config, 'docs')) or 'docs')
 
 
 def get_visuals_path(base_dir, config, session_id=None, read_state=None, opts=None):
     feature_root = resolve_feature_root(config, base_dir, session_id, read_state, opts)
     name = strip_trailing(_get(config, 'paths', 'visuals')) or 'visuals'
     if feature_root:
-        return os.path.join(feature_root, name)
-    return os.path.join(base_dir, 'plans', name)
+        return node_join(feature_root, name)
+    return node_join(base_dir, 'plans', name)
 
 
 def get_journals_path(base_dir, config, session_id=None, read_state=None, opts=None):
     feature_root = resolve_feature_root(config, base_dir, session_id, read_state, opts)
     name = strip_trailing(_get(config, 'paths', 'journals')) or 'journals'
     if feature_root:
-        return os.path.join(feature_root, name)
-    return os.path.join(base_dir, 'plans', name)
+        return node_join(feature_root, name)
+    return node_join(base_dir, 'plans', name)
 
 
 def get_state_path(base_dir, config, session_id=None, read_state=None, opts=None):
     feature_root = resolve_feature_root(config, base_dir, session_id, read_state, opts)
     name = strip_trailing(_get(config, 'paths', 'state')) or 'state'
     if feature_root:
-        return os.path.join(feature_root, name)
+        return node_join(feature_root, name)
     return os.path.join(base_dir, 'plans', 'goals')
 
 
@@ -227,8 +236,8 @@ def get_reports_path(plan_path, resolved_by, plan_config, paths_config, anchor=N
         feature_root = resolve_feature_root(config, anchor or os.getcwd(), session_id, read_state, opts)
         if feature_root:
             if not anchor:
-                return with_trailing_slash(os.path.join(feature_root, subdir))
-            return os.path.join(feature_root, subdir)
+                return with_trailing_slash(node_join(feature_root, subdir))
+            return node_join(feature_root, subdir)
 
     # Session-active plan overrides everything
     if active_plan:
@@ -239,19 +248,19 @@ def get_reports_path(plan_path, resolved_by, plan_config, paths_config, anchor=N
             # Umbrella: reports is a direct sibling of plans under the umbrella root.
             reports_leaf = subdir
             if not anchor:
-                return with_trailing_slash(os.path.join(umbrella_root, reports_leaf))
-            return os.path.join(umbrella_root, reports_leaf)
+                return with_trailing_slash(node_join(umbrella_root, reports_leaf))
+            return node_join(umbrella_root, reports_leaf)
         reports_base = strip_trailing(_get(paths_config, 'plans')) or 'plans'
     else:
         reports_base = strip_trailing(_get(paths_config, 'plans')) or 'plans'
 
     if not anchor:
-        return with_trailing_slash(os.path.join(reports_base, subdir))
+        return with_trailing_slash(node_join(reports_base, subdir))
 
     # Absolute mode: isabs guard prevents double-anchoring
     if os.path.isabs(reports_base):
-        return os.path.join(reports_base, subdir)
-    return os.path.join(anchor, reports_base, subdir)
+        return node_join(reports_base, subdir)
+    return node_join(anchor, reports_base, subdir)
 
 
 def format_date(fmt):
@@ -276,9 +285,9 @@ def extract_issue_from_branch(branch):
     if not branch:
         return None
     attempts = [
-        (r'(?:issue|gh|fix|feat|bug)[/-]?(\d+)', re.IGNORECASE),
-        (r'[/-](\d+)[/-]', 0),
-        (r'#(\d+)', 0),
+        (r'(?:issue|gh|fix|feat|bug)[/-]?(\d+)', re.IGNORECASE | re.ASCII),
+        (r'[/-](\d+)[/-]', re.ASCII),
+        (r'#(\d+)', re.ASCII),
     ]
     for pattern, flags in attempts:
         hit = re.search(pattern, branch, flags)
@@ -313,7 +322,7 @@ def clean_slug(raw):
     if not raw:
         return ''
     s = re.sub(r'[<>:"/\\|?*\x00-\x1f\x7f]', '', raw)
-    s = re.sub(r'[^a-z0-9-]', '-', s, flags=re.IGNORECASE)
+    s = re.sub(r'[^a-z0-9-]', '-', s, flags=re.IGNORECASE | re.ASCII)
     s = re.sub(r'-+', '-', s)
     s = re.sub(r'^-+|-+$', '', s)
     return s[:100]
@@ -327,7 +336,7 @@ def slug_from_branch(branch, pattern=None):
     if not branch:
         return None
     src = pattern if pattern else r'(?:feat|fix|chore|refactor|docs)/(?:[^/]+/)?(.+)'
-    m = re.search(src, branch)
+    m = re.search(src, branch, re.ASCII)
     return clean_slug(m.group(1)) if m else None
 
 
@@ -403,7 +412,7 @@ def extract_ticket_from_branch(branch, prefixes=None):
         return None
     lst = prefixes if (isinstance(prefixes, list) and prefixes) else ['ELT', 'GH', 'PROJ']
     pattern = r'\b(' + '|'.join(escape_re(p) for p in lst) + r')-?(\d+)\b'
-    m = re.search(pattern, branch, re.IGNORECASE)
+    m = re.search(pattern, branch, re.IGNORECASE | re.ASCII)
     return '%s-%s' % (m.group(1).upper(), m.group(2)) if m else None
 
 
@@ -511,16 +520,22 @@ def ensure_feature_meta(features_dir, feature_id, meta):
 
 # Per-process cache, keyed by session and branch, with a soft cap for long-lived hosts.
 _feature_id_cache = OrderedDict()
-_feature_state_cache = {}
+# Keyed by the callable itself, not id(): a strong reference prevents the
+# CPython id-reuse hazard where a new lambda at a dead lambda's address would
+# hit its stale cached state (the .cjs WeakMap could only miss, never lie).
+_feature_state_cache = OrderedDict()
 
 
 def read_feature_state(read_state, session_id):
     if not read_state:
         return None
-    by_session = _feature_state_cache.get(id(read_state))
-    if by_session is None:
+    try:
+        by_session = _cache_get(_feature_state_cache, read_state)
+    except TypeError:
+        return read_state(session_id)
+    if by_session is _MISSING:
         by_session = OrderedDict()
-        _feature_state_cache[id(read_state)] = by_session
+        _cache_set(_feature_state_cache, read_state, by_session)
     key = session_id or ''
     if key in by_session:
         return by_session[key]
@@ -606,7 +621,7 @@ def resolve_feature_root(config, base_dir=None, session_id=None, read_state=None
     if not u or _get(config, 'paths', 'layout') != 'feature-first':
         return u
     fid = resolve_feature_id(config, base_dir, session_id, read_state, opts)
-    return os.path.join(u, 'features', fid) if fid else os.path.join(u, '_global', 'scratch')
+    return node_join(u, 'features', fid) if fid else os.path.join(u, '_global', 'scratch')
 
 
 def get_global_path(base_dir, config):

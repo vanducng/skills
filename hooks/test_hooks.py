@@ -343,6 +343,24 @@ class ScoutBlockTest(HookTestBase):
                                               'tool_input': {'pattern': 'src/**/*.ts'}, 'cwd': '/tmp'})
         self.assertEqual(code, 0, err)
 
+    def test_absolute_target_path_checks_manifest_at_filesystem_root(self):
+        # normalize() strips the leading '/'; the manifest probe must anchor back
+        # to the absolute parent, not resolve the stripped prefix against cwd.
+        rusty = tempfile.mkdtemp(prefix='vd-rusty-')
+        self.addCleanup(shutil.rmtree, rusty, ignore_errors=True)
+        open(os.path.join(rusty, 'Cargo.toml'), 'w').close()
+        code, _, _ = run_json(SCOUT_BLOCK, {'tool_name': 'Read',
+                                            'tool_input': {'file_path': rusty + '/target/debug/x'},
+                                            'cwd': '/'})
+        self.assertEqual(code, 2, 'absolute rust target must block')
+        plain = tempfile.mkdtemp(prefix='vd-plain-')
+        self.addCleanup(shutil.rmtree, plain, ignore_errors=True)
+        os.makedirs(os.path.join(plain, 'internal', 'target'), exist_ok=True)
+        code, _, _ = run_json(SCOUT_BLOCK, {'tool_name': 'Read',
+                                            'tool_input': {'file_path': plain + '/internal/target/x.go'},
+                                            'cwd': '/'})
+        self.assertEqual(code, 0, 'absolute non-build target must pass')
+
     def test_allows_build_command_mentioning_node_modules(self):
         code, _, _ = run_json(SCOUT_BLOCK, {'tool_name': 'Bash',
                                             'tool_input': {'command': 'npm run build'}, 'cwd': '/tmp'})
@@ -558,6 +576,45 @@ class SubagentInitParityTest(HookTestBase):
         ours = mask(ctx, repo, fake_home, None)
         ours = re.sub(r'\b\d{6}-\d{4}\b', '{{DATE}}-{{TIME}}', ours).rstrip('\n')
         self.assertEqual(ours, SUBAGENT_CONTEXT_GOLDEN)
+
+
+class DevRulesReminderTest(HookTestBase):
+    def test_empty_object_payload_still_emits_context(self):
+        # {} is falsy in Python but was a valid payload in the .cjs (JS truthy).
+        code, out, err = run_raw(os.path.join(HOOKS_DIR, 'dev-rules-reminder.py'), '{}')
+        self.assertEqual(code, 0, err)
+        obj = json.loads(out.strip())
+        self.assertEqual(set(obj), {'hookSpecificOutput'})
+        self.assertIn('## Paths', obj['hookSpecificOutput']['additionalContext'])
+
+    def test_codex_rejects_top_level_shape_so_output_is_always_nested(self):
+        code, out, _ = run_json(os.path.join(HOOKS_DIR, 'dev-rules-reminder.py'),
+                                {'cwd': '/tmp', 'session_id': 't',
+                                 'hook_event_name': 'UserPromptSubmit'})
+        self.assertEqual(code, 0)
+        obj = json.loads(out.strip())
+        self.assertNotIn('additionalContext', obj)
+        self.assertEqual(obj['hookSpecificOutput']['hookEventName'], 'UserPromptSubmit')
+
+
+class SessionInitProjectTypeTest(HookTestBase):
+    def test_empty_workspaces_array_is_monorepo_like_js(self):
+        d = tempfile.mkdtemp(prefix='vd-ws-')
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        with open(os.path.join(d, 'package.json'), 'w') as f:
+            f.write('{"workspaces": []}')
+        code, out, err = run_json(SESSION_INIT, {'session_id': 't', 'source': 'startup'}, cwd=d)
+        self.assertEqual(code, 0, err)
+        self.assertIn('Project: monorepo', out)
+
+    def test_empty_exports_object_is_library_like_js(self):
+        d = tempfile.mkdtemp(prefix='vd-lib-')
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        with open(os.path.join(d, 'package.json'), 'w') as f:
+            f.write('{"exports": {}}')
+        code, out, err = run_json(SESSION_INIT, {'session_id': 't', 'source': 'startup'}, cwd=d)
+        self.assertEqual(code, 0, err)
+        self.assertIn('Project: library', out)
 
 
 if __name__ == '__main__':

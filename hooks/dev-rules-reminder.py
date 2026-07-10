@@ -35,7 +35,7 @@ try:
 
     def main():
         payload = read_payload()
-        if not payload:
+        if payload is None:
             sys.exit(0)
 
         session_id = payload.get('session_id') or os.environ.get('VD_SESSION_ID') or None
