@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.24.0](https://github.com/vanducng/skills/compare/v1.23.0...v1.24.0) (2026-07-10)
+
+
+### Features
+
+* **hooks:** ported all hooks to Python and fixed dual-runtime skill gaps ([#276](https://github.com/vanducng/skills/issues/276)) ([6f1e7cf](https://github.com/vanducng/skills/commit/6f1e7cfc7e5886f77a0abcf99a0ddf24ad00e21f))
+
 ## [1.23.0](https://github.com/vanducng/skills/compare/v1.22.0...v1.23.0) (2026-07-06)
 
 
