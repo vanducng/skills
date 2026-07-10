@@ -7,7 +7,7 @@ description: Manage the feature-first .workbench umbrella — create, resolve, s
 
 Lifecycle owner for the **feature-first** `.workbench/` umbrella. One folder per feature — `features/{ticket}-{slug}/{plans,reports,visuals,journals,state}/` — so a ticket's artifacts stay together instead of scattering across type-first sibling dirs.
 
-This skill owns the **write path** (create / archive / gc). The control-plane hooks own read-path resolution, so `workbench new` computes the exact id the hooks resolve — they never diverge (it reuses `~/.claude/hooks/lib`).
+This skill owns the **write path** (create / archive / gc). The control-plane hooks own read-path resolution, so `workbench new` computes the exact id the hooks resolve — they never diverge (it reuses the deployed hooks lib — `~/.claude` or `~/.codex/hooks/lib`).
 
 ## Prerequisites
 
@@ -18,8 +18,10 @@ This skill owns the **write path** (create / archive / gc). The control-plane ho
 ## Run
 
 ```bash
-node ~/.claude/skills/workbench/scripts/workbench.cjs <command> [args]
+python3 $HOME/skills/skills/workbench/scripts/workbench.py <command> [args]
 ```
+
+If the repo isn't at `$HOME/skills`, use the installed symlink (`$HOME/.claude/skills/workbench/...` or `$HOME/.agents/skills/workbench/...`). Pick one at session start and reuse it.
 
 | Command | Does |
 |---|---|

@@ -127,10 +127,10 @@ def find_file_browser_server() -> Path | None:
 
 
 def find_workbench_script() -> Path | None:
-    primary = find_skill_root().parent / "workbench" / "scripts" / "workbench.cjs"
+    primary = find_skill_root().parent / "workbench" / "scripts" / "workbench.py"
     if primary.exists():
         return primary
-    home_path = Path.home() / "skills/skills/workbench/scripts/workbench.cjs"
+    home_path = Path.home() / "skills/skills/workbench/scripts/workbench.py"
     if home_path.exists():
         return home_path
     return None
@@ -178,7 +178,7 @@ def resolve_workbench_visuals() -> Path | None:
         return None
     try:
         proc = subprocess.run(
-            ["node", str(script), "resolve", "--json"],
+            [sys.executable, str(script), "resolve", "--json"],
             cwd=str(git_root),
             capture_output=True,
             text=True,

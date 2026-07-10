@@ -17,7 +17,7 @@ Migrate two layers, in order:
 
 Detect scope from the argument: `--machine` → machine layer only; a repo path (default: cwd git root) → repo layer (runs a machine preflight first); `--check` → verify only, change nothing.
 
-## Layout contract (source of truth: vd-cli `hooks/lib/paths.cjs`)
+## Layout contract (source of truth: vd-cli `hooks/lib/vd_paths.py`)
 
 | Artifact | Legacy (no umbrella) | Feature-first `.workbench` |
 |---|---|---|
@@ -49,7 +49,7 @@ Config precedence: DEFAULT ← global `~/.claude/.vd.json` ← project `<git-roo
    vd install hooks
    grep -n '\$HOME/.claude/hooks' ~/.claude/settings.json   # all entries must show literal $HOME
    ```
-   `vd install hooks` is idempotent: byte-identical files are skipped, a differing vd-owned file is backed up once as `<name>.bak.<UTC-ts>.cjs`, unknown files are never touched. settings.json edits are surgical (only vd's hook entries + the top-level `statusLine` key are patched; a one-time `settings.json.bak` is taken first). Registered commands keep `$HOME` **literal** — the hook runner shell-expands it; never bake a personal absolute path in. Caution: registration matches existing entries by `.cjs` **filename substring** and rewrites them to vd's canonical command — a custom wrapper referencing the same filename gets clobbered.
+   `vd install hooks` is idempotent: byte-identical files are skipped, a differing vd-owned file is backed up once as `<name>.bak.<UTC-ts>.<ext>`, unknown files are never touched. settings.json edits are surgical (only vd's hook entries + the top-level `statusLine` key are patched; a one-time `settings.json.bak` is taken first). Registered commands keep `$HOME` **literal** — the hook runner shell-expands it; never bake a personal absolute path in. Caution: registration matches existing entries by **filename substring** and rewrites them to vd's canonical command — a custom wrapper referencing the same filename gets clobbered.
 4. **Config rename (required — prevents the migration error):** `[ -f ~/.claude/.ck.json ] && [ ! -f ~/.claude/.vd.json ] && cp ~/.claude/.ck.json ~/.claude/.vd.json`. With the fallback gone, a global `~/.claude/.ck.json` without `~/.claude/.vd.json` errors on *every* session, so this `cp` is mandatory when a legacy global config exists. After `.vd.json` exists, `rm ~/.claude/.ck.json` (it's inert and backed up). Do **not** set `paths.umbrella` globally — that flips every repo at once and strands un-migrated `plans/` content. Go per-repo; consider the global flip only after all active repos are migrated.
 5. **CK_* consumer audit** — the env rename is a hard cut: every `CK_*` session var has a `VD_*` successor (`VD_REPORTS_PATH`, `VD_PLANS_PATH`, `VD_GIT_ROOT`, `VD_ACTIVE_PLAN`, …) and anything still reading `CK_*` silently gets nothing. Temp files renamed `ck-session-*` → `vd-session-*`.
    ```sh
@@ -68,7 +68,7 @@ Config precedence: DEFAULT ← global `~/.claude/.vd.json` ← project `<git-roo
    ```
 2. **Move artifacts** into one feature folder per ticket/topic. Prefer `vd:workbench new <slug> --ticket <ticket>` to create `feature.json`, then move legacy files into that feature's type folders:
    ```sh
-   node ~/.claude/skills/workbench/scripts/workbench.cjs new my-feature --ticket PROJ-123
+   python3 ~/.claude/skills/workbench/scripts/workbench.py new my-feature --ticket PROJ-123
    feature=.workbench/features/proj-123-my-feature
    mkdir -p "$feature"/{plans,reports,journals,visuals,state}
    [ -d plans/reports ]  && find plans/reports  -mindepth 1 -maxdepth 1 -exec mv {} "$feature/reports/"  \;
@@ -92,7 +92,7 @@ Run **from inside the target repo** — `loadConfig()` resolves the project `.vd
 cd "$(git rev-parse --show-toplevel)"
 git check-ignore -v .workbench/features/example/reports/x && echo "OK .workbench ignored"
 git check-ignore -v docs/x; [ $? -eq 1 ] && echo "OK docs NOT ignored"
-echo "{\"cwd\":\"$PWD\",\"session_id\":\"check\"}" | node ~/.claude/hooks/dev-rules-reminder.cjs
+echo "{\"cwd\":\"$PWD\",\"session_id\":\"check\"}" | python3 ~/.claude/hooks/dev-rules-reminder.py
 ```
 
 Pass = the injected `## Paths` block shows **six** paths (Reports/Plans/Docs/Visuals/Journals/State) with everything except Docs under `.workbench/`. **Three paths = umbrella did not activate** (invalid umbrella value, missing `.vd.json`, or you ran from outside the repo). A malformed `.vd.json` doesn't crash — it silently falls back to the 3-path legacy injection, so assert on output, never trust the config edit. **No paths at all = a legacy `.ck.json` lingers without a `.vd.json`**: the loader now raises a migration error and the fail-open hook injects nothing — create the `.vd.json` (step 4 / repo step 1). New paths take effect on the **next prompt**; the current session's earlier injection still shows old paths — don't chase that as a bug.
@@ -106,7 +106,7 @@ Pass = the injected `## Paths` block shows **six** paths (Reports/Plans/Docs/Vis
 ## Gotchas
 
 - Reports under feature-first live in the feature root, not inside a plan dir: `features/<feature>/reports`, alongside `features/<feature>/plans`. Anything string-concatenating `plans/reports/...` breaks; always use the hook-injected `Reports:` path.
-- `task-completed-handler.cjs` / `teammate-idle-handler.cjs` live in `~/.claude/hooks` but are deliberately **not** in settings.json (team-runtime invoked) — an "unregistered hook" finding there is not a bug; don't register or delete them.
+- `task-completed-handler.py` / `teammate-idle-handler.py` live in `~/.claude/hooks` but are deliberately **not** in settings.json (team-runtime invoked) — an "unregistered hook" finding there is not a bug; don't register or delete them.
 - Subagent prompts must pass the **work-context** repo's `.workbench/` paths, not the cwd's, when editing another project.
 - Monorepos: the umbrella anchors to the **git root**, not cwd — one `.vd.json` and one `.workbench/` per repo, even when working from a subdirectory.
 - Dotfiles repos at `$HOME`: stray-home protection anchors child projects to themselves by default; set `paths.allowHomeRoot: true` only when `$HOME` is intentionally the artifact root.
