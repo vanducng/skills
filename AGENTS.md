@@ -8,7 +8,7 @@ This repository is a daily-driver collection of skills for agentic coding, descr
 
 - `bash scripts/new-skill.sh my-new-skill`: scaffold a new skill directory.
 - `bash scripts/validate.sh`: validate every `skills/*/SKILL.md` frontmatter block.
-- `bash scripts/install.sh` / `scripts/uninstall.sh`: install/remove the skills locally.
+- `bash scripts/install.sh` / `scripts/uninstall.sh`: install/remove the skills locally (Claude Code dev symlinks into `~/.claude/skills` only; use `vd install codex` for the Codex `~/.agents/skills` namespace).
 - `bash scripts/check-docs-site.sh --check`: verify `docs/` tracks the catalog.
 - `bash scripts/check-install-conflicts.sh`: check for skill ID/file conflicts.
 - `cd skills/file-browser && npm test`: run the file-browser server tests.

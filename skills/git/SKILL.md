@@ -31,9 +31,9 @@ Use `vd:git` when you're mid-work and want to checkpoint, hand off a PR, or merg
 | `pr` | `references/workflow-pr.md` | Create a Pull Request from remote diff |
 | `merge` | `references/workflow-merge.md` | Merge `<from>` into `<to>` using `origin/<from>` |
 
-Parse `$ARGUMENTS` first word:
+Parse `$ARGUMENTS` first word (runtimes without argument substitution: use the text following the skill name in the user's message):
 - `cm` / `cp` / `pr` / `merge` → load the matching reference
-- empty / unclear → `AskUserQuestion` with the four options. Don't auto-run `cp` — it pushes.
+- empty / unclear → `AskUserQuestion` with the four options (AskUserQuestion in Claude Code; plain-text question elsewhere). Don't auto-run `cp` — it pushes.
 
 ## Argument shapes
 
@@ -82,6 +82,7 @@ PR titles flip to **past tense (v-ed)** — they narrate what the branch did, no
 
 - ✅ `feat(auth): added OAuth2 provider`
 - ✅ `PRJ-123: fixed session leak on logout`
+- ✅ `chore: [PRJ-123] added user access`
 - ❌ `feat(auth): add OAuth2 provider` (imperative — that's for commits)
 
 Ticket-driven work is authoritative:
@@ -95,6 +96,9 @@ Ticket-driven work is authoritative:
   the old remote branch if it was pushed accidentally.
 - Branch with ticket prefix (`PRJ-123` or `PRJ-123-...`) → PR title
   `PRJ-123: <v-ed description>`. See `references/workflow-pr.md`.
+- Repo/user title convention wins over the generic rule. If semantic PR titles
+  are enforced, include the ticket after the type:
+  `chore: [PRJ-123] <description>`.
 
 ## Split decision (commit)
 

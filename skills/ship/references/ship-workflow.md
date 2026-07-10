@@ -226,8 +226,8 @@ git push -u origin "$(git branch --show-current)"
    ```
    Missing → output "Install GitHub CLI (`gh`) to auto-create PRs" and stop after push.
 2. Load the PR template rules before resolving title/body:
-   - Ship integration: `~/skills/skills/ship/references/pr-template.md`
-   - Canonical template: `~/skills/skills/git/references/pr-template.md`
+   - Ship integration: `references/pr-template.md`
+   - Canonical template: `../git/references/pr-template.md`
 3. Resolve title and body from those loaded rules:
    - Title: branch contains `[A-Z]+-[0-9]+` → `TICKET: <past-tense summary>`. Otherwise → `type(scope): <past-tense summary>`.
    - Body: prefer `.github/pull_request_template.md` if present and fill it without adding, removing, or renaming sections. Otherwise fill the canonical fallback (3 labelled bullets — Why / What / Risks — plus a multi-line verification block, one field per line). Never use ad hoc `Summary`, `Changes`, `Validation`, or mixed template bodies.

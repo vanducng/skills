@@ -107,7 +107,7 @@ Step back: is it genuinely easier to understand? Did you introduce a pattern for
 
 - **`vd:cook`** — Step E surfaces complexity during a feature; bank the note and run `vd:simplify` as a *separate* follow-up commit, never tangled into the feature diff.
 - **`vd:code-review`** — review flags complexity (report-only); this skill is how you act on it.
-- **`vd:git`** — refactor commits stay isolated per `references/commit-standards.md`.
+- **`vd:git`** — refactor commits stay isolated per the `vd:git` skill's `references/commit-standards.md`.
 
 ## Future (out of scope for MVP)
 

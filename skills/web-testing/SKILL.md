@@ -29,8 +29,8 @@ Persistent-context headless is deliberately not used — it's flaky upstream and
 ## Quick start
 
 ```bash
-SKILL=$HOME/.claude/skills/web-testing/scripts
-BP=$HOME/.claude/skills/browser-profile/scripts
+SKILL="${CLAUDE_SKILL_DIR:-$(for d in "$HOME/skills/skills/web-testing" "$HOME/.claude/skills/web-testing" "$HOME/.agents/skills/web-testing"; do [ -d "$d" ] && { echo "$d"; break; }; done)}/scripts"
+BP="$(for d in "$HOME/skills/skills/browser-profile" "$HOME/.claude/skills/browser-profile" "$HOME/.agents/skills/browser-profile"; do [ -d "$d" ] && { echo "$d"; break; }; done)/scripts"
 
 node "$SKILL/init-playwright.cjs"                       # reads .e2e/config.json for baseURL/TLS
 npm i -D @playwright/test && npx playwright install chromium

@@ -145,13 +145,13 @@ If a success criterion fails: fix inside this phase. Don't tick it and move on.
 
 ### Step D — Test
 
-- Spawn a subagent for testing: `Agent(subagent_type="general-purpose", description="Run test suite", prompt="Run [test command], report pass/fail counts and failure details. Do not modify code.")`. Use a project-specific tester agent if one exists.
+- Spawn a subagent for testing: `Agent(subagent_type="general-purpose", description="Run test suite", prompt="Run [test command], report pass/fail counts and failure details. Do not modify code.")`. Use a project-specific tester agent if one exists. (Codex or no subagent tool: run the test command inline yourself.)
 - 100% pass required (unless `--no-test`).
 - On failure: read carefully → fix → re-run. Don't edit the test to make it pass unless it was provably wrong (document the why).
 
 ### Step E — Review
 
-- Spawn a reviewer subagent: `Agent(subagent_type="code-reviewer", description="Review phase N changes", prompt="Review the diff for phase N at [plan-path]. Files touched: [list]. Check for: bugs, missed edge cases, security issues, style mismatch, broken contracts, premature abstractions, throwaway comments.")`. Fallback to `general-purpose` if no code-reviewer agent. Give it the diff and the phase's success criteria — **not your account of why the code is correct**; the independent look is only worth spawning if it isn't primed to agree.
+- Spawn a reviewer subagent: `Agent(subagent_type="code-reviewer", description="Review phase N changes", prompt="Review the diff for phase N at [plan-path]. Files touched: [list]. Check for: bugs, missed edge cases, security issues, style mismatch, broken contracts, premature abstractions, throwaway comments.")`. Fallback to `general-purpose` if no code-reviewer agent (Codex or no subagent tool: run the review inline as a separate fresh pass). Give it the diff and the phase's success criteria — **not your account of why the code is correct**; the independent look is only worth spawning if it isn't primed to agree.
 - Apply critical fixes inline before declaring the phase done.
 - Defer non-critical polish to a follow-up section in the phase's notes — don't let suggestions stall the phase. If the reviewer flags complexity (not bugs), run `vd:simplify` as a *separate* commit after the phase, never tangled into the feature diff.
 
@@ -185,7 +185,7 @@ After the last phase passes:
    done
    bash "$DOD" <plan.md>
    ```
-   It evaluates every verifier with evidence and **exits 0 only if all pass** — gate "done" on exit 0. Exit 1 → goal *unmet*: it prints which verifier failed; report that and kick back to the relevant phase, do **not** claim done. A `manual_confirm` verifier surfaces as needs-user → resolve it with `AskUserQuestion`, then re-run. If the runner is unavailable, fall back to executing each verifier by hand (same vocab). No `## Definition of Done` block (runner exits 1 with "fall back") → verify the plan-level `## Success Criteria` instead.
+   It evaluates every verifier with evidence and **exits 0 only if all pass** — gate "done" on exit 0. Exit 1 → goal *unmet*: it prints which verifier failed; report that and kick back to the relevant phase, do **not** claim done. A `manual_confirm` verifier surfaces as needs-user → resolve it with `AskUserQuestion` (in Claude Code; ask the user in plain text elsewhere), then re-run. If the runner is unavailable, fall back to executing each verifier by hand (same vocab). No `## Definition of Done` block (runner exits 1 with "fall back") → verify the plan-level `## Success Criteria` instead.
 2. **Reconcile** — sweep all phase files; tick stale unchecked items that did get done; sync `plan.md` (`pending` → `completed`).
 3. **Docs** — if changes warrant updates (new public APIs, changed behavior, new env vars, new commands) → update `docs/` directly. Otherwise say so: "Docs impact: none."
 4. **Smoke** — one final end-to-end check. Run the most user-facing command this plan changed.

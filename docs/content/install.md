@@ -118,7 +118,7 @@ Use repo scope when a project should carry the same skill set for every Codex se
 ## Invocation Names
 
 :::note
-Documentation uses canonical IDs such as `vd:research`, `vd:plan`, and `vd:ship`. Claude Code and Codex expose different invocation prefixes in their UIs, but the skill identity is the same catalog namespace.
+Documentation uses canonical IDs such as `vd:research`, `vd:plan`, and `vd:ship`. Claude Code and Codex expose different invocation prefixes in their UIs, but the skill identity is the same catalog namespace: Claude Code invokes `/vd:research`, Codex invokes `$vd:research` (or activates the skill implicitly when your prompt matches its description).
 :::
 
 ## Verify The Install

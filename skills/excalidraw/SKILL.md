@@ -17,7 +17,7 @@ Check **in order**:
 
 1. **MCP server**: tools prefixed `mcp__excalidraw-mcp__*` (e.g. `batch_create_elements`, `describe_scene`) available → use MCP mode. This is the default for this user.
 2. **REST fallback**: only if MCP missing — `curl -s $EXPRESS_SERVER_URL/health` returns `{"status":"ok"}`.
-3. **Nothing** → auto-bootstrap `.mcp.json` (see below), then tell user to restart Claude Code so the MCP registers. Do not fake output.
+3. **Nothing** → auto-bootstrap the MCP config (see below), then tell user to reconnect the MCP so it registers. Do not fake output.
 
 ### Auto-bootstrap `.mcp.json`
 
@@ -43,7 +43,7 @@ When neither the MCP tools nor the REST fallback are available:
    ```
 
 4. If `.mcp.json` already exists, **merge** — add the `excalidraw-mcp` entry under `mcpServers` without clobbering other servers. Skip if `excalidraw-mcp` already present.
-5. Tell the user: file written, ensure `EXCALIDRAW_MCP_TOKEN` is exported in shell env, then restart Claude Code (or run `/mcp` to reconnect) before re-running the skill.
+5. Tell the user: file written, ensure `EXCALIDRAW_MCP_TOKEN` is exported in shell env, then reconnect before re-running the skill — **Claude Code:** restart it (or run `/mcp`). **Codex:** the `.mcp.json` above is Claude Code-specific; register the same server with `codex mcp add excalidraw-mcp` or add `[mcp_servers.excalidraw-mcp]` (url + headers) to `~/.codex/config.toml`, then restart Codex.
 
 Never write the bootstrap file outside the resolved project root, and never echo the token value.
 

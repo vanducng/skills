@@ -31,9 +31,9 @@ Keep `./docs/` honest. Scout the code, diff it against what the docs claim, writ
 | `check` | `references/check-workflow.md` | Validate-only: required files, size, freshness, broken refs. No writes. |
 | `adr` | `references/adr-workflow.md` | Record an architecture decision (the *why* behind an irreversible choice) under `docs/decisions/` |
 
-Parse `$ARGUMENTS` first word:
+Parse `$ARGUMENTS` first word (in runtimes without `$ARGUMENTS` substitution, use the text following the skill name in the user's message):
 - `init` / `update` / `check` / `adr` → load the matching reference
-- empty / unclear → `AskUserQuestion` with the options. Don't auto-run `init` — it writes files.
+- empty / unclear → `AskUserQuestion` with the options (AskUserQuestion in Claude Code; plain-text question elsewhere). Don't auto-run `init` — it writes files.
 
 ## Flags
 
@@ -92,7 +92,7 @@ secondary context, but never hand off only a basename.
 ## Token efficiency
 
 - **Scout in parallel, write once.** Don't re-scout per doc file.
-- **Read docs in bulk when many.** If `ls docs/*.md | wc -l` ≥ 4, spawn `Explore` subagents to read in parallel — see `references/update-workflow.md` Phase 1.5.
+- **Read docs in bulk when many.** If `ls docs/*.md | wc -l` ≥ 4, spawn `Explore` subagents to read in parallel (read sequentially if subagents unavailable) — see `references/update-workflow.md` Phase 1.5.
 - **Don't dump full `git diff` into the subagent prompt** — `git log --oneline` + `git diff --stat` is enough; the subagent pulls scoped diffs only for files it names.
 - **`--dry-run` costs almost nothing** — run it first on unfamiliar repos.
 

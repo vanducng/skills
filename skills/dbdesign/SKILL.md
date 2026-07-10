@@ -9,7 +9,7 @@ metadata:
 
 # DB Design
 
-Design database schemas from requirements, existing data, and query patterns. This skill covers modeling decisions and review quality; use `vd:sqlit` or `vd:miudb` to inspect live databases, `vd:diagram` for ERDs, and `vd:cnpg` for CloudNativePG provisioning.
+Design database schemas from requirements, existing data, and query patterns. This skill covers modeling decisions and review quality; use `vd:miudb` or the `sqlit` CLI to inspect live databases, `vd:diagram` for ERDs, and `vd:cnpg` for CloudNativePG provisioning.
 
 ## Reference Router
 
@@ -25,7 +25,7 @@ Read only what the task needs:
 ## Workflow
 
 1. Identify the database engine and context: new schema, extension of existing schema, analytics model, data import, migration review, or design doc.
-2. Inspect existing schema before proposing changes when a database or repo is available. Use `vd:miudb`, `vd:sqlit`, migrations, ORM models, dbt models, or schema files as source of truth.
+2. Inspect existing schema before proposing changes when a database or repo is available. Use `vd:miudb`, the `sqlit` CLI, migrations, ORM models, dbt models, or schema files as source of truth.
 3. Capture requirements before DDL:
    - entities and relationships
    - main reads/writes/reports

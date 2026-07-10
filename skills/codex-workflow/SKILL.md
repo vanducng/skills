@@ -42,6 +42,8 @@ Installed as the `codex-workflow` MCP extension (`vd mcp install codex-workflow`
 
 ## Native fallbacks (no orchestrator needed)
 
+If `run_workflow` (or any code-mode wrapper) fails with a missing `codex-code-mode-host`, the machine has the standalone `codex` cask without ChatGPT.app — the shared plugin runtime's file-access host ships only inside `/Applications/ChatGPT.app`. Don't retry the wrapper; disable the broken feature with `codex -c features.code_mode=false`, or drop to raw `codex exec -s read-only -C <dir>` (prompt via stdin, `-o` for output) or the fallbacks below.
+
 ### `spawn_agents_on_csv` — deterministic batch
 One worker per CSV row; each calls `report_agent_job_result` exactly once. Params: `csv_path`, `instruction` (with `{column}` placeholders), `id_column`, `output_schema`, `output_csv_path`, `max_concurrency`. Best for "review/audit/transform one file|package|service per row." See [references/native-orchestration.md](references/native-orchestration.md).
 
@@ -77,4 +79,3 @@ Scope only changes the Claude target (`project` → `./.mcp.json`, `user` → `~
 ## Integration
 - **Composes:** `vd:worktree` (parallel writes), the `~/.codex/agents/*.toml` roles.
 - **Install/manage:** `vd mcp install|list|enable|disable|doctor codex-workflow`.
-- **Not this:** FableCodex (a workflow-discipline gate, separate skill).

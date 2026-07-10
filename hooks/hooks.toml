@@ -1,65 +1,69 @@
-# vd-cli Claude hooks manifest.
-# `vd install hooks` copies these files into ~/.claude/hooks and registers the
-# non-lib entries in ~/.claude/settings.json. lib entries are copied only.
+# vd-cli agent hooks manifest (Claude Code + Codex).
+# `vd install hooks` copies these files into ~/.claude/hooks and registers plain
+# events in ~/.claude/settings.json. codex.*-prefixed events also install to
+# ~/.codex/hooks and register in ~/.codex/hooks.json (codex.notify wires the
+# `notify` program in ~/.codex/config.toml). lib entries are copied only.
+# All hooks are stdlib Python (no pip deps); runtime "uv" is available for
+# future hooks that need third-party packages.
 
 [[hook]]
-file = "session-init.cjs"
-runtime = "node"
+file = "session-init.py"
+runtime = "python3"
 event = "SessionStart"
 matcher = "startup|resume|clear|compact"
 
 [[hook]]
-file = "subagent-init.cjs"
-runtime = "node"
+file = "subagent-init.py"
+runtime = "python3"
 event = "SubagentStart"
 matcher = "*"
 
 [[hook]]
-file = "team-context-inject.cjs"
-runtime = "node"
+file = "team-context-inject.py"
+runtime = "python3"
 event = "SubagentStart"
 matcher = "*"
 
 [[hook]]
-file = "dev-rules-reminder.cjs"
-runtime = "node"
+file = "dev-rules-reminder.py"
+runtime = "python3"
 event = "UserPromptSubmit"
 
 [[hook]]
-file = "dev-rules-reminder.cjs"
-runtime = "node"
+file = "dev-rules-reminder.py"
+runtime = "python3"
 event = "codex.UserPromptSubmit"
 
 [[hook]]
-file = "scout-block.cjs"
-runtime = "node"
+file = "scout-block.py"
+runtime = "python3"
 event = "PreToolUse"
 matcher = "Bash|Glob|Grep|Read|Edit|Write"
 
 [[hook]]
-file = "statusline.cjs"
-runtime = "node"
+file = "statusline.py"
+runtime = "python3"
 event = "statusLine"
 
 # Copied but not registered (invoked by the team runtime, not a CC event).
 [[hook]]
-file = "task-completed-handler.cjs"
+file = "task-completed-handler.py"
 lib = true
 
 [[hook]]
-file = "teammate-idle-handler.cjs"
+file = "teammate-idle-handler.py"
 lib = true
 
 [[hook]]
-file = "lib/config.cjs"
+file = "lib/vd_config.py"
 lib = true
 
 [[hook]]
-file = "lib/paths.cjs"
+file = "lib/vd_paths.py"
 lib = true
 
 [[hook]]
-file = "lib/state.cjs"
+file = "lib/vd_state.py"
 lib = true
 
 # Telegram notifier (Python) — pings on turn-complete and approval.

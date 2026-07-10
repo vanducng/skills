@@ -81,7 +81,7 @@ curl -s -X PUT "${JIRA_BASE_URL}/rest/api/3/issue/<KEY>" \
   -H "Content-Type: application/json" \
   -d @/tmp/jira_update.json
 ```
-Use Atlassian Document Format (ADF) with `codeBlock` node for code. See memory file `jira-workflow.md` for full ADF template.
+Use Atlassian Document Format (ADF) with `codeBlock` node for code. See the REST ADF Description Pattern section below for the ADF payload structure.
 
 ### Modify
 ```bash
@@ -148,7 +148,7 @@ Load `references/jql.md` for:
 ```
 1. Fetch current state    → jira issue view ISSUE-KEY
 2. Show proposed change   → Display to user
-3. Get user approval      → AskUserQuestion
+3. Get user approval      → AskUserQuestion (Claude Code; plain-text question elsewhere)
 4. Execute command        → Run jira CLI
 5. Verify result          → jira issue view ISSUE-KEY
 ```

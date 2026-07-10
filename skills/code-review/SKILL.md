@@ -21,9 +21,11 @@ metadata:
 
 This skill **reviews and reports**. It does not implement fixes. If a fix is obvious and one-line, mention it in the comment as a suggestion — but don't apply it. Hand back to `vd:cook` / `vd:fix` for the actual work.
 
+> **Codex runtime:** this file uses Claude-Code tooling (`AskUserQuestion`, `Task(Explore)` subagents). Under `codex exec` use the self-contained `codex-review.md` in this skill dir instead; per-site fallbacks below also apply.
+
 ## Modes
 
-Auto-detect from arguments. Ambiguous or empty → `AskUserQuestion`.
+Auto-detect from arguments. Ambiguous or empty → `AskUserQuestion` (Claude Code; plain-text question elsewhere).
 
 | Argument | Mode | Source of diff |
 |---|---|---|
@@ -138,7 +140,7 @@ Capture `headRefOid` — every inline comment's `commit_id` MUST equal this so c
 |---|---|
 | < 300 lines | Read every changed file in full (file, not hunk). Manual pass. |
 | 300–1500 lines | Read full files for security-sensitive or core-logic changes; spot-check the rest. |
-| > 1500 lines | Batch via parallel `Task(Explore)` subagents grouped by directory; synthesize findings. Don't pour the whole diff into your context. |
+| > 1500 lines | Batch via parallel `Task(Explore)` subagents grouped by directory; synthesize findings. Don't pour the whole diff into your context. No subagents (Codex) → review directory-by-directory sequentially, or use `codex-review.md`. |
 
 ### 3. Build the review payload
 
@@ -223,7 +225,7 @@ It composes two patterns:
 
 ### `codebase` / `codebase parallel`
 
-Out of scope for the polished PR path. Spawn `Task(Explore)` subagents per top-level dir; each returns a findings list with file:line:severity:body. Synthesize into a single markdown report. Write to the injected `Reports:` path. Filename: `code-review-<date>-<slug>.md`.
+Out of scope for the polished PR path. Spawn `Task(Explore)` subagents per top-level dir (no subagents → scan each dir inline, sequentially); each returns a findings list with file:line:severity:body. Synthesize into a single markdown report. Write to the injected `Reports:` path. Filename: `code-review-<date>-<slug>.md`.
 
 ## Checklist (apply to every diff)
 

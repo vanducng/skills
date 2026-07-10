@@ -36,10 +36,11 @@ Do **not** reinvent worktree mechanics. `vd:worktree` already creates the worktr
 Detect the branch (ticket key is authoritative), then:
 
 ```bash
-node $HOME/.claude/skills/worktree/scripts/worktree.cjs create "<branch>" --no-prefix --json
+WT="$(for d in "$HOME/skills/skills/worktree" "$HOME/.claude/skills/worktree" "$HOME/.agents/skills/worktree"; do [ -d "$d" ] && { echo "$d/scripts/worktree.cjs"; break; }; done)"
+node "$WT" create "<branch>" --no-prefix --json
 ```
 
-Use the canonical path `$HOME/skills/skills/worktree/scripts/worktree.cjs` if this repo is at `$HOME/skills`; otherwise the installed symlink above. Parse the JSON for the worktree `path` and `portBase`, then move the session into the worktree (per the `sessionSwitch` block). The `.env` is already copied — you only *rewrite* it below.
+`$WT` resolves to the first worktree install that exists — the `$HOME/skills` dev repo, else the Claude (`~/.claude/skills`) or Codex (`~/.agents/skills`) install; pick it once per session and reuse it below. Parse the JSON for the worktree `path` and `portBase`, then move the session into the worktree (per the `sessionSwitch` block). The `.env` is already copied — you only *rewrite* it below.
 
 ```bash
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel)")   # main repo name
@@ -88,7 +89,7 @@ grep -q '^SANCTUM_STATEFUL_DOMAINS=' "$ENV" \
 
 ### 4. Database — isolate or share (Herd Pro footgun)
 
-On Herd Pro the worktree's copied `.env` points at the **same** shared DB as main. A feature branch running `migrate` / `migrate:fresh` / seeders would mutate your main dev database. Ask:
+On Herd Pro the worktree's copied `.env` points at the **same** shared DB as main. A feature branch running `migrate` / `migrate:fresh` / seeders would mutate your main dev database. Ask (AskUserQuestion in Claude Code; plain-text question elsewhere):
 
 ```
 AskUserQuestion:
@@ -166,9 +167,9 @@ When work is done, **route to the existing skills** rather than a bespoke PR flo
 Then clean up through `vd:worktree` — the pre-remove hook from step 6 does the Herd unlink + isolated-DB drop automatically:
 
 ```bash
-node $HOME/.claude/skills/worktree/scripts/worktree.cjs remove "$SITE_NAME"   # one worktree: hook → branch → metadata
+node "$WT" remove "$SITE_NAME"   # one worktree: hook → branch → metadata
 # or sweep all merged/stale worktrees at once (each runs its own teardown hook):
-node $HOME/.claude/skills/worktree/scripts/worktree.cjs clean --yes
+node "$WT" clean --yes
 ```
 
 Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` tears down the Herd site and isolated DB for **every** swept worktree — no orphaned `.test` sites or leftover databases. (Stop Vite first if it's still running: `pkill -f "node.*vite"`.)

@@ -57,6 +57,8 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 
 ## Hard rules
 
+> **Runtime note.** `AskUserQuestion` and the named subagents (`tester`, `code-reviewer`, `journal-writer`, `docs-manager`) are Claude Code mechanics — on Codex or any runtime without them, ask the same question in plain text and run that step's work inline (sequentially) instead of delegating. Applies throughout this skill and `references/ship-workflow.md`.
+
 0. **Merge is opt-in — a bare ship never merges.** A plain `vd:ship` / "ship to main as pr" **stops after the PR is green and comments are clear**; it does **not** merge. Merge only when one of these is true: `--auto` is set, `--merge` is set, or the user explicitly says "merge" / "land it" / "merge anyway" in *this* request. "Ship to main as a PR" is a request to *open and green* the PR, not to merge it. On a bare ship the terminal state is *PR ready on green CI*, reported with the PR URL — leave the merge to the user. This overrides any older "ship lands = merges" reading. (Do not treat CI-green + zero comments as license to merge; that gate makes merge *safe*, not *requested*.)
 
 1. **Never ship from the target branch without a feature branch.** If on `main` / `master` / `dev` / `staging` / `uat` with changes to ship:
@@ -82,7 +84,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
    slug (`feat/foo`, `2ndphone`, etc.), rename it before push/PR; do not open a
    PR and fix the name later.
 10. **PR template invariant.** Step 12 must load `references/pr-template.md`
-   and the canonical `~/skills/skills/git/references/pr-template.md` before any
+   and the canonical `../git/references/pr-template.md` (sibling git skill) before any
    `gh pr create` or `gh pr edit`. If the repo has a PR template, fill that
    template only. Otherwise use the canonical fallback body. Do not invent
    `Summary` / `Validation` / ad hoc PR bodies.

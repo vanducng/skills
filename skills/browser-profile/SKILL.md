@@ -32,7 +32,7 @@ Why not Playwright `launchPersistentContext`? Because that path requires Playwri
 ## Quick start
 
 ```bash
-SKILL=$HOME/.claude/skills/browser-profile/scripts
+SKILL="${CLAUDE_SKILL_DIR:-$(for d in "$HOME/skills/skills/browser-profile" "$HOME/.claude/skills/browser-profile" "$HOME/.agents/skills/browser-profile"; do [ -d "$d" ] && { echo "$d"; break; }; done)}/scripts"
 
 # 1. Open a fresh profile manually (you'll log in once)
 "$SKILL/profile-open.sh" retell-staging

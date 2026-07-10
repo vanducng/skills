@@ -30,8 +30,8 @@ No Puppeteer, no bundled Chromium, no node_modules — measuring against the per
 ## Quick start
 
 ```bash
-SKILL=$HOME/.claude/skills/web-perf/scripts
-BP=$HOME/.claude/skills/browser-profile/scripts
+SKILL="${CLAUDE_SKILL_DIR:-$(for d in "$HOME/skills/skills/web-perf" "$HOME/.claude/skills/web-perf" "$HOME/.agents/skills/web-perf"; do [ -d "$d" ] && { echo "$d"; break; }; done)}/scripts"
+BP="$(for d in "$HOME/skills/skills/browser-profile" "$HOME/.claude/skills/browser-profile" "$HOME/.agents/skills/browser-profile"; do [ -d "$d" ] && { echo "$d"; break; }; done)/scripts"
 
 "$BP/profile-open.sh" myapp-dev          # or reuse one that's already open
 PORT=9382                                 # from profile-open output / e2e.cjs status --json
