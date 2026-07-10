@@ -24,31 +24,34 @@ For a diagram that merely illustrates a docs page, keep the generation session i
 ## Quick Start
 
 ```bash
+# Resolve the Python interpreter: shared venv when present, else plain python3 (`pip install --user requests`)
+PY="$([ -x "$HOME/.claude/skills/.venv/bin/python3" ] && echo "$HOME/.claude/skills/.venv/bin/python3" || echo python3)"
+
 # Auto-detect type, default PNG
-~/.claude/skills/.venv/bin/python3 $HOME/skills/skills/diagram/scripts/generate.py \
+$PY $HOME/skills/skills/diagram/scripts/generate.py \
   "system architecture for an OAuth signup flow with FastAPI backend"
 
 # Explicit type, SVG output
-~/.claude/skills/.venv/bin/python3 $HOME/skills/skills/diagram/scripts/generate.py \
+$PY $HOME/skills/skills/diagram/scripts/generate.py \
   --type sequence --format svg \
   "user logs in: User → App → Auth Provider → callback"
 
 # Version-controlled workflow artifact for docs/diagrams/
-~/.claude/skills/.venv/bin/python3 $HOME/skills/skills/diagram/scripts/generate.py \
+$PY $HOME/skills/skills/diagram/scripts/generate.py \
   --type workflow --format svg --versioned --slug checkout-fulfillment \
   "checkout workflow from cart review through payment, fraud check, warehouse pick, and shipment"
 
 # Iterate on the latest diagram with feedback
-~/.claude/skills/.venv/bin/python3 $HOME/skills/skills/diagram/scripts/generate.py \
+$PY $HOME/skills/skills/diagram/scripts/generate.py \
   --regen "make the auth box use the warning color"
 
 # Pick a different visual style preset (cyberpunk for talk slides)
-~/.claude/skills/.venv/bin/python3 $HOME/skills/skills/diagram/scripts/generate.py \
+$PY $HOME/skills/skills/diagram/scripts/generate.py \
   --preset cyberpunk \
   "data flow: Kafka → Spark → ClickHouse → Grafana"
 
 # Use a clear draft/screenshot as layout guidance for Codex PNG generation
-~/.claude/skills/.venv/bin/python3 $HOME/skills/skills/diagram/scripts/generate.py \
+$PY $HOME/skills/skills/diagram/scripts/generate.py \
   --format png --provider codex --reference-image draft.png \
   "polished cloud architecture diagram; follow the reference layout exactly"
 ```
@@ -92,7 +95,7 @@ MYSQL_PWD="$DB_PASS" mysql -N --raw -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -D
 #    see the docstring in er_html.py for the shape
 
 # 3. generate the interactive ERD
-~/.claude/skills/.venv/bin/python3 $HOME/skills/skills/diagram/scripts/er_html.py \
+python3 $HOME/skills/skills/diagram/scripts/er_html.py \
   --schema schema.json --meta meta.json -o erd.html        # self-contained (offline)
   # add --cdn for a ~140 KB file that pulls Mermaid/svg-pan-zoom from jsdelivr
 ```
@@ -259,7 +262,7 @@ Repo-relative paths are fine as secondary context, but the final handoff must in
 ## Customizing styles
 
 Every diagram inherits from:
-- `references/style-tokens.md` — palette, typography, iconography, line weights
+- `references/style-foundations.md` — palette, typography, iconography, line weights (per-preset palette overrides in `references/presets/<name>/style-tokens.md`)
 - `references/composition-rules.md` — whitespace, hierarchy, label placement, density
 - `references/types/<type>.md` — type-specific prompt template + golden examples
 - `references/svg-contract.md` — SVG output schema (only loaded when `--format svg`)
@@ -275,7 +278,7 @@ Edit these once and every future diagram inherits the change. Keep type refs ≤
 
 ## Dependencies
 
-- Python: `requests` (already in the shared `~/.claude/skills/.venv`)
+- Python: `requests` (in the shared `~/.claude/skills/.venv` when present; otherwise `pip install --user requests`)
 - Node: the `file-browser` skill (`cd $HOME/skills/skills/file-browser && npm install`) for the gallery viewer
 - Env: `OPEN_ROUTER_KEY` or `OPENROUTER_API_KEY`
 

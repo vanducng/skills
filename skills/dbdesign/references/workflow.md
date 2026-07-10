@@ -19,7 +19,7 @@ If any of these are missing and materially affect the design, ask a targeted que
 
 Use available sources in this order:
 
-1. Live schema via `vd:miudb` or `vd:sqlit`.
+1. Live schema via `vd:miudb` or the `sqlit` CLI.
 2. Migration files and schema dumps.
 3. ORM models and validation schemas.
 4. dbt/source/semantic models for analytics.

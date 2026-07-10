@@ -195,12 +195,12 @@ User wants...                            → Use
 ─────────────────────────────────────────────────────────────────────
 "why did this run fail"                  → REST: dagRuns → taskInstances?state=failed → logs/<try>
 "any failed DAGs today"                  → REST: /dagRuns?state=failed&start_date_gte=...
-"scheduler is broken / DAGs not parsing" → astro CLI: deployment logs --component scheduler
+"scheduler is broken / DAGs not parsing" → astro CLI: deployment logs --scheduler
 "task log for try 2 of X"                → REST: /taskInstances/X/logs/2
-"worker OOM"                             → astro CLI: deployment logs --component workers --keyword OOMKilled
+"worker OOM"                             → astro CLI: deployment logs --workers --keyword OOMKilled
 "what env vars are set"                  → astro CLI: deployment variable list
 "copy staging vars to prod"              → astro CLI: deployment variable copy
-"DAG won't import"                       → REST: /importErrors  AND  astro logs --component scheduler
+"DAG won't import"                       → REST: /importErrors  AND  astro logs --scheduler
 "compare schedule/tasks staging vs prod" → REST: /dags/<id>/details on both URLs
 "pool is starved"                        → REST: /pools
 "trigger a backfill" / "clear failed"    → DO NOT — read-only token. Ask user to use Astro UI or `make airflow`.

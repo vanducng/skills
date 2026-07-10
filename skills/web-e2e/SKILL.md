@@ -48,7 +48,7 @@ which jq || brew install jq   # optional, nicer JSON
 The user's core need first: a browser that remembers creds/cookies every time. No config file required.
 
 ```bash
-BP=$HOME/.claude/skills/browser-profile/scripts
+BP="$(for d in "$HOME/skills/skills/browser-profile" "$HOME/.claude/skills/browser-profile" "$HOME/.agents/skills/browser-profile"; do [ -d "$d" ] && { echo "$d/scripts"; break; }; done)"
 
 "$BP/profile-open.sh" myapp-dev      # headed Chrome opens
 # → human logs in ONCE (Google OAuth, MFA, whatever) in that window
@@ -101,7 +101,7 @@ Run `e2e.cjs status` from inside the worktree; it resolves to that worktree's in
 One script, one verb. `--json` for agent consumption.
 
 ```bash
-E2E=$HOME/.claude/skills/web-e2e/scripts/e2e.cjs
+E2E="${CLAUDE_SKILL_DIR:-$(for d in "$HOME/skills/skills/web-e2e" "$HOME/.claude/skills/web-e2e" "$HOME/.agents/skills/web-e2e"; do [ -d "$d" ] && { echo "$d"; break; }; done)}/scripts/e2e.cjs"
 
 node "$E2E" status            # health + checks + profile state + auth probe
 node "$E2E" status --wait     # run boot.up first if unhealthy, then poll until green (--timeout 120)

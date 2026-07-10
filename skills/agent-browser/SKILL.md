@@ -47,11 +47,25 @@ agent-browser wait --url "**/dashboard"
 
 | Mechanism | What persists | When |
 |---|---|---|
-| `--profile <dir>` / `AGENT_BROWSER_PROFILE` | Everything (launchPersistentContext: cookies, localStorage, service workers) | Long-lived logins for *this* stack; use a dedicated dir like `~/.cache/agent-browser-profiles/<app>` — never a real Chrome profile (macOS keychain encryption breaks it) |
+| `--profile <dir>` / `AGENT_BROWSER_PROFILE` | Everything (launchPersistentContext: cookies, localStorage, service workers) | Long-lived logins for *this* stack; use a dedicated dir under `~/.agent-browser-profiles/<context>` — never a real Chrome profile (macOS keychain encryption breaks it) |
 | `state save/load <file>` or `--state` | Cookies + storage snapshot | Portable, per-repo (gitignored `.browser/auth.json` convention); pairs with CI |
 | `--session-name <name>` | Auto-saved/restored session state | Convenience for recurring tasks |
 
 Profile mode excludes `--cdp`, `--state`, and extensions — documented upstream, not a bug to debug.
+
+### Named profiles — one per identity context
+
+Keep a separate persistent profile per identity (work org, client, personal) so the right account logs into the right service: `~/.agent-browser-profiles/<context>` (e.g. `default` for personal, one dir per organization). `AGENT_BROWSER_PROFILE` (often exported in the shell rc) sets the fallback; an explicit `--profile` flag wins. A repo may pin its profile via project memory or a repo-local skill — check there first.
+
+**Before driving any authenticated service: confirm the profile with the user.** If the task touches a login-bearing site and the profile choice wasn't already pinned (memory/repo skill/explicit user instruction), open the target URL **headed** with the candidate profile and ask the user to confirm it's the right identity — and to complete login (SSO/2FA) in that window if the session is missing:
+
+```bash
+agent-browser close   # daemon holds one profile; restart to switch
+agent-browser --profile ~/.agent-browser-profiles/<context> --headed open https://target.example
+# pause → user confirms profile / logs in once → session persists in the profile dir
+```
+
+Do not guess between profiles; a wrong-identity action on a real service is hard to undo.
 
 ## Command surface (high-traffic subset)
 
@@ -78,13 +92,13 @@ agent-browser -p browserbase ...                         # cloud (BROWSERBASE_AP
 **Record an e2e flow** (e.g. evidence for a UI bug report):
 
 ```bash
-agent-browser --profile ~/.cache/agent-browser-profiles/myapp open https://myapp.test
+agent-browser --profile ~/.agent-browser-profiles/myapp open https://myapp.test
 agent-browser record start flow.webm
 # ... drive the flow via snapshot/click/fill ...
 agent-browser record stop
 ```
 
-**Mock an external API during a flow** — the answer to "test the UI without hitting the real vendor" (RetellAi-style test calls):
+**Mock an external API during a flow** — the answer to "test the UI without hitting the real vendor":
 
 ```bash
 agent-browser network route "**/api.vendor.com/**" --body '{"ok":true}'
@@ -121,7 +135,7 @@ agent-browser --session r close
 ```bash
 agent-browser open https://myapp.test/page
 # click the trigger scoped to ITS row — closest('tr'); going N parents up matches a container holding every row and opens the wrong one
-agent-browser eval "(() => { const b=[...document.querySelectorAll('button')].find(x => x.closest('tr')?.textContent.includes('Brianna')); b.click(); })()"
+agent-browser eval "(() => { const b=[...document.querySelectorAll('button')].find(x => x.closest('tr')?.textContent.includes('Target Name')); b.click(); })()"
 agent-browser wait --text "Workflow run"
 agent-browser eval '(() => { const d=document.querySelector("[role=dialog]"); if (d) { d.style.animation="none"; d.style.transition="none"; d.style.transform="none"; } })()'
 agent-browser screenshot /abs/path/drawer.png      # positional, ABSOLUTE path

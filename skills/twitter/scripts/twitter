@@ -6,7 +6,7 @@
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PYTHON="$HOME/.claude/skills/.venv/bin/python3"
+PYTHON="$([ -x "$HOME/.claude/skills/.venv/bin/python3" ] && echo "$HOME/.claude/skills/.venv/bin/python3" || echo python3)"
 SCRIPTS="$SKILL_DIR/scripts"
 
 VERBS=(fetch timeline post reply thread delete import-from-dia login doctor)
