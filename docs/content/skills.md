@@ -30,6 +30,8 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:gopass`, `vd:journal`, `vd:cktovd`, `vd:workbench` |
 | Skill lifecycle | `vd:skill-management`, `vd:rule-miner`, `vd:skill-evolve` |
 
+`vd:jira` accepts `--project` and `--type bug|task` to apply untracked local rules from `~/.config/vd/jira-rules/`.
+
 ## Language And Migration
 
 `vd:gostack` is an opinionated reference for Sam Berthe's Go libraries (`lo`, `oops`, `do`, `mo`, `slog`, `hot`, `ro`), with per-library notes under `skills/gostack/references/`. `vd:py2go` runs end-to-end Python-to-Go migrations with six project-type playbooks and pinned stack defaults.
