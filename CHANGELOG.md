@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.25.2](https://github.com/vanducng/skills/compare/v1.25.1...v1.25.2) (2026-07-17)
+
+
+### Bug Fixes
+
+* **cook:** resolve relative .workbench plan paths from linked worktrees ([#284](https://github.com/vanducng/skills/issues/284)) ([0de9b66](https://github.com/vanducng/skills/commit/0de9b661f07b0aff83fcfaed50e589545d6b3e8b))
+
 ## [1.25.1](https://github.com/vanducng/skills/compare/v1.25.0...v1.25.1) (2026-07-17)
 
 
