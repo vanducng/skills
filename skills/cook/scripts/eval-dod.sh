@@ -25,10 +25,21 @@ LOCAL_TYPES="test_suite_passes cmd_exits_zero shell http_status"
 
 die() { echo "eval-dod: $*" >&2; exit 2; }
 
+# Resolve a plan path; a relative .workbench/ path from a linked worktree belongs to the main checkout.
+resolve_plan() {
+  local plan="$1" main
+  if [ ! -f "$plan" ] && [ "${plan#/}" = "$plan" ]; then
+    main=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || main=""
+    main="${main%/.git}"
+    [ -n "$main" ] && [ -f "$main/$plan" ] && plan="$main/$plan"
+  fi
+  [ -f "$plan" ] || die "plan file not found: $plan"
+  printf '%s' "$plan"
+}
+
 # Print the verifier lines ("<type>\t<arg>") from a plan.md's DoD section.
 parse_dod() {
   local plan="$1"
-  [ -f "$plan" ] || die "plan file not found: $plan"
   awk '
     /^##[[:space:]]+Definition of Done/ { inblk=1; next }
     inblk && /^##[[:space:]]/           { inblk=0 }
@@ -82,8 +93,9 @@ eval_one() {
 }
 
 cmd_lint() {
-  local plan="$1" n=0 bad=0
-  [ -f "$plan" ] || die "plan file not found: $plan"
+  local plan
+  plan=$(resolve_plan "$1") || exit $?
+  local n=0 bad=0
   while IFS=$'\t' read -r type arg; do
     [ -z "$type" ] && continue
     n=$((n+1))
@@ -101,8 +113,9 @@ cmd_lint() {
 }
 
 cmd_run() {
-  local plan="$1" n=0 fail=0 result evidence
-  [ -f "$plan" ] || die "plan file not found: $plan"
+  local plan
+  plan=$(resolve_plan "$1") || exit $?
+  local n=0 fail=0 result evidence
   echo "🔒 Goal gate — ## Definition of Done ($plan)"
   while IFS=$'\t' read -r type arg; do
     [ -z "$type" ] && continue
