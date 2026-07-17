@@ -435,6 +435,8 @@ class ScoutBlockTest(HookTestBase):
         self.assertEqual(code, 2, err)
         code, _, err = self._bash('bash bash bash vendor/bin/tool')
         self.assertEqual(code, 0, err)
+        code, _, err = self._bash('source rm -rf node_modules')
+        self.assertEqual(code, 2, err)
 
     def test_blocks_read_of_git_files_despite_extension(self):
         for cmd in ('cat .git/config', 'bat .git/objects/pack/p.idx'):
@@ -444,6 +446,10 @@ class ScoutBlockTest(HookTestBase):
     def test_blocks_assignment_value_after_command(self):
         code, _, err = self._bash('echo FOO=.git/config')
         self.assertEqual(code, 2, err)
+        code, _, err = self._bash('echo FOO=node_modules/x BAR=dist/y')
+        self.assertEqual(code, 2, err)
+        code, _, err = self._bash('echo FOO=src/main.py')
+        self.assertEqual(code, 0, err)
 
     def test_blocks_dot_source_of_blocked_path(self):
         code, _, err = self._bash('. vendor/bin/activate.sh')
