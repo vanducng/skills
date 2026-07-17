@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.25.0](https://github.com/vanducng/skills/compare/v1.24.0...v1.25.0) (2026-07-17)
+
+
+### Features
+
+* consolidate golang micro-skills and adopt devops with literal triggers ([#280](https://github.com/vanducng/skills/issues/280)) ([b1acebc](https://github.com/vanducng/skills/commit/b1acebc735145febadac1404fc9efce579e04e01))
+
 ## [1.24.0](https://github.com/vanducng/skills/compare/v1.23.0...v1.24.0) (2026-07-10)
 
 
