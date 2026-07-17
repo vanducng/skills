@@ -1,6 +1,6 @@
 ---
 name: uiuxdesign
-description: "UI/UX design quality across interfaces — visual design, UX review, accessibility audits, design systems, and design critique — plus modern web frontend implementation. Use for design-quality scoring and refactor loops, design reviews, responsive UI, visual polish, design tokens, Next.js or React implementation, TanStack Router/Query/Form/Table/Start, Playwright/Vitest web testing, Core Web Vitals, dashboards, forms, data tables, charts, landing pages, product pages, and optional Three.js/WebGL/WebGPU scenes."
+description: "UI/UX design quality across interfaces — visual design, UX review, accessibility audits, design systems, and design critique — plus modern web frontend implementation. Use for design-quality scoring and refactor loops, design reviews, style selection (40+ named styles), color palettes and font pairing by product type, shadcn/ui and Tailwind theming, responsive UI, visual polish, design tokens, Next.js or React implementation, TanStack Router/Query/Form/Table/Start, Playwright/Vitest web testing, Core Web Vitals, dashboards, forms, data tables, charts, landing pages, product pages, and optional Three.js/WebGL/WebGPU scenes."
 license: MIT
 metadata:
   author: vanducng
@@ -16,6 +16,9 @@ Drive UI/UX design quality across any interface — aesthetic direction, UX revi
 Read only what the task needs:
 
 - `references/design-quality.md`: visual design, UX review, accessibility, responsive layout, typography, forms, charts, and polish checks.
+- `references/style-taxonomy.md`: 40+ named styles with best-for/avoid guidance, dashboard sub-styles, and the product → style → tokens selection workflow.
+- `references/palettes-and-fonts.md`: semantic-token color palettes by product type and Google-Font pairings by mood (with CJK/RTL coverage).
+- `references/tailwind-shadcn.md`: shadcn/ui + Tailwind idioms — setup, CSS-variable theming, dark mode, responsive, component/form/table patterns, and the Web Interface Guidelines review pass.
 - `references/app-frameworks.md`: React, Next.js App Router, Server/Client Components, caching, monorepos, icons, and frontend architecture.
 - `references/tanstack.md`: TanStack Router, Query, Form, Table, Start, and when to choose them.
 - `references/testing.md`: Vitest, Testing Library, Playwright, accessibility, visual regression, performance, cross-browser, CI, and release checks.
@@ -26,6 +29,8 @@ Read only what the task needs:
 1. Inspect the existing app before choosing patterns: package manager, framework, route layout, component library, design tokens, icons, tests, and current visual conventions.
 2. Classify the task:
    - **Design/review:** load `design-quality.md`.
+   - **Choosing a style, palette, or fonts:** load `style-taxonomy.md` and `palettes-and-fonts.md`.
+   - **Building/theming shadcn + Tailwind components:** load `tailwind-shadcn.md`.
    - **React/Next/framework architecture:** load `app-frameworks.md`.
    - **TanStack feature:** load `tanstack.md`.
    - **Tests, QA, a11y, performance, or release validation:** load `testing.md`.
