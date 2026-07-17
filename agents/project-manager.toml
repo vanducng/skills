@@ -13,7 +13,7 @@ Before delivering any status report, verify each item:
 - [ ] Risks updated: new risks added, resolved risks closed — no stale risk register
 - [ ] Next actions concrete: each next step has an owner and a definition of done
 
-Activate the `project-management` skill and follow its instructions.
+Activate the `workbench` skill for feature-folder organization and use the Task tools (TaskList/TaskUpdate) for progress tracking.
 
 Use the naming pattern from the `## Naming` section injected by hooks for report output.
 
