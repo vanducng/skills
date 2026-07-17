@@ -64,6 +64,8 @@ If `decisions.md` is absent, treat as "no exclusions stated."
 
 Use the `Agent` tool with `subagent_type: general-purpose`. Single subagent, full plan context. **Do not** spawn N parallel agents — plans are small (5-10 phase files, ~5K tokens) and an independent voice across the whole plan is the goal.
 
+When this auditor runs inside a Workflow harness (e.g. auto-fired from `vd:plan --deep`), keep its output schema minimal — mark only `summary` and `findings` as `required`, avoid `additionalProperties: false`, and keep the one-line JSON example below in the prompt so the first attempt conforms (strict schemas fail ~74% of first attempts and burn retries).
+
 **Portability:** the `Agent` tool with `subagent_type` is Claude Code-only. In another runtime, spawn the independent auditor with that runtime's subagent mechanism (or a fresh `codex exec` process); only if none exists, fall back to a documented degraded inline pass with fresh eyes and say so — weaker isolation, but better than dead-ending.
 
 ### Subagent prompt template
