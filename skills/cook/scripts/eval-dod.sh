@@ -93,7 +93,8 @@ eval_one() {
 }
 
 cmd_lint() {
-  local plan; plan=$(resolve_plan "$1") || exit $?
+  local plan
+  plan=$(resolve_plan "$1") || exit $?
   local n=0 bad=0
   while IFS=$'\t' read -r type arg; do
     [ -z "$type" ] && continue
@@ -112,7 +113,8 @@ cmd_lint() {
 }
 
 cmd_run() {
-  local plan; plan=$(resolve_plan "$1") || exit $?
+  local plan
+  plan=$(resolve_plan "$1") || exit $?
   local n=0 fail=0 result evidence
   echo "🔒 Goal gate — ## Definition of Done ($plan)"
   while IFS=$'\t' read -r type arg; do
