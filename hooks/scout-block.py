@@ -178,7 +178,7 @@ try:
     ])
 
     # In command position these run the next token as a program, not a scan target.
-    EXEC_WRAPPERS = set(['sudo', 'bash', 'sh', 'source'])
+    EXEC_WRAPPERS = set(['sudo', 'bash', 'sh', 'source', 'env'])
 
     # Cheap read-only single-file readers; an explicit file arg is not a tree scan.
     READ_CMDS = set(['cat', 'head', 'tail', 'stat', 'wc', 'bat', 'less', 'more'])
@@ -208,6 +208,7 @@ try:
     _EXT_RE = re.compile(r'\.[a-zA-Z0-9]{1,6}$')
     _ASSIGN_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
     _GLOB_RE = re.compile(r'[*?\[\]{}]')
+    _GIT_SEG_RE = re.compile(r'(^|/)\.git(/|$)')
 
     def extract_bash_paths(cmd):
         if not cmd:
@@ -231,7 +232,6 @@ try:
         is_read = False
         seen_cmd = False
         skip_next = False
-        wrappers = 0
 
         for tok in tokens:
             if skip_next:
@@ -241,11 +241,14 @@ try:
                 is_fs = False
                 is_read = False
                 seen_cmd = False
-                wrappers = 0
                 continue
-            # FOO=bar env-var prefix: the value is not a scan target
+            # FOO=bar prefix before the command is not a scan target; after it, check the value
             if _ASSIGN_RE.match(tok):
-                continue
+                if not seen_cmd:
+                    continue
+                tok = tok.split('=', 1)[1]
+                if not tok:
+                    continue
             if tok.startswith('-'):
                 # --exclude=X style: skip both halves
                 if '=' in tok:
@@ -255,9 +258,8 @@ try:
                     skip_next = True
                 continue
             if not seen_cmd:
-                # command position: exec wrappers keep the next token in command position (cap 2; quoted payloads of bash -c are still scanned via the quoted pass)
-                if wrappers < 2 and tok.lower() in EXEC_WRAPPERS:
-                    wrappers += 1
+                # command position: exec wrappers keep the next token in command position (quoted payloads of bash -c are still scanned via the quoted pass)
+                if tok.lower() in EXEC_WRAPPERS:
                     continue
                 seen_cmd = True
                 lc = tok.lower()
@@ -271,8 +273,8 @@ try:
             if is_fs and is_blocked_name:
                 results.append(tok)
                 continue
-            # cheap read: explicit single file (has extension, no glob) is not a tree scan
-            if is_read and _EXT_RE.search(tok) and not _GLOB_RE.search(tok):
+            # cheap read: explicit single file (has extension, no glob) is not a tree scan; .git stays gated by the checker
+            if is_read and _EXT_RE.search(tok) and not _GLOB_RE.search(tok) and not _GIT_SEG_RE.search(tok):
                 continue
             if looks_path:
                 results.append(tok)

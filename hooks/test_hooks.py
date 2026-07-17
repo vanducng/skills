@@ -428,8 +428,21 @@ class ScoutBlockTest(HookTestBase):
             code, _, _ = self._bash(cmd)
             self.assertEqual(code, 2, cmd)
 
-    def test_blocks_exec_wrapper_chain_beyond_cap(self):
-        code, _, _ = self._bash('bash bash bash vendor/bin/tool')
+    def test_wrapper_chain_stays_transparent(self):
+        # wrappers never hide the real command: fs scan behind a chain still blocks,
+        # executing a tool behind a chain stays allowed
+        code, _, _ = self._bash('bash bash bash rm -rf node_modules')
+        self.assertEqual(code, 2)
+        code, _, err = self._bash('bash bash bash vendor/bin/tool')
+        self.assertEqual(code, 0, err)
+
+    def test_blocks_read_of_git_files_despite_extension(self):
+        for cmd in ('cat .git/config', 'bat .git/objects/pack/p.idx'):
+            code, _, _ = self._bash(cmd)
+            self.assertEqual(code, 2, cmd)
+
+    def test_blocks_assignment_value_after_command(self):
+        code, _, _ = self._bash('echo FOO=.git/config')
         self.assertEqual(code, 2)
 
     def test_blocks_dot_source_of_blocked_path(self):
