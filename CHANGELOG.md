@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.27.0](https://github.com/vanducng/skills/compare/v1.26.0...v1.27.0) (2026-07-17)
+
+
+### Features
+
+* **agents:** track Claude Code subagent definitions beside the Codex TOMLs ([#290](https://github.com/vanducng/skills/issues/290)) ([5ac4084](https://github.com/vanducng/skills/commit/5ac4084995ac8c42b3b0f1e8c791cae795fb50d6))
+
 ## [1.26.0](https://github.com/vanducng/skills/compare/v1.25.3...v1.26.0) (2026-07-17)
 
 
