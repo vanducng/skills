@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.28.0](https://github.com/vanducng/skills/compare/v1.27.0...v1.28.0) (2026-07-17)
+
+
+### Features
+
+* **jira:** add local project rule profiles ([#278](https://github.com/vanducng/skills/issues/278)) ([662bbbe](https://github.com/vanducng/skills/commit/662bbbe8799c33527be0e059d5aeff1b69ef8b1d))
+
 ## [1.27.0](https://github.com/vanducng/skills/compare/v1.26.0...v1.27.0) (2026-07-17)
 
 
