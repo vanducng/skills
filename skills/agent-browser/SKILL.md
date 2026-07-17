@@ -169,4 +169,3 @@ agent-browser screenshot /abs/path/drawer.png      # positional, ABSOLUTE path
 ## Future (deliberately out of scope for MVP)
 
 - Browserbase cloud recipes beyond `-p browserbase` (the `vd:browser` skill owns cloud contexts).
-- Wiring `--state` exports into `vd:web-testing`'s storageState replay.
