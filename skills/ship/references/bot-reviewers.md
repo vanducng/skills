@@ -23,7 +23,6 @@ How to respond to each automated PR reviewer (Step 13 / 15b). Two classes:
 
 | Tool | How to run | Re-review |
 |---|---|---|
-| **open-code-review** (`ocr`) | `open-code-review` skill / `ocr` CLI against the diff | re-run the CLI (no PR trigger) |
 | **miu-cr** (`miucr`) | `miucr` skill / CLI | re-run the CLI (no PR trigger) |
 
 These post line-level findings locally (and can apply fixes); they don't watch the PR, so iterate by re-running.
