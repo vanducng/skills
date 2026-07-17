@@ -45,7 +45,7 @@ try:
     TARGET_SOURCE = '(^|/)target(/|$)'
 
     # ponytail: .git/info/exclude is a legit worktree/cktovd write target; the rest of .git stays blocked.
-    GIT_INFO_RE = re.compile(r'(^|/)\.git/info/')
+    GIT_INFO_EXCLUDE_RE = re.compile(r'(^|/)\.git/info/exclude$')
 
     # -- minimal gitignore-style pattern matching -----------------------------
 
@@ -144,7 +144,7 @@ try:
             if regex.search(normalized):
                 return {'blocked': False, 'pattern': None}
 
-        if GIT_INFO_RE.search(normalized):
+        if GIT_INFO_EXCLUDE_RE.search(normalized) and '..' not in normalized.split('/'):
             return {'blocked': False, 'pattern': None}
 
         for regex in checker['allBlocked']:
@@ -178,7 +178,7 @@ try:
     ])
 
     # In command position these run the next token as a program, not a scan target.
-    EXEC_WRAPPERS = set(['sudo', 'bash', 'sh', 'source', '.'])
+    EXEC_WRAPPERS = set(['sudo', 'bash', 'sh', 'source'])
 
     # Cheap read-only single-file readers; an explicit file arg is not a tree scan.
     READ_CMDS = set(['cat', 'head', 'tail', 'stat', 'wc', 'bat', 'less', 'more'])
@@ -231,6 +231,7 @@ try:
         is_read = False
         seen_cmd = False
         skip_next = False
+        wrappers = 0
 
         for tok in tokens:
             if skip_next:
@@ -240,6 +241,7 @@ try:
                 is_fs = False
                 is_read = False
                 seen_cmd = False
+                wrappers = 0
                 continue
             # FOO=bar env-var prefix: the value is not a scan target
             if _ASSIGN_RE.match(tok):
@@ -253,8 +255,9 @@ try:
                     skip_next = True
                 continue
             if not seen_cmd:
-                # command position: exec wrappers keep the next token in command position
-                if tok.lower() in EXEC_WRAPPERS:
+                # command position: exec wrappers keep the next token in command position (cap 2; quoted payloads of bash -c are still scanned via the quoted pass)
+                if wrappers < 2 and tok.lower() in EXEC_WRAPPERS:
+                    wrappers += 1
                     continue
                 seen_cmd = True
                 lc = tok.lower()

@@ -423,6 +423,19 @@ class ScoutBlockTest(HookTestBase):
         code, _, _ = self._bash('grep -r foo node_modules/')
         self.assertEqual(code, 2)
 
+    def test_blocks_git_info_traversal(self):
+        for cmd in ('cat .git/info/../../config', 'cat a/../.git/info/exclude'):
+            code, _, _ = self._bash(cmd)
+            self.assertEqual(code, 2, cmd)
+
+    def test_blocks_exec_wrapper_chain_beyond_cap(self):
+        code, _, _ = self._bash('bash bash bash vendor/bin/tool')
+        self.assertEqual(code, 2)
+
+    def test_blocks_dot_source_of_blocked_path(self):
+        code, _, _ = self._bash('. vendor/bin/activate.sh')
+        self.assertEqual(code, 2)
+
     def test_still_blocks_find_scan_of_git(self):
         code, _, _ = self._bash("find .git -name '*.pack'")
         self.assertEqual(code, 2)
