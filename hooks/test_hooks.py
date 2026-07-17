@@ -420,42 +420,42 @@ class ScoutBlockTest(HookTestBase):
             self.assertEqual(code, 0, '%s: %s' % (cmd, err))
 
     def test_still_blocks_recursive_grep_into_node_modules(self):
-        code, _, _ = self._bash('grep -r foo node_modules/')
-        self.assertEqual(code, 2)
+        code, _, err = self._bash('grep -r foo node_modules/')
+        self.assertEqual(code, 2, err)
 
     def test_blocks_git_info_traversal(self):
         for cmd in ('cat .git/info/../../config', 'cat a/../.git/info/exclude'):
-            code, _, _ = self._bash(cmd)
-            self.assertEqual(code, 2, cmd)
+            code, _, err = self._bash(cmd)
+            self.assertEqual(code, 2, '%s: %s' % (cmd, err))
 
     def test_wrapper_chain_stays_transparent(self):
         # wrappers never hide the real command: fs scan behind a chain still blocks,
         # executing a tool behind a chain stays allowed
-        code, _, _ = self._bash('bash bash bash rm -rf node_modules')
-        self.assertEqual(code, 2)
+        code, _, err = self._bash('bash bash bash rm -rf node_modules')
+        self.assertEqual(code, 2, err)
         code, _, err = self._bash('bash bash bash vendor/bin/tool')
         self.assertEqual(code, 0, err)
 
     def test_blocks_read_of_git_files_despite_extension(self):
         for cmd in ('cat .git/config', 'bat .git/objects/pack/p.idx'):
-            code, _, _ = self._bash(cmd)
-            self.assertEqual(code, 2, cmd)
+            code, _, err = self._bash(cmd)
+            self.assertEqual(code, 2, '%s: %s' % (cmd, err))
 
     def test_blocks_assignment_value_after_command(self):
-        code, _, _ = self._bash('echo FOO=.git/config')
-        self.assertEqual(code, 2)
+        code, _, err = self._bash('echo FOO=.git/config')
+        self.assertEqual(code, 2, err)
 
     def test_blocks_dot_source_of_blocked_path(self):
-        code, _, _ = self._bash('. vendor/bin/activate.sh')
-        self.assertEqual(code, 2)
+        code, _, err = self._bash('. vendor/bin/activate.sh')
+        self.assertEqual(code, 2, err)
 
     def test_still_blocks_find_scan_of_git(self):
-        code, _, _ = self._bash("find .git -name '*.pack'")
-        self.assertEqual(code, 2)
+        code, _, err = self._bash("find .git -name '*.pack'")
+        self.assertEqual(code, 2, err)
 
     def test_still_blocks_tree_of_build(self):
-        code, _, _ = self._bash('tree build/')
-        self.assertEqual(code, 2)
+        code, _, err = self._bash('tree build/')
+        self.assertEqual(code, 2, err)
 
     def test_fail_open_empty_stdin(self):
         code, _, _ = run_raw(SCOUT_BLOCK, '')

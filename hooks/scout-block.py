@@ -144,6 +144,7 @@ try:
             if regex.search(normalized):
                 return {'blocked': False, 'pattern': None}
 
+        # reject traversal (.git/info/../../config) from abusing the exclude bypass
         if GIT_INFO_EXCLUDE_RE.search(normalized) and '..' not in normalized.split('/'):
             return {'blocked': False, 'pattern': None}
 
