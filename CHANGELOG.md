@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.25.1](https://github.com/vanducng/skills/compare/v1.25.0...v1.25.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **hooks:** stop scout-block false-positives; keep deep-mode agent schemas minimal ([#279](https://github.com/vanducng/skills/issues/279)) ([69a75ce](https://github.com/vanducng/skills/commit/69a75ce6a107da85e62df57e9200f024be5e8346))
+
 ## [1.25.0](https://github.com/vanducng/skills/compare/v1.24.0...v1.25.0) (2026-07-17)
 
 
