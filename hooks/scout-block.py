@@ -44,6 +44,9 @@ try:
     # ponytail: target/ is only a build dir next to Cargo.toml/pom.xml; name-only match false-positives on Go internal/target packages.
     TARGET_SOURCE = '(^|/)target(/|$)'
 
+    # ponytail: .git/info/exclude is a legit worktree/cktovd write target; the rest of .git stays blocked.
+    GIT_INFO_EXCLUDE_RE = re.compile(r'(^|/)\.git/info/exclude$')
+
     # -- minimal gitignore-style pattern matching -----------------------------
 
     def pattern_to_regex(pat):
@@ -141,6 +144,10 @@ try:
             if regex.search(normalized):
                 return {'blocked': False, 'pattern': None}
 
+        # reject traversal (.git/info/../../config) from abusing the exclude bypass
+        if GIT_INFO_EXCLUDE_RE.search(normalized) and '..' not in normalized.split('/'):
+            return {'blocked': False, 'pattern': None}
+
         for regex in checker['allBlocked']:
             m = regex.search(normalized)
             if m:
@@ -171,6 +178,12 @@ try:
         'tar', 'zip', 'unzip',
     ])
 
+    # In command position these run the next token as a program, not a scan target.
+    EXEC_WRAPPERS = set(['sudo', 'bash', 'sh', 'source', 'env'])
+
+    # Cheap read-only single-file readers; an explicit file arg is not a tree scan.
+    READ_CMDS = set(['cat', 'head', 'tail', 'stat', 'wc', 'bat', 'less', 'more'])
+
     BUILD_CMD_PREFIXES = [
         'npm ', 'npx ', 'pnpm ', 'yarn ', 'bun ', 'bunx ',
         'go build', 'go test', 'go run',
@@ -194,6 +207,9 @@ try:
     _QUOTED_STRIP_RE = re.compile(r'''["'][^"']*["']''')
     _WS_RE = re.compile(r'\s+')
     _EXT_RE = re.compile(r'\.[a-zA-Z0-9]{1,6}$')
+    _ASSIGN_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
+    _GLOB_RE = re.compile(r'[*?\[\]{}]')
+    _GIT_SEG_RE = re.compile(r'(^|/)\.git(/|$)')
 
     def extract_bash_paths(cmd):
         if not cmd:
@@ -214,6 +230,7 @@ try:
         tokens = [t for t in _WS_RE.split(unquoted) if t]
 
         is_fs = False
+        is_read = False
         seen_cmd = False
         skip_next = False
 
@@ -223,8 +240,16 @@ try:
                 continue
             if tok in ('&&', '||', ';', '|'):
                 is_fs = False
+                is_read = False
                 seen_cmd = False
                 continue
+            # FOO=bar prefix before the command is not a scan target; after it, check the value
+            if _ASSIGN_RE.match(tok):
+                if not seen_cmd:
+                    continue
+                tok = tok.split('=', 1)[1]
+                if not tok:
+                    continue
             if tok.startswith('-'):
                 # --exclude=X style: skip both halves
                 if '=' in tok:
@@ -234,8 +259,13 @@ try:
                     skip_next = True
                 continue
             if not seen_cmd:
+                # command position: exec wrappers keep the next token in command position (quoted payloads of bash -c are still scanned via the quoted pass)
+                if tok.lower() in EXEC_WRAPPERS:
+                    continue
                 seen_cmd = True
-                is_fs = tok.lower() in FS_CMDS
+                lc = tok.lower()
+                is_fs = lc in FS_CMDS
+                is_read = lc in READ_CMDS
                 continue
             # For fs commands, blocked dir names (no slash) count; for others require slash.
             has_slash = '/' in tok or '\\' in tok
@@ -243,6 +273,9 @@ try:
             is_blocked_name = tok in DEFAULT_BLOCKED
             if is_fs and is_blocked_name:
                 results.append(tok)
+                continue
+            # cheap read: explicit single file (has extension, no glob) is not a tree scan; .git stays gated by the checker
+            if is_read and _EXT_RE.search(tok) and not _GLOB_RE.search(tok) and not _GIT_SEG_RE.search(tok):
                 continue
             if looks_path:
                 results.append(tok)

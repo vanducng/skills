@@ -185,6 +185,8 @@ What couldn't be answered without more input. What would change the recommendati
 
 ### Template additions for `--deep` mode
 
+When `--deep` fans its research/red-team rounds out through the Workflow tool, keep each agent's output schema minimal — mark only truly-required fields `required`, avoid `additionalProperties: false`, and paste a one-line valid JSON example into every agent prompt (strict schemas fail ~74% of first attempts, then self-heal on costly retries).
+
 Add these sections after **Recommendation**:
 
 ```markdown
