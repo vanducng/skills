@@ -191,7 +191,7 @@ def mine_claude_session(path, registry):
 def skill_at(marks, ts):
     if not marks or not ts:
         return NONE
-    idx = bisect.bisect_right([m[0] for m in marks], ts)
+    idx = bisect.bisect_right(marks, (ts, "￿"))
     return marks[idx - 1][1] if idx else NONE
 
 
@@ -244,8 +244,13 @@ def scan_agent(path):
 
 
 def exit_failed(output):
+    if isinstance(output, dict) and "exit_code" in output:
+        try:
+            return int(output["exit_code"]) != 0
+        except (TypeError, ValueError):
+            return False
     text = output if isinstance(output, str) else json.dumps(output) if output else ""
-    m = re.search(r'"exit_code":\s*(-?\d+)', text)
+    m = re.search(r'"exit_code":\s*"?(-?\d+)"?', text)
     if m:
         return m.group(1) != "0"
     return text.startswith("failed") or '"error"' in text[:200]
@@ -452,6 +457,8 @@ def main(argv=None):
     ap.add_argument("--runtime", choices=("claude", "codex", "both"), default="both")
     ap.add_argument("--out", default=".", metavar="DIR", help="output directory for aggregates + session rows")
     args = ap.parse_args(argv)
+    if args.since < 0:
+        ap.error("--since must be >= 0")
 
     os.makedirs(args.out, exist_ok=True)
     registry = load_registry()

@@ -135,6 +135,11 @@ class Attribution(unittest.TestCase):
 
 
 class Normalization(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        self.addCleanup(self.tmp.cleanup)
+
     def test_rejects_noise_words_and_harness_commands(self):
         for raw in ("this-", "options", "data", "record", "workflow", "model", "effort", "clear"):
             self.assertIsNone(m.normalize(raw, REGISTRY), raw)
@@ -144,11 +149,18 @@ class Normalization(unittest.TestCase):
         self.assertEqual(m.normalize("ship", REGISTRY), "ship")
 
     def test_php_variables_in_a_codex_message_are_not_skills(self):
-        path = write(pathlib.Path(tempfile.mkdtemp()) / "rollout-z.jsonl", [
+        path = write(self.root / "rollout-z.jsonl", [
             {"type": "event_msg", "timestamp": "t01",
              "payload": {"type": "user_message", "message": "fix $this->record and $options in $data"}},
         ])
         self.assertEqual(dict(m.mine_codex_session(path, REGISTRY)["skills"]), {})
+
+    def test_exit_failed_reads_structured_and_stringified_output(self):
+        self.assertTrue(m.exit_failed({"exit_code": 1}))
+        self.assertFalse(m.exit_failed({"exit_code": 0}))
+        self.assertTrue(m.exit_failed('{"exit_code": "2"}'))
+        self.assertFalse(m.exit_failed('{"exit_code": 0, "stdout": "ok"}'))
+        self.assertFalse(m.exit_failed(None))
 
 
 class Aggregate(unittest.TestCase):
