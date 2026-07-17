@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.25.3](https://github.com/vanducng/skills/compare/v1.25.2...v1.25.3) (2026-07-17)
+
+
+### Bug Fixes
+
+* **agents:** route Codex subagents to surviving skills after catalog collapse ([#287](https://github.com/vanducng/skills/issues/287)) ([99391de](https://github.com/vanducng/skills/commit/99391de4a24fb39023d4cb7ebb1aa7d20654925d))
+
 ## [1.25.2](https://github.com/vanducng/skills/compare/v1.25.1...v1.25.2) (2026-07-17)
 
 
