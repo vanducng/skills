@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.29.0](https://github.com/vanducng/skills/compare/v1.28.0...v1.29.0) (2026-07-17)
+
+
+### Features
+
+* **vd-cli:** add skill for the vd CLI — vendoring + agent observability ([#293](https://github.com/vanducng/skills/issues/293)) ([3e40715](https://github.com/vanducng/skills/commit/3e40715921f1a3946ac3c7539c2d20459f251ab5))
+
 ## [1.28.0](https://github.com/vanducng/skills/compare/v1.27.0...v1.28.0) (2026-07-17)
 
 
