@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 66 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 62 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -13,7 +13,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Discover | `vd:scout`, `vd:graphify`, `vd:research`, `vd:brainstorm` |
 | Plan | `vd:plan`, `vd:plan-audit`, `vd:scenario` |
 | Execute | `vd:cook`, `vd:fix`, `vd:debug`, `vd:codex-workflow` |
-| Review and ship | `vd:code-review`, `vd:open-code-review`, `vd:simplify`, `vd:security`, `vd:ship`, `vd:git` |
+| Review and ship | `vd:code-review`, `vd:simplify`, `vd:security`, `vd:ship`, `vd:git` |
 | Iterate | `vd:auto-loop`, `vd:optimize-loop` |
 | Orchestrate | `vd:ultracook` |
 
@@ -21,12 +21,12 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
 | Area | Skills |
 | --- | --- |
-| Browser automation and e2e | `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-testing`, `vd:web-perf` |
+| Browser automation and e2e | `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-perf` |
 | Web and frontend | `vd:uiuxdesign`, `vd:opendesign`, `vd:fastreact` |
 | Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw` |
-| Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog`, `vd:last30days` |
+| Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
-| Data and workspace | `vd:cnb-ds-eda`, `vd:miudb`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:qmd` |
+| Data and workspace | `vd:cnb-ds-eda`, `vd:miudb`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira` |
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:gopass`, `vd:journal`, `vd:cktovd`, `vd:workbench` |
 | Skill lifecycle | `vd:skill-management`, `vd:rule-miner`, `vd:skill-evolve` |
 
