@@ -388,6 +388,81 @@ class ScoutBlockTest(HookTestBase):
                                             'tool_input': {'command': 'npm run build'}, 'cwd': '/tmp'})
         self.assertEqual(code, 0)
 
+    def _bash(self, command, cwd='/tmp'):
+        return run_json(SCOUT_BLOCK, {'tool_name': 'Bash',
+                                      'tool_input': {'command': command}, 'cwd': cwd})
+
+    def test_allows_env_var_assignment_value(self):
+        # (a) FOO=<blocked-path> prefix: the value must not be treated as a scan target
+        for cmd in ('AB_PROFILE=~/.cache/agent-browser-profiles/x agent-browser snapshot',
+                    'env AB_PROFILE=~/.cache/agent-browser-profiles/x agent-browser snapshot'):
+            code, _, err = self._bash(cmd)
+            self.assertEqual(code, 0, '%s: %s' % (cmd, err))
+
+    def test_allows_binary_under_blocked_dir_in_command_position(self):
+        # (b) running a tool that lives under a blocked dir is not scanning a tree
+        for cmd in ('vendor/bin/pint --dirty', 'node_modules/.bin/vite build',
+                    'sudo vendor/bin/pint', 'bash node_modules/.bin/vite'):
+            code, _, err = self._bash(cmd)
+            self.assertEqual(code, 0, '%s: %s' % (cmd, err))
+
+    def test_allows_git_info_exclude(self):
+        # (c) worktree/cktovd flows legitimately read/write .git/info/exclude
+        for cmd in ('echo dist >> .git/info/exclude', 'cat .git/info/exclude'):
+            code, _, err = self._bash(cmd)
+            self.assertEqual(code, 0, '%s: %s' % (cmd, err))
+
+    def test_allows_cheap_single_file_read_in_blocked_dir(self):
+        # (d) read-only single-file read with an explicit file path (has ext, no glob)
+        for cmd in ('cat public/build/manifest.json', 'head -n50 dist/report.json',
+                    'stat node_modules/lodash/package.json'):
+            code, _, err = self._bash(cmd)
+            self.assertEqual(code, 0, '%s: %s' % (cmd, err))
+
+    def test_still_blocks_recursive_grep_into_node_modules(self):
+        code, _, err = self._bash('grep -r foo node_modules/')
+        self.assertEqual(code, 2, err)
+
+    def test_blocks_git_info_traversal(self):
+        for cmd in ('cat .git/info/../../config', 'cat a/../.git/info/exclude'):
+            code, _, err = self._bash(cmd)
+            self.assertEqual(code, 2, '%s: %s' % (cmd, err))
+
+    def test_wrapper_chain_stays_transparent(self):
+        # wrappers never hide the real command: fs scan behind a chain still blocks,
+        # executing a tool behind a chain stays allowed
+        code, _, err = self._bash('bash bash bash rm -rf node_modules')
+        self.assertEqual(code, 2, err)
+        code, _, err = self._bash('bash bash bash vendor/bin/tool')
+        self.assertEqual(code, 0, err)
+        code, _, err = self._bash('source rm -rf node_modules')
+        self.assertEqual(code, 2, err)
+
+    def test_blocks_read_of_git_files_despite_extension(self):
+        for cmd in ('cat .git/config', 'bat .git/objects/pack/p.idx'):
+            code, _, err = self._bash(cmd)
+            self.assertEqual(code, 2, '%s: %s' % (cmd, err))
+
+    def test_blocks_assignment_value_after_command(self):
+        code, _, err = self._bash('echo FOO=.git/config')
+        self.assertEqual(code, 2, err)
+        code, _, err = self._bash('echo FOO=node_modules/x BAR=dist/y')
+        self.assertEqual(code, 2, err)
+        code, _, err = self._bash('echo FOO=src/main.py')
+        self.assertEqual(code, 0, err)
+
+    def test_blocks_dot_source_of_blocked_path(self):
+        code, _, err = self._bash('. vendor/bin/activate.sh')
+        self.assertEqual(code, 2, err)
+
+    def test_still_blocks_find_scan_of_git(self):
+        code, _, err = self._bash("find .git -name '*.pack'")
+        self.assertEqual(code, 2, err)
+
+    def test_still_blocks_tree_of_build(self):
+        code, _, err = self._bash('tree build/')
+        self.assertEqual(code, 2, err)
+
     def test_fail_open_empty_stdin(self):
         code, _, _ = run_raw(SCOUT_BLOCK, '')
         self.assertEqual(code, 0)
