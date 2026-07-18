@@ -20,7 +20,7 @@ if [ -z "$3" ]; then
 else
   body=$(printf '%s' "$3" | sed 's/^[[:space:]]*//')
   case "$body" in
-    '{'*|'['*) ctype='content-type: application/json' ;;
+    '{'*) ctype='content-type: application/json' ;;
     *)         ctype='content-type: text/plain' ;;
   esac
   printf 'authorization: Bearer %s\n' "$token" | curl -s --max-time 10 -X "$1" "$url" -H @- -H "$ctype" --data-binary "$3"
