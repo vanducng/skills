@@ -7,6 +7,7 @@
 set -e
 [ "$#" -ge 2 ] && [ "$#" -le 3 ] || { echo 'Usage: sh tq <GET|POST> </api/path> [body]' >&2; exit 2; }
 case "$1" in GET|POST) ;; *) echo "tq: unsupported method: $1" >&2; exit 2 ;; esac
+case "$2" in /*) ;; *) echo "tq: path must start with /: $2" >&2; exit 2 ;; esac
 sj=${TLDRAW_STATE_FILE:-"$HOME/Library/Application Support/tldraw/server.json"}
 [ -f "$sj" ] || { echo "tq: tldraw is not running (missing $sj)" >&2; exit 1; }
 port=$(jq -er '.port | select(type == "number")' "$sj") || { echo "tq: invalid port in $sj" >&2; exit 1; }
