@@ -18,10 +18,10 @@ url="http://localhost:$port$2"
 if [ -z "$3" ]; then
   printf 'authorization: Bearer %s\n' "$token" | curl -s --max-time 10 -X "$1" "$url" -H @-
 else
-  body=$(printf '%s' "$3" | sed 's/^[[:space:]]*//')
-  case "$body" in
-    '{'*) ctype='content-type: application/json' ;;
-    *)         ctype='content-type: text/plain' ;;
-  esac
+  if printf '%s' "$3" | jq -e 'type == "object"' >/dev/null 2>&1; then
+    ctype='content-type: application/json'
+  else
+    ctype='content-type: text/plain'
+  fi
   printf 'authorization: Bearer %s\n' "$token" | curl -s --max-time 10 -X "$1" "$url" -H @- -H "$ctype" --data-binary "$3"
 fi
