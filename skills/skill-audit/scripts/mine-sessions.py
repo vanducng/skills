@@ -11,6 +11,7 @@ import re
 import sys
 import time
 from collections import Counter, defaultdict
+from datetime import datetime, timezone
 
 HOME = os.path.expanduser("~")
 CLAUDE_PROJECTS = os.path.join(HOME, ".claude", "projects")
@@ -116,6 +117,23 @@ def stamp(row, ts):
         row["last_ts"] = ts
 
 
+def timestamp_epoch(ts):
+    if not ts:
+        return None
+    try:
+        parsed = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.timestamp()
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def in_window(ts, cutoff_epoch):
+    epoch = timestamp_epoch(ts)
+    return not cutoff_epoch or epoch is not None and epoch >= cutoff_epoch
+
+
 def texts_of(content):
     if isinstance(content, str):
         return [content]
@@ -124,7 +142,7 @@ def texts_of(content):
     return []
 
 
-def mine_claude_session(path, registry, cutoff=""):
+def mine_claude_session(path, registry, cutoff_epoch=0):
     row = new_row("claude", path)
     row["project"] = os.path.basename(os.path.dirname(path))
     marks = []
@@ -143,14 +161,14 @@ def mine_claude_session(path, registry, cutoff=""):
             row["skills"][skill] += 1
             bump(row, skill, "invocations")
 
-    in_scope = not cutoff
+    in_scope = not cutoff_epoch
     for d in iter_lines(path):
         if d is None:
             if in_scope:
                 row["malformed_lines"] += 1
             continue
         ts = d.get("timestamp")
-        included = not cutoff or bool(ts and ts >= cutoff)
+        included = in_window(ts, cutoff_epoch)
         if included:
             in_scope = True
             stamp(row, ts)
@@ -194,7 +212,7 @@ def mine_claude_session(path, registry, cutoff=""):
                 for name in COMMAND_RE.findall(text):
                     invoke(name, ts, included)
 
-    mine_claude_subagents(path, row, marks, cutoff)
+    mine_claude_subagents(path, row, marks, cutoff_epoch)
     return row
 
 
@@ -205,7 +223,7 @@ def skill_at(marks, ts):
     return marks[idx - 1][1] if idx else NONE
 
 
-def mine_claude_subagents(session_path, row, marks, cutoff=""):
+def mine_claude_subagents(session_path, row, marks, cutoff_epoch=0):
     agent_dir = session_path.removesuffix(".jsonl")
     if not os.path.isdir(agent_dir):
         return
@@ -214,9 +232,9 @@ def mine_claude_subagents(session_path, row, marks, cutoff=""):
             if not fname.endswith(".jsonl"):
                 continue
             path = os.path.join(base, fname)
-            first_ts, window_first, window_last, calls, errs, tokens, bad = scan_agent(path, cutoff)
+            first_ts, window_first, window_last, calls, errs, tokens, bad = scan_agent(path, cutoff_epoch)
             row["malformed_lines"] += bad
-            if cutoff and not window_first:
+            if cutoff_epoch and not window_first:
                 continue
             stamp(row, window_first)
             stamp(row, window_last)
@@ -227,11 +245,11 @@ def mine_claude_subagents(session_path, row, marks, cutoff=""):
             bump(row, skill, "agent_tokens", tokens)
 
 
-def scan_agent(path, cutoff=""):
+def scan_agent(path, cutoff_epoch=0):
     first_ts, window_first, window_last = None, None, None
     calls, errs, tokens, bad = 0, 0, 0, 0
     ids = set()
-    in_scope = not cutoff
+    in_scope = not cutoff_epoch
     try:
         for d in iter_lines(path):
             if d is None:
@@ -241,7 +259,7 @@ def scan_agent(path, cutoff=""):
             ts = d.get("timestamp")
             if first_ts is None and ts:
                 first_ts = ts
-            included = not cutoff or bool(ts and ts >= cutoff)
+            included = in_window(ts, cutoff_epoch)
             if included:
                 in_scope = True
                 if window_first is None:
@@ -282,20 +300,20 @@ def exit_failed(output):
     return text.startswith("failed") or '"error"' in text[:200]
 
 
-def mine_codex_session(path, registry, cutoff=""):
+def mine_codex_session(path, registry, cutoff_epoch=0):
     row = new_row("codex", path)
     cur = NONE
     seen_tokens = 0
     corrections_seen = set()
 
-    in_scope = not cutoff
+    in_scope = not cutoff_epoch
     for d in iter_lines(path):
         if d is None:
             if in_scope:
                 row["malformed_lines"] += 1
             continue
         ts = d.get("timestamp")
-        included = not cutoff or bool(ts and ts >= cutoff)
+        included = in_window(ts, cutoff_epoch)
         if included:
             in_scope = True
             stamp(row, ts)
@@ -357,7 +375,7 @@ def discover(runtime, since_days, root=None, cutoff_epoch=None):
     if not os.path.isdir(root):
         print(f"note: no {runtime} transcripts at {root}", file=sys.stderr)
         return []
-    cutoff = cutoff_epoch if cutoff_epoch is not None else time.time() - since_days * 86400 if since_days else 0
+    cutoff = cutoff_epoch if cutoff_epoch is not None else (time.time() - since_days * 86400 if since_days else 0)
 
     def fresh(path):
         try:
@@ -466,22 +484,20 @@ def session_json(row):
     return out
 
 
-def run(runtime, registry, out_dir, since_days, cutoff=None, cutoff_epoch=None):
+def run(runtime, registry, out_dir, since_days, cutoff_epoch=None):
     if cutoff_epoch is None:
         cutoff_epoch = time.time() - since_days * 86400 if since_days else 0
     paths = discover(runtime, since_days, cutoff_epoch=cutoff_epoch)
     miner = mine_claude_session if runtime == "claude" else mine_codex_session
-    if cutoff is None:
-        cutoff = time.strftime("%Y-%m-%dT%H:%M:%S.000000Z", time.gmtime(cutoff_epoch)) if since_days else ""
     rows = []
     out_path = os.path.join(out_dir, f"sessions-{runtime}.jsonl")
     with open(out_path, "w") as fh:
         for i, path in enumerate(paths, 1):
             try:
-                row = miner(path, registry, cutoff)
+                row = miner(path, registry, cutoff_epoch)
             except OSError:
                 continue
-            if cutoff and not row["first_ts"]:
+            if cutoff_epoch and not row["first_ts"]:
                 continue
             rows.append(row)
             fh.write(json.dumps(session_json(row)) + "\n")
@@ -529,7 +545,7 @@ def main(argv=None):
     }
     used = set()
     for runtime in runtimes:
-        rows = run(runtime, registry, args.out, args.since, cutoff, cutoff_epoch)
+        rows = run(runtime, registry, args.out, args.since, cutoff_epoch)
         skills = aggregate(rows)
         base = baseline(rows)
         used.update(k for k in skills if k != NONE)

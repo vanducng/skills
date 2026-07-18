@@ -263,6 +263,7 @@ try:
                 is_fs = False
                 is_read = False
                 seen_cmd = False
+                previous = None
                 continue
             # FOO=bar prefix before the command is not a scan target; after it, check the value
             if _ASSIGN_RE.match(tok):

@@ -114,7 +114,7 @@ class Attribution(unittest.TestCase):
         ])
 
         attr = m.mine_claude_session(
-            str(session), REGISTRY, "2026-01-01T00:00:00Z",
+            str(session), REGISTRY, m.timestamp_epoch("2026-01-01T00:00:00Z"),
         )["attr"]["scout"]
 
         self.assertEqual(attr["agents"], 1)
@@ -183,7 +183,9 @@ class Attribution(unittest.TestCase):
             cc_assistant("2999-01-01T00:00:01Z", "Edit", "new", tokens=10),
         ])
 
-        row = m.mine_claude_session(path, REGISTRY, "2026-01-01T00:00:00Z")
+        row = m.mine_claude_session(
+            path, REGISTRY, m.timestamp_epoch("2026-01-01T00:00:00Z"),
+        )
 
         self.assertEqual(dict(row["skills"]), {"cook": 1})
         self.assertEqual(row["attr"]["cook"]["tool_calls"], 1)
@@ -218,6 +220,11 @@ class Normalization(unittest.TestCase):
         self.assertTrue(m.exit_failed('{"exit_code": "2"}'))
         self.assertFalse(m.exit_failed('{"exit_code": 0, "stdout": "ok"}'))
         self.assertFalse(m.exit_failed(None))
+
+    def test_timestamp_epoch_normalizes_iso_formats(self):
+        expected = m.timestamp_epoch("2026-01-01T00:00:00Z")
+        self.assertEqual(expected, m.timestamp_epoch("2026-01-01T00:00:00+00:00"))
+        self.assertEqual(expected, m.timestamp_epoch("2026-01-01T07:00:00+07:00"))
 
 
 class Aggregate(unittest.TestCase):
@@ -270,6 +277,7 @@ class Aggregate(unittest.TestCase):
 
         rows = m.run("codex", REGISTRY, str(out), 7)
 
+        self.assertEqual(len(rows), 1)
         self.assertEqual(dict(rows[0]["skills"]), {"ship": 1})
         self.assertEqual(rows[0]["attr"]["ship"]["tool_calls"], 1)
         self.assertEqual(rows[0]["attr"]["scout"]["tool_calls"], 0)
