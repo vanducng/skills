@@ -18,7 +18,7 @@ A clean quit removes `server.json`; the next launch rewrites it. It also records
 
 Every request except `GET /` and `/readme` needs the per-launch `token` from that same `server.json`, sent as `-H "authorization: Bearer <token>"`.
 
-**If the server's base URL and bearer token are already in your context** — the app injects them at subagent launch when its agent hook is installed — use those literal values directly, or just call the installed `tq` helper (below). The rest of this section is the fallback for when neither is in hand.
+Use the installed `tq` helper when the server URL is injected into context; it reads the per-launch token without exposing it in agent context. If another harness provides literal base URL and token values, raw requests may use them directly. The rest of this section is the fallback for when neither is in hand.
 
 **Each Bash tool call runs in a fresh shell — exported env vars do NOT persist between calls.** A `TLDRAW_TOKEN` you `export` in one call is empty in the next, so the request sends `authorization: Bearer` with no token and 401s. "Export once and reuse" does not work here — re-establish the port and token on every call. Read them together at the top of each call (both stay fixed for the app's lifetime, so re-reading is cheap):
 
