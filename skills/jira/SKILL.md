@@ -49,6 +49,18 @@ For Bug and Task creation, keep the ticket direct:
 - Omit implementation details, proposed code, and speculative analysis unless requested.
 - Apply assignee, sprint, parent, and initial status from the matching local type rules.
 
+## Instance Rules (MANDATORY — load before writes)
+
+After selecting the Jira instance, read its rules before drafting or executing any write:
+
+```text
+~/.config/vd/jira-rules/<instance>.jira-rules.md
+```
+
+Use `cnb.jira-rules.md` for CNB and `abs.jira-rules.md` for ABS. These rules are authoritative for issue-type mapping, assignee, sprint, parent, initial status, and ticket content. Resolve dynamic values such as `me`, the current active sprint, and transition IDs from Jira before showing the proposed payload.
+
+If the requested type is not a native Jira issue type, use the rule's Jira type and labels. Explicit user instructions override the rule file; state the override. If no rule file exists, continue with the base safety protocol and tell the user that no instance defaults were applied.
+
 ## Activation Triggers
 
 Activate when user mentions:
@@ -159,11 +171,12 @@ Load `references/jql.md` for:
 ## Workflow: Write Operations
 
 ```
-1. Fetch current state    → jira issue view ISSUE-KEY
-2. Show proposed change   → Display to user
-3. Get user approval      → AskUserQuestion (Claude Code; plain-text question elsewhere)
-4. Execute command        → Run jira CLI
-5. Verify result          → jira issue view ISSUE-KEY
+1. Load instance rules    → ~/.config/vd/jira-rules/<instance>.jira-rules.md
+2. Fetch current state    → issue, active sprint, parent, transitions
+3. Show proposed change   → Include every rule-derived field
+4. Get user approval      → AskUserQuestion (Claude Code; plain-text question elsewhere)
+5. Execute command        → Run jira CLI or REST API
+6. Verify result          → Re-read every changed field
 ```
 
 ## Attachments
