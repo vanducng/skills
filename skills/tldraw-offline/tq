@@ -15,12 +15,12 @@ case "$port" in ''|*[!0-9]*) echo "tq: invalid port in $sj" >&2; exit 1 ;; esac
 [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || { echo "tq: invalid port in $sj" >&2; exit 1; }
 url="http://localhost:$port$2"
 if [ -z "$3" ]; then
-  printf 'authorization: Bearer %s\n' "$token" | curl -s -X "$1" "$url" -H @-
+  printf 'authorization: Bearer %s\n' "$token" | curl -s --max-time 10 -X "$1" "$url" -H @-
 else
   body=$(printf '%s' "$3" | sed 's/^[[:space:]]*//')
   case "$body" in
     '{'*|'['*) ctype='content-type: application/json' ;;
     *)         ctype='content-type: text/plain' ;;
   esac
-  printf 'authorization: Bearer %s\n' "$token" | curl -s -X "$1" "$url" -H @- -H "$ctype" --data-binary "$3"
+  printf 'authorization: Bearer %s\n' "$token" | curl -s --max-time 10 -X "$1" "$url" -H @- -H "$ctype" --data-binary "$3"
 fi
