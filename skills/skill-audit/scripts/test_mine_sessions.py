@@ -100,6 +100,48 @@ class Attribution(unittest.TestCase):
         self.assertEqual(attr["scout"]["agent_tokens"], 7)
         self.assertEqual(attr["cook"]["agents"], 0)
 
+    def test_subagent_cutoff_excludes_old_events(self):
+        session = self.root / "proj" / "window-agent.jsonl"
+        write(session, [
+            cc_text("2000-01-01T00:00:00Z", "<command-name>/scout</command-name>"),
+            cc_text("2998-01-01T00:00:00Z", "<command-name>/cook</command-name>"),
+        ])
+        write(self.root / "proj" / "window-agent" / "subagents" / "agent-1.jsonl", [
+            cc_assistant("2000-01-01T00:00:01Z", "Bash", "old", tokens=5),
+            cc_result("2000-01-01T00:00:02Z", "old", True),
+            cc_assistant("2999-01-01T00:00:01Z", "Bash", "new", tokens=7),
+            cc_result("2999-01-01T00:00:02Z", "new", True),
+        ])
+
+        attr = m.mine_claude_session(
+            str(session), REGISTRY, m.timestamp_epoch("2026-01-01T00:00:00Z"),
+        )["attr"]["scout"]
+
+        self.assertEqual(attr["agents"], 1)
+        self.assertEqual(attr["agent_tool_calls"], 1)
+        self.assertEqual(attr["agent_tool_errors"], 1)
+        self.assertEqual(attr["agent_tokens"], 7)
+
+    def test_recent_subagent_keeps_old_parent_session(self):
+        session = self.root / "proj" / "subagent-only.jsonl"
+        write(session, [cc_text("2000-01-01T00:00:00Z", "<command-name>/scout</command-name>")])
+        write(self.root / "proj" / "subagent-only" / "subagents" / "agent-1.jsonl", [
+            cc_assistant("2999-01-01T00:00:00Z", "Bash", "new", tokens=7),
+        ])
+        os.utime(session, (0, 0))
+        out = self.root / "out"
+        out.mkdir()
+        old_root = m.CLAUDE_PROJECTS
+        self.addCleanup(setattr, m, "CLAUDE_PROJECTS", old_root)
+        m.CLAUDE_PROJECTS = str(self.root)
+
+        rows = m.run("claude", REGISTRY, str(out), 7)
+
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["first_ts"], "2999-01-01T00:00:00Z")
+        self.assertEqual(row["attr"]["scout"]["agent_tool_calls"], 1)
+
     def test_codex_attributes_per_invocation_and_reads_abort_reason(self):
         path = write(self.root / "codex" / "rollout-x.jsonl", [
             {"type": "session_meta", "timestamp": "t01", "payload": {"cwd": "/repo"}},
@@ -133,6 +175,42 @@ class Attribution(unittest.TestCase):
         self.assertEqual(attr["scout"]["tokens"], 100)
         self.assertEqual(attr["cook"]["tokens"], 150)
 
+    def test_missing_timestamps_follow_current_window_state(self):
+        path = write(self.root / "codex" / "rollout-missing-ts.jsonl", [
+            {"type": "event_msg", "timestamp": "2000-01-01T00:00:00Z",
+             "payload": {"type": "user_message", "message": "$scout"}},
+            {"type": "response_item",
+             "payload": {"type": "function_call", "name": "old", "arguments": "{}"}},
+            {"type": "event_msg", "timestamp": "2999-01-01T00:00:00Z",
+             "payload": {"type": "user_message", "message": PREFIXED_INVOKE}},
+            {"type": "response_item",
+             "payload": {"type": "function_call", "name": "new", "arguments": "{}"}},
+        ])
+
+        row = m.mine_codex_session(
+            path, REGISTRY, m.timestamp_epoch("2026-01-01T00:00:00Z"),
+        )
+
+        self.assertEqual(row["attr"]["scout"]["tool_calls"], 0)
+        self.assertEqual(row["attr"]["ship"]["tool_calls"], 1)
+
+    def test_claude_cutoff_excludes_old_events(self):
+        path = write(self.root / "proj" / "window.jsonl", [
+            cc_text("2000-01-01T00:00:00Z", "<command-name>/scout</command-name>"),
+            cc_assistant("2000-01-01T00:00:01Z", "Bash", "old", tokens=5),
+            cc_text("2999-01-01T00:00:00Z", "<command-name>/cook</command-name>"),
+            cc_assistant("2999-01-01T00:00:01Z", "Edit", "new", tokens=10),
+        ])
+
+        row = m.mine_claude_session(
+            path, REGISTRY, m.timestamp_epoch("2026-01-01T00:00:00Z"),
+        )
+
+        self.assertEqual(dict(row["skills"]), {"cook": 1})
+        self.assertEqual(row["attr"]["cook"]["tool_calls"], 1)
+        self.assertEqual(row["attr"]["scout"]["tool_calls"], 0)
+        self.assertEqual(row["first_ts"], "2999-01-01T00:00:00Z")
+
 
 class Normalization(unittest.TestCase):
     def setUp(self):
@@ -161,6 +239,11 @@ class Normalization(unittest.TestCase):
         self.assertTrue(m.exit_failed('{"exit_code": "2"}'))
         self.assertFalse(m.exit_failed('{"exit_code": 0, "stdout": "ok"}'))
         self.assertFalse(m.exit_failed(None))
+
+    def test_timestamp_epoch_normalizes_iso_formats(self):
+        expected = m.timestamp_epoch("2026-01-01T00:00:00Z")
+        self.assertEqual(expected, m.timestamp_epoch("2026-01-01T00:00:00+00:00"))
+        self.assertEqual(expected, m.timestamp_epoch("2026-01-01T07:00:00+07:00"))
 
 
 class Aggregate(unittest.TestCase):
@@ -193,6 +276,31 @@ class Aggregate(unittest.TestCase):
 
     def test_missing_runtime_dir_returns_no_paths(self):
         self.assertEqual(m.discover("codex", 7, root=str(self.root / "nope")), [])
+
+    def test_since_filters_events_inside_recently_modified_session(self):
+        path = write(self.root / "codex" / "rollout-window.jsonl", [
+            {"type": "event_msg", "timestamp": "2000-01-01T00:00:00Z",
+             "payload": {"type": "user_message", "message": "$scout"}},
+            {"type": "response_item", "timestamp": "2000-01-01T00:00:01Z",
+             "payload": {"type": "function_call", "name": "shell", "arguments": "{}"}},
+            {"type": "event_msg", "timestamp": "2999-01-01T00:00:00Z",
+             "payload": {"type": "user_message", "message": PREFIXED_INVOKE}},
+            {"type": "response_item", "timestamp": "2999-01-01T00:00:01Z",
+             "payload": {"type": "function_call", "name": "shell", "arguments": "{}"}},
+        ])
+        out = self.root / "out"
+        out.mkdir()
+        old_root = m.CODEX_SESSIONS
+        self.addCleanup(setattr, m, "CODEX_SESSIONS", old_root)
+        m.CODEX_SESSIONS = str(self.root / "codex")
+
+        rows = m.run("codex", REGISTRY, str(out), 7)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(dict(rows[0]["skills"]), {"ship": 1})
+        self.assertEqual(rows[0]["attr"]["ship"]["tool_calls"], 1)
+        self.assertEqual(rows[0]["attr"]["scout"]["tool_calls"], 0)
+        self.assertEqual(rows[0]["first_ts"], "2999-01-01T00:00:00Z")
 
 
 if __name__ == "__main__":
