@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.30.0](https://github.com/vanducng/skills/compare/v1.29.0...v1.30.0) (2026-07-18)
+
+
+### Features
+
+* **tldraw-offline:** added verified artifact workflow ([#295](https://github.com/vanducng/skills/issues/295)) ([d2bd7fe](https://github.com/vanducng/skills/commit/d2bd7fe5510f3a0b778477eaf4d8d7adf57d4d83))
+
 ## [1.29.0](https://github.com/vanducng/skills/compare/v1.28.0...v1.29.0) (2026-07-17)
 
 
