@@ -406,6 +406,74 @@ class ScoutBlockTest(HookTestBase):
             code, _, err = self._bash(cmd)
             self.assertEqual(code, 0, '%s: %s' % (cmd, err))
 
+    def test_allows_local_binary_with_dot_prefix(self):
+        dependency_dir = 'node_' + 'modules'
+        code, _, err = self._bash('./' + dependency_dir + '/.bin/prettier --write src/x.ts')
+        self.assertEqual(code, 0, err)
+
+    def test_allows_quoted_negative_path_filters(self):
+        dependency_dir = 'node_' + 'modules'
+        cmd = 'find docs -not -path "*/' + dependency_dir + '/*" -name "*.md"'
+        code, _, err = self._bash(cmd)
+        self.assertEqual(code, 0, err)
+
+    def test_still_blocks_positive_path_filters(self):
+        dependency_dir = 'node_' + 'modules'
+        cmd = 'find . -path "*/' + dependency_dir + '/*" -print'
+        code, _, err = self._bash(cmd)
+        self.assertEqual(code, 2, err)
+
+    def test_allows_paths_inside_heredoc_body(self):
+        dependency_dir = 'ven' + 'dor'
+        cmd = "ssh app 'php' <<'PHP'\nrequire '/home/app/" + dependency_dir + "/autoload.php';\nPHP"
+        code, _, err = self._bash(cmd)
+        self.assertEqual(code, 0, err)
+
+    def test_still_blocks_paths_inside_local_shell_heredoc(self):
+        dependency_dir = 'node_' + 'modules'
+        cmd = "bash <<'SH'\ncat " + dependency_dir + "/x\nSH"
+        code, _, err = self._bash(cmd)
+        self.assertEqual(code, 2, err)
+
+    def test_still_blocks_unquoted_remote_heredoc_expansions(self):
+        dependency_dir = 'node_' + 'modules'
+        cmd = "ssh app <<SH\ncat " + dependency_dir + "/x\nSH"
+        code, _, err = self._bash(cmd)
+        self.assertEqual(code, 2, err)
+
+    def test_still_blocks_local_heredoc_after_ssh_command(self):
+        dependency_dir = 'node_' + 'modules'
+        cmd = "ssh app true; bash <<'SH'\ncat " + dependency_dir + "/x\nSH"
+        code, _, err = self._bash(cmd)
+        self.assertEqual(code, 2, err)
+
+    def test_still_blocks_piped_local_heredoc_after_ssh(self):
+        dependency_dir = 'node_' + 'modules'
+        cmd = "ssh app | bash <<'SH'\ncat " + dependency_dir + "/x\nSH"
+        code, _, err = self._bash(cmd)
+        self.assertEqual(code, 2, err)
+
+    def test_apply_patch_checks_headers_not_patch_content(self):
+        dependency_dir = 'node_' + 'modules'
+        patch = '*** Begin Patch\n*** Update File: src/x.py\n+' + dependency_dir + '/x\n*** End Patch'
+        code, _, err = run_json(SCOUT_BLOCK, {
+            'tool_name': 'apply_patch', 'tool_input': {'command': patch}, 'cwd': '/tmp',
+        })
+        self.assertEqual(code, 0, err)
+
+        blocked_patch = '*** Begin Patch\n*** Update File: ' + dependency_dir + '/x.py\n+x\n*** End Patch'
+        code, _, err = run_json(SCOUT_BLOCK, {
+            'tool_name': 'apply_patch', 'tool_input': {'command': blocked_patch}, 'cwd': '/tmp',
+        })
+        self.assertEqual(code, 2, err)
+
+        moved_patch = ('*** Begin Patch\n*** Update File: src/x.py\n'
+                       '*** Move to: ' + dependency_dir + '/x.py\n*** End Patch')
+        code, _, err = run_json(SCOUT_BLOCK, {
+            'tool_name': 'apply_patch', 'tool_input': {'command': moved_patch}, 'cwd': '/tmp',
+        })
+        self.assertEqual(code, 2, err)
+
     def test_allows_git_info_exclude(self):
         # (c) worktree/cktovd flows legitimately read/write .git/info/exclude
         for cmd in ('echo dist >> .git/info/exclude', 'cat .git/info/exclude'):

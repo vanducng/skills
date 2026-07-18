@@ -210,10 +210,30 @@ try:
     _ASSIGN_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
     _GLOB_RE = re.compile(r'[*?\[\]{}]')
     _GIT_SEG_RE = re.compile(r'(^|/)\.git(/|$)')
+    _HEREDOC_RE = re.compile(
+        r'''<<-?\s*(?P<quote>['"])(?P<tag>[A-Za-z_][A-Za-z0-9_]*)(?P=quote)[^\n]*\n.*?\n[ \t]*(?P=tag)[ \t]*(?=\n|$)''',
+        re.DOTALL,
+    )
+    _EXCLUDE_FLAGS = set([
+        '--exclude', '--exclude-dir', '--ignore', '--skip', '-x',
+    ])
+    _FIND_PATH_FLAGS = set(['-path', '-wholename'])
+
+    def quoted_filter_operand(cmd, start):
+        prefix = cmd[:start].rstrip().split()
+        if not prefix:
+            return False
+        if prefix[-1] in _EXCLUDE_FLAGS:
+            return True
+        return len(prefix) > 1 and prefix[-1] in _FIND_PATH_FLAGS and prefix[-2] in ('-not', '!')
 
     def extract_bash_paths(cmd):
         if not cmd:
             return []
+        heredoc = _HEREDOC_RE.search(cmd)
+        if (heredoc and re.match(r'^\s*(?:sudo\s+)?ssh\b', cmd)
+                and not re.search(r'[;&|\n]', cmd[:heredoc.start()])):
+            cmd = cmd[:heredoc.start()] + heredoc.group(0).split('\n', 1)[0] + cmd[heredoc.end():]
         if is_build_command(cmd):
             return []
 
@@ -222,7 +242,7 @@ try:
         # Extract quoted segments first
         for m in _QUOTED_RE.finditer(cmd):
             s = m.group(1)
-            if '/' in s or '\\' in s:
+            if not quoted_filter_operand(cmd, m.start()) and ('/' in s or '\\' in s):
                 results.append(s)
 
         # Remove quoted segments and split remaining
@@ -233,6 +253,7 @@ try:
         is_read = False
         seen_cmd = False
         skip_next = False
+        previous = None
 
         for tok in tokens:
             if skip_next:
@@ -253,19 +274,26 @@ try:
             if tok.startswith('-'):
                 # --exclude=X style: skip both halves
                 if '=' in tok:
+                    previous = tok
                     continue
                 # --exclude X style
-                if tok in ('--exclude', '--exclude-dir', '--ignore', '--skip', '-x'):
+                if tok in _EXCLUDE_FLAGS or (tok in _FIND_PATH_FLAGS and previous in ('-not', '!')):
                     skip_next = True
+                previous = tok
+                continue
+            if tok == '!':
+                previous = tok
                 continue
             if not seen_cmd:
                 # command position: exec wrappers keep the next token in command position (quoted payloads of bash -c are still scanned via the quoted pass)
                 if tok.lower() in EXEC_WRAPPERS:
+                    previous = tok
                     continue
                 seen_cmd = True
                 lc = tok.lower()
                 is_fs = lc in FS_CMDS
                 is_read = lc in READ_CMDS
+                previous = tok
                 continue
             # For fs commands, blocked dir names (no slash) count; for others require slash.
             has_slash = '/' in tok or '\\' in tok
@@ -279,6 +307,7 @@ try:
                 continue
             if looks_path:
                 results.append(tok)
+            previous = tok
         return results
 
     def extract_paths(tool_name, tool_input):
@@ -289,7 +318,12 @@ try:
                 paths.append(v)
         cmd = tool_input.get('command')
         if cmd and isinstance(cmd, str):
-            paths.extend(extract_bash_paths(cmd))
+            if tool_name.lower() == 'apply_patch':
+                paths.extend(re.findall(
+                    r'^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$', cmd, re.MULTILINE,
+                ))
+            else:
+                paths.extend(extract_bash_paths(cmd))
         return [p for p in paths if p]
 
     # -- broad glob detection -------------------------------------------------

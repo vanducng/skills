@@ -110,9 +110,10 @@ def iter_lines(path):
 def stamp(row, ts):
     if not ts:
         return
-    if row["first_ts"] is None:
+    if row["first_ts"] is None or ts < row["first_ts"]:
         row["first_ts"] = ts
-    row["last_ts"] = ts
+    if row["last_ts"] is None or ts > row["last_ts"]:
+        row["last_ts"] = ts
 
 
 def texts_of(content):
@@ -123,7 +124,7 @@ def texts_of(content):
     return []
 
 
-def mine_claude_session(path, registry):
+def mine_claude_session(path, registry, cutoff=""):
     row = new_row("claude", path)
     row["project"] = os.path.basename(os.path.dirname(path))
     marks = []
@@ -131,41 +132,49 @@ def mine_claude_session(path, registry):
     id2call = {}
     corrections_seen = set()
 
-    def invoke(name, ts):
+    def invoke(name, ts, included):
         nonlocal cur
         skill = normalize(name, registry)
         if not skill:
             return
         cur = skill
-        row["skills"][skill] += 1
-        bump(row, skill, "invocations")
         marks.append((ts or "", skill))
+        if included:
+            row["skills"][skill] += 1
+            bump(row, skill, "invocations")
 
+    in_scope = not cutoff
     for d in iter_lines(path):
         if d is None:
-            row["malformed_lines"] += 1
+            if in_scope:
+                row["malformed_lines"] += 1
             continue
         ts = d.get("timestamp")
-        stamp(row, ts)
+        included = not cutoff or bool(ts and ts >= cutoff)
+        if included:
+            in_scope = True
+            stamp(row, ts)
         kind = d.get("type")
         if kind == "assistant":
             msg = d.get("message") or {}
-            if msg.get("model"):
+            if included and msg.get("model"):
                 row["models"].add(msg["model"])
-            bump(row, cur, "tokens", (msg.get("usage") or {}).get("output_tokens") or 0)
+            if included:
+                bump(row, cur, "tokens", (msg.get("usage") or {}).get("output_tokens") or 0)
             for c in msg.get("content") or []:
                 if not isinstance(c, dict) or c.get("type") != "tool_use":
                     continue
                 name = c.get("name") or "?"
-                row["usage_by_tool"][name] += 1
-                bump(row, cur, "tool_calls")
+                if included:
+                    row["usage_by_tool"][name] += 1
+                    bump(row, cur, "tool_calls")
                 if len(id2call) < ID_MAP_CAP:
                     id2call[c.get("id")] = (name, cur)
                 if name == "Skill":
-                    invoke(str((c.get("input") or {}).get("skill") or ""), ts)
+                    invoke(str((c.get("input") or {}).get("skill") or ""), ts, included)
         elif kind == "user":
             content = (d.get("message") or {}).get("content")
-            if isinstance(content, list):
+            if included and isinstance(content, list):
                 for c in content:
                     if isinstance(c, dict) and c.get("type") == "tool_result" and c.get("is_error"):
                         tool, at = id2call.get(c.get("tool_use_id"), ("?", cur))
@@ -174,17 +183,18 @@ def mine_claude_session(path, registry):
             for text in texts_of(content):
                 if not text:
                     continue
-                row["user_msgs"] += 1
-                if INTERRUPT_MARK in text:
-                    bump(row, cur, "interrupts")
-                stripped = text.strip()
-                if CORRECTION_RE.match(stripped) and stripped[:120] not in corrections_seen:
-                    corrections_seen.add(stripped[:120])
-                    bump(row, cur, "corrections")
+                if included:
+                    row["user_msgs"] += 1
+                    if INTERRUPT_MARK in text:
+                        bump(row, cur, "interrupts")
+                    stripped = text.strip()
+                    if CORRECTION_RE.match(stripped) and stripped[:120] not in corrections_seen:
+                        corrections_seen.add(stripped[:120])
+                        bump(row, cur, "corrections")
                 for name in COMMAND_RE.findall(text):
-                    invoke(name, ts)
+                    invoke(name, ts, included)
 
-    mine_claude_subagents(path, row, marks)
+    mine_claude_subagents(path, row, marks, cutoff)
     return row
 
 
@@ -195,7 +205,7 @@ def skill_at(marks, ts):
     return marks[idx - 1][1] if idx else NONE
 
 
-def mine_claude_subagents(session_path, row, marks):
+def mine_claude_subagents(session_path, row, marks, cutoff=""):
     agent_dir = session_path.removesuffix(".jsonl")
     if not os.path.isdir(agent_dir):
         return
@@ -204,8 +214,12 @@ def mine_claude_subagents(session_path, row, marks):
             if not fname.endswith(".jsonl"):
                 continue
             path = os.path.join(base, fname)
-            first_ts, calls, errs, tokens, bad = scan_agent(path)
+            first_ts, window_first, window_last, calls, errs, tokens, bad = scan_agent(path, cutoff)
             row["malformed_lines"] += bad
+            if cutoff and not window_first:
+                continue
+            stamp(row, window_first)
+            stamp(row, window_last)
             skill = skill_at(marks, first_ts)
             bump(row, skill, "agents")
             bump(row, skill, "agent_tool_calls", calls)
@@ -213,26 +227,38 @@ def mine_claude_subagents(session_path, row, marks):
             bump(row, skill, "agent_tokens", tokens)
 
 
-def scan_agent(path):
-    first_ts, calls, errs, tokens, bad = None, 0, 0, 0, 0
+def scan_agent(path, cutoff=""):
+    first_ts, window_first, window_last = None, None, None
+    calls, errs, tokens, bad = 0, 0, 0, 0
     ids = set()
+    in_scope = not cutoff
     try:
         for d in iter_lines(path):
             if d is None:
-                bad += 1
+                if in_scope:
+                    bad += 1
                 continue
-            if first_ts is None:
-                first_ts = d.get("timestamp")
+            ts = d.get("timestamp")
+            if first_ts is None and ts:
+                first_ts = ts
+            included = not cutoff or bool(ts and ts >= cutoff)
+            if included:
+                in_scope = True
+                if window_first is None:
+                    window_first = ts
+                window_last = ts
             kind = d.get("type")
             if kind == "assistant":
                 msg = d.get("message") or {}
-                tokens += (msg.get("usage") or {}).get("output_tokens") or 0
+                if included:
+                    tokens += (msg.get("usage") or {}).get("output_tokens") or 0
                 for c in msg.get("content") or []:
                     if isinstance(c, dict) and c.get("type") == "tool_use":
-                        calls += 1
+                        if included:
+                            calls += 1
                         if len(ids) < ID_MAP_CAP:
                             ids.add(c.get("id"))
-            elif kind == "user":
+            elif included and kind == "user":
                 content = (d.get("message") or {}).get("content")
                 if isinstance(content, list):
                     for c in content:
@@ -240,7 +266,7 @@ def scan_agent(path):
                             errs += 1
     except OSError:
         pass
-    return first_ts, calls, errs, tokens, bad
+    return first_ts, window_first, window_last, calls, errs, tokens, bad
 
 
 def exit_failed(output):
@@ -256,78 +282,98 @@ def exit_failed(output):
     return text.startswith("failed") or '"error"' in text[:200]
 
 
-def mine_codex_session(path, registry):
+def mine_codex_session(path, registry, cutoff=""):
     row = new_row("codex", path)
     cur = NONE
     seen_tokens = 0
     corrections_seen = set()
 
+    in_scope = not cutoff
     for d in iter_lines(path):
         if d is None:
-            row["malformed_lines"] += 1
+            if in_scope:
+                row["malformed_lines"] += 1
             continue
-        stamp(row, d.get("timestamp"))
+        ts = d.get("timestamp")
+        included = not cutoff or bool(ts and ts >= cutoff)
+        if included:
+            in_scope = True
+            stamp(row, ts)
         kind = d.get("type")
         p = d.get("payload") or {}
         if kind == "session_meta":
             row["project"] = p.get("cwd") or (p.get("meta") or {}).get("cwd") or row["project"]
         elif kind == "turn_context":
-            if p.get("model"):
+            if included and p.get("model"):
                 row["models"].add(p["model"])
         elif kind == "event_msg":
             ptype = p.get("type")
             if ptype == "user_message":
                 text = p.get("message") or ""
-                row["user_msgs"] += 1
+                if included:
+                    row["user_msgs"] += 1
                 for raw in DOLLAR_RE.findall(text):
                     skill = normalize(raw, registry)
                     if skill:
                         cur = skill
-                        row["skills"][skill] += 1
-                        bump(row, skill, "invocations")
+                        if included:
+                            row["skills"][skill] += 1
+                            bump(row, skill, "invocations")
                 stripped = text.strip()
-                if CORRECTION_RE.match(stripped) and stripped[:120] not in corrections_seen:
+                if included and CORRECTION_RE.match(stripped) and stripped[:120] not in corrections_seen:
                     corrections_seen.add(stripped[:120])
                     bump(row, cur, "corrections")
-            elif ptype == "error":
+            elif included and ptype == "error":
                 bump(row, cur, "tool_errors")
                 row["errors_by_tool"]["event_error"] += 1
-            elif ptype == "turn_aborted":
+            elif included and ptype == "turn_aborted":
                 bump(row, cur, "aborts")
                 row["aborts_by_reason"][p.get("reason") or "unknown"] += 1
             elif ptype == "token_count":
                 total = ((p.get("info") or {}).get("total_token_usage") or {}).get("total_tokens") or 0
                 if total > seen_tokens:
-                    bump(row, cur, "tokens", total - seen_tokens)
+                    if included:
+                        bump(row, cur, "tokens", total - seen_tokens)
                     seen_tokens = total
         elif kind == "response_item":
             ptype = p.get("type")
             if ptype == "function_call":
                 name = p.get("name") or "exec"
-                row["usage_by_tool"][name] += 1
-                bump(row, cur, "tool_calls")
-                for hit in SKILLMD_RE.findall(str(p.get("arguments") or "")):
-                    skill = normalize(hit, registry)
-                    if skill:
-                        row["skillmd_reads"][skill] += 1
-            elif ptype == "function_call_output" and exit_failed(p.get("output")):
+                if included:
+                    row["usage_by_tool"][name] += 1
+                    bump(row, cur, "tool_calls")
+                    for hit in SKILLMD_RE.findall(str(p.get("arguments") or "")):
+                        skill = normalize(hit, registry)
+                        if skill:
+                            row["skillmd_reads"][skill] += 1
+            elif included and ptype == "function_call_output" and exit_failed(p.get("output")):
                 bump(row, cur, "tool_errors")
                 row["errors_by_tool"]["exec"] += 1
     return row
 
 
-def discover(runtime, since_days, root=None):
+def discover(runtime, since_days, root=None, cutoff_epoch=None):
     root = root or (CLAUDE_PROJECTS if runtime == "claude" else CODEX_SESSIONS)
     if not os.path.isdir(root):
         print(f"note: no {runtime} transcripts at {root}", file=sys.stderr)
         return []
-    cutoff = time.time() - since_days * 86400 if since_days else 0
+    cutoff = cutoff_epoch if cutoff_epoch is not None else time.time() - since_days * 86400 if since_days else 0
 
     def fresh(path):
         try:
             return os.path.getmtime(path) >= cutoff
         except OSError:
             return False
+
+    def fresh_claude(path):
+        if fresh(path):
+            return True
+        agent_dir = path.removesuffix(".jsonl")
+        if not os.path.isdir(agent_dir):
+            return False
+        return any(fresh(os.path.join(base, name))
+                   for base, _, files in os.walk(agent_dir)
+                   for name in files if name.endswith(".jsonl"))
 
     paths = []
     if runtime == "claude":
@@ -336,7 +382,7 @@ def discover(runtime, since_days, root=None):
             if not os.path.isdir(pdir):
                 continue
             paths += [os.path.join(pdir, f) for f in os.listdir(pdir)
-                      if f.endswith(".jsonl") and fresh(os.path.join(pdir, f))]
+                      if f.endswith(".jsonl") and fresh_claude(os.path.join(pdir, f))]
     else:
         for base, _, files in os.walk(root):
             paths += [os.path.join(base, f) for f in files
@@ -420,16 +466,22 @@ def session_json(row):
     return out
 
 
-def run(runtime, registry, out_dir, since_days):
-    paths = discover(runtime, since_days)
+def run(runtime, registry, out_dir, since_days, cutoff=None, cutoff_epoch=None):
+    if cutoff_epoch is None:
+        cutoff_epoch = time.time() - since_days * 86400 if since_days else 0
+    paths = discover(runtime, since_days, cutoff_epoch=cutoff_epoch)
     miner = mine_claude_session if runtime == "claude" else mine_codex_session
+    if cutoff is None:
+        cutoff = time.strftime("%Y-%m-%dT%H:%M:%S.000000Z", time.gmtime(cutoff_epoch)) if since_days else ""
     rows = []
     out_path = os.path.join(out_dir, f"sessions-{runtime}.jsonl")
     with open(out_path, "w") as fh:
         for i, path in enumerate(paths, 1):
             try:
-                row = miner(path, registry)
+                row = miner(path, registry, cutoff)
             except OSError:
+                continue
+            if cutoff and not row["first_ts"]:
                 continue
             rows.append(row)
             fh.write(json.dumps(session_json(row)) + "\n")
@@ -453,7 +505,7 @@ def summarize(name, skills, base):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Mine skill usage from Claude Code + Codex transcripts.")
-    ap.add_argument("--since", type=int, default=0, metavar="DAYS", help="only sessions modified in the last N days")
+    ap.add_argument("--since", type=int, default=0, metavar="DAYS", help="only events from the last N days")
     ap.add_argument("--runtime", choices=("claude", "codex", "both"), default="both")
     ap.add_argument("--out", default=".", metavar="DIR", help="output directory for aggregates + session rows")
     args = ap.parse_args(argv)
@@ -466,15 +518,18 @@ def main(argv=None):
         print("warn: no installed skills found; skill-ID validation is off and results will contain noise", file=sys.stderr)
 
     runtimes = ("claude", "codex") if args.runtime == "both" else (args.runtime,)
+    cutoff_epoch = time.time() - args.since * 86400 if args.since else 0
+    cutoff = time.strftime("%Y-%m-%dT%H:%M:%S.000000Z", time.gmtime(cutoff_epoch)) if args.since else ""
     report = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "since_days": args.since or None,
+        "cutoff_at": cutoff or None,
         "registry_skills": len(registry),
         "runtimes": {},
     }
     used = set()
     for runtime in runtimes:
-        rows = run(runtime, registry, args.out, args.since)
+        rows = run(runtime, registry, args.out, args.since, cutoff, cutoff_epoch)
         skills = aggregate(rows)
         base = baseline(rows)
         used.update(k for k in skills if k != NONE)
