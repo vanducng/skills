@@ -20,6 +20,8 @@ Use kebab-case for skill directory names and match the `name` field in `SKILL.md
 
 When documenting skill handoffs or examples, use canonical skill IDs without a leading invocation prefix, such as `vd:cook plans/path/`. The caller adds the slash prefix in Claude Code or the dollar prefix in Codex.
 
+Skills must work across computers and users. Never hardcode personal absolute paths, usernames, or machine-only locations; use repository-relative paths, `$HOME`, configurable environment variables, or hook-injected artifact roots. If a platform-specific default is necessary, document a portable override.
+
 ## Documentation Sync
 
 The `skills/` directory is the source of truth for the catalog; `docs/` must track it. When you add, remove, or rename a skill — or materially change what one does — update the docs in the same change:
