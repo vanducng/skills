@@ -8,7 +8,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 [ -f "$server_json" ] || exit 0
 
 port=$(jq -er '.port | select(type == "number")' "$server_json" 2>/dev/null) || exit 0
-token=$(jq -er '.token | select(type == "string") | select(length > 0 and (test("[\\r\\n]") | not))' "$server_json" 2>/dev/null) || exit 0
+token=$(jq -er '.token | select(type == "string") | select(length > 0 and (test("[\\x00-\\x1f\\x7f]") | not))' "$server_json" 2>/dev/null) || exit 0
 [ -n "$port" ] && [ -n "$token" ] || exit 0
 case "$port" in *[!0-9]*) exit 0 ;; esac
 [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || exit 0
