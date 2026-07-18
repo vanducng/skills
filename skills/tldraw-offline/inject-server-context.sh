@@ -23,7 +23,7 @@ if command -v curl >/dev/null 2>&1; then
   docs=$(printf 'authorization: Bearer %s\n' "$token" | curl -s --max-time 2 -X POST "http://localhost:$port/api/search" \
     -H 'content-type: text/plain' \
     -H @- \
-    --data-binary 'return await api.getDocs()' 2>/dev/null | jq -c '.result // empty' 2>/dev/null)
+    --data-binary 'return await api.getDocs()' 2>/dev/null | jq -c '.result | arrays' 2>/dev/null)
 fi
 
 if [ -n "$docs" ] && [ "$docs" != "[]" ]; then
