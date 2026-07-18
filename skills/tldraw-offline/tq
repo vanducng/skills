@@ -11,7 +11,7 @@ case "$2" in /*) ;; *) echo "tq: path must start with /: $2" >&2; exit 2 ;; esac
 sj=${TLDRAW_STATE_FILE:-"$HOME/Library/Application Support/tldraw/server.json"}
 [ -f "$sj" ] || { echo "tq: tldraw is not running (missing $sj)" >&2; exit 1; }
 port=$(jq -er '.port | select(type == "number")' "$sj") || { echo "tq: invalid port in $sj" >&2; exit 1; }
-token=$(jq -er '.token | select(type == "string" and length > 0)' "$sj") || { echo "tq: invalid token in $sj" >&2; exit 1; }
+token=$(jq -er '.token | select(type == "string") | select(length > 0 and (test("[\\r\\n]") | not))' "$sj") || { echo "tq: invalid token in $sj" >&2; exit 1; }
 case "$port" in ''|*[!0-9]*) echo "tq: invalid port in $sj" >&2; exit 1 ;; esac
 [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || { echo "tq: invalid port in $sj" >&2; exit 1; }
 url="http://localhost:$port$2"

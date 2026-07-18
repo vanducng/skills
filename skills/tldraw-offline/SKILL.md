@@ -30,15 +30,15 @@ PORT=$(jq -r .port "$SERVER_JSON"); TOKEN=$(jq -r .token "$SERVER_JSON")
 
 ### Helper: `tq`
 
-A ready-made helper ships with this skill at `"$HOME/skills/skills/tldraw-offline/tq"`. Invoke it as `sh "$HOME/skills/skills/tldraw-offline/tq" <METHOD> <path> [body]` — it re-reads the port and token from `server.json` itself on every call, so you never handle the token or the fresh-shell env problem. A body starting with `{` is sent as JSON; anything else as raw `text/plain`:
+A ready-made `tq` helper ships beside this `SKILL.md`. Resolve its path from the loaded skill directory and invoke it as `sh "<skill-directory>/tq" <METHOD> <path> [body]` — it re-reads the port and token from `server.json` itself on every call, so you never handle the token or the fresh-shell env problem. A valid JSON object is sent as JSON; anything else as raw `text/plain`:
 
 ```bash
-sh "$HOME/skills/skills/tldraw-offline/tq" POST /api/search '{"code":"return await api.getDocs()"}'
-sh "$HOME/skills/skills/tldraw-offline/tq" POST /api/doc/DOC_ID/exec 'return editor.getCurrentPageShapes().length'
-sh "$HOME/skills/skills/tldraw-offline/tq" GET  /api/doc/DOC_ID/script-status
+sh "<skill-directory>/tq" POST /api/search '{"code":"return await api.getDocs()"}'
+sh "<skill-directory>/tq" POST /api/doc/DOC_ID/exec 'return editor.getCurrentPageShapes().length'
+sh "<skill-directory>/tq" GET  /api/doc/DOC_ID/script-status
 ```
 
-If `tq` is missing (an older install), fall back to raw `curl` with the `PORT`/`TOKEN` reads shown above. The raw-`curl` examples below stay in explicit form so each request is visible; translate any to `sh "$HOME/skills/skills/tldraw-offline/tq" <METHOD> <path> [body]`.
+If `tq` is missing (an older install), fall back to raw `curl` with the `PORT`/`TOKEN` reads shown above. The raw-`curl` examples below stay in explicit form so each request is visible; translate any to `sh "<skill-directory>/tq" <METHOD> <path> [body]`.
 
 ```bash
 curl -s http://localhost:7236/readme
@@ -63,7 +63,7 @@ The code-taking POST endpoints accept raw JavaScript as the request body (`conte
 
 ## Use this first
 
-Most tasks do not require searching `api.members`. Start with these calls and search the full Editor API only if a snippet fails or you truly need an unknown method. The object is `api`, not `spec`. Each block below is shown as raw `curl` so the request is visible; `sh "$HOME/skills/skills/tldraw-offline/tq" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
+Most tasks do not require searching `api.members`. Start with these calls and search the full Editor API only if a snippet fails or you truly need an unknown method. The object is `api`, not `spec`. Each block below is shown as raw `curl` so the request is visible; `sh "<skill-directory>/tq" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
 
 ```bash
 # Fresh shell per call: re-read port + token first (or use the values already in your context).
@@ -177,7 +177,7 @@ Read the worked `custom-shape` and `custom-overlay` recipes from `api.recipes` f
 
 ## Fast path for static edits
 
-Shown as raw `curl`; `sh "$HOME/skills/skills/tldraw-offline/tq" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
+Shown as raw `curl`; `sh "<skill-directory>/tq" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
 
 ```bash
 # Fresh shell per call: re-read port + token (or use the values already in your context).
