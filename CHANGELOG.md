@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.30.1](https://github.com/vanducng/skills/compare/v1.30.0...v1.30.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* **observability:** corrected recent skill error audits ([#297](https://github.com/vanducng/skills/issues/297)) ([a50575f](https://github.com/vanducng/skills/commit/a50575f2475b9b0fa6ca9898104420b222511e24))
+
 ## [1.30.0](https://github.com/vanducng/skills/compare/v1.29.0...v1.30.0) (2026-07-18)
 
 
