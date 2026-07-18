@@ -5,16 +5,19 @@
 #   sh tq POST /api/search '{"code":"return await api.getDocs()"}'                # JSON body
 #   sh tq POST /api/doc/DOC/exec 'return editor.getCurrentPageShapes().length'    # raw JS body
 set -e
-sj='/Users/vanducng/Library/Application Support/tldraw/server.json'
-port=$(jq -r .port "$sj"); token=$(jq -r .token "$sj")
+[ "$#" -ge 2 ] && [ "$#" -le 3 ] || { echo 'Usage: sh tq <GET|POST> </api/path> [body]' >&2; exit 2; }
+case "$1" in GET|POST) ;; *) echo "tq: unsupported method: $1" >&2; exit 2 ;; esac
+sj=${TLDRAW_STATE_FILE:-"$HOME/Library/Application Support/tldraw/server.json"}
+[ -f "$sj" ] || { echo "tq: tldraw is not running (missing $sj)" >&2; exit 1; }
+port=$(jq -er .port "$sj"); token=$(jq -er .token "$sj")
 url="http://localhost:$port$2"
 auth="authorization: Bearer $token"
 if [ -z "$3" ]; then
   curl -s -X "$1" "$url" -H "$auth"
 else
   case "$3" in
-    '{'*) ctype='content-type: application/json' ;;
-    *)    ctype='content-type: text/plain' ;;
+    '{'*|'['*) ctype='content-type: application/json' ;;
+    *)         ctype='content-type: text/plain' ;;
   esac
   curl -s -X "$1" "$url" -H "$auth" -H "$ctype" --data-binary "$3"
 fi
