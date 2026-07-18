@@ -210,6 +210,7 @@ try:
     _ASSIGN_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
     _GLOB_RE = re.compile(r'[*?\[\]{}]')
     _GIT_SEG_RE = re.compile(r'(^|/)\.git(/|$)')
+    # Quoted tags prevent local expansion; unquoted bodies stay guarded.
     _HEREDOC_RE = re.compile(
         r'''<<-?\s*(?P<quote>['"])(?P<tag>[A-Za-z_][A-Za-z0-9_]*)(?P=quote)[^\n]*\n.*?\n[ \t]*(?P=tag)[ \t]*(?=\n|$)''',
         re.DOTALL,

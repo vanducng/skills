@@ -129,9 +129,11 @@ def timestamp_epoch(ts):
         return None
 
 
-def in_window(ts, cutoff_epoch):
+def in_window(ts, cutoff_epoch, already_in_scope=False):
+    if not cutoff_epoch:
+        return True
     epoch = timestamp_epoch(ts)
-    return not cutoff_epoch or epoch is not None and epoch >= cutoff_epoch
+    return already_in_scope if epoch is None else epoch >= cutoff_epoch
 
 
 def texts_of(content):
@@ -168,7 +170,7 @@ def mine_claude_session(path, registry, cutoff_epoch=0):
                 row["malformed_lines"] += 1
             continue
         ts = d.get("timestamp")
-        included = in_window(ts, cutoff_epoch)
+        included = in_window(ts, cutoff_epoch, in_scope)
         if included:
             in_scope = True
             stamp(row, ts)
@@ -238,6 +240,7 @@ def mine_claude_subagents(session_path, row, marks, cutoff_epoch=0):
                 continue
             stamp(row, window_first)
             stamp(row, window_last)
+            # Attribute by agent start; window timestamps only bound retained counters.
             skill = skill_at(marks, first_ts)
             bump(row, skill, "agents")
             bump(row, skill, "agent_tool_calls", calls)
@@ -259,7 +262,7 @@ def scan_agent(path, cutoff_epoch=0):
             ts = d.get("timestamp")
             if first_ts is None and ts:
                 first_ts = ts
-            included = in_window(ts, cutoff_epoch)
+            included = in_window(ts, cutoff_epoch, in_scope)
             if included:
                 in_scope = True
                 if window_first is None:
@@ -313,7 +316,7 @@ def mine_codex_session(path, registry, cutoff_epoch=0):
                 row["malformed_lines"] += 1
             continue
         ts = d.get("timestamp")
-        included = in_window(ts, cutoff_epoch)
+        included = in_window(ts, cutoff_epoch, in_scope)
         if included:
             in_scope = True
             stamp(row, ts)
@@ -521,7 +524,8 @@ def summarize(name, skills, base):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Mine skill usage from Claude Code + Codex transcripts.")
-    ap.add_argument("--since", type=int, default=0, metavar="DAYS", help="only events from the last N days")
+    ap.add_argument("--since", type=int, default=0, metavar="DAYS",
+                    help="scan transcripts active in the last N days, then keep events in that window")
     ap.add_argument("--runtime", choices=("claude", "codex", "both"), default="both")
     ap.add_argument("--out", default=".", metavar="DIR", help="output directory for aggregates + session rows")
     args = ap.parse_args(argv)

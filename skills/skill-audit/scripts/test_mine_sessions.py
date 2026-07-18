@@ -175,6 +175,25 @@ class Attribution(unittest.TestCase):
         self.assertEqual(attr["scout"]["tokens"], 100)
         self.assertEqual(attr["cook"]["tokens"], 150)
 
+    def test_missing_timestamps_follow_current_window_state(self):
+        path = write(self.root / "codex" / "rollout-missing-ts.jsonl", [
+            {"type": "event_msg", "timestamp": "2000-01-01T00:00:00Z",
+             "payload": {"type": "user_message", "message": "$scout"}},
+            {"type": "response_item",
+             "payload": {"type": "function_call", "name": "old", "arguments": "{}"}},
+            {"type": "event_msg", "timestamp": "2999-01-01T00:00:00Z",
+             "payload": {"type": "user_message", "message": PREFIXED_INVOKE}},
+            {"type": "response_item",
+             "payload": {"type": "function_call", "name": "new", "arguments": "{}"}},
+        ])
+
+        row = m.mine_codex_session(
+            path, REGISTRY, m.timestamp_epoch("2026-01-01T00:00:00Z"),
+        )
+
+        self.assertEqual(row["attr"]["scout"]["tool_calls"], 0)
+        self.assertEqual(row["attr"]["ship"]["tool_calls"], 1)
+
     def test_claude_cutoff_excludes_old_events(self):
         path = write(self.root / "proj" / "window.jsonl", [
             cc_text("2000-01-01T00:00:00Z", "<command-name>/scout</command-name>"),
