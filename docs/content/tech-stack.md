@@ -20,10 +20,11 @@ title: "Tech Stack"
 | Local validation | Bash plus Python standard library | `scripts/validate.sh`, `scripts/check-release-versions.sh` |
 | Claude Code target | Plugin and marketplace JSON | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` |
 | Codex target | `.agents/skills` symlinks | `vd install codex --dry-run` |
+| Factory Droid target | `.factory/skills` entries | `vd install droid --dry-run` |
 
 ## CLI Integration
 
-The standalone `vd` CLI is maintained in `vanducng/vd-cli`, not in this repo. Its current public release is `v2.1.0`, and the local installed binary reports `vd 2.1.0`.
+The standalone `vd` CLI is maintained in `vanducng/vd-cli`, not in this repo. Install its latest release before using the target commands documented here; Factory Droid requires v3.13.0 or newer.
 
 `vd-cli` is a Go module using:
 
@@ -35,7 +36,7 @@ The standalone `vd` CLI is maintained in `vanducng/vd-cli`, not in this repo. It
 | go-toml | `v2.3.1` |
 | yaml.v3 | `v3.0.1` |
 
-Source: `/Users/vanducng/git/personal/agents/vd-cli/go.mod`.
+Source: [`vanducng/vd-cli/go.mod`](https://github.com/vanducng/vd-cli/blob/main/go.mod).
 
 ## CI And Release
 

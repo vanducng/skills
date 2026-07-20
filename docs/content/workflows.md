@@ -22,7 +22,7 @@ Source: `scripts/validate.sh`, `scripts/check-release-versions.sh`.
 vd build
 ```
 
-`vd build` reads `skills.toml` and emits Claude Code plugin metadata plus Codex repo-scope skill links. The `vd` CLI itself lives in `vanducng/vd-cli` and versions independently from this skill catalog.
+`vd build` reads `skills.toml` and emits Claude Code plugin metadata, Codex repo-scope skill links, and Factory Droid entries under `.factory/skills`. Droid entries are relative symlinks on Unix and copies on Windows. The `vd` CLI itself lives in `vanducng/vd-cli` and versions independently from this skill catalog.
 
 Source: `skills.toml`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`.
 

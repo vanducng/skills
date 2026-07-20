@@ -5,11 +5,9 @@ title: "Install"
 This page covers two layers:
 
 - Install the standalone `vd` CLI, which manages skills across agent hosts.
-- Install this skill catalog into Claude Code or Codex.
+- Install this skill catalog into Claude Code, Codex, or Factory Droid.
 
-Current verified CLI release: `vd-cli` `v2.1.0`, published from `vanducng/vd-cli` on 2026-05-24. The installed local binary reports `vd 2.1.0`.
-
-Sources: `README.md`, `skills.toml`, `vd install --help`, `gh release view v2.1.0 --repo vanducng/vd-cli`.
+Install the latest `vd-cli` release. Factory Droid support requires `vd-cli` v3.13.0 or newer.
 
 ## Install The `vd` CLI
 
@@ -43,7 +41,7 @@ Release tarballs are published as `vd_linux_x86_64.tar.gz` and `vd_linux_arm64.t
 Windows x86_64 has a prebuilt zip:
 
 ```powershell
-$version = "v2.1.0"
+$version = (Invoke-RestMethod "https://api.github.com/repos/vanducng/vd-cli/releases/latest").tag_name
 $asset = "vd_windows_x86_64.zip"
 Invoke-WebRequest "https://github.com/vanducng/vd-cli/releases/download/$version/$asset" -OutFile $asset
 Expand-Archive $asset -DestinationPath ".\vd" -Force
@@ -115,10 +113,30 @@ vd install codex --scope repo
 Use repo scope when a project should carry the same skill set for every Codex session opened from that checkout.
 :::
 
+### Factory Droid: User Scope
+
+User scope installs the catalog into `$HOME/.factory/skills`:
+
+```sh
+vd install droid --dry-run
+vd install droid
+```
+
+### Factory Droid: Repo Scope
+
+Repo scope installs the catalog into `.factory/skills` inside the current repo:
+
+```sh
+vd install droid --scope repo --dry-run
+vd install droid --scope repo
+```
+
+On Unix, vd uses relative symlinks by default. On Windows, it creates copies; rerun with `--force` to refresh an existing destination. Restart Droid and run `/skills` to verify discovery.
+
 ## Invocation Names
 
 :::note
-Documentation uses canonical IDs such as `vd:research`, `vd:plan`, and `vd:ship`. Claude Code and Codex expose different invocation prefixes in their UIs, but the skill identity is the same catalog namespace: Claude Code invokes `/vd:research`, Codex invokes `$vd:research` (or activates the skill implicitly when your prompt matches its description).
+Documentation uses canonical IDs such as `vd:research`, `vd:plan`, and `vd:ship`. Agent UIs expose different invocation forms, but the catalog identity stays the same: Claude Code invokes `/vd:research`, Codex invokes `$vd:research`, and Droid invokes the installed folder as `/research`. Codex and Droid can also activate a skill implicitly when the prompt matches its description.
 :::
 
 ## Verify The Install

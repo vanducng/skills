@@ -39,6 +39,17 @@ vd install codex                # user scope
 vd install codex --scope repo   # repo scope
 ```
 
+### Factory Droid
+
+Requires `vd-cli` v3.13.0 or newer.
+
+```sh
+vd install droid                # user scope: $HOME/.factory/skills
+vd install droid --scope repo   # repo scope: .factory/skills
+```
+
+Restart Droid, run `/skills`, then invoke a skill by folder name, such as `/plan`.
+
 For Claude Code development symlinks instead of the marketplace plugin: `vd install claude --dev`.
 
 > **Don't mix the two for the same skill.** A marketplace plugin copy and a `--dev` symlink of the same skill shadow each other unpredictably (edits to one won't "land"). Pick one. Diagnose duplicates with `bash scripts/check-install-conflicts.sh`.

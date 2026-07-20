@@ -8,7 +8,7 @@ This repository is a daily-driver collection of skills for agentic coding, descr
 
 - `bash scripts/new-skill.sh my-new-skill`: scaffold a new skill directory.
 - `bash scripts/validate.sh`: validate every `skills/*/SKILL.md` frontmatter block.
-- `bash scripts/install.sh` / `scripts/uninstall.sh`: install/remove the skills locally (Claude Code dev symlinks into `~/.claude/skills` only; use `vd install codex` for the Codex `~/.agents/skills` namespace).
+- `bash scripts/install.sh` / `scripts/uninstall.sh`: install/remove Claude Code dev symlinks under `$HOME/.claude/skills`; use `vd install codex` for `$HOME/.agents/skills` and `vd install droid` for `$HOME/.factory/skills`.
 - `bash scripts/check-docs-site.sh --check`: verify `docs/` tracks the catalog.
 - `bash scripts/check-install-conflicts.sh`: check for skill ID/file conflicts.
 - `cd skills/file-browser && npm test`: run the file-browser server tests.
@@ -18,7 +18,7 @@ This repository is a daily-driver collection of skills for agentic coding, descr
 
 Use kebab-case for skill directory names and match the `name` field in `SKILL.md` exactly, such as `browser-trace`. Keep skill instructions direct, scoped, and supported by local `references/`, `scripts/`, or `assets/` when useful. Shell scripts should use `set -euo pipefail`.
 
-When documenting skill handoffs or examples, use canonical skill IDs without a leading invocation prefix, such as `vd:cook plans/path/`. The caller adds the slash prefix in Claude Code or the dollar prefix in Codex.
+When documenting skill handoffs or examples, use canonical skill IDs without a leading invocation prefix, such as `vd:cook plans/path/`. The caller adds the slash prefix in Claude Code or the dollar prefix in Codex. Droid invokes the installed folder name without the catalog namespace, such as `/cook`.
 
 Skills must work across computers and users. Never hardcode personal absolute paths, usernames, or machine-only locations; use repository-relative paths, `$HOME`, configurable environment variables, or hook-injected artifact roots. If a platform-specific default is necessary, document a portable override.
 
