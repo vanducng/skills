@@ -29,7 +29,7 @@ Update with `/plugin marketplace update vd-skills && /plugin install vd@vd-skill
 
 ```sh
 brew install vanducng/tap/vd                                   # macOS
-go install github.com/vanducng/vd-cli/v2/cmd/vd@latest         # any platform
+curl -fsSL https://raw.githubusercontent.com/vanducng/vd-cli/main/install.sh | sh  # macOS/Linux
 ```
 
 ### Codex

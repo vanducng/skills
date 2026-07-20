@@ -24,14 +24,14 @@ Apple Silicon and Intel tarballs are also published as `vd_darwin_arm64.tar.gz` 
 
 ### Linux
 
-Use Homebrew on Linux, Go, or a release tarball:
+Use Homebrew on Linux, the install script, or a release tarball:
 
 ```sh
 brew install vanducng/tap/vd
 ```
 
 ```sh
-go install github.com/vanducng/vd-cli/v2/cmd/vd@latest
+curl -fsSL https://raw.githubusercontent.com/vanducng/vd-cli/main/install.sh | sh
 ```
 
 Release tarballs are published as `vd_linux_x86_64.tar.gz` and `vd_linux_arm64.tar.gz`.
@@ -48,12 +48,7 @@ Expand-Archive $asset -DestinationPath ".\vd" -Force
 .\vd\vd.exe --version
 ```
 
-For Windows ARM64, use Go for now:
-
-```powershell
-go install github.com/vanducng/vd-cli/v2/cmd/vd@latest
-vd --version
-```
+For Windows ARM64, use the same commands with `$asset = "vd_windows_arm64.zip"`.
 
 ## Install The Skill Catalog
 
