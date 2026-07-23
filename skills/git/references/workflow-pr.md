@@ -198,4 +198,4 @@ After a valid fix:
 
 - **Always sync `origin/$TO` into the branch first** if user is shipping. (`vd:ship` does this; for ad-hoc PRs, suggest it if `origin/$TO` is ahead.)
 - **Never** create a PR with a draft title like "WIP" unless `--draft` is also set.
-- **Never** include AI attribution in title or body.
+- **Never** include AI attribution in title, body, or comments — no "Generated with Claude", `Co-Authored-By: Claude`, or `https://claude.ai/code/session_...` session links.
