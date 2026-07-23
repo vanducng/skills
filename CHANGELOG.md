@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.31.1](https://github.com/vanducng/skills/compare/v1.31.0...v1.31.1) (2026-07-23)
+
+
+### Bug Fixes
+
+* ban claude session links in PRs; document herd-worktree scout-block collision ([#299](https://github.com/vanducng/skills/issues/299)) ([05b54ba](https://github.com/vanducng/skills/commit/05b54babeda0c625c3a86a82c0fdc7ccf8587ca6))
+
 ## [1.31.0](https://github.com/vanducng/skills/compare/v1.30.1...v1.31.0) (2026-07-23)
 
 
