@@ -18,3 +18,4 @@ Load that file for: past-tense (v-ed) titles, ticket-prefix detection, repo-temp
 | **Step 12 — Inline issue refs** | `Closes #N` / `Relates to #M` from Step 2 go inline in the **Why** bullet — no separate Linked-Issues section. |
 | **Step 14 — Verification block refresh** | After CI watch reports green, regenerate the three-line verification block (`**Tests:** …` / `**Docs:** …` / `**Breaking:** …`, one field per line) so reviewers see live status, not commit-time snapshot. |
 | **Beta channel** | Beta PRs target `dev` / `beta` branch, not `main`. Title and body shape are unchanged. |
+| **No AI attribution** | Never add `Co-Authored-By: Claude`, "Generated with Claude", or a `https://claude.ai/code/session_...` session link to the PR title, body, or any PR comment ship posts. |

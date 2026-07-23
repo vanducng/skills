@@ -58,7 +58,7 @@ Default for all verbs except `cm` (single-commit case) is subagent delegation �
 2. **No `--no-verify`, no `--no-gpg-sign`** unless user asks explicitly. Hooks failing means investigate, not bypass.
 3. **No force-push to protected branches.** `main`, `master`, `production`, `prod`, `release/*` — never. Feature branches require explicit user request.
 4. **Remote-first for compare ops.** `git diff origin/main...origin/feature` — never `git diff main...HEAD` (includes local WIP).
-5. **No AI attribution in commit messages.** No "Generated with Claude", no `Co-Authored-By: Claude`, no emojis unless asked.
+5. **No AI attribution in commit messages, PR bodies, or PR comments.** No "Generated with Claude", no `Co-Authored-By: Claude`, no `https://claude.ai/code/session_...` session links, no emojis unless asked.
 6. **Never amend a published commit.** New commit on top instead.
 7. **PR feedback is evidence-based.** For `pr`, fetch unresolved review threads and substantive review/top-level comments when a PR already exists or after creating/updating one. Validate comments against codebase contracts, types, config schemas, tests, and repo rules before changing code. If a suggestion is directionally valid but the literal patch is not the best fix, apply the better root-cause fix and explain that in the reply. Never resolve a review thread before posting an inline rationale on that thread.
 

@@ -228,5 +228,5 @@ Three labelled bullets + a verification block (one field per line). No section h
 - **Verification block values** come from live tooling output, never the author's claim.
 - **Existing PR for this branch** → `gh pr edit`, never re-create.
 - **Beta PRs** target dev/beta branch, not main.
-- **No AI attribution** in title or body. No "Generated with Claude" / `Co-Authored-By: Claude` / emoji unless explicitly asked.
+- **No AI attribution** in title, body, or PR comments. No "Generated with Claude" / `Co-Authored-By: Claude` / `https://claude.ai/code/session_...` links / emoji unless explicitly asked.
 - **`gh pr create --fill`** uses commit messages directly (imperative). After `--fill`, re-edit the title with `gh pr edit --title "<v-ed title>"` to flip it to past tense.

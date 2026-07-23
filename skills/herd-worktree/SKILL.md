@@ -192,6 +192,7 @@ Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` 
 | Vite manifest not found | no `public/build/manifest.json` and no Vite dev server → `npm install`, then `npm run build` (or keep `npm run dev` running) |
 | Assets not loading / wrong port | stale Vite → `pkill -f "node.*vite"`, `rm -f public/hot`, `npm run dev` from the worktree |
 | Missing vendor/ or node_modules/ | worktrees don't share them → `composer install` / `npm install` in the worktree |
+| Reading `public/build/manifest.json` or a `vendor/...` path blocked ("BLOCKED: Access to 'build' denied") | harness scout-block hook denies path *reads* containing a `build`/`vendor` segment (the `npm run build` command itself is allowed) → add `!public/build` (or `!vendor`, no trailing slash) to `.vdignore`, or keep `npm run dev` running so no manifest read is needed |
 
 ## Checklist
 
