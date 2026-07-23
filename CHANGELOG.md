@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.31.0](https://github.com/vanducng/skills/compare/v1.30.1...v1.31.0) (2026-07-23)
+
+
+### Features
+
+* **superwhisper-cli:** add transcript workflow skill ([#301](https://github.com/vanducng/skills/issues/301)) ([7e77dbe](https://github.com/vanducng/skills/commit/7e77dbe099b97b5434c293900321287c610911c6))
+
 ## [1.30.1](https://github.com/vanducng/skills/compare/v1.30.0...v1.30.1) (2026-07-18)
 
 
