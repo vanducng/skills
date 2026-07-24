@@ -13,15 +13,15 @@ metadata:
 
 > Decompose a feature across 12 risk dimensions → exhaustive, severity-tagged edge cases.
 
-## What this is — and isn't
+## What this is - and isn't
 
 | Skill | Does |
 |---|---|
 | `vd:test` | **Runs** tests, reports pass/fail |
 | `vd:brainstorm` | Explores *solution* options |
-| **`scenario`** | **Enumerates** edge cases & failure modes to test — does not run or fix them |
+| **`scenario`** | **Enumerates** edge cases & failure modes to test - does not run or fix them |
 
-Output is an input to test-writing / QA / `vd:plan` risk sections — not executable tests.
+Output is an input to test-writing / QA / `vd:plan` risk sections - not executable tests.
 
 ## Modes
 
@@ -34,11 +34,11 @@ Output is an input to test-writing / QA / `vd:plan` risk sections — not execut
 
 ## Workflow
 
-1. **Read the target** — the file/function or feature description. Identify inputs, outputs, state, external calls.
-2. **Walk the 12 dimensions** — see [`references/dimensions.md`](references/dimensions.md). For each, ask "what input/condition in this category breaks the target?"
-3. **Emit scenarios** — group by dimension; each: a one-line condition, **severity** (Critical/High/Med/Low), why it breaks, suggested test/assertion.
-4. **(saturation)** — repeat with a completeness critic ("which dimension or angle is still thin?"); dedupe against the seen-set; stop per the rules in [`references/saturation-loop.md`](references/saturation-loop.md).
-5. **Save** the report — write to the injected `Reports:` path. Filename: `scenario-{date}-{slug}.md`.
+1. **Read the target** - the file/function or feature description. Identify inputs, outputs, state, external calls.
+2. **Walk the 12 dimensions** - see [`references/dimensions.md`](references/dimensions.md). For each, ask "what input/condition in this category breaks the target?"
+3. **Emit scenarios** - group by dimension; each: a one-line condition, **severity** (Critical/High/Med/Low), why it breaks, suggested test/assertion.
+4. **(saturation)** - repeat with a completeness critic ("which dimension or angle is still thin?"); dedupe against the seen-set; stop per the rules in [`references/saturation-loop.md`](references/saturation-loop.md).
+5. **Save** the report - write to the injected `Reports:` path. Filename: `scenario-{date}-{slug}.md`.
    Final handoff must include an openable report location, such as
    `[scenario-report.md](/absolute/path/to/scenario-report.md)` or
    `file:///absolute/path/to/scenario-report.md`, not just the basename.
@@ -47,14 +47,14 @@ Output is an input to test-writing / QA / `vd:plan` risk sections — not execut
 
 ```markdown
 ## <dimension>
-- **[High]** <condition> — breaks because <reason>. Test: <assertion>.
-- **[Low]**  <condition> — ...
+- **[High]** <condition> - breaks because <reason>. Test: <assertion>.
+- **[Low]**  <condition> - ...
 ```
 
 End with a coverage line: `Dimensions covered: 12/12 · scenarios: N · saturation rounds: R`.
 
 ## Limitations (honest)
 
-- Enumeration quality depends on understanding the target — read it, don't guess.
-- Not a fuzzer or property tester — it proposes cases, it doesn't execute them.
-- `--saturation` is bounded — it will stop at the iteration cap even if more cases theoretically exist (logs that it stopped).
+- Enumeration quality depends on understanding the target - read it, don't guess.
+- Not a fuzzer or property tester - it proposes cases, it doesn't execute them.
+- `--saturation` is bounded - it will stop at the iteration cap even if more cases theoretically exist (logs that it stopped).

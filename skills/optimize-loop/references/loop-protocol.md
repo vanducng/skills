@@ -1,8 +1,8 @@
 # Loop Protocol
 
-Phases 0–8 per iteration (plus a 5.5 guard step). Run in order — no skipping.
+Phases 0–8 per iteration (plus a 5.5 guard step). Run in order - no skipping.
 
-## Phase 0 — Precondition checks (first iteration only)
+## Phase 0 - Precondition checks (first iteration only)
 
 Abort with a clear error if any fails:
 
@@ -15,7 +15,7 @@ Abort with a clear error if any fails:
 7. Dry-run `Guard` (if set) → exits 0.
 8. Record the **baseline metric** as iteration 0 in `loop-results.tsv`.
 
-## Phase 1 — Review
+## Phase 1 - Review
 
 Read context every iteration (never skip):
 
@@ -27,7 +27,7 @@ cat loop-results.tsv       # metric trend + keep/discard record
 
 Extract: which file types/techniques improved the metric, which were discarded, is the trend rising / flat / oscillating?
 
-## Phase 2 — Ideate
+## Phase 2 - Ideate
 
 Pick **ONE** focused change.
 
@@ -36,14 +36,14 @@ Pick **ONE** focused change.
 - Prefer high-leverage targets (lowest-coverage file, biggest bundle contributor, most lint errors).
 - After 3+ discards in one area → pivot to a different file or technique.
 
-## Phase 3 — Modify
+## Phase 3 - Modify
 
 - Edit within `Scope` only.
 - **Never** modify files referenced by `Guard`.
 - Keep syntax valid after the edit (run the language's type-check / linter).
-- One logical unit — no drive-by changes.
+- One logical unit - no drive-by changes.
 
-## Phase 4 — Commit (before verify)
+## Phase 4 - Commit (before verify)
 
 ```bash
 git add <changed files>
@@ -52,7 +52,7 @@ git commit -m "loop(iter-N): <one-line description>"
 
 Git is the undo mechanism, not a post-hoc save. The `loop(iter-N):` prefix enables later log filtering.
 
-## Phase 5 — Verify
+## Phase 5 - Verify
 
 ```bash
 RESULT=$(eval "$VERIFY_CMD"); DELTA=$(echo "$RESULT - $PREV_METRIC" | bc)
@@ -67,7 +67,7 @@ RESULT=$(eval "$VERIFY_CMD"); DELTA=$(echo "$RESULT - $PREV_METRIC" | bc)
 
 For noisy metrics, run multiple times and aggregate per `references/verification-and-guard.md` before computing delta.
 
-## Phase 5.5 — Guard (skip if no Guard)
+## Phase 5.5 - Guard (skip if no Guard)
 
 ```bash
 eval "$GUARD_CMD"; GUARD_EXIT=$?
@@ -78,7 +78,7 @@ eval "$GUARD_CMD"; GUARD_EXIT=$?
 | 0 | proceed to Phase 6 |
 | non-zero | revert; rework (max 2 attempts); if still failing, discard with status `guard-failed` |
 
-## Phase 6 — Decide
+## Phase 6 - Decide
 
 Guard runs in Phase 5.5 (before this decision); its pass/fail is an input here.
 
@@ -94,9 +94,9 @@ Guard runs in Phase 5.5 (before this decision); its pass/fail is an input here.
 | any | verify crash | n/a | revert | `crash` |
 
 - **KEEP:** update `PREV_METRIC`; reset consecutive-discard counter to 0.
-- **Revert (discard / no-op / guard-failed / crash):** `git revert HEAD --no-edit` (fallback `git reset --hard HEAD~1` only if revert conflicts); **increment the consecutive-discard counter** (a `no-op` counts toward stuck detection — sub-threshold change is the stuck signal).
+- **Revert (discard / no-op / guard-failed / crash):** `git revert HEAD --no-edit` (fallback `git reset --hard HEAD~1` only if revert conflicts); **increment the consecutive-discard counter** (a `no-op` counts toward stuck detection - sub-threshold change is the stuck signal).
 
-## Phase 7 — Log
+## Phase 7 - Log
 
 Append one row to `loop-results.tsv` (schema in `references/git-memory.md`):
 
@@ -106,14 +106,14 @@ Append one row to `loop-results.tsv` (schema in `references/git-memory.md`):
 
 `commit` = the short SHA created in Phase 4 (kept on KEEP; the reverted SHA on discard/no-op/guard-failed; `-` only if the crash happened before the commit).
 
-## Phase 8 — Repeat or stop
+## Phase 8 - Repeat or stop
 
 Continue while **all** hold: `iter < Iterations`, consecutive discards `< 10`, no `loop-stop` file / interrupt.
 
 | Consecutive discards | Action |
 |---|---|
 | 5 | analyze the log → shift strategy |
-| 10 | STOP — surface findings |
+| 10 | STOP - surface findings |
 
 ### Final report
 

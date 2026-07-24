@@ -12,14 +12,14 @@ Visual verification of frontend changes via Chrome MCP (Claude Chrome Extension)
 
 If none match, skip this technique.
 
-## Step 1 — detect Chrome MCP
+## Step 1 - detect Chrome MCP
 
 Check via `ListMcpResourcesTool` for tools prefixed `chrome__` (e.g. `chrome__navigate`, `chrome__screenshot`).
 
 - **Available** → Step 2A (Chrome MCP)
 - **Not available** → Step 2B (`vd:browser` fallback)
 
-## Step 2A — Chrome MCP available
+## Step 2A - Chrome MCP available
 
 Ensure dev server is running, then:
 
@@ -31,11 +31,11 @@ Ensure dev server is running, then:
 
 ### Visual checklist
 
-1. **Layout** — positioning correct, no overflow / overlap / clipping
-2. **Content** — text, images, data render as expected
-3. **Responsive** — resize viewport (if MCP supports) — typical breakpoints: 375 / 768 / 1280
-4. **Interactions** — `chrome__click` / `chrome__type` to test interactive elements
-5. **Console errors** — `chrome__evaluate` to dump errors
+1. **Layout** - positioning correct, no overflow / overlap / clipping
+2. **Content** - text, images, data render as expected
+3. **Responsive** - resize viewport (if MCP supports) - typical breakpoints: 375 / 768 / 1280
+4. **Interactions** - `chrome__click` / `chrome__type` to test interactive elements
+5. **Console errors** - `chrome__evaluate` to dump errors
 
 ```
 chrome__evaluate → "JSON.stringify(window.__consoleErrors || [])"
@@ -49,9 +49,9 @@ Or rely on Chrome MCP error reporting from tool responses.
 chrome__get_content → DOM/text dump to verify rendered output matches expectations
 ```
 
-## Step 2B — Chrome MCP not available
+## Step 2B - Chrome MCP not available
 
-Fall back to the `vd:browser` stack (`browse` CLI; against an authed app, attach to a `vd:browser-profile` profile first — see `vd:web-e2e`):
+Fall back to the `vd:browser` stack (`browse` CLI; against an authed app, attach to a `vd:browser-profile` profile first - see `vd:web-e2e`):
 
 ```bash
 browse open http://localhost:3000 --local
@@ -65,14 +65,14 @@ For console/network evidence over a whole session, capture with `vd:browser-trac
 
 If `browse` is also unavailable (`npm install -g @browserbasehq/browse-cli`), **skip visual verification** and note in the report:
 
-> Visual verification skipped — no Chrome MCP or browse CLI available.
+> Visual verification skipped - no Chrome MCP or browse CLI available.
 
-## Step 3 — analyze
+## Step 3 - analyze
 
-1. **Read the screenshot** — use the Read tool on the PNG
-2. **Check console output** — zero errors = pass; any error = investigate before claiming done
-3. **Compare with expected** — match against design / user description
-4. **Document** — include screenshot path and any issues in the verification report
+1. **Read the screenshot** - use the Read tool on the PNG
+2. **Check console output** - zero errors = pass; any error = investigate before claiming done
+3. **Compare with expected** - match against design / user description
+4. **Document** - include screenshot path and any issues in the verification report
 
 ## Integration with the verification protocol
 

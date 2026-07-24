@@ -1,8 +1,8 @@
-# Intake template — 4 questions max
+# Intake template - 4 questions max
 
-Phase 1's `vd:ultracook "<short goal>"` runs these via `AskUserQuestion`. Order is fixed (later answers depend on earlier ones). Max 4 questions per intake — anything more is bloat; defer to mid-flight editing of `goal.yaml`.
+Phase 1's `vd:ultracook "<short goal>"` runs these via `AskUserQuestion`. Order is fixed (later answers depend on earlier ones). Max 4 questions per intake - anything more is bloat; defer to mid-flight editing of `goal.yaml`.
 
-## Q1 — Target kind
+## Q1 - Target kind
 
 **Question:** "Where does this goal land?"
 **Header:** `Target kind`
@@ -17,7 +17,7 @@ Phase 1's `vd:ultracook "<short goal>"` runs these via `AskUserQuestion`. Order 
 
 **Maps to:** `goal.yaml.target.kind` ∈ `{ local, pr-only, cluster }`. Conditional follow-ups: when `cluster` is picked, the resolved workflow auto-adds `image_build_wait`, `reconcile`, `rollout_check`, and the `verify_*` actions (Phase 2 binds these). When `local`, the resolved workflow stops after `cook`.
 
-## Q2 — Action shape
+## Q2 - Action shape
 
 **Question:** "What shape of work is this?"
 **Header:** `Action shape`
@@ -26,10 +26,10 @@ Phase 1's `vd:ultracook "<short goal>"` runs these via `AskUserQuestion`. Order 
 
 | Label | Description |
 |---|---|
-| `Brainstorm-first` | Design phase needed — invoke `vd:brainstorm` before `vd:plan`. Use for unfamiliar / multi-option work. |
+| `Brainstorm-first` | Design phase needed - invoke `vd:brainstorm` before `vd:plan`. Use for unfamiliar / multi-option work. |
 | `Plan-only` | Skip brainstorm; jump straight to `vd:plan`. Use when the approach is decided. |
 | `Fix-and-ship` | No design phase; treat as a small targeted fix. Invoke `vd:fix --auto` instead of plan+cook. |
-| `Refactor` | TDD shape — plan with `--tdd` flag. |
+| `Refactor` | TDD shape - plan with `--tdd` flag. |
 
 **Maps to:** prepends to the resolved workflow's action sequence:
 - Brainstorm-first → `[brainstorm, plan, ...]`
@@ -39,7 +39,7 @@ Phase 1's `vd:ultracook "<short goal>"` runs these via `AskUserQuestion`. Order 
 
 Stored as `goal.yaml.actions[0]` (the rest of the sequence comes from the project profile).
 
-## Q3 — Branch name (conditional)
+## Q3 - Branch name (conditional)
 
 **Question:** "Branch name? (Suggested: `{slug-prefixed-by-profile}`)"
 **Header:** `Branch name`
@@ -57,7 +57,7 @@ Stored as `goal.yaml.actions[0]` (the rest of the sequence comes from the projec
 
 **Profile-prefix logic:** the profile's `default_branch_prefix` (e.g. `fix/` for goclaw) is prepended to the slug. User can strip/override via "Other".
 
-## Q4 — Autonomy
+## Q4 - Autonomy
 
 **Question:** "How autonomous?"
 **Header:** `Autonomy`
@@ -86,7 +86,7 @@ These are set as env vars by SKILL.md after the AskUserQuestion calls, then `bas
 ## Q-skip logic for `--reuse`
 
 When `--reuse` is passed:
-- Q3 (branch name) is skipped — `goal.yaml.project.branch = $(git rev-parse --abbrev-ref HEAD)`, `goal.yaml.project.worktree_path = null`.
+- Q3 (branch name) is skipped - `goal.yaml.project.branch = $(git rev-parse --abbrev-ref HEAD)`, `goal.yaml.project.worktree_path = null`.
 - Total questions becomes 3.
 
 The "≤4 questions" success criterion holds in both modes.
@@ -95,9 +95,9 @@ The "≤4 questions" success criterion holds in both modes.
 
 Things that look like good intake questions but should NOT be added (they cause decision fatigue and are recoverable mid-flight by editing `goal.yaml`):
 
-- Token / iteration budgets — use defaults; let the user edit `goal.yaml.budgets` if they want different.
-- Verifier list — derived from the resolved profile + target.kind, not user-input.
-- Risk tier — optional field; tag in goal.yaml after the fact if you want plan-audit auto-run.
-- Plan-audit yes/no — gated by `risk_tier`, not a separate question.
+- Token / iteration budgets - use defaults; let the user edit `goal.yaml.budgets` if they want different.
+- Verifier list - derived from the resolved profile + target.kind, not user-input.
+- Risk tier - optional field; tag in goal.yaml after the fact if you want plan-audit auto-run.
+- Plan-audit yes/no - gated by `risk_tier`, not a separate question.
 
 If a future user asks for a new intake question, push back hard: can it be a `goal.yaml` field with a sane default instead?

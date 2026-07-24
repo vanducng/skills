@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // After stop-capture.mjs, pull final Browserbase-side artifacts (session
-// metadata, server logs, downloads) into the run dir. Logs are best-effort —
+// metadata, server logs, downloads) into the run dir. Logs are best-effort -
 // they're often sparse.
 //
 // Usage:
@@ -36,14 +36,14 @@ if (!manifest) {
 
 const sessionId = manifest?.browserbase?.session_id;
 if (!sessionId) {
-  console.error('manifest has no .browserbase.session_id — was this run captured via bb-capture.mjs?');
+  console.error('manifest has no .browserbase.session_id - was this run captured via bb-capture.mjs?');
   process.exit(1);
 }
 
 const bbDir = path.join(RD, 'browserbase');
 ensureDir(bbDir);
 
-// Final session metadata — proxyBytes, status, ended_at all settle here.
+// Final session metadata - proxyBytes, status, ended_at all settle here.
 {
   const r = runCmd('browse', ['cloud', 'sessions', 'get', sessionId]);
   if (r.ok) {
@@ -54,7 +54,7 @@ ensureDir(bbDir);
   }
 }
 
-// Server-side logs. Often empty — the firehose in cdp/raw.ndjson is the source of truth.
+// Server-side logs. Often empty - the firehose in cdp/raw.ndjson is the source of truth.
 {
   const r = runCmd('browse', ['cloud', 'sessions', 'logs', sessionId]);
   if (r.ok) {

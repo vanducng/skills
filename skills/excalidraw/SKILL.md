@@ -1,29 +1,29 @@
 ---
 name: excalidraw
-description: "MANDATORY prerequisite for ALL Excalidraw MCP tool usage. Read BEFORE calling any Excalidraw tool (batch_create_elements, create_element, update_element, etc.). Without the sizing formulas, two-batch ordering (shapes-then-arrows), compact legends, domain styling presets, and write-check-review cycle in this skill, diagrams have invisible arrows, truncated text, and inconsistent colors. Use whenever the user asks to draw, sketch, visualize, or diagram anything technical — system architecture, microservices topology, C4 diagrams, data pipelines / ETL flows / lakehouse, sequence diagrams, ER diagrams, deployment / Kubernetes diagrams, network topology, flowcharts, decision trees. Includes ready-to-apply color palettes for software engineering, system architecture, and data solutions."
+description: "MANDATORY prerequisite for ALL Excalidraw MCP tool usage. Read BEFORE calling any Excalidraw tool (batch_create_elements, create_element, update_element, etc.). Without the sizing formulas, two-batch ordering (shapes-then-arrows), compact legends, domain styling presets, and write-check-review cycle in this skill, diagrams have invisible arrows, truncated text, and inconsistent colors. Use whenever the user asks to draw, sketch, visualize, or diagram anything technical - system architecture, microservices topology, C4 diagrams, data pipelines / ETL flows / lakehouse, sequence diagrams, ER diagrams, deployment / Kubernetes diagrams, network topology, flowcharts, decision trees. Includes ready-to-apply color palettes for software engineering, system architecture, and data solutions."
 license: MIT
 metadata:
   author: vanducng
   version: "1.1.0"
 ---
 
-# Excalidraw — Technical Diagram Skill
+# Excalidraw - Technical Diagram Skill
 
 Build professional, consistent Excalidraw diagrams via MCP. Skill covers: tool mechanics, sizing formulas, write-check-review verification cycle, and **domain-specific styling presets** for software engineering, system architecture, and data solutions.
 
-## Step 0 — Detect Connection
+## Step 0 - Detect Connection
 
 Check **in order**:
 
 1. **MCP server**: tools prefixed `mcp__excalidraw-mcp__*` (e.g. `batch_create_elements`, `describe_scene`) available → use MCP mode. This is the default for this user.
-2. **REST fallback**: only if MCP missing — `curl -s $EXPRESS_SERVER_URL/health` returns `{"status":"ok"}`.
+2. **REST fallback**: only if MCP missing - `curl -s $EXPRESS_SERVER_URL/health` returns `{"status":"ok"}`.
 3. **Nothing** → auto-bootstrap the MCP config (see below), then tell user to reconnect the MCP so it registers. Do not fake output.
 
 ### Auto-bootstrap `.mcp.json`
 
 When neither the MCP tools nor the REST fallback are available:
 
-1. Resolve **project root**: `git rev-parse --show-toplevel` (fallback to CWD if not a git repo). Inside a git worktree this correctly returns the worktree itself — `.mcp.json` must live at the working root the session runs in, so the MCP registers for that session.
+1. Resolve **project root**: `git rev-parse --show-toplevel` (fallback to CWD if not a git repo). Inside a git worktree this correctly returns the worktree itself - `.mcp.json` must live at the working root the session runs in, so the MCP registers for that session.
 2. Derive **project name** = `basename` of the project root.
 3. If `<project_root>/.mcp.json` does **not** exist, create it with this exact template (substitute `<project_name>`):
 
@@ -42,22 +42,22 @@ When neither the MCP tools nor the REST fallback are available:
    }
    ```
 
-4. If `.mcp.json` already exists, **merge** — add the `excalidraw-mcp` entry under `mcpServers` without clobbering other servers. Skip if `excalidraw-mcp` already present.
-5. Tell the user: file written, ensure `EXCALIDRAW_MCP_TOKEN` is exported in shell env, then reconnect before re-running the skill — **Claude Code:** restart it (or run `/mcp`). **Codex:** the `.mcp.json` above is Claude Code-specific; register the same server with `codex mcp add excalidraw-mcp` or add `[mcp_servers.excalidraw-mcp]` (url + headers) to `~/.codex/config.toml`, then restart Codex.
+4. If `.mcp.json` already exists, **merge** - add the `excalidraw-mcp` entry under `mcpServers` without clobbering other servers. Skip if `excalidraw-mcp` already present.
+5. Tell the user: file written, ensure `EXCALIDRAW_MCP_TOKEN` is exported in shell env, then reconnect before re-running the skill - **Claude Code:** restart it (or run `/mcp`). **Codex:** the `.mcp.json` above is Claude Code-specific; register the same server with `codex mcp add excalidraw-mcp` or add `[mcp_servers.excalidraw-mcp]` (url + headers) to `~/.codex/config.toml`, then restart Codex.
 
 Never write the bootstrap file outside the resolved project root, and never echo the token value.
 
-The remote canvas (when this user's MCP is used) is at `https://draw.dataplanelabs.com`. For visual verification beyond `get_canvas_screenshot`, use Chrome DevTools MCP to `take_screenshot` of the canvas URL — `get_canvas_screenshot` sometimes returns blank PNGs.
+The remote canvas (when this user's MCP is used) is at `https://draw.dataplanelabs.com`. For visual verification beyond `get_canvas_screenshot`, use Chrome DevTools MCP to `take_screenshot` of the canvas URL - `get_canvas_screenshot` sometimes returns blank PNGs.
 
-## Step 1 — Tenant & Project Setup
+## Step 1 - Tenant & Project Setup
 
 The remote Excalidraw MCP is multi-tenant. Tenant is selected via the `X-Tenant-Id` header (configured in `.mcp.json`) or via tools.
 
 Before any drawing:
 
-1. `list_tenants` — confirm active tenant
-2. `list_projects` — confirm active project; `switch_project` with `createName` if a fresh canvas is wanted
-3. `describe_scene` — read existing diagram zones + suggested next placement coordinates
+1. `list_tenants` - confirm active tenant
+2. `list_projects` - confirm active project; `switch_project` with `createName` if a fresh canvas is wanted
+3. `describe_scene` - read existing diagram zones + suggested next placement coordinates
 
 **Never** call `clear_canvas` unless the user explicitly says wipe. Place new diagrams spatially offset (≥300px) from existing ones.
 
@@ -71,7 +71,7 @@ WRITE batch → set_viewport(scrollToContent: true) → screenshot
     → only proceed when all checks pass
 ```
 
-### 2. Use `batch_create_elements` — Not `create_from_mermaid`
+### 2. Use `batch_create_elements` - Not `create_from_mermaid`
 
 `create_from_mermaid` produces overlapping text and broken layouts. Use it only as a quick preview, never for final output. For quality, always plan coordinates and call `batch_create_elements`.
 
@@ -106,9 +106,9 @@ Excalidraw's font is ~30% wider than typical sans-serif. Use these formulas:
 | Shape | Width | Height | fontSize |
 |-------|-------|--------|----------|
 | Rectangle | `max(200, chars * 11)` | 70 (1 line) / 80 (2) / 100 (3) | 16-20 |
-| Diamond (text uses ~50% of bbox — **double**) | `max(400, longestLine * 18)` | `max(160, lines * 50)` | 16 |
+| Diamond (text uses ~50% of bbox - **double**) | `max(400, longestLine * 18)` | `max(160, lines * 50)` | 16 |
 | Ellipse (text ~60% of bbox) | `max(280, chars * 14)` | `max(65, lines * 35)` | 16-18 |
-| Title text | — | — | 24-28 |
+| Title text | - | - | 24-28 |
 
 ## Arrow Visibility (Prevents Invisible Arrows)
 
@@ -161,7 +161,7 @@ For node legends, show only the shape/color roles that are not already obvious f
 | Async / Message Queue | hexagon | `#f0f4c3` | `#827717` | `Order Events\n[Kafka topic]` |
 | Cache | rounded rectangle | `#b2dfdb` | `#00695c` | `Session Cache\n[Redis]` |
 
-**Rule:** all elements in one C4 view share the same abstraction level. Don't mix Container with Component shapes in one diagram — split into two.
+**Rule:** all elements in one C4 view share the same abstraction level. Don't mix Container with Component shapes in one diagram - split into two.
 
 ### Cloud Architecture (AWS / GCP / Azure)
 
@@ -206,7 +206,7 @@ Encode **batch vs stream** via stroke width and color, **lineage** via dotted, *
 
 **Layout:** sources top → processing middle → sinks bottom; warehouse layers (raw → staging → marts) flow top-down with consistent column alignment.
 
-### UML — Sequence / ER / State / Class
+### UML - Sequence / ER / State / Class
 
 #### Sequence
 - Actors: hexagon `#fff3e0` / `#f57c00`
@@ -235,7 +235,7 @@ Encode **batch vs stream** via stroke width and color, **lineage** via dotted, *
 - Composition: arrow with filled diamond, color `#d32f2f`
 - Aggregation: arrow with empty diamond, color `#757575`
 
-### Deployment — Kubernetes / Docker
+### Deployment - Kubernetes / Docker
 
 K8s blue is `#326ce5`. Use it as the cluster boundary.
 
@@ -265,7 +265,7 @@ After every batch, verify ALL:
 | Readability | Text legible at 50–70% zoom | Bump fontSize to ≥16 |
 | Color consistency | Colors match a single domain preset | Re-pick from one table above |
 | Color budget | More than 5 active semantic colors in one diagram | Merge similar components; use shape/stroke/labels for extra meaning |
-| Stroke + fill contrast | Light fill + dark stroke (or inverse) | Use the pairs in tables — never light fill + light stroke |
+| Stroke + fill contrast | Light fill + dark stroke (or inverse) | Use the pairs in tables - never light fill + light stroke |
 | Legend clarity | Needed semantics absent, or legend lists everything | Add 3-5 used meanings only, or remove if redundant |
 
 If any check fails: STOP. Use `update_element` or delete + recreate. Re-screenshot. Only proceed when all checks pass.
@@ -325,7 +325,7 @@ Never report only `diagram.png` or another basename; include the canvas URL plus
 ## Element Creation Cheat Notes
 
 - Always assign a custom `id` to each shape so arrows can bind via `startElementId` / `endElementId`.
-- For shape labels (rectangles, diamonds, ellipses): set `text` directly on the element — MCP auto-creates the bound text child.
+- For shape labels (rectangles, diamonds, ellipses): set `text` directly on the element - MCP auto-creates the bound text child.
 - Curved arrows: `roundness: { type: 2 }` plus 3+ `points`.
 - Elbowed arrows: `elbowed: true`.
 - Dashed stroke: `strokeStyle: "dashed"`. Dotted: `strokeStyle: "dotted"`.
@@ -334,7 +334,7 @@ Never report only `diagram.png` or another basename; include the canvas URL plus
 
 ## References
 
-- `references/styling-presets.md` — full color palettes per domain, layout templates, accessibility, comprehensive examples.
-- `references/cheatsheet.md` — MCP tool list, REST API mapping, env vars, multi-tenancy notes.
+- `references/styling-presets.md` - full color palettes per domain, layout templates, accessibility, comprehensive examples.
+- `references/cheatsheet.md` - MCP tool list, REST API mapping, env vars, multi-tenancy notes.
 
 When in doubt, re-read the preset table for your domain before drawing. Color and shape consistency matters more than how many shapes you draw.

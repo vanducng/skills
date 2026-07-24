@@ -2,7 +2,7 @@
 
 **Aesthetic:** dark canvas, neon cyan accent, holographic glow. High-impact, talk-stage energy. Best for conference slides, demo videos, dev-tool launch announcements, OG/social-share images.
 
-**Inspiration:** Vercel ship-week graphics, Cloudflare Workers landing pages, Berkeley Mono on dark, Apollo / Linear keynote slides. NOT for sustained reading — the dark surface eye-fatigues over time.
+**Inspiration:** Vercel ship-week graphics, Cloudflare Workers landing pages, Berkeley Mono on dark, Apollo / Linear keynote slides. NOT for sustained reading - the dark surface eye-fatigues over time.
 
 ## Palette
 
@@ -19,7 +19,7 @@ Brightness inverted vs warm/pastel. Hexes chosen so all roles still pass WCAG AA
 
 ## Subject Highlighting
 
-Use accent (#22d3ee) at 2.5px stroke PLUS a subtle outer glow filter (SVG `feGaussianBlur` with stdDeviation=4 + `feMerge`). The glow is the differentiator — just stroke alone reads less "cyberpunk", more "blue accent".
+Use accent (#22d3ee) at 2.5px stroke PLUS a subtle outer glow filter (SVG `feGaussianBlur` with stdDeviation=4 + `feMerge`). The glow is the differentiator - just stroke alone reads less "cyberpunk", more "blue accent".
 
 ```xml
 <filter id="glow-accent" x="-50%" y="-50%" width="200%" height="200%">
@@ -59,7 +59,7 @@ Apply via `filter="url(#glow-accent)"` on the subject element.
 }
 ```
 
-Note the inverted media query: cyberpunk's **default** is dark; light mode is the fallback. This ensures cyberpunk stays cyberpunk regardless of viewer's OS theme — but provides a usable light fallback for people who absolutely need it (printing, projector compatibility).
+Note the inverted media query: cyberpunk's **default** is dark; light mode is the fallback. This ensures cyberpunk stays cyberpunk regardless of viewer's OS theme - but provides a usable light fallback for people who absolutely need it (printing, projector compatibility).
 
 ## Image-Gen Style Phrase
 

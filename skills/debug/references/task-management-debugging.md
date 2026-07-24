@@ -113,7 +113,7 @@ TaskCreate(
 For multi-source investigations, spawn collection agents in parallel:
 
 ```
-# Parallel — no blockedBy among them
+# Parallel - no blockedBy among them
 TaskCreate(subject: "Collect CI/CD pipeline logs",
   metadata: { debugStage: "collect", source: "ci",
               agentIndex: 1, totalAgents: 4, priority: "P1" })
@@ -206,4 +206,4 @@ After investigation completes, write a diagnostic report per `reporting-standard
 
 ## Error handling
 
-If `TaskCreate` fails — log a warning, continue with sequential debugging. Tasks add visibility, not core function.
+If `TaskCreate` fails - log a warning, continue with sequential debugging. Tasks add visibility, not core function.

@@ -1,5 +1,5 @@
 /**
- * Shared plan table parser — used by plans-kanban and markdown-novel-viewer.
+ * Shared plan table parser - used by plans-kanban and markdown-novel-viewer.
  * Supports 7 plan.md formats with alphanumeric phase IDs (e.g. 1a, 2b).
  */
 
@@ -21,7 +21,7 @@ const ACRONYMS = new Set(['api', 'ui', 'ux', 'cli', 'ci', 'cd', 'db', 'sql', 'cs
 /** Converts phase filename to title only if it matches phase-NNx-*.md pattern */
 function filenameToTitle(name) {
   if (!/^phase-\d+[a-z]?-.*\.md$/i.test(name)) return name;
-  // Note: capitalizes all words including conjunctions (intentional — simpler, consistent)
+  // Note: capitalizes all words including conjunctions (intentional - simpler, consistent)
   return name
     .replace(/^phase-\d+[a-z]?-/i, '')
     .replace(/\.md$/i, '')
@@ -54,7 +54,7 @@ function makePhase(phaseIdStr, letterStr, name, statusRaw, filePath, linkText, d
   return obj;
 }
 
-/** Format 0: Header-aware markdown table — finds Status column, supports any column order */
+/** Format 0: Header-aware markdown table - finds Status column, supports any column order */
 function parseFormat0(content, dir, options) {
   const lines = content.split('\n');
   const tables = [];
@@ -92,7 +92,7 @@ function parseFormat0(content, dir, options) {
       // H2: Only check nameRaw and phaseRaw for links, not all columns (avoids false positives)
       const linkMatch = nameRaw.match(/\[([^\]]+)\]\(([^)]+)\)/) || phaseRaw.match(/\[([^\]]+)\]\(([^)]+)\)/);
       // Note: file is null when no link found (not empty string)
-      // This is intentional — consumers check `p.file !== null`
+      // This is intentional - consumers check `p.file !== null`
       let name, filePath, linkText;
       if (linkMatch) {
         linkText = linkMatch[1];
@@ -114,7 +114,7 @@ function parseFormat0(content, dir, options) {
   return (linked.length > 0 ? linked[0] : tables[0]).phases;
 }
 
-/** Core parser — tries Format 0 first, then fallbacks */
+/** Core parser - tries Format 0 first, then fallbacks */
 function parsePlanPhases(content, dir, options = {}) {
   if (!content) return [];
   options = { generateAnchors: false, slugify: null, ...options };

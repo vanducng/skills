@@ -74,7 +74,7 @@ async function main() {
     if (args.json) {
       console.log(JSON.stringify(out, null, 2));
     } else {
-      console.log(`trace   ${out.trace} (${out.events} events) — load in DevTools Performance panel`);
+      console.log(`trace   ${out.trace} (${out.events} events) - load in DevTools Performance panel`);
       console.log(`tasks   ${out.longTasks.length} long task(s) >50ms${out.longTasks.length ? ` · worst ${Math.max(...out.longTasks.map((t) => t.durMs))}ms` : ''}`);
       for (const t of out.topByTotalDuration.slice(0, 5)) console.log(`        ${t.name} ×${t.count} = ${t.totalMs}ms`);
     }

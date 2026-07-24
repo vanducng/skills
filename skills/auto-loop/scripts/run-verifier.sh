@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run-verifier.sh — execute the user-supplied verify command twice.
+# run-verifier.sh - execute the user-supplied verify command twice.
 #
 # Returns one of: pass | fail | flaky on stdout. Captures stdout+stderr to
 # .auto-loop/verifier-{iter}.log (rotates, keeps last 20). Exit code:

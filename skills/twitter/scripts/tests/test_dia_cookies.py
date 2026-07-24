@@ -1,4 +1,4 @@
-"""Unit tests for dia_cookies.decrypt — golden-vector round-trip.
+"""Unit tests for dia_cookies.decrypt - golden-vector round-trip.
 
 Encrypts a known plaintext with the same params dia_cookies.decrypt expects
 (saltysalt + PBKDF2-HMAC-SHA1 × 1003, AES-128-CBC, 16-byte space IV, v10

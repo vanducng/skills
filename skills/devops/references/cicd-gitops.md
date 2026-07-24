@@ -47,9 +47,9 @@ jobs:
 
 ## GitOps
 
-Git is the single source of truth for cluster state; a controller continuously reconciles the cluster to match the repo. You `git push`; the controller deploys — no `kubectl apply` from laptops or CI.
+Git is the single source of truth for cluster state; a controller continuously reconciles the cluster to match the repo. You `git push`; the controller deploys - no `kubectl apply` from laptops or CI.
 
-**Argo CD** — pull-based, app-centric:
+**Argo CD** - pull-based, app-centric:
 ```bash
 argocd app create myapp \
   --repo https://github.com/org/manifests.git --path apps/myapp \
@@ -59,7 +59,7 @@ argocd app get myapp          # health + sync status; shows drift vs git
 ```
 Prefer an `Application` (or `ApplicationSet` for many envs/clusters) manifest checked into git over imperative `argocd app create`. Enable auto-sync + self-heal so out-of-band `kubectl` changes get reverted; use sync waves/hooks for ordering.
 
-**Flux** — controller-driven, `GitRepository` + `Kustomization`/`HelmRelease` CRDs reconcile on an interval. `flux bootstrap` installs the controllers and commits their own config to the repo.
+**Flux** - controller-driven, `GitRepository` + `Kustomization`/`HelmRelease` CRDs reconcile on an interval. `flux bootstrap` installs the controllers and commits their own config to the repo.
 
 **Structure:** separate the app-source repo from the config/manifests repo; environments as directories or branches; render with Kustomize overlays or Helm values per env; keep secrets out of git (sealed-secrets, external-secrets, SOPS).
 
@@ -67,7 +67,7 @@ Prefer an `Application` (or `ApplicationSet` for many envs/clusters) manifest ch
 
 | Strategy | Use when |
 | --- | --- |
-| Rolling update (K8s default) | Standard stateless services — gradual pod replacement |
+| Rolling update (K8s default) | Standard stateless services - gradual pod replacement |
 | Blue/green | Instant cutover + instant rollback; needs double capacity briefly |
 | Canary | Shift a small traffic % to the new version, watch metrics, then ramp |
 

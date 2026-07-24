@@ -175,7 +175,7 @@ def test_api_connection(api_key):
         # Show some available models
         print_info("\nSample available models:")
         for model in models[:5]:
-            print(f"  - {model.name}")
+            print(f" - {model.name}")
 
         return True
 
@@ -256,7 +256,7 @@ def check_codex_cli():
 
     codex_path = _shutil.which("codex")
     if codex_path is None:
-        print_warning("codex CLI not found on PATH — `--provider codex` will be unavailable")
+        print_warning("codex CLI not found on PATH - `--provider codex` will be unavailable")
         print_info("  Install: brew install codex (https://developers.openai.com/codex/cli)")
         return False
 
@@ -272,7 +272,7 @@ def check_codex_cli():
         if "Logged in using ChatGPT" in combined:
             print_success("Codex logged in via ChatGPT subscription")
             return True
-        print_warning("Codex installed but not logged in via ChatGPT — run: codex login")
+        print_warning("Codex installed but not logged in via ChatGPT - run: codex login")
         return False
     except Exception as e:
         print_warning(f"codex login status failed: {e}")
@@ -330,7 +330,7 @@ def main():
             print_error("requests is required for MiniMax generation")
             all_passed = False
 
-    # Codex CLI (non-fatal — informational)
+    # Codex CLI (non-fatal - informational)
     check_codex_cli()
 
     # Final summary

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# parse-goal-spec.sh — read a goal.md spec; emit KEY=VALUE env-style lines for sourcing.
+# parse-goal-spec.sh - read a goal.md spec; emit KEY=VALUE env-style lines for sourcing.
 # Exits non-zero if `# Goal` block or `verify:` field is missing.
 #
 # Usage: parse-goal-spec.sh <path-to-goal.md>

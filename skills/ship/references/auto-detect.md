@@ -102,7 +102,7 @@ First existing wins:
 for b in staging uat pre-prod preprod; do
   git rev-parse --verify "origin/$b" 2>/dev/null && { echo "$b"; break; }
 done
-# 2. release/* — pick the newest (most-recent commit)
+# 2. release/* - pick the newest (most-recent commit)
 git for-each-ref --sort=-committerdate --format='%(refname:short)' \
   'refs/remotes/origin/release/*' | head -1 | sed 's@^origin/@@'
 ```
@@ -122,7 +122,7 @@ None found → fall back to default branch and warn that the requested mode has 
 
 ## Auto-release tooling
 
-Probe for any of these — first match wins, used by Step 13 to decide skip-manual-tag:
+Probe for any of these - first match wins, used by Step 13 to decide skip-manual-tag:
 
 | Marker | Tool |
 |--------|------|

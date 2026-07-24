@@ -35,17 +35,17 @@ host.
 | Mode | When to use |
 |---|---|
 | `workspace-write` (default) | Edits inside repo allowed. **Default.** |
-| `read-only` | Audit/observation only — pass `--codex --sandbox read-only` (Codex flag, not vd's). |
+| `read-only` | Audit/observation only - pass `--codex --sandbox read-only` (Codex flag, not vd's). |
 | `danger-full-access` | Network + arbitrary file access. **Never default.** Re-run `codex` manually with the flag if you really need it. |
 
 ## Limitations
 
 - **Non-interactive support unclear.** As of codex 0.128.x, `/goal` is a TUI command;
   `codex exec` does not (yet) accept `/goal` as an argument. So delegation is
-  inherently interactive — the user must be present in the codex TUI to type the
+  inherently interactive - the user must be present in the codex TUI to type the
   initial command. Update this doc when codex supports headless `/goal`.
 - **No state-bridge with vd:auto-loop.** Once delegated, codex owns the loop. There
-  is no `.auto-loop/goal-state.json` while codex is driving — codex maintains its
+  is no `.auto-loop/goal-state.json` while codex is driving - codex maintains its
   own state in its own directory.
 - **No two-vote audit.** Codex `/goal` ships its own completion criteria; vd's
   audit-subagent gate does not run.

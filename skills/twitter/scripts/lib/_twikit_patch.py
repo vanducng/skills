@@ -42,7 +42,7 @@ class PatchedClientTransaction(_twikit_t.ClientTransaction):
         if not m:
             raise Exception(
                 "Couldn't get KEY_BYTE indices: 'ondemand.s' marker not found "
-                "(X may have rotated the bundle format again — refresh the patch)"
+                "(X may have rotated the bundle format again - refresh the patch)"
             )
         token_index = m.group(1)
 
@@ -145,7 +145,7 @@ def _patched_user_init(self, client, data: dict) -> None:
     self.id = data.get("rest_id") or legacy.get("id_str")
     if not self.id:
         print(
-            "twitter: User payload missing both rest_id and legacy.id_str — "
+            "twitter: User payload missing both rest_id and legacy.id_str - "
             "X may have changed the user shape; check upstream twikit",
             file=sys.stderr,
         )

@@ -10,7 +10,7 @@ metadata:
 
 # DevOps
 
-Deployment and infrastructure operations across containers, orchestration, IaC, cloud platforms, and CI/CD. SKILL.md dispatches; open the reference that matches the task. Distilled operational guidance — verify exact flags against the current tool docs, and never run a destructive command (`terraform apply`, `kubectl delete`, `docker system prune`) without confirming scope.
+Deployment and infrastructure operations across containers, orchestration, IaC, cloud platforms, and CI/CD. SKILL.md dispatches; open the reference that matches the task. Distilled operational guidance - verify exact flags against the current tool docs, and never run a destructive command (`terraform apply`, `kubectl delete`, `docker system prune`) without confirming scope.
 
 ## When to open which reference
 
@@ -26,8 +26,8 @@ Deployment and infrastructure operations across containers, orchestration, IaC, 
 
 1. **Plan before apply.** Always `terraform plan` / `kubectl apply --dry-run=client` / `docker build` before the mutating step. Read the diff.
 2. **Least privilege.** Non-root containers, scoped RBAC, per-job CI `permissions`, per-environment secrets. Never bake credentials into images or commit them.
-3. **Everything is code and versioned.** Dockerfiles, manifests, `.tf`, Helm values, workflows — all in git, reviewed, applied through CI/GitOps rather than by hand.
-4. **Pin versions.** No `latest` image tags, no `@master` actions — pin digests/major versions for reproducibility.
+3. **Everything is code and versioned.** Dockerfiles, manifests, `.tf`, Helm values, workflows - all in git, reviewed, applied through CI/GitOps rather than by hand.
+4. **Pin versions.** No `latest` image tags, no `@master` actions - pin digests/major versions for reproducibility.
 5. **Right-size resources.** Set CPU/memory requests and limits; unbounded workloads get OOM-killed or evicted.
 6. **Debug top-down.** Overview (`get`/`ps`) → details (`describe`/`inspect`/events) → logs. Read the error before changing anything.
 7. **Scan and observe.** Image scanning (Trivy, `docker scout`), health checks/probes, and metrics/logs are part of "done," not extras.

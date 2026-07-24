@@ -14,10 +14,10 @@ metadata:
 
 Research is a deliverable, not a code change. The general "ship the smallest thing" rules **do not apply here**. For this skill:
 
-- **Be deep, not shallow.** Surface findings are useless — dig until you understand *why*, not just *what*.
+- **Be deep, not shallow.** Surface findings are useless - dig until you understand *why*, not just *what*.
 - **Evaluate multiple options.** Never recommend one approach without comparing at least 2–3 viable alternatives on the same criteria. A single-option report is a failure.
 - **Brutal honesty.** Call out tradeoffs, deprecation, weak maintainership, security holes, vendor lock-in, hidden costs. No marketing language. No hedging.
-- **Straight to the demand.** The user asked a specific question — answer *that* question completely before adding context. No filler, no padding, no recap of what they already know.
+- **Straight to the demand.** The user asked a specific question - answer *that* question completely before adding context. No filler, no padding, no recap of what they already know.
 - **Cover every angle the user implied.** If they ask "what's the best message queue", they implicitly want: throughput, durability, ops burden, language support, cost, lock-in. Address all of them.
 - **No premature simplification.** Long is fine if every section earns its place. Trim filler, never trim depth.
 
@@ -30,18 +30,18 @@ Research is a deliverable, not a code change. The general "ship the smallest thi
 
 Detect `--deep` from the user's invocation (argument or in-prompt mention like "do a deep dive"). Announce mode at the start.
 
-## Phase 1 — Scope
+## Phase 1 - Scope
 
 Before searching, write down:
 - The exact question being answered (1 sentence)
 - The decision the user is trying to make
-- Evaluation criteria — list them explicitly. For tech selection at minimum: performance, security, maturity/maintainership, ops burden, ecosystem, cost, lock-in
+- Evaluation criteria - list them explicitly. For tech selection at minimum: performance, security, maturity/maintainership, ops burden, ecosystem, cost, lock-in
 - Recency bar (last 12 months unless historical context is needed)
 - The 2–3+ candidate options to compare (if the user named one, find competitors)
 
-If the user gave only one option to research, **expand to alternatives anyway** — saying "X is good" without "vs Y, Z" is a single-option failure.
+If the user gave only one option to research, **expand to alternatives anyway** - saying "X is good" without "vs Y, Z" is a single-option failure.
 
-## Phase 2 — Gather
+## Phase 2 - Gather
 
 ### Search
 
@@ -56,25 +56,25 @@ Use the `WebSearch` tool. Run multiple queries in parallel.
 **Query budget:**
 - Default mode: **5 calls max**
 - `--deep` mode: **12 calls max**
-- User may request fewer — respect it
-- Plan all queries before firing — don't iterate one-at-a-time
+- User may request fewer - respect it
+- Plan all queries before firing - don't iterate one-at-a-time
 
 **For GitHub repos found:** fetch READMEs, recent release notes, open issue counts, last-commit dates directly. Maintainer health is part of the evaluation.
 
 ### Validation
 
 - Cross-reference every non-trivial claim across ≥2 independent sources
-- Check publication dates — discard anything >18 months old unless the topic is stable (RFCs, standards) or you flag it as historical
-- Note where consensus exists and where the community is split — both are signal
+- Check publication dates - discard anything >18 months old unless the topic is stable (RFCs, standards) or you flag it as historical
+- Note where consensus exists and where the community is split - both are signal
 
-## Phase 3 — Synthesize
+## Phase 3 - Synthesize
 
 Build the comparison **before** writing the report:
 
 1. Matrix: rows = options, columns = criteria. Fill every cell. "Unknown" is a valid entry but flag what would close the gap.
 2. Identify dealbreakers per option (one item that disqualifies it for this user's context).
 3. Identify the boring, load-bearing facts: failure modes, ops burden, hiring market, total cost of ownership.
-4. Form a recommendation with the runner-up named — and the conditions under which the runner-up wins.
+4. Form a recommendation with the runner-up named - and the conditions under which the runner-up wins.
 
 In `--deep` mode, additionally produce:
 - Migration cost / lock-in analysis per option
@@ -82,7 +82,7 @@ In `--deep` mode, additionally produce:
 - Performance characteristics under realistic load (not vendor-published numbers)
 - Operational war stories from production users
 
-## Phase 4 — Report
+## Phase 4 - Report
 
 ### Where to save
 
@@ -97,8 +97,8 @@ _Date: {YYYY-MM-DD} · Mode: default · Queries: {n}_
 
 ## TL;DR
 - **Recommendation:** {Option X}, because {one sentence}.
-- **Runner-up:** {Option Y} — wins when {condition}.
-- **Avoid:** {Option Z} — {dealbreaker}.
+- **Runner-up:** {Option Y} - wins when {condition}.
+- **Avoid:** {Option Z} - {dealbreaker}.
 
 ## The Question
 What the user asked, restated precisely. The decision being made.
@@ -107,9 +107,9 @@ What the user asked, restated precisely. The decision being made.
 Bulleted list. Why each matters for this decision.
 
 ## Options Considered
-- {Option A} — {one-line summary}
-- {Option B} — {one-line summary}
-- {Option C} — {one-line summary}
+- {Option A} - {one-line summary}
+- {Option B} - {one-line summary}
+- {Option C} - {one-line summary}
 
 ## Comparison Matrix
 
@@ -167,7 +167,7 @@ Add these sections after **Per-Option Deep Dive**:
 Linked post-mortems and engineering blog posts. Per option: one paragraph each, what broke and how it was fixed.
 
 ## Performance Under Realistic Load
-Independent benchmarks only — not vendor numbers. Note hardware, workload shape, version. Flag where data is missing.
+Independent benchmarks only - not vendor numbers. Note hardware, workload shape, version. Flag where data is missing.
 
 ## Decision Reversibility
 How much pain to switch off Option X 12 months in. This is the lock-in cost.
@@ -175,20 +175,20 @@ How much pain to switch off Option X 12 months in. This is the lock-in cost.
 
 ## Quality bar
 
-- **Multi-option** — single-option reports are a failure
-- **Cited** — every claim links to its source
-- **Current** — last 12 months unless flagged historical
-- **Brutal** — name the weaknesses, the failures, the deprecations
-- **Decisive** — end with a recommendation and the conditions for the runner-up
-- **Self-contained** — reader makes the decision from the report alone
+- **Multi-option** - single-option reports are a failure
+- **Cited** - every claim links to its source
+- **Current** - last 12 months unless flagged historical
+- **Brutal** - name the weaknesses, the failures, the deprecations
+- **Decisive** - end with a recommendation and the conditions for the runner-up
+- **Self-contained** - reader makes the decision from the report alone
 
 ## Specials
 
-- **Security topics** — pull recent CVEs, check the maintainer's response cadence on past CVEs, note unpatched advisories
-- **Performance topics** — demand independent benchmarks under realistic load; reject vendor-published numbers without a methodology link
-- **New tech** — assess maintainer count, issue backlog, last-commit recency, sponsor/funding status, hiring market signal
-- **APIs** — verify endpoints + auth still match docs by reading the source if needed
-- **Older tech** — note deprecation timelines and concrete migration paths
+- **Security topics** - pull recent CVEs, check the maintainer's response cadence on past CVEs, note unpatched advisories
+- **Performance topics** - demand independent benchmarks under realistic load; reject vendor-published numbers without a methodology link
+- **New tech** - assess maintainer count, issue backlog, last-commit recency, sponsor/funding status, hiring market signal
+- **APIs** - verify endpoints + auth still match docs by reading the source if needed
+- **Older tech** - note deprecation timelines and concrete migration paths
 
 ## Output rules
 
@@ -197,11 +197,11 @@ How much pain to switch off Option X 12 months in. This is the lock-in cost.
    In the final handoff, report the saved report as an openable location:
    `[research-topic.md](/absolute/path/to/research-topic.md)` and, when helpful,
    `file:///absolute/path/to/research-topic.md`. Do not report only the basename.
-2. Open with TL;DR — recommendation, runner-up, avoid — before anything else
+2. Open with TL;DR - recommendation, runner-up, avoid - before anything else
 3. Comparison matrix is non-optional in any mode
 4. Code blocks get language tags
 5. Diagrams in Mermaid or ASCII when they clarify
-6. End with open questions — what couldn't be answered, what would close the gap
+6. End with open questions - what couldn't be answered, what would close the gap
 7. No marketing language. No hedging without specifics. If you say "it depends", spell out what it depends on.
 
 You are providing strategic technical intelligence for a decision that will outlast the report. Anticipate the follow-up questions and answer them in advance.

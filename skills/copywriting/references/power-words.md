@@ -182,8 +182,8 @@ Best-in-class   Game-changing   Next-level
 
 ## Usage Tips
 
-1. **Don't overuse** — 1-2 power words per headline
-2. **Match context** — urgency for sales, curiosity for content
-3. **A/B test** — what works for one audience may not for another
-4. **Be authentic** — false urgency/exclusivity backfires
-5. **Combine strategically** — pair urgency with value
+1. **Don't overuse** - 1-2 power words per headline
+2. **Match context** - urgency for sales, curiosity for content
+3. **A/B test** - what works for one audience may not for another
+4. **Be authentic** - false urgency/exclusivity backfires
+5. **Combine strategically** - pair urgency with value

@@ -21,7 +21,7 @@ The skill is opinionated. It enforces idiomatic Go output over Python-shaped Go,
 | Task | Open |
 |---|---|
 | Decide which Python pattern maps to which Go idiom | [references/translation-rules.md](references/translation-rules.md) |
-| Pick the right Go stack per project type | (playbooks — extend as needed) |
+| Pick the right Go stack per project type | (playbooks - extend as needed) |
 | Configure strangler-fig gateway / traffic shadow | (extend as needed) |
 | Drive from an existing OpenAPI/proto spec | (extend as needed) |
 
@@ -31,13 +31,13 @@ The skill is opinionated. It enforces idiomatic Go output over Python-shaped Go,
 discover → design → scaffold → translate → validate → cutover → cleanup
 ```
 
-1. **Discover** — two-pass: 7 discovery prompts individually → synthesize to `notes/`
-2. **Design** — emit `CLAUDE.md` (translation rules) + `MIGRATION.md` (ordered file map + checkboxes)
-3. **Scaffold** — `go mod init`, layout, lint (`golangci-lint`), CI, Makefile, smoke target
-4. **Translate** — per-file loop: Python source → Go test first → Go impl → `go build && vet && test -race && lint` → commit
-5. **Validate** — golden-file parity on real production data + integration tests + dead-code sweep
-6. **Cutover** — hard cutover (default) or strangler-fig (`--strangler`)
-7. **Cleanup** — orphan sweep, dependency audit, retro
+1. **Discover** - two-pass: 7 discovery prompts individually → synthesize to `notes/`
+2. **Design** - emit `CLAUDE.md` (translation rules) + `MIGRATION.md` (ordered file map + checkboxes)
+3. **Scaffold** - `go mod init`, layout, lint (`golangci-lint`), CI, Makefile, smoke target
+4. **Translate** - per-file loop: Python source → Go test first → Go impl → `go build && vet && test -race && lint` → commit
+5. **Validate** - golden-file parity on real production data + integration tests + dead-code sweep
+6. **Cutover** - hard cutover (default) or strangler-fig (`--strangler`)
+7. **Cleanup** - orphan sweep, dependency audit, retro
 
 ## Project-type playbooks (auto-detected in discover)
 
@@ -52,26 +52,26 @@ discover → design → scaffold → translate → validate → cutover → clea
 
 ## Hard guardrails (skill enforces)
 
-1. **No 1:1 syntax port** — Go function signatures must not mirror Python verbatim across >50% of lines.
-2. **TDD-or-bust under `--strict-tdd`** — Go test mtime must precede Go impl mtime per commit.
-3. **No `lib/pq`** — use `pgx/v5`. lib/pq is in maintenance mode.
-4. **No `golang/mock`** — use `go.uber.org/mock` (Google archived original).
-5. **No GORM by default** — `sqlc` is default; GORM requires explicit `--orm=gorm` flag.
-6. **No `panic` for business errors** — return errors.
-7. **No blind `internal/`** — design phase must produce an explicit public-API decision.
-8. **No synthetic-only validation** — validate phase refuses to mark complete without a real-data fixture path.
-9. **NumPy/SciPy refusal** — if discovery detects them load-bearing, STOP with gRPC-wrap recommendation instead.
+1. **No 1:1 syntax port** - Go function signatures must not mirror Python verbatim across >50% of lines.
+2. **TDD-or-bust under `--strict-tdd`** - Go test mtime must precede Go impl mtime per commit.
+3. **No `lib/pq`** - use `pgx/v5`. lib/pq is in maintenance mode.
+4. **No `golang/mock`** - use `go.uber.org/mock` (Google archived original).
+5. **No GORM by default** - `sqlc` is default; GORM requires explicit `--orm=gorm` flag.
+6. **No `panic` for business errors** - return errors.
+7. **No blind `internal/`** - design phase must produce an explicit public-API decision.
+8. **No synthetic-only validation** - validate phase refuses to mark complete without a real-data fixture path.
+9. **NumPy/SciPy refusal** - if discovery detects them load-bearing, STOP with gRPC-wrap recommendation instead.
 
 ## Cross-refs into the rest of the skill ecosystem
 
-- **[gostack](../gostack/SKILL.md)** — Sam Berthe's Go libraries (lo, oops, do, mo, slog, hot, ro). See `references/translation-rules.md` for where each library is the right answer.
-- `vd:cook` — once a plan + MIGRATION.md is in place, drive execution phase-by-phase
-- `vd:debug` — for the on-call story `oops`/`slog` enables in the migrated service
-- `vd:ship` — for the final cutover commit + PR
+- **[gostack](../gostack/SKILL.md)** - Sam Berthe's Go libraries (lo, oops, do, mo, slog, hot, ro). See `references/translation-rules.md` for where each library is the right answer.
+- `vd:cook` - once a plan + MIGRATION.md is in place, drive execution phase-by-phase
+- `vd:debug` - for the on-call story `oops`/`slog` enables in the migrated service
+- `vd:ship` - for the final cutover commit + PR
 
 ## Versions snapshot (verified 2026-05-23)
 
-Locked defaults — change requires explicit flag.
+Locked defaults - change requires explicit flag.
 
 | Concern | Pinned default | Cite |
 |---|---|---|

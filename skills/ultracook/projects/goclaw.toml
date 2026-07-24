@@ -1,4 +1,4 @@
-# goclaw.toml — profile for the goclaw fork (dataplanelabs/goclaw).
+# goclaw.toml - profile for the goclaw fork (dataplanelabs/goclaw).
 #
 # Goclaw is the user's primary fork. Auto-merge is acceptable here (different
 # from the skills repo) because the user explicitly opt-in to fast iteration
@@ -8,7 +8,7 @@
 name = "goclaw"
 remote_matches = [
   "dataplanelabs/goclaw",
-  "nextlevelbuilder/goclaw",   # upstream — ultracook runs are unlikely here but match anyway
+  "nextlevelbuilder/goclaw",   # upstream - ultracook runs are unlikely here but match anyway
 ]
 default_branch_prefix = "fix/"
 ship_mode = "official --auto"   # OK on goclaw; NOT ok on skills repo

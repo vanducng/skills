@@ -2,7 +2,7 @@
 
 Patterns for using Claude Code's `Monitor` tool from `vd:ultracook` actions that need to wait on long-running external work (CI, GitHub Actions builds, kubectl rollouts) without blocking the session.
 
-**Monitor is NOT a loop primitive** — it's an event-driven async wait. `vd:auto-loop` (via Stop hook) is the loop primitive for iteration; Monitor is for "watch this stream of stdout lines, emit events as they arrive, exit when done."
+**Monitor is NOT a loop primitive** - it's an event-driven async wait. `vd:auto-loop` (via Stop hook) is the loop primitive for iteration; Monitor is for "watch this stream of stdout lines, emit events as they arrive, exit when done."
 
 ## Shape
 
@@ -17,7 +17,7 @@ Monitor(
 
 Each stdout line of the command becomes a notification message back to the assistant. The assistant continues other work; events arrive in-band as `<task-notification>` messages.
 
-## Recipe 1 — `wait_ci` (PR CI watch)
+## Recipe 1 - `wait_ci` (PR CI watch)
 
 ```bash
 prev=""
@@ -36,11 +36,11 @@ done
 **Notifications emitted:** `<name>: <bucket>` per check completion + `all_done` when terminal.
 
 **Gotchas:**
-- `gh pr checks` returns `[]` on auth failure — the `|| echo "[]"` keeps the loop alive.
+- `gh pr checks` returns `[]` on auth failure - the `|| echo "[]"` keeps the loop alive.
 - `bucket=success` is a green check; `bucket=fail` is red; `bucket=pending` is still running. We exit when NONE are pending, regardless of color.
 - The verifier (`ci_green`) runs ONCE after monitor exits; it interprets "all non-pending" + "all conclusion=success" as the pass condition.
 
-## Recipe 2 — `image_build_wait` (GHA workflow run watch)
+## Recipe 2 - `image_build_wait` (GHA workflow run watch)
 
 ```bash
 prev_done=""
@@ -65,19 +65,19 @@ done
 
 **Zsh gotcha:** the variable name `status` is read-only in zsh (special shell var). We use `run_status` instead. This was a real bug during the goclaw v3.23.4 image-build cycle that informed the monitor-script pattern.
 
-## Recipe 3 — `rollout_check` (kubectl rollout status)
+## Recipe 3 - `rollout_check` (kubectl rollout status)
 
 ```bash
 kubectl --context $KUBE_CONTEXT rollout status deployment/$DEPLOYMENT -n $NAMESPACE --timeout=180s
 ```
 
-This is a single command, not a polling loop — `kubectl rollout status` blocks until the deployment is fully rolled out OR the timeout fires. Wrap it in Monitor so the session doesn't block 3 minutes inline.
+This is a single command, not a polling loop - `kubectl rollout status` blocks until the deployment is fully rolled out OR the timeout fires. Wrap it in Monitor so the session doesn't block 3 minutes inline.
 
 **Exit codes:**
 - 0 = rollout completed successfully → the per-action verifier (`cmd_exits_zero`) passes.
 - non-zero = timeout / rollback / failure → verifier fails, executor counts as same-signature failure.
 
-## Recipe 4 — log-pattern watch (generic, not currently wired)
+## Recipe 4 - log-pattern watch (generic, not currently wired)
 
 For when a future action needs to wait until a log line appears (e.g. "ready to accept connections"):
 
@@ -85,17 +85,17 @@ For when a future action needs to wait until a log line appears (e.g. "ready to 
 tail -F /path/to/app.log | grep --line-buffered -E "Ready to accept|ERROR|Traceback" | head -1
 ```
 
-`--line-buffered` is critical — without it `grep`'s buffering can hold events for minutes before flushing.
+`--line-buffered` is critical - without it `grep`'s buffering can hold events for minutes before flushing.
 
 ## Coverage principle (lesson from `vd:auto-loop`)
 
-Silence is not success. A Monitor command that prints only the happy-path marker stays silent through a crash — and silence looks identical to "still running." Every Monitor command should emit on both success AND failure signatures:
+Silence is not success. A Monitor command that prints only the happy-path marker stays silent through a crash - and silence looks identical to "still running." Every Monitor command should emit on both success AND failure signatures:
 
 ```bash
-# Wrong — silent on crash, hang, or non-success exit:
+# Wrong - silent on crash, hang, or non-success exit:
 tail -F run.log | grep --line-buffered "elapsed_steps="
 
-# Right — alternation covers progress + failures we'd act on:
+# Right - alternation covers progress + failures we'd act on:
 tail -F run.log | grep -E --line-buffered "elapsed_steps=|Traceback|Error|FAILED|Killed|OOM"
 ```
 

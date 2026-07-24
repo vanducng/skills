@@ -1,6 +1,6 @@
 # Browser Automation CLI Reference
 
-Technical reference for the `browse` CLI tool.
+Technical reference for the `browse` CLI tool (`@browserbasehq/browse-cli`), used here for Browserbase remote sessions only. The bare `browse` package on npm is a different CLI.
 
 ## Table of Contents
 
@@ -23,9 +23,10 @@ Technical reference for the `browse` CLI tool.
 The browse CLI is a **daemon-based** command-line tool:
 
 - **Daemon process**: A background process manages the browser instance. Auto-starts on the first command (e.g., `browse open`), persists across commands, and stops with `browse stop`.
-- **Local mode**: `browse open <url> --local` launches a clean isolated local browser. It is the default when `BROWSERBASE_API_KEY` is unset. Use `browse open <url> --auto-connect` to attach to an existing debuggable Chrome, or `browse open <url> --cdp <port|url>` to attach to a specific CDP target.
-- **Remote mode** (Browserbase): Connects to a Browserbase cloud browser session when `BROWSERBASE_API_KEY` is set.
+- **Remote sessions** (Browserbase): `browse open <url> --remote` connects to a Browserbase cloud session; Browserbase is also the default when `BROWSERBASE_API_KEY` is set. Use `browse open <url> --cdp <connectUrl>` to attach to a session created with `browse cloud sessions create`.
 - **Accessibility-first**: Use `browse snapshot` to get the page's accessibility tree with element refs, then interact using those refs.
+
+Local browser driving is out of scope for this skill - use the `agent-browser` skill for local Chrome.
 
 ## Command Reference
 
@@ -58,9 +59,9 @@ browse stop
 browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE
 ```
 
-- `--context-id <id>` — Browserbase context ID to load when creating the cloud session.
-- `--persist` — Save cookies/storage changes back to the context when the Browserbase session is released. Requires `--context-id`.
-- `--keep-alive` — Keep the Browserbase session alive while the local browse daemon attaches and detaches.
+- `--context-id <id>` - Browserbase context ID to load when creating the cloud session.
+- `--persist` - Save cookies/storage changes back to the context when the Browserbase session is released. Requires `--context-id`.
+- `--keep-alive` - Keep the Browserbase session alive while the local browse daemon attaches and detaches.
 - After `browse open ... --cdp "$CONNECT_URL"`, follow-up commands in that session do not repeat `--cdp`; the daemon remembers the attached target.
 
 #### `reload`
@@ -121,7 +122,7 @@ browse get visible ".modal"              # check if element is visible
 browse get checked "#agree"              # check if checkbox/radio is checked
 ```
 
-**Note**: `get text` requires a CSS selector argument — use `"body"` for full page text.
+**Note**: `get text` requires a CSS selector argument - use `"body"` for full page text.
 
 #### `refs`
 
@@ -255,7 +256,7 @@ browse wait timeout 3000                 # wait 3 seconds
 
 #### `start`
 
-Start the browser daemon manually. Usually not needed — the daemon auto-starts on first command.
+Start the browser daemon manually. Usually not needed - the daemon auto-starts on first command.
 
 ```bash
 browse start
@@ -283,14 +284,11 @@ browse status
 Choose the browser target on the command that starts the session:
 
 ```bash
-browse open https://example.com --local
-browse open https://example.com --local --headed
-browse open https://example.com --auto-connect
-browse open https://example.com --cdp 9222
-browse open https://example.com --cdp ws://localhost:9222/devtools/browser/...
 browse open https://example.com --remote
+browse open https://example.com --cdp "$CONNECT_URL"   # connectUrl from browse cloud sessions create
 ```
 
+- `--remote` starts a fresh Browserbase session; `--cdp <connectUrl>` attaches to one created explicitly (needed for contexts).
 - `browse status` shows the resolved mode and active target once the daemon is running.
 - `browse stop` closes the current daemon session; the next `browse open` chooses mode from its flags or environment.
 
@@ -416,7 +414,7 @@ Context flags such as `--context-id` and `--persist` live on `browse cloud sessi
 | `BROWSERBASE_API_KEY` | For remote mode | API key from https://browserbase.com/settings; makes Browserbase the default desired mode when no override is set |
 | `BROWSERBASE_PROJECT_ID` | No | Passed through to Browserbase when set |
 
-Without an override, setting `BROWSERBASE_API_KEY` makes Browserbase the default desired mode. Otherwise the default desired mode is local. Use `--local`, `--remote`, `--auto-connect`, or `--cdp <port|url>` on `browse open` when you need an explicit target.
+Setting `BROWSERBASE_API_KEY` makes Browserbase the default desired mode. Use `--remote` or `--cdp <connectUrl>` on `browse open` when you need an explicit target.
 
 ### Setting credentials
 
@@ -435,8 +433,8 @@ Get these values from https://browserbase.com/settings.
 - Fix: Run `browse open <url>`. If the issue persists, run `browse stop` and retry. For zombie daemons: `pkill -f "browse.*daemon"`.
 
 **"Chrome not found"** / **"Could not find local Chrome installation"**
-- Chrome/Chromium is not installed or not in a standard location.
-- Fix: Install Chrome, use `browse open <url> --auto-connect` if you already have a debuggable Chrome running, or switch to remote with `browse open <url> --remote` (no local browser needed).
+- The daemon tried to launch a local browser, meaning the session did not resolve to Browserbase.
+- Fix: Set `BROWSERBASE_API_KEY` and start with `browse open <url> --remote` (no local browser needed). This skill does not drive local Chrome - for local automation use the `agent-browser` skill.
 
 **"Daemon not running"**
 - No daemon process is active. Most commands auto-start the daemon, but `snapshot`, `click`, etc. require an active session.

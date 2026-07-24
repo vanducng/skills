@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# eval-dod.sh — evaluate a plan's "## Definition of Done" verifiers.
+# eval-dod.sh - evaluate a plan's "## Definition of Done" verifiers.
 # The mechanical form of vd:cook's final goal gate; vd:plan uses --lint to validate
 # the block it writes. Vocab mirrors vd:ultracook's verifier-vocab (local subset).
 # Plain shell only → runs identically under Claude Code and Codex.
@@ -9,13 +9,13 @@
 #   eval-dod.sh --lint <plan.md>     validate the block only (known types, non-empty args); no execution
 #   eval-dod.sh --type <t> --arg <a> evaluate a single verifier
 #
-# DoD line format (one per line under "## Definition of Done"):  - <type>: <arg>
+# DoD line format (one per line under "## Definition of Done"): - <type>: <arg>
 #   test_suite_passes: <test cmd>     pass = exit 0
 #   cmd_exits_zero: <cmd>             pass = exit 0
 #   shell: <cmd>                      pass = exit 0
 #   http_status: <url> [code]         pass = HTTP status == code (default 200)
-#   manual_confirm: <prompt>          needs user — never auto-passes (gate reports it)
-#   ci_green / pod_image_matches      workflow-level — belong to vd:ultracook, not this gate
+#   manual_confirm: <prompt>          needs user - never auto-passes (gate reports it)
+#   ci_green / pod_image_matches      workflow-level - belong to vd:ultracook, not this gate
 #
 # Exit: 0 all pass · 1 one-or-more unmet/needs-user · 2 usage/parse error.
 set -uo pipefail
@@ -84,7 +84,7 @@ eval_one() {
       echo "NEEDS_USER ($arg)"
       ;;
     ci_green|pod_image_matches)
-      echo "FAIL (workflow-level verifier — run via vd:ultracook, not the cook gate)"
+      echo "FAIL (workflow-level verifier - run via vd:ultracook, not the cook gate)"
       ;;
     *)
       echo "FAIL (unknown verifier type: $type)"
@@ -116,7 +116,7 @@ cmd_run() {
   local plan
   plan=$(resolve_plan "$1") || exit $?
   local n=0 fail=0 result evidence
-  echo "🔒 Goal gate — ## Definition of Done ($plan)"
+  echo "🔒 Goal gate - ## Definition of Done ($plan)"
   while IFS=$'\t' read -r type arg; do
     [ -z "$type" ] && continue
     n=$((n+1))
@@ -128,10 +128,10 @@ cmd_run() {
       *)           echo "  ⛔ $type: $arg  $evidence"; fail=$((fail+1)) ;;
     esac
   done < <(parse_dod "$plan")
-  if [ "$n" -eq 0 ]; then echo "  (no Definition of Done block — fall back to plan-level Success Criteria)"; return 1; fi
+  if [ "$n" -eq 0 ]; then echo "  (no Definition of Done block - fall back to plan-level Success Criteria)"; return 1; fi
   echo "---"
-  if [ "$fail" -eq 0 ]; then echo "✅ goal ACHIEVED — $n/$n verifiers pass"; return 0
-  else echo "⛔ goal UNMET — $fail/$n unmet; do not claim done, kick back to the relevant phase"; return 1; fi
+  if [ "$fail" -eq 0 ]; then echo "✅ goal ACHIEVED - $n/$n verifiers pass"; return 0
+  else echo "⛔ goal UNMET - $fail/$n unmet; do not claim done, kick back to the relevant phase"; return 1; fi
 }
 
 # ── arg dispatch ──────────────────────────────────────────────────────────────

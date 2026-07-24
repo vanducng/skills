@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# drift-watchdog.sh — detect stagnation (no file changes for 3 iters) or thrashing
+# drift-watchdog.sh - detect stagnation (no file changes for 3 iters) or thrashing
 # (same file edited 5+ times). Escalates by spawning audit subagent with a diagnose
 # prompt. On vote=blocked → state.status=blocked. On vote=thrashing → next-iter
 # prompt gets an anti-thrash note.

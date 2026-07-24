@@ -1,4 +1,4 @@
-# Playbook — Data pipeline (Airflow + dbt)
+# Playbook - Data pipeline (Airflow + dbt)
 
 Load this when the failure is in a DAG, dbt model/test, source freshness, schema drift, late/missing data, or incremental/snapshot logic.
 
@@ -10,7 +10,7 @@ Load this when the failure is in a DAG, dbt model/test, source freshness, schema
 - **Did code change?** `git log -p` on the model, the macro, the DAG file, and `dbt_project.yml` / `profiles.yml`.
 - **Idempotency state?** Incremental model: is the `unique_key` actually unique? Snapshot: did the `updated_at` collapse? Airflow task: is it safe to clear+rerun, or will it double-write?
 
-## Airflow — fix patterns
+## Airflow - fix patterns
 
 | Symptom | Likely cause | Fix shape |
 |---|---|---|
@@ -23,7 +23,7 @@ Load this when the failure is in a DAG, dbt model/test, source freshness, schema
 
 **Verification:** clear the task (`Clear` in UI or `airflow tasks clear`), let it run, watch the log, then query the warehouse with the exact row-count / sum that defined "correct".
 
-## dbt — fix patterns
+## dbt - fix patterns
 
 | Symptom | Likely cause | Fix shape |
 |---|---|---|
@@ -45,7 +45,7 @@ Then `sqlit` query (or `bq` / `psql`) for the actual row count / KPI that define
 ## Cross-cutting
 
 - **Source schema change:** add or update the source `tests:` so this isn't your future surprise.
-- **Backfill plan:** state the window explicitly: `dbt run --select <model> --vars '{"start_date": "...", "end_date": "..."}'`. Don't assume the next scheduled run will heal history — it usually won't.
+- **Backfill plan:** state the window explicitly: `dbt run --select <model> --vars '{"start_date": "...", "end_date": "..."}'`. Don't assume the next scheduled run will heal history - it usually won't.
 - **Lineage check after fix:** `dbt list --select state:modified+` to see who's downstream. Run their tests too.
 - **Exposures / dashboards:** if the fix shifts a KPI, ping the exposure owner (check `meta.owner` in `exposures.yml`). Don't ship silent KPI changes.
 

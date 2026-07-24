@@ -6,9 +6,9 @@ You arrived here with a **confirmed root cause** (from Step 2 / `vd:debug`). Thi
 
 1. **Fix at the source.** If bad data is written upstream, don't paper over it downstream. If a contract was violated by the caller, don't broaden the callee.
 2. **Minimal diff.** Change only what the root cause requires. No drive-by refactors, no rename-while-you're-here, no opportunistic dependency bumps.
-3. **Follow existing patterns.** Match the surrounding module: error handling, logging, naming, config conventions. If the surrounding pattern is wrong, leave that for a follow-up — note it, don't conflate it.
+3. **Follow existing patterns.** Match the surrounding module: error handling, logging, naming, config conventions. If the surrounding pattern is wrong, leave that for a follow-up - note it, don't conflate it.
 4. **Reversibility first.** Prefer the smaller, easier-to-revert version of the fix when two options work.
-5. **Compile / type-check after each file.** Catching a typo one file later is 10× cheaper than 5 files later. Frontend / backend / dbt / terraform all have cheap local validation — use it.
+5. **Compile / type-check after each file.** Catching a typo one file later is 10× cheaper than 5 files later. Frontend / backend / dbt / terraform all have cheap local validation - use it.
 
 ## Per-surface notes
 
@@ -21,7 +21,7 @@ You arrived here with a **confirmed root cause** (from Step 2 / `vd:debug`). Thi
 ### App stack (backend / frontend)
 - Backend: if the bug is in a hot path, do the fix as a small, well-tested change first; performance tuning is a separate PR.
 - Migrations: never edit a migration that has been applied to any environment beyond local. Add a new migration that corrects forward.
-- Frontend: prefer the fix that survives a full reload (don't lean on in-memory state). For hydration bugs, fix the data shape mismatch — not the render-twice symptom.
+- Frontend: prefer the fix that survives a full reload (don't lean on in-memory state). For hydration bugs, fix the data shape mismatch - not the render-twice symptom.
 
 ### Infra (CI/CD / Terraform / K8s)
 - Terraform: if state drift is the root cause, decide consciously between **`terraform apply`** (reconcile to code) vs **`terraform import` / state surgery** (reconcile code to reality). State surgery is a last resort; document why in the commit.
@@ -33,7 +33,7 @@ You arrived here with a **confirmed root cause** (from Step 2 / `vd:debug`). Thi
 ## Diff hygiene
 
 - Group related edits in a single commit; keep unrelated changes out.
-- No commented-out code, no `// removed` / `// old` markers — git history is the record.
+- No commented-out code, no `// removed` / `// old` markers - git history is the record.
 - No new TODOs about the fix itself. TODOs about adjacent issues are fine but rare.
 - No backwards-compat shims unless the spec explicitly requires them.
 

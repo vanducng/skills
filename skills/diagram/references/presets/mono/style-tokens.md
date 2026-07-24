@@ -9,9 +9,9 @@
 | Role | Hex | WCAG on `--surface` | Use for |
 | --- | --- | --- | --- |
 | Primary | `#0a0a0a` (near-black) | 19.5:1 (AAA all sizes) | Body text, main borders, default element strokes |
-| Accent | `#0a0a0a` | — | Same as primary; use 3.5px border + `[Subject]` label tag instead of color |
-| Success | `#0a0a0a` (mono) | — | OK / sync paths. Differentiate via solid + filled arrow + "ok" label. |
-| Error | `#0a0a0a` (mono) | — | Failure / retry paths. Differentiate via dotted line + open arrow + "error" label. |
+| Accent | `#0a0a0a` | - | Same as primary; use 3.5px border + `[Subject]` label tag instead of color |
+| Success | `#0a0a0a` (mono) | - | OK / sync paths. Differentiate via solid + filled arrow + "ok" label. |
+| Error | `#0a0a0a` (mono) | - | Failure / retry paths. Differentiate via dotted line + open arrow + "error" label. |
 | Surface | `#ffffff` (white) | n/a | Canvas background fill. |
 | Muted | `#737373` (neutral-500) | 4.5:1 (AA) | Secondary text, grouping outlines, "[Container: tech]" tags. |
 
@@ -24,7 +24,7 @@
 
 ## Typography Overrides
 
-None — same Inter + JetBrains Mono. Mono leans on weight contrast: regular for body, bold (not semibold) for service titles.
+None - same Inter + JetBrains Mono. Mono leans on weight contrast: regular for body, bold (not semibold) for service titles.
 
 ## CSS-Vars Block
 

@@ -128,7 +128,7 @@ class CdpSession {
 
 async function connectToPage(port, urlFilter) {
   if (!(await waitForCdp(port, 3000))) {
-    throw new Error(`no CDP endpoint on :${port} — open the profile first (profile-open.sh <name>)`);
+    throw new Error(`no CDP endpoint on :${port} - open the profile first (profile-open.sh <name>)`);
   }
   const target = pickPageTarget(await listTargets(port), urlFilter);
   if (!target) throw new Error(`no page target on :${port}${urlFilter ? ` matching "${urlFilter}"` : ''}`);

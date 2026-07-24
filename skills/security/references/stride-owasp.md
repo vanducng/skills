@@ -28,13 +28,13 @@ Walk each STRIDE category; for each, inspect the listed sinks and map findings t
 | A09 | Logging/monitoring failures | no audit on auth events, secrets in logs, no alerting hook. |
 | A10 | SSRF | server-side fetch of user-supplied URL without allow-list; cloud metadata reachable. |
 
-### SSRF — beyond a naïve host check
+### SSRF - beyond a naïve host check
 
-A string allow-list on the URL is not enough. Verify the fetcher: resolves **all** DNS answers and rejects any non-unicast address (loopback, link-local `169.254.0.0/16` incl. cloud metadata `169.254.169.254`, RFC-1918, `::1`, `fc00::/7`); **forbids redirects** (or re-validates each hop — a 302 to the metadata IP defeats a one-time check); and is not vulnerable to **DNS rebinding** (re-resolve at connect time, or pin the validated IP for the actual socket). Flag any user-controlled URL passed to `fetch`/`requests`/`http.get`/`curl`/webhook senders without all four.
+A string allow-list on the URL is not enough. Verify the fetcher: resolves **all** DNS answers and rejects any non-unicast address (loopback, link-local `169.254.0.0/16` incl. cloud metadata `169.254.169.254`, RFC-1918, `::1`, `fc00::/7`); **forbids redirects** (or re-validates each hop - a 302 to the metadata IP defeats a one-time check); and is not vulnerable to **DNS rebinding** (re-resolve at connect time, or pin the validated IP for the actual socket). Flag any user-controlled URL passed to `fetch`/`requests`/`http.get`/`curl`/webhook senders without all four.
 
-### Secrets — remediation order
+### Secrets - remediation order
 
-A committed secret is **compromised the instant it reaches a remote** (push, PR, CI log, mirror), even if later force-pushed away — assume it's harvested. Remediation order is **revoke & reissue first**, then purge history (`git filter-repo`/BFG), then add a pre-commit/gitleaks gate. "Rotate later" is wrong; the credential is live in someone's scraper now.
+A committed secret is **compromised the instant it reaches a remote** (push, PR, CI log, mirror), even if later force-pushed away - assume it's harvested. Remediation order is **revoke & reissue first**, then purge history (`git filter-repo`/BFG), then add a pre-commit/gitleaks gate. "Rotate later" is wrong; the credential is live in someone's scraper now.
 
 ## Severity rubric
 
@@ -45,4 +45,4 @@ A committed secret is **compromised the instant it reaches a remote** (push, PR,
 | Medium | Requires unlikely preconditions, or limited impact. |
 | Low | Defense-in-depth / hardening; no direct exploit path. |
 
-Findings reachable by combining two categories (e.g. IDOR + missing rate limit) escalate one level — note the chain.
+Findings reachable by combining two categories (e.g. IDOR + missing rate limit) escalate one level - note the chain.

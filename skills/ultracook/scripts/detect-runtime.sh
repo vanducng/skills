@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# detect-runtime.sh — identify which agent runtime is invoking ultracook.
+# detect-runtime.sh - identify which agent runtime is invoking ultracook.
 #
 # Stdout: "claude-code" | "codex" | "codex-exec"
 # Stderr + exit 3: "unknown" when no signal is found
@@ -16,7 +16,7 @@
 #   3. CODEX signal (CODEX_SESSION_ID) → codex, or codex-exec when the explicit
 #      exec contract ($ULTRACOOK_EXEC=1) is set. No env var distinguishes
 #      `codex exec` from `codex` TUI in codex-cli ≤0.137, so exec mode is an
-#      explicit caller contract — never inferred from TTY/process state.
+#      explicit caller contract - never inferred from TTY/process state.
 #   4. codex on PATH AND claude NOT on PATH → codex
 #   5. claude on PATH → claude-code
 #   6. Codex session recency-fallback (last resort): a Codex session JSONL
@@ -42,11 +42,11 @@ CODEX_SIGNAL=""
   [ -n "${CLAUDE_CODE_ENTRYPOINT:-}" ] && CLAUDE_SIGNAL="yes"
 [ -n "${CODEX_SESSION_ID:-}" ] && CODEX_SIGNAL="yes"
 
-# Exec contract — only meaningful in a codex context.
+# Exec contract - only meaningful in a codex context.
 EXEC=""
 case "${ULTRACOOK_EXEC:-}" in 1|true|yes) EXEC="yes" ;; esac
 
-# 2. CLAUDE wins (even when CODEX also set — see header).
+# 2. CLAUDE wins (even when CODEX also set - see header).
 if [ -n "$CLAUDE_SIGNAL" ]; then
   if [ -n "$CODEX_SIGNAL" ]; then
     echo "detect-runtime.sh: both CLAUDE_CODE_* and CODEX_SESSION_ID present; assuming claude-code (CODEX_SESSION_ID commonly leaks via inherit=all). Override with ULTRACOOK_RUNTIME=codex if this is a Codex session." >&2
@@ -80,5 +80,5 @@ if command -v codex >/dev/null 2>&1; then
 fi
 
 # 7. Unknown.
-echo "detect-runtime.sh: unknown — no env vars set and neither codex nor claude on PATH. Set ULTRACOOK_RUNTIME explicitly." >&2
+echo "detect-runtime.sh: unknown - no env vars set and neither codex nor claude on PATH. Set ULTRACOOK_RUNTIME explicitly." >&2
 exit 3

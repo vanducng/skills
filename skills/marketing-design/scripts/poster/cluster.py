@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Poster Clusterer — consume raw extraction JSONs, cluster on 4 axes,
+Poster Clusterer - consume raw extraction JSONs, cluster on 4 axes,
 synthesize curated rows via Gemini text, emit 4 CSVs.
 
 Usage:

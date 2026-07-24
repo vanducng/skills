@@ -1,4 +1,4 @@
-# Local setup — Docker Compose
+# Local setup - Docker Compose
 
 Three services. Backend migrates + seeds on start; frontend builds in-container and serves via nginx.
 
@@ -25,7 +25,7 @@ services:
 volumes: { pgdata: {} }
 ```
 
-## Ports — check before you bind
+## Ports - check before you bind
 Other local stacks commonly hold 5173, 5432–5435, 8000, 8080. Before `make up`:
 ```bash
 for p in 5173 8000 8080 5432 5436; do lsof -nP -iTCP:$p -sTCP:LISTEN >/dev/null && echo "$p busy" || echo "$p free"; done

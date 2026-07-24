@@ -23,7 +23,7 @@ Primary flow: **left → right**. User on the left, datastores on the right. Int
 
 ## Level of detail
 Include: services, databases, queues, caches, primary external integrations.
-Exclude: load balancers, DNS, low-level networking — unless explicitly mentioned in the prompt.
+Exclude: load balancers, DNS, low-level networking - unless explicitly mentioned in the prompt.
 
 ## Image-prompt template
 ```
@@ -68,6 +68,6 @@ Layout left-to-right, viewBox="0 0 1600 900". User-actor at x≈80, datastores a
 ## Common mistakes to avoid
 - Do NOT add fictional services not in the description.
 - Do NOT use more than 5 colors.
-- Do NOT crowd >15 elements onto one diagram — split or zoom out.
+- Do NOT crowd >15 elements onto one diagram - split or zoom out.
 - Do NOT label anything in the success-color or error-color colors unless the prompt explicitly mentions ok/error paths.
 - Do NOT use gradients beyond subtle ambient shading on the surface.

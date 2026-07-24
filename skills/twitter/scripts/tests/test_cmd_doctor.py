@@ -1,4 +1,4 @@
-"""Unit tests for cmd_doctor — cookie shape + rate-limit parsing."""
+"""Unit tests for cmd_doctor - cookie shape + rate-limit parsing."""
 from __future__ import annotations
 
 import sys

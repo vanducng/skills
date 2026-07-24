@@ -12,7 +12,7 @@ DIR="$(profile_dir "$NAME")"
 
 # Resolve the owning PID: pidfile when it still owns the dir, else the SingletonLock target
 # (covers Chromes that took over the singleton and orphaned our pidfile).
-# Capture both candidates ONCE — the lock can vanish mid-script and set -e would abort.
+# Capture both candidates ONCE - the lock can vanish mid-script and set -e would abort.
 PIDFILE="$(pid_file "$NAME")"
 PIDFILE_PID=""
 [[ -f "$PIDFILE" ]] && PIDFILE_PID="$(cat "$PIDFILE" 2>/dev/null || true)"

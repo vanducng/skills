@@ -5,13 +5,13 @@
 Structured concurrency: every goroutine has a clear owner, a predictable exit, and error propagation. A goroutine is a liability until proven necessary.
 
 **Core rules:**
-1. **Every goroutine has a defined exit** — context, done channel, or WaitGroup. No exit → leak → crash.
+1. **Every goroutine has a defined exit** - context, done channel, or WaitGroup. No exit → leak → crash.
 2. Share by communicating (channels transfer ownership) rather than shared mutable state.
 3. Send copies/immutable values on channels, not pointers (pointers reintroduce invisible sharing).
 4. **Only the sender closes a channel** (closing from the receiver panics the sender). Type channel directions (`chan<-`, `<-chan`).
-5. Default to **unbuffered** channels — a buffer masks backpressure; add one only with measured justification.
+5. Default to **unbuffered** channels - a buffer masks backpressure; add one only with measured justification.
 6. **Always include `ctx.Done()` in `select`** or the goroutine leaks after cancellation.
-7. Never `time.After` in a loop — each call leaks a timer until it fires. Use `time.NewTimer` + `Reset`.
+7. Never `time.After` in a loop - each call leaks a timer until it fires. Use `time.NewTimer` + `Reset`.
 8. Call `wg.Add` *before* `go` (else `Wait` may return early). Detect leaks in tests with `go.uber.org/goleak` (`goleak.VerifyTestMain`).
 
 **Choosing a primitive:**
@@ -33,22 +33,22 @@ Before spawning: how will it exit? can I signal stop? can I wait? who owns/close
 
 ## Context
 
-`context.Context` carries cancellation, deadlines, and request-scoped metadata across API boundaries — the "session" of a request.
+`context.Context` carries cancellation, deadlines, and request-scoped metadata across API boundaries - the "session" of a request.
 
 1. **Propagate the same ctx** end-to-end: handler → service → DB → external API. Cancelling the parent then cancels all downstream work.
 2. `ctx` is the **first parameter**, named `ctx context.Context`. Never store it in a struct.
-3. Never pass `nil` — use `context.TODO()` as a placeholder when you don't have one yet.
+3. Never pass `nil` - use `context.TODO()` as a placeholder when you don't have one yet.
 4. **`defer cancel()`** immediately after `WithCancel`/`WithTimeout`/`WithDeadline`.
 5. `context.Background()` only at entry points (main, init, tests); never mint a new Background mid-request.
-6. Context value keys are **unexported types** (collision-safe) and carry only request-scoped metadata (request ID, trace ID) — never function parameters.
+6. Context value keys are **unexported types** (collision-safe) and carry only request-scoped metadata (request ID, trace ID) - never function parameters.
 7. `context.WithoutCancel` (1.21+) for background work that must outlive the request (audit logs).
 8. Use `*Context` DB/HTTP method variants (`QueryContext`, `ExecContext`, `NewRequestWithContext`) so deadlines/cancellation are honored.
 
 ## Performance
 
-**Never optimize without profiling first — intuition is wrong ~80% of the time.** Measure → hypothesize → change one thing → re-measure.
+**Never optimize without profiling first - intuition is wrong ~80% of the time.** Measure → hypothesize → change one thing → re-measure.
 
-- **Rule out external bottlenecks first** — if 90% of latency is a slow query or upstream, Go-side allocation tuning won't help. Use `fgprof` (on- + off-CPU) or a goroutine profile (many blocked in `net.Read`/`database/sql` = external wait).
+- **Rule out external bottlenecks first** - if 90% of latency is a slow query or upstream, Go-side allocation tuning won't help. Use `fgprof` (on- + off-CPU) or a goroutine profile (many blocked in `net.Read`/`database/sql` = external wait).
 - **Allocation reduction has the biggest ROI.** GC is fast but not free.
 
 **Optimization cycle:** define the metric (latency/throughput/memory/CPU) → write an atomic benchmark → baseline (`-count=6 | tee report-1.txt`) → diagnose with the right tool → apply **one** change with an explanatory comment → `benchstat report-1.txt report-2.txt` to confirm significance → repeat.
@@ -64,11 +64,11 @@ Before spawning: how will it exit? can I signal stop? can I wait? who owns/close
 | Same work repeated | Cache, `singleflight` |
 | Mutex/block profile hot | Shorten critical sections, reduce contention |
 
-Common mistakes: default `http.Client` without a tuned `Transport`; logging in hot loops (allocates even when the level is off — use `slog.LogAttrs`); `panic`/`recover` as control flow; `reflect.DeepEqual` in prod (use `slices.Equal`/`maps.Equal`/`bytes.Equal`); `unsafe` without benchmark proof of >10% gain in a verified hot path.
+Common mistakes: default `http.Client` without a tuned `Transport`; logging in hot loops (allocates even when the level is off - use `slog.LogAttrs`); `panic`/`recover` as control flow; `reflect.DeepEqual` in prod (use `slices.Equal`/`maps.Equal`/`bytes.Equal`); `unsafe` without benchmark proof of >10% gain in a verified hot path.
 
 ## Benchmarking & profiling
 
-**`b.Loop()` (Go 1.24+) is preferred** — prevents dead-code elimination and auto-excludes setup from timing:
+**`b.Loop()` (Go 1.24+) is preferred** - prevents dead-code elimination and auto-excludes setup from timing:
 
 ```go
 func BenchmarkParse(b *testing.B) {
@@ -79,7 +79,7 @@ func BenchmarkParse(b *testing.B) {
 }
 ```
 
-Run with `-benchmem -count=10` for statistical significance; `-count=6+` then `benchstat` — never conclude from a single run. Output: `... 230.5 ns/op  128 B/op  2 allocs/op`.
+Run with `-benchmem -count=10` for statistical significance; `-count=6+` then `benchstat` - never conclude from a single run. Output: `... 230.5 ns/op  128 B/op  2 allocs/op`.
 
 Profile directly from benchmarks (no HTTP server needed):
 
@@ -103,4 +103,4 @@ Read the error → reproduce (a failing test, made deterministic) → measure on
 | Hangs | `curl localhost:6060/debug/pprof/goroutine?debug=2` |
 | High CPU / memory growth | pprof CPU / heap profile |
 
-Most Go bugs: missing error checks, nil pointers, forgotten `cancel()`, unclosed resources, races, swallowed errors. Red flags in your own reasoning: "quick fix for now", changing several things at once, 3+ attempts on one issue (wrong mental model — re-trace from scratch), "it works on my machine", blaming the stdlib/compiler.
+Most Go bugs: missing error checks, nil pointers, forgotten `cancel()`, unclosed resources, races, swallowed errors. Red flags in your own reasoning: "quick fix for now", changing several things at once, 3+ attempts on one issue (wrong mental model - re-trace from scratch), "it works on my machine", blaming the stdlib/compiler.

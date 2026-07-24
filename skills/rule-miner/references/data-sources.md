@@ -1,6 +1,6 @@
 # Data sources & correction signals
 
-Where the `--mine` finders look, and what a "correction" looks like in each source. All reads are local — no external services.
+Where the `--mine` finders look, and what a "correction" looks like in each source. All reads are local - no external services.
 
 ## Sources
 
@@ -11,7 +11,7 @@ Where the `--mine` finders look, and what a "correction" looks like in each sour
 | PR review comments | the repo's remote | `gh pr list`, `gh api .../pulls/comments`, `gh search` |
 | Existing rules (for dedupe) | `~/.claude/CLAUDE.md`, `~/.claude/rules/*.md`, project `AGENTS.md` (or `CLAUDE.md`, often symlinked to it), `docs/code-standards.md` | Read |
 
-Resolve `~` to `$HOME` at read time. Never hardcode an absolute home path — the skill must work for any user.
+Resolve `~` to `$HOME` at read time. Never hardcode an absolute home path - the skill must work for any user.
 
 ## Correction-signal patterns
 
@@ -30,14 +30,14 @@ A correction is the user steering Claude away from what it just did. Grep transc
 
 Git: revert commits, subjects containing `fixup`, `oops`, `actually`, `revert`, and any diff touching `CLAUDE.md` / `rules/` (each rule edit is a recorded correction).
 
-PR reviews: the same critique appearing on **multiple** PRs is the strongest signal — a recurring nit is a rule waiting to be written.
+PR reviews: the same critique appearing on **multiple** PRs is the strongest signal - a recurring nit is a rule waiting to be written.
 
 ## What disqualifies a candidate
 
-- Appears **once** — not a pattern, drop it (Hard rule 3).
-- Already covered by an existing rule — dedupe in the Cluster phase (Hard rule 2).
-- Task-specific instruction ("use port 8081 for this demo") — not generalizable.
-- Vague / unenforceable ("be smarter") — the skeptic kills these.
+- Appears **once** - not a pattern, drop it (Hard rule 3).
+- Already covered by an existing rule - dedupe in the Cluster phase (Hard rule 2).
+- Task-specific instruction ("use port 8081 for this demo") - not generalizable.
+- Vague / unenforceable ("be smarter") - the skeptic kills these.
 
 ## Privacy
 

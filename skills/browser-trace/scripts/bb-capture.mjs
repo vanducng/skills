@@ -8,7 +8,7 @@
 // Env:
 //   BROWSERBASE_API_KEY   required
 //   BB_SESSION_TIMEOUT    timeout for --new sessions, seconds (default: 600)
-//   O11Y_ROOT, O11Y_DOMAINS — same as start-capture.mjs
+//   O11Y_ROOT, O11Y_DOMAINS - same as start-capture.mjs
 
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';

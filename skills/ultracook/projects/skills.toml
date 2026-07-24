@@ -1,8 +1,8 @@
-# skills.toml — profile for THIS skills repo (vanducng/skills).
+# skills.toml - profile for THIS skills repo (vanducng/skills).
 #
 # IMPORTANT: ship_mode MUST NOT include --auto. Per [[feedback-no-auto-merge-skills-repo]]
 # every PR to the skills repo is reviewed and merged manually by the user.
-# This is a hard rule — do not relax it.
+# This is a hard rule - do not relax it.
 
 [project]
 name = "skills"
@@ -25,7 +25,7 @@ default_sequence_cluster  = ["plan", "cook", "code_review", "test", "ship", "wai
 
 [verify]
 test_cmd = "bash -n skills/*/scripts/*.sh 2>&1 | grep -v '^$' || true"
-# smoke_cmd intentionally empty — manual smoke of a slash command is the only
+# smoke_cmd intentionally empty - manual smoke of a slash command is the only
 # meaningful test until skill-level test infra exists.
 smoke_cmd = ""
 

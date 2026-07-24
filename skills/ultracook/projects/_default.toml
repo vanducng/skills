@@ -1,11 +1,11 @@
-# _default.toml — fallback profile for any repo whose remote_url doesn't match
+# _default.toml - fallback profile for any repo whose remote_url doesn't match
 # a more-specific profile in this directory. Conservative: no auto-merge, no
 # deploy step, ship-target stops at PR.
 #
 # Env-var indirection: profile shell commands MAY reference ${VAR:-default} to
 # stay portable across machines. Avoid hardcoded absolute paths.
 #
-# NEVER set ship_mode to include "--auto" here — per [[feedback-no-auto-merge-skills-repo]]
+# NEVER set ship_mode to include "--auto" here - per [[feedback-no-auto-merge-skills-repo]]
 # unknown repos default to manual merge.
 
 [project]

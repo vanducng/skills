@@ -1,6 +1,6 @@
 type: c4-container
 preset: warm
-title: "Internet banking — containers"
+title: "Internet banking - containers"
 groups:
   - name: client
     label: "Client apps"

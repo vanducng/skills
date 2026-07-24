@@ -1,4 +1,4 @@
-# Dogfood — vd:ultracook v0.2 (template — fill in during live run)
+# Dogfood - vd:ultracook v0.2 (template - fill in during live run)
 
 **Date:** _TBD when user runs the dogfood_
 **Runtime baselines:**
@@ -6,9 +6,9 @@
 - Codex CLI version: `codex --version` →
 - Claude Code version: (from About menu) →
 
-## Dogfood A — Codex-only end-to-end
+## Dogfood A - Codex-only end-to-end
 
-**Goal picked:** _(tiny goclaw fix — CLAUDE.md typo, copy tweak, doc reorder)_
+**Goal picked:** _(tiny goclaw fix - CLAUDE.md typo, copy tweak, doc reorder)_
 
 **Run:**
 ```
@@ -61,7 +61,7 @@ vd:ultracook "<tiny fix>"
 - [ ] Same action looped > budget caps without same-signature recognizer firing
 - [ ] Ultracook recursion guard failed (nested ultracook spawn)
 
-## Dogfood B — KEYSTONE TEST (cross-runtime resume)
+## Dogfood B - KEYSTONE TEST (cross-runtime resume)
 
 **Setup:**
 ```

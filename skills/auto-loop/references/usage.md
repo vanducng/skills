@@ -1,4 +1,4 @@
-# vd:auto-loop — usage
+# vd:auto-loop - usage
 
 Drive a Claude Code session toward a verifiable goal until done or a hard cap fires.
 
@@ -8,7 +8,7 @@ Drive a Claude Code session toward a verifiable goal until done or a hard cap fi
 vd:auto-loop "all bats tests pass + ruff clean" --verify "bats tests/ && ruff check ."
 ```
 
-Goal text is positional. Verifier is a shell command — exit 0 means pass. The loop runs both 2× per gate check and additionally consults a fresh-context audit subagent before declaring `achieved`.
+Goal text is positional. Verifier is a shell command - exit 0 means pass. The loop runs both 2× per gate check and additionally consults a fresh-context audit subagent before declaring `achieved`.
 
 ## Common invocations
 
@@ -44,7 +44,7 @@ vd:auto-loop "<goal>" --verify "<cmd>" --codex
 |---|---|---|
 | `--max-iterations` | 40 | Yes |
 | `--max-tokens` | 2_000_000 | Only when token probe is `exact` or `approximate`; advisory on `fallback` |
-| `--max-wallclock` | 4h | **Yes — floor cap** |
+| `--max-wallclock` | 4h | **Yes - floor cap** |
 | `--restart-pct` | 70 | Yes (context-%-triggered phase restart) |
 
 ## Goal spec format
@@ -90,8 +90,8 @@ The loop writes only inside `.auto-loop/` and `.claude/settings.local.json`:
 
 ## See also
 
-- `references/goal-spec-format.md` — full goal.md grammar
-- `references/architecture.md` — state machine + script contracts
-- `references/smoke-test.md` — reproducible end-to-end recipe
-- `references/troubleshooting.md` — common failures and fixes
-- `references/codex-delegation.md` — when `--codex` is the right call
+- `references/goal-spec-format.md` - full goal.md grammar
+- `references/architecture.md` - state machine + script contracts
+- `references/smoke-test.md` - reproducible end-to-end recipe
+- `references/troubleshooting.md` - common failures and fixes
+- `references/codex-delegation.md` - when `--codex` is the right call

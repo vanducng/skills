@@ -27,8 +27,8 @@ Design social media images via HTML/CSS rendering + screenshot export. Use this 
 Break down the work into:
 - Requirement analysis task
 - Idea generation task(s)
-- HTML design task(s) — can parallelize per size/variant
-- Screenshot export task(s) — can parallelize per file
+- HTML design task(s) - can parallelize per size/variant
+- Screenshot export task(s) - can parallelize per file
 - Report generation task
 
 Parallelize independent tasks when useful, such as separate HTML files for different sizes.
@@ -36,12 +36,12 @@ Parallelize independent tasks when useful, such as separate HTML files for diffe
 ### Step 2: Analyze Requirements
 
 Parse user input for:
-- **Subject/topic** — what the social photo represents
-- **Target platforms** — which sizes needed (default: Instagram Post 1:1 + Story 9:16)
-- **Visual style** — minimalist, bold, gradient, photo-based, etc.
-- **Brand context** — read from `docs/brand-guidelines.md` if exists
-- **Content elements** — headline, subtext, CTA, images, icons
-- **Quantity** — how many variations (default: 3)
+- **Subject/topic** - what the social photo represents
+- **Target platforms** - which sizes needed (default: Instagram Post 1:1 + Story 9:16)
+- **Visual style** - minimalist, bold, gradient, photo-based, etc.
+- **Brand context** - read from `docs/brand-guidelines.md` if exists
+- **Content elements** - headline, subtext, CTA, images, icons
+- **Quantity** - how many variations (default: 3)
 
 ### Step 3: Generate Ideas
 
@@ -70,14 +70,14 @@ output/social-photos/
 
 #### HTML Design Rules
 
-- **Viewport** — Set exact pixel dimensions matching target size
-- **Self-contained** — Inline all CSS, embed fonts via Google Fonts CDN
-- **No scrolling** — Everything fits in one viewport
-- **High contrast** — Text readable at thumbnail size
-- **Brand-aligned** — Use extracted brand colors/fonts
-- **Safe zones** — Critical content within central 80% area
-- **Typography** — Min 24px for headlines, min 16px for body at 1080px width
-- **Visual hierarchy** — One focal point, clear reading flow
+- **Viewport** - Set exact pixel dimensions matching target size
+- **Self-contained** - Inline all CSS, embed fonts via Google Fonts CDN
+- **No scrolling** - Everything fits in one viewport
+- **High contrast** - Text readable at thumbnail size
+- **Brand-aligned** - Use extracted brand colors/fonts
+- **Safe zones** - Critical content within central 80% area
+- **Typography** - Min 24px for headlines, min 16px for body at 1080px width
+- **Visual hierarchy** - One focal point, clear reading flow
 
 #### HTML Template Structure
 
@@ -119,7 +119,7 @@ Use Chrome headless, Browser, Playwright, or Puppeteer to capture exact-size scr
 
 **IMPORTANT:** Always add a delay (3-5s) after page load for fonts/images to fully render before capture.
 
-#### Option A: Chrome Headless CLI (Recommended — zero dependencies)
+#### Option A: Chrome Headless CLI (Recommended - zero dependencies)
 
 ```bash
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -137,9 +137,9 @@ DELAY=5  # seconds for fonts/images to load
 ```
 
 Key flags:
-- `--virtual-time-budget=5000` — waits 5s virtual time for assets (Google Fonts, images) to load
-- `--hide-scrollbars` — prevents scrollbar artifacts in screenshots
-- `--window-size=WxH` — sets exact pixel dimensions
+- `--virtual-time-budget=5000` - waits 5s virtual time for assets (Google Fonts, images) to load
+- `--hide-scrollbars` - prevents scrollbar artifacts in screenshots
+- `--window-size=WxH` - sets exact pixel dimensions
 
 #### Option B: Browser Or Playwright
 
@@ -237,7 +237,7 @@ Report structure:
 - Style: {chosen style}
 
 ## Ideas Generated
-1. **{Idea name}** — {brief description, rationale}
+1. **{Idea name}** - {brief description, rationale}
 2. ...
 
 ## Design Decisions
@@ -275,13 +275,13 @@ Organize all output files and reports:
 
 ### Platform-Specific Tips
 
-- **Instagram** — Visual-first, minimal text (<20%), strong colors, lifestyle feel
-- **Facebook** — Informative, can have more text, eye-catching in feed
-- **Twitter/X** — Bold headlines, contrast for dark/light mode, clear message
-- **LinkedIn** — Professional, clean, data-driven visuals, thought leadership
-- **Pinterest** — Vertical format, text overlay on images, how-to style
-- **YouTube** — Face close-ups perform best, bright colors, readable at small size
-- **TikTok** — Trendy, energetic, bold typography, youth-oriented
+- **Instagram** - Visual-first, minimal text (<20%), strong colors, lifestyle feel
+- **Facebook** - Informative, can have more text, eye-catching in feed
+- **Twitter/X** - Bold headlines, contrast for dark/light mode, clear message
+- **LinkedIn** - Professional, clean, data-driven visuals, thought leadership
+- **Pinterest** - Vertical format, text overlay on images, how-to style
+- **YouTube** - Face close-ups perform best, bright colors, readable at small size
+- **TikTok** - Trendy, energetic, bold typography, youth-oriented
 
 ### Art Direction Styles (Reuse from Banner)
 

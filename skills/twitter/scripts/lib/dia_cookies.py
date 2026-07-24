@@ -62,11 +62,11 @@ def get_aes_key() -> bytes:
             check=True,
         )
     except FileNotFoundError as exc:
-        raise KeychainError("`security` CLI not found — macOS only") from exc
+        raise KeychainError("`security` CLI not found - macOS only") from exc
     except subprocess.CalledProcessError as exc:
         raise KeychainError(
             "could not read 'Dia Safe Storage' keychain entry. "
-            "macOS may show a 'Dia wants to use Safe Storage' prompt — "
+            "macOS may show a 'Dia wants to use Safe Storage' prompt - "
             "click 'Always Allow' once to grant. "
             f"stderr: {exc.stderr.strip()}"
         ) from exc
@@ -88,7 +88,7 @@ def read_cookies_db(profile: str = DEFAULT_PROFILE) -> list[tuple[str, bytes]]:
     src = _profile_cookies_path(profile)
     if not src.exists():
         raise FileNotFoundError(
-            f"Dia cookies DB not found at {src} — wrong --profile? "
+            f"Dia cookies DB not found at {src} - wrong --profile? "
             f"(known profiles live under ~/Library/Application Support/Dia/User Data/)"
         )
     tmp = tempfile.NamedTemporaryFile(
@@ -127,7 +127,7 @@ def decrypt(blob: bytes, key: bytes) -> str:
         body = blob[3:]
     elif blob[:3] == b"v20":
         raise UnsupportedCookieFormat(
-            "Dia cookie uses v20 (kernel-bound) format — not supported on this path. "
+            "Dia cookie uses v20 (kernel-bound) format - not supported on this path. "
             "Use `twitter login` instead."
         )
     else:

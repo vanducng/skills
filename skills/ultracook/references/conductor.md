@@ -1,4 +1,4 @@
-# Conductor — dynamic workflow selection
+# Conductor - dynamic workflow selection
 
 The conductor is the brain that runs **before** intake. It reads the task, classifies
 it, and picks the smallest workflow that can prove the result. No ceremony for small
@@ -7,12 +7,12 @@ tasks; full machinery only when the task earns it.
 Two orthogonal axes:
 
 - **Mode** (how much workflow): `direct` · `pipeline` · `fan-out`
-- **Autonomy** (how often to gate): `manual` · `semi` · `auto` — see `autonomy-modes.md`
+- **Autonomy** (how often to gate): `manual` · `semi` · `auto` - see `autonomy-modes.md`
 
 Mode decides the *shape*; autonomy decides the *gating*. A `pipeline` can run `semi`;
 a `fan-out` can run `auto`. Pick both.
 
-## Step 1 — Classify
+## Step 1 - Classify
 
 Read the goal text + repo signals. Score these axes (cheap heuristics, not a model call):
 
@@ -24,9 +24,9 @@ Read the goal text + repo signals. Score these axes (cheap heuristics, not a mod
 | **Complexity** | multi-file, new subsystem, cross-cutting, >~50 LOC | pipeline |
 | **Verification** | none / command / tests / build / browser / manual checklist | sets gate depth |
 
-A task can score on several axes — take the strongest pull.
+A task can score on several axes - take the strongest pull.
 
-## Step 2 — Pick a mode
+## Step 2 - Pick a mode
 
 ```
 ambiguous spec                          → pipeline, shape = brainstorm-first
@@ -36,24 +36,24 @@ multi-file / real feature / has verifier → pipeline
 small, clear, single-surface, reversible → direct
 ```
 
-### `direct` — just do it
+### `direct` - just do it
 Trivial, clear, low-blast: a typo, one function, a narrow question, one command, a
 config tweak. **Do not** create a goal-dir or `state.json`. Do the task, run the
 narrowest useful check, report. Mention the full pipeline wasn't needed only if useful.
 
-### `pipeline` — the goal loop (brainstorm → plan → cook → ship)
+### `pipeline` - the goal loop (brainstorm → plan → cook → ship)
 A real feature/fix with phases, uncertainty, or blast radius. This is the executor
 core: intake → `resolve-workflow.sh` → executor → `vd:auto-loop` for iteration → terminal.
 The conductor proposes the **action shape** (see Step 3); intake confirms it (`semi`)
 or auto-accepts it (`auto`).
 
-### `fan-out` — parallel packets
+### `fan-out` - parallel packets
 Many *independent* work items: repo-wide audit, migration over many call sites,
 N-finder review, broad refactor with disjoint file ownership. Use the host's native
 parallelism (Claude Code `Workflow` tool / `Task` subagents; Codex subagents). See
 [Fan-out packets](#fan-out-packets). The parent session always owns integration.
 
-## Step 3 — Choose the workflow shape
+## Step 3 - Choose the workflow shape
 
 The spine is **brainstorm → plan → cook → ship**. Run the smallest slice; skip stages
 the task doesn't need. This maps onto the intake `action_shape`:
@@ -68,7 +68,7 @@ the task doesn't need. This maps onto the intake `action_shape`:
 In `semi`/`manual` the conductor *proposes*; the user can override at intake. In `auto`
 the conductor's proposal stands.
 
-## Step 4 — Progressive autonomy (interactive → autonomous)
+## Step 4 - Progressive autonomy (interactive → autonomous)
 
 Stay human-in-the-loop until a gate clears, then run autonomously to a terminal
 condition. Default `semi` already encodes this; the gate map:
@@ -80,13 +80,13 @@ condition. Default `semi` already encodes this; the gate map:
 | **Ship** | `ship` action (semi) | land, then watch CI |
 | **Final verify** | `verify_*` actions (semi) | mark terminal |
 
-Once a gate clears, **do not re-gate** — escalate back to the user only on an
+Once a gate clears, **do not re-gate** - escalate back to the user only on an
 *exception*: a test failure in an unrelated area, a merge conflict, a structural
 type/lint error (not auto-fixable), a tool/service down after retries, or a
 never-seen error. This is what prevents approval fatigue. Mechanics live in
 `should-gate.sh` + `autonomy-modes.md`; nothing else makes gate decisions.
 
-## Always ask (hard gates — every mode, including `auto`)
+## Always ask (hard gates - every mode, including `auto`)
 
 Stop and ask one clear yes/no before:
 
@@ -119,7 +119,7 @@ Read-only packet:
 Write-capable packet:
   You are not alone in the codebase. Other agents edit other files.
   Do not revert others' edits. Adapt to nearby changes.
-  Ownership: <files or module — disjoint from all other packets>
+  Ownership: <files or module - disjoint from all other packets>
   Task: <specific implementation task>
   Do: edit only owned files; add focused tests if the area has them; list changes.
   Do not: change behavior outside this packet; broad-format; commit/push/deploy.
@@ -127,7 +127,7 @@ Write-capable packet:
 ```
 
 Host primitive per runtime: `runtimes/claude-code.md` (Workflow / Task) ·
-`runtimes/codex.md` (subagents). Integration is never delegated — the parent reads
+`runtimes/codex.md` (subagents). Integration is never delegated - the parent reads
 each result, checks claimed edits against source/tests, rejects unevidenced output,
 then verifies.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Poster Search — query poster CSVs by domain or build a design brief.
+Poster Search - query poster CSVs by domain or build a design brief.
 
 Usage:
     search.py --domain style --query "swiss minimal"

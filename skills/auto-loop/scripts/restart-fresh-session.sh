@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# restart-fresh-session.sh — invoked by the outer wrapper when stop-hook signals
+# restart-fresh-session.sh - invoked by the outer wrapper when stop-hook signals
 # `restart needed`. Kills the current claude PID (per heartbeat), increments
 # restart_count in goal-state.json, then re-launches `claude -p` with the
 # compaction summary as the seed prompt. Anti-thrash: refuses to restart if

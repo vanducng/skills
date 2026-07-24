@@ -3,7 +3,7 @@
 ## Connection
 
 - **Remote MCP** (this user's setup): `https://mcp.dataplanelabs.com/excalidraw/mcp`. Auth via `Authorization: Bearer ${EXCALIDRAW_MCP_TOKEN}`. Tenant via `X-Tenant-Id` header.
-- **Canvas (visual)**: `https://draw.dataplanelabs.com` — open in browser or screenshot via Chrome DevTools MCP.
+- **Canvas (visual)**: `https://draw.dataplanelabs.com` - open in browser or screenshot via Chrome DevTools MCP.
 - **Local install** (fallback): `sanjibdevnathlabs/mcp-excalidraw-local`. Canvas at `http://localhost:3000`. Health: `GET /health`.
 - **Persistence**: server-side SQLite, scoped per tenant.
 
@@ -36,7 +36,7 @@
 | Tool | Notes |
 |------|-------|
 | `describe_scene` | groups, bounding box, **suggested next placement** |
-| `get_canvas_screenshot` | optional `background`. May return blank — fall back to Chrome DevTools |
+| `get_canvas_screenshot` | optional `background`. May return blank - fall back to Chrome DevTools |
 | `get_resource` | `resource` (scene/library/theme/elements) |
 | `read_diagram_guide` | server-side best practices guide |
 
@@ -46,14 +46,14 @@
 | `export_scene` | optional `filePath` | dumps `.excalidraw` JSON |
 | `import_scene` | `mode` (replace/merge), `filePath` or `data` | |
 | `export_to_image` | `format` (png/svg), optional `filePath`, `background` | needs canvas browser open |
-| `export_to_excalidraw_url` | (none) | shareable excalidraw.com URL — may be blocked |
+| `export_to_excalidraw_url` | (none) | shareable excalidraw.com URL - may be blocked |
 
 ### State Management
 | Tool | Required | Notes |
 |------|----------|-------|
 | `clear_canvas` | (none) | wipes active project. Don't call without explicit user ask |
 | `snapshot_scene` | `name` | named snapshot |
-| `restore_snapshot` | `name` | may not reload into view — re-fetch elements if blank |
+| `restore_snapshot` | `name` | may not reload into view - re-fetch elements if blank |
 
 ### Viewport
 | Tool | Notes |
@@ -75,7 +75,7 @@
 ### Conversion
 | Tool | Notes |
 |------|-------|
-| `create_from_mermaid` | ⚠ low quality — use `batch_create_elements` for production |
+| `create_from_mermaid` | ⚠ low quality - use `batch_create_elements` for production |
 
 ## MCP vs REST Format Differences
 
@@ -127,7 +127,7 @@ All endpoints accept optional `X-Tenant-Id` to scope.
 ## Multi-Tenancy
 
 - Tenant maps to a workspace identity (e.g. `infra`, `home`).
-- Project groups diagrams within a tenant — switch/create via `switch_project`.
+- Project groups diagrams within a tenant - switch/create via `switch_project`.
 - Hierarchy: Tenant → Project → Elements.
 - Concurrent sessions: each sends `X-Tenant-Id` for isolation. SQLite `busy_timeout` handles writes.
 

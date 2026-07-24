@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lookup-profile.sh — resolve the per-project profile for the current repo.
+# lookup-profile.sh - resolve the per-project profile for the current repo.
 #
 # Reads `git remote get-url origin`, matches against `remote_matches` arrays
 # in skills/ultracook/projects/*.toml (excluding _default.toml), returns the
@@ -7,7 +7,7 @@
 #
 # Falls back to _default.toml if no specific profile matches.
 # Exits non-zero with a diagnostic if multiple profiles match the same remote
-# (ambiguous — author error).
+# (ambiguous - author error).
 #
 # Usage: lookup-profile.sh [--remote-url <url>]   # url override for testing
 
@@ -79,7 +79,7 @@ case ${#matched[@]} in
     echo "${matched[0]}"
     ;;
   *)
-    echo "lookup-profile.sh: AMBIGUOUS — multiple profiles match remote '$REMOTE_URL':" >&2
+    echo "lookup-profile.sh: AMBIGUOUS - multiple profiles match remote '$REMOTE_URL':" >&2
     printf '  %s\n' "${matched[@]}" >&2
     echo "tighten remote_matches in one of them." >&2
     exit 3

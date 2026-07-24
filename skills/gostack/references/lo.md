@@ -1,4 +1,4 @@
-# samber/lo — Lodash-style helpers for Go
+# samber/lo - Lodash-style helpers for Go
 
 **Pinned: v1.53.0 (released 2026-03-02) · MIT · 21.2k stars · zero deps · verified 2026-05-23**
 
@@ -8,15 +8,15 @@ Upstream: [github.com/samber/lo](https://github.com/samber/lo) · [lo.samber.dev
 
 ## My take
 
-The gateway drug of the samber ecosystem. Worth installing on day one of a Go project where collection transforms aren't trivial — Map/Filter/Reduce/GroupBy/Chunk/Flatten/Uniq are universally useful and the stdlib doesn't have them.
+The gateway drug of the samber ecosystem. Worth installing on day one of a Go project where collection transforms aren't trivial - Map/Filter/Reduce/GroupBy/Chunk/Flatten/Uniq are universally useful and the stdlib doesn't have them.
 
-**The trap:** people reach for `lo.Contains`, `lo.Sort`, `lo.Keys` out of habit. The Go 1.21+ stdlib (`slices.Contains`, `slices.Sort`, `maps.Keys`) handles those — no dependency needed. Pulling in `lo` for stdlib-covered ops is a code-review smell I always flag.
+**The trap:** people reach for `lo.Contains`, `lo.Sort`, `lo.Keys` out of habit. The Go 1.21+ stdlib (`slices.Contains`, `slices.Sort`, `maps.Keys`) handles those - no dependency needed. Pulling in `lo` for stdlib-covered ops is a code-review smell I always flag.
 
 **Where I deviate from upstream guidance:**
 
-- `lo/parallel` (`lop`) is **rarely** the right answer for I/O fan-out. The library doc says "use it for parallel work" — true, but Go's `errgroup.Group` + bounded `semaphore` is more idiomatic for I/O. `lop` shines only on CPU-bound work on large slices (1000+ items). I default to `errgroup`.
+- `lo/parallel` (`lop`) is **rarely** the right answer for I/O fan-out. The library doc says "use it for parallel work" - true, but Go's `errgroup.Group` + bounded `semaphore` is more idiomatic for I/O. `lop` shines only on CPU-bound work on large slices (1000+ items). I default to `errgroup`.
 - `lo/mutable` (`lom`) breaks immutability. Touch only after `pprof` confirms allocation pressure. Reaching for it preemptively because "it's faster" is premature optimization 99% of the time.
-- `lo/it` (lazy iterators) needs Go 1.23+ and is worth it when you have 3+ chained transforms on a large dataset — saves intermediate allocations. Not worth the cognitive overhead on short chains.
+- `lo/it` (lazy iterators) needs Go 1.23+ and is worth it when you have 3+ chained transforms on a large dataset - saves intermediate allocations. Not worth the cognitive overhead on short chains.
 
 ## Install
 
@@ -30,7 +30,7 @@ go get github.com/samber/lo@v1.53.0
 | Parallel | `github.com/samber/lo/parallel` | `lop` | 1.18+ | CPU-bound, 1000+ items, after benchmarking |
 | Mutable | `github.com/samber/lo/mutable` | `lom` | 1.18+ | Hot path, after `pprof` proves it |
 | Iterator | `github.com/samber/lo/it` | `loi` | 1.23+ | Long chains on large data |
-| SIMD (exp) | `github.com/samber/lo/exp/simd` | — | 1.25+ amd64 | Numeric bulk ops, benchmark first |
+| SIMD (exp) | `github.com/samber/lo/exp/simd` | - | 1.25+ amd64 | Numeric bulk ops, benchmark first |
 
 ## Core patterns I actually use
 
@@ -42,12 +42,12 @@ names := lo.Map(users, func(u User, _ int) string {
     return u.Name
 })
 
-// ✗ Don't do this for one-liners — readable, but the boilerplate is the cost
+// ✗ Don't do this for one-liners - readable, but the boilerplate is the cost
 names := make([]string, 0, len(users))
 for _, u := range users { names = append(names, u.Name) }
 ```
 
-### Filter then reduce — chain reads top-to-bottom
+### Filter then reduce - chain reads top-to-bottom
 
 ```go
 total := lo.Reduce(
@@ -57,14 +57,14 @@ total := lo.Reduce(
 )
 ```
 
-### GroupBy — the killer feature
+### GroupBy - the killer feature
 
 ```go
 byStatus := lo.GroupBy(tasks, func(t Task, _ int) string { return t.Status })
 // map[string][]Task{"open": [...], "closed": [...]}
 ```
 
-### Error variants — short-circuit on first error
+### Error variants - short-circuit on first error
 
 ```go
 results, err := lo.MapErr(urls, func(url string, _ int) (Response, error) {
@@ -73,7 +73,7 @@ results, err := lo.MapErr(urls, func(url string, _ int) (Response, error) {
 // stops at first error, no need for manual error collection
 ```
 
-### Chunking — for batch APIs
+### Chunking - for batch APIs
 
 ```go
 for _, batch := range lo.Chunk(userIDs, 100) {
@@ -83,13 +83,13 @@ for _, batch := range lo.Chunk(userIDs, 100) {
 }
 ```
 
-### `lo.Must` — only in tests and init
+### `lo.Must` - only in tests and init
 
 ```go
 // ✓ test
 cfg := lo.Must(loadConfig("testdata/cfg.yaml"))
 
-// ✗ production handler — panic will crash the request
+// ✗ production handler - panic will crash the request
 result := lo.Must(svc.DoThing(ctx))  // DON'T
 ```
 
@@ -124,7 +124,7 @@ These have no stdlib equivalent and write much cleaner with `lo`:
 - `Zip2…Zip9`, `Unzip2…Unzip9`
 - `Range`, `RangeFrom`, `RangeWithSteps`
 - `Debounce`, `Throttle`
-- `Attempt`, `AttemptWithDelay` — retry with backoff
+- `Attempt`, `AttemptWithDelay` - retry with backoff
 - `Async`, `WaitFor`
 
 ## Common mistakes (catch in review)
@@ -133,8 +133,8 @@ These have no stdlib equivalent and write much cleaner with `lo`:
 |---|---|---|
 | `lo.Contains` where `slices.Contains` works | Unnecessary dep, slower lint, slower compile | Use stdlib |
 | `lop.Map` on 10 items | Goroutine overhead > work | Use `lo.Map`; `lop` benefits start ~1000+ |
-| Assuming `lo.Filter` modifies input | It's immutable by default — returns new slice | Use `lom.Filter` only if you measured allocation |
-| `lo.Must` in handlers / production paths | Panics on error — surfaces as 500s | Use the non-Must variant and handle the error |
+| Assuming `lo.Filter` modifies input | It's immutable by default - returns new slice | Use `lom.Filter` only if you measured allocation |
+| `lo.Must` in handlers / production paths | Panics on error - surfaces as 500s | Use the non-Must variant and handle the error |
 | Long chains of eager transforms on big data | Each step allocates an intermediate slice | Switch the chain to `loi` (iterator) |
 | Importing `lo` for a single helper | Whole package compiled in | Inline the 5-line for-loop instead |
 
@@ -148,7 +148,7 @@ These have no stdlib equivalent and write much cleaner with `lo`:
 
 - Stdlib + a 3-line for-loop covers everything in the project
 - The codebase is review-sensitive and Go reviewers push back on functional style
-- Compile-time matters (CI on slow hardware) — `lo`'s generic instantiations add to build times in big monorepos
+- Compile-time matters (CI on slow hardware) - `lo`'s generic instantiations add to build times in big monorepos
 
 ## Quick reference card
 
@@ -171,6 +171,6 @@ These have no stdlib equivalent and write much cleaner with `lo`:
 | `lo.Coalesce[T]` | First non-zero |
 | `lo.Ternary[T]` | Inline conditional |
 | `lo.Attempt(n, fn)` | Retry with backoff |
-| `lo.Must[T]` | Panic on error — tests/init only |
+| `lo.Must[T]` | Panic on error - tests/init only |
 
 For the full 500+ catalog, hit [pkg.go.dev](https://pkg.go.dev/github.com/samber/lo).

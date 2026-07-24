@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# status-reader.sh — READ-ONLY snapshot of the active loop. Never writes any file.
+# status-reader.sh - READ-ONLY snapshot of the active loop. Never writes any file.
 #
 # Usage: status-reader.sh <workspace>
 # Stdout: human-readable 1-screen summary
@@ -59,7 +59,7 @@ tokens_used=$(printf '%s' "$probe" | jq -r '.tokens_used // 0')
 src=$(printf '%s' "$probe" | jq -r '.source // "unknown"')
 
 cat <<EOF
-vd:auto-loop status — workspace: $ws
+vd:auto-loop status - workspace: $ws
 ─────────────────────────────────────────────────────────────────────
 Goal: $goal
 Status: $status

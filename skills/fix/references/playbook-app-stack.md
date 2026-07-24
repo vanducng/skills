@@ -1,4 +1,4 @@
-# Playbook — App stack (backend + frontend)
+# Playbook - App stack (backend + frontend)
 
 Load this when the failure is in a backend service, API, deploy, DB migration, or frontend UI/build/runtime.
 
@@ -9,7 +9,7 @@ Load this when the failure is in a backend service, API, deploy, DB migration, o
 - **Recent changes?** `git log --since='3 days ago' -- <touched path>`; check related deploy events and migration history.
 - **Env parity?** Compare env vars / secrets / config between working and failing envs. Mismatched config is the #1 cause of "works locally, fails in prod".
 
-## Backend — fix patterns
+## Backend - fix patterns
 
 | Symptom | Likely cause | Fix shape |
 |---|---|---|
@@ -28,7 +28,7 @@ curl -i ...                 # reproduce the failing request, capture before/afte
 <rerun migration in lower env>
 ```
 
-## Frontend — fix patterns
+## Frontend - fix patterns
 
 | Symptom | Likely cause | Fix shape |
 |---|---|---|

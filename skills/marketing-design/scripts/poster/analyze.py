@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Poster Analyzer — vision-extract structured design attributes from poster images.
+Poster Analyzer - vision-extract structured design attributes from poster images.
 
 Usage:
     analyze.py --input-dir /path/to/posters [--limit N] [--force] [--model MODEL]
@@ -51,7 +51,7 @@ def analyze_image(client, image_path: Path, model: str) -> dict | None:
             model=model,
             contents=[uploaded, EXTRACTION_PROMPT],
         )
-    except Exception as exc:  # noqa: BLE001 — network errors are bounded
+    except Exception as exc:  # noqa: BLE001 - network errors are bounded
         print(f"  [err] {image_path.name}: {exc}", file=sys.stderr)
         return None
 

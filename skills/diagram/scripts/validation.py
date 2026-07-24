@@ -249,7 +249,7 @@ def _autofix_inline_css_vars(svg: str) -> tuple[str, int]:
     """Move presentation-attr var() into an inline `style=` attribute.
 
     `<rect fill="var(--bg)"/>` does NOT resolve when the SVG is loaded via an
-    <img> tag — presentation attributes are not CSS context, so var() is left
+    <img> tag - presentation attributes are not CSS context, so var() is left
     as a literal string. Inline `style="fill: var(--bg)"`, by contrast, IS CSS
     context and resolves correctly, including respecting `@media (prefers-color-scheme: dark)`
     rules from the embedded <style>.
@@ -306,7 +306,7 @@ _NODE_CLASSES = frozenset({
     "process", "decision", "state", "entity", "actor", "node",
 })
 
-# Arrow-label occluder rects — designed to sit ON edges, NOT on nodes.
+# Arrow-label occluder rects - designed to sit ON edges, NOT on nodes.
 _LABEL_CLASSES = frozenset({"arrow-label", "label-bg", "edge-label"})
 
 

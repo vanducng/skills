@@ -32,7 +32,7 @@ The single source of truth for "what is this ultracook run trying to accomplish?
 |---|---|---|
 | `kind` | enum | `local` (no ship) / `pr-only` (ship to PR, no deploy) / `cluster` (ship + deploy + cluster verify). |
 | `env` | string | Free-text env hint. e.g. `staging`, `production`. |
-| `verifiers` | list[Verifier] | **WORKFLOW-LEVEL verifiers — run only at dedicated `verify_*` actions post-deploy.** Per-action iteration-time verifiers come from `action-vocab.yaml`, NOT here. See "two verifier layers" below. |
+| `verifiers` | list[Verifier] | **WORKFLOW-LEVEL verifiers - run only at dedicated `verify_*` actions post-deploy.** Per-action iteration-time verifiers come from `action-vocab.yaml`, NOT here. See "two verifier layers" below. |
 
 ## `budgets`
 
@@ -51,7 +51,7 @@ args:
   # type-dependent. See references/verifier-vocab.md.
 ```
 
-## Two verifier layers — IMPORTANT
+## Two verifier layers - IMPORTANT
 
 | Layer | Source | Runs when |
 |---|---|---|
@@ -99,7 +99,7 @@ budgets:
 risk_tier: medium
 ```
 
-Per-action verifiers (NOT in this file — they're bound in `action-vocab.yaml`):
+Per-action verifiers (NOT in this file - they're bound in `action-vocab.yaml`):
 
 ```yaml
 # action-vocab.yaml fragment (Phase 2):
@@ -118,13 +118,13 @@ ship:
 
 ## Mid-flight edits
 
-Editing `goal.yaml` while ultracook is running is supported — the executor re-reads on every iteration. Common edits:
+Editing `goal.yaml` while ultracook is running is supported - the executor re-reads on every iteration. Common edits:
 
 - Switch `autonomy: semi → auto` to skip remaining gates.
 - Bump `budgets.max_iterations` to extend a stuck run.
 - Add a verifier to `target.verifiers` when post-deploy checks reveal a missing assertion.
 
-Avoid changing `slug`, `created`, or `version` — those break resume.
+Avoid changing `slug`, `created`, or `version` - those break resume.
 
 ## Validation
 

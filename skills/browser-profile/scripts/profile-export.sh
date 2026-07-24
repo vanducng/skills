@@ -12,7 +12,7 @@ NAME="$(require_name "${1:-}")"
 OUT="${2:-storageState-$NAME.json}"
 PORT="$(port_for "$NAME")"
 
-cdp_alive "$PORT" || die "profile '$NAME' not running on :$PORT — open it first"
+cdp_alive "$PORT" || die "profile '$NAME' not running on :$PORT - open it first"
 command -v npx >/dev/null 2>&1 || die "npx not found (install Node 18+)"
 
 # Inline Node: connect over CDP (does NOT kill the underlying Chrome), dump storageState, disconnect.

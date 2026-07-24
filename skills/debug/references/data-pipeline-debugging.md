@@ -11,7 +11,7 @@ dbt, Airflow / Dagster / Prefect, Spark, streaming. The class of failure that *l
 - Late-arriving / missing data
 - Row counts diverge from yesterday or from upstream
 - Lineage / dependency break (downstream model fails because upstream changed)
-- Idempotency violation — re-running produces different output
+- Idempotency violation - re-running produces different output
 - Spark stage stall / OOM / shuffle skew
 
 ## Root-cause hierarchy
@@ -55,7 +55,7 @@ Look at `target/run_results.json` for failure timing and message:
 jq '.results[] | select(.status != "success") | {unique_id, status, message, execution_time}' target/run_results.json
 ```
 
-### dbt test failure — wrong rows
+### dbt test failure - wrong rows
 
 Use `--store-failures` to materialize the offending rows for inspection:
 
@@ -70,7 +70,7 @@ Then in the warehouse:
 SELECT * FROM <schema>_dbt_test__audit.<failure_table> LIMIT 100;
 ```
 
-For relationships / unique / not_null tests, the failure rows tell you exactly which key/value pair triggered. **Don't add `where` filters to silence the test** — that hides the contract break.
+For relationships / unique / not_null tests, the failure rows tell you exactly which key/value pair triggered. **Don't add `where` filters to silence the test** - that hides the contract break.
 
 ### Source freshness violation
 
@@ -101,7 +101,7 @@ Decide:
 
 - Add the new column to staging model + schema.yml + downstream
 - Or add `on_schema_change: append_new_columns` if drift is expected
-- Don't auto-cast away type changes — they bury data quality issues
+- Don't auto-cast away type changes - they bury data quality issues
 
 ### Idempotency check
 
@@ -149,8 +149,8 @@ dagster asset materialize --select <asset_name>
 ```
 
 Useful patterns:
-- **Asset partition missing** — check `materialize_partitions` invocation; partition definition matches expected key
-- **Asset stale** — upstream materialized after downstream; reconciliation sensor
+- **Asset partition missing** - check `materialize_partitions` invocation; partition definition matches expected key
+- **Asset stale** - upstream materialized after downstream; reconciliation sensor
 
 ### Prefect
 
@@ -166,11 +166,11 @@ prefect work-pool ls
 |---|---|
 | Stage skew (one task takes 10× the others) | Salt the join key, broadcast small dim, repartition |
 | Shuffle spill / OOM on executor | Increase executor mem, reduce partitions size, avoid wide transforms |
-| Driver OOM | `collect()` / `toPandas()` on large data — replace with file write |
+| Driver OOM | `collect()` / `toPandas()` on large data - replace with file write |
 | Slow `groupBy` | Pre-aggregate, use `reduceByKey` / window |
 | Task stuck "running" | Check Spark UI → executor logs → likely GC death |
 
-Spark UI is the ground truth — stages, tasks, shuffle read/write, GC time, peak memory. Don't debug from logs alone.
+Spark UI is the ground truth - stages, tasks, shuffle read/write, GC time, peak memory. Don't debug from logs alone.
 
 ## Streaming (Kafka / Pub/Sub)
 
@@ -179,7 +179,7 @@ Spark UI is the ground truth — stages, tasks, shuffle read/write, GC time, pea
 | Consumer lag growing | Throughput vs production rate; partition rebalance; processing time per message |
 | Duplicate / out-of-order messages | Idempotent consumer, watermark logic, exactly-once semantics |
 | Schema registry mismatch | Producer wrote schema v2, consumer expects v1 |
-| Dead-letter queue filling | Look at the DLQ message — usually deserialization or downstream rejection |
+| Dead-letter queue filling | Look at the DLQ message - usually deserialization or downstream rejection |
 
 ## Backfill discipline
 
@@ -187,19 +187,19 @@ A backfill is a destructive replay. Before running:
 
 1. Confirm the **window** (start / end timestamps, inclusive/exclusive)
 2. Confirm the **target** (table, partition, schema)
-3. Confirm **idempotency** — re-running the window must not duplicate
-4. Confirm **downstream impact** — what materializes after this lands?
+3. Confirm **idempotency** - re-running the window must not duplicate
+4. Confirm **downstream impact** - what materializes after this lands?
 5. Run a **small slice first** (one day) and verify row counts before going wide
 
-Defense-in-depth (`defense-in-depth.md`) applies here too — add bounds checks at the entry points of backfill logic so an off-by-one window can't wipe a year of data.
+Defense-in-depth (`defense-in-depth.md`) applies here too - add bounds checks at the entry points of backfill logic so an off-by-one window can't wipe a year of data.
 
 ## Data quality validation after a fix
 
 Don't claim "pipeline fixed" without:
 
 - **Row count vs baseline** (yesterday or N days ago) within tolerance
-- **Distribution check** — top-N values match expected; null rate hasn't moved
-- **PK / FK** — uniqueness still holds; FKs resolve
+- **Distribution check** - top-N values match expected; null rate hasn't moved
+- **PK / FK** - uniqueness still holds; FKs resolve
 - **dbt tests pass** for the model and immediate downstream
 - **One spot check** of a known-good record end-to-end
 

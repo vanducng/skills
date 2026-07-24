@@ -1,4 +1,4 @@
-# Styling Presets — Full Reference
+# Styling Presets - Full Reference
 
 Detailed color palettes, layout templates, and accessibility guidance for technical diagrams. Apply alongside SKILL.md.
 
@@ -25,7 +25,7 @@ Every color encodes information. No decoration without meaning. Within a single 
 | 1 | thin | dividers, lifelines, lineage, secondary paths |
 | 2 | standard | shapes, main flows, standard arrows |
 | 3 | bold | streaming arrows, critical paths, emphasis |
-| 4+ | dominant | sparingly — only for ultimate emphasis |
+| 4+ | dominant | sparingly - only for ultimate emphasis |
 
 ## Minimal Legends
 
@@ -110,7 +110,7 @@ GCP and Azure: keep their primary blue (`#4285F4`, `#0078D4`) for vendor brandin
 
 ## Kubernetes Deployment
 
-K8s blue is `#326ce5` — use as cluster-level boundary.
+K8s blue is `#326ce5` - use as cluster-level boundary.
 
 | Component | Shape | Fill | Stroke | Notes |
 |-----------|-------|------|--------|-------|
@@ -224,13 +224,13 @@ For diagrams shared with audiences with red-green colorblindness:
 | `#ffc107` warning yellow | `#de8f05` | always safe |
 | `#0dcaf0` info | `#ca9161` (brown) | high contrast variant |
 
-When red and green appear together, **also encode with line style** (dashed for one) — never rely on color alone.
+When red and green appear together, **also encode with line style** (dashed for one) - never rely on color alone.
 
 ## Text Contrast Rules
 
 - Min text contrast on white: `#757575` or darker.
 - Light fill → dark text. Dark fill (red, dark blue, dark purple) → light text (`#fff`).
-- Never light text on light fill — invisible.
+- Never light text on light fill - invisible.
 - Aim for WCAG AA (4.5:1 contrast ratio) on all labels.
 
 ## Layout Discipline

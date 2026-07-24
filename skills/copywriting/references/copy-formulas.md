@@ -17,7 +17,7 @@ ACTION: Clear CTA with urgency
 ```
 [A] Stop losing 80% of your leads.
 [I] Most businesses capture emails but never convert them.
-    The problem isn't your product—it's your follow-up.
+    The problem isn't your product - it's your follow-up.
 [D] Imagine waking up to sales notifications while you sleep.
     Our automation sends the right message at the right time.
 [A] Start your free trial → No credit card required.

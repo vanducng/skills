@@ -39,7 +39,7 @@ You are in audit mode. Vote ONLY based on:
 - You MUST NOT invoke `vd:auto-loop`, `/ralph-loop`, or `codex /goal`.
   Recursion is forbidden. The env-var VD_AUTOLOOP_DEPTH gates this.
 - You MUST NOT modify files in the repo. Read-only.
-- A passing test alone is not proof — verifier already accounts for that.
+- A passing test alone is not proof - verifier already accounts for that.
 
 # Output
 Emit ONE line of JSON, no prose, no markdown:
@@ -47,6 +47,6 @@ Emit ONE line of JSON, no prose, no markdown:
 {"vote": "achieved" | "unmet" | "blocked", "reason": "<short>", "missing": ["<item>", ...]}
 ```
 
-- "achieved" — goal genuinely fulfilled.
-- "unmet" — verifier claim is premature or scope incomplete.
-- "blocked" — external blocker (missing dep, ambiguous goal, infra-side fault).
+- "achieved" - goal genuinely fulfilled.
+- "unmet" - verifier claim is premature or scope incomplete.
+- "blocked" - external blocker (missing dep, ambiguous goal, infra-side fault).

@@ -1,4 +1,4 @@
-"""`twitter login` — fallback bootstrap via twikit's login flow (gopass-backed).
+"""`twitter login` - fallback bootstrap via twikit's login flow (gopass-backed).
 
 Use when `import-from-dia` isn't available (Dia not installed, non-mac, or
 session expired without a Dia bootstrap path). Reads username/password/TOTP
@@ -44,7 +44,7 @@ async def _run(args: argparse.Namespace) -> int:
         msg = str(exc)
         if "DenyLoginSubtask" in msg or "verification" in msg.lower():
             print(
-                "twitter login: X requires manual verification — open x.com in Dia "
+                "twitter login: X requires manual verification - open x.com in Dia "
                 "and complete the challenge, then run `twitter import-from-dia`.",
                 file=sys.stderr,
             )
@@ -65,7 +65,7 @@ async def _run(args: argparse.Namespace) -> int:
             Path(tmp).unlink()
         except FileNotFoundError:
             pass
-    print("login ok — cookies saved to gopass")
+    print("login ok - cookies saved to gopass")
     return 0
 
 

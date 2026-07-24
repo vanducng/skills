@@ -1,4 +1,4 @@
-// Template — adapt DIMENSIONS / votes before running.
+// Template - adapt DIMENSIONS / votes before running.
 // Ultra review: find issues per dimension, then adversarially refute each finding.
 // Returns only confirmed findings; the main skill assembles + posts the GitHub review.
 export const meta = {
@@ -19,7 +19,7 @@ const DIMENSIONS = [
   { key: 'correctness', prompt: 'off-by-one, nil/null deref, swallowed errors, races/goroutine leaks, untested edge cases (empty/zero/max/unicode/timezone/DST)' },
   { key: 'security', prompt: 'injection (SQL/command/template/XSS), hardcoded secrets, auth scoping (userID vs tenantID), SSRF / path traversal / open redirect' },
   { key: 'reliability', prompt: 'retries without idempotency keys, unbounded queues/caches, network calls missing timeouts, irreversible migrations' },
-  { key: 'performance', prompt: 'N+1 queries, full scans on hot paths vs existing indexes, allocations in hot loops — flag ONLY with concrete evidence' },
+  { key: 'performance', prompt: 'N+1 queries, full scans on hot paths vs existing indexes, allocations in hot loops - flag ONLY with concrete evidence' },
   { key: 'api', prompt: 'renamed/removed exports, changed response shape/status codes, config schema change without a compat shim' },
   { key: 'tests', prompt: 'new code paths uncovered, missing edge-case tests, mixed mock/real-DB conventions, no regression test for the bug being fixed' },
 ]

@@ -76,7 +76,7 @@ const $findStatus = document.getElementById('findStatus');
 const $download = document.getElementById('downloadBtn');
 const $spread = document.getElementById('spreadSelect');
 
-// Persist spread mode across loads — users who prefer two-page reading
+// Persist spread mode across loads - users who prefer two-page reading
 // shouldn't have to re-pick on every PDF.
 const SPREAD_KEY = 'fb-pdf-spread-mode';
 function loadSpreadMode() {
@@ -145,7 +145,7 @@ eventBus.on('scalechanging', (e) => {
   }
 });
 
-// Search — pdfjs uses an internal "find" event bus message.
+// Search - pdfjs uses an internal "find" event bus message.
 function dispatchFind(type) {
   const query = $find.value;
   eventBus.dispatch('find', {
@@ -221,7 +221,7 @@ $spread.addEventListener('change', () => {
   try { localStorage.setItem(SPREAD_KEY, String(mode)); } catch {}
 });
 
-// Download — fetch the bytes, hand to DownloadManager so the user gets a
+// Download - fetch the bytes, hand to DownloadManager so the user gets a
 // real Save dialog instead of a navigation away from the viewer.
 $download.addEventListener('click', async () => {
   try {

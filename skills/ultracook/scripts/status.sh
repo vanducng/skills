@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# status.sh — print a one-screen status summary for a ultracook goal.
+# status.sh - print a one-screen status summary for a ultracook goal.
 #
 # Usage:
 #   status.sh [--goal-dir <dir>]

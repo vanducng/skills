@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# eval-verifier.sh — evaluate one verifier; return JSON outcome on stdout.
+# eval-verifier.sh - evaluate one verifier; return JSON outcome on stdout.
 #
 # Usage variants (one per type):
 #   --type ci_green --pr-number N [--repo X]
@@ -14,7 +14,7 @@
 # Stdout: JSON {"pass": bool|null, "evidence": str, "latency_ms": int, [needs_user_input: bool, prompt: str]}
 # Exit: 0 on normal evaluation (pass=false is data, not error); 2 on verifier crash.
 
-set -uo pipefail   # NOT errexit — we WANT to capture non-zero exits
+set -uo pipefail   # NOT errexit - we WANT to capture non-zero exits
 
 TYPE=""
 declare -A ARGS=()

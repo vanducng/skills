@@ -1,4 +1,4 @@
-"""`twitter timeline [home|latest|user:@handle]` — read your X timeline."""
+"""`twitter timeline [home|latest|user:@handle]` - read your X timeline."""
 from __future__ import annotations
 
 import argparse

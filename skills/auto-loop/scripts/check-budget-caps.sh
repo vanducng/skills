@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-budget-caps.sh — enforce iter / token / wallclock caps.
+# check-budget-caps.sh - enforce iter / token / wallclock caps.
 #
 # Sets goal-state.status=budget-limited if any cap is breached. Wallclock cap is
 # the floor cap (always enforced). Token cap is advisory unless probe fidelity is

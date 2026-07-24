@@ -1,6 +1,6 @@
 /* Self-hosted to avoid the Google Fonts DNS+TLS chain on each cross-doc nav. */
 
-/* Inter + JetBrains Mono ship as variable fonts — one file covers all weights. */
+/* Inter + JetBrains Mono ship as variable fonts - one file covers all weights. */
 @font-face {
   font-family: 'Inter';
   src: url('/assets/fonts/inter-400.woff2') format('woff2-variations');

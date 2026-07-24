@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dispatch.sh — argument parser + flag router for vd:auto-loop.
+# dispatch.sh - argument parser + flag router for vd:auto-loop.
 #
 # Recognised invocations:
 #   vd:auto-loop                                   → print help, exit 0
@@ -153,7 +153,7 @@ jq -n \
     allow: $al, deny: $dn, start_ref: $sr
   }' > "$heartbeat"
 
-# Seed state file (only if absent — preserve resume case)
+# Seed state file (only if absent - preserve resume case)
 if [[ ! -f "$state_file" ]]; then
   bash "$SCRIPT_DIR/state-rw.sh" seed "$state_file"
   # Stamp started_at + session_id

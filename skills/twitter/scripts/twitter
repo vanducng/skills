@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# twitter — CLI dispatcher for the personal twitter skill.
+# twitter - CLI dispatcher for the personal twitter skill.
 #
 # Routes verbs to per-command Python scripts under scripts/.
 # Top-level flags (--use-browser, --help, --version) are stripped before dispatch.
@@ -13,7 +13,7 @@ VERBS=(fetch timeline post reply thread delete import-from-dia login doctor)
 
 print_help() {
   cat <<'EOF'
-twitter — read and post on X/Twitter from the CLI
+twitter - read and post on X/Twitter from the CLI
 
 USAGE
   twitter [--use-browser] <verb> [args...]

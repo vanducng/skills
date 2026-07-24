@@ -27,7 +27,7 @@ Graphify clones into `~/.graphify/repos/<owner>/<repo>` and reuses existing clon
 
 **Multiple local subfolders (monorepo or multi-service layout):**
 
-The skill pipeline writes all intermediate and final outputs to `graphify-out/` in the current working directory. Running the skill on each subfolder separately will clobber the same output dir. Instead, use the CLI directly for each subfolder — it places `graphify-out/` *inside* the scanned path:
+The skill pipeline writes all intermediate and final outputs to `graphify-out/` in the current working directory. Running the skill on each subfolder separately will clobber the same output dir. Instead, use the CLI directly for each subfolder - it places `graphify-out/` *inside* the scanned path:
 
 ```bash
 graphify extract ./core/     # → ./core/graphify-out/graph.json
@@ -43,4 +43,4 @@ graphify merge-graphs \
   --out graphify-out/graph.json
 ```
 
-Once `graphify-out/graph.json` exists, the fast path above takes over: any codebase question runs `graphify query` directly on the merged graph — no re-extraction, no size gate.
+Once `graphify-out/graph.json` exists, the fast path above takes over: any codebase question runs `graphify query` directly on the merged graph - no re-extraction, no size gate.

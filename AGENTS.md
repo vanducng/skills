@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository is a daily-driver collection of skills for agentic coding, described by `skills.toml`. Skill packages live under `skills/<name>/` and each package must include `SKILL.md` with valid frontmatter. Skill-specific scripts, references, and assets stay inside that skill directory, for example `skills/file-browser/scripts/` and `skills/file-browser/assets/`. Repository helpers live in `scripts/` (install/uninstall/validate/check-*). The `vd` CLI that installs and manages these skills lives in a separate repo, not here. Agent-generated working artifacts (reports, plans, visuals, journals, state) live under a gitignored `.workbench/` umbrella when the project opts in via `.vd.json` (`paths.umbrella`); otherwise the legacy `plans/` layout applies. With `paths.layout: feature-first` set, those artifacts nest per-feature under `.workbench/features/{ticket}-{slug}/{plans,reports,visuals,journals,state}/` (plus root-level `_global/` and `_archive/`), managed by the `workbench` skill, instead of flat type-first siblings. Producer skills always write to the hook-injected `Reports:`/`Plans:`/`Visuals:`/`Journals:` paths — never construct the layout by hand (enforced by `scripts/check-skill-paths.sh`).
+This repository is a daily-driver collection of skills for agentic coding, described by `skills.toml`. Skill packages live under `skills/<name>/` and each package must include `SKILL.md` with valid frontmatter. Skill-specific scripts, references, and assets stay inside that skill directory, for example `skills/file-browser/scripts/` and `skills/file-browser/assets/`. Repository helpers live in `scripts/` (install/uninstall/validate/check-*). The `vd` CLI that installs and manages these skills lives in a separate repo, not here. Agent-generated working artifacts (reports, plans, visuals, journals, state) live under a gitignored `.workbench/` umbrella when the project opts in via `.vd.json` (`paths.umbrella`); otherwise the legacy `plans/` layout applies. With `paths.layout: feature-first` set, those artifacts nest per-feature under `.workbench/features/{ticket}-{slug}/{plans,reports,visuals,journals,state}/` (plus root-level `_global/` and `_archive/`), managed by the `workbench` skill, instead of flat type-first siblings. Producer skills always write to the hook-injected `Reports:`/`Plans:`/`Visuals:`/`Journals:` paths - never construct the layout by hand (enforced by `scripts/check-skill-paths.sh`).
 
 ## Build, Test, and Development Commands
 
@@ -24,11 +24,11 @@ Skills must work across computers and users. Never hardcode personal absolute pa
 
 ## Documentation Sync
 
-The `skills/` directory is the source of truth for the catalog; `docs/` must track it. When you add, remove, or rename a skill — or materially change what one does — update the docs in the same change:
+The `skills/` directory is the source of truth for the catalog; `docs/` must track it. When you add, remove, or rename a skill - or materially change what one does - update the docs in the same change:
 
 - `docs/content/skills.md`: place the skill in the taxonomy tables and keep the catalog count accurate.
 - `docs/content/index.mdx`: update the skill-count metric when it changes.
-- `llms.txt` / `llms-full.txt` are generated at docs build time by the starlight-llms-txt plugin — no manual edits.
+- `llms.txt` / `llms-full.txt` are generated at docs build time by the starlight-llms-txt plugin - no manual edits.
 
 Validate before committing with `bash scripts/check-docs-site.sh --check`. A skill change that ships without the matching docs update is incomplete.
 

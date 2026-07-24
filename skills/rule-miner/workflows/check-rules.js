@@ -1,4 +1,4 @@
-// Template — adapt rulesSource / target before running.
+// Template - adapt rulesSource / target before running.
 // Forward direction: enforce existing rules with one verifier agent per rule.
 // Returns confirmed violations (skeptic-filtered); the main session reports them.
 export const meta = {
@@ -47,7 +47,7 @@ const rules = loaded.rules || []
 log(`Load: ${rules.length} checkable rules`)
 if (!rules.length) return { violations: [], checked: 0 }
 
-// One verifier per rule (Check), then a skeptic per flagged violation (Skeptic) — pipelined, no barrier.
+// One verifier per rule (Check), then a skeptic per flagged violation (Skeptic) - pipelined, no barrier.
 const results = await pipeline(
   rules,
   (rule) => agent(`Does \`${target}\` violate this rule? Rule: "${rule.text}". Read the actual changed code. Report violated + file:line + evidence, or violated=false.`,

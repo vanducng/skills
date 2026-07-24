@@ -1,4 +1,4 @@
-"""`twitter doctor` — health check for cookies, network, twikit pin."""
+"""`twitter doctor` - health check for cookies, network, twikit pin."""
 from __future__ import annotations
 
 import argparse
@@ -27,19 +27,19 @@ class _Result:
 
     def pas(self, name: str, msg: str = "") -> None:
         self.passes += 1
-        suffix = f" — {msg}" if msg else ""
+        suffix = f" - {msg}" if msg else ""
         print(f"  PASS  {name}{suffix}")
 
     def fail(self, name: str, msg: str) -> None:
         self.fails += 1
-        print(f"  FAIL  {name} — {msg}", file=sys.stderr)
+        print(f"  FAIL  {name} - {msg}", file=sys.stderr)
 
     def warn(self, name: str, msg: str) -> None:
         self.warns += 1
-        print(f"  WARN  {name} — {msg}", file=sys.stderr)
+        print(f"  WARN  {name} - {msg}", file=sys.stderr)
 
     def info(self, name: str, msg: str) -> None:
-        print(f"  INFO  {name} — {msg}")
+        print(f"  INFO  {name} - {msg}")
 
 
 def _check_gopass(r: _Result) -> dict | None:
@@ -89,15 +89,15 @@ async def _check_reachability(r: _Result) -> None:
         msg = str(exc)
         low = msg.lower()
         if "401" in msg or "unauthorized" in low:
-            r.fail("network reachability", "401 — cookies expired; run `twitter import-from-dia`")
+            r.fail("network reachability", "401 - cookies expired; run `twitter import-from-dia`")
         elif "429" in msg or "rate" in low:
             mins = _parse_rate_limit_minutes(msg)
             extra = f" (~{mins}m until reset)" if mins is not None else ""
             r.warn("network reachability", f"429 rate-limited{extra} (not a config error)")
         elif "226" in msg or "automated" in low:
-            r.fail("network reachability", "Error 226 — bot heuristic tripped; use `twitter --use-browser`")
+            r.fail("network reachability", "Error 226 - bot heuristic tripped; use `twitter --use-browser`")
         elif "key_byte" in low or "couldn't get" in low:
-            r.fail("network reachability", f"twikit transaction failure: {exc} — check lib/_twikit_patch.py")
+            r.fail("network reachability", f"twikit transaction failure: {exc} - check lib/_twikit_patch.py")
         else:
             r.fail("network reachability", msg)
 

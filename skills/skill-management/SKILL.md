@@ -1,6 +1,6 @@
 ---
 name: skill-management
-description: "Manage the lifecycle of agent skills in this repo — create new skills via skill-creator, pull/sync upstream skills with the `vd` CLI, validate frontmatter, bump versions, and ship releases through conventional commits. Use when the user says 'create a skill', 'add a skill', 'sync skills', 'release vd', 'bump version', 'update tracked skills', 'validate skills', or asks how to publish a new vd version."
+description: "Manage the lifecycle of agent skills in this repo - create new skills via skill-creator, pull/sync upstream skills with the `vd` CLI, validate frontmatter, bump versions, and ship releases through conventional commits. Use when the user says 'create a skill', 'add a skill', 'sync skills', 'release vd', 'bump version', 'update tracked skills', 'validate skills', or asks how to publish a new vd version."
 license: MIT
 argument-hint: "[--create <name> | --add <src> | --list | --sync | --update | --remove <name> | --diff <name> | --doctor | --validate | --release [patch|minor|major]]"
 metadata:
@@ -19,7 +19,7 @@ Use canonical skill IDs in docs and handoffs: write
 runtime prefix when invoking it: slash in Claude Code, dollar in Codex.
 
 Pick the flag that matches user intent. Never re-implement what
-`skill-creator` or `vd` already does — orchestrate them.
+`skill-creator` or `vd` already does - orchestrate them.
 
 ## Modes
 
@@ -43,7 +43,7 @@ If no flag is given, ask the user which lifecycle stage they want
 
 - Local skills live in `skills/<name>/SKILL.md`. Names: kebab-case.
 - Frontmatter required keys: `name`, `description`, `license`. The
-  `name` MUST equal the directory basename — `scripts/validate.sh`
+  `name` MUST equal the directory basename - `scripts/validate.sh`
   enforces this.
 - `vd` is the standalone CLI at [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli)
   (`brew install vanducng/tap/vd` or `go install github.com/vanducng/vd-cli/v2/cmd/vd@latest`).
@@ -55,7 +55,7 @@ If no flag is given, ask the user which lifecycle stage they want
 
 ## --create
 
-Delegate (Claude Code only — the `skill-creator` Skill tool is
+Delegate (Claude Code only - the `skill-creator` Skill tool is
 unavailable on Codex; there, use the `new-skill.sh` scaffold below).
 Invoke the `skill-creator` skill via the Skill tool with
 the user's name/description as args:
@@ -73,7 +73,7 @@ bash scripts/validate.sh
 ```
 
 Then commit with `feat(skills): add <name> skill` so it lands in the
-catalog. Do NOT bump the plugin/marketplace manifest version manually —
+catalog. Do NOT bump the plugin/marketplace manifest version manually -
 that's a separate concern.
 
 If the user wants a skill that doesn't need eval iteration (a thin
@@ -108,7 +108,7 @@ After `add`/`sync`/`update`/`remove`, always run `vd doctor` once and
 lock and frontmatter is clean. Surface any drift before committing.
 
 `vd` must be on `PATH`. Install via `brew install vanducng/tap/vd` (or
-`go install github.com/vanducng/vd-cli/v2/cmd/vd@latest`) — see
+`go install github.com/vanducng/vd-cli/v2/cmd/vd@latest`) - see
 [vanducng/vd-cli](https://github.com/vanducng/vd-cli).
 
 ## --validate
@@ -154,7 +154,7 @@ This skill handles: scaffolding new skills, vendoring upstream skills
 via `vd`, validating frontmatter, and skill-catalog release hygiene. It does
 NOT handle: the actual implementation of an individual skill's logic, `vd` CLI
 releases (now in `vanducng/vd-cli`), marketplace internals outside the checked
-in plugin metadata, or GitHub repo/permissions changes — those need direct user
+in plugin metadata, or GitHub repo/permissions changes - those need direct user
 attention.
 
 ## Security

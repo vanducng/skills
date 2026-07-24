@@ -33,7 +33,7 @@ When the user says *"what depends on `payments_raw`?"*:
 | Latest run logs in `target/run_results.json`, `target/manifest.json` | Last successful run, last failure |
 | DAG schedule (Airflow / Dagster / Prefect) | Expected cadence |
 
-### Pipeline tooling — common surfaces
+### Pipeline tooling - common surfaces
 
 | Tool | Search hints |
 |---|---|
@@ -64,9 +64,9 @@ When the user says *"where is `DATABASE_URL` set in staging?"*:
 | CI/CD | `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile` | `env:` injection, secrets refs |
 | Runtime | platform-specific (Cloud Run env, ECS task def, K8s Deployment spec) | the *actual* runtime override |
 
-Don't stop at "found it in `.env.example`" — that's the template, not the truth.
+Don't stop at "found it in `.env.example`" - that's the template, not the truth.
 
-### Common surfaces — multi-env
+### Common surfaces - multi-env
 
 | Layout | Convention |
 |---|---|

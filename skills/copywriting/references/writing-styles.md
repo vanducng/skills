@@ -38,7 +38,7 @@ Every writing style can be mapped across these dimensions:
 - Emoji usage acceptable
 
 **Example:**
-> "Look, I get it. Marketing feels overwhelming. But here's what I learned after burning through $10k on ads that didn't work—it doesn't have to be complicated."
+> "Look, I get it. Marketing feels overwhelming. But here's what I learned after burning through $10k on ads that didn't work - it doesn't have to be complicated."
 
 ---
 
@@ -158,7 +158,7 @@ Every writing style can be mapped across these dimensions:
 - Occasional dry humor
 
 **Example:**
-> "Here's the thing about async/await—it's not magic, it's just syntactic sugar over Promises. Let's break down what's actually happening under the hood, and why your code isn't working the way you expect."
+> "Here's the thing about async/await - it's not magic, it's just syntactic sugar over Promises. Let's break down what's actually happening under the hood, and why your code isn't working the way you expect."
 
 ## Style Extraction Prompt
 

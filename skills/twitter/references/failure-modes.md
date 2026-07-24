@@ -1,4 +1,4 @@
-# Failure modes — twitter skill runbook
+# Failure modes - twitter skill runbook
 
 When the skill misbehaves, classify by error code/text first, then apply the matching recipe below.
 
@@ -12,7 +12,7 @@ twitter doctor          # always run this first
 
 ---
 
-## Error 226 — "looks like it might be automated"
+## Error 226 - "looks like it might be automated"
 
 **What it means.** X's anti-automation system flagged the request. Triggered by:
 - Many writes in a short window (the 3-tweet thread smoke trips this reliably).
@@ -21,7 +21,7 @@ twitter doctor          # always run this first
 
 **Fix.**
 1. Wait 10–15 minutes and retry the same single call.
-2. If it persists: rerun under the browser fallback — `twitter --use-browser fetch ...`. (Browser-side `post` is deferred to v2; for writes during a 226 incident, post via Dia manually.)
+2. If it persists: rerun under the browser fallback - `twitter --use-browser fetch ...`. (Browser-side `post` is deferred to v2; for writes during a 226 incident, post via Dia manually.)
 3. If 226 persists across the whole session: cool the account for a few hours; X's heuristic decays.
 
 ---
@@ -31,7 +31,7 @@ twitter doctor          # always run this first
 **What it means.** `auth_token` or `ct0` is no longer valid. `auth_token` rotates ~quarterly; force-logouts also kill it.
 
 **Fix.**
-1. `twitter import-from-dia` — re-extract from the local Dia browser.
+1. `twitter import-from-dia` - re-extract from the local Dia browser.
 2. Or `twitter login` if Dia isn't available (gopass must hold username/password/TOTP seed).
 3. `twitter doctor` to confirm the new cookies pass the network reachability check.
 
@@ -43,14 +43,14 @@ twitter doctor          # always run this first
 
 **Fix.**
 1. Read the `x-rate-limit-reset` header (`doctor` parses it for you and prints minutes remaining).
-2. Wait. There's no backoff escape — twikit will raise again until the window resets.
+2. Wait. There's no backoff escape - twikit will raise again until the window resets.
 3. If you're hitting 429 frequently from normal use, lower the `--count` defaults or batch fewer reads.
 
 ---
 
 ## Account locked / verification challenge
 
-**What it means.** X demands a captcha or email/phone verification — usually after suspicious activity. twikit can't complete this; the only fix is the GUI.
+**What it means.** X demands a captcha or email/phone verification - usually after suspicious activity. twikit can't complete this; the only fix is the GUI.
 
 **Fix.**
 1. Open `https://x.com` in Dia, log in, complete the challenge.

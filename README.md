@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="docs/content/assets/banner.png" alt="vd skills — portable, agent-agnostic skills for agentic coding" width="840">
+<img src="docs/content/assets/banner.png" alt="vd skills - portable, agent-agnostic skills for agentic coding" width="840">
 
 [![validate](https://github.com/vanducng/skills/actions/workflows/validate.yml/badge.svg)](https://github.com/vanducng/skills/actions/workflows/validate.yml)
 [![docs](https://img.shields.io/badge/docs-skills.vanducng.dev-7c3aed)](https://skills.vanducng.dev)
 [![license](https://img.shields.io/badge/license-MIT-3b82f6)](LICENSE)
 
-**A daily-driver collection of skills for agentic coding** — portable across agents, managed with the **`vd`** CLI.
+**A daily-driver collection of skills for agentic coding** - portable across agents, managed with the **`vd`** CLI.
 
 [**Skill catalog**](https://skills.vanducng.dev/skills/) · [**Install guide**](https://skills.vanducng.dev/install/)
 
@@ -47,7 +47,7 @@ For Claude Code development symlinks instead of the marketplace plugin: `vd inst
 
 ## What's inside
 
-Skills share one build pipeline — **brainstorm → plan → cook → ship** — alongside review, research, debugging, diagramming, browser automation, data and workspace tooling, and more. Each skill is a self-contained directory under `skills/<name>/` with a `SKILL.md`.
+Skills share one build pipeline - **brainstorm → plan → cook → ship** - alongside review, research, debugging, diagramming, browser automation, data and workspace tooling, and more. Each skill is a self-contained directory under `skills/<name>/` with a `SKILL.md`.
 
 > Browse the full catalog with "use this when" guidance → **[skills.vanducng.dev/skills](https://skills.vanducng.dev/skills/)**
 

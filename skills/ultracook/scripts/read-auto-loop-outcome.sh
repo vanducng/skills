@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# read-auto-loop-outcome.sh — read .auto-loop/goal-state.json once and emit
+# read-auto-loop-outcome.sh - read .auto-loop/goal-state.json once and emit
 # the terminal status + reason as JSON. Used by SKILL.md AFTER vd:auto-loop
 # returns synchronously (Skill tool call exits when auto-loop's Stop hook
 # terminates), OR at session-resume time when {goal-dir}/.ultracook/delegated-
@@ -34,7 +34,7 @@ status = s.get("status", "unknown")
 reason = s.get("reason") or s.get("status_reason") or ""
 iters  = s.get("iterations") or s.get("iteration_count") or 0
 last_ev = ""
-# Last verifier evidence — auto-loop stores varying field names; try common.
+# Last verifier evidence - auto-loop stores varying field names; try common.
 for k in ("last_verifier_evidence", "last_evidence", "verifier_evidence"):
     if s.get(k):
         last_ev = s[k]; break

@@ -1,8 +1,8 @@
-# samber/oops — Structured error handling for Go
+# samber/oops - Structured error handling for Go
 
 **Pinned: v1.21.0 (released 2026-01-18) · MIT · verified 2026-05-23**
 
-A drop-in replacement for Go's standard `error` that adds structured context, stack traces, error codes, public messages, and panic recovery. Variable data goes in `.With("key", value)` attributes, **not** the message string — so APM tools (Datadog, Sentry, Loki) group errors properly.
+A drop-in replacement for Go's standard `error` that adds structured context, stack traces, error codes, public messages, and panic recovery. Variable data goes in `.With("key", value)` attributes, **not** the message string - so APM tools (Datadog, Sentry, Loki) group errors properly.
 
 Upstream: [github.com/samber/oops](https://github.com/samber/oops) · [pkg.go.dev](https://pkg.go.dev/github.com/samber/oops)
 
@@ -10,15 +10,15 @@ Upstream: [github.com/samber/oops](https://github.com/samber/oops) · [pkg.go.de
 
 Highest-leverage library in the samber ecosystem for any service that gets on-call rotations. Three problems it solves at once:
 
-1. **APM grouping breaks when error messages embed variable data** — `oops` forces the low-cardinality discipline by giving you `.With()` for the variable stuff.
-2. **Stack traces are auto-captured** — no `pkg/errors`-style boilerplate.
-3. **Public vs technical messages separate cleanly** — `.Public()` carries the user-safe string; `.Error()` carries the developer-grade detail.
+1. **APM grouping breaks when error messages embed variable data** - `oops` forces the low-cardinality discipline by giving you `.With()` for the variable stuff.
+2. **Stack traces are auto-captured** - no `pkg/errors`-style boilerplate.
+3. **Public vs technical messages separate cleanly** - `.Public()` carries the user-safe string; `.Error()` carries the developer-grade detail.
 
 **Where I deviate from upstream guidance:**
 
-- The upstream README implies "use everywhere" — I don't. I adopt `oops` at **architectural boundaries** (HTTP handlers, repository methods, worker entrypoints, package edges) and leave plain `fmt.Errorf("…: %w", err)` inside leaf functions. The cost/benefit of `.In().Tags().With().Code().Wrap()` only pays off where errors cross layers.
+- The upstream README implies "use everywhere" - I don't. I adopt `oops` at **architectural boundaries** (HTTP handlers, repository methods, worker entrypoints, package edges) and leave plain `fmt.Errorf("…: %w", err)` inside leaf functions. The cost/benefit of `.In().Tags().With().Code().Wrap()` only pays off where errors cross layers.
 - `.Recover()` for panic-to-error conversion is **mandatory** at goroutine boundaries. Non-negotiable.
-- I keep the builder reusable per request — build it once in middleware (`builder := oops.In("http").Trace(traceID)`), stash it in the context with `oops.WithBuilder(ctx, b)`, retrieve in handlers via `oops.FromContext(ctx)`. Avoid re-declaring the prefix attributes at every error site.
+- I keep the builder reusable per request - build it once in middleware (`builder := oops.In("http").Trace(traceID)`), stash it in the context with `oops.WithBuilder(ctx, b)`, retrieve in handlers via `oops.FromContext(ctx)`. Avoid re-declaring the prefix attributes at every error site.
 
 ## Install
 
@@ -54,7 +54,7 @@ Builder methods (most-used):
 
 | Method | Use |
 |---|---|
-| `.With("key", v)` | Attribute — low-cardinality grouping safe |
+| `.With("key", v)` | Attribute - low-cardinality grouping safe |
 | `.WithContext(ctx, "k1", "k2")` | Pull keys out of `context.Context` |
 | `.In("domain")` | Service/feature name |
 | `.Tags("auth", "sql")` | Categorization (queryable via `err.HasTag(...)`) |
@@ -92,7 +92,7 @@ func handler(ctx context.Context) error {
 }
 ```
 
-### Repository — domain + tags + query attribute
+### Repository - domain + tags + query attribute
 
 ```go
 func (r *UserRepo) Fetch(ctx context.Context, id string) (*User, error) {
@@ -110,7 +110,7 @@ func (r *UserRepo) Fetch(ctx context.Context, id string) (*User, error) {
 }
 ```
 
-### Goroutine boundary — `Recover` is non-optional
+### Goroutine boundary - `Recover` is non-optional
 
 ```go
 go func() {
@@ -151,19 +151,19 @@ slog.Error(err.Error(), slog.Any("error", err))       // slog integration
 ## The cardinality rule (most important)
 
 ```go
-// ✗ HIGH cardinality — breaks APM grouping
+// ✗ HIGH cardinality - breaks APM grouping
 oops.Errorf("failed to fetch user %s in tenant %s", userID, tenantID)
 
-// ✓ LOW cardinality — variable data in attributes
+// ✓ LOW cardinality - variable data in attributes
 oops.
     With("user_id", userID).
     With("tenant_id", tenantID).
     Errorf("failed to fetch user")
 ```
 
-Datadog, Sentry, and Loki group errors by message — if every error has unique IDs in the message, you get 10,000 "incidents" instead of 1 incident with 10,000 occurrences. This rule is what makes `oops` worth adopting at all.
+Datadog, Sentry, and Loki group errors by message - if every error has unique IDs in the message, you get 10,000 "incidents" instead of 1 incident with 10,000 occurrences. This rule is what makes `oops` worth adopting at all.
 
-## Wrap directly — no nil check needed
+## Wrap directly - no nil check needed
 
 ```go
 // ✓ Wrap returns nil if err is nil
@@ -189,14 +189,14 @@ return nil
 
 ## When I'd skip `oops`
 
-- Tiny CLI tool with no on-call burden — plain errors are fine
-- Library code intended for broad adoption — don't impose `oops.OopsError` on your callers; return wrapped stdlib errors and let app code add structure
+- Tiny CLI tool with no on-call burden - plain errors are fine
+- Library code intended for broad adoption - don't impose `oops.OopsError` on your callers; return wrapped stdlib errors and let app code add structure
 - Code path where you can prove latency budget is too tight for the builder overhead (rare; measure first)
 
 ## Integration with the rest of the stack
 
-- **`slog`**: `slog.Error(err.Error(), slog.Any("error", err))` — `oops.OopsError` implements `slog.LogValuer`, so attributes flatten into the log record automatically
-- **`samber/slog-formatter`**: the upstream `slog-formatter` includes an `ErrorFormatter` that extracts `oops` attributes — pipe it into your log handler
+- **`slog`**: `slog.Error(err.Error(), slog.Any("error", err))` - `oops.OopsError` implements `slog.LogValuer`, so attributes flatten into the log record automatically
+- **`samber/slog-formatter`**: the upstream `slog-formatter` includes an `ErrorFormatter` that extracts `oops` attributes - pipe it into your log handler
 - **OpenTelemetry**: stash the trace ID in `.Trace()`; `oops` doesn't auto-link, but you can read it back and attach to spans
 - **`vd:py2go`**: Python `loguru`/`logging` errors with `extra={}` map cleanly to `oops` `.With()` attributes during migration
 

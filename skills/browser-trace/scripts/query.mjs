@@ -76,7 +76,7 @@ function listPids(filter) {
     .sort((a, b) => a - b);
 }
 
-// Exact host match — uses `URL.host` (which includes the port when present)
+// Exact host match - uses `URL.host` (which includes the port when present)
 // so `cmdHosts` output is directly consumable as input to `cmdHost`. The
 // equality check still rejects impostors like `example.com.evil.tld` whose
 // `host` is the full malicious string, not the prefix.
@@ -89,7 +89,7 @@ function hostMatches(url, host) {
 
 function cmdList() {
   const summary = readJson(path.join(cdpDir, 'summary.json'));
-  if (!summary) { console.error('no summary.json — run bisect-cdp.mjs first'); process.exit(1); }
+  if (!summary) { console.error('no summary.json - run bisect-cdp.mjs first'); process.exit(1); }
 
   // Pad columns: pid, eventCount, durationSeconds, url.
   const rows = summary.pages.map(p => ([
@@ -106,7 +106,7 @@ function cmdList() {
 
 function cmdSummary() {
   const s = readJson(path.join(cdpDir, 'summary.json'));
-  if (!s) { console.error('no summary.json — run bisect-cdp.mjs first'); process.exit(1); }
+  if (!s) { console.error('no summary.json - run bisect-cdp.mjs first'); process.exit(1); }
   console.log(JSON.stringify(s, null, 2));
 }
 
@@ -222,7 +222,7 @@ function cmdTimeline() {
   // navigations occurred between lifecycle phases.
   const rawPath = path.join(cdpDir, 'raw.ndjson');
   if (!fs.existsSync(rawPath)) {
-    console.error('no raw.ndjson — capture may not have started');
+    console.error('no raw.ndjson - capture may not have started');
     process.exit(1);
   }
   for (const ev of readJsonl(rawPath)) {

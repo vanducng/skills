@@ -66,7 +66,7 @@ viewBox="0 0 1600 900". Strict left-to-right flow. <style> block with style-toke
 > Data-flow diagram, flat vector. Source: S3 cylinder (left, label "raw events.json"). Lambda service (center-left, label "parser"). S3 cylinder (center, label "parquet"). Glue catalog service (center-right). Athena service (right, accent highlight). Arrows labeled "JSON · batch", "Parquet · partitioned", "schema", "SQL"...
 
 ## Common mistakes to avoid
-- Do NOT skip the payload labels — they are the point of a data-flow diagram.
+- Do NOT skip the payload labels - they are the point of a data-flow diagram.
 - Do NOT mix flow direction (top-down + left-right). Pick one (left-right).
 - Do NOT label every arrow the same. Differentiate by payload format and volume.
 - Do NOT include a "user" actor unless the user is part of the data path.

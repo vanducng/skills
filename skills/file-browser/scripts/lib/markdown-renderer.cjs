@@ -136,7 +136,7 @@ function resolveImageSrc(src, basePath) {
   if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/file')) {
     return src;
   }
-  // Skip markdown paths — link reference definitions share syntax with image
+  // Skip markdown paths - link reference definitions share syntax with image
   // refs (`[label]: src`), so leave .md srcs alone here and let the link
   // walkTokens hook rewrite them to /view?file=<abs> instead.
   if (/\.(md|markdown)(?:#|$)/i.test(src)) {
@@ -179,7 +179,7 @@ function resolveLinkHref(href, basePath) {
   const pathPart = hashIdx === -1 ? href : href.slice(0, hashIdx);
   const fragPart = hashIdx === -1 ? '' : href.slice(hashIdx);
 
-  // Pure fragment (e.g. blank pathPart) — already handled by the `#` branch above,
+  // Pure fragment (e.g. blank pathPart) - already handled by the `#` branch above,
   // but guard for empty pathPart from edge cases like `?q=#frag`.
   if (!pathPart) return href;
 

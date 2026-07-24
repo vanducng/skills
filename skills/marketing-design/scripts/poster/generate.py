@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Poster Prompt Generator — emit a text prompt for any image-gen model.
+Poster Prompt Generator - emit a text prompt for any image-gen model.
 
 Axis selection:
 - STYLE, PALETTE, TEXTURE are locked (style identity preserved).
@@ -76,7 +76,7 @@ def render_prompt(topic: str, aspect: str, style: dict, palette: dict,
                   layout: dict, texture: dict, variation: dict) -> str:
     return f"""Design a {ASPECT_HINTS.get(aspect, aspect)} on the theme of "{topic}".
 
-STYLE (locked — preserve identity exactly):
+STYLE (locked - preserve identity exactly):
   Name: {style.get('Style Name')}
   Category: {style.get('Category')}
   Description: {style.get('Description')}
@@ -90,7 +90,7 @@ PALETTE (locked):
   Contrast: {palette.get('Contrast Level')}
   Mood: {palette.get('Color Mood')}
 
-TEXTURE / MATERIAL (locked — must remain identical to source style):
+TEXTURE / MATERIAL (locked - must remain identical to source style):
   Material: {texture.get('Material')}
   Finish: {texture.get('Grain/Finish')}
   Effect: {texture.get('Effect Description')}
@@ -107,7 +107,7 @@ COMPOSITION (vary freely within style):
   Rotation jitter on secondary elements: {variation['rotation_deg']}°
 
 COPY SLOTS:
-  Headline: derive from topic — "{topic}"
+  Headline: derive from topic - "{topic}"
   Sub: a short tagline that fits the mood
   Meta: date / venue / org placeholder text
 
@@ -141,7 +141,7 @@ def main() -> int:
     layouts = poster_search.load_csv("layout")
     textures = poster_search.load_csv("texture")
     if not (styles and palettes and layouts and textures):
-        print("missing CSVs — run analyze.py then cluster.py first", file=sys.stderr)
+        print("missing CSVs - run analyze.py then cluster.py first", file=sys.stderr)
         return 2
 
     if args.query and not args.style:

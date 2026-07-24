@@ -2,7 +2,7 @@
 
 **Aesthetic:** warm cream surface, deep slate primary, amber accent. Calm, technical-illustration feel. The default. Best for pitch decks, design docs, blog hero images, internal architecture write-ups.
 
-**Inspiration:** Stripe-press / Anthropic / vintage technical illustration aesthetics. Warm minimalism — clean layouts with tactile, slightly nostalgic palette.
+**Inspiration:** Stripe-press / Anthropic / vintage technical illustration aesthetics. Warm minimalism - clean layouts with tactile, slightly nostalgic palette.
 
 ## Palette
 

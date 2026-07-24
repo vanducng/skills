@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# append-journal.sh — write {goal-dir}/iterations/NNN-{action}.md.
+# append-journal.sh - write {goal-dir}/iterations/NNN-{action}.md.
 #
 # Usage:
 #   append-journal.sh --goal-dir <dir> --action <name> --exit-code <int>
@@ -9,7 +9,7 @@
 # Computes NNN = 1 + count of existing iterations/NNN-*.md files (zero-padded
 # to 3 digits). Returns the iteration N on stdout.
 #
-# Idempotent on the file level — refuses to overwrite an existing iteration.
+# Idempotent on the file level - refuses to overwrite an existing iteration.
 # Caller is expected to use the returned N for any subsequent reads.
 
 set -euo pipefail
@@ -50,19 +50,19 @@ N=$(( $(find "$ITER_DIR" -maxdepth 1 -name '[0-9][0-9][0-9]-*.md' -type f 2>/dev
 NNN="$(printf '%03d' "$N")"
 TARGET="${ITER_DIR}/${NNN}-${ACTION}.md"
 
-# Refuse to overwrite — should never happen given the count-based naming,
+# Refuse to overwrite - should never happen given the count-based naming,
 # but guard against concurrent writers.
 [ -e "$TARGET" ] && { echo "append-journal.sh: $TARGET exists; refusing to overwrite" >&2; exit 4; }
 
 NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-# Build evidence body — read evidence-file if provided, else use a short note.
+# Build evidence body - read evidence-file if provided, else use a short note.
 EVIDENCE_BODY=""
 if [ -n "$EVIDENCE_FILE" ] && [ -f "$EVIDENCE_FILE" ]; then
   EVIDENCE_BODY="$(head -c 4000 "$EVIDENCE_FILE")"
 fi
 
-# Codex session metrics — parse Codex --json stream if path provided
+# Codex session metrics - parse Codex --json stream if path provided
 # (Phase 4 enrichment). Embedded into frontmatter for observability.
 CODEX_METRICS_LINE=""
 if [ -n "$CODEX_JSONL" ] && [ -f "$CODEX_JSONL" ]; then
@@ -82,10 +82,10 @@ verifier_pass: ${VERIFIER_PASS:-null}
 ${CODEX_METRICS_LINE}
 ---
 
-# Iteration ${N} — ${ACTION}
+# Iteration ${N} - ${ACTION}
 
 **Exit code:** ${EXIT_CODE}
-**Verifier:** ${VERIFIER_PASS:-(n/a)} — ${VERIFIER_EVIDENCE:-(no evidence)}
+**Verifier:** ${VERIFIER_PASS:-(n/a)} - ${VERIFIER_EVIDENCE:-(no evidence)}
 
 ## Evidence
 

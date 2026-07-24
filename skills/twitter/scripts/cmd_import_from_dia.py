@@ -1,4 +1,4 @@
-"""`twitter import-from-dia` — bootstrap cookies from the local Dia browser."""
+"""`twitter import-from-dia` - bootstrap cookies from the local Dia browser."""
 from __future__ import annotations
 
 import argparse
@@ -40,13 +40,13 @@ def main(argv: list[str] | None = None) -> int:
     try:
         cookies = extract(args.profile)
     except KeychainError as e:
-        print(f"twitter: keychain error — {e}", file=sys.stderr)
+        print(f"twitter: keychain error - {e}", file=sys.stderr)
         return 3
     except FileNotFoundError as e:
-        print(f"twitter: profile path missing — {e}", file=sys.stderr)
+        print(f"twitter: profile path missing - {e}", file=sys.stderr)
         return 4
     except UnsupportedCookieFormat as e:
-        print(f"twitter: unsupported cookie format — {e}", file=sys.stderr)
+        print(f"twitter: unsupported cookie format - {e}", file=sys.stderr)
         return 5
     except BootstrapError as e:
         print(f"twitter: {e}", file=sys.stderr)

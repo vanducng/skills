@@ -39,7 +39,7 @@ TYPE_CONFIG: dict[str, dict] = {
         "title_h": 80,
     },
     "c4-context": {
-        # Larger nodes — context diagrams have descriptive text.
+        # Larger nodes - context diagrams have descriptive text.
         "axis": "horizontal", "lane_dir": "lr",
         "node_w": 200, "node_h": 100,
         "lane_pad": 48, "node_gap": 40, "lane_gap": 120,

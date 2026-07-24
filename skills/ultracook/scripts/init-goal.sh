@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# init-goal.sh — Phase 1 intake helper.
+# init-goal.sh - Phase 1 intake helper.
 # Reads env vars (ULTRACOOK_*) populated by SKILL.md after AskUserQuestion calls.
 # Writes <state-base>/{date}-{slug}/goal.yaml + state.json. Optionally creates a worktree.
 # Stdout: the absolute path to the goal-dir (so SKILL.md can chain).
@@ -22,7 +22,7 @@ if [ $# -lt 1 ] || [ -z "${1:-}" ]; then
   echo "usage: init-goal.sh <short_goal>" >&2
   exit 2
 fi
-# Strip ASCII control chars (newlines, tabs, etc.) — they corrupt YAML body and filesystem paths.
+# Strip ASCII control chars (newlines, tabs, etc.) - they corrupt YAML body and filesystem paths.
 SHORT_GOAL="$(printf '%s' "$1" | LC_ALL=C tr -d '\000-\037')"
 if [ -z "$SHORT_GOAL" ]; then
   echo "init-goal.sh: short_goal is empty after stripping control chars" >&2

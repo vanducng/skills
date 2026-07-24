@@ -26,7 +26,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
 from core import search, get_cip_brief
 
-# Shared Codex (gpt-image-2) front-door — default image engine.
+# Shared Codex (gpt-image-2) front-door - default image engine.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import _codex  # noqa: E402
 

@@ -6,14 +6,14 @@ Containers, Kubernetes, IaC, secrets, multi-environment configuration, networkin
 
 - Pod / container won't start, restarts, or runs but app is unreachable
 - Deploy succeeded but app behaves wrong in one environment (works in dev, broken in staging)
-- IaC drift — `terraform plan` shows changes nobody made
+- IaC drift - `terraform plan` shows changes nobody made
 - Secret rotation broke something
 - Env var present locally, missing in container
 - Image pulls fail; build is "slow" or non-reproducible
 - Network-policy / service-mesh denial (intermittent or total)
 - TLS / cert issues post-renewal
 
-## First triage — answer these before fixing
+## First triage - answer these before fixing
 
 1. **Which environment** is broken? (dev / staging / prod / a specific overlay)
 2. **What's the diff** between the broken env and a working one? Image tag, env vars, ConfigMap, Secret, IAM, replica count, version pin, infra changes
@@ -51,8 +51,8 @@ If `kubectl exec` works but external access doesn't → it's the **network** lay
 
 | Layer | Check |
 |---|---|
-| Service | `kubectl get svc <name> -n <ns> -o yaml` — selectors match pod labels? port mapping right? |
-| Endpoints | `kubectl get endpoints <name> -n <ns>` — empty means selector miss |
+| Service | `kubectl get svc <name> -n <ns> -o yaml` - selectors match pod labels? port mapping right? |
+| Endpoints | `kubectl get endpoints <name> -n <ns>` - empty means selector miss |
 | Ingress / Gateway / HTTPRoute | rules match host/path? backend service correct? |
 | NetworkPolicy | does any policy block ingress to this pod? |
 | DNS | `kubectl exec <pod> -- nslookup <svc>.<ns>.svc.cluster.local` |
@@ -96,7 +96,7 @@ The most common silent bug: **env var set in dev, missing or different in stagin
 
 ### Map a variable across environments
 
-Use `vd:scout` for the surface map (see `scout/references/domain-scouting.md` § DevOps). Then trace the precedence — runtime wins:
+Use `vd:scout` for the surface map (see `scout/references/domain-scouting.md` § DevOps). Then trace the precedence - runtime wins:
 
 ```
 .env file  →  Dockerfile ENV  →  ConfigMap  →  Helm values  →  Deployment env  →  Secret (env or volume)
@@ -137,12 +137,12 @@ If the deployed manifest says `FOO=bar` but `env` inside the container shows `FO
 | Concern | Practice |
 |---|---|
 | Decryption | `sops -d` (age key path per repo's `.mise.toml`); never paste decrypted contents into reports / logs / commits |
-| Rotation broke things | Compare consumers — every workload referencing the old secret must be restarted to pick up the new value (most don't auto-reload) |
+| Rotation broke things | Compare consumers - every workload referencing the old secret must be restarted to pick up the new value (most don't auto-reload) |
 | Missing secret in env | `kubectl describe pod` shows `CreateContainerConfigError`; check `valueFrom: secretKeyRef.name` and `key` |
-| Secret in image | Forbidden — rebuild without it, rotate the credential, audit history |
+| Secret in image | Forbidden - rebuild without it, rotate the credential, audit history |
 | OIDC / IRSA / Workload Identity | Service account → IAM binding → token issuer; `kubectl describe sa <name>` |
 
-## IaC — Terraform / Pulumi / Helm
+## IaC - Terraform / Pulumi / Helm
 
 ### Drift
 
@@ -200,9 +200,9 @@ dig +short host
 
 Apply `defense-in-depth.md` at the layers that actually matter for infra:
 
-- **Layer 1 — entry validation** in IaC: required-vars, type, allowed-values
-- **Layer 2 — runtime guard**: K8s `resources.limits`, NetworkPolicy default-deny, PodSecurity admission
-- **Layer 3 — environment guard**: prod-only `lifecycle.prevent_destroy`, deletion protection on RDS / Cloud SQL, retention locks
-- **Layer 4 — observability**: cloudwatch / cloud logging alerts, K8s events archived, audit log retention
+- **Layer 1 - entry validation** in IaC: required-vars, type, allowed-values
+- **Layer 2 - runtime guard**: K8s `resources.limits`, NetworkPolicy default-deny, PodSecurity admission
+- **Layer 3 - environment guard**: prod-only `lifecycle.prevent_destroy`, deletion protection on RDS / Cloud SQL, retention locks
+- **Layer 4 - observability**: cloudwatch / cloud logging alerts, K8s events archived, audit log retention
 
-Then `verification.md` — fresh evidence (logs, healthy probe, real request through Ingress) before claiming done.
+Then `verification.md` - fresh evidence (logs, healthy probe, real request through Ingress) before claiming done.

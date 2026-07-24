@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: "Review code with a sharp, encouraging voice — inline GitHub PR comments + a tight summary. Supports PR (default), pending changes, commit hash, and codebase modes. Encodes an opinionated review style: severity-prefixed, concise, actionable, no fluff."
+description: "Review code with a sharp, encouraging voice - inline GitHub PR comments + a tight summary. Supports PR (default), pending changes, commit hash, and codebase modes. Encodes an opinionated review style: severity-prefixed, concise, actionable, no fluff."
 license: MIT
 argument-hint: "[#PR | URL | COMMIT | --pending | codebase] [--dry-run] [--post] [--no-inline]"
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # Code Review
 
-## What this skill is — and isn't
+## What this skill is - and isn't
 
 | Skill | Question it answers | Output |
 |---|---|---|
@@ -19,7 +19,7 @@ metadata:
 | **`vd:code-review`** | **"Is this change ready to land, and what should the author fix?"** | **Inline PR comments + summary verdict** |
 | `vd:ship` | "Land the branch." | Merged + tagged + PR |
 
-This skill **reviews and reports**. It does not implement fixes. If a fix is obvious and one-line, mention it in the comment as a suggestion — but don't apply it. Hand back to `vd:cook` / `vd:fix` for the actual work.
+This skill **reviews and reports**. It does not implement fixes. If a fix is obvious and one-line, mention it in the comment as a suggestion - but don't apply it. Hand back to `vd:cook` / `vd:fix` for the actual work.
 
 > **Codex runtime:** this file uses Claude-Code tooling (`AskUserQuestion`, `Task(Explore)` subagents). Under `codex exec` use the self-contained `codex-review.md` in this skill dir instead; per-site fallbacks below also apply.
 
@@ -36,11 +36,11 @@ Auto-detect from arguments. Ambiguous or empty → `AskUserQuestion` (Claude Cod
 | *(none, recent changes in context)* | **Recent** | Whatever was just edited |
 
 Flags:
-- `--dry-run` — print the review payload, do NOT post to GitHub (PR mode only)
-- `--post` — opposite default; force posting even if other flags would skip
-- `--no-inline` — skip inline comments, post only the top-level summary
-- `--auto` — non-interactive, default answers, no prompts
-- `--ultra` — adversarial review via a dynamic workflow: every finding is independently refuted before it ships (see [Ultra mode](#ultra-mode--adversarial-workflow)). Higher token cost; use for high-stakes diffs.
+- `--dry-run` - print the review payload, do NOT post to GitHub (PR mode only)
+- `--post` - opposite default; force posting even if other flags would skip
+- `--no-inline` - skip inline comments, post only the top-level summary
+- `--auto` - non-interactive, default answers, no prompts
+- `--ultra` - adversarial review via a dynamic workflow: every finding is independently refuted before it ships (see [Ultra mode](#ultra-mode--adversarial-workflow)). Higher token cost; use for high-stakes diffs.
 
 ## Hard rules
 
@@ -58,11 +58,11 @@ These are the conventions for **every** comment this skill writes. Reference exa
 
 | Prefix | When | Notification cost |
 |---|---|---|
-| `**Critical:**` | Blocks merge. Bug, security, data loss, CI red. | High — author must act before next push. |
+| `**Critical:**` | Blocks merge. Bug, security, data loss, CI red. | High - author must act before next push. |
 | `**Important - <topic>**:` | Should fix before merge. Correctness, design, perf. The `<topic>` makes the comment skimmable. | Medium. |
-| `**Suggestion:**` | Nice-to-have. Style, minor refactor, doc nit. | Low — author can ignore. |
-| `**Question:**` | You genuinely don't know if it's a bug. Asks the author. | Low — invites dialog, not blocking. |
-| `**Nit:**` | Pure preference. Optional. | Zero — must be ignorable. |
+| `**Suggestion:**` | Nice-to-have. Style, minor refactor, doc nit. | Low - author can ignore. |
+| `**Question:**` | You genuinely don't know if it's a bug. Asks the author. | Low - invites dialog, not blocking. |
+| `**Nit:**` | Pure preference. Optional. | Zero - must be ignorable. |
 
 ### Comment shape
 
@@ -70,7 +70,7 @@ These are the conventions for **every** comment this skill writes. Reference exa
 **<Severity prefix>**: <one-sentence problem statement>.
 
 <1–3 sentences of evidence: what breaks, when, why it matters. Include the
-actual symptom — not just "may cause issues">.
+actual symptom - not just "may cause issues">.
 
 <Optional: suggested change, in fenced block or inline code>.
 
@@ -104,35 +104,35 @@ exact command to debug>.
 <One line pointing at inline comments>: "Inline comments cover the
 <correctness / design / perf> concerns."
 
-<Verdict — see below>.
+<Verdict - see below>.
 ```
 
-**Verdict line** — exactly one of:
-- `Approve` — no Critical, no Important. Suggestions OK.
-- `Request changes` — at least one Critical or Important. List the topics.
-- `Comment` — Only Suggestions / Questions / Nits. Author decides.
+**Verdict line** - exactly one of:
+- `Approve` - no Critical, no Important. Suggestions OK.
+- `Request changes` - at least one Critical or Important. List the topics.
+- `Comment` - Only Suggestions / Questions / Nits. Author decides.
 
 ### Tone calibration
 
-- **Encouraging when it's earned.** "Solid coverage on the happy path" / "Nice catch on the parameterized query — easy to get wrong." Don't fake-praise.
+- **Encouraging when it's earned.** "Solid coverage on the happy path" / "Nice catch on the parameterized query - easy to get wrong." Don't fake-praise.
 - **Direct on real problems.** "This deadlocks under concurrent writes." Don't soften with "maybe consider perhaps."
 - **Curious on unknowns.** "What's the intended behavior when X is null? The current branch silently drops it."
 - **Never condescending.** Never "obviously" / "clearly" / "any junior dev would know" / "I'm surprised this passed".
 
-## PR mode — the polished path
+## PR mode - the polished path
 
 This is the path that produces the GitHub artifact. Treat it as the primary mode.
 
 ### 1. Fetch context
 
 ```bash
-PR=$1   # accepts "#123", "123", or full URL — normalize to number
+PR=$1   # accepts "#123", "123", or full URL - normalize to number
 gh pr view  "$PR" --json title,body,author,baseRefName,headRefName,files,additions,deletions,state,reviewDecision,headRefOid
 gh pr diff  "$PR"
 gh pr checks "$PR" 2>/dev/null || echo "(no checks)"
 ```
 
-Capture `headRefOid` — every inline comment's `commit_id` MUST equal this so comments stay anchored if the author force-pushes mid-review.
+Capture `headRefOid` - every inline comment's `commit_id` MUST equal this so comments stay anchored if the author force-pushes mid-review.
 
 ### 2. Decide the scope of effort
 
@@ -144,7 +144,7 @@ Capture `headRefOid` — every inline comment's `commit_id` MUST equal this so c
 
 ### 3. Build the review payload
 
-Collect findings as you go into this structure (memory only — don't write a file):
+Collect findings as you go into this structure (memory only - don't write a file):
 
 ```json
 {
@@ -182,7 +182,7 @@ gh api \
   --input - <<< "$PAYLOAD_JSON"
 ```
 
-If the call returns 422 with `Pull request review thread line must be part of the diff`, the comment anchored to an unchanged line. Move it to the nearest diff line and retry — once. Never auto-retry more than once; surface the error to the user.
+If the call returns 422 with `Pull request review thread line must be part of the diff`, the comment anchored to an unchanged line. Move it to the nearest diff line and retry - once. Never auto-retry more than once; surface the error to the user.
 
 ### 5. Confirm
 
@@ -194,11 +194,11 @@ Posted review to PR #<n> as <event>:
   • URL: <html_url from API response>
 ```
 
-## Ultra mode — adversarial workflow
+## Ultra mode - adversarial workflow
 
-`--ultra` swaps the single-context review pass for a **dynamic Workflow** (Claude Code's `Workflow` tool) that structurally removes self-preferential bias: the agent that *finds* an issue is never the one that *confirms* it. Reach for it when a wrong call is expensive (security-sensitive change, large refactor, release diff) — not for a routine 50-line PR.
+`--ultra` swaps the single-context review pass for a **dynamic Workflow** (Claude Code's `Workflow` tool) that structurally removes self-preferential bias: the agent that *finds* an issue is never the one that *confirms* it. Reach for it when a wrong call is expensive (security-sensitive change, large refactor, release diff) - not for a routine 50-line PR.
 
-**How it runs.** The template is `workflows/adversarial-review.js` — read it, adapt `DIMENSIONS` / `votes` to the diff, then invoke the `Workflow` tool with `args`:
+**How it runs.** The template is `workflows/adversarial-review.js` - read it, adapt `DIMENSIONS` / `votes` to the diff, then invoke the `Workflow` tool with `args`:
 
 ```jsonc
 { "pr": 123, "votes": 3 }        // or { "diffCmd": "git diff", "votes": 3 }
@@ -206,12 +206,12 @@ Posted review to PR #<n> as <event>:
 
 It composes two patterns:
 
-1. **Review (fan-out)** — one agent per dimension (`correctness`, `security`, `reliability`, `performance`, `api`, `tests`), each with its own clean context. They map onto the [Checklist](#checklist-apply-to-every-diff) below, so coverage doesn't degrade the way a single long pass does (no "addressed 20 of 50" laziness).
-2. **Verify (adversarial)** — each candidate finding faces `votes` independent refuters prompted to *kill* it. Majority-refute drops the finding. Only survivors come back.
+1. **Review (fan-out)** - one agent per dimension (`correctness`, `security`, `reliability`, `performance`, `api`, `tests`), each with its own clean context. They map onto the [Checklist](#checklist-apply-to-every-diff) below, so coverage doesn't degrade the way a single long pass does (no "addressed 20 of 50" laziness).
+2. **Verify (adversarial)** - each candidate finding faces `votes` independent refuters prompted to *kill* it. Majority-refute drops the finding. Only survivors come back.
 
 **Then post as normal.** The workflow returns `{ confirmed, dropped }`. Map `confirmed` into the same review payload (§3) and post the **one** review (§4) with the usual severity prefixes and voice. Mention the filter in the summary: *"Adversarial pass: N findings confirmed, M refuted and dropped."* `--dry-run` still prints instead of posting.
 
-**Portability & cost.** The `Workflow` tool is Claude Code-only — in another runtime, fall back to the standard pass and say so. Ultra spends materially more tokens (≈ dimensions × findings × votes agents); the default non-ultra path remains correct for everyday reviews.
+**Portability & cost.** The `Workflow` tool is Claude Code-only - in another runtime, fall back to the standard pass and say so. Ultra spends materially more tokens (≈ dimensions × findings × votes agents); the default non-ultra path remains correct for everyday reviews.
 
 ## Non-PR modes (quick reference)
 
@@ -229,7 +229,7 @@ Out of scope for the polished PR path. Spawn `Task(Explore)` subagents per top-l
 
 ## Checklist (apply to every diff)
 
-This is the always-on lens. Repo-specific rules (i18n, SQL store conventions, mobile UI…) live in the project's `CLAUDE.md` or `docs/code-standards.md` — read those first and layer them on top of this list.
+This is the always-on lens. Repo-specific rules (i18n, SQL store conventions, mobile UI…) live in the project's `CLAUDE.md` or `docs/code-standards.md` - read those first and layer them on top of this list.
 
 **Correctness**
 - Off-by-one, nil/null deref, missing error handling, swallowed errors.
@@ -237,9 +237,9 @@ This is the always-on lens. Repo-specific rules (i18n, SQL store conventions, mo
 - Edge cases on inputs the author probably didn't test (empty, zero, max, unicode, timezone, DST).
 
 **Security**
-- Injection — SQL, command, template, XSS. Look for string concat or `fmt.Sprintf` into queries/shells/HTML.
+- Injection - SQL, command, template, XSS. Look for string concat or `fmt.Sprintf` into queries/shells/HTML.
 - Hardcoded secrets, tokens, API keys. Anything resembling base64 or hex of ≥32 chars.
-- Auth scoping. `userID` vs `tenantID` vs `sessionID` — never trust the wrong one.
+- Auth scoping. `userID` vs `tenantID` vs `sessionID` - never trust the wrong one.
 - SSRF, path traversal, open redirect on any URL/path read from input.
 
 **Reliability**
@@ -249,8 +249,8 @@ This is the always-on lens. Repo-specific rules (i18n, SQL store conventions, mo
 - Migrations: any schema change must be reversible OR the PR must call out the irreversibility.
 
 **Performance** (only if there's evidence, not vibes)
-- N+1 queries — loop over IDs each issuing a DB call.
-- Full table scans on hot paths — verify WHERE/JOIN/ORDER BY against existing indexes (check migrations).
+- N+1 queries - loop over IDs each issuing a DB call.
+- Full table scans on hot paths - verify WHERE/JOIN/ORDER BY against existing indexes (check migrations).
 - Allocations in hot loops (Go: profile-guided only; don't pre-optimize).
 - Framework AI-slop: `useEffect` for data already in render scope, missing `key`/`useMemo` on heavy lists, `SELECT *` then filter in app code, await-in-loop where a batch call exists. Real, common, cheap to flag.
 
@@ -267,16 +267,16 @@ This is the always-on lens. Repo-specific rules (i18n, SQL store conventions, mo
 
 **Testing**
 - New code paths covered? Edge cases tested, not just happy path?
-- Tests touching real DB or mocks — match the repo's existing convention. Don't mix.
+- Tests touching real DB or mocks - match the repo's existing convention. Don't mix.
 - Are there tests that would catch the bug if the author re-introduced it tomorrow? If no, ask for one.
 
 **Change shape**
 - Refactor + new behavior in one PR → ask to split. A reviewer can't tell a behavior change from a move when they're tangled, and a bad refactor hides inside the feature diff.
-- Dead/zombie code: a function/flag/branch the diff stops calling but leaves behind → flag and *ask* (it may be load-bearing elsewhere — don't assert "remove it"). Same for commented-out blocks.
+- Dead/zombie code: a function/flag/branch the diff stops calling but leaves behind → flag and *ask* (it may be load-bearing elsewhere - don't assert "remove it"). Same for commented-out blocks.
 
 **Project conventions**
 - Read `CLAUDE.md`, `docs/code-standards.md`, `docs/system-architecture.md` if present. Apply repo-specific rules (i18n keys in 3 locales, h-dvh not h-screen, parameterized SQL, etc.).
-- Calibrate: this is a review, not a rewrite. If the code is correct, safe, and readable, ship it — don't manufacture findings to look thorough. "Different from how I'd write it" is not a finding.
+- Calibrate: this is a review, not a rewrite. If the code is correct, safe, and readable, ship it - don't manufacture findings to look thorough. "Different from how I'd write it" is not a finding.
 
 ## CI handling
 
@@ -296,7 +296,7 @@ It's a real verdict, not a participation trophy. Use it when:
 - Tests cover the change.
 - CI is green (or only flakes the repo is known to tolerate).
 
-Approval body — keep it short:
+Approval body - keep it short:
 ```
 Approved. <one sentence on what shipped well>.
 
@@ -308,7 +308,7 @@ Approved. <one sentence on what shipped well>.
 - **Comment dump.** 40 comments on a 200-line diff. Pick the worst 5–10.
 - **"LGTM 🚀".** Empty approvals teach nothing and erode trust in your reviews. Either approve with a specific reason, or don't approve.
 - **Ghost suggestions.** "Consider refactoring this." → useless. Either propose the refactor with code, or drop the comment.
-- **Re-reviewing on every push.** If the author pushed a 3-line fix to address your Critical, look at those 3 lines — don't re-review the whole PR.
+- **Re-reviewing on every push.** If the author pushed a 3-line fix to address your Critical, look at those 3 lines - don't re-review the whole PR.
 - **Hidden assumptions.** "This should use the foo pattern." → name the file, name the pattern, link the prior art.
 
 ### Common rationalizations to catch (in the code, and in yourself)

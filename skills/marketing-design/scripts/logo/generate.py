@@ -47,7 +47,7 @@ def load_env():
 
 load_env()
 
-# Shared Codex (gpt-image-2) front-door — default image engine.
+# Shared Codex (gpt-image-2) front-door - default image engine.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import _codex  # noqa: E402
 
@@ -148,7 +148,7 @@ def generate_logo(prompt, style=None, industry=None, brand_name=None,
         aspect_ratio: "1:1" (default for logos), "16:9", "9:16", "4:3", "3:4".
     """
 
-    # Shared prep — resolve prompt, ratio, and output path up-front for both backends.
+    # Shared prep - resolve prompt, ratio, and output path up-front for both backends.
     full_prompt = enhance_prompt(prompt, style, industry, brand_name)
     ratio = aspect_ratio if aspect_ratio in ASPECT_RATIOS else DEFAULT_ASPECT_RATIO
     if output_path is None:
@@ -289,7 +289,7 @@ def generate_batch(prompt, brand_name, count, output_dir, use_pro=False, brand_c
             output_path=output_path,
             use_pro=use_pro,
             aspect_ratio=aspect_ratio,
-            provider="gemini",  # batch uses Gemini — Codex has no batch mode (one image/turn)
+            provider="gemini",  # batch uses Gemini - Codex has no batch mode (one image/turn)
         )
 
         if result:

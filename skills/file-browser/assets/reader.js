@@ -459,7 +459,7 @@
         <span class="icon-collapse">⤡</span>
       `;
 
-      // Toggle handler — expand to fill .main-content, re-render at new width
+      // Toggle handler - expand to fill .main-content, re-render at new width
       btn.addEventListener('click', async () => {
         const isExpanded = wrapper.classList.toggle('expanded');
         btn.setAttribute('aria-label', isExpanded
@@ -510,7 +510,7 @@
       pre.parentNode.insertBefore(wrapper, pre);
       wrapper.appendChild(pre);
 
-      // Copy button — always shown
+      // Copy button - always shown
       const copyBtn = document.createElement('button');
       copyBtn.className = 'code-copy-btn';
       copyBtn.type = 'button';
@@ -548,7 +548,7 @@
       });
       wrapper.appendChild(copyBtn);
 
-      // Expand button — only if the block overflows horizontally
+      // Expand button - only if the block overflows horizontally
       if (pre.scrollWidth > pre.clientWidth + 10) {
         const expandBtn = document.createElement('button');
         expandBtn.className = 'code-expand-btn';

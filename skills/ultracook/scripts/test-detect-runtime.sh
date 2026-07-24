@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-detect-runtime.sh — truth-table regression guard for detect-runtime.sh (#60).
+# test-detect-runtime.sh - truth-table regression guard for detect-runtime.sh (#60).
 # Runs the detector under controlled env + PATH; asserts output and exit code.
 # Exit 0 = all pass, 1 = any failure.
 set -uo pipefail

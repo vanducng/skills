@@ -20,7 +20,7 @@ Memory of "I think it should work now" is not evidence. Re-execute. Capture outp
    - CI: `gh run rerun --failed`, watch logs; or trigger the affected workflow.
    - Terraform: `terraform plan` → expect "No changes" (or precisely the expected change set); then `apply` in lower env first.
    - K8s: `kubectl rollout restart` (if config-driven); `kubectl get pods -w` for stability; `kubectl logs --previous` to confirm no new crash loop.
-2. **Compare to baseline.** State both sides: before = exact error string; after = exact success output. If the "after" is qualitatively different (different log line, different status, different shape), say so — partial fix is not full fix.
+2. **Compare to baseline.** State both sides: before = exact error string; after = exact success output. If the "after" is qualitatively different (different log line, different status, different shape), say so - partial fix is not full fix.
 3. **Run adjacent suites** that touch the same module. dbt → run downstream tests (`+model_name`). Backend → run the package's test file, not just the single test. Frontend → run e2e for the affected flow if one exists.
 4. **Sweep the blast radius** identified during diagnosis. Run tests/checks for modified files plus transitively affected modules, downstream models, workflows, jobs, or resources. When no automated test exists, manually walk the critical path and report that evidence.
 5. **Check public contracts.** Confirm function signatures, exported types, API request/response shapes, DB schemas, semantic metrics, env vars, Terraform outputs, K8s labels/selectors, and DAG/job schedules are unchanged. If a contract change is intentional, call it out with the migration or rollout path.
@@ -30,18 +30,18 @@ If verification fails → back to Step 2 (re-diagnose with the new evidence). **
 
 ## When the sweep finds a regression (don't silently patch)
 
-The original symptom is gone but the blast-radius sweep, contract check, or an adjacent suite broke — the fix introduced a side effect. **STOP. Do not patch around it.** A second patch to hide the first is how one bug becomes three.
+The original symptom is gone but the blast-radius sweep, contract check, or an adjacent suite broke - the fix introduced a side effect. **STOP. Do not patch around it.** A second patch to hide the first is how one bug becomes three.
 
 Surface it and let the user decide. Present:
-- **What broke** — the file / test / workflow / contract.
-- **Why the fix caused it** — one-line cause linking the change to the breakage.
+- **What broke** - the file / test / workflow / contract.
+- **Why the fix caused it** - one-line cause linking the change to the breakage.
 - **2–4 concrete options**, e.g.:
   - Revert the fix and try a different root-cause angle.
   - Keep the fix and update the dependent code at `<files>` to match the new contract.
   - Narrow the fix scope to `<subset>` so the regression goes away.
-  - Accept the regression — it was buggy behavior the test was locking in (update the test, note why).
+  - Accept the regression - it was buggy behavior the test was locking in (update the test, note why).
 
-Use `AskUserQuestion` with these grounded in the specific files/tests that broke — never abstract. In `--auto`, this is a hard stop: a regression is a safety-floor event, not a judgement call to auto-resolve.
+Use `AskUserQuestion` with these grounded in the specific files/tests that broke - never abstract. In `--auto`, this is a hard stop: a regression is a safety-floor event, not a judgement call to auto-resolve.
 
 ## Regression guard (mandatory unless `--no-prevent`)
 

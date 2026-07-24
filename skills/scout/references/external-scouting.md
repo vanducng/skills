@@ -1,4 +1,4 @@
-# External Scouting — Gemini / OpenCode CLI
+# External Scouting - Gemini / OpenCode CLI
 
 Use external CLIs for **large-context** scouts (1M+ token windows). Faster than Explore subagents when SCALE is small (1–5) and the target dirs are large.
 
@@ -58,7 +58,7 @@ opencode run "Find all payment-related files in lib/ and api/" --model opencode/
 
 ## Spawning parallel Bash agents
 
-Use `Task` tool with `subagent_type: "Bash"` — spawn all in **one** message:
+Use `Task` tool with `subagent_type: "Bash"` - spawn all in **one** message:
 
 ```
 Task 1: subagent_type="Bash",
@@ -73,8 +73,8 @@ Task 3: subagent_type="Bash",
 
 ## Prompt guidelines
 
-- Name the dir scope explicitly — don't say "search the codebase"
-- Ask for **paths + one-line descriptions** — not file contents
+- Name the dir scope explicitly - don't say "search the codebase"
+- Ask for **paths + one-line descriptions** - not file contents
 - State the search target precisely (file pattern, function name, env var, dbt model name)
 - Ask for patterns/relationships only when relevant (e.g. "report which DAG triggers which model")
 
@@ -112,4 +112,4 @@ Wrap every gemini call with `timeout 120 ... 2>&1` and check:
 
 ## Reading file content (when needed after scouting)
 
-Same chunking rules as internal scouting — see `references/internal-scouting.md` § "Reading file content".
+Same chunking rules as internal scouting - see `references/internal-scouting.md` § "Reading file content".

@@ -306,7 +306,7 @@
   color: var(--text-muted);
 }
 
-/* Phase items container — visible by default, collapsed state hides */
+/* Phase items container - visible by default, collapsed state hides */
 .phase-items {
   list-style: none;
   padding-left: 1.25rem;

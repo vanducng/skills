@@ -6,7 +6,7 @@ Two apps in one repo, composed by `docker-compose.yml` at the root.
 <app>/
 ├── docker-compose.yml      postgres + backend + frontend
 ├── Makefile                up/down/clean/logs/seed/migrate
-├── .env                    gitignored — DB, JWT, AWS/S3, Google OAuth, seed creds
+├── .env                    gitignored - DB, JWT, AWS/S3, Google OAuth, seed creds
 ├── .env.example            committed template (no secrets)
 ├── .gitignore              .env, **/node_modules, **/dist, **/.venv, pgdata/
 ├── backend/
@@ -15,7 +15,7 @@ Two apps in one repo, composed by `docker-compose.yml` at the root.
 │   │   ├── services/       stateless business logic (CRUD); the SERVICE owns commit()
 │   │   ├── clients/        I/O seams: s3.py (boto3), google_oauth.py (httpx)
 │   │   ├── models/         SQLModel tables; base.py audit-col factories (created_at/updated_at/
-│   │   │                   created_by/updated_by/deleted_at) — standardize across domain tables; __init__ imports all
+│   │   │                   created_by/updated_by/deleted_at) - standardize across domain tables; __init__ imports all
 │   │   ├── schemas/        Pydantic request/response (from_attributes=True)
 │   │   ├── core/           configs (pydantic-settings), db (async engine+session), security
 │   │   │                   (bcrypt+JWT), exceptions, permissions (roles)

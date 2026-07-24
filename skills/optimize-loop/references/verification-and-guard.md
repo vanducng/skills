@@ -6,8 +6,8 @@ Two concerns, kept separate:
 
 ## Guard pattern
 
-1. Baseline: guard must exit 0 *before* the loop starts — establishes a clean floor.
-2. Each iteration, after Verify and **before** the Keep/Discard decision (loop-protocol Phase 5.5): run the guard — its result is an input to the decision.
+1. Baseline: guard must exit 0 *before* the loop starts - establishes a clean floor.
+2. Each iteration, after Verify and **before** the Keep/Discard decision (loop-protocol Phase 5.5): run the guard - its result is an input to the decision.
 3. Guard fails → recovery flow:
 
 ```
@@ -17,7 +17,7 @@ guard fails → revert → rework attempt 1 (different approach)
 ```
 
 **Rules:**
-- If guard can't pass at baseline, fix it before the loop — never relax the guard.
+- If guard can't pass at baseline, fix it before the loop - never relax the guard.
 - Guard-referenced files are **READ-ONLY** (tests, specs, guard scripts).
 - A guard failure means the optimization is wrong, not the guard.
 
@@ -35,7 +35,7 @@ Heuristic: optimizing runtime code → guard = full suite; optimizing build/bund
 
 ## Noise-aware verification
 
-Noisy metrics produce false positives — "improvements" that are really measurement variance.
+Noisy metrics produce false positives - "improvements" that are really measurement variance.
 
 | Noise | Examples | Strategy |
 |---|---|---|
@@ -43,7 +43,7 @@ Noisy metrics produce false positives — "improvements" that are really measure
 | **medium** | build time, unit-test timing (±5%) | 2 runs, take the **worse** result |
 | **high** | API latency, benchmarks, ML accuracy | 3–5 runs, take the **median** (not mean) |
 
-Use median for high noise — it resists single outlier spikes.
+Use median for high noise - it resists single outlier spikes.
 
 ## Min-Delta threshold
 

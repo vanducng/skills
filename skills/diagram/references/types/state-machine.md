@@ -23,7 +23,7 @@ Trigger words:
 
 ## Level of detail
 Include: every distinct state, every meaningful transition, the trigger and any guard condition.
-Exclude: implementation detail (DB columns, code paths) — they belong in a separate doc.
+Exclude: implementation detail (DB columns, code paths) - they belong in a separate doc.
 
 ## Image-prompt template
 ```
@@ -69,12 +69,12 @@ viewBox="0 0 1600 900". Initial state as <circle r="6" fill="var(--primary)"/>. 
 > Layout top-to-bottom, with past_due offset to the right showing the loop back to active.
 
 ### Example 2
-**User input:** "order: placed, paid, fulfilled, refunded — refund possible only after paid"
+**User input:** "order: placed, paid, fulfilled, refunded - refund possible only after paid"
 **Refined image prompt (excerpt):**
 > State machine. Initial → placed. States: placed, paid, fulfilled, refunded (final). Transitions: placed→paid "payment_received", paid→fulfilled "shipped", paid→refunded "refund_request" (success-colored), fulfilled→refunded "return_received [within_30_days]" (success-colored). Layout vertical.
 
 ## Common mistakes to avoid
 - Do NOT use success/error colors decoratively. Reserve for explicit ok/error paths.
-- Do NOT label every transition with a verbose sentence — keep to "trigger [condition] / action".
+- Do NOT label every transition with a verbose sentence - keep to "trigger [condition] / action".
 - Do NOT skip the initial-state marker (small filled circle).
 - Do NOT mix layout direction within one diagram.

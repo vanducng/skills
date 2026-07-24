@@ -31,7 +31,7 @@ function normalizeHealth(health) {
 // Each worktree (vd:worktree) gets its own deterministic port block in
 // .env.worktree (PORT / WORKTREE_PORT_BASE / WORKTREE_NAME). Loading it lets a
 // single committed .e2e/config.json with ${PORT}-style placeholders resolve to
-// THIS worktree's port — so every worktree has its own e2e instance without
+// THIS worktree's port - so every worktree has its own e2e instance without
 // per-worktree config authoring. Walks up from startDir like findConfig.
 function loadWorktreeEnv(startDir) {
   let dir = path.resolve(startDir);
@@ -99,7 +99,7 @@ function validateConfig(cfg) {
     try {
       if (!auth.loginUrlPattern) errors.push('auth.loginUrlPattern: required regex');
       else if (new RegExp(auth.loginUrlPattern).test(auth.probeUrl || '')) {
-        errors.push('auth.loginUrlPattern matches auth.probeUrl itself — the probe would always report logged-out');
+        errors.push('auth.loginUrlPattern matches auth.probeUrl itself - the probe would always report logged-out');
       }
     } catch {
       errors.push('auth.loginUrlPattern: invalid regex');
@@ -119,7 +119,7 @@ function validateConfig(cfg) {
   return errors;
 }
 
-// GET only (readyz-style endpoints commonly reject HEAD); redirects are NOT followed —
+// GET only (readyz-style endpoints commonly reject HEAD); redirects are NOT followed -
 // a 3xx is reported as its own status and must be expected explicitly.
 function httpGet(url, { insecureTLS = false, timeoutMs = 5000 } = {}) {
   return new Promise((resolve) => {
@@ -204,7 +204,7 @@ async function cdpAlive(port) {
 // Opens (and closes) a tab in the profile window via the CDP HTTP API only.
 // Early-exits logged-out on loginUrlPattern match (covers external IdPs like accounts.google.com);
 // logged-in requires the URL to hold steady for settleMs. SPA route guards redirect client-side
-// AFTER js boot + an auth API round-trip — on a cold Chrome that exceeds short windows, so the
+// AFTER js boot + an auth API round-trip - on a cold Chrome that exceeds short windows, so the
 // default is generous; tune per project via auth.settleMs.
 async function probeAuth({ cdpBase, probeUrl, loginUrlPattern, settleMs = 3000, intervalMs = 500, timeoutMs = 15000 }) {
   const pattern = new RegExp(loginUrlPattern);
@@ -316,7 +316,7 @@ async function main() {
 
   const errors = validateConfig(cfg);
   if (errors.length) {
-    console.error(`invalid ${configPath}:\n  - ${errors.join('\n  - ')}`);
+    console.error(`invalid ${configPath}:\n - ${errors.join('\n - ')}`);
     process.exit(2);
   }
   const health = normalizeHealth(cfg.health && cfg.health.length ? cfg.health : [cfg.baseUrl]);
@@ -344,13 +344,13 @@ async function main() {
   }
 
   if (!healthy) {
-    out.auth = { state: 'skipped', reason: 'health not green — probe result would be meaningless' };
+    out.auth = { state: 'skipped', reason: 'health not green - probe result would be meaningless' };
   } else if (!out.profile) {
     out.auth = { state: 'skipped', reason: 'no profile configured' };
   } else if (!out.profile.cdpAlive) {
     out.auth = out.profile.running
-      ? { state: 'skipped', reason: `profile Chrome running but CDP down on :${out.profile.port} — profile-close.sh ${cfg.profile} then profile-open.sh ${cfg.profile}` }
-      : { state: 'skipped', reason: `profile not running — profile-open.sh ${cfg.profile}` };
+      ? { state: 'skipped', reason: `profile Chrome running but CDP down on :${out.profile.port} - profile-close.sh ${cfg.profile} then profile-open.sh ${cfg.profile}` }
+      : { state: 'skipped', reason: `profile not running - profile-open.sh ${cfg.profile}` };
   } else if (cfg.auth.strategy === 'token-inject') {
     out.auth = { state: 'inject-required', reason: 'token-inject re-authenticates every run; no probe needed' };
   } else {
@@ -376,8 +376,8 @@ async function main() {
       const p = out.profile;
       console.log(`profile ${p.name} · ${p.running ? 'open' : p.lock === 'stale' ? 'stale-lock' : 'closed'} · port ${p.port} · cdp ${p.cdpAlive ? 'ok' : 'down'}`);
     }
-    console.log(`auth    ${out.auth.state}${out.auth.finalUrl ? ` (${out.auth.finalUrl})` : ''}${out.auth.reason ? ` — ${out.auth.reason}` : ''}`);
-    console.log(out.ok ? `READY — ${cfg.name} @ ${cfg.baseUrl}` : `NOT READY — ${cfg.name} @ ${cfg.baseUrl}`);
+    console.log(`auth    ${out.auth.state}${out.auth.finalUrl ? ` (${out.auth.finalUrl})` : ''}${out.auth.reason ? ` - ${out.auth.reason}` : ''}`);
+    console.log(out.ok ? `READY - ${cfg.name} @ ${cfg.baseUrl}` : `NOT READY - ${cfg.name} @ ${cfg.baseUrl}`);
   }
   process.exit(out.ok ? 0 : 1);
 }

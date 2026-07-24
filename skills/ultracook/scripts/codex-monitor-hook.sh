@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# codex-monitor-hook.sh — PostToolUse hook handler for Codex Monitor-style
+# codex-monitor-hook.sh - PostToolUse hook handler for Codex Monitor-style
 # waits. Polls a user-specified condition and injects status into the model's
 # next turn via `hookSpecificOutput.additionalContext`.
 #
@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYBIN="${HOME}/.claude/skills/.venv/bin/python3"
 [ -x "$PYBIN" ] || PYBIN="$(command -v python3)"
 
-# Read the hook payload via codex-bridge.sh — emits `export HOOK_*` lines.
+# Read the hook payload via codex-bridge.sh - emits `export HOOK_*` lines.
 # If parsing fails, exit silently (don't break the turn).
 PAYLOAD_EXPORTS="$(cat | bash "${SCRIPT_DIR}/codex-bridge.sh" hook-read 2>/dev/null)" || {
   echo '{}'  # empty hookSpecificOutput
@@ -31,7 +31,7 @@ PAYLOAD_EXPORTS="$(cat | bash "${SCRIPT_DIR}/codex-bridge.sh" hook-read 2>/dev/n
 eval "$PAYLOAD_EXPORTS"
 
 # Cancel propagation (#65): if a goal under CWD has a cancel.sentinel, surface a
-# GOAL-SCOPED stop directive. Cooperative — codex /goal has no programmatic
+# GOAL-SCOPED stop directive. Cooperative - codex /goal has no programmatic
 # cancel; this is the next-iteration brake. Phrased conditionally on the slug so
 # a DIFFERENT goal running concurrently in the same repo is not falsely halted.
 while IFS= read -r sentinel; do
@@ -81,7 +81,7 @@ if not poll_cmd:
     print(json.dumps({}))
     sys.exit(0)
 
-# Check timeout — ultracook spec sets timeout_seconds; if exceeded, write a
+# Check timeout - ultracook spec sets timeout_seconds; if exceeded, write a
 # timeout result and inject status.
 started_at = spec.get("started_at_epoch", time.time())
 timeout = int(spec.get("timeout_seconds", 600))
@@ -112,7 +112,7 @@ if terminal:
               open(result_path, "w"))
     short_status = "PASS" if proc.returncode == 0 else f"FAIL (exit {proc.returncode})"
     print(json.dumps({"hookSpecificOutput": {
-        "additionalContext": f"[ultracook-monitor] {spec.get('action','?')}: {short_status} — see {result_path}"
+        "additionalContext": f"[ultracook-monitor] {spec.get('action','?')}: {short_status} - see {result_path}"
     }}))
 else:
     # Non-terminal: inject latest status line so the model knows we're still waiting.
@@ -120,6 +120,6 @@ else:
     # Cap at 200 chars to avoid context burn.
     last_line = last_line[:200]
     print(json.dumps({"hookSpecificOutput": {
-        "additionalContext": f"[ultracook-monitor] {spec.get('action','?')}: still waiting — last: {last_line}"
+        "additionalContext": f"[ultracook-monitor] {spec.get('action','?')}: still waiting - last: {last_line}"
     }}))
 PY

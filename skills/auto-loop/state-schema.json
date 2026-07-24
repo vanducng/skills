@@ -42,7 +42,7 @@
     "blockers": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Outstanding blockers — empty if none."
+      "description": "Outstanding blockers - empty if none."
     },
     "next_action": {
       "type": "string",

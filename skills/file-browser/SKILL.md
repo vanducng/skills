@@ -10,7 +10,7 @@ metadata:
 
 # file-browser
 
-One local HTTP server, one port, one CLI — handles markdown, images, video, and audio. Dispatches by file extension at the `/view` route: markdown goes to the novel-theme reader; image/video/audio go to the media viewer.
+One local HTTP server, one port, one CLI - handles markdown, images, video, and audio. Dispatches by file extension at the `/view` route: markdown goes to the novel-theme reader; image/video/audio go to the media viewer.
 
 ## Installation
 
@@ -18,7 +18,7 @@ One local HTTP server, one port, one CLI — handles markdown, images, video, an
 cd $HOME/skills/skills/file-browser && npm install
 ```
 
-**Dependencies:** `marked`, `highlight.js`, `gray-matter` (markdown), `pdfjs-dist` (PDF viewer), `read-excel-file` (XLSX tables). Media rendering is zero-dep — browser does the work.
+**Dependencies:** `marked`, `highlight.js`, `gray-matter` (markdown), `pdfjs-dist` (PDF viewer), `read-excel-file` (XLSX tables). Media rendering is zero-dep - browser does the work.
 
 `npm install` runs a `postinstall` hook that copies pdfjs-dist runtime deps (worker, cmaps, fonts, wasm helpers) from `node_modules/pdfjs-dist/` into `assets/pdfjs-viewer/`. If you ran `npm install --ignore-scripts`, populate the assets manually:
 
@@ -91,12 +91,12 @@ node $HOME/skills/skills/file-browser/scripts/server.cjs --stop
 
 - Gallery grid with lazy-loaded image thumbs, video first-frame previews, audio cards
 - Single-view: arrow keys (`←` `→`) for prev/next sibling, `Esc` back to folder
-- HTTP Range support — required for `<video>` scrubbing and Safari audio playback
+- HTTP Range support - required for `<video>` scrubbing and Safari audio playback
 - Mixed media in same folder, sorted alphabetically
 
 ## Sidebar Tree (gallery + single-view)
 
-A persistent left sidebar shows the directory tree anchored at the launch folder (`--dir`) or the file's parent (`--file`). Lazy-loaded — only the root level loads up front; folders fetch their children on expand.
+A persistent left sidebar shows the directory tree anchored at the launch folder (`--dir`) or the file's parent (`--file`). Lazy-loaded - only the root level loads up front; folders fetch their children on expand.
 
 ### Vim keybindings
 
@@ -115,20 +115,20 @@ A persistent left sidebar shows the directory tree anchored at the launch folder
 | `?` | Toggle keybinding cheatsheet overlay |
 | `Esc` | Clear filter / close help |
 
-Click also works — clicking a folder toggles expand, clicking a file opens it. The currently-viewed file is highlighted; on page load, the sidebar auto-expands ancestors of the active path so the file is always visible.
+Click also works - clicking a folder toggles expand, clicking a file opens it. The currently-viewed file is highlighted; on page load, the sidebar auto-expands ancestors of the active path so the file is always visible.
 
 The markdown reader has its own ToC + plan-nav sidebar, so the file-browser sidebar is intentionally NOT injected there. Press `← Folder` (or browser back) to return to the gallery and use the tree.
 
 ### Root persistence
 
-The current tree root is saved to `localStorage['fb-tree-root']` on every page load. URL `?root=<path>` is the canonical setter — when present, the server validates against the allow-list and the rendered value is written to storage. When absent, the client redirects once via `location.replace` to the same URL with the stored root appended, so refresh keeps the tree where you left it. A stale stored root that the server rejects is automatically replaced with the rendered (safe) value, so storage self-heals. The `↑` rebase button keeps working — it updates the URL `?root=`, which then flows through the same save path.
+The current tree root is saved to `localStorage['fb-tree-root']` on every page load. URL `?root=<path>` is the canonical setter - when present, the server validates against the allow-list and the rendered value is written to storage. When absent, the client redirects once via `location.replace` to the same URL with the stored root appended, so refresh keeps the tree where you left it. A stale stored root that the server rejects is automatically replaced with the rendered (safe) value, so storage self-heals. The `↑` rebase button keeps working - it updates the URL `?root=`, which then flows through the same save path.
 
 ### Customizing / extending
 
-- `assets/sidebar.js` — keybinding map and tree behavior. Add a binding by extending the `keydown` switch.
-- `assets/sidebar.css` — layout (CSS grid: `var(--sidebar-width) 1fr`), colors via `--sidebar-*` tokens.
-- `lib/sidebar.cjs` — HTML stub including filter input + cheatsheet markup.
-- `lib/tree-api.cjs` — server-side directory listing. Add a new file classification by extending `classifyFile`.
+- `assets/sidebar.js` - keybinding map and tree behavior. Add a binding by extending the `keydown` switch.
+- `assets/sidebar.css` - layout (CSS grid: `var(--sidebar-width) 1fr`), colors via `--sidebar-*` tokens.
+- `lib/sidebar.cjs` - HTML stub including filter input + cheatsheet markup.
+- `lib/tree-api.cjs` - server-side directory listing. Add a new file classification by extending `classifyFile`.
 
 ## Architecture
 
@@ -164,16 +164,16 @@ assets/
 
 ### Custom PDF viewer architecture
 
-`/assets/pdfjs-viewer/viewer.html` is custom — pdfjs-dist (npm) does NOT ship Mozilla's standalone `web/viewer.html`, only the embeddable `PDFViewer` component. Our viewer wraps that component with a minimal toolbar (~250 LOC across viewer.html / viewer.js / viewer.css). Settings: `enableScripting: false`, `isEvalSupported: false` (defense-in-depth against CVE-2024-4367; pdfjs-dist ≥4.2.67 already disables `isEvalSupported` at the component level). To extend: edit `viewer.html` (toolbar markup), `viewer.js` (component wiring), or `viewer.css` (styling). Component API: https://github.com/mozilla/pdf.js/wiki/Viewer-options
+`/assets/pdfjs-viewer/viewer.html` is custom - pdfjs-dist (npm) does NOT ship Mozilla's standalone `web/viewer.html`, only the embeddable `PDFViewer` component. Our viewer wraps that component with a minimal toolbar (~250 LOC across viewer.html / viewer.js / viewer.css). Settings: `enableScripting: false`, `isEvalSupported: false` (defense-in-depth against CVE-2024-4367; pdfjs-dist ≥4.2.67 already disables `isEvalSupported` at the component level). To extend: edit `viewer.html` (toolbar markup), `viewer.js` (component wiring), or `viewer.css` (styling). Component API: https://github.com/mozilla/pdf.js/wiki/Viewer-options
 
 ### Upgrading pdfjs-dist
 
 1. Bump `pdfjs-dist` in `package.json`.
 2. Re-run `npm install` (postinstall repopulates `assets/pdfjs-viewer/`).
 3. Run tests (`node scripts/tests/server.test.cjs`).
-4. Re-read exports of `assets/pdfjs-viewer/web/pdf_viewer.mjs` — verify `PDFViewer`, `EventBus`, `PDFLinkService`, `PDFFindController`, `PDFHistory`, `DownloadManager`, `parseQueryString` are still present with compatible signatures vs `viewer.js`.
+4. Re-read exports of `assets/pdfjs-viewer/web/pdf_viewer.mjs` - verify `PDFViewer`, `EventBus`, `PDFLinkService`, `PDFFindController`, `PDFHistory`, `DownloadManager`, `parseQueryString` are still present with compatible signatures vs `viewer.js`.
 5. Manual smoke: open a real multi-page PDF and exercise every toolbar control (prev/next, page input, zoom, search, download).
-6. Check the changelog for security advisories — pin minimum to ≥4.2.67 (CVE-2024-4367).
+6. Check the changelog for security advisories - pin minimum to ≥4.2.67 (CVE-2024-4367).
 
 ## Integration
 
@@ -190,7 +190,7 @@ The Hammerspoon URL always appends `&root=<computed>` (file's parent dir, or the
 
 ### nvim
 
-`<leader>mv` (in `polish.lua`) — open current buffer in file-browser. If the file is renderable (markdown / image / video / audio), opens single-view; otherwise opens the parent directory's gallery.
+`<leader>mv` (in `polish.lua`) - open current buffer in file-browser. If the file is renderable (markdown / image / video / audio), opens single-view; otherwise opens the parent directory's gallery.
 
 ## Testing
 
@@ -209,7 +209,7 @@ Boots on a free port, hits every dispatch path (welcome, gallery, image view, ma
 
 ## Open Questions
 
-- HEIC works in Safari only. Should we add ImageMagick on-the-fly conversion for Chrome? (Requires native dep — breaks the zero-runtime-dep posture for media.)
+- HEIC works in Safari only. Should we add ImageMagick on-the-fly conversion for Chrome? (Requires native dep - breaks the zero-runtime-dep posture for media.)
 - Should the gallery prefetch markdown front matter (`title`, `status`) so plan dirs render with badges before clicking in? (Adds I/O cost per gallery hit.)
 - Worth adding a `/api/files?dir=<path>` JSON endpoint so the gallery could be a SPA later? (YAGNI for now.)
 - Should we render gallery thumbnails for PDFs (page-1 canvas, client-side, lazy via PDF.js)?

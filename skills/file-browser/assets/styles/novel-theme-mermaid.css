@@ -125,7 +125,7 @@ pre.mermaid[data-processed="true"],
   border-color: var(--accent-hover);
 }
 
-/* Expanded state — width and offset set dynamically by JS (initMermaidExpand)
+/* Expanded state - width and offset set dynamically by JS (initMermaidExpand)
    to fill .main-content without affecting sibling content or using viewport units */
 .mermaid-wrapper.expanded {
   max-width: none;

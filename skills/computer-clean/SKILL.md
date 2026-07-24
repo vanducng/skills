@@ -7,7 +7,7 @@ metadata:
   version: "1.1.0"
 ---
 
-# Computer Clean — macOS Disk Cleanup
+# Computer Clean - macOS Disk Cleanup
 
 Goal: surface the largest reclaimable space on the user's Mac, classify by risk, **always confirm before destructive ops**, then execute.
 
@@ -15,11 +15,11 @@ Goal: surface the largest reclaimable space on the user's Mac, classify by risk,
 
 **Audit → Classify → Confirm → Execute → Verify.** Never skip the confirm step for 🟡/🔴 buckets. The 🟢 cache bucket can run after a single user "go".
 
-The skill **discovers** what's actually on the user's machine — don't assume specific apps/caches exist. Run audit commands first, then classify what was found.
+The skill **discovers** what's actually on the user's machine - don't assume specific apps/caches exist. Run audit commands first, then classify what was found.
 
 ---
 
-## Phase 1 — Audit (read-only)
+## Phase 1 - Audit (read-only)
 
 Run these in parallel. Report top consumers per bucket.
 
@@ -31,7 +31,7 @@ df -h /
 du -sh ~/Library/Caches ~/Library/Logs ~/Library/Containers \
        ~/Library/Application\ Support ~/Downloads ~/.Trash 2>/dev/null
 
-# Drill the heavy ones — top 15 each
+# Drill the heavy ones - top 15 each
 du -sh ~/Library/Application\ Support/* 2>/dev/null | sort -rh | head -15
 du -sh ~/Library/Caches/* 2>/dev/null | sort -rh | head -15
 du -sh ~/Library/Containers/* 2>/dev/null | sort -rh | head -10
@@ -49,11 +49,11 @@ du -sh ~/.cache/* 2>/dev/null | sort -rh | head -15
 du -sh ~/Library/Developer/Xcode/{DerivedData,Archives,iOS\ DeviceSupport} 2>/dev/null
 ```
 
-## Phase 2 — Classify
+## Phase 2 - Classify
 
 Bucket discovered items by risk.
 
-### 🟢 Safe (regenerable) — execute on single confirm
+### 🟢 Safe (regenerable) - execute on single confirm
 
 Standard regenerable caches. Apply only if path exists.
 
@@ -74,7 +74,7 @@ Standard regenerable caches. Apply only if path exists.
 | App auto-updaters | `~/Library/Caches/*ShipIt*`, `~/Library/Caches/*.updater` |
 | Xcode `DerivedData` | `rm -rf ~/Library/Developer/Xcode/DerivedData` (rebuilds on next compile) |
 
-### 🟡 Review (user data, easy wins — confirm each)
+### 🟡 Review (user data, easy wins - confirm each)
 
 - **Downloads**: `*.dmg`/`*.pkg`/`*.zip`/`*.rar`/`*.tar.gz` older than 30 days
 - **Downloads**: duplicate installers matching `* (1).*`, `* (2).*`
@@ -84,27 +84,27 @@ Standard regenerable caches. Apply only if path exists.
 
 ### 🔴 Big-ticket (explicit per-item auth required)
 
-- **Container engine VMs** — typically the largest single item. Confirm engine is unused (see Phase 4 migration check):
+- **Container engine VMs** - typically the largest single item. Confirm engine is unused (see Phase 4 migration check):
   - Docker Desktop: `~/Library/Containers/com.docker.docker/Data/vms`
   - OrbStack: `~/.orbstack/data`
   - Rancher Desktop: `~/Library/Application Support/rancher-desktop/lima`, `~/.rd`
   - Colima/Lima: `~/.colima`, `~/.lima`
   - Podman: `~/.local/share/containers`
 - **Xcode** archives + simulators: `~/Library/Developer/Xcode/{Archives,iOS DeviceSupport,watchOS DeviceSupport}`, `~/Library/Developer/CoreSimulator`
-- **Chat / messaging app data** (Slack, Teams, Discord, Zalo, WeChat, Telegram, Signal) — user-owned history
-- **Browser profiles** (Chrome, Brave, Arc, Edge, Firefox, Safari, Vivaldi, etc.) — bookmarks/sessions/extensions live here
+- **Chat / messaging app data** (Slack, Teams, Discord, Zalo, WeChat, Telegram, Signal) - user-owned history
+- **Browser profiles** (Chrome, Brave, Arc, Edge, Firefox, Safari, Vivaldi, etc.) - bookmarks/sessions/extensions live here
 - **iOS device backups**: `~/Library/Application Support/MobileSync/Backup`
 - **iCloud / Photos library**: `~/Pictures/Photos Library.photoslibrary`
 - **Time Machine local snapshots**: `tmutil thinlocalsnapshots / 0 4`
 
-## Phase 3 — Confirm
+## Phase 3 - Confirm
 
 Present a single summary table (path · size · bucket) and ask:
 1. Proceed with all 🟢? (default yes)
 2. For 🟡: which to keep / delete?
 3. For each 🔴: is the underlying app still in use? Run dependency checks (Phase 4) before approval.
 
-## Phase 4 — Execute
+## Phase 4 - Execute
 
 ### App-quit guard
 
@@ -159,7 +159,7 @@ find ~/Library/Group\ Containers/*.groups.com.apple.podcasts \
 
 Always **preview first** with `find … -print` before adding `-delete`. Show total size before deleting. Skip if <100MB total unless user insists. **Never** blanket-delete `~/Documents`, `~/Pictures`, `~/Movies`, or iCloud-synced paths.
 
-## Phase 5 — Verify
+## Phase 5 - Verify
 
 ```bash
 df -h /                             # confirm space freed
@@ -173,13 +173,13 @@ Report: GB freed, before/after free space, residual >5GB items the user declined
 
 ## Hard rules
 
-1. **Discover, don't assume.** Inspect the machine first — don't pre-supply paths that may not exist. Skip silently when paths are absent.
+1. **Discover, don't assume.** Inspect the machine first - don't pre-supply paths that may not exist. Skip silently when paths are absent.
 2. **Never** delete `~/Documents`, `~/Pictures`, `~/Movies`, iCloud Drive, or anything under `~/git`/`~/code`/`~/src`/`~/projects` without explicit per-path approval.
-3. **Never** delete an app's `Application Support` while the app is running — quit it first.
+3. **Never** delete an app's `Application Support` while the app is running - quit it first.
 4. **Never** wipe browser profiles. Bookmarks, sessions, history, extensions, saved passwords live there.
 5. **Never** use `sudo` to bypass file locks. If a tool's cache is locked (e.g., `uv`, `pnpm`), kill the stuck process first.
 6. **Container engines:** before deleting one engine's VM, verify the user has migrated to another via `docker context ls`, `kubectl config get-contexts`, and shell rc grep. State the migration target explicitly to the user.
-7. **Surface skipped items** at the end so user can decide later — don't silently leave reclaimable space on the table.
+7. **Surface skipped items** at the end so user can decide later - don't silently leave reclaimable space on the table.
 8. **Adapt to what's there.** macOS evolves; new caches appear (LLM tool caches, Playwright/Cypress, Hugging Face, Ollama models). Apply the regenerable-cache heuristic: if it's recreated automatically on next use, it's 🟢.
 
 ## When to suggest `vd:computer-clean` proactively

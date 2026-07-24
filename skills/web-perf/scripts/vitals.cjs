@@ -4,7 +4,7 @@
 const { connectToPage, parseArgs } = require('./cdp.cjs');
 
 // Buffered observers so metrics recorded before attach still surface. INP needs real
-// interactions — null on a fresh load is correct, not a failure. FID is dead (2024).
+// interactions - null on a fresh load is correct, not a failure. FID is dead (2024).
 const VITALS_EXPRESSION = `new Promise((resolve) => {
   const vitals = { LCP: null, CLS: 0, FCP: null, TTFB: null, INP: null };
   try {
@@ -67,7 +67,7 @@ async function main() {
   try {
     if (args.url) {
       await session.send('Page.enable');
-      // Background tabs don't paint — without focus LCP/FCP never fire.
+      // Background tabs don't paint - without focus LCP/FCP never fire.
       await session.send('Page.bringToFront').catch(() => {});
       const loaded = session.once('Page.loadEventFired', 30000);
       await session.send('Page.navigate', { url: args.url });

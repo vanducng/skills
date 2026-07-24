@@ -19,7 +19,7 @@
 Rules:
 - Lowercase, kebab-case after the `/`
 - Descriptive, not date-stamped (`feature/checkout-v2`, not `feature/2026-05-checkout`)
-- ≤ 50 chars total when possible — long names get truncated in tools
+- ≤ 50 chars total when possible - long names get truncated in tools
 
 ## Lifecycle
 
@@ -51,7 +51,7 @@ git rebase origin/main
 # Push final state
 git push origin feature/<name>
 
-# Or after a rebase (only feature branches — never main/master)
+# Or after a rebase (only feature branches - never main/master)
 git push --force-with-lease origin feature/<name>
 ```
 
@@ -70,9 +70,9 @@ git fetch --prune
 
 ### Reusing a branch after a squash-merge
 
-A branch that was **squash-merged** but kept for more work is a trap. The squash lands a *new* commit on the base that shares no identity with the branch's commits, so a follow-up PR's three-dot diff (computed from the merge-base) **re-lists every already-merged file** — bloating the diff and re-triggering any `paths:`-filtered CI (e.g. a schema/ERD preview firing on files you never touched).
+A branch that was **squash-merged** but kept for more work is a trap. The squash lands a *new* commit on the base that shares no identity with the branch's commits, so a follow-up PR's three-dot diff (computed from the merge-base) **re-lists every already-merged file** - bloating the diff and re-triggering any `paths:`-filtered CI (e.g. a schema/ERD preview firing on files you never touched).
 
-Confirm it's a pure squash artifact (content identical to base), then collapse the branch onto the base with a **soft reset** — conflict-free, unlike `git rebase origin/<base>` which replays the old commits and conflicts on the already-final state:
+Confirm it's a pure squash artifact (content identical to base), then collapse the branch onto the base with a **soft reset** - conflict-free, unlike `git rebase origin/<base>` which replays the old commits and conflicts on the already-final state:
 
 ```bash
 git diff origin/<base> origin/<branch> -- <already-merged-path>   # empty ⇒ identical, safe to drop
@@ -118,7 +118,7 @@ main
             └─ feature/part-3
 ```
 
-Each PR targets the previous. Useful for large features that need incremental review. Requires discipline — rebase the stack when the base moves.
+Each PR targets the previous. Useful for large features that need incremental review. Requires discipline - rebase the stack when the base moves.
 
 ## Quick command reference
 
@@ -138,7 +138,7 @@ Each PR targets the previous. Useful for large features that need incremental re
 
 ## Hard rules
 
-- **Never** delete a branch you haven't pushed if it has unique commits — they'll be lost unless you have the SHA.
+- **Never** delete a branch you haven't pushed if it has unique commits - they'll be lost unless you have the SHA.
 - **Never** rebase a branch others are working on without coordinating.
-- **Never** create a branch from a dirty `main` — pull first.
+- **Never** create a branch from a dirty `main` - pull first.
 - **Always** prefer `--force-with-lease` over `-f` when force-pushing (protects against overwriting remote commits you haven't seen).

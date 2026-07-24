@@ -1,6 +1,6 @@
 # Palettes & Font Pairings
 
-Starter design tokens by product type and mood. These are opinionated defaults to derive `--primary`/`--background`/etc. from, not laws — adapt to the brand. All palettes are tuned so the accent clears WCAG 3:1 against its background; re-verify any pair you change.
+Starter design tokens by product type and mood. These are opinionated defaults to derive `--primary`/`--background`/etc. from, not laws - adapt to the brand. All palettes are tuned so the accent clears WCAG 3:1 against its background; re-verify any pair you change.
 
 ## Color palettes (semantic tokens by product type)
 
@@ -53,11 +53,11 @@ Heading + body pairing, all Google Fonts. Match the heading/body personalities; 
 | Brutalist raw | Space Mono | Space Mono | raw, technical, stark | Brutalist designs, dev portfolios, experimental |
 | Retro vintage | Abril Fatface | Merriweather | nostalgic, decorative, dramatic | Vintage brands, breweries, creative portfolios |
 
-**CJK / RTL:** use the Noto family for multilingual coverage — Noto Serif/Sans JP (Japanese), Noto Sans KR (Korean), Noto Serif/Sans SC/TC (Simplified/Traditional Chinese), Noto Naskh + Noto Sans Arabic (RTL), Noto Sans Thai/Hebrew. Be Vietnam Pro pairs well for Vietnamese.
+**CJK / RTL:** use the Noto family for multilingual coverage - Noto Serif/Sans JP (Japanese), Noto Sans KR (Korean), Noto Serif/Sans SC/TC (Simplified/Traditional Chinese), Noto Naskh + Noto Sans Arabic (RTL), Noto Sans Thai/Hebrew. Be Vietnam Pro pairs well for Vietnamese.
 
 ## Applying tokens
 
 - Load fonts with `display: swap` and `font-preload` only the critical face; reserve space to avoid layout shift.
 - Base body 16px, line-height 1.5–1.75, measure 60–75 chars desktop / 35–60 mobile.
-- Type scale: 12 · 14 · 16 · 18 · 24 · 32 (extend up as needed); weight carries hierarchy — 400 body, 500 labels, 600–700 headings.
+- Type scale: 12 · 14 · 16 · 18 · 24 · 32 (extend up as needed); weight carries hierarchy - 400 body, 500 labels, 600–700 headings.
 - Never hardcode raw hex in components; map these to semantic tokens (`--primary`, `--muted-foreground`, …) and theme light/dark separately.

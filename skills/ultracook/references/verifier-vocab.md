@@ -6,8 +6,8 @@ The closed set of verifier types `vd:ultracook`'s executor (Phase 3+) can evalua
 
 ## Two layers (recap from goal-schema.md)
 
-- **Per-action verifiers** — bound in `action-vocab.yaml` per action. Run iteration-time during the action's loop (e.g. cook → `test_suite_passes` runs every iteration of cook).
-- **Workflow-level verifiers** — listed in `goal.yaml.target.verifiers`. Run only at the dedicated `verify_*` phases POST-deploy. NEVER mixed with per-action runs.
+- **Per-action verifiers** - bound in `action-vocab.yaml` per action. Run iteration-time during the action's loop (e.g. cook → `test_suite_passes` runs every iteration of cook).
+- **Workflow-level verifiers** - listed in `goal.yaml.target.verifiers`. Run only at the dedicated `verify_*` phases POST-deploy. NEVER mixed with per-action runs.
 
 ## Verifier table
 
@@ -17,8 +17,8 @@ The closed set of verifier types `vd:ultracook`'s executor (Phase 3+) can evalua
 | `pod_image_matches` | `deployment: string`, `namespace: string`, `expected_image: string`, `kube_context: string` (optional) | pass = jsonpath output == expected_image | fast |
 | `http_status` | `url: string`, `expected_code: int (default 200)`, `headers: dict (optional)` | pass = curl `%{http_code}` == expected_code | network-dependent |
 | `cmd_exits_zero` | `cmd: string`, `cwd: string (default ".")` | pass = shell exec exit code == 0 | varies (delegates to cmd) |
-| `test_suite_passes` | `target: string` (the test command — e.g. `go test ./...`, `pytest`, `make test`) | pass = test command exit code == 0 | medium-to-slow |
-| `manual_confirm` | `prompt: string` | pass = user answers "Yes" via `AskUserQuestion` (handled inline by SKILL.md — see below) | user-dependent |
+| `test_suite_passes` | `target: string` (the test command - e.g. `go test ./...`, `pytest`, `make test`) | pass = test command exit code == 0 | medium-to-slow |
+| `manual_confirm` | `prompt: string` | pass = user answers "Yes" via `AskUserQuestion` (handled inline by SKILL.md - see below) | user-dependent |
 | `shell` | `cmd: string`, `expected_exit: int (default 0)`, `expected_output_contains: string (optional)` | pass = exit + (optional) output match | varies |
 
 ## Runner contract (`scripts/eval-verifier.sh`)
@@ -27,7 +27,7 @@ Every verifier invocation goes through `eval-verifier.sh --type <type> --args <j
 
 1. Captures stdout + stderr to `iterations/NNN-{action}-verifier-{i}.log` (per-verifier crash-debuggable).
 2. Returns JSON on stdout: `{"pass": bool, "evidence": "<short string>", "latency_ms": int}`.
-3. Always exits 0 (verifier failure is data, not script error). Exit 2 reserved for "verifier crashed" — e.g. malformed JSON from underlying tool.
+3. Always exits 0 (verifier failure is data, not script error). Exit 2 reserved for "verifier crashed" - e.g. malformed JSON from underlying tool.
 
 Phase 3's `update-state.sh` reads the runner's JSON and merges `verifier_pass` + `verifier_evidence` into `state.last_action_result`.
 
@@ -77,7 +77,7 @@ Pass when: code == `$expected_code`. Headers are optional list of `Key: Value`. 
 ( cd $cwd && eval "$cmd" )
 ```
 
-Pass when: exit code == 0. The `eval` is intentional (the cmd may include pipes, redirects). Trust the goal file — it's user-authored, not untrusted input.
+Pass when: exit code == 0. The `eval` is intentional (the cmd may include pipes, redirects). Trust the goal file - it's user-authored, not untrusted input.
 
 ### `test_suite_passes`
 
@@ -94,7 +94,7 @@ output=$(eval "$cmd" 2>&1)
 exit_actual=$?
 ```
 
-Pass when: `exit_actual == expected_exit` AND (if `expected_output_contains` set) output contains that substring. Use sparingly — if a `shell` verifier appears more than 2-3 times in a profile, it's probably a sign for a new built-in.
+Pass when: `exit_actual == expected_exit` AND (if `expected_output_contains` set) output contains that substring. Use sparingly - if a `shell` verifier appears more than 2-3 times in a profile, it's probably a sign for a new built-in.
 
 ## Adding a new verifier type
 

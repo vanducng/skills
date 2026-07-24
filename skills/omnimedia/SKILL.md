@@ -1,6 +1,6 @@
 ---
 name: omnimedia
-description: Multimodal AI — Gemini for analysis (vision/transcribe/OCR/extract); image generation via Codex (ChatGPT subscription), Gemini/Imagen, OpenRouter, MiniMax; video, speech, music via Gemini + MiniMax.
+description: Multimodal AI - Gemini for analysis (vision/transcribe/OCR/extract); image generation via Codex (ChatGPT subscription), Gemini/Imagen, OpenRouter, MiniMax; video, speech, music via Gemini + MiniMax.
 license: MIT
 allowed-tools:
   - Bash
@@ -25,7 +25,7 @@ export OPENROUTER_API_KEY="your-key"  # https://openrouter.ai/settings/keys
 export MINIMAX_API_KEY="your-key"  # https://platform.minimax.io/user-center/basic-information/interface-key
 pip install google-genai python-dotenv pillow requests
 
-# Codex CLI (subscription image gen — no API key required)
+# Codex CLI (subscription image gen - no API key required)
 brew install codex                 # or per https://developers.openai.com/codex/cli
 codex login                        # ChatGPT Plus/Pro/Business/Enterprise/Edu
 codex login status                 # expects: "Logged in using ChatGPT"
@@ -86,7 +86,7 @@ Do not hand off only `out.png`, `results.json`, or another basename. For multi-f
 
 ### OpenAI Codex (subscription)
 - **Image gen**: routed through `$imagegen` inside `codex exec`. Image-model selection is opaque (informally `gpt-image-2` family); not directly choosable.
-- **`--model` semantics**: forwards to `codex exec -m` as the **Codex base model** (e.g. `gpt-5.5`, `o3`). NOT an image-model selector — see `references/codex-imagegen.md` for details.
+- **`--model` semantics**: forwards to `codex exec -m` as the **Codex base model** (e.g. `gpt-5.5`, `o3`). NOT an image-model selector - see `references/codex-imagegen.md` for details.
 - **Auth**: ChatGPT subscription via `codex login`; no `OPENAI_API_KEY` used.
 - **Throughput**: one image per turn, **5–30s latency**; no batch mode. For batch generation, use `--provider minimax` (image-01 supports 1–9 batch).
 - **Quota**: image-gen turns burn ~3–5× per-turn budget; on rate limit the auto cascade falls through to Google.

@@ -41,7 +41,7 @@
   // Shared with reader.js so toggling from either surface stays in sync.
   const THEME_KEY = 'theme';
   const FONT_KEY = 'novel-viewer-font';
-  // Per-tab UX state — sessionStorage so it survives nav within a tab
+  // Per-tab UX state - sessionStorage so it survives nav within a tab
   // but doesn't leak across windows.
   const SS_EXPANDED = 'fb-tree-expanded';
   const SS_SCROLL = 'fb-tree-scroll';
@@ -458,14 +458,14 @@
     filterIdx = -1;
 
     if (!lc) {
-      // Empty filter — restore tree, clear any prior local-filter classes.
+      // Empty filter - restore tree, clear any prior local-filter classes.
       clearLocalFilter();
       showTreeMode();
       return;
     }
 
     if (lc.length < SEARCH_MIN) {
-      // Too short for recursive search — keep tree visible with local filter only.
+      // Too short for recursive search - keep tree visible with local filter only.
       showTreeMode();
       Array.from(treeEl.querySelectorAll('li.node')).forEach((li) => {
         const label = li.querySelector(':scope > .row > .label');
@@ -483,7 +483,7 @@
       return;
     }
 
-    // 2+ chars — debounced recursive search via /api/search.
+    // 2+ chars - debounced recursive search via /api/search.
     showSearchMode('Searching…');
     if (searchTimer) clearTimeout(searchTimer);
     const seq = ++searchSeq;
@@ -494,7 +494,7 @@
     try {
       const res = await fetch('/api/search?dir=' + encodeURIComponent(treeRoot)
         + '&q=' + encodeURIComponent(q) + '&limit=200' + hiddenSuffix('&'));
-      if (seq !== searchSeq) return; // stale response — newer query in flight
+      if (seq !== searchSeq) return; // stale response - newer query in flight
       if (!res.ok) {
         showSearchMode('Search failed (' + res.status + ')');
         return;
@@ -571,7 +571,7 @@
     }
   });
 
-  // Click in recursive-search results — opens directly (no expand on dirs).
+  // Click in recursive-search results - opens directly (no expand on dirs).
   searchResultsEl.addEventListener('click', (e) => {
     const li = e.target.closest('li.node');
     if (!li) return;
@@ -604,7 +604,7 @@
   themeBtn.addEventListener('click', toggleTheme);
 
   async function refreshTree() {
-    // Tree shape may change (dot entries appear/disappear) — wipe DOM, rerun
+    // Tree shape may change (dot entries appear/disappear) - wipe DOM, rerun
     // the same boot path so expansions/cursor/filter all rehydrate.
     treeEl.innerHTML = '';
     treeEl.dataset.loaded = 'false';
@@ -780,7 +780,7 @@
   // tree (stale paths are skipped). Runs after boot's initial loadInto. ----
   async function rehydrateExpansions() {
     if (expandedSet.size === 0) return;
-    // BFS — depth N must finish before depth N+1 because children are lazy.
+    // BFS - depth N must finish before depth N+1 because children are lazy.
     let frontier = [treeEl];
     while (frontier.length > 0) {
       const next = [];

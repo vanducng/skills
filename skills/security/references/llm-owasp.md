@@ -1,4 +1,4 @@
-# OWASP LLM Top-10 (2025) — the agentic-security lens
+# OWASP LLM Top-10 (2025) - the agentic-security lens
 
 Run this in addition to STRIDE×OWASP whenever the scope calls an LLM, builds a prompt from user/tool/retrieved data, or gives a model the ability to act. Map findings the same way (severity, `file:line`, masked PoC, remediation).
 
@@ -15,8 +15,8 @@ Run this in addition to STRIDE×OWASP whenever the scope calls an LLM, builds a 
 
 - Prompt construction from request/DB/retrieval: `` grep -rnE 'system|user|prompt' `` near string-concat with request data.
 - Output sinks: model response feeding `eval(`, `exec(`, raw SQL, `dangerouslySetInnerHTML`, `child_process`, path joins.
-- Tool definitions: enumerate every tool/function the agent can call — does any write, delete, pay, or send with no gate?
-- Caps: search the LLM call site for `max_tokens`, timeout, rate-limit, per-tenant quota — absence is LLM10.
+- Tool definitions: enumerate every tool/function the agent can call - does any write, delete, pay, or send with no gate?
+- Caps: search the LLM call site for `max_tokens`, timeout, rate-limit, per-tenant quota - absence is LLM10.
 
 ## Posture
 

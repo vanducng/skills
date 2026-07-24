@@ -6,34 +6,34 @@ Use this reference for UI design, UX review, visual polish, accessibility, respo
 
 ## Aesthetic Direction
 
-Commit to a point of view before coding. Intentionality over intensity — refined minimalism and bold maximalism both work when executed deliberately; a vague middle never does.
+Commit to a point of view before coding. Intentionality over intensity - refined minimalism and bold maximalism both work when executed deliberately; a vague middle never does.
 
 - **Purpose:** what problem the interface solves and who uses it under what pressure.
 - **Tone:** pick one and hold it (minimal, editorial, brutalist, luxury, playful, industrial, retro-futuristic…). Don't converge on the same look every time; vary theme, type, and density across designs.
-- **Differentiation:** the one thing someone remembers. Match code complexity to the vision — maximalism needs elaborate motion/effects, minimalism needs restraint and precise spacing.
+- **Differentiation:** the one thing someone remembers. Match code complexity to the vision - maximalism needs elaborate motion/effects, minimalism needs restraint and precise spacing.
 
 ## Aesthetics
 
 - **Typography:** distinctive, characterful fonts. Avoid Inter/Roboto/Arial/system defaults and overused Space Grotesk. Pair a display font with a refined body font; use 500/600 weights for subtle hierarchy; `text-wrap: balance`/`pretty` to kill orphans. Reserve serifs for editorial, not data UIs.
-- **Color / theme:** cohesive dominant color with one considered accent — dominant-plus-accent beats timid even palettes. Define semantic CSS variables; stick to one gray family; desaturate (no saturation > ~80%); off-black (`#0a0a0a`/Zinc-950), never pure `#000`.
-- **Motion:** high-impact moments over scattered micro-interactions — one well-orchestrated staggered load reveal delights more than perpetual fidgeting. CSS-first; transform/opacity; spring/custom cubic-bezier over default ease; restraint.
-- **Spatial composition:** asymmetry, overlap, grid-breaking, generous negative space OR controlled density — deliberately, not by accident.
-- **Backgrounds / depth:** atmosphere over flat fills where the domain allows — subtle noise/grain, gradient mesh, layered transparency, tinted shadows. Keep app/dashboard surfaces calm; save atmosphere for marketing/editorial.
+- **Color / theme:** cohesive dominant color with one considered accent - dominant-plus-accent beats timid even palettes. Define semantic CSS variables; stick to one gray family; desaturate (no saturation > ~80%); off-black (`#0a0a0a`/Zinc-950), never pure `#000`.
+- **Motion:** high-impact moments over scattered micro-interactions - one well-orchestrated staggered load reveal delights more than perpetual fidgeting. CSS-first; transform/opacity; spring/custom cubic-bezier over default ease; restraint.
+- **Spatial composition:** asymmetry, overlap, grid-breaking, generous negative space OR controlled density - deliberately, not by accident.
+- **Backgrounds / depth:** atmosphere over flat fills where the domain allows - subtle noise/grain, gradient mesh, layered transparency, tinted shadows. Keep app/dashboard surfaces calm; save atmosphere for marketing/editorial.
 
 ## Anti-Slop: Forbidden AI Defaults
 
-LLM fingerprints — avoid unless the user explicitly asks or the domain genuinely calls for it.
+LLM fingerprints - avoid unless the user explicitly asks or the domain genuinely calls for it.
 
 - **Type:** no Inter / Roboto / Arial / system fonts. Input `font-size ≥ 16px` (smaller triggers mobile zoom).
 - **Color:** no purple/blue gradient-on-white (the #1 tell); no pure `#000`; no oversaturated accents; no gradient text on headers or body.
-- **Layout:** no 3-column equal-card feature rows; no centered hero + centered H1 at high variance (split-screen / left-align instead); no `h-screen` — use `min-h-[100dvh]`; constrain to a max-width.
-- **Content:** no "John Doe" / "Acme" / "Nexus"; no round fake numbers (50%, $100.00) — use organic values (47.2%, $99); no AI clichés ("Elevate", "Seamless", "Unleash", "Next-Gen", "Delve"); no Lorem Ipsum; sentence case, not Title Case Everywhere; no "Oops!" errors.
+- **Layout:** no 3-column equal-card feature rows; no centered hero + centered H1 at high variance (split-screen / left-align instead); no `h-screen` - use `min-h-[100dvh]`; constrain to a max-width.
+- **Content:** no "John Doe" / "Acme" / "Nexus"; no round fake numbers (50%, $100.00) - use organic values (47.2%, $99); no AI clichés ("Elevate", "Seamless", "Unleash", "Next-Gen", "Delve"); no Lorem Ipsum; sentence case, not Title Case Everywhere; no "Oops!" errors.
 - **Effects:** no neon/outer glows, no custom cursors, no gradient text on headers. Tinted inner shadows instead.
-- **Components:** no default unstyled shadcn; no Lucide-only icons at high density (try Phosphor/Heroicons/custom); no generic border+shadow+white card at high density — use spacing/dividers.
+- **Components:** no default unstyled shadcn; no Lucide-only icons at high density (try Phosphor/Heroicons/custom); no generic border+shadow+white card at high density - use spacing/dividers.
 
 ## Design Dials
 
-Optional tunable knobs — set at session start, override per request:
+Optional tunable knobs - set at session start, override per request:
 
 - **Variance** (symmetry/centered/equal-grid → asymmetric/masonry/large empty zones). Above mid, force split-screen or left-aligned over centered heroes.
 - **Motion** (CSS hover-only → scroll reveals + spring physics + perpetual micro-animation).
@@ -41,16 +41,16 @@ Optional tunable knobs — set at session start, override per request:
 
 ## Design-Quality Process
 
-A credible quality score requires SEEING the rendered screen — not reading code. Drive quality with a measured loop, not perfectionism.
+A credible quality score requires SEEING the rendered screen - not reading code. Drive quality with a measured loop, not perfectionism.
 
 - **Default target = 9/10** (not 9.5). Reserve >9 effort only when the user explicitly demands it, and warn them about diminishing returns and oscillation.
-- **Loop:** render → screenshot → score → refactor against the real running UI. Capture with the `agent-browser` skill (note its headless drawer-capture caveat — animations can clip mid-frame).
+- **Loop:** render → screenshot → score → refactor against the real running UI. Capture with the `agent-browser` skill (note its headless drawer-capture caveat - animations can clip mid-frame).
 - **Critic panel:** run an independent, multi-lens adversarial panel (visual / UX / skeptic) that READS the screenshots and scores an explicit rubric. Synthesize by **MEDIAN across critics**, never the harshest single voice.
-- **Stop rule:** a "never concede" critic is asymptotic and oscillates — it invents new minor/subjective items each round and will even reverse prior advice (observed: a panel went 8.7 → 9.1 → 9.2 over three cycles, demanded a single-hue funnel, then called that single-hue funnel "one bar fading"). STOP when median ≥ 9 AND remaining items are subjective / contradictory / edge-case.
+- **Stop rule:** a "never concede" critic is asymptotic and oscillates - it invents new minor/subjective items each round and will even reverse prior advice (observed: a panel went 8.7 → 9.1 → 9.2 over three cycles, demanded a single-hue funnel, then called that single-hue funnel "one bar fading"). STOP when median ≥ 9 AND remaining items are subjective / contradictory / edge-case.
 - **Separate capture artifacts from real gaps** before acting: a drawer clipped mid-animation or a wrong-record screenshot is a capture bug, not a design bug.
-- **Fix real bugs the loop surfaces** — it often finds logic, not just looks (e.g. a `phone.includes("")` filter that matched everything; a progress-bar/funnel math error).
+- **Fix real bugs the loop surfaces** - it often finds logic, not just looks (e.g. a `phone.includes("")` filter that matched everything; a progress-bar/funnel math error).
 - **Parallelize per-screen refactors** with STRICT file ownership: one agent per file, a single agent owning shared components/mocks, so concurrent rounds don't conflict.
-- **Native-integration precedence:** when the UI must be native to an existing app (internal/operator tools especially), match the app's design language and component library — the bold/distinctive anti-slop default yields to native consistency.
+- **Native-integration precedence:** when the UI must be native to an existing app (internal/operator tools especially), match the app's design language and component library - the bold/distinctive anti-slop default yields to native consistency.
 
 ## Design Pass
 

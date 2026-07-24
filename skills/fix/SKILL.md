@@ -18,7 +18,7 @@ End-to-end fixing across the surfaces you actually work on: data pipelines, app 
 NO FIX WITHOUT ROOT CAUSE. NO "DONE" WITHOUT FRESH EVIDENCE.
 ```
 
-Symptom fixes are failure. Random changes waste time and create new bugs. Three failed attempts means the approach is wrong — stop and question architecture, don't keep trying.
+Symptom fixes are failure. Random changes waste time and create new bugs. Three failed attempts means the approach is wrong - stop and question architecture, don't keep trying.
 
 ## When to use
 
@@ -32,7 +32,7 @@ Symptom fixes are failure. Random changes waste time and create new bugs. Three 
 | **K8s / cloud** | CrashLoopBackOff, OOMKill, image pull errors, networking/policy denial, secret rotation |
 | **Code-local** | type errors, lint issues, test failures, exceptions traced to a known file |
 
-## Anti-patterns — stop if you catch yourself thinking this
+## Anti-patterns - stop if you catch yourself thinking this
 
 | Thought | Reality |
 |---|---|
@@ -89,16 +89,16 @@ Detect mode from the argument; announce in your first reply.
 - Discover: project type/language/framework, affected files/models/manifests, direct callers/dependents, related tests, recent git changes (`git log -p -- <path>`), and local patterns for similar fixes.
 - Read `./docs` if the project is unfamiliar.
 - **Quick mode:** just locate the file(s) + immediate deps.
-- **Scout before questions.** Always scan the codebase BEFORE asking anything. State a 3–6 bullet codebase-context summary first (project type/stack, the symptom file + its callers, related tests, the suspect recent commit). Only then ask a clarifying question — grounded in concrete files, logs, commits, or functions you found. Never ask what the scan already answers.
+- **Scout before questions.** Always scan the codebase BEFORE asking anything. State a 3–6 bullet codebase-context summary first (project type/stack, the symptom file + its callers, related tests, the suspect recent commit). Only then ask a clarifying question - grounded in concrete files, logs, commits, or functions you found. Never ask what the scan already answers.
 
-Output: `✓ Scouted — N files, M deps, K tests`
+Output: `✓ Scouted - N files, M deps, K tests`
 
 ### 2. Diagnose (mandatory)
 
-**Activate `vd:debug`** for systematic-debugging + root-cause-tracing. Don't restate the debug skill here — call it. Use `references/diagnosis-protocol.md` when the cause is not immediately proven.
+**Activate `vd:debug`** for systematic-debugging + root-cause-tracing. Don't restate the debug skill here - call it. Use `references/diagnosis-protocol.md` when the cause is not immediately proven.
 
 Required outputs from this step:
-- **Pre-fix evidence captured**: exact error, failing command, stack trace, log snippet, dbt run-results, kubectl events, `terraform plan` output — whatever applies. This is the baseline for Step 5.
+- **Pre-fix evidence captured**: exact error, failing command, stack trace, log snippet, dbt run-results, kubectl events, `terraform plan` output - whatever applies. This is the baseline for Step 5.
 - **Confirmed root cause** with an evidence chain (not just a hypothesis).
 - **Root-cause checklist** in concrete sentences:
   - Exact symptom: copy the precise error/failing assertion/observed behavior.
@@ -113,7 +113,7 @@ If 2+ hypotheses fail → broaden context, re-scout, consider that the *real* ca
 
 If you can't get to a confirmed cause in reasonable time → STOP, report what you tried, ask the user.
 
-Output: `✓ Diagnosed — root cause: …, evidence: …, scope: N files`
+Output: `✓ Diagnosed - root cause: …, evidence: …, scope: N files`
 
 ### 3. Assess scope
 
@@ -128,7 +128,7 @@ Classify the fix after scouting and diagnosis, then choose how much workflow to 
 
 ### 4. Pick playbook
 
-Match the surface; load the matching reference. If multiple surfaces apply (e.g. a dbt model failure caused by a Terraform-managed warehouse role), use both. Load lazily — don't preload all playbooks.
+Match the surface; load the matching reference. If multiple surfaces apply (e.g. a dbt model failure caused by a Terraform-managed warehouse role), use both. Load lazily - don't preload all playbooks.
 
 | Surface | Reference |
 |---|---|
@@ -150,13 +150,13 @@ See `references/apply-fix.md`. Highlights:
 See `references/verify-and-prevent.md`. Highlights:
 - **Verify with fresh evidence**: rerun the EXACT failing command from Step 2. Compare output. No claims without showing the rerun.
 - **Side-effect sweep**: run tests/checks for modified files plus transitively affected modules or downstream resources from the blast-radius list. Manually walk critical flows when no automated check exists.
-- **Contract check**: confirm public API contracts, exported function signatures/types, response shapes, DB schemas, metric definitions, env vars, Terraform outputs, and job/DAG schedules are unchanged — or call out the intentional change and migration path.
+- **Contract check**: confirm public API contracts, exported function signatures/types, response shapes, DB schemas, metric definitions, env vars, Terraform outputs, and job/DAG schedules are unchanged - or call out the intentional change and migration path.
 - **Regression test**: add or update a test/check that fails without the fix and passes with it. dbt → add or fix a test; Airflow → add a sensor / assertion; Terraform → add a `terraform validate`/CI guardrail; backend → unit + integration; frontend → component test + e2e if the bug was reachable from the UI.
 - **Defense-in-depth**: where applicable, add a guard at a layer above the bug (schema constraint, type narrowing, K8s probe, CI check) so the same class can't recur silently.
-- **Regression found ≠ verification failed**: if the original symptom is gone but the sweep/contract check broke something else, **STOP — don't patch around it.** Present what broke + why + 2–4 options (revert / update dependents / narrow scope / accept) via `AskUserQuestion` (AskUserQuestion in Claude Code; plain-text numbered question elsewhere). See `references/verify-and-prevent.md` → "When the sweep finds a regression". Hard stop even in `--auto`.
+- **Regression found ≠ verification failed**: if the original symptom is gone but the sweep/contract check broke something else, **STOP - don't patch around it.** Present what broke + why + 2–4 options (revert / update dependents / narrow scope / accept) via `AskUserQuestion` (AskUserQuestion in Claude Code; plain-text numbered question elsewhere). See `references/verify-and-prevent.md` → "When the sweep finds a regression". Hard stop even in `--auto`.
 - **Verification loop**: if it fails, back to Step 2. After **3 failed verification cycles → stop and question architecture**, surface to user.
 
-**CI failures — reproduce the check locally before re-pushing.** A red GH Actions job is not a debugger: pushing a guess to watch CI is a slow, public loop. Pull the failing job (`gh run view <run-id> --log-failed`), then reproduce and fix locally by failure type:
+**CI failures - reproduce the check locally before re-pushing.** A red GH Actions job is not a debugger: pushing a guess to watch CI is a slow, public loop. Pull the failing job (`gh run view <run-id> --log-failed`), then reproduce and fix locally by failure type:
 
 | Failure | Local loop before re-push |
 |---|---|
@@ -168,7 +168,7 @@ See `references/verify-and-prevent.md`. Highlights:
 
 Only push once the same check passes on your machine. This closes the loop that would otherwise need a standalone CI skill.
 
-Output: `✓ Verified + prevented — before/after attached, N tests added, M guards added`
+Output: `✓ Verified + prevented - before/after attached, N tests added, M guards added`
 
 ### 7. Finalize
 
@@ -179,15 +179,15 @@ Output: `✓ Verified + prevented — before/after attached, N tests added, M gu
 
 ## Tool integration
 
-- **Database** — `psql` (Postgres), `bq` (BigQuery), `sqlit` CLI for any saved connection
-- **CI/CD** — `gh run view --log-failed`, `gh pr checks`
-- **K8s** — `kubectl logs --previous`, `describe`, `get events --sort-by=.lastTimestamp`
-- **Terraform** — `terraform plan -refresh-only`, state-list, targeted apply (carefully)
-- **dbt** — `dbt run --select`, `dbt test`, `target/run_results.json`, `target/manifest.json`
-- **Airflow** — task logs (UI), `airflow tasks logs`, scheduler logs, `airflow tasks clear` for backfill
-- **Tracing** — APM (Datadog, Sentry), OpenTelemetry
-- **Secrets** — `sops -d` for infra repo (age key per `.mise.toml`); never paste decrypted contents into reports/commits
-- **Frontend verification** — Chrome MCP / `vd:web-e2e` (persistent-profile browser + trace evidence) to confirm UI fix
+- **Database** - `psql` (Postgres), `bq` (BigQuery), `sqlit` CLI for any saved connection
+- **CI/CD** - `gh run view --log-failed`, `gh pr checks`
+- **K8s** - `kubectl logs --previous`, `describe`, `get events --sort-by=.lastTimestamp`
+- **Terraform** - `terraform plan -refresh-only`, state-list, targeted apply (carefully)
+- **dbt** - `dbt run --select`, `dbt test`, `target/run_results.json`, `target/manifest.json`
+- **Airflow** - task logs (UI), `airflow tasks logs`, scheduler logs, `airflow tasks clear` for backfill
+- **Tracing** - APM (Datadog, Sentry), OpenTelemetry
+- **Secrets** - `sops -d` for infra repo (age key per `.mise.toml`); never paste decrypted contents into reports/commits
+- **Frontend verification** - Chrome MCP / `vd:web-e2e` (persistent-profile browser + trace evidence) to confirm UI fix
 - **Skills:** `vd:debug` (Step 2), `vd:scout` (Step 1), `vd:research` (unknown libs/CVEs surfaced mid-fix), `vd:gopass` (creds)
 
 ## Workflow position

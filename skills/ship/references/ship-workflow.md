@@ -1,4 +1,4 @@
-# Ship Workflow — Detailed Steps
+# Ship Workflow - Detailed Steps
 
 ## Step 1: Pre-flight
 
@@ -7,7 +7,7 @@
    **On-target recovery flow** (Hard Rule 1):
    - **`--auto`:** auto-create a feature branch and continue silently. No prompt.
      ```bash
-     # Infer slug — staged-diff filenames first, then latest commit subject, else timestamp
+     # Infer slug - staged-diff filenames first, then latest commit subject, else timestamp
      SLUG=$(
        git diff --cached --name-only | head -1 | sed 's|.*/||; s|\.[^.]*$||; s|[^a-zA-Z0-9]|-|g; s|--*|-|g; s|^-||; s|-$||' \
        || git log -1 --pretty=%s | sed 's/^[a-z]*[(:][^)]*)*: *//; s|[^a-zA-Z0-9]|-|g; s|--*|-|g; s|^-||; s|-$||' | cut -c1-50 \
@@ -21,11 +21,11 @@
      esac
      git checkout -b "$PREFIX/$SLUG"
      ```
-     Print one line: `↪ Auto-created branch: <PREFIX>/<SLUG> (from <target>) — continuing.`
+     Print one line: `↪ Auto-created branch: <PREFIX>/<SLUG> (from <target>) - continuing.`
    - **Interactive:** `AskUserQuestion` with three options:
-     - *Create feature branch, then ship* (Recommended) — same auto-branch logic
-     - *Direct push to target* — skip Steps 5/12/13/15/16 (no review/PR/CI), commit + push straight to target. Requires explicit pick.
-     - *Abort* — stop the pipeline.
+     - *Create feature branch, then ship* (Recommended) - same auto-branch logic
+     - *Direct push to target* - skip Steps 5/12/13/15/16 (no review/PR/CI), commit + push straight to target. Requires explicit pick.
+     - *Abort* - stop the pipeline.
    - **Never** offer direct-push in `--auto`. The flow is binary: branch + continue, or stop on safety violation.
 2. Resolve ship mode:
    - `official` → target = default branch (main/master)
@@ -36,7 +36,7 @@
      - `release/* uat/* staging/*` → staging
      - `dev/* develop/* beta/* experiment/* exp/*` → beta
      - Unclear → `AskUserQuestion`: "Official (main)" / "Staging (release)" / "Beta (dev)"
-3. Detect target branch — see `auto-detect.md`.
+3. Detect target branch - see `auto-detect.md`.
 4. `git status` (no `-uall`). Uncommitted changes are always included in the ship.
 5. `git diff <target>...HEAD --stat` and `git log <target>..HEAD --oneline` to summarize what's shipping.
 6. If `--dry-run`: print every step's intent, change nothing, stop here.
@@ -106,7 +106,7 @@ Step 12 must use the same ticket key: `TICKET: <past-tense summary>`.
    EOF
    )"
    ```
-5. **Beta mode, none found:** skip silently — beta ships don't need issue traceability.
+5. **Beta mode, none found:** skip silently - beta ships don't need issue traceability.
 
 ## Step 3: Merge target
 
@@ -123,7 +123,7 @@ git fetch origin <target> && git merge origin/<target> --no-edit
 **Skip if** `--skip-tests`.
 
 1. Auto-detect test command (see `auto-detect.md`).
-2. Delegate to `tester` subagent — pass detected command. Don't inline run.
+2. Delegate to `tester` subagent - pass detected command. Don't inline run.
 3. Read pass/fail from agent result.
    - Any failure → **STOP**, show failures.
    - All pass → log counts, continue.
@@ -133,7 +133,7 @@ git fetch origin <target> && git merge origin/<target> --no-edit
 
 **Skip if** `--skip-review`.
 
-**Blast-radius auto-skip.** A full reviewer fan-out is wasted on a truly trivial diff. Skip the review delegation **only if all** hold: ≤2 files changed **AND** <50 lines **AND** the diff touches no auth, payments, data/migrations, security, or config/secrets. If any condition fails — including any doubt — review runs. Print `Review: skipped (trivial diff: N files, M lines, no sensitive paths)` so the skip is visible, never silent.
+**Blast-radius auto-skip.** A full reviewer fan-out is wasted on a truly trivial diff. Skip the review delegation **only if all** hold: ≤2 files changed **AND** <50 lines **AND** the diff touches no auth, payments, data/migrations, security, or config/secrets. If any condition fails - including any doubt - review runs. Print `Review: skipped (trivial diff: N files, M lines, no sensitive paths)` so the skip is visible, never silent.
 
 1. `git diff origin/<target>` → diff payload.
 2. Delegate to `code-reviewer` subagent. Two-pass model:
@@ -142,7 +142,7 @@ git fetch origin <target> && git merge origin/<target> --no-edit
 3. Output: `Review: X critical, Y informational`.
 4. **For each critical issue:** `AskUserQuestion`:
    - file:line + recommended fix
-   - Options: A) Fix now (recommended) — B) Acknowledge and ship — C) False positive
+   - Options: A) Fix now (recommended) - B) Acknowledge and ship - C) False positive
 5. If user picks Fix → apply fix, commit fixed files, **re-run Step 4** before continuing.
 6. Informational findings → include in PR body, don't block.
 
@@ -178,7 +178,7 @@ Spawn `journal-writer` subagent in **background**:
 - Include: what shipped, key decisions, gotchas hit during the ship
 - Output path: `./docs/journals/` (or wherever the project's journal-writer agent puts them)
 
-Do not wait — continue immediately.
+Do not wait - continue immediately.
 
 ## Step 9: Docs (background)
 
@@ -188,16 +188,16 @@ Spawn `docs-manager` subagent in **background**:
 - Analyzes diff since last release
 - Updates relevant files in `./docs/`
 
-Do not wait — continue immediately.
+Do not wait - continue immediately.
 
 ## Step 10: Commit
 
-1. Stage explicitly — never `git add -A` / `git add .`:
+1. Stage explicitly - never `git add -A` / `git add .`:
    - Files modified in earlier steps (version file from Step 6, changelog from Step 7, fix patches from Step 5).
    - Already-tracked files showing in `git status --short` that the user wants in this ship (review the list first; ask if any look unrelated like `.env.local`, dumps, scratch dirs).
 2. **Secret scan** the staged diff (API keys, tokens, AWS creds, private keys, password literals). If hits: **STOP**, warn, suggest `.gitignore`.
 3. Compose conventional commit:
-   - `type(scope): description` — type inferred from changes (feat/fix/refactor/perf/chore/docs/test).
+   - `type(scope): description` - type inferred from changes (feat/fix/refactor/perf/chore/docs/test).
    - Scope inferred from top-level changed dir (e.g. `auth`, `api`, `ui`).
 4. Commit (heredoc to keep formatting clean):
    ```bash
@@ -230,7 +230,7 @@ git push -u origin "$(git branch --show-current)"
    - Canonical template: `../git/references/pr-template.md`
 3. Resolve title and body from those loaded rules:
    - Title: branch contains `[A-Z]+-[0-9]+` → `TICKET: <past-tense summary>`. Otherwise → `type(scope): <past-tense summary>`.
-   - Body: prefer `.github/pull_request_template.md` if present and fill it without adding, removing, or renaming sections. Otherwise fill the canonical fallback (3 labelled bullets — Why / What / Risks — plus a multi-line verification block, one field per line). Never use ad hoc `Summary`, `Changes`, `Validation`, or mixed template bodies.
+   - Body: prefer `.github/pull_request_template.md` if present and fill it without adding, removing, or renaming sections. Otherwise fill the canonical fallback (3 labelled bullets - Why / What / Risks - plus a multi-line verification block, one field per line). Never use ad hoc `Summary`, `Changes`, `Validation`, or mixed template bodies.
 4. Create / update PR:
    ```bash
    gh pr create --base <target> --title "<title>" --body "$(cat <<'EOF'
@@ -243,9 +243,9 @@ git push -u origin "$(git branch --show-current)"
    EOF
    )"
    ```
-5. Inline issue refs from Step 2 in the template's context/why area (`Closes #N` / `Relates to #M`) — no separate Linked-Issues section.
+5. Inline issue refs from Step 2 in the template's context/why area (`Closes #N` / `Relates to #M`) - no separate Linked-Issues section.
 6. Re-read the created/updated PR body and verify it matches the selected repo template or canonical fallback before continuing.
-7. **Output the PR URL** — final user-facing line (unless Steps 13–16 run after).
+7. **Output the PR URL** - final user-facing line (unless Steps 13–16 run after).
 
 ## Step 13: PR review comments
 
@@ -257,7 +257,7 @@ substantive `COMMENTED` reviews from humans/bots, and top-level PR comments.
 Fresh PR with zero comments still performs the fetch, then reports
 `PR comments: 0 actionable`.
 
-**Mandate — every finding-bearing comment gets an inline reply, valid or not** (Hard rule 4b).
+**Mandate - every finding-bearing comment gets an inline reply, valid or not** (Hard rule 4b).
 No review thread or finding-bearing comment (human or bot) is left without an inline reply before
 this step completes:
 - **Valid** → fix it, then reply inline **naming the exact fix commit SHA** and the change.
@@ -304,13 +304,13 @@ A pure summary/FYI review that raises no point needs no reply (still counts towa
    - **Is the suggested patch the right fix?** Prefer the smallest root-cause fix that matches local patterns. It is valid to reject a literal suggestion when a better fix exists (for example, fail fast in config validation instead of silently defaulting a bad runtime value).
    - **What evidence proves it?** Add or update tests when the behavior can regress; rerun the narrowest relevant checks plus any ship-level checks required by the repo.
 4. **Nothing actionable/unresolved and no silent resolves to repair** → output `PR comments: 0 actionable`, continue.
-5. **For each actionable unresolved thread**, run `AskUserQuestion`. Every option below **posts an inline reply** — the difference is fix-vs-not, never reply-vs-silence:
+5. **For each actionable unresolved thread**, run `AskUserQuestion`. Every option below **posts an inline reply** - the difference is fix-vs-not, never reply-vs-silence:
    - Show: `path:line` · author · comment body (truncate to 300 chars, link to full URL)
    - Options:
-     - **A) Fix now** (recommended for valid comments) — apply the verified fix (not necessarily the literal suggestion), stage, **re-run Step 4 (tests)**, then on green: commit + push (`type(scope): address review feedback`), reply to thread **naming the exact fix commit SHA** plus the codebase rationale, then resolve the thread via `resolveReviewThread` GraphQL mutation.
-     - **B) Reply only (unresolved)** — for a valid point you are *not* fixing in this PR: post a rationale grounded in codebase evidence (and the follow-up ticket/PR if deferred), leave the thread unresolved so it's not lost.
-     - **C) Reply + mark resolved** — for clearly false/stale/already-handled/deferred threads; post the evidence-backed rationale (or follow-up link) first, then call `resolveReviewThread`.
-   No "skip without replying" — a finding-bearing thread always gets at least a reply (B or C).
+     - **A) Fix now** (recommended for valid comments) - apply the verified fix (not necessarily the literal suggestion), stage, **re-run Step 4 (tests)**, then on green: commit + push (`type(scope): address review feedback`), reply to thread **naming the exact fix commit SHA** plus the codebase rationale, then resolve the thread via `resolveReviewThread` GraphQL mutation.
+     - **B) Reply only (unresolved)** - for a valid point you are *not* fixing in this PR: post a rationale grounded in codebase evidence (and the follow-up ticket/PR if deferred), leave the thread unresolved so it's not lost.
+     - **C) Reply + mark resolved** - for clearly false/stale/already-handled/deferred threads; post the evidence-backed rationale (or follow-up link) first, then call `resolveReviewThread`.
+   No "skip without replying" - a finding-bearing thread always gets at least a reply (B or C).
 6. **For actionable review bodies or top-level comments not tied to a thread**, prompt once:
    - fix now (commit + push, then reply with commit SHA)
    - reply only with rationale
@@ -336,7 +336,7 @@ Good examples:
 
 ### `--auto` behavior for Step 13
 
-`--auto` does **not** auto-fix code based on review comments — too risky, the reviewer's intent isn't always machine-parseable. Under `--auto`:
+`--auto` does **not** auto-fix code based on review comments - too risky, the reviewer's intent isn't always machine-parseable. Under `--auto`:
 - Unresolved comment with a clearly suggested edit (GitHub "suggestion" block) → first validate it against codebase contracts. If the suggestion is correct and there is no better local-pattern fix, apply it, commit, reply with commit SHA + rationale, and resolve the thread. If the comment is valid but a better root-cause fix exists, apply that instead and explain why in the reply. If validity is uncertain, stop and prompt.
 - Anything else → **STOP** and prompt (same as interactive mode). Treat as a critical gate.
 
@@ -374,7 +374,7 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
 1. If the repo has no CI configured (no checks attached to the PR), skip silently.
    ```bash
    COUNT=$(gh pr checks "$PR_NUMBER" --json state -q 'length' 2>/dev/null || echo 0)
-   [ "$COUNT" -eq 0 ] && echo "no CI checks — skipping" && exit 0
+   [ "$COUNT" -eq 0 ] && echo "no CI checks - skipping" && exit 0
    ```
 2. Wait for checks to settle (cap at 15 min so the skill doesn't block forever):
    ```bash
@@ -384,16 +384,16 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
 3. Branch on `$STATE`:
    - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the selected PR template with the latest verification status. For canonical fallback bodies, update the verification block (`**Tests:** …` / `**Docs:** …` / `**Breaking:** …`, one field per line). For repo-template bodies, update the appropriate checklist or notes field without changing section names. Continue to **Step 15b**, then Step 16.
    - **Any `FAILURE` / `CANCELLED` / `TIMED_OUT`** → **STOP**. `AskUserQuestion` (regardless of `--auto`):
-     - `Investigate failure` (recommended) — print failing checks via `gh pr checks --json name,state,link -q '.[]|select(.state!="SUCCESS")'`, exit so user can fix
-     - `Merge anyway` — proceed to Step 16 noting CI was red
-     - `Abort` — leave PR open, exit
+     - `Investigate failure` (recommended) - print failing checks via `gh pr checks --json name,state,link -q '.[]|select(.state!="SUCCESS")'`, exit so user can fix
+     - `Merge anyway` - proceed to Step 16 noting CI was red
+     - `Abort` - leave PR open, exit
    - **Still pending after timeout** → in `--auto` mode rely on `gh pr merge --auto` (Step 16 queues until green); in interactive mode print "CI still running" with the PR URL and exit cleanly.
-4. CI failures are **never** silently bypassed by `--auto` — same prompt fires.
+4. CI failures are **never** silently bypassed by `--auto` - same prompt fires.
 
 ## Step 15b: Re-check PR comments after CI (merge gate)
 
 **Why this exists.** Step 13 runs once at PR creation, but a code-review **bot**
-(`review/code-review`, CodeRabbit, Codex review, etc.) runs *as a CI job* — so its
+(`review/code-review`, CodeRabbit, Codex review, etc.) runs *as a CI job* - so its
 inline comments only land *after* Step 15 turns green, never in time for Step 13.
 A green code-review check means "the bot finished", not "its findings are resolved".
 Without this re-fetch, those comments slip straight to merge. (Exact trap: goclaw
@@ -402,7 +402,7 @@ Without this re-fetch, those comments slip straight to merge. (Exact trap: gocla
 **Run after Step 15 is green, before Step 16, in every mode** (including `--auto`).
 Skip only when `--skip-pr-comments` was passed.
 
-1. Re-fetch all review threads — same GraphQL query as Step 13, one call:
+1. Re-fetch all review threads - same GraphQL query as Step 13, one call:
    ```bash
    gh api graphql -f query='
      query($owner:String!,$repo:String!,$pr:Int!){
@@ -415,7 +415,7 @@ Skip only when `--skip-pr-comments` was passed.
          }}}' -F owner="$OWNER" -F repo="$REPO" -F pr="$PR_NUMBER"
    ```
 2. Keep threads where `isResolved == false && isOutdated == false`. These are the
-   actionable ones — human or bot, no distinction. Also keep resolved threads
+   actionable ones - human or bot, no distinction. Also keep resolved threads
    that lack a later explanatory inline reply; those must be repaired before merge.
 3. **0 actionable threads and 0 silent resolves → done, continue to Step 16.** Otherwise **STOP merge** and
    triage or repair each (same blocking model as Step 13 / Rule 4b):
@@ -427,18 +427,18 @@ Skip only when `--skip-pr-comments` was passed.
 4. This is a **safety floor**: `--auto` does **not** suppress it. A green
    `review/code-review` check never counts as "comments addressed".
 
-## Step 16: Merge (conditional — opt-in only)
+## Step 16: Merge (conditional - opt-in only)
 
 **Run only if** (`--auto` **or** `--merge` is set, **or** the user explicitly said "merge"/"land it"/"merge anyway" in this request) AND Step 15 reported green AND Step 15b is clear (0 unresolved actionable threads).
 
-**Bare ship (no `--auto`/`--merge`, no explicit merge ask): STOP here — do not merge** (Hard rule 0). Report the terminal state and hand off:
+**Bare ship (no `--auto`/`--merge`, no explicit merge ask): STOP here - do not merge** (Hard rule 0). Report the terminal state and hand off:
 ```text
 ✓ PR: <url> → <target>
 ✓ CI: green
 ✓ PR comments: 0 actionable
-▸ Merge: left to you — bare ship does not merge. Re-run with --merge, or `gh pr merge <n> --squash`.
+▸ Merge: left to you - bare ship does not merge. Re-run with --merge, or `gh pr merge <n> --squash`.
 ```
-Do **not** treat green CI + zero comments as permission to merge — that gate makes the merge *safe*, not *requested*.
+Do **not** treat green CI + zero comments as permission to merge - that gate makes the merge *safe*, not *requested*.
 
 1. Detect the repo's preferred merge strategy and queue / immediate-merge:
    ```bash
@@ -447,7 +447,7 @@ Do **not** treat green CI + zero comments as permission to merge — that gate m
    gh pr merge "$PR_NUMBER" --auto $STRATEGY --delete-branch
    ```
 2. If `gh pr merge --auto` is rejected (auto-merge disabled at repo level), the
-   merge becomes immediate — so re-confirm **CI is green** (not just conflict-free)
+   merge becomes immediate - so re-confirm **CI is green** (not just conflict-free)
    right before merging (`mergeable` reports conflicts, not CI status):
    ```bash
    CI=$(gh pr checks "$PR_NUMBER" --json state -q '[.[].state] | unique | join(",")' 2>/dev/null || echo "")
@@ -468,15 +468,15 @@ When `--auto` is set, replace each `AskUserQuestion` with the listed default. Cr
 
 | Gate | Default under `--auto` | Still blocks? |
 |------|------------------------|---------------|
-| Mode unclear from branch name | — | **Yes**, stop |
+| Mode unclear from branch name | - | **Yes**, stop |
 | Issue creation when none found | Skip | No |
 | No test runner detected | Skip tests, warn | No |
-| Critical review issue | — | **Yes**, stop per issue |
+| Critical review issue | - | **Yes**, stop per issue |
 | Unresolved PR review comment | Apply GitHub suggestion blocks; otherwise stop per comment | **Yes** (non-suggestion) |
-| Unresolved comment after CI green (Step 15b) | — | **Yes**, re-fetch + block (safety floor) |
+| Unresolved comment after CI green (Step 15b) | - | **Yes**, re-fetch + block (safety floor) |
 | Major/minor/patch bump prompt | Patch (or minor if branch starts with `feat/` or commits include `feat:`) | No |
 | Auto-release with manual fallback | Patch bump, tag automatically | No |
-| Push rejected | — | **Yes**, stop |
-| Secret-scan hit | — | **Yes**, stop |
-| CI failure on PR | — | **Yes**, prompt (investigate / merge anyway / abort) |
+| Push rejected | - | **Yes**, stop |
+| Secret-scan hit | - | **Yes**, stop |
+| CI failure on PR | - | **Yes**, prompt (investigate / merge anyway / abort) |
 | CI still pending after 15min timeout | Queue via `gh pr merge --auto` | No |
