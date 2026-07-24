@@ -1,6 +1,6 @@
 ---
 name: herd-worktree
-description: "Set up an isolated git worktree for a Laravel project served by Laravel Herd (Pro-aware). Composes vd:worktree for the worktree/.env/port mechanics, then adds the Herd layer: link + scheme-correct site (HTTPS via herd secure when the source is secured), .env rewrite (APP_URL, SESSION_DOMAIN, Sanctum — only when present), opt-in per-worktree database isolation, Vite TLS/CORS, then hands finishing to vd:ship / vd:git. Triggers: 'herd-worktree', 'herd worktree', 'laravel herd worktree', 'isolate a Laravel feature branch', 'work on this Laravel branch with Herd'."
+description: "Set up an isolated git worktree for a Laravel project served by Laravel Herd (Pro-aware). Composes vd:worktree for the worktree/.env/port mechanics, then adds the Herd layer: link + scheme-correct site (HTTPS via herd secure when the source is secured), .env rewrite (APP_URL, SESSION_DOMAIN, Sanctum - only when present), opt-in per-worktree database isolation, Vite TLS/CORS, then hands finishing to vd:ship / vd:git. Triggers: 'herd-worktree', 'herd worktree', 'laravel herd worktree', 'isolate a Laravel feature branch', 'work on this Laravel branch with Herd'."
 license: MIT
 metadata:
   author: vanducng
@@ -9,7 +9,7 @@ metadata:
 
 # Laravel Herd Worktree
 
-Spin up an isolated, runnable copy of a Laravel project on its own Herd site for feature-branch work — without colliding with your main checkout or, on **Herd Pro**, your shared dev database.
+Spin up an isolated, runnable copy of a Laravel project on its own Herd site for feature-branch work - without colliding with your main checkout or, on **Herd Pro**, your shared dev database.
 
 **Announce at start:** "Using laravel-herd-worktree to set up an isolated Laravel + Herd workspace."
 
@@ -25,7 +25,7 @@ Do **not** reinvent worktree mechanics. `vd:worktree` already creates the worktr
 
 ## Prerequisites
 
-- **Laravel Herd** (Pro adds shared MySQL/Postgres/Redis services — relevant to DB isolation below). macOS.
+- **Laravel Herd** (Pro adds shared MySQL/Postgres/Redis services - relevant to DB isolation below). macOS.
 - **Vite** + **npm** frontend (adjust if yarn/pnpm).
 - **Laravel Sanctum** only if the project uses it (steps below are conditional).
 
@@ -40,7 +40,7 @@ WT="$(for d in "$HOME/skills/skills/worktree" "$HOME/.claude/skills/worktree" "$
 node "$WT" create "<branch>" --no-prefix --json
 ```
 
-`$WT` resolves to the first worktree install that exists — the `$HOME/skills` dev repo, else the Claude (`~/.claude/skills`) or Codex (`~/.agents/skills`) install; pick it once per session and reuse it below. Parse the JSON for the worktree `path` and `portBase`, then move the session into the worktree (per the `sessionSwitch` block). The `.env` is already copied — you only *rewrite* it below.
+`$WT` resolves to the first worktree install that exists - the `$HOME/skills` dev repo, else the Claude (`~/.claude/skills`) or Codex (`~/.agents/skills`) install; pick it once per session and reuse it below. Parse the JSON for the worktree `path` and `portBase`, then move the session into the worktree (per the `sessionSwitch` block). The `.env` is already copied - you only *rewrite* it below.
 
 ```bash
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel)")   # main repo name
@@ -48,7 +48,7 @@ SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | tr '/' '-')
 SITE_NAME="$PROJECT_NAME-$SANITIZED_BRANCH"                    # matches .worktrees/<repo>-<feature>
 ```
 
-### 2. Link to Herd — match the source site's scheme
+### 2. Link to Herd - match the source site's scheme
 
 Detect whether the **source** project is secured (don't assume HTTP):
 
@@ -75,7 +75,7 @@ herd secure "$SITE_NAME"     # ⇒ https://$SITE_NAME.test
 ENV=<worktree-path>/.env
 sed -i '' "s|^APP_URL=.*|APP_URL=$SCHEME://$SITE_NAME.test|" "$ENV"
 
-# SESSION_DOMAIN: only set if the source set a real domain (skip when it's null/empty — single-host).
+# SESSION_DOMAIN: only set if the source set a real domain (skip when it's null/empty - single-host).
 grep -qE '^SESSION_DOMAIN=.+' /path/to/main/.env && [ "$(grep '^SESSION_DOMAIN=' /path/to/main/.env)" != "SESSION_DOMAIN=null" ] \
   && sed -i '' "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=$SITE_NAME.test|" "$ENV"
 
@@ -87,7 +87,7 @@ grep -q '^SANCTUM_STATEFUL_DOMAINS=' "$ENV" \
 [ "$SCHEME" = "http" ] && echo "SESSION_SECURE_COOKIE=false" >> "$ENV"
 ```
 
-### 4. Database — isolate or share (Herd Pro footgun)
+### 4. Database - isolate or share (Herd Pro footgun)
 
 On Herd Pro the worktree's copied `.env` points at the **same** shared DB as main. A feature branch running `migrate` / `migrate:fresh` / seeders would mutate your main dev database. Ask (AskUserQuestion in Claude Code; plain-text question elsewhere):
 
@@ -109,24 +109,24 @@ sed -i '' "s|^DB_DATABASE=.*|DB_DATABASE=$DBNAME|" "$ENV"
 # (migrate in step 6)
 ```
 
-### 5. Vite — scheme-aware
+### 5. Vite - scheme-aware
 
 ```bash
 ls <worktree-path>/vite.config.ts <worktree-path>/vite.config.js 2>/dev/null   # detect either
 ```
 
-- **HTTPS site:** `laravel-vite-plugin` auto-detects the Herd TLS cert created by `herd secure` and serves Vite over HTTPS on the right host — leave it to the plugin. Add `server: { cors: true }` only if you actually see cross-origin blocks.
+- **HTTPS site:** `laravel-vite-plugin` auto-detects the Herd TLS cert created by `herd secure` and serves Vite over HTTPS on the right host - leave it to the plugin. Add `server: { cors: true }` only if you actually see cross-origin blocks.
 - **HTTP site:** ensure `server: { host: 'localhost', cors: true }` (do **not** use `0.0.0.0`).
 
 ### 6. Register teardown hook (so `vd:worktree clean`/`remove` cleans Herd + DB)
 
-`vd:worktree` runs `.worktree/hooks/pre-remove` inside the worktree on **both** `remove` and `clean` (env exported: `WORKTREE_NAME`, `WORKTREE_PATH`, `WORKTREE_SOURCE`, …). Write one at setup so the Herd site and any isolated DB are never orphaned — `worktree clean` then handles Laravel teardown for free:
+`vd:worktree` runs `.worktree/hooks/pre-remove` inside the worktree on **both** `remove` and `clean` (env exported: `WORKTREE_NAME`, `WORKTREE_PATH`, `WORKTREE_SOURCE`, …). Write one at setup so the Herd site and any isolated DB are never orphaned - `worktree clean` then handles Laravel teardown for free:
 
 ```bash
 mkdir -p <worktree-path>/.worktree/hooks
 cat > <worktree-path>/.worktree/hooks/pre-remove <<'EOF'
 #!/usr/bin/env bash
-# Herd + DB teardown — runs on `vd:worktree remove` and `clean`. Failure warns, never blocks.
+# Herd + DB teardown - runs on `vd:worktree remove` and `clean`. Failure warns, never blocks.
 set -u
 herd unlink "$WORKTREE_NAME" 2>/dev/null || true
 pkill -f "node.*vite.*$WORKTREE_NAME" 2>/dev/null || true
@@ -140,7 +140,7 @@ EOF
 chmod +x <worktree-path>/.worktree/hooks/pre-remove
 ```
 
-The DB drop is guarded — it never touches the shared/source database, only a per-worktree one created in step 4.
+The DB drop is guarded - it never touches the shared/source database, only a per-worktree one created in step 4.
 
 ### 7. Install, migrate, run
 
@@ -157,14 +157,14 @@ npm run build     # or keep `npm run dev` running while browsing through Herd
 
 Site: `$SCHEME://$SITE_NAME.test`.
 
-## Finishing — delegate, don't reinvent
+## Finishing - delegate, don't reinvent
 
 When work is done, **route to the existing skills** rather than a bespoke PR flow:
 
 - **Ship it:** `vd:ship` (test → review → version → PR) or `vd:git` for a single conventional commit + push from the worktree branch.
 - **Bring changes into main checkout:** `git merge <branch> --no-commit --no-ff` from the main tree, review, commit.
 
-Then clean up through `vd:worktree` — the pre-remove hook from step 6 does the Herd unlink + isolated-DB drop automatically:
+Then clean up through `vd:worktree` - the pre-remove hook from step 6 does the Herd unlink + isolated-DB drop automatically:
 
 ```bash
 node "$WT" remove "$SITE_NAME"   # one worktree: hook → branch → metadata
@@ -172,12 +172,12 @@ node "$WT" remove "$SITE_NAME"   # one worktree: hook → branch → metadata
 node "$WT" clean --yes
 ```
 
-Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` tears down the Herd site and isolated DB for **every** swept worktree — no orphaned `.test` sites or leftover databases. (Stop Vite first if it's still running: `pkill -f "node.*vite"`.)
+Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` tears down the Herd site and isolated DB for **every** swept worktree - no orphaned `.test` sites or leftover databases. (Stop Vite first if it's still running: `pkill -f "node.*vite"`.)
 
 ## Herd Pro notes
 
-- **Shared services:** Pro's MySQL/Postgres/Redis are shared across all sites — DB isolation (step 4) is the main safeguard; Redis/queue can collide too (use a per-worktree `REDIS_PREFIX` / `DB_REDIS` if the branch hits queues).
-- **HTTPS is the Pro default** for team projects — mirror it (steps 2–3), don't force HTTP.
+- **Shared services:** Pro's MySQL/Postgres/Redis are shared across all sites - DB isolation (step 4) is the main safeguard; Redis/queue can collide too (use a per-worktree `REDIS_PREFIX` / `DB_REDIS` if the branch hits queues).
+- **HTTPS is the Pro default** for team projects - mirror it (steps 2–3), don't force HTTP.
 - **Per-site PHP:** `herd isolate <php-version>` inside the worktree if it needs a different PHP than the global default.
 
 ## Common issues
@@ -207,7 +207,7 @@ Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` 
 
 ## CRITICAL: working directory after setup
 
-All subsequent work (edits, artisan, tests, git) MUST use the worktree path. `vd:worktree` enters it by default; stay there. The main checkout is a different copy — editing it changes the wrong files.
+All subsequent work (edits, artisan, tests, git) MUST use the worktree path. `vd:worktree` enters it by default; stay there. The main checkout is a different copy - editing it changes the wrong files.
 
 ## Integration
 

@@ -1,6 +1,6 @@
 // Tiny URL utilities shared by every renderer that links to /view, /browse, /file.
 // `withRoot` appends ?root=<path> so navigation never loses the sidebar's tree
-// root — server keeps using ?root= as the canonical override (resolveTreeRoot
+// root - server keeps using ?root= as the canonical override (resolveTreeRoot
 // in http-server.cjs).
 
 /**
@@ -21,11 +21,11 @@ function withRoot(url, root) {
 /**
  * Inline `<script>` for the page `<head>`. Runs synchronously before body
  * parses, so a redirect (when the URL lacks ?root=) happens before any paint
- * — no flash on click. Resolution preference when ?root= is absent:
+ * - no flash on click. Resolution preference when ?root= is absent:
  *   1. On reload / back-forward: stored localStorage root (preserve where
- *      the user was — the whole point of persistence).
+ *      the user was - the whole point of persistence).
  *   2. On fresh navigation (typed URL, external launcher, link without
- *      propagated root): derive from URL — dir-as-root, or file's parent.
+ *      propagated root): derive from URL - dir-as-root, or file's parent.
  *      This anchors the tree at the file the user just opened, even if a
  *      stale localStorage value points elsewhere.
  *   3. Stored value as a last resort.

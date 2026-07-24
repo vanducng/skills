@@ -1,4 +1,4 @@
-"""`twitter fetch <url|@user|search:...>` — read tweets, user feeds, or search."""
+"""`twitter fetch <url|@user|search:...>` - read tweets, user feeds, or search."""
 from __future__ import annotations
 
 import argparse

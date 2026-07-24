@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-vd:diagram — generate diagrams from natural-language descriptions via OpenRouter.
+vd:diagram - generate diagrams from natural-language descriptions via OpenRouter.
 
 Run with:  ~/.claude/skills/.venv/bin/python3 scripts/generate.py "<description>"
 """
@@ -98,7 +98,7 @@ def find_artifact_root(start: Path | None = None) -> Path | None:
 
     Equals find_git_root in a normal checkout; from inside a linked worktree it
     points back to the main checkout (first entry of `git worktree list`). Use for
-    non-tracked outputs (.diagrams, .workbench/visuals) — NOT for docs/ which stay local.
+    non-tracked outputs (.diagrams, .workbench/visuals) - NOT for docs/ which stay local.
     """
     git_root = find_git_root(start)
     if git_root is None:
@@ -455,7 +455,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="codex",
         help=(
             "PNG image provider. codex (default): gpt-image-2 via Codex CLI / "
-            "ChatGPT subscription — cost-optimized, falls back to OpenRouter if "
+            "ChatGPT subscription - cost-optimized, falls back to OpenRouter if "
             "codex is unavailable. openrouter: gpt-5.4-image-2 via OpenRouter API."
         ),
     )
@@ -650,7 +650,7 @@ def _produce_svg_skeleton(
     if vreport.needs_revise and revise:
         print(f"→ {len(vreport.blocking_issues)} issue(s); one revise pass…", flush=True)
         coords_locked_banner = (
-            "COORDINATES ARE LOCKED — DO NOT MOVE, RESIZE, OR REORDER ANY "
+            "COORDINATES ARE LOCKED - DO NOT MOVE, RESIZE, OR REORDER ANY "
             "ELEMENT. Resolve issues only via colors / line weights / decoration / "
             "<style> changes. Preserve every (x, y, width, height) and every "
             "data-name/data-bbox attribute exactly as supplied.\n\n"
@@ -847,7 +847,7 @@ def main(argv: list[str] | None = None) -> int:
         session_dir = find_latest_session(parent_dir)
         if session_dir is None:
             print(
-                "no prior session — drop --regen and pass a description",
+                "no prior session - drop --regen and pass a description",
                 file=sys.stderr,
             )
             return 1
@@ -929,7 +929,7 @@ def main(argv: list[str] | None = None) -> int:
     # Default + --new branches require a description
     if not args.description:
         print(
-            "no description and no --regen — pass a description or use --regen with feedback",
+            "no description and no --regen - pass a description or use --regen with feedback",
             file=sys.stderr,
         )
         return 1
@@ -942,7 +942,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.type is None:
         print(f"→ type: {diagram_type} (confidence {confidence:.2f})", flush=True)
         if confidence < 0.6:
-            print(f"  (low confidence — pass --type to override; choices: {', '.join(SUPPORTED_TYPES)})", flush=True)
+            print(f"  (low confidence - pass --type to override; choices: {', '.join(SUPPORTED_TYPES)})", flush=True)
     else:
         print(f"→ type: {diagram_type}", flush=True)
 

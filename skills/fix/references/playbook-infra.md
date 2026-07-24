@@ -1,4 +1,4 @@
-# Playbook — Infra (CI/CD + Terraform + K8s)
+# Playbook - Infra (CI/CD + Terraform + K8s)
 
 Load this when the failure is in a CI pipeline, Terraform plan/apply, K8s deployment, or related infra surface (secrets, networking, image build).
 
@@ -9,7 +9,7 @@ Load this when the failure is in a CI pipeline, Terraform plan/apply, K8s deploy
 - **What changed?** Git diff on the workflow / `.tf` / Helm values / kustomize overlays; also check provider/action version bumps.
 - **Drift?** `terraform plan -refresh-only`; `kubectl diff -f manifest.yaml`; compare deployed image SHA against the latest build.
 
-## CI/CD (GitHub Actions) — fix patterns
+## CI/CD (GitHub Actions) - fix patterns
 
 | Symptom | Likely cause | Fix shape |
 |---|---|---|
@@ -28,12 +28,12 @@ gh run view <run-id> --log-failed | less
 ```
 Verify in a separate "test" branch before merging the workflow change.
 
-## Terraform / IaC — fix patterns
+## Terraform / IaC - fix patterns
 
 | Symptom | Likely cause | Fix shape |
 |---|---|---|
 | `plan` shows unexpected drift | Console change / out-of-band script / provider upgrade | Decide: reconcile to code (`apply`) vs reconcile code to reality (`import` or update HCL). Document choice in commit. |
-| `apply` errors mid-resource | Dependency cycle / partial create / quota | Targeted apply (`-target`) to break the cycle, then untargeted apply. Use sparingly — leaves state messy. |
+| `apply` errors mid-resource | Dependency cycle / partial create / quota | Targeted apply (`-target`) to break the cycle, then untargeted apply. Use sparingly - leaves state messy. |
 | Provider auth fails | Expired creds / role assumption failed / region mismatch | Verify creds locally before changing IAM. Check assumed-role chain. |
 | `for_each` collection changed | Underlying map changed shape, plan wants destroy+create | Add a `moved {}` block to migrate state without destroy. |
 | State lock stuck | Crashed apply / lost lease | Verify nobody is mid-apply; `force-unlock` only with the exact lock ID, never blindly. |
@@ -43,7 +43,7 @@ Verify in a separate "test" branch before merging the workflow change.
 **Hard rules:**
 - Never run `terraform destroy` or `state rm` under `--auto`. Require explicit user confirmation, always.
 - Always preview with `plan` before `apply`. Save the plan (`-out tfplan`) and apply *that exact plan* to avoid race-condition surprises.
-- Production after staging — never the other way around.
+- Production after staging - never the other way around.
 
 **Terraform verification:**
 ```
@@ -53,7 +53,7 @@ terraform plan -out tfplan && terraform show tfplan
 # apply in lower env first, watch outputs
 ```
 
-## K8s — fix patterns
+## K8s - fix patterns
 
 | Symptom | Likely cause | Fix shape |
 |---|---|---|
@@ -63,7 +63,7 @@ terraform plan -out tfplan && terraform show tfplan
 | Pod stuck `Pending` | No node satisfies requests / PVC unbound / taint | `kubectl describe pod` → scheduler events tell you which constraint failed. |
 | `NetworkPolicy` denies traffic | Policy too tight or selector mismatch | Confirm with `kubectl exec` from source pod; fix policy at the source, not by punching a wildcard hole. |
 | Secret rotation didn't take effect | Pod cached old secret at boot | Restart the deployment (`kubectl rollout restart deploy/<name>`). For mounted secrets, the kubelet refreshes async; restart is the simple verifier. |
-| Service routes to wrong pods | Selector mismatch after label change | `kubectl get endpoints <svc>` — empty endpoints = selector wrong. |
+| Service routes to wrong pods | Selector mismatch after label change | `kubectl get endpoints <svc>` - empty endpoints = selector wrong. |
 | `kubectl apply` works, app misbehaves | Hot-reload didn't trigger / config map change but no rollout | Annotate deployment to force rollout (`kubectl rollout restart`). Add a checksum annotation in Helm chart to fix forever. |
 
 **K8s verification:**
@@ -74,7 +74,7 @@ kubectl logs deploy/<name> --previous          # confirm no crash loop
 kubectl get events --sort-by=.lastTimestamp | tail -30
 kubectl describe deploy/<name> | grep -A 5 Conditions
 ```
-Then exercise the workload (request, job, consumer) — running ≠ working.
+Then exercise the workload (request, job, consumer) - running ≠ working.
 
 ## Cross-cutting
 

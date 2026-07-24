@@ -11,13 +11,13 @@ metadata:
 # vd:diagram
 
 Turn natural-language descriptions into reviewable diagram images and version-controlled diagram artifacts. Two render paths:
-- **PNG** (default): generates the image. Default image provider is **codex** (`gpt-image-2` via your ChatGPT subscription — cost-optimized, no per-image API spend), with automatic fallback to OpenRouter `gpt-5.4-image-2` when codex is unavailable and an OpenRouter key is set. Force the API path with `--provider openrouter`. With `--provider codex` and an explicit `--type`, no `OPEN_ROUTER_KEY` / `OPENROUTER_API_KEY` is required.
+- **PNG** (default): generates the image. Default image provider is **codex** (`gpt-image-2` via your ChatGPT subscription - cost-optimized, no per-image API spend), with automatic fallback to OpenRouter `gpt-5.4-image-2` when codex is unavailable and an OpenRouter key is set. Force the API path with `--provider openrouter`. With `--provider codex` and an explicit `--type`, no `OPEN_ROUTER_KEY` / `OPENROUTER_API_KEY` is required.
 - **SVG** (`--format svg`): the LLM emits the SVG markup directly. Cheaper, crisper labels, hand-editable.
 
 Use `--versioned` only when the diagram source, variants, and manifest are themselves review artifacts for an ADR/spec/PR. It writes a stable folder under `docs/diagrams/<slug>/` with:
-- `diagram.spec.yaml` — reviewable source intent (type, preset, engine, description, latest variant)
-- `manifest.json` — deterministic metadata for automation
-- `v1.svg`, `v2.svg`, ... or `v1.png`, `v2.png`, ... — rendered variants
+- `diagram.spec.yaml` - reviewable source intent (type, preset, engine, description, latest variant)
+- `manifest.json` - deterministic metadata for automation
+- `v1.svg`, `v2.svg`, ... or `v1.png`, `v2.png`, ... - rendered variants
 
 For a diagram that merely illustrates a docs page, keep the generation session in the injected `Visuals:` path, copy the final rendered image into the docs' local assets folder (for example `docs/design/assets/<slug>.svg`), and link that one asset from Markdown. Do not create `docs/diagrams/` just because a docs page references an image.
 
@@ -68,7 +68,7 @@ Cytoscape.js with a fully interactive graph:
 - **selectable highlight depth** (1 / 2 / 3 / All hops; default 1) for the chain
 - **hide/show individual entities** (card `×` to hide; sidebar eye or "show N hidden" to restore)
 - **find-path** between two tables (shortest FK chain, highlighted with join columns)
-- **schema insights** panel (missing PK, FK type mismatch, unindexed FK, orphan tables — click to jump to the table)
+- **schema insights** panel (missing PK, FK type mismatch, unindexed FK, orphan tables - click to jump to the table)
 - **shareable URL** (filters/selection encoded in the link) + **saved layout** (dragged positions persist per schema in localStorage)
 - **group hulls** (colored regions behind domain groups) + a **minimap** (click/drag to navigate)
 - **double-click** a table → details drawer (columns, types, PK/FK/audit badges, FK targets + `ON DELETE` rules, incoming references, indexes, row counts)
@@ -90,7 +90,7 @@ psql "$DSN" -t -A -c "$(python3 $HOME/skills/skills/diagram/scripts/er_html.py -
 MYSQL_PWD="$DB_PASS" mysql -N --raw -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -D "$DB_NAME" \
   -e "$(python3 $HOME/skills/skills/diagram/scripts/er_html.py --print-sql --dialect mysql)" > schema.json
 
-# 2. (optional) write meta.json — domain groups, classifications, descriptions, framework_tables, audit_columns
+# 2. (optional) write meta.json - domain groups, classifications, descriptions, framework_tables, audit_columns
 #    (add "database_type": "MySQL" so --emit-dbml labels the Project correctly)
 #    see the docstring in er_html.py for the shape
 
@@ -105,7 +105,7 @@ python3 $HOME/skills/skills/diagram/scripts/er_html.py \
 The generator round-trips with **DBML**:
 
 ```bash
-# export our schema → DBML (no deps) — publish with `dbdocs build`, or paste into dbdiagram.io
+# export our schema → DBML (no deps) - publish with `dbdocs build`, or paste into dbdiagram.io
 er_html.py --schema schema.json --meta meta.json --emit-dbml schema.dbml
 
 # import a .dbml → our schema JSON → interactive HTML (needs @dbml/core: npm i @dbml/core)
@@ -119,7 +119,7 @@ er_html.py --schema schema.json -o erd.html
 So: **DB → DBML** via our `--emit-dbml` (from introspected JSON) or `db2dbml`; **DBML → our HTML** via `dbml_to_schema.mjs`. The DBML carries tables, columns (pk/not null), `Ref … [delete: …]`, and domain `TableGroup`s.
 
 Schema JSON is DB-agnostic (any source that emits the documented shape works). `meta.json` is
-optional but recommended — it drives the colored domain groups, the write-pattern classification
+optional but recommended - it drives the colored domain groups, the write-pattern classification
 shown in the docs drawer, and which tables are hidden as "framework" by default. When to use this
 vs the image/SVG `er` type: **HTML** for living schema docs you click through and filter; **SVG**
 (`--type er --format svg --versioned`) for a static, diffable diagram in a PR/RFC.
@@ -136,12 +136,12 @@ Get an OpenRouter key at <https://openrouter.ai/settings/keys>. Codex PNG genera
 
 ## How it works
 
-1. **Parse args** — description + flags.
-2. **Resolve session dir** — `VD_VISUALS_PATH` when set, else the current repo's resolved workbench visuals path, else `<git-root>/.diagrams/<YYYYMMDD-HHMM>-<slug>/`. Outside a git repo: `~/Documents/llm-diagrams/<cwd>-<slug>/`.
-3. **Classify type** — if `--type` not provided, OpenRouter classifies into one of 8 types.
-4. **Load refs** — preset style tokens, `references/style-foundations.md`, `references/composition-rules.md`, `references/types/<type>.md`, plus `references/svg-contract.md` for SVG runs.
-5. **Prompt OR emit** — PNG: build a Codex prompt locally, or refine through OpenRouter when using `--provider openrouter`. SVG: LLM emits markup directly.
-6. **Save** — scratch mode writes `v1.png` / `v1.svg` + `prompt.md` + `meta.json`; versioned mode also writes `diagram.spec.yaml` + `manifest.json`. Spawn the file-browser gallery.
+1. **Parse args** - description + flags.
+2. **Resolve session dir** - `VD_VISUALS_PATH` when set, else the current repo's resolved workbench visuals path, else `<git-root>/.diagrams/<YYYYMMDD-HHMM>-<slug>/`. Outside a git repo: `~/Documents/llm-diagrams/<cwd>-<slug>/`.
+3. **Classify type** - if `--type` not provided, OpenRouter classifies into one of 8 types.
+4. **Load refs** - preset style tokens, `references/style-foundations.md`, `references/composition-rules.md`, `references/types/<type>.md`, plus `references/svg-contract.md` for SVG runs.
+5. **Prompt OR emit** - PNG: build a Codex prompt locally, or refine through OpenRouter when using `--provider openrouter`. SVG: LLM emits markup directly.
+6. **Save** - scratch mode writes `v1.png` / `v1.svg` + `prompt.md` + `meta.json`; versioned mode also writes `diagram.spec.yaml` + `manifest.json`. Spawn the file-browser gallery.
 
 ## Diagram types
 
@@ -154,21 +154,21 @@ Get an OpenRouter key at <https://openrouter.ai/settings/keys>. Codex PNG genera
 | `er-diagram` | `er` | entities, tables, relationships, schema |
 | `state-machine` | `state` | states, transitions, lifecycle, status |
 | `c4-context` | `c4` | system in its environment, external users + systems |
-| `c4-container` | — | internal containers (web, api, db, queue) inside a system |
+| `c4-container` | - | internal containers (web, api, db, queue) inside a system |
 
 ## Flags
 
 | Flag | Default | Notes |
 | --- | --- | --- |
-| `description` (positional) | — | Free-text. Required unless `--regen`. |
+| `description` (positional) | - | Free-text. Required unless `--regen`. |
 | `--type` | auto-classify | One of the 8 types or an alias. |
 | `--preset` | `warm` | Visual style: `warm`, `mono`, `pastel`, `cyberpunk`. See "Style presets" below. |
 | `--format` | `png` | `png` or `svg`. |
-| `--provider` | `codex` | PNG image backend. `codex`: `gpt-image-2` via ChatGPT subscription — cost-optimized, OpenRouter fallback. `openrouter`: `gpt-5.4-image-2` via API. |
+| `--provider` | `codex` | PNG image backend. `codex`: `gpt-image-2` via ChatGPT subscription - cost-optimized, OpenRouter fallback. `openrouter`: `gpt-5.4-image-2` via API. |
 | `--quality` | `medium` | `low`, `medium`, `high`. PNG only; OpenRouter passes through. |
 | `--aspect-ratio` | `16:9` | PNG only. |
 | `--reference-image` | none | Attach a draft/screenshot to Codex PNG generation; repeat for multiple images. Ignored by SVG and OpenRouter fallback. |
-| `--regen "<feedback>"` | — | Iterate on the most recent session. Inherits preset/type/format from prior session. |
+| `--regen "<feedback>"` | - | Iterate on the most recent session. Inherits preset/type/format from prior session. |
 | `--new` | off | Force a fresh session even when a recent one exists. |
 | `--no-open` | off | Skip auto-opening the browser tab. |
 | `--slug` | derived | Override the slug in the session dir name. |
@@ -202,13 +202,13 @@ All presets share the same iconography, line weights, density limits, and label-
 | Preset | Surface | Primary | Accent | When to pick it |
 | --- | --- | --- | --- | --- |
 | `warm` (default) | cream `#faf8f3` | deep slate | warm amber | Pitch decks, design docs, blog hero images, internal architecture write-ups |
-| `mono` | white `#ffffff` | near-black | none — uses 3.5px border + `[Subject]` tag for highlight | PR-diffable engineering docs, B&W print, technical specs, RFCs |
+| `mono` | white `#ffffff` | near-black | none - uses 3.5px border + `[Subject]` tag for highlight | PR-diffable engineering docs, B&W print, technical specs, RFCs |
 | `pastel` | slate-50 `#f8fafc` | slate-800 | sky-600 | PowerPoint, executive presentations, customer-facing docs, marketing |
 | `cyberpunk` | near-black `#0a0e1a` | slate-200 | neon cyan + glow | Conference slides, demo videos, dev-tool launch graphics, OG/social |
 
 **Customizing a preset:** edit `references/presets/<name>/style-tokens.md`. Palette + aesthetic + CSS-vars block live there. Iconography and rules live in shared `style-foundations.md` and `composition-rules.md`.
 
-**Adding a new preset:** create `references/presets/<your-name>/style-tokens.md` following the warm template, then add the name to `SUPPORTED_PRESETS` in `scripts/generate.py`. No other code changes needed — type refs are preset-agnostic.
+**Adding a new preset:** create `references/presets/<your-name>/style-tokens.md` following the warm template, then add the name to `SUPPORTED_PRESETS` in `scripts/generate.py`. No other code changes needed - type refs are preset-agnostic.
 
 ## Output location
 
@@ -220,11 +220,11 @@ Scratch (non-versioned) output: write to `VD_VISUALS_PATH` when set; otherwise u
 Inside a git repo, scratch output is auto-ignored by the `.gitignore` managed in the resolved visuals/session parent. Your repo's root `.gitignore` is never touched.
 
 Each session dir contains:
-- `v1.<png|svg>`, `v2.<png|svg>`, … — the variants
-- `prompt.md` — original description, refined prompt, iteration history
-- `meta.json` — type, format, models, original description, list of variant filenames
-- `diagram.spec.yaml` — versioned mode only; source intent for code review
-- `manifest.json` — versioned mode only; latest variant + deterministic metadata
+- `v1.<png|svg>`, `v2.<png|svg>`, … - the variants
+- `prompt.md` - original description, refined prompt, iteration history
+- `meta.json` - type, format, models, original description, list of variant filenames
+- `diagram.spec.yaml` - versioned mode only; source intent for code review
+- `manifest.json` - versioned mode only; latest variant + deterministic metadata
 
 See `references/versioned-artifacts.md` for artifact conventions and review workflow.
 
@@ -241,10 +241,10 @@ Repo-relative paths are fine as secondary context, but the final handoff must in
 
 ## Iteration: `--regen` vs `--new`
 
-- `--regen "<feedback>"` — finds the **most recent** session under the current resolved scratch parent, re-uses its type and format, appends `<feedback>` to the original description, drops `v2.<ext>` (or `v3`, `v4`, …) alongside the original. The positional description is ignored when `--regen` is used.
-- `--versioned --regen "<feedback>"` — same iteration behavior, but searches `docs/diagrams/` and updates `diagram.spec.yaml` / `manifest.json` to point at the newest variant.
-- `--new` — forces a fresh session dir even if a recent one exists. Requires a positional description.
-- Default — creates a new session dir from the current description.
+- `--regen "<feedback>"` - finds the **most recent** session under the current resolved scratch parent, re-uses its type and format, appends `<feedback>` to the original description, drops `v2.<ext>` (or `v3`, `v4`, …) alongside the original. The positional description is ignored when `--regen` is used.
+- `--versioned --regen "<feedback>"` - same iteration behavior, but searches `docs/diagrams/` and updates `diagram.spec.yaml` / `manifest.json` to point at the newest variant.
+- `--new` - forces a fresh session dir even if a recent one exists. Requires a positional description.
+- Default - creates a new session dir from the current description.
 
 `--regen` reads `meta.json` for type/format/original-description, so SVG sessions regen as SVG and PNG sessions regen as PNG automatically.
 
@@ -262,12 +262,12 @@ Repo-relative paths are fine as secondary context, but the final handoff must in
 ## Customizing styles
 
 Every diagram inherits from:
-- `references/style-foundations.md` — palette, typography, iconography, line weights (per-preset palette overrides in `references/presets/<name>/style-tokens.md`)
-- `references/composition-rules.md` — whitespace, hierarchy, label placement, density
-- `references/types/<type>.md` — type-specific prompt template + golden examples
-- `references/svg-contract.md` — SVG output schema (only loaded when `--format svg`)
+- `references/style-foundations.md` - palette, typography, iconography, line weights (per-preset palette overrides in `references/presets/<name>/style-tokens.md`)
+- `references/composition-rules.md` - whitespace, hierarchy, label placement, density
+- `references/types/<type>.md` - type-specific prompt template + golden examples
+- `references/svg-contract.md` - SVG output schema (only loaded when `--format svg`)
 
-Edit these once and every future diagram inherits the change. Keep type refs ≤120 lines — they are prompt fuel, not documentation.
+Edit these once and every future diagram inherits the change. Keep type refs ≤120 lines - they are prompt fuel, not documentation.
 
 ## Limitations
 

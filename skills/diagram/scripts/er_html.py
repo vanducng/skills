@@ -156,7 +156,7 @@ def emit_dbml(schema: list[dict], meta: dict) -> str:
                 seg += f" [{', '.join(s)}]"
             out.append(seg)
         out.append("}\n")
-    # relationships (long form, with ON DELETE) — child.col > parent.col (many-to-one); composite = one Ref
+    # relationships (long form, with ON DELETE) - child.col > parent.col (many-to-one); composite = one Ref
     for t in sorted(schema, key=lambda x: x["table"]):
         groups: dict[str, dict] = {}
         for f in t.get("fks") or []:
@@ -184,7 +184,7 @@ def _esc(s: str) -> str:
 
 
 def build_html(schema: list[dict], meta: dict, *, cdn: bool) -> str:
-    title = meta.get("title", "Database — Entity Relationship Diagram")
+    title = meta.get("title", "Database - Entity Relationship Diagram")
     payload = json.dumps({"schema": schema, "meta": meta}, separators=(",", ":"))
     if cdn:
         head_libs = f'<script src="{CYTO_URL}"></script>\n<script src="{NHL_URL}"></script>'
@@ -544,7 +544,7 @@ function cardCols(t){
     return `<div class="erd-col${ht}" title="${esc(c.column)}: ${esc(c.udt||c.type||'')}"><span class="g ${k}">${g}</span><span class="cn">${esc(c.column)}</span><span class="ct">${esc(shortType(c))}</span></div>`;
   }).join('');
   let n=shown.length;
-  if(list.length>max){ html+=`<div class="erd-col more erd-exp" data-tbl="${t.table}">+${list.length-max} more — show all</div>`; n++; }
+  if(list.length>max){ html+=`<div class="erd-col more erd-exp" data-tbl="${t.table}">+${list.length-max} more - show all</div>`; n++; }
   else if(exp && t.columns.length>6){ html+=`<div class="erd-col more erd-exp" data-tbl="${t.table}">collapse</div>`; n++; }
   return {html,n};
 }
@@ -712,7 +712,7 @@ function updateStats(){
 function focusNode(name){ if(!cy)return; const n=cy.$('#'+CSS.escape(name)); if(n.nonempty()) cy.animate({center:{eles:n},zoom:Math.max(cy.zoom(),0.85)},{duration:250}); }
 
 /* ---- cytoscape ---- */
-// fit, but keep the initial zoom legible — fit-to-all on a spread layout can zoom so far out that card columns become unreadable
+// fit, but keep the initial zoom legible - fit-to-all on a spread layout can zoom so far out that card columns become unreadable
 function fitView(){ cy.fit(undefined,45); const z=cy.zoom(), c=Math.max(0.55,Math.min(1.1,z)); if(c!==z) cy.zoom({level:c,renderedPosition:{x:cy.width()/2,y:cy.height()/2}}); }
 function runLayout(){ cy.layout({name:'cose',animate:false,padding:50,nodeRepulsion:14000,idealEdgeLength:190,
   nodeDimensionsIncludeLabels:true,randomize:true,componentSpacing:140,gravity:0.25}).run(); fitView(); }
@@ -751,7 +751,7 @@ function boot(){
   document.getElementById('hint').style.display='block';
 }
 function fillPathSelects(){
-  const opts='<option value="">— table —</option>'+SCHEMA.map(t=>t.table).sort().map(t=>`<option value="${t}">${t}</option>`).join('');
+  const opts='<option value=""> - table - </option>'+SCHEMA.map(t=>t.table).sort().map(t=>`<option value="${t}">${t}</option>`).join('');
   document.getElementById('pathFrom').innerHTML=opts; document.getElementById('pathTo').innerHTML=opts;
 }
 
@@ -800,7 +800,7 @@ function computeInsights(){
 function openInsights(){
   const issues=computeInsights(), order=['Missing primary key','FK type mismatch','Unindexed FK','Orphan table'], byg={};
   issues.forEach(i=>(byg[i.grp]=byg[i.grp]||[]).push(i));
-  let h= issues.length? '' : '<div class="ins-ok">✓ No issues — every table has a PK, FK types match parents, and FKs are indexed.</div>';
+  let h= issues.length? '' : '<div class="ins-ok">✓ No issues - every table has a PK, FK types match parents, and FKs are indexed.</div>';
   order.forEach(g=>{ const arr=byg[g]; if(!arr||!arr.length)return;
     h+=`<div class="ins-grp">${g} (${arr.length})</div>`;
     arr.forEach(i=>{ h+=`<div class="ins-row" data-t="${esc(i.table)}"><span class="ins-sev ${i.sev}"></span><span class="tb">${esc(i.table)}</span><span class="ms">${esc(i.msg)}</span></div>`; }); });
@@ -936,7 +936,7 @@ window.addEventListener('mouseup',()=>{_mmDrag=false;});
 // expand/collapse all columns on a single entity (header ⊕ or the "+N more" row)
 document.addEventListener('pointerdown',e=>{ const ex=e.target.closest('.erd-exp'); if(!ex)return;
   e.stopPropagation(); const t=ex.dataset.tbl; state.expanded.has(t)?state.expanded.delete(t):state.expanded.add(t); renderCards(); },true);
-// hide a single entity (header ×) — restore via the sidebar eye or "show N hidden"
+// hide a single entity (header ×) - restore via the sidebar eye or "show N hidden"
 document.addEventListener('pointerdown',e=>{ const h=e.target.closest('.erd-hide'); if(!h)return;
   e.stopPropagation(); state.hidden.add(h.dataset.tbl); refreshClasses(); buildTableList(); },true);
 $('dClose').addEventListener('click',closeDocs);

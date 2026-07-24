@@ -1,6 +1,6 @@
 type: c4-context
 preset: warm
-title: "Banking app — system context"
+title: "Banking app - system context"
 groups:
   - name: users
     label: "Users"

@@ -103,7 +103,7 @@ python3 ~/.claude/skills/marketing-design/scripts/icon/generate.py --list-catego
 ## Model
 
 - **gemini-3.1-pro-preview**: Best thinking, token efficiency, factual consistency
-- Text-only output (SVG is XML text) — no image generation API needed
+- Text-only output (SVG is XML text) - no image generation API needed
 - Supports structured output for consistent SVG formatting
 
 ## Workflow

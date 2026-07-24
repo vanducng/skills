@@ -16,7 +16,7 @@ Identify bottlenecks, analyze query performance, develop optimization strategies
 
 ### 1. Quantify
 
-Measure before optimizing. Establish baseline and current state — with numbers.
+Measure before optimizing. Establish baseline and current state - with numbers.
 
 - Expected vs actual response time?
 - When did degradation start? (Correlate with deploys, model changes, data volume.)
@@ -43,7 +43,7 @@ Request → Network → Web server → App → Cache → Database / Warehouse �
 | Filesystem | I/O wait, disk usage | `iostat`, `df -h`, `du -sh` |
 | External APIs | Response time, timeouts, retries | Request logging with durations, vendor status |
 
-## Database — Postgres / MySQL / MariaDB
+## Database - Postgres / MySQL / MariaDB
 
 ### Postgres slow queries
 
@@ -94,7 +94,7 @@ Look for: sequential scans on large tables, nested loops with high row counts, s
 SELECT * FROM pg_locks WHERE NOT granted;
 ```
 
-## Warehouse — BigQuery / Snowflake / Redshift
+## Warehouse - BigQuery / Snowflake / Redshift
 
 ### BigQuery
 
@@ -109,9 +109,9 @@ bq show -j <job_id>     # job stats: bytes processed, slot ms, plan
 
 Look for:
 
-- **Bytes scanned** — partition/cluster pruning working?
-- **Slot ms** — long-running stages, hot stages
-- **Stage skew** — one stage doing 90% of the work → reshuffle / repartition
+- **Bytes scanned** - partition/cluster pruning working?
+- **Slot ms** - long-running stages, hot stages
+- **Stage skew** - one stage doing 90% of the work → reshuffle / repartition
 - **Reading the same table multiple times** in one query → CTE materialization, intermediate table
 
 ### Snowflake
@@ -152,10 +152,10 @@ Then `SELECT system$explain_plan_json('<sql>');` or use the Query Profile UI for
 
 **Priority order:**
 
-1. **Quick wins** — missing index, fix N+1, enable cache, partition pruning, broadcast join
-2. **Configuration** — pool sizes, timeouts, buffer sizes, worker count, DAG concurrency
-3. **Code / SQL changes** — algorithm, data structure, model materialization (table vs incremental vs view)
-4. **Architecture** — caching layer, read replica, async processing, CDN, columnar store, materialized view
+1. **Quick wins** - missing index, fix N+1, enable cache, partition pruning, broadcast join
+2. **Configuration** - pool sizes, timeouts, buffer sizes, worker count, DAG concurrency
+3. **Code / SQL changes** - algorithm, data structure, model materialization (table vs incremental vs view)
+4. **Architecture** - caching layer, read replica, async processing, CDN, columnar store, materialized view
 
 **Always:** measure after each change. One change at a time.
 
@@ -167,4 +167,4 @@ Include in the diagnostic:
 - **Bottleneck identified** with evidence (plan, profile, log snippet)
 - **Root cause** explanation
 - **Recommended fixes** with expected impact and effort
-- **Verification plan** — how to confirm improvement landed
+- **Verification plan** - how to confirm improvement landed

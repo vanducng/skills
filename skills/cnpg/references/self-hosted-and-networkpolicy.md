@@ -1,7 +1,7 @@
 # Self-hosted CNPG (no cloud Workload Identity) + NetworkPolicy
 
 Companion to the main `cnpg` skill for clusters that are **not** on a managed
-cloud with Workload Identity — e.g. K3s / bare-metal / VPS with an
+cloud with Workload Identity - e.g. K3s / bare-metal / VPS with an
 S3-compatible object store (MinIO, Ceph/RGW, SeaweedFS, Backblaze B2,
 Cloudflare R2). Placeholders: `<s3-endpoint>`, `<backups-bucket>`,
 `<objstore-secret>`, `<cluster>`, `<ns>`, `<svc>`, `<db>`, `<owner>`,
@@ -11,7 +11,7 @@ Cloudflare R2). Placeholders: `<s3-endpoint>`, `<backups-bucket>`,
 
 There is no `<ns>/<cluster>` IAM binding and no Terraform. barman authenticates
 to the object store with an access key from a k8s Secret. Encrypt it (SOPS+age,
-sealed-secrets, or your tool) — never commit plaintext.
+sealed-secrets, or your tool) - never commit plaintext.
 
 ```yaml
 # <objstore-secret>.enc.yaml  (SOPS-encrypted; data/stringData only)
@@ -37,7 +37,7 @@ metadata:
     reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
 ```
 
-## 2. Two ways to wire barman to S3 — prefer the plugin
+## 2. Two ways to wire barman to S3 - prefer the plugin
 
 CNPG is moving Barman Cloud support **out of core into a plugin**. Inline
 `spec.backup.barmanObjectStore` still works but is **deprecated** (slated for
@@ -48,7 +48,7 @@ removal ~CNPG 1.28). On a fresh self-hosted cluster, use the plugin.
 Install the barman-cloud plugin once (operator-side), then per DB:
 
 ```yaml
-# objectstore.yaml — the S3 destination, referenced by the Cluster
+# objectstore.yaml - the S3 destination, referenced by the Cluster
 apiVersion: barmancloud.cnpg.io/v1
 kind: ObjectStore
 metadata:
@@ -74,7 +74,7 @@ spec:
         barmanObjectName: <svc>-s3-store
 ```
 
-### 2b. Inline model (legacy / deprecated — for older operators)
+### 2b. Inline model (legacy / deprecated - for older operators)
 
 ```yaml
 spec:
@@ -126,10 +126,10 @@ Secret), `storageClass: local-path` instead of `premium-rwo`, `local-path` is
 node-bound so a single-instance cluster is pinned to one node (no cross-node
 reschedule without replication or a networked storage class).
 
-## 4. NetworkPolicy — REQUIRED on default-deny clusters
+## 4. NetworkPolicy - REQUIRED on default-deny clusters
 
 If the cluster enforces default-deny (any policy selecting a pod implies
-deny-all for it), CNPG **silently breaks** without explicit allows — barman
+deny-all for it), CNPG **silently breaks** without explicit allows - barman
 egress to the object store fails, DNS fails, replicas can't reach the primary.
 Match the resource KIND to the CNI:
 
@@ -149,7 +149,7 @@ Match the resource KIND to the CNI:
 | Egress | kube-system (CoreDNS) | 53/UDP+TCP | service-name resolution |
 | Egress | kube-apiserver | all | operator/instance API calls |
 | Egress | same namespace | all | replication |
-| Egress | **`<service-cidr>`** | all | **Cilium eBPF kube-proxy replacement** — ClusterIP services live in a virtual CIDR (K3s default `10.43.0.0/16`), not as pods; without this, in-cluster service access silently fails |
+| Egress | **`<service-cidr>`** | all | **Cilium eBPF kube-proxy replacement** - ClusterIP services live in a virtual CIDR (K3s default `10.43.0.0/16`), not as pods; without this, in-cluster service access silently fails |
 
 ### Cilium example (the load-bearing egress allows)
 
@@ -167,7 +167,7 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
       toPorts: [{ ports: [{ port: "53", protocol: UDP }, { port: "53", protocol: TCP }] }]
     - toEndpoints: [{}]                         # same-namespace (replication)
-    - toCIDR: ["10.43.0.0/16"]                  # <service-cidr> — ClusterIP via eBPF
+    - toCIDR: ["10.43.0.0/16"]                  # <service-cidr> - ClusterIP via eBPF
     - toEntities: [kube-apiserver]
 ---
 apiVersion: cilium.io/v2
@@ -216,7 +216,7 @@ spec:
 Also give the **operator** (`cnpg-system`) its own policy: ingress from
 kube-apiserver (webhook :9443) + monitoring (:8080); egress to the DB namespaces,
 kube-apiserver, DNS, and the service CIDR. And remember the host firewall
-(UFW/iptables on bare metal) is a separate layer from k8s NetworkPolicy — both
+(UFW/iptables on bare metal) is a separate layer from k8s NetworkPolicy - both
 must allow the traffic (e.g. node ports for the CNI overlay/VXLAN, kubelet :10250).
 
 ## 5. Self-hosted verification deltas

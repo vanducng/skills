@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# probe-context-pct.sh — feature-detect context utilization probe.
+# probe-context-pct.sh - feature-detect context utilization probe.
 #
 # Sources, in priority order:
 #   1. Statusline payload via STATUSLINE_JSON env var (if hook-injected)
 #   2. tiktoken estimate over current transcript (if available)
-#   3. Unknown — caller should skip phase-restart and rely on native auto-compact
+#   3. Unknown - caller should skip phase-restart and rely on native auto-compact
 #
 # Usage: probe-context-pct.sh
 # Stdout: JSON `{"pct": <int>, "source": "statusline|tiktoken|unknown"}`

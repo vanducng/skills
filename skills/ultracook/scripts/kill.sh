@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kill.sh — write state.terminal=abandoned for a ultracook goal.
+# kill.sh - write state.terminal=abandoned for a ultracook goal.
 #
 # If a .ultracook/delegated-to-auto-loop.json marker exists, kill.sh ALSO emits
 # a hint that SKILL.md should invoke vd:auto-loop --cancel BEFORE marking
@@ -28,7 +28,7 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYBIN="${HOME}/.claude/skills/.venv/bin/python3"; [ -x "$PYBIN" ] || PYBIN="$(command -v python3)"
 
-# Check current terminal — refuse to clobber a non-null terminal.
+# Check current terminal - refuse to clobber a non-null terminal.
 CURRENT_TERMINAL="$("$PYBIN" -c "import json; print(json.load(open('${GOAL_DIR}/state.json')).get('terminal') or 'null')")"
 if [ "$CURRENT_TERMINAL" != "null" ]; then
   echo "kill.sh: already terminal ($CURRENT_TERMINAL); refusing to clobber" >&2
@@ -38,7 +38,7 @@ fi
 
 REASON_ESC="$(printf '%s' "$REASON" | "$PYBIN" -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
 
-# Cancel sentinel — write BEFORE flipping terminal so a racing Codex monitor
+# Cancel sentinel - write BEFORE flipping terminal so a racing Codex monitor
 # hook (PostToolUse) sees cancel intent before the abandoned write lands and
 # cannot clobber it with a stale action result. Cooperative-cancel only: codex
 # CLI exposes no programmatic /goal cancel (TUI slash-primitive only).
@@ -56,7 +56,7 @@ if [ -f "$MARKER" ]; then
   # Auto-loop's state lives at CWD/.auto-loop when invoked (we assume invoker
   # CWD == goal worktree root, which Phase 5's delegate-to-auto-loop.sh expects).
   AUTOLOOP_DIR="\"$(dirname "$GOAL_DIR")/.auto-loop\""
-  CODEX_GOAL_NOTE="codex /goal has no CLI cancel — if this goal is running under a Codex /goal, ALSO run '/goal cancel' in the Codex TUI now. The cancel.sentinel will stop the next monitor-hook iteration but cannot interrupt an in-flight /goal turn."
+  CODEX_GOAL_NOTE="codex /goal has no CLI cancel - if this goal is running under a Codex /goal, ALSO run '/goal cancel' in the Codex TUI now. The cancel.sentinel will stop the next monitor-hook iteration but cannot interrupt an in-flight /goal turn."
 fi
 
 # Write final journal entry.
@@ -68,7 +68,7 @@ printf '{"terminal": "abandoned", "terminal_reason": %s}\n' "$REASON_ESC" \
   | bash "${SCRIPT_DIR}/update-state.sh" --goal-dir "$GOAL_DIR"
 FLIP_RC=$?
 if [ "$FLIP_RC" -ne 0 ]; then
-  echo "kill.sh: terminal flip FAILED (update-state exit $FLIP_RC). cancel.sentinel is written but state.terminal is still null — goal is half-killed; inspect ${GOAL_DIR}/state.json." >&2
+  echo "kill.sh: terminal flip FAILED (update-state exit $FLIP_RC). cancel.sentinel is written but state.terminal is still null - goal is half-killed; inspect ${GOAL_DIR}/state.json." >&2
   printf '{"abandoned": false, "flip_failed": true, "cancel_sentinel": %s, "reason": %s}\n' \
     "\"${GOAL_DIR}/.ultracook/cancel.sentinel\"" "$REASON_ESC"
   exit 4

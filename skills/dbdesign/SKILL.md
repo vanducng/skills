@@ -59,8 +59,8 @@ Read only what the task needs:
 When the design uses DBML (you write or edit a `.dbml` file):
 
 - **Gate:** after writing/editing the file, run `dbdocs validate <path/to/schema.dbml>`. A clean parse (`Parse succeeded without errors.`) is required before the design is done. `dbdocs` is the validator (e.g. `dbdocs/0.14.0`).
-- **No apostrophes inside single-quoted notes.** `note: 'the row''s id'` is not valid DBML and fails with `Expect a comma ','` — reword to drop the apostrophe ("the id on this row"); triple-quoted `'''...'''` notes are fine.
-- **Avoid reserved/ambiguous words as column names** (e.g. `index`, `now`) — they can break the parser; document the column in the table `Note` instead, or quote/rename it.
+- **No apostrophes inside single-quoted notes.** `note: 'the row''s id'` is not valid DBML and fails with `Expect a comma ','` - reword to drop the apostrophe ("the id on this row"); triple-quoted `'''...'''` notes are fine.
+- **Avoid reserved/ambiguous words as column names** (e.g. `index`, `now`) - they can break the parser; document the column in the table `Note` instead, or quote/rename it.
 
 ## Hard Rules
 

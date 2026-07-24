@@ -3,7 +3,7 @@
 ## Auth
 - **Password:** bcrypt hash/verify (async wrappers via `asyncio.to_thread`); store on a `UserIdentity` row (provider="password") so a user can have multiple identities.
 - **JWT:** HS256, `{"sub": str(user_id), "email", "role", "exp"}`, expiry from settings. `mint_token` / `decode_token` in `core/security.py`.
-- **Google OAuth (optional):** `clients/google_oauth.py` — authorize_url → callback exchanges code (httpx) → fetch userinfo → enforce `GOOGLE_ALLOWED_DOMAIN` → upsert user (capture `picture` → `avatar_url`) → mint JWT → redirect to frontend with token (and/or set cookie). The redirect URI must be registered in Google console; for local E2E rely on email/password.
+- **Google OAuth (optional):** `clients/google_oauth.py` - authorize_url → callback exchanges code (httpx) → fetch userinfo → enforce `GOOGLE_ALLOWED_DOMAIN` → upsert user (capture `picture` → `avatar_url`) → mint JWT → redirect to frontend with token (and/or set cookie). The redirect URI must be registered in Google console; for local E2E rely on email/password.
 - **Dependency:** `get_current_user` reads `Authorization: Bearer` then cookie; `CurrentUser = Annotated[User, Depends(get_current_user)]`.
 
 ## Frontend auth
@@ -11,7 +11,7 @@
 - `features/auth`: `auth-provider` probes `GET /auth/me` on mount (works for Bearer token AND a Google session cookie); `useLogin/useLogout/useMe/useUpdateProfile/useMyActivity`.
 - Protected routes: `_protected.tsx` `beforeLoad` calls `/auth/me` else `redirect({to:'/login'})`. Admin sub-routes guard on role in `beforeLoad` else `/403`.
 
-## RBAC — role model
+## RBAC - role model
 Define roles in `core/permissions.py` and MIRROR them in `frontend/src/lib/permissions.ts` (the server is the real enforcer). Example from the reference build (two populations):
 - **Internal (your org):** `<org>_admin` (everything), `<org>_data` (operate on all tenant data, view audit), `<org>_ae` (manage tenant orgs + their users).
 - **Client (tenant):** `client_admin` (act within own company; future: manage own team).

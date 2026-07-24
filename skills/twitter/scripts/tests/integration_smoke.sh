@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# integration_smoke.sh — exercises the live network paths.
+# integration_smoke.sh - exercises the live network paths.
 # Requires: gopass cookies + a working twikit primary path.
 set -euo pipefail
 

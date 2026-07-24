@@ -65,7 +65,7 @@ viewBox="0 0 1600 900". Subject centered around (800, 450), 360px wide, 200px ta
 > C4 context. Subject (center, accent-highlighted): "Checkout Service". User: Customer (left). Externals (dashed): Stripe, SendGrid. Customer "pays through" → Checkout; Checkout "charges card via" → Stripe; Checkout "sends receipt via" → SendGrid.
 
 ## Common mistakes to avoid
-- Do NOT show containers (web, api, db) inside the subject — that's c4-container.
-- Do NOT skip the `[Person]` / `[Software System]` type tags — they're the C4 convention.
+- Do NOT show containers (web, api, db) inside the subject - that's c4-container.
+- Do NOT skip the `[Person]` / `[Software System]` type tags - they're the C4 convention.
 - Do NOT highlight more than one system with the accent color. The subject is singular.
-- Do NOT use cardinality numbers — C4 uses verb labels, not relational notation.
+- Do NOT use cardinality numbers - C4 uses verb labels, not relational notation.

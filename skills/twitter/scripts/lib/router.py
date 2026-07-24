@@ -70,7 +70,7 @@ async def call_with_fallback(
     except BaseException as exc:
         if should_fallback(exc):
             print(
-                f"twitter: twikit hit {type(exc).__name__}: {exc} — falling back to browser",
+                f"twitter: twikit hit {type(exc).__name__}: {exc} - falling back to browser",
                 file=sys.stderr,
             )
             return await browser_fn(*args, **kwargs)

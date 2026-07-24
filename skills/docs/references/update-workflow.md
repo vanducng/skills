@@ -9,23 +9,23 @@ Use when `./docs/` already has real content and code has drifted from it. If `./
 
 ## Phase 1: Parallel codebase scouting
 
-1. Identify drift sources — what changed since the last doc update?
+1. Identify drift sources - what changed since the last doc update?
    - `git log -1 --format=%cI -- docs/` → last doc-touching commit time
    - `git log --since="<that-time>" --oneline` → commits to evaluate
    - If empty or >100 commits → fall back to "last 30 days" or `--since=<ref>` from `$ARGUMENTS`
-2. Scope directories that exist — skip `.claude`, `.opencode`, `.git`, `node_modules`, `__pycache__`, `.venv`, `dist`, `build`, `secrets`
-3. Probe by doc target — only re-scout surfaces that map to a doc in scope:
+2. Scope directories that exist - skip `.claude`, `.opencode`, `.git`, `node_modules`, `__pycache__`, `.venv`, `dist`, `build`, `secrets`
+3. Probe by doc target - only re-scout surfaces that map to a doc in scope:
    - Lockfile / manifest changes → `tech-stack.md`
    - `.github/workflows/`, `Dockerfile`, `k8s/`, `terraform/` changes → `deployment.md`
    - Lint config or `CONTRIBUTING.md` changes, new dev-setup scripts → `development-guidelines.md`
    - New top-level modules, new public APIs, schema changes → `system-architecture.md`
    - Stack changes, new entry points → `README.md`
-4. Activate `vd:scout` (internal mode) on changed surfaces — pass the commit range so it focuses
+4. Activate `vd:scout` (internal mode) on changed surfaces - pass the commit range so it focuses
 5. Merge scout reports into a drift digest (≤ 500 lines): what changed, where, which doc it affects
 
 ## Phase 1.5: Parallel doc reading
 
-You (main agent) spawn the readers — subagents cannot spawn subagents.
+You (main agent) spawn the readers - subagents cannot spawn subagents.
 
 1. `ls docs/*.md README.md 2>/dev/null | wc -l`
 2. `wc -l docs/*.md README.md 2>/dev/null | sort -rn`
@@ -33,7 +33,7 @@ You (main agent) spawn the readers — subagents cannot spawn subagents.
    - 1–3 files → skip parallel; writer reads directly
    - 4–5 files → spawn 2–3 `Explore` agents
    - 6+ files (uncommon for this canonical set) → cap at 4 agents
-4. Distribute files by LOC — larger files get a dedicated agent
+4. Distribute files by LOC - larger files get a dedicated agent
 5. Each agent prompt: "Read these docs. Extract: stated facts that touch code (paths, modules, configs, versions), sections likely stale given this drift digest: <digest summary>. Files: <list>"
 6. Merge results into a doc-state digest for the writer
 
@@ -48,7 +48,7 @@ Pass to writer:
 - User's additional requests from `$ARGUMENTS`
 - `docs.maxLoc` budget
 
-Files to evaluate (canonical set — only edit if drift digest touches them):
+Files to evaluate (canonical set - only edit if drift digest touches them):
 
 | File | Update when |
 |---|---|
@@ -58,7 +58,7 @@ Files to evaluate (canonical set — only edit if drift digest touches them):
 | `docs/tech-stack.md` | Lockfile bump for a notable lib, new framework/runtime adopted, infra service swapped |
 | `docs/deployment.md` | CI workflow added/changed, new environment, new env var, new rollback procedure |
 
-Out-of-scope files — do **not** touch even if drift suggests them: `changelog.md`, `roadmap.md`, `codebase-summary.md`, `prd.md`. If user explicitly names one in `$ARGUMENTS`, surface that they're outside `vd:docs` scope and let them decide. `AGENTS.md` / `CLAUDE.md` are allowed only when the user explicitly asks for project guidance docs to change.
+Out-of-scope files - do **not** touch even if drift suggests them: `changelog.md`, `roadmap.md`, `codebase-summary.md`, `prd.md`. If user explicitly names one in `$ARGUMENTS`, surface that they're outside `vd:docs` scope and let them decide. `AGENTS.md` / `CLAUDE.md` are allowed only when the user explicitly asks for project guidance docs to change.
 
 ## Additional requests
 
@@ -74,12 +74,12 @@ Out-of-scope files — do **not** touch even if drift suggests them: `changelog.
 
 ## Phase 4: Validation
 
-1. `node $HOME/.claude/scripts/validate-docs.cjs docs/` — code refs, internal links, config keys
-2. Report all warnings inline. Non-blocking but informational — a green run after `update` is the goal.
+1. `node $HOME/.claude/scripts/validate-docs.cjs docs/` - code refs, internal links, config keys
+2. Report all warnings inline. Non-blocking but informational - a green run after `update` is the goal.
 
 ## Hard rules
 
-- **Use `./docs/` as the source of truth** for what's currently claimed — drift digest tells you what to change, doc-state digest tells you what's already there.
+- **Use `./docs/` as the source of truth** for what's currently claimed - drift digest tells you what to change, doc-state digest tells you what's already there.
 - **Do not** write code, fix bugs, or modify anything outside `./docs/` and `./README.md`, except explicitly requested project guidance files (`AGENTS.md` / `CLAUDE.md`).
-- **Do not** rewrite a file from scratch unless drift touches >50% of it — preserve voice and structure.
-- **Do not** invent — every new claim cites a path, SHA, version, or config key.
+- **Do not** rewrite a file from scratch unless drift touches >50% of it - preserve voice and structure.
+- **Do not** invent - every new claim cites a path, SHA, version, or config key.

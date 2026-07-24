@@ -1,6 +1,6 @@
 #!/bin/sh
 # <!-- installed-by:tldraw-desktop-agent-skills -->
-# tq — tldraw canvas-api helper. Usage:
+# tq - tldraw canvas-api helper. Usage:
 #   sh tq GET  /api/doc/DOC/script-status
 #   sh tq POST /api/search '{"code":"return await api.getDocs()"}'                # JSON body
 #   sh tq POST /api/doc/DOC/exec 'return editor.getCurrentPageShapes().length'    # raw JS body

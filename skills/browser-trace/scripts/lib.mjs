@@ -19,7 +19,7 @@ export function ensureDir(p) {
   fs.mkdirSync(p, { recursive: true });
 }
 
-// Wall-clock ISO seconds, no fractional part — same shape as `date -u +%Y-%m-%dT%H:%M:%SZ`.
+// Wall-clock ISO seconds, no fractional part - same shape as `date -u +%Y-%m-%dT%H:%M:%SZ`.
 export function isoUtcSeconds(d = new Date()) {
   return d.toISOString().replace(/\.\d+/, '');
 }
@@ -52,7 +52,7 @@ export function readJsonl(p) {
 }
 
 // Atomic-ish JSONL write: caller has already mutated the array as desired.
-// `skipEmpty: true` removes the file if there's nothing to write — used by per-page bucketing.
+// `skipEmpty: true` removes the file if there's nothing to write - used by per-page bucketing.
 export function writeJsonl(p, items, { skipEmpty = false } = {}) {
   if (skipEmpty && items.length === 0) {
     if (fs.existsSync(p)) fs.unlinkSync(p);
@@ -115,4 +115,86 @@ export function isTopNav(ev) {
   if (ev?.method !== 'Page.frameNavigated') return false;
   const parent = ev?.params?.frame?.parentId ?? null;
   return parent === null || parent === '';
+}
+
+// ---- raw CDP over native WebSocket (Node 18+ global, zero deps) ----
+
+// Accepts a full ws:// or wss:// URL as-is (Browserbase connectUrls), or a
+// port number resolved against 127.0.0.1: prefer the first page target from
+// /json/list, fall back to the browser-level URL from /json/version.
+export async function resolveWsUrl(target) {
+  const t = String(target).trim();
+  if (t.startsWith('ws://') || t.startsWith('wss://')) return t;
+  if (!/^\d+$/.test(t)) throw new Error(`target must be a port or ws:// URL, got: ${t}`);
+  const base = `http://127.0.0.1:${t}`;
+  try {
+    const list = await (await fetch(`${base}/json/list`)).json();
+    const page = list.find(x => x.type === 'page' && x.webSocketDebuggerUrl);
+    if (page) return page.webSocketDebuggerUrl;
+  } catch { /* fall through to /json/version */ }
+  let version;
+  try {
+    version = await (await fetch(`${base}/json/version`)).json();
+  } catch {
+    throw new Error(`no debuggable target on port ${t}`);
+  }
+  if (version.webSocketDebuggerUrl) return version.webSocketDebuggerUrl;
+  throw new Error(`no debuggable target on port ${t}`);
+}
+
+// Connect and return { wsUrl, send(method, params), close() }. Commands use
+// incrementing ids; protocol events (no id) go to onEvent, socket teardown to
+// onClose. Pending sends reject when the socket closes so callers never hang.
+export async function cdpConnect(target, { onEvent, onClose } = {}) {
+  const wsUrl = await resolveWsUrl(target);
+  const ws = new WebSocket(wsUrl);
+  const pending = new Map();
+  let nextId = 1;
+
+  await new Promise((resolve, reject) => {
+    ws.addEventListener('open', resolve, { once: true });
+    ws.addEventListener('error', () => reject(new Error(`websocket connect failed: ${wsUrl}`)), { once: true });
+  });
+
+  ws.addEventListener('message', (msg) => {
+    let data;
+    try { data = JSON.parse(msg.data); } catch { return; }
+    if (data.id != null && pending.has(data.id)) {
+      const { resolve, reject } = pending.get(data.id);
+      pending.delete(data.id);
+      if (data.error) reject(new Error(data.error.message || 'CDP command failed'));
+      else resolve(data.result ?? {});
+    } else if (data.method) {
+      onEvent?.(data);
+    }
+  });
+
+  ws.addEventListener('close', () => {
+    for (const { reject } of pending.values()) reject(new Error('websocket closed'));
+    pending.clear();
+    onClose?.();
+  });
+
+  return {
+    wsUrl,
+    send(method, params = {}) {
+      return new Promise((resolve, reject) => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          reject(new Error('websocket not open'));
+          return;
+        }
+        const id = nextId++;
+        pending.set(id, { resolve, reject });
+        try {
+          ws.send(JSON.stringify({ id, method, params }));
+        } catch {
+          pending.delete(id);
+          reject(new Error('websocket closed'));
+        }
+      });
+    },
+    close() {
+      try { ws.close(); } catch { /* already closed */ }
+    },
+  };
 }

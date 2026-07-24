@@ -162,11 +162,11 @@
   <!-- Replace this block with .options, .cards, .split, or any combination -->
   {{PANELS}}
 
-  <p class="hint">Reply in the terminal with the letter you prefer (A / B / C), or describe what's off. Clicks are cosmetic only — the agent reads your text, not the page.</p>
+  <p class="hint">Reply in the terminal with the letter you prefer (A / B / C), or describe what's off. Clicks are cosmetic only - the agent reads your text, not the page.</p>
 </div>
 
 <script>
-  // Cosmetic highlight only — no event logging, no network calls.
+  // Cosmetic highlight only - no event logging, no network calls.
   document.querySelectorAll('.option, .card').forEach(el => {
     el.addEventListener('click', () => {
       const siblings = el.parentElement.children;

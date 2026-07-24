@@ -274,7 +274,7 @@ body.markdown.has-fb-sidebar .reader-header #theme-toggle {
   display: none !important;
 }
 
-/* Compact reader-header to 40px — duplicate doc-title hidden, but ← back,
+/* Compact reader-header to 40px - duplicate doc-title hidden, but ← back,
  * ≡ TOC, prev/next plan-nav stay functional. */
 body.markdown.has-fb-sidebar .reader-header {
   height: 40px !important;
@@ -330,7 +330,7 @@ body.markdown.has-fb-sidebar .content table td {
 }
 
 /* Override novel-theme's translateX(-50%) break-out trick which centers wide
- * code on the viewport — with our two-sidebar layout that pushes code under
+ * code on the viewport - with our two-sidebar layout that pushes code under
  * the TOC. Pin to natural left edge and let pre's own overflow-x handle width. */
 body.markdown.has-fb-sidebar .content pre {
   width: 100%;
@@ -494,7 +494,7 @@ body.markdown.has-fb-sidebar .content pre {
   font-size: 12px;
 }
 
-/* Recursive-search results — flat list shown in place of the lazy tree
+/* Recursive-search results - flat list shown in place of the lazy tree
    when the filter input has 2+ chars. Each row shows the basename + relpath. */
 .fb-search-results {
   list-style: none;

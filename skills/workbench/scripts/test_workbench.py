@@ -109,7 +109,7 @@ def meta(d, feature_id):
         return None
 
 
-print('new — branch-derived:')
+print('new - branch-derived:')
 d = repo('feat/ELT-3316-manual-upload')
 wb(d, 'new')
 m = meta(d, 'elt-3316-manual-upload')
@@ -121,7 +121,7 @@ ok('5 type subdirs created',
    all(os.path.exists(os.path.join(d, '.workbench', 'features', 'elt-3316-manual-upload', t))
        for t in ['plans', 'reports', 'visuals', 'journals', 'state']))
 
-print('new — user slug (H2: cleaned/lowercased + parity):')
+print('new - user slug (H2: cleaned/lowercased + parity):')
 d = repo('trunk')
 wb(d, 'new', 'My Cool Feature')
 m = meta(d, 'my-cool-feature')
@@ -129,7 +129,7 @@ ok('user slug → lowercased cleaned id', bool(m))
 ok('stored slug == branch-resolved slug for feat/my-cool-feature',
    bool(m) and m.get('slug') == P.slug_from_branch('feat/my-cool-feature'))
 
-print('new — idempotent:')
+print('new - idempotent:')
 out2 = wb(d, 'new', 'My Cool Feature')
 ok('second new says exists (no dup)', bool(re.search(r'exists: features/my-cool-feature', out2)))
 ok('exactly one dir', len(os.listdir(os.path.join(d, '.workbench', 'features'))) == 1)

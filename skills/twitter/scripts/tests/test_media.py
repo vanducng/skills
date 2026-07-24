@@ -1,4 +1,4 @@
-"""Unit tests for lib.media.upload — validation only (no network)."""
+"""Unit tests for lib.media.upload - validation only (no network)."""
 from __future__ import annotations
 
 import asyncio

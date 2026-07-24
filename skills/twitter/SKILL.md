@@ -1,6 +1,6 @@
 ---
 name: twitter
-description: Read and post on X/Twitter from the CLI — fetch tweets, timelines, and search; post tweets, replies, threads, and media. Cookie-based auth via twikit, bootstrapped from the local Dia browser session, secrets stored in gopass. Auto-falls back to agent-browser when twikit hits internal-API drift or X's "looks automated" Error 226. Use whenever the user asks to read a tweet/profile/search, post/reply/thread, delete a tweet, or run `twitter doctor` / `import-from-dia` / `login` to manage credentials.
+description: Read and post on X/Twitter from the CLI - fetch tweets, timelines, and search; post tweets, replies, threads, and media. Cookie-based auth via twikit, bootstrapped from the local Dia browser session, secrets stored in gopass. Auto-falls back to agent-browser when twikit hits internal-API drift or X's "looks automated" Error 226. Use whenever the user asks to read a tweet/profile/search, post/reply/thread, delete a tweet, or run `twitter doctor` / `import-from-dia` / `login` to manage credentials.
 keywords: [twitter, x, social, tweet, twikit, dia, gopass]
 license: MIT
 version: 0.1.0
@@ -63,15 +63,15 @@ All secrets live in gopass under `personal/x-twitter/`:
 
 `lib/_twikit_patch.py` vendors three monkey-patches over twikit 2.3.3:
 
-1. `PatchedClientTransaction.get_indices` — locates the bundle hash via the new `,N:"ondemand.s"` manifest token (replaces the broken upstream regex).
-2. Tolerant `User.__init__` — uses `.get()` everywhere; survives `legacy['entities']['description']['urls']` being absent on accounts using the new `core` shape.
-3. Minimal `Client.get_tweet_by_id` — skips the brittle reply-cursor parse.
+1. `PatchedClientTransaction.get_indices` - locates the bundle hash via the new `,N:"ondemand.s"` manifest token (replaces the broken upstream regex).
+2. Tolerant `User.__init__` - uses `.get()` everywhere; survives `legacy['entities']['description']['urls']` being absent on accounts using the new `core` shape.
+3. Minimal `Client.get_tweet_by_id` - skips the brittle reply-cursor parse.
 
 **When to refresh:** `twitter doctor` reports `transaction-init failed` or any verb raises `Couldn't get KEY_BYTE indices` after cookies are confirmed valid.
 
 **How:**
 1. Open `https://x.com/` in a browser, view source, search for `,N:"ondemand.s"` (note leading comma + trailing structure). If shape changed, update `ON_DEMAND_FILE_REGEX` / `ON_DEMAND_HASH_PATTERN` in `_twikit_patch.py`.
-2. Check upstream first — community usually posts a fix within ~1 week of a break: [twikit#408](https://github.com/d60/twikit/issues/408) and [iSarabjitDhiman/XClientTransaction](https://github.com/iSarabjitDhiman/XClientTransaction).
+2. Check upstream first - community usually posts a fix within ~1 week of a break: [twikit#408](https://github.com/d60/twikit/issues/408) and [iSarabjitDhiman/XClientTransaction](https://github.com/iSarabjitDhiman/XClientTransaction).
 3. Verify with `python3 -m pytest scripts/tests/test_twikit_patch.py` then run `scripts/tests/integration_smoke.sh` (post → fetch → delete round-trip).
 4. If the patch can't be salvaged, `TWITTER_USE_BROWSER=1` is the escape hatch for triage; reads still work via the browser fallback.
 

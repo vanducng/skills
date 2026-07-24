@@ -31,7 +31,7 @@ DEFAULT_MODEL = "gpt-image-2 (codex subscription)"
 _FORCE_PREFIX = (
     "Use your built-in image_gen tool to GENERATE one raster bitmap image in a "
     "SINGLE pass. Do NOT draw it with SVG, HTML, CSS, canvas, matplotlib or any "
-    "code; do not iterate, critique, or regenerate — produce one image and stop. "
+    "code; do not iterate, critique, or regenerate - produce one image and stop. "
     "Save it to ./generated.png and output only its absolute path on the last line.\n\n"
 )
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-completion-gate.sh — two-vote gate. Run verifier 2x; if pass, spawn audit
+# check-completion-gate.sh - two-vote gate. Run verifier 2x; if pass, spawn audit
 # subagent. Both must vote `achieved` for the gate to open. Updates goal-state.json.
 #
 # Exit code:

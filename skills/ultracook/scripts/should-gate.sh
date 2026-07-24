@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# should-gate.sh — decide whether the executor should gate on this action.
+# should-gate.sh - decide whether the executor should gate on this action.
 #
 # Usage: should-gate.sh --mode <manual|semi|auto> --action <name> --phase-state <first|repeat>
 # Exit:
@@ -38,7 +38,7 @@ case "$MODE" in
         exit 0
         ;;
       *)
-        # Check action-vocab.yaml gate_default — does it include "semi"?
+        # Check action-vocab.yaml gate_default - does it include "semi"?
         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         VOCAB="$(dirname "$SCRIPT_DIR")/references/action-vocab.yaml"
         PYBIN="${HOME}/.claude/skills/.venv/bin/python3"; [ -x "$PYBIN" ] || PYBIN="$(command -v python3)"

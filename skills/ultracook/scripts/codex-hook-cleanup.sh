@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# codex-hook-cleanup.sh — SessionStart hook handler. Sweeps stale Monitor
+# codex-hook-cleanup.sh - SessionStart hook handler. Sweeps stale Monitor
 # spec/log files from completed (or crashed) ultracook runs.
 #
 # Triggered by Codex's SessionStart hook event. Reads payload from stdin
-# (we only use it for forensic logging — the cleanup itself is filesystem-
+# (we only use it for forensic logging - the cleanup itself is filesystem-
 # wide). Removes `iterations/*-monitor.spec.json` files older than 24h
 # whose matching `.result.json` doesn't exist (i.e. ultracook died mid-wait).
 #
@@ -35,7 +35,7 @@ for root in "${SEARCH_ROOTS[@]}"; do
   done < <(find "$root" -path '*/iterations/*-monitor.spec.json' -type f -mtime +1 2>/dev/null)
 
   # Sweep cancel sentinels (#65) for goals that have already reached a terminal
-  # state — they've served their purpose and would otherwise re-trigger the
+  # state - they've served their purpose and would otherwise re-trigger the
   # monitor-hook stop directive on every PostToolUse.
   while IFS= read -r sentinel; do
     [ -n "$sentinel" ] || continue

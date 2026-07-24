@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# write-compaction-summary.sh — render compaction-summary.template.md into
+# write-compaction-summary.sh - render compaction-summary.template.md into
 # .auto-loop/compaction-{iter}.md using current state + recent logs.
 #
 # Usage: write-compaction-summary.sh <workspace>

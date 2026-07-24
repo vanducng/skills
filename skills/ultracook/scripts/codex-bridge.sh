@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# codex-bridge.sh — Codex-side helpers for vd:ultracook.
+# codex-bridge.sh - Codex-side helpers for vd:ultracook.
 #
 # Functions provided (sourced or invoked as subcommand):
-#   codex_exec_resume_last <skill> <prompt>   — invoke another vd:* skill via
+#   codex_exec_resume_last <skill> <prompt> - invoke another vd:* skill via
 #                                                `codex exec resume --last`,
 #                                                relying on auto-match against
 #                                                skill description.
-#   codex_hook_payload_read                   — read PostToolUse JSON from stdin
+#   codex_hook_payload_read - read PostToolUse JSON from stdin
 #                                                and export HOOK_TOOL_NAME /
 #                                                HOOK_TOOL_INPUT / HOOK_TOOL_RESPONSE
 #                                                env vars for the caller.
-#   codex_exec_json_parse <jsonl-path>        — parse a Codex `--json` event
+#   codex_exec_json_parse <jsonl-path> - parse a Codex `--json` event
 #                                                stream and emit a single JSON
 #                                                with token totals + counts.
 #
-# Recursion guard: refuses if `VD_ULTRACOOK_DEPTH > 0` — prevents nested
+# Recursion guard: refuses if `VD_ULTRACOOK_DEPTH > 0` - prevents nested
 # ultracook-spawns-ultracook when invoked from a recursive subagent context.
 #
 # Phase 2 ships: `codex_exec_resume_last` minimal impl + `codex_hook_payload_read`
@@ -41,7 +41,7 @@ codex_exec_resume_last() {
 
   # Recursion guard.
   if [ "${VD_ULTRACOOK_DEPTH:-0}" -gt 0 ]; then
-    echo "codex_exec_resume_last: VD_ULTRACOOK_DEPTH=$VD_ULTRACOOK_DEPTH > 0 — refusing recursive ultracook" >&2
+    echo "codex_exec_resume_last: VD_ULTRACOOK_DEPTH=$VD_ULTRACOOK_DEPTH > 0 - refusing recursive ultracook" >&2
     return 4
   fi
 
@@ -61,7 +61,7 @@ codex_exec_resume_last() {
       | sort -rn | head -1 | awk '{print $2}')"
   fi
 
-  # Compose the resume prompt — explicit "use the X skill" wording so Codex
+  # Compose the resume prompt - explicit "use the X skill" wording so Codex
   # auto-match picks the named skill reliably (non-deterministic; Phase 5
   # dogfood measures false-match rate + adjusts wording if needed).
   local resume_prompt="use the ${skill} skill to: ${prompt}"
@@ -113,7 +113,7 @@ PY
 # Exit:   0 on success, 2 on invalid JSON.
 codex_hook_payload_read() {
   # Read JSON payload from caller's stdin into a var, then pass via env var
-  # — heredoc occupies python's stdin so the payload can't reach json.load directly.
+  # - heredoc occupies python's stdin so the payload can't reach json.load directly.
   local payload
   payload="$(cat)"
   ULTRACOOK_HOOK_PAYLOAD="$payload" "$PYBIN" - <<'PY'
@@ -121,7 +121,7 @@ import os, json, shlex
 try:
     payload = json.loads(os.environ.get("ULTRACOOK_HOOK_PAYLOAD", ""))
 except Exception as e:
-    print(f"# codex_hook_payload_read: invalid JSON — {e}", file=__import__("sys").stderr)
+    print(f"# codex_hook_payload_read: invalid JSON - {e}", file=__import__("sys").stderr)
     raise SystemExit(2)
 def emit(key, val):
     if val is None: val = ""

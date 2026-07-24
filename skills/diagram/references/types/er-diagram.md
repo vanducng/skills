@@ -36,7 +36,7 @@ Typography: sans-serif for entity names (semibold for header), monospace for col
 
 Layout: cluster connected entities. Core entity centrally placed; satellites around it. Relationship lines never cross entity boxes. Cardinality notation (1, 0..1, *, 1..*) at each end. Labels above the relationship line, near the midpoint.
 
-Do NOT invent entities or columns. Do NOT exceed 12 entities — split otherwise.
+Do NOT invent entities or columns. Do NOT exceed 12 entities - split otherwise.
 ```
 
 ## SVG-prompt template
@@ -69,5 +69,5 @@ viewBox="0 0 1600 900". Each entity: 220px wide, header band fill #f1ede5, body 
 ## Common mistakes to avoid
 - Do NOT skip cardinality on relationships.
 - Do NOT cross relationship lines when re-arranging entities fixes it.
-- Do NOT list every column — pick the 3–6 most relevant.
+- Do NOT list every column - pick the 3–6 most relevant.
 - Do NOT use the success/error colors here.

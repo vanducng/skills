@@ -140,7 +140,7 @@ def set_session(feature_id):
 
 def warn_if_no_session(ok):
     if not ok:
-        err('  (VD_SESSION_ID unset — feature not set as the session default)')
+        err('  (VD_SESSION_ID unset - feature not set as the session default)')
 
 
 def cmd_new(args):
@@ -160,7 +160,7 @@ def cmd_new(args):
         sys.exit(1)
     dir_path = os.path.join(c['featuresDir'], feature_id)
     if os.path.exists(os.path.join(dir_path, 'feature.json')):
-        out('exists: features/%s — switching to it' % feature_id)
+        out('exists: features/%s - switching to it' % feature_id)
         warn_if_no_session(set_session(feature_id))
         return
     for t in TYPES:
@@ -220,11 +220,11 @@ def cmd_resolve(args):
         out(json.dumps(result, indent=2))
         return
     out('layout:  %s' % result['layout'])
-    out('feature: %s' % (feature_id or '(none — no signal; artifacts → _global/scratch)'))
+    out('feature: %s' % (feature_id or '(none - no signal; artifacts → _global/scratch)'))
     for t in TYPES:
         out('  %-9s %s' % (t, result[t]))
     if not ff:
-        out('note: repo is type-first — hooks use the flat layout; the above shows the would-be feature paths.')
+        out('note: repo is type-first - hooks use the flat layout; the above shows the would-be feature paths.')
 
 
 def cmd_switch(args):
@@ -363,7 +363,7 @@ def cmd_reindex(args):
             lines.append('')
         for feature_id in ids:
             m = read_meta(os.path.join(d, feature_id)) or {}
-            lines.append('- **%s** — %s · %s · %s files'
+            lines.append('- **%s** - %s · %s · %s files'
                          % (feature_id, m.get('ticket') or 'no-ticket', m.get('status') or '?',
                             count_files(os.path.join(d, feature_id))))
         lines.append('')
@@ -382,7 +382,7 @@ def cmd_gc(args):
     if os.path.exists(tmp):
         targets.append(tmp)
 
-    # Scope *.pid/*.log sweep to ephemeral zones only — never features/ (a feature may keep a real .log).
+    # Scope *.pid/*.log sweep to ephemeral zones only - never features/ (a feature may keep a real .log).
     def find_junk(p):
         try:
             ents = list(os.scandir(p))

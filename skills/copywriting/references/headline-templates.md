@@ -137,4 +137,4 @@ What happened when I [did X]
 - [ ] Urgency or curiosity?
 - [ ] Power word included?
 - [ ] Under 10 words ideal?
-- [ ] Read aloud—flows naturally?
+- [ ] Read aloud - flows naturally?

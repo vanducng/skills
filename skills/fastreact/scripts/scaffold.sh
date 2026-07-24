@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fastreact scaffolder — lay down a FastAPI + React + Postgres + S3 skeleton.
+# fastreact scaffolder - lay down a FastAPI + React + Postgres + S3 skeleton.
 # Idempotent: only writes files that don't already exist. Produces a runnable
 # health backend + a building frontend shell; fill domain code per the skill references.
 #   usage: bash scaffold.sh <project-dir> <app-name>

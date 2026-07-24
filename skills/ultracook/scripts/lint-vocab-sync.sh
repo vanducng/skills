@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lint-vocab-sync.sh — verify references/action-vocab.md ↔ .yaml and
+# lint-vocab-sync.sh - verify references/action-vocab.md ↔ .yaml and
 # references/verifier-vocab.md ↔ .yaml are in sync (same action / verifier
 # names). Run during Phase 2's smoke test; can be wired into CI later.
 #
@@ -51,7 +51,7 @@ fi
 # `verifiers:` in .yaml.
 md_verifiers="$(awk '
   /^\| `[a-z_]+`/ {
-    # Same table-row pattern as action-vocab — first column is the type name.
+    # Same table-row pattern as action-vocab - first column is the type name.
     # But verifier-vocab.md has a single table; pull all backtick-wrapped
     # identifiers from the type column.
     n = split($0, fields, "|")

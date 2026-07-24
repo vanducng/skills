@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# install-hooks.sh — register (or remove) ultracook's Codex hooks in
+# install-hooks.sh - register (or remove) ultracook's Codex hooks in
 # ~/.codex/config.toml. Sub-verb for `vd:ultracook install-hooks` (#61).
 #
 # Strategy: NO TOML rewrite (no tomlkit/tomli_w in the venv, and the config is
 # commonly a hand-maintained dotfiles symlink). We append a MARKER-wrapped block
 # of `[[hooks.PostToolUse]]` / `[[hooks.SessionStart]]` array-of-tables to the
-# end of the file — TOML-valid, idempotent (keyed on the marker), and cleanly
+# end of the file - TOML-valid, idempotent (keyed on the marker), and cleanly
 # removable. A backup + tomllib re-parse guards every write.
 #
 # Usage:
@@ -68,7 +68,7 @@ command = "{CMD_CLN}"
 def warn_symlink():
     if os.path.realpath(cfg) != os.path.abspath(cfg):
         print(f"⚠  {cfg} is a symlink → {os.path.realpath(cfg)}")
-        print("   Editing it modifies that (likely dotfiles) file — commit it there if version-controlled.")
+        print("   Editing it modifies that (likely dotfiles) file - commit it there if version-controlled.")
 
 text = ""
 if os.path.exists(real):
@@ -90,7 +90,7 @@ if mode == "apply":
         print(f"✓ already registered (idempotent no-op): {cfg}")
         sys.exit(0)
     if not os.path.exists(real):
-        print(f"✗ config not found: {real} — create ~/.codex/config.toml first", file=sys.stderr)
+        print(f"✗ config not found: {real} - create ~/.codex/config.toml first", file=sys.stderr)
         sys.exit(4)
     warn_symlink()
     bak = f"{real}.bak-{int(time.time())}"
@@ -127,6 +127,6 @@ if mode == "uninstall":
     if CMD_MON in text or CMD_CLN in text:
         print(f"✗ ultracook hooks present but NOT marker-wrapped (hand-added). Remove them manually from {real}.", file=sys.stderr)
         sys.exit(3)
-    print(f"✓ nothing to remove — ultracook hooks not present in {cfg}")
+    print(f"✓ nothing to remove - ultracook hooks not present in {cfg}")
     sys.exit(0)
 PY

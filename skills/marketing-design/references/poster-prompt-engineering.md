@@ -6,13 +6,13 @@ How the poster generator assembles prompts and how to tune them for specific ima
 
 Every generated prompt has 5 blocks:
 
-1. **Aspect declaration** — `--aspect a2|a3|square|landscape`
-2. **STYLE (locked)** — name, category, description, mood, era, hints
-3. **PALETTE (locked)** — name, hex colors, contrast, mood
-4. **TEXTURE/MATERIAL (locked)** — material, finish, effect, rendering hints
-5. **COMPOSITION (varied)** — grid, whitespace, hierarchy order, focal anchor, secondary positions, shape set, density, rotation jitter
-6. **COPY SLOTS** — headline (derived from topic), sub, meta
-7. **CONSTRAINTS** — explicit "lock these / vary only these" instructions
+1. **Aspect declaration** - `--aspect a2|a3|square|landscape`
+2. **STYLE (locked)** - name, category, description, mood, era, hints
+3. **PALETTE (locked)** - name, hex colors, contrast, mood
+4. **TEXTURE/MATERIAL (locked)** - material, finish, effect, rendering hints
+5. **COMPOSITION (varied)** - grid, whitespace, hierarchy order, focal anchor, secondary positions, shape set, density, rotation jitter
+6. **COPY SLOTS** - headline (derived from topic), sub, meta
+7. **CONSTRAINTS** - explicit "lock these / vary only these" instructions
 
 The locked vs varied split is the whole point: locked axes preserve style identity, varied axes guarantee per-call variety.
 
@@ -27,7 +27,7 @@ Use cases:
 
 ## Variation Pools
 
-The Shape Pool per style is aggregated from all member-image `shape_primitives` during clustering. Each style has 4-8 primitives. Per call, 2-4 are sampled. Five calls × 4 shapes from a pool of 6 = `C(6,4) = 15` distinct subsets — enough to keep a 5-poster series visually distinct.
+The Shape Pool per style is aggregated from all member-image `shape_primitives` during clustering. Each style has 4-8 primitives. Per call, 2-4 are sampled. Five calls × 4 shapes from a pool of 6 = `C(6,4) = 15` distinct subsets - enough to keep a 5-poster series visually distinct.
 
 Position randomization draws from a 9-cell grid (3×3). Density picks from `sparse|medium|dense`. Rotation jitter from `[-8°, +8°]`. Combined entropy: 9 × 3 × 17 × shape_set_combos × hierarchy_perms = thousands of distinct compositions per locked style.
 
@@ -36,7 +36,7 @@ Position randomization draws from a 9-cell grid (3×3). Density picks from `spar
 ### Gemini Nano Banana 2 (gemini-3.1-flash-image-preview)
 
 - Reads structured prompts well. The block format above maps cleanly.
-- Strong texture/material fidelity — locked TEXTURE block holds.
+- Strong texture/material fidelity - locked TEXTURE block holds.
 - Recommend passing prompt as-is.
 
 ### GPT Image / GPT-5 Image
@@ -51,7 +51,7 @@ Position randomization draws from a 9-cell grid (3×3). Density picks from `spar
 
 ## Determinism
 
-`--seed N` makes prompt assembly deterministic — same seed produces same prompt. The image model itself may still introduce sampling variance unless you pass a model-side seed.
+`--seed N` makes prompt assembly deterministic - same seed produces same prompt. The image model itself may still introduce sampling variance unless you pass a model-side seed.
 
 ## Failure Modes & Fixes
 
@@ -64,6 +64,6 @@ Position randomization draws from a 9-cell grid (3×3). Density picks from `spar
 
 ## Editing CSVs Manually
 
-The CSVs are the source of truth at runtime. After `cluster.py` produces drafts, you can hand-edit any cell to refine. The audit trail (`data/poster/analysis/clusters.json`) shows which source images map to which cluster — useful when refining style descriptions.
+The CSVs are the source of truth at runtime. After `cluster.py` produces drafts, you can hand-edit any cell to refine. The audit trail (`data/poster/analysis/clusters.json`) shows which source images map to which cluster - useful when refining style descriptions.
 
 Keep cell values comma-safe (CSV-escape if needed). Re-running `cluster.py` overwrites edits unless you guard your edits in a separate branch / commit.

@@ -4,25 +4,25 @@
 
 Runtime tools (`AskUserQuestion`, `Skill`, `Monitor`, `ScheduleWakeup`, `Agent`, `Edit`, `Read`, `Write`) **only execute from a Claude Code session context**. They cannot be invoked from a bash script.
 
-Yet bash is the right language for filesystem operations, parsing TOML/YAML/JSON, slug derivation, atomic writes, git worktree creation, etc. — fast, well-known, no runtime dependency.
+Yet bash is the right language for filesystem operations, parsing TOML/YAML/JSON, slug derivation, atomic writes, git worktree creation, etc. - fast, well-known, no runtime dependency.
 
 So `vd:ultracook` is structured in two layers:
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │ SKILL.md (Claude Code session)                                 │
-│   - Reads user prompt                                          │
-│   - Invokes AskUserQuestion, Skill, Monitor, Agent             │
-│   - Interprets bash-script outputs (env vars, JSON, exit code) │
-│   - Decides which runtime tool to call next                    │
+│ - Reads user prompt                                          │
+│ - Invokes AskUserQuestion, Skill, Monitor, Agent             │
+│ - Interprets bash-script outputs (env vars, JSON, exit code) │
+│ - Decides which runtime tool to call next                    │
 └──────────────────────┬─────────────────────────────────────────┘
                        │  passes env vars + reads stdout/exit
                        ▼
 ┌────────────────────────────────────────────────────────────────┐
 │ scripts/*.sh (subprocess)                                      │
-│   - Pure filesystem + git + jq/yq work                         │
-│   - Returns: stdout (JSON or env-var hints), exit code         │
-│   - Logs evidence to <state-base>/{slug}/iterations/NNN-*.log  │
+│ - Pure filesystem + git + jq/yq work                         │
+│ - Returns: stdout (JSON or env-var hints), exit code         │
+│ - Logs evidence to <state-base>/{slug}/iterations/NNN-*.log  │
 └────────────────────────────────────────────────────────────────┘
 ```
 

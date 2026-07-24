@@ -25,8 +25,8 @@ Cross-axis `Pairs With Styles` columns let palette/texture filters scope to comp
 
 ## Generation Model
 
-Three axes are **locked** per call (style, palette, texture) — these define the identity.
-One axis (layout) and a **variation seed** are randomized per call — these create variety.
+Three axes are **locked** per call (style, palette, texture) - these define the identity.
+One axis (layout) and a **variation seed** are randomized per call - these create variety.
 
 Variation seed contributes:
 - focal position shuffle
@@ -62,7 +62,7 @@ Result: 5 calls with the same `--style` produce 5 visibly distinct posters that 
 ~/.claude/skills/.venv/bin/python3 scripts/poster/generate.py --topic "AI Conference" --style style-03-swiss-editorial --seed 42
 ```
 
-Pipe the prompt into the image model of choice (Gemini Nano Banana 2, GPT Image, Imagen, Midjourney, etc.). The skill is model-agnostic — it emits text only.
+Pipe the prompt into the image model of choice (Gemini Nano Banana 2, GPT Image, Imagen, Midjourney, etc.). The skill is model-agnostic - it emits text only.
 
 ## Recommendations
 
@@ -83,4 +83,4 @@ If you add posters or want to refresh clusters:
 ~/.claude/skills/.venv/bin/python3 scripts/poster/cluster.py
 ```
 
-`analyze.py` is resume-safe — re-running skips already-processed images unless `--force`.
+`analyze.py` is resume-safe - re-running skips already-processed images unless `--force`.

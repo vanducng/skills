@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# delegate-to-auto-loop.sh — prepare a vd:auto-loop invocation for the given
+# delegate-to-auto-loop.sh - prepare a vd:auto-loop invocation for the given
 # action. Does NOT actually call vd:auto-loop (that's the Skill tool, which
 # only SKILL.md can invoke). Returns a JSON hint on stdout.
 #
@@ -27,7 +27,7 @@ done
 
 # Recursion guard.
 if [ "${VD_AUTOLOOP_DEPTH:-0}" -gt 0 ]; then
-  echo "delegate-to-auto-loop.sh: VD_AUTOLOOP_DEPTH=$VD_AUTOLOOP_DEPTH > 0 — refusing recursive ultracook inside auto-loop audit subagent" >&2
+  echo "delegate-to-auto-loop.sh: VD_AUTOLOOP_DEPTH=$VD_AUTOLOOP_DEPTH > 0 - refusing recursive ultracook inside auto-loop audit subagent" >&2
   exit 4
 fi
 
@@ -43,7 +43,7 @@ PYBIN="${HOME}/.claude/skills/.venv/bin/python3"; [ -x "$PYBIN" ] || PYBIN="$(co
 # Build the compound verifier script.
 VERIFY_SH="$(bash "${SCRIPT_DIR}/build-compound-verifier.sh" --goal-dir "$GOAL_DIR" --action "$ACTION" --iter "$ITER")"; rc=$?
 if [ "$rc" -ne 0 ]; then
-  echo "delegate-to-auto-loop.sh: cannot delegate — no per-action verifier bound to '$ACTION'" >&2
+  echo "delegate-to-auto-loop.sh: cannot delegate - no per-action verifier bound to '$ACTION'" >&2
   exit 5
 fi
 
@@ -76,7 +76,7 @@ out = {"action": sys.argv[2], "verify_script": sys.argv[3], "delegated_at": sys.
 json.dump(out, open(sys.argv[1], "w"), indent=2)
 PY
 
-# Detect runtime — Codex needs `--codex` flag appended so auto-loop delegates
+# Detect runtime - Codex needs `--codex` flag appended so auto-loop delegates
 # to native /goal instead of running its Stop-hook in-house loop.
 ULTRACOOK_RUNTIME_DETECTED="$(bash "${SCRIPT_DIR}/detect-runtime.sh" 2>/dev/null || echo unknown)"
 CODEX_FLAG=""

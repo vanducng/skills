@@ -1,4 +1,4 @@
-"""`twitter reply <url|id> "text" [--media path...]` — reply to a tweet."""
+"""`twitter reply <url|id> "text" [--media path...]` - reply to a tweet."""
 from __future__ import annotations
 
 import argparse

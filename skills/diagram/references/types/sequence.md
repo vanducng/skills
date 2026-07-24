@@ -23,7 +23,7 @@ Trigger words:
 
 ## Level of detail
 Include: every meaningful message, sync vs async, return values, error branches as labeled alt fragments.
-Exclude: framework-internal callbacks, repeated polling — collapse with `loop` notation.
+Exclude: framework-internal callbacks, repeated polling - collapse with `loop` notation.
 
 ## Image-prompt template
 ```
@@ -72,7 +72,7 @@ viewBox="0 0 1600 900". Actor headers along y=80, lifelines drop to y=820. Messa
 > Sequence diagram, four lifelines: Client, Backend, Inventory service, Stripe (external dashed). alt fragment around the Stripe charge: success branch (success-colored, labeled "ok") creates order; failure branch (error-colored, labeled "error") releases inventory...
 
 ## Common mistakes to avoid
-- Do NOT mix horizontal-flow conventions — sequence diagrams are vertical for time.
+- Do NOT mix horizontal-flow conventions - sequence diagrams are vertical for time.
 - Do NOT skip return arrows; show them as dashed.
 - Do NOT use the error color decoratively. It's reserved for explicit error branches.
 - Do NOT cram >6 actors. Group or split.

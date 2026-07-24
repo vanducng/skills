@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# build-compound-verifier.sh — emit a single verify-ultracook.sh that runs the
+# build-compound-verifier.sh - emit a single verify-ultracook.sh that runs the
 # per-action verifier set bound to ONE action (NOT the whole goal.yaml.target
-# .verifiers — that's the workflow-level set, run only at verify_* phases).
+# .verifiers - that's the workflow-level set, run only at verify_* phases).
 #
 # Usage: build-compound-verifier.sh --goal-dir <dir> --action <name> [--iter <N>]
 #
 # Reads:
-#   - action-vocab.yaml          → action's verifier binding
-#   - goal.yaml                  → placeholder values (test_cmd via profile)
-#   - state.json                 → pr_number, plan_dir, etc.
+# - action-vocab.yaml          → action's verifier binding
+# - goal.yaml                  → placeholder values (test_cmd via profile)
+# - state.json                 → pr_number, plan_dir, etc.
 #
 # Writes: {goal-dir}/verify-ultracook-{action}.sh (executable)
 # Stdout: absolute path to the written verify script.
 # Exit: 0 if a verifier was bound + script written; 1 if no verifier for this
-#       action (caller should treat as "no verifier needed" — pass through);
+#       action (caller should treat as "no verifier needed" - pass through);
 #       2 on input error.
 
 set -uo pipefail

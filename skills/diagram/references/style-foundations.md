@@ -1,4 +1,4 @@
-# Style Foundations — Theme-Agnostic Rules
+# Style Foundations - Theme-Agnostic Rules
 
 These rules are **invariant across all presets** (`warm`, `mono`, `pastel`, `cyberpunk`).
 Only the palette and aesthetic feel change per preset. Iconography, typography defaults, line weights, and arrowhead semantics stay identical.
@@ -29,9 +29,9 @@ These are the ONLY shapes. Reuse across every diagram type so the visual grammar
 
 ## Line Weight
 
-- **2px** — primary connection arrows (the user-visible flow)
-- **1px** — grouping outlines, boundary boxes, subordinate connections
-- **Dashed** — async / optional / retry flows. Use the same color as the equivalent solid line.
+- **2px** - primary connection arrows (the user-visible flow)
+- **1px** - grouping outlines, boundary boxes, subordinate connections
+- **Dashed** - async / optional / retry flows. Use the same color as the equivalent solid line.
 
 ## Arrowheads
 
@@ -43,7 +43,7 @@ These are the ONLY shapes. Reuse across every diagram type so the visual grammar
 
 - **Maximum 3–5 colors per diagram.** More than 5 = visual noise.
 - **The accent color highlights AT MOST one "subject" per diagram.** More than one and the highlight loses meaning.
-- Success / error colors are reserved for **explicit ok / error semantics** — never decorative.
+- Success / error colors are reserved for **explicit ok / error semantics** - never decorative.
 
 ## Subject Highlighting Across Presets
 
@@ -55,4 +55,4 @@ Each preset specifies HOW the subject is highlighted because the technique varie
 | `mono` | No accent color exists; use 3.5px primary border + a `[Subject]` label tag in monospace. |
 | `cyberpunk` | Accent-color stroke at 2.5px PLUS a subtle outer glow filter on the subject. |
 
-Type refs say "highlight the subject per the active preset's subject-highlighting rule" — they do NOT prescribe a technique inline.
+Type refs say "highlight the subject per the active preset's subject-highlighting rule" - they do NOT prescribe a technique inline.

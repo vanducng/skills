@@ -2,7 +2,7 @@
 
 Reads cookies from gopass, materializes them to a 0o600 tempfile for the
 duration of the call, and on exit persists any refreshed cookies back to
-gopass (only if changed — twikit doesn't always rotate ct0 on read ops).
+gopass (only if changed - twikit doesn't always rotate ct0 on read ops).
 
 The community patch for twikit's broken `ClientTransaction.init()` is applied
 at module import time, before any twikit Client is constructed.

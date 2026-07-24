@@ -23,10 +23,10 @@ bash skills/auto-loop/scripts/uninstall-stop-hook.sh "$(pwd)"
 The gate runs the verifier **twice** and requires both to pass. If your verifier is
 intermittently flaky:
 
-1. Check `.auto-loop/verifier-*.log` for the actual failure reason — flakiness in the
+1. Check `.auto-loop/verifier-*.log` for the actual failure reason - flakiness in the
    verifier itself (test ordering, network calls, race conditions) shows up as one
    pass + one fail per iter (`flaky` in gate-history).
-2. Fix the verifier. Don't bypass the 2-run dedupe — it's the floor that prevents
+2. Fix the verifier. Don't bypass the 2-run dedupe - it's the floor that prevents
    false-positive completion.
 
 ## Audit always votes `unmet`
@@ -41,14 +41,14 @@ keeps voting `unmet`:
    ```bash
    command -v claude || echo "claude headless missing"
    ```
-3. **Audit response unparseable.** Check `.auto-loop/audit-{iter}.json` — if reason is
+3. **Audit response unparseable.** Check `.auto-loop/audit-{iter}.json` - if reason is
    "audit response unparseable", the audit subagent emitted prose instead of JSON.
    Update the audit prompt template if this is recurring.
 
 ## Restart never fires (loop crashes at high context)
 
 Possible cause: `probe-context-pct.sh` returns `unknown` source (no statusline,
-no tiktoken). Fall-through to native auto-compact — which may not handle very long
+no tiktoken). Fall-through to native auto-compact - which may not handle very long
 loops.
 
 Diagnose:
@@ -121,5 +121,5 @@ template (`templates/next-iteration-prompt.md`) to spell out the enum.
 Either:
 1. Goal too ambitious for the cap. Raise `--max-iterations` or split into sub-goals
    (run multiple `vd:auto-loop` invocations sequentially via `vd:plan`).
-2. The model is thrashing — `drift-watchdog.sh` should escalate after 3 stagnant or
+2. The model is thrashing - `drift-watchdog.sh` should escalate after 3 stagnant or
    5-edit iters. Check `.auto-loop/diff-signatures.log` and `file-edits.log`.

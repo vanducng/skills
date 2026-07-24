@@ -18,7 +18,7 @@ First resolve the diff yourself:
 - empty         → `git diff` of whatever was just edited
 
 Then **read the file around each changed hunk** (≥30 lines of surrounding context) before
-commenting — diff context lies.
+commenting - diff context lies.
 
 ## Output (print to stdout, do NOT post unless told `--post`)
 
@@ -26,23 +26,23 @@ For each finding, anchor it to `path:line` and use a severity prefix:
 
 | Prefix | When |
 |---|---|
-| `Critical:` | Blocks merge — bug, security, data loss, CI red. Only with a concrete failure mode. |
-| `Important - <topic>:` | Should fix before merge — correctness, design, perf. |
-| `Suggestion:` | Nice-to-have — style, minor refactor, doc nit. |
-| `Question:` | You genuinely don't know if it's a bug — ask the author. |
+| `Critical:` | Blocks merge - bug, security, data loss, CI red. Only with a concrete failure mode. |
+| `Important - <topic>:` | Should fix before merge - correctness, design, perf. |
+| `Suggestion:` | Nice-to-have - style, minor refactor, doc nit. |
+| `Question:` | You genuinely don't know if it's a bug - ask the author. |
 | `Nit:` | Pure preference, must be ignorable. |
 
 Finding shape:
 ```
 <path:line> Critical: <one-sentence problem>.
-<1–3 sentences of evidence: what breaks, when, why. Name the failure mode explicitly —
-"alert silently won't fire", "PII leaks to logs on retry" — not "may cause issues".>
+<1–3 sentences of evidence: what breaks, when, why. Name the failure mode explicitly -
+"alert silently won't fire", "PII leaks to logs on retry" - not "may cause issues".>
 <optional concrete fix in a fenced block>
 ```
 
 Rules:
 - No "Critical" without a named failure mode. Can't name it → downgrade to Important.
-- Open with the problem, not praise. Don't restate the diff. Don't moralize — state the consequence.
+- Open with the problem, not praise. Don't restate the diff. Don't moralize - state the consequence.
 - Worst 2 issues per file are usually enough; don't comment every line.
 - No emojis/badges. No "as an AI…". The author is a peer.
 
@@ -50,12 +50,12 @@ Rules:
 Correctness (edge cases, nil/empty, off-by-one, error paths) · Security (injection,
 authz/tenant scope, secrets in logs) · Concurrency (races, locks, ordering) · Perf
 (N+1, full scans, unbounded growth) · API/contract (breaking changes, back-compat) ·
-Tests (do they cover the new failure modes?) · CI (if red, that's Critical — name the job).
+Tests (do they cover the new failure modes?) · CI (if red, that's Critical - name the job).
 
 ## Top-level summary (≤8 lines, last)
 ```
 <one sentence: what the PR does + what genuinely works>.
-<if CI red: Critical: CI <job> is red — block until fixed: <debug cmd>>.
+<if CI red: Critical: CI <job> is red - block until fixed: <debug cmd>>.
 Inline findings cover the <correctness/design/perf> concerns.
 Verdict: <Approve | Request changes | Comment>
 ```

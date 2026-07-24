@@ -68,7 +68,7 @@ viewBox="0 0 1600 900". Boundary as a large rounded rect, fill="none", stroke="v
 > C4 container. Boundary: "Checkout [Software System]". Containers: Mobile App "[Container: React Native]", BFF "[Container: Node.js]", Orders Service "[Container: Python/FastAPI]", Database "[Container: MySQL]", Queue "[Container: RabbitMQ]". External user: Customer. External system: Stripe (dashed). Relationships labeled with verb + protocol.
 
 ## Common mistakes to avoid
-- Do NOT skip the `[Container: <tech>]` tag — it's the differentiator from system-architecture.
+- Do NOT skip the `[Container: <tech>]` tag - it's the differentiator from system-architecture.
 - Do NOT show code-level components (classes, modules).
 - Do NOT use the success/error colors decoratively.
 - Do NOT exceed 8 internal containers.

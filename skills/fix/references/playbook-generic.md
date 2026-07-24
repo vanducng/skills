@@ -1,4 +1,4 @@
-# Playbook — Generic
+# Playbook - Generic
 
 Use this when the issue doesn't cleanly map to data-pipeline, app-stack, or infra. Examples: shell script, build tool, repo-level config, third-party SaaS integration, an outage that crosses surfaces.
 
@@ -27,7 +27,7 @@ That's a signal the diagnosis isn't deep enough. Go back to Step 2 (`vd:debug`) 
 - What's the *first* place the system's state diverges from expected?
 - What's a smaller, faster reproducer?
 
-Avoid spending more than a couple of attempts in "generic" — most real failures map to a surface once the diagnosis is sharp enough.
+Avoid spending more than a couple of attempts in "generic" - most real failures map to a surface once the diagnosis is sharp enough.
 
 ## Done criteria (generic)
 

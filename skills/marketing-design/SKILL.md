@@ -1,6 +1,6 @@
 ---
 name: marketing-design
-description: "Marketing brand-asset generation (raster images via AI): logo design (55 styles, 30 palettes, 25 industries), corporate identity / CIP mockups (50 deliverables — business card, letterhead, signage, packaging, apparel), banner design (22 styles, social/ads/web/print), SVG icon design (15 styles), social photos (multi-platform), and model-agnostic poster prompts. Default image engine is Codex gpt-image-2 (ChatGPT subscription via `codex login`), attaching the brand logo as a reference image for CIP compositing; falls back to Gemini Nano Banana (GEMINI_API_KEY, same key as omnimedia). Actions: design logo, create CIP / brand identity, generate mockups, design banner, generate icon, create social photos, design poster, social media images. Platforms: Facebook, Twitter, LinkedIn, YouTube, Instagram, Pinterest, TikTok, Threads, Google Ads. For HTML/web pages, dashboards, and slide decks, use opendesign instead."
+description: "Marketing brand-asset generation (raster images via AI): logo design (55 styles, 30 palettes, 25 industries), corporate identity / CIP mockups (50 deliverables - business card, letterhead, signage, packaging, apparel), banner design (22 styles, social/ads/web/print), SVG icon design (15 styles), social photos (multi-platform), and model-agnostic poster prompts. Default image engine is Codex gpt-image-2 (ChatGPT subscription via `codex login`), attaching the brand logo as a reference image for CIP compositing; falls back to Gemini Nano Banana (GEMINI_API_KEY, same key as omnimedia). Actions: design logo, create CIP / brand identity, generate mockups, design banner, generate icon, create social photos, design poster, social media images. Platforms: Facebook, Twitter, LinkedIn, YouTube, Instagram, Pinterest, TikTok, Threads, Google Ads. For HTML/web pages, dashboards, and slide decks, use opendesign instead."
 argument-hint: "[design-type] [context]"
 license: MIT
 metadata:
@@ -10,12 +10,12 @@ metadata:
 
 # Marketing Design
 
-Unified marketing brand-asset skill: logo, CIP, banners, SVG icons, social photos, posters. Generates **raster images** — default engine is **Codex gpt-image-2** (ChatGPT subscription, `codex login`), falling back to **Gemini Nano Banana** (`GEMINI_API_KEY`, the same key `omnimedia` uses). For HTML/web artifacts and slide decks, use `opendesign`.
+Unified marketing brand-asset skill: logo, CIP, banners, SVG icons, social photos, posters. Generates **raster images** - default engine is **Codex gpt-image-2** (ChatGPT subscription, `codex login`), falling back to **Gemini Nano Banana** (`GEMINI_API_KEY`, the same key `omnimedia` uses). For HTML/web artifacts and slide decks, use `opendesign`.
 
 ## When to Use
 
 - Logo design and AI generation
-- Corporate identity program (CIP) deliverables — business card, letterhead, signage, packaging, apparel
+- Corporate identity program (CIP) deliverables - business card, letterhead, signage, packaging, apparel
 - Brand visual identity assets
 - Banner design for social media, ads, web, print
 - Social photos for Instagram, Facebook, LinkedIn, Twitter, Pinterest, TikTok
@@ -43,15 +43,15 @@ All built-in modules are self-contained (references + scripts + data in this ski
 
 ## Image Generation Backend
 
-Raster generators (`logo`, `cip`) default to **Codex `$imagegen` (gpt-image-2)** on the ChatGPT subscription — no API key. One-time setup: `brew install codex && codex login`. If Codex is unavailable (not installed / not logged in / quota), they **fall back to Gemini** automatically.
+Raster generators (`logo`, `cip`) default to **Codex `$imagegen` (gpt-image-2)** on the ChatGPT subscription - no API key. One-time setup: `brew install codex && codex login`. If Codex is unavailable (not installed / not logged in / quota), they **fall back to Gemini** automatically.
 
 | Generator | Default engine | Reference image | Force Gemini | Notes |
 |-----------|----------------|-----------------|--------------|-------|
-| `logo` | Codex gpt-image-2 | — | `--provider gemini` | `--batch` always uses Gemini (Codex = one image/turn) |
+| `logo` | Codex gpt-image-2 | - | `--provider gemini` | `--batch` always uses Gemini (Codex = one image/turn) |
 | `cip` | Codex gpt-image-2 | brand logo via `--logo` (attached as `-i` reference) | `--provider gemini` | large `--set` faster on Gemini |
-| `icon` | Gemini (SVG **code**, not raster) | — | n/a | Codex can't emit SVG markup |
-| `poster` | model-agnostic prompt emitter | — | n/a | prints a prompt for any image model |
-| `banner` / social photos | HTML→screenshot | — | n/a | not direct AI image gen |
+| `icon` | Gemini (SVG **code**, not raster) | - | n/a | Codex can't emit SVG markup |
+| `poster` | model-agnostic prompt emitter | - | n/a | prints a prompt for any image model |
+| `banner` / social photos | HTML→screenshot | - | n/a | not direct AI image gen |
 
 `--provider`: `codex` (default) · `gemini` (force Nano Banana) · `auto` (codex→gemini). Codex takes 5–30s/image. Reference-image compositing requires codex-cli ≥ 0.137.
 
@@ -94,7 +94,7 @@ python3 $SKILL/scripts/logo/generate.py --prompt "coffee shop vintage badge" --s
 # Force Gemini Nano Banana (e.g. for aspect-ratio control or --pro)
 python3 $SKILL/scripts/logo/generate.py --brand "TechFlow" --provider gemini --pro
 
-# Variant batch (Gemini — Codex has no batch mode)
+# Variant batch (Gemini - Codex has no batch mode)
 python3 $SKILL/scripts/logo/generate.py --brand "TechFlow" --batch 9 --output-dir ./logos
 ```
 
@@ -140,7 +140,7 @@ python3 $SKILL/scripts/cip/generate.py --brand "TechFlow" --deliverable "busines
 python3 $SKILL/scripts/cip/generate.py --brand "TopGroup" --logo logo.png --industry "consulting" --set --provider gemini
 ```
 
-Engines: **Codex gpt-image-2** (default, logo attached as reference image). Gemini fallback models — `--model flash` (`gemini-2.5-flash-image`), `--model pro` (`gemini-3-pro-image-preview`).
+Engines: **Codex gpt-image-2** (default, logo attached as reference image). Gemini fallback models - `--model flash` (`gemini-2.5-flash-image`), `--model pro` (`gemini-3-pro-image-preview`).
 
 ### CIP: Render HTML Presentation
 
@@ -158,11 +158,11 @@ Load `references/banner-sizes-and-styles.md` for complete sizes and styles refer
 
 ### Banner: Workflow
 
-1. **Gather requirements** — purpose, platform, content, brand, style, quantity
-2. **Research** — collect visual references only when the brief lacks a clear direction
-3. **Design** — create HTML/CSS banner variants; generate raster visuals through this skill's image flow when needed
-4. **Export** — screenshot to PNG at exact dimensions via Browser, Playwright, or Chrome
-5. **Present** — Show all options side-by-side, iterate on feedback
+1. **Gather requirements** - purpose, platform, content, brand, style, quantity
+2. **Research** - collect visual references only when the brief lacks a clear direction
+3. **Design** - create HTML/CSS banner variants; generate raster visuals through this skill's image flow when needed
+4. **Export** - screenshot to PNG at exact dimensions via Browser, Playwright, or Chrome
+5. **Present** - Show all options side-by-side, iterate on feedback
 
 ### Banner: Quick Size Reference
 
@@ -233,11 +233,11 @@ python3 $SKILL/scripts/icon/generate.py --prompt "user profile" --sizes "16,24,3
 | flat | Material design, Google-style |
 | gradient | Modern brands, SaaS |
 
-**Model:** `gemini-3.1-pro-preview` — text-only output (SVG is XML text). No image generation API needed.
+**Model:** `gemini-3.1-pro-preview` - text-only output (SVG is XML text). No image generation API needed.
 
 ## Poster Design (Built-in)
 
-20-30 curated styles × 15-20 palettes × 10-14 layouts × 8-12 textures. Model-agnostic — emits text prompts only. Use any image model (Gemini Nano Banana 2, GPT Image, Imagen, Midjourney).
+20-30 curated styles × 15-20 palettes × 10-14 layouts × 8-12 textures. Model-agnostic - emits text prompts only. Use any image model (Gemini Nano Banana 2, GPT Image, Imagen, Midjourney).
 
 Three axes (style, palette, texture) locked per call to preserve identity; layout + variation seed randomized to guarantee per-call variety. 5 calls with same `--style` → 5 visibly distinct posters that read as one series.
 
@@ -286,14 +286,14 @@ Load `references/social-photos-design.md` for sizes, templates, best practices.
 
 ### Social Photos: Workflow
 
-1. **Orchestrate** — track variants and parallelize independent work when useful
-2. **Analyze** — Parse prompt: subject, platforms, style, brand context, content elements
-3. **Ideate** — 3-5 concepts and present concise options
-4. **Design** — apply brand tokens from the brief; build HTML per idea × size
-5. **Export** — Browser or Playwright screenshot at exact px (2x deviceScaleFactor)
-6. **Verify** — visually inspect exported designs; fix layout/styling issues and re-export
-7. **Report** — Summary to the injected `Reports:` path with design decisions
-8. **Organize** — sort output files and reports under the chosen artifact directory
+1. **Orchestrate** - track variants and parallelize independent work when useful
+2. **Analyze** - Parse prompt: subject, platforms, style, brand context, content elements
+3. **Ideate** - 3-5 concepts and present concise options
+4. **Design** - apply brand tokens from the brief; build HTML per idea × size
+5. **Export** - Browser or Playwright screenshot at exact px (2x deviceScaleFactor)
+6. **Verify** - visually inspect exported designs; fix layout/styling issues and re-export
+7. **Report** - Summary to the injected `Reports:` path with design decisions
+8. **Organize** - sort output files and reports under the chosen artifact directory
 
 ### Social Photos: Key Sizes
 

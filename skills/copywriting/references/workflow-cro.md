@@ -23,7 +23,7 @@ Analyze content and optimize for conversion based on user-reported issues.
 10. **PAS Framework**: Problem → Agitate → Solve, emotion before logic
 
 ### Pricing & Urgency
-11. **Genuine Urgency Only**: Real deadlines, actual limits—fake timers destroy trust
+11. **Genuine Urgency Only**: Real deadlines, actual limits - fake timers destroy trust
 12. **Price Anchoring**: Show expensive option first, real price feels like relief
 13. **Trust Signal Clustering**: Security badges, guarantees, policies visible together
 

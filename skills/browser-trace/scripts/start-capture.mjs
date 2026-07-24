@@ -28,7 +28,6 @@ if (!target) {
 const runId = runIdArg || isoUtcSeconds().replace(/[-:]/g, '');
 const interval = Number(intervalArg) || 2;
 const domainsList = (process.env.O11Y_DOMAINS || 'Network Console Runtime Log Page').trim().split(/\s+/);
-const domainArgs = domainsList.flatMap(d => ['--domain', d]);
 
 const RD = runDir(runId);
 ensureDir(path.join(RD, 'cdp'));
@@ -44,12 +43,14 @@ writeJson(path.join(RD, 'manifest.json'), {
 });
 
 // Spawn the CDP firehose in the background. Detach + unref so it survives this
-// process exiting. browse cdp writes one JSON object per line to stdout.
+// process exiting. cdp-firehose.mjs writes one JSON object per line to stdout.
 const rawFd = fs.openSync(path.join(RD, 'cdp', 'raw.ndjson'), 'w');
 const errFd = fs.openSync(path.join(RD, 'cdp', 'stderr.log'), 'w');
-const cdp = spawn('browse', ['cdp', target, ...domainArgs], {
+const firehoseScript = path.join(__dirname, 'cdp-firehose.mjs');
+const cdp = spawn(process.execPath, [firehoseScript, target], {
   detached: true,
   stdio: ['ignore', rawFd, errFd],
+  env: { ...process.env, O11Y_DOMAINS: domainsList.join(' ') },
 });
 cdp.unref();
 fs.writeFileSync(path.join(RD, '.cdp.pid'), String(cdp.pid));
@@ -65,11 +66,11 @@ const loop = spawn(process.execPath, [loopScript, target, RD, String(interval)],
 loop.unref();
 fs.writeFileSync(path.join(RD, '.loop.pid'), String(loop.pid));
 
-// Give browse cdp a beat to fail loudly on bad targets so the user sees the
+// Give the firehose a beat to fail loudly on bad targets so the user sees the
 // real error instead of a silent zero-event capture.
 await sleepMs(1000);
 if (!isAlive(cdp.pid)) {
-  console.error(`browse cdp exited immediately — check ${RD}/cdp/stderr.log`);
+  console.error(`cdp-firehose exited immediately - check ${RD}/cdp/stderr.log`);
   try { console.error(fs.readFileSync(path.join(RD, 'cdp', 'stderr.log'), 'utf8')); } catch {}
   try { process.kill(loop.pid); } catch {}
   process.exit(1);

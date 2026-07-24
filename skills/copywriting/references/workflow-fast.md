@@ -16,7 +16,7 @@ Quick, creative copy generation with minimal research.
 
 ## Speed Optimization
 
-- Skip research phase—use provided context
+- Skip research phase - use provided context
 - Apply formulas from `copy-formulas.md` directly
 - Single-pass writing, minimal revision
 
