@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# opendesign — fetch + search nexu-io/open-design skills & design-systems
+# opendesign - fetch + search nexu-io/open-design skills & design-systems
 # Usage:
 #   opendesign sync                       # clone or pull cache (auto-registers qmd if installed)
 #   opendesign list [skills|design-systems]
@@ -24,13 +24,13 @@ qmd_available() { command -v qmd >/dev/null 2>&1; }
 die() { echo "opendesign: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null || die "missing dependency: $1"; }
 
-# Sparse-checkout list (cone mode — directories only), justified per entry:
-#   skills/          — the 60 SKILL.md catalogs we compose from (core)
-#   design-systems/  — the 137 DESIGN.md token sets we apply (core)
-#   assets/          — device frames (mobile-app reference) + community pet
+# Sparse-checkout list (cone mode - directories only), justified per entry:
+#   skills/          - the 60 SKILL.md catalogs we compose from (core)
+#   design-systems/  - the 137 DESIGN.md token sets we apply (core)
+#   assets/          - device frames (mobile-app reference) + community pet
 #                      sprites (required by hatch-pet skill); ~36 small blobs
 # Deliberately NOT pulled: apps/, docs/, e2e/, scripts/, tools/, packages/,
-#   templates/, prompt-templates/, story/, specs/, craft/, .github/ — none are
+#   templates/, prompt-templates/, story/, specs/, craft/, .github/ - none are
 #   referenced by any skill workflow we route to (audited 2026-05-04).
 # LICENSE is retained in cloned .git history (Apache-2.0 §4 obligation met
 # via `git show HEAD:LICENSE` even when not in the working tree).
@@ -64,7 +64,7 @@ pull_quiet() {
   fi
 }
 
-# Register both collections in qmd (idempotent, instant — no model download).
+# Register both collections in qmd (idempotent, instant - no model download).
 # Embeddings are NOT generated here; that requires a future explicit embed command
 # (downloads ~334MB model). BM25 search via `qmd search` works without it.
 qmd_sync_collections() {
@@ -158,7 +158,7 @@ rationale() {
 }
 
 # qmd-powered search via `qmd search` (BM25 lexical, no model download, instant).
-# Deliberately not using `qmd vsearch`/`qmd query` — they download multi-GB models
+# Deliberately not using `qmd vsearch`/`qmd query` - they download multi-GB models
 # for marginal gain on a 197-doc curated catalog (see levineam/qmd-skill guidance).
 # Output is post-processed: full file paths → bare folder names, deduped.
 # Extract folder names from qmd's `--files` output rows like:
@@ -220,7 +220,7 @@ cmd_search() {
   echo "# query: $query"
   echo
 
-  # Prefer qmd if available — much better ranking. Register collections here too,
+  # Prefer qmd if available - much better ranking. Register collections here too,
   # so first-run `opendesign search ...` works without requiring a separate sync.
   if qmd_available; then
     qmd_sync_collections
@@ -279,13 +279,13 @@ cmd_preview() {
   case "$(uname -s)" in
     Darwin) open "$file" ;;
     Linux)  command -v xdg-open >/dev/null && xdg-open "$file" || die "preview: install xdg-open" ;;
-    *)      die "preview: unsupported OS — open '$file' manually" ;;
+    *)      die "preview: unsupported OS - open '$file' manually" ;;
   esac
 }
 
 usage() {
   cat <<EOF
-opendesign — search nexu-io/open-design skills + design-systems
+opendesign - search nexu-io/open-design skills + design-systems
 
 Commands:
   sync                          Clone or pull the upstream cache

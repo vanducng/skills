@@ -2,7 +2,7 @@
 
 **Aesthetic:** soft slate-50 surface, sky-blue accent, low-saturation overall. Reads as "polished but approachable". Best for PowerPoint slides, executive presentations, customer-facing docs, marketing one-pagers.
 
-**Inspiration:** modern SaaS marketing (Linear, Notion, Stripe Atlas) — pastel surface, restrained accent, plenty of breathing room.
+**Inspiration:** modern SaaS marketing (Linear, Notion, Stripe Atlas) - pastel surface, restrained accent, plenty of breathing room.
 
 ## Palette
 

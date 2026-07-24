@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# probe-token-usage.sh — feature-detect token-usage source.
+# probe-token-usage.sh - feature-detect token-usage source.
 #
 # Sources, in priority order:
 #   1. ccusage CLI if installed (exact)

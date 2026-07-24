@@ -78,7 +78,7 @@ spec:
 
 ## Helm
 
-Package manager for K8s — templated manifests with values overlays.
+Package manager for K8s - templated manifests with values overlays.
 
 ```bash
 helm repo add bitnami https://charts.bitnami.com/bitnami && helm repo update
@@ -96,6 +96,6 @@ helm uninstall myrelease -n data
 ## Security (RBAC, secrets, network)
 
 - **RBAC least-privilege:** scope `Role`/`RoleBinding` to a namespace; reserve `ClusterRole` for genuinely cluster-wide needs. Bind ServiceAccounts, not users, for workloads.
-- **Secrets** are base64, not encrypted at rest by default — enable etcd encryption, or use external-secrets/sealed-secrets/a cloud secret manager. Never commit raw `Secret` manifests.
+- **Secrets** are base64, not encrypted at rest by default - enable etcd encryption, or use external-secrets/sealed-secrets/a cloud secret manager. Never commit raw `Secret` manifests.
 - **NetworkPolicies** default-deny then allow explicitly; `securityContext` with `runAsNonRoot`, `readOnlyRootFilesystem`, dropped capabilities.
 - Scan images before deploy; use Pod Security Admission (`restricted`) to enforce baseline.

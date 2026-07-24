@@ -2,7 +2,7 @@
 
 Default: execute via `git-manager` subagent. `--inline` keeps it in main context.
 
-## Tool 1 — Stage + analyze + secret scan
+## Tool 1 - Stage + analyze + secret scan
 
 ```bash
 git add -A && \
@@ -25,11 +25,11 @@ git diff --cached --name-only | awk -F'/' '{
 
 **If `SECRETS > 0`:** STOP, surface the matching lines, block commit. See `safety-protocols.md`.
 
-## Tool 2 — Split decision
+## Tool 2 - Split decision
 
 **Single commit** when:
 - Single group, FILES ≤ 3, LINES ≤ 50 → one `type(scope): description`
-- Tightly coupled (feature + its test, refactor + its types) — keep together even if 2 groups
+- Tightly coupled (feature + its test, refactor + its types) - keep together even if 2 groups
 
 **Multi-commit** when groups are mixed:
 
@@ -42,26 +42,26 @@ git diff --cached --name-only | awk -F'/' '{
 | `test:` | `test(<scope>): ...` |
 | `code:` | `feat|fix|refactor|perf(<scope>): ...` |
 | `docs:` | `docs(<scope>): ...` |
-| `claude:` | `feat|fix|perf(skill): ...` — note: in `.claude/` use only `feat`/`fix`/`perf`, not `docs` |
+| `claude:` | `feat|fix|perf(skill): ...` - note: in `.claude/` use only `feat`/`fix`/`perf`, not `docs` |
 
 Order: ci/infra/deps/config → test → code → docs (config-ish things first so code commits don't sneak in a lockfile bump).
 
-## Tool 3 — Pre-commit checks
+## Tool 3 - Pre-commit checks
 
 Before each commit:
-1. **Lint** — run the project's lint command if present (`package.json` scripts, `Makefile`, `pyproject.toml`, etc.). If it fails, abort and surface output.
-2. **Search related issues** — `gh issue list --search "<topic>"` if `gh` is available and the message looks issue-worthy. Add `Closes #N` / `Refs #N` to the body if a clear match exists.
+1. **Lint** - run the project's lint command if present (`package.json` scripts, `Makefile`, `pyproject.toml`, etc.). If it fails, abort and surface output.
+2. **Search related issues** - `gh issue list --search "<topic>"` if `gh` is available and the message looks issue-worthy. Add `Closes #N` / `Refs #N` to the body if a clear match exists.
 
 Skip these for `chore(deps)`, `chore(config)`, and pure `docs:` commits where lint is irrelevant.
 
-## Tool 4 — Commit
+## Tool 4 - Commit
 
 **Single:**
 ```bash
 git commit -m "type(scope): description"
 ```
 
-**Multi (sequential — reset, re-stage by group, commit):**
+**Multi (sequential - reset, re-stage by group, commit):**
 ```bash
 git reset
 git add <group-1-files...>
@@ -83,7 +83,7 @@ EOF
 )"
 ```
 
-## Tool 5 — Push (only for `cp` verb)
+## Tool 5 - Push (only for `cp` verb)
 
 ```bash
 git push origin HEAD && echo "✓ pushed: yes" || echo "✓ pushed: no"

@@ -24,12 +24,12 @@ codex exec resume --last "use the vd:plan skill to: --deep small fix"
 
 ## Workaround 2: Monitor (event-driven external wait)
 
-**Gap.** Codex has no analog to Claude Code's `Monitor` tool — no way to spawn a background polling script whose stdout lines become events flowing back to the agent. Codex's `--json` event stream is OF the agent itself, not of external commands.
+**Gap.** Codex has no analog to Claude Code's `Monitor` tool - no way to spawn a background polling script whose stdout lines become events flowing back to the agent. Codex's `--json` event stream is OF the agent itself, not of external commands.
 
 **Workaround.** PostToolUse hook + `additionalContext` injection. ultracook registers a hook scoped to a specific `tool_use_id`; the hook polls the user-specified condition and injects status into the model's next turn.
 
 **Implementation.**
-- `scripts/codex-monitor-hook.sh` — the hook handler. Reads PostToolUse payload from stdin (via `codex_hook_payload_read`), finds the matching `iterations/NNN-action-monitor.spec.json`, runs the poll command, writes `.result.json` on terminal state, emits `hookSpecificOutput.additionalContext` for the model.
+- `scripts/codex-monitor-hook.sh` - the hook handler. Reads PostToolUse payload from stdin (via `codex_hook_payload_read`), finds the matching `iterations/NNN-action-monitor.spec.json`, runs the poll command, writes `.result.json` on terminal state, emits `hookSpecificOutput.additionalContext` for the model.
 - Ultracook executor (in `runtimes/codex.md`) writes the spec before triggering the hook:
   ```json
   {
@@ -71,7 +71,7 @@ rm -f /tmp/sentinel
 **Limitations.**
 - **`additionalContext` budget.** Every Monitor invocation injects a status line into the next turn's context. Capped at 200 chars per injection. Long CI waits → many injections → context burn. Watch for this in Phase 5 dogfood; if it's pathological, fall back to a per-action polling loop in `runtimes/codex.md` instead of using hooks.
 - **Hook scope.** PostToolUse fires for EVERY tool call. `codex-monitor-hook.sh` is a no-op when there's no matching spec, but every Bash/Read/Edit call goes through it. Acceptable overhead (<10ms typical).
-- **Stale spec leaks** when ultracook dies mid-wait — covered by `codex-hook-cleanup.sh` (Workaround 4 below).
+- **Stale spec leaks** when ultracook dies mid-wait - covered by `codex-hook-cleanup.sh` (Workaround 4 below).
 
 ## Workaround 3: `vd:auto-loop` delegation on Codex
 
@@ -79,14 +79,14 @@ rm -f /tmp/sentinel
 
 **Workaround.** `scripts/delegate-to-auto-loop.sh` detects runtime via `detect-runtime.sh` and appends `--codex` to the `vd:auto-loop` invocation args when runtime is `codex`.
 
-**Implementation.** ~5 LOC in `delegate-to-auto-loop.sh` — detect runtime + conditional flag append. Other logic (compound verifier, marker file, recursion guard, precondition checks) unchanged.
+**Implementation.** ~5 LOC in `delegate-to-auto-loop.sh` - detect runtime + conditional flag append. Other logic (compound verifier, marker file, recursion guard, precondition checks) unchanged.
 
 **Isolation test.**
 ```bash
 # From a Codex TUI session:
 ULTRACOOK_RUNTIME=codex bash ~/skills/skills/ultracook/scripts/delegate-to-auto-loop.sh \
   --goal-dir /tmp/fake-goal-dir --action cook
-# (will fail on the build-compound-verifier step if no goal.yaml — but check
+# (will fail on the build-compound-verifier step if no goal.yaml - but check
 #  the args before the exit: should contain `--codex` flag in the JSON hint.)
 
 # Compare against Claude Code path:
@@ -96,12 +96,12 @@ ULTRACOOK_RUNTIME=claude-code bash ~/skills/skills/ultracook/scripts/delegate-to
 ```
 
 **Limitations.**
-- **`vd:auto-loop`'s `--codex` mode is TUI-only** (per `~/skills/skills/auto-loop/references/codex-delegation.md`: "codex exec does not (yet) accept /goal as an argument. So delegation is inherently interactive"). The chain `ultracook → codex exec resume → vd:auto-loop --codex → /goal` has 3 handoffs. The middle one (`codex exec resume`) IS interactive-capable, so this should work — but Phase 5 dogfood must verify the resumed session can actually exec `/goal`. If it can't, ultracook's cook on Codex degrades to running `vd:auto-loop` in non-`--codex` mode (loses /goal's pause/resume + cross-surface sync).
-- **Codex /goal cancel is cooperative (v0.3).** codex CLI ≤0.137 exposes no programmatic `/goal` cancel (it's a TUI slash-primitive). Ultracook's `kill` sub-verb writes a `{goal-dir}/.ultracook/cancel.sentinel` BEFORE flipping `state.terminal=abandoned`; `codex-monitor-hook.sh` reads it on the next PostToolUse and tells the model to STOP the loop, and `kill` prints a loud "also run `/goal cancel` in the TUI" instruction. This halts the loop on the next iteration — it cannot interrupt an in-flight `/goal` turn. `codex-hook-cleanup.sh` sweeps the sentinel once the goal is terminal.
+- **`vd:auto-loop`'s `--codex` mode is TUI-only** (per `~/skills/skills/auto-loop/references/codex-delegation.md`: "codex exec does not (yet) accept /goal as an argument. So delegation is inherently interactive"). The chain `ultracook → codex exec resume → vd:auto-loop --codex → /goal` has 3 handoffs. The middle one (`codex exec resume`) IS interactive-capable, so this should work - but Phase 5 dogfood must verify the resumed session can actually exec `/goal`. If it can't, ultracook's cook on Codex degrades to running `vd:auto-loop` in non-`--codex` mode (loses /goal's pause/resume + cross-surface sync).
+- **Codex /goal cancel is cooperative (v0.3).** codex CLI ≤0.137 exposes no programmatic `/goal` cancel (it's a TUI slash-primitive). Ultracook's `kill` sub-verb writes a `{goal-dir}/.ultracook/cancel.sentinel` BEFORE flipping `state.terminal=abandoned`; `codex-monitor-hook.sh` reads it on the next PostToolUse and tells the model to STOP the loop, and `kill` prints a loud "also run `/goal cancel` in the TUI" instruction. This halts the loop on the next iteration - it cannot interrupt an in-flight `/goal` turn. `codex-hook-cleanup.sh` sweeps the sentinel once the goal is terminal.
 
 ## Workaround 4: Hook teardown (SessionStart sweep)
 
-**Gap.** If ultracook dies mid-Monitor-wait, the registered hook stays alive — and the `iterations/*-monitor.spec.json` file persists. Subsequent Codex sessions will inherit a pre-registered hook with a stale spec.
+**Gap.** If ultracook dies mid-Monitor-wait, the registered hook stays alive - and the `iterations/*-monitor.spec.json` file persists. Subsequent Codex sessions will inherit a pre-registered hook with a stale spec.
 
 **Workaround.** `scripts/codex-hook-cleanup.sh` runs as a Codex SessionStart hook. It sweeps `iterations/*-monitor.spec.json` files older than 24h that have NO matching `.result.json` (i.e. died mid-wait).
 
@@ -139,7 +139,7 @@ vd:ultracook install-hooks --apply    # marker-wrapped append, backup + tomllib 
 vd:ultracook install-hooks --uninstall
 ```
 
-It resolves a symlinked config (e.g. dotfiles) to its real target and warns before writing, is idempotent (keyed on the `# >>> vd:ultracook managed hooks >>>` marker), and never rewrites existing TOML — it appends the two stanzas (`scripts/install-hooks.sh`). The registered block:
+It resolves a symlinked config (e.g. dotfiles) to its real target and warns before writing, is idempotent (keyed on the `# >>> vd:ultracook managed hooks >>>` marker), and never rewrites existing TOML - it appends the two stanzas (`scripts/install-hooks.sh`). The registered block:
 
 ```toml
 [[hooks.PostToolUse]]

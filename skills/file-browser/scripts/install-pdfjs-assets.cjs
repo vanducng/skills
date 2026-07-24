@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Postinstall: copy pdfjs-dist runtime deps into assets/pdfjs-viewer/.
-// We author our own viewer.html (Phase 3) — pdfjs-dist does NOT ship one.
+// We author our own viewer.html (Phase 3) - pdfjs-dist does NOT ship one.
 // Plain fs.cpSync; no network calls; idempotent.
 
 const fs = require('fs');

@@ -1,4 +1,4 @@
-# samber/slog-* — Structured logging pipeline for Go
+# samber/slog-* - Structured logging pipeline for Go
 
 **Pinned versions (verified 2026-05-23):**
 
@@ -25,11 +25,11 @@ The load-bearing combination is **`slog-multi` + `slog-sampling`**. Everything e
 
 **Where I deviate from upstream guidance:**
 
-- The upstream doc presents `Fanout` and `Router` symmetrically. In practice, **`Router`** is almost always what you want — `Fanout` forces every record through every handler (latency = sum of all sinks). `Router` evaluates predicates and skips non-matching handlers.
+- The upstream doc presents `Fanout` and `Router` symmetrically. In practice, **`Router`** is almost always what you want - `Fanout` forces every record through every handler (latency = sum of all sinks). `Router` evaluates predicates and skips non-matching handlers.
 - The doc says "sample first, format second, route last". I'd phrase it stronger: **sampling must be the outermost handler.** Anything else is wasted CPU.
 - The cloud sinks (`slog-datadog`, `slog-loki`, `slog-kafka`, `slog-parquet`) **buffer records internally**. If you don't `defer handler.Stop(ctx)` in your shutdown path, buffered logs disappear on every restart. This is the single most-missed best practice in production deployments.
 
-## Install — the canonical setup
+## Install - the canonical setup
 
 ```bash
 go get github.com/samber/slog-multi@v1.8.0
@@ -67,7 +67,7 @@ record → [Sampling] → [Pipe: PII + trace context] → [Router] → [Sinks]
 
 Order is non-negotiable: sampling before formatting saves CPU. Formatting before routing ensures all sinks see clean attributes.
 
-## `slog-multi` — handler composition
+## `slog-multi` - handler composition
 
 Six patterns:
 
@@ -101,12 +101,12 @@ Built-in predicates: `LevelIs`, `LevelIsNot`, `MessageIs`, `MessageContains`, `A
 
 **Use `Pool()` when you have 2+ slow sinks** (Datadog + Sentry on the same record): the parallel broadcast gives you `max(latency)` instead of `sum(latency)`.
 
-## `slog-sampling` — throughput control
+## `slog-sampling` - throughput control
 
 | Strategy | Behavior | Use for |
 |---|---|---|
 | Uniform | Drop fixed % | Dev/staging |
-| **Threshold** | First N per interval, then sample at rate R | **Production default** — preserves initial visibility |
+| **Threshold** | First N per interval, then sample at rate R | **Production default** - preserves initial visibility |
 | Absolute | Cap at N per interval | Hard cost control |
 | Custom | Function returns rate per record | Level/time-aware |
 
@@ -124,11 +124,11 @@ logger := slog.New(
 )
 ```
 
-**The sampling-first rule:** wrap sampling around your entire pipeline. The middleware is a `slog.Handler` itself — chain it outermost via `slogmulti.Pipe`.
+**The sampling-first rule:** wrap sampling around your entire pipeline. The middleware is a `slog.Handler` itself - chain it outermost via `slogmulti.Pipe`.
 
 Matchers group similar records for dedup: `MatchByLevel`, `MatchByMessage`, `MatchByLevelAndMessage` (default), `MatchBySource`, `MatchByAttribute`.
 
-## `slog-formatter` — PII + error formatting + flattening
+## `slog-formatter` - PII + error formatting + flattening
 
 Apply as `Pipe` middleware so all downstream sinks see clean attributes.
 
@@ -150,7 +150,7 @@ Generic: `FormatByType[T]`, `FormatByKey`, `FormatByKind`, `FormatByGroup`, `For
 
 Flatten nested attributes via `FlattenFormatterMiddleware`.
 
-## HTTP middleware — consistent pattern
+## HTTP middleware - consistent pattern
 
 ```go
 router.Use(slogXXX.New(logger))
@@ -176,7 +176,7 @@ router.Use(sloggin.NewWithConfig(logger, sloggin.Config{
 }))
 ```
 
-## Cloud sinks — `Option{}.NewXxxHandler()` pattern
+## Cloud sinks - `Option{}.NewXxxHandler()` pattern
 
 ```go
 import slogdatadog "github.com/samber/slog-datadog/v2"
@@ -272,18 +272,18 @@ func newLogger() (*slog.Logger, func() error, error) {
 ## When to skip these packages
 
 - Single sink + single level + no PII → bare `slog.NewJSONHandler(os.Stdout, nil)` is enough
-- A library (not an application) — don't impose a pipeline on your callers; expose a `slog.Logger` parameter
-- CLI tool — `slog.New(slog.NewTextHandler(os.Stderr, nil))` is fine
+- A library (not an application) - don't impose a pipeline on your callers; expose a `slog.Logger` parameter
+- CLI tool - `slog.New(slog.NewTextHandler(os.Stderr, nil))` is fine
 
 ## Performance notes
 
-- `Fanout` is sequential — 5 handlers × 10ms = 50ms per log call
+- `Fanout` is sequential - 5 handlers × 10ms = 50ms per log call
 - `Pipe` middlewares add per-record function call overhead; keep chains under 4
 - For hot-path attribute formatting, prefer implementing `slog.LogValuer` on your own types over `slog-formatter`
-- Benchmark with `go test -bench` before deploying — log infrastructure changes can spike p99
+- Benchmark with `go test -bench` before deploying - log infrastructure changes can spike p99
 
 ## Cross-refs
 
-- See `oops.md` — the `slog-formatter` `ErrorFormatter` extracts `oops` attributes automatically
-- See `vd:py2go` HTTP playbook — `slog` is the default logger, `slog-gin` the default middleware
-- See `vd:debug` — log routing decisions determine on-call signal-to-noise
+- See `oops.md` - the `slog-formatter` `ErrorFormatter` extracts `oops` attributes automatically
+- See `vd:py2go` HTTP playbook - `slog` is the default logger, `slog-gin` the default middleware
+- See `vd:debug` - log routing decisions determine on-call signal-to-noise

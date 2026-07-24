@@ -4,7 +4,7 @@ Used when the router classifies a twikit failure as transaction drift or
 Error 226. Same gopass cookies are injected into a persistent agent-browser
 session named `twitter` so no UI login is required.
 
-This is a v1 escape-hatch — selectors WILL break as X's DOM changes. See
+This is a v1 escape-hatch - selectors WILL break as X's DOM changes. See
 `references/failure-modes.md` and the maintenance section in SKILL.md.
 """
 from __future__ import annotations
@@ -101,7 +101,7 @@ async def fetch_browser(target) -> dict[str, Any]:
 
 
 async def post_browser(text: str, media=None, reply_to: str | None = None) -> dict[str, Any]:
-    """Browser-side post — deferred to v2.
+    """Browser-side post - deferred to v2.
 
     Phase 6 ships the router + classifier + fetch fallback. A browser-driven
     `post` requires a working compose-textbox selector and a reliable

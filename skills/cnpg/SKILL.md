@@ -2,7 +2,7 @@
 name: cnpg
 description: >
   Create and operate CloudNativePG (CNPG) Postgres databases on Kubernetes the
-  GitOps/Flux way — on managed cloud (GKE + GCS via Workload Identity) OR
+  GitOps/Flux way - on managed cloud (GKE + GCS via Workload Identity) OR
   self-hosted (K3s/bare-metal + any S3-compatible store via a credentials
   secret). Covers Cluster + ScheduledBackup manifests, barman WAL archiving,
   pgvector, PITR, prod→dev clones, and the NetworkPolicies a default-deny cluster
@@ -19,7 +19,7 @@ metadata:
 # cnpg
 
 Provision and run CloudNativePG (CNPG) Postgres on Kubernetes as GitOps. Every
-concrete identifier below is a placeholder — substitute your own:
+concrete identifier below is a placeholder - substitute your own:
 `<project>`, `<gcp-sa>`, `<backups-bucket>`, `<cluster>`, `<ns>`, `<svc>`,
 `<db>`, `<owner>`, `<env>`, `<s3-endpoint>`, `<objstore-secret>`, `<app-ns>`.
 
@@ -31,10 +31,10 @@ clone, and most gotchas are identical everywhere. Only **backup auth** and
   Steps below default to this.
 - **Self-hosted (K3s / bare-metal + S3-compatible store: MinIO, Ceph, R2, B2):**
   backup auth = an access-key Secret; plus a default-deny cluster needs explicit
-  NetworkPolicies. See **`references/self-hosted-and-networkpolicy.md`** — read it
+  NetworkPolicies. See **`references/self-hosted-and-networkpolicy.md`** - read it
   whenever there's no cloud Workload Identity or the cluster enforces default-deny.
 
-## Mental model — two halves that MUST share one string
+## Mental model - two halves that MUST share one string
 
 A CNPG database on GKE is two halves that have to agree on exactly one string,
 `<ns>/<cluster>`:
@@ -43,7 +43,7 @@ A CNPG database on GKE is two halves that have to agree on exactly one string,
    annotation points the auto-created **pod KSA** at the GCP backup SA. CNPG
    names that pod KSA after the **cluster** (`<cluster>`) in `<ns>`. Any
    standalone `ServiceAccount` named `cnpg-backup-sa` you find in a folder is a
-   **decoy/legacy** resource — CNPG does **not** use it for backup auth.
+   **decoy/legacy** resource - CNPG does **not** use it for backup auth.
 2. **GCP half (Terraform):** an IAM `workloadIdentityUser` binding whose member
    is `serviceAccount:<project>.svc.id.goog[<ns>/<cluster>]`, plus the GCS
    backups bucket + lifecycle.
@@ -53,13 +53,13 @@ database-operators`) reconciles → the CNPG operator builds the cluster.
 **Terraform (WI binding + bucket) must already be applied**, or the cluster
 bootstraps but backups fail silently.
 
-## Step 0 — prerequisites
+## Step 0 - prerequisites
 
 - CNPG operator reconciled (a `database-operators` Flux Kustomization).
 - GKE Workload Identity enabled; a shared per-env backup SA
   `<gcp-sa>@<project>.iam.gserviceaccount.com` exists.
 - SOPS age key available to Flux (`decryption.secretRef`).
-- (pgvector) the operand image ships the `vector` lib — it is **available, not
+- (pgvector) the operand image ships the `vector` lib - it is **available, not
   installed**; the non-superuser app role cannot install it (see gotchas).
 - (affinity) a dedicated DB node pool with the expected taint + label, else drop
   the `affinity` block.
@@ -70,9 +70,9 @@ bootstraps but backups fail silently.
   `longhorn`); and if the cluster is default-deny, the NetworkPolicies from the
   reference. Know your CNI (Cilium → `CiliumNetworkPolicy`; Calico → vanilla).
 
-## Step 1 — backup auth
+## Step 1 - backup auth
 
-**Self-hosted (S3-compatible):** skip the Terraform/Workload-Identity below —
+**Self-hosted (S3-compatible):** skip the Terraform/Workload-Identity below  - 
 create an encrypted access-key Secret and use `s3Credentials` + `endpointURL` in
 the barman config. Full manifests in `references/self-hosted-and-networkpolicy.md`.
 
@@ -102,7 +102,7 @@ backups:
   location: US
   lifecycle_rules:
     - action: { type: Delete }
-      condition: { age: 30 }         # BACKSTOP only — MUST exceed barman retentionPolicy or PITR breaks
+      condition: { age: 30 }         # BACKSTOP only - MUST exceed barman retentionPolicy or PITR breaks
   versioning: false                  # prod: true
   uniform_bucket_level_access: true
   force_destroy: true                # dev only; prod: false
@@ -113,7 +113,7 @@ backups:
 One shared backups bucket per env; each cluster isolates under its own
 `cnpg/<svc>` prefix. Apply the SA dir, then the GCS dir.
 
-## Step 2 — the app DB folder `fluxcd/databases/<env>/<svc>/`
+## Step 2 - the app DB folder `fluxcd/databases/<env>/<svc>/`
 
 `kustomization.yaml` in dependency order (namespace + secret first, then
 cluster, then extensions + backup):
@@ -123,13 +123,13 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml          # <ns>; labels app.kubernetes.io/part-of: databases
-  - secrets.enc.yaml        # SOPS-encrypted app credentials (username/password) — referenced by initdb.secret.name
+  - secrets.enc.yaml        # SOPS-encrypted app credentials (username/password) - referenced by initdb.secret.name
   - database.yaml           # the Cluster CR
   - database-vector.yaml    # pgvector Database CR (only if needed)
   - scheduled-backup.yaml   # ScheduledBackup CR
 ```
 
-## Step 3 — the Cluster + ScheduledBackup
+## Step 3 - the Cluster + ScheduledBackup
 
 `database.yaml`:
 
@@ -149,7 +149,7 @@ spec:
   instances: 1                                      # 2 in prod (1 primary + 1 replica → failover)
   imageName: ghcr.io/cloudnative-pg/postgresql:16.4 # pin major+minor; bump deliberately (image swap = DB restart)
   storage:
-    size: 40Gi                                      # WAL lands here too — undersize + stuck WAL = PVC full → CrashLoop
+    size: 40Gi                                      # WAL lands here too - undersize + stuck WAL = PVC full → CrashLoop
     storageClass: standard                          # premium-rwo (SSD) in prod
     resizeInUseVolumes: true                        # allow online expansion
   postgresql:
@@ -181,9 +181,9 @@ spec:
   resources:
     requests: { memory: "512Mi", cpu: "100m" }
     limits:   { memory: "1Gi",   cpu: "500m" }       # keep PG mem params below this or OOM
-  backup:                                            # INLINE model — being deprecated; prefer the plugin (see note below)
+  backup:                                            # INLINE model - being deprecated; prefer the plugin (see note below)
     barmanObjectStore:
-      destinationPath: "gs://<backups-bucket>/cnpg/<svc>"   # PARENT prefix only — CNPG appends the serverName; don't double-nest <cluster>/<cluster>
+      destinationPath: "gs://<backups-bucket>/cnpg/<svc>"   # PARENT prefix only - CNPG appends the serverName; don't double-nest <cluster>/<cluster>
       googleCredentials:
         gkeEnvironment: true                         # GKE Workload Identity (no key file).
       # SELF-HOSTED S3-compatible instead of googleCredentials:
@@ -233,7 +233,7 @@ spec:
 > parameters: { barmanObjectName: ... } }]` reference. Full plugin manifests (and
 > the S3 variant) are in `references/self-hosted-and-networkpolicy.md`.
 
-## Step 4 — pgvector (belt-and-suspenders, only if needed)
+## Step 4 - pgvector (belt-and-suspenders, only if needed)
 
 Layer 1 is the `postInitApplicationSQL` above (race-free at initdb, before the
 app connects). Layer 2 is a continuously-reconciled `Database` CR
@@ -253,7 +253,7 @@ spec:
     - { name: vector, ensure: present }
 ```
 
-## Step 5 — the Flux Kustomization (one per noisy DB, for fault isolation)
+## Step 5 - the Flux Kustomization (one per noisy DB, for fault isolation)
 
 ```yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
@@ -272,9 +272,9 @@ spec:
 ```
 
 Give a busy DB its **own** Kustomization **and** omit it from any shared
-`databases` Kustomization resource list — never both (double ownership conflicts).
+`databases` Kustomization resource list - never both (double ownership conflicts).
 
-## Step 6 — deploy
+## Step 6 - deploy
 
 1. Write the SOPS-encrypted `secrets.enc.yaml` (keys `initdb.secret.name` expects).
 2. Apply Terraform (Step 1) so backups authenticate on day one.
@@ -282,7 +282,7 @@ Give a busy DB its **own** Kustomization **and** omit it from any shared
 4. `flux reconcile kustomization databases-<svc>`.
 5. Verify (below).
 
-## NetworkPolicy (default-deny clusters — usually self-hosted)
+## NetworkPolicy (default-deny clusters - usually self-hosted)
 
 If the cluster enforces default-deny, CNPG silently breaks without explicit
 allows. Match the resource KIND to the CNI (Cilium → `CiliumNetworkPolicy`;
@@ -293,17 +293,17 @@ Calico/standard → vanilla `NetworkPolicy`). For instance pods
   `5432` · monitoring → `9187` · `cnpg-system` operator.
 - **Egress:** object store (`443` or store port) for barman · DNS `kube-system:53`
   · kube-apiserver · same-namespace · **the service CIDR** (e.g. K3s default
-  `10.43.0.0/16`) when the CNI is Cilium with eBPF kube-proxy replacement —
+  `10.43.0.0/16`) when the CNI is Cilium with eBPF kube-proxy replacement  - 
   ClusterIP services aren't pods, so this is required or in-cluster lookups fail.
 
 Full Cilium + vanilla manifests, the operator policy, and the host-firewall
 caveat are in `references/self-hosted-and-networkpolicy.md`.
 
-## Gotchas — hard-won, worth noting
+## Gotchas - hard-won, worth noting
 
 - **Bind the `<cluster>` pod KSA, not the decoy `cnpg-backup-sa`.** The WI member
   must be `<ns>/<cluster>` (the cluster-named pod KSA CNPG auto-creates). WI needs
-  BOTH halves: the KSA annotation AND the reverse `workloadIdentityUser` binding —
+  BOTH halves: the KSA annotation AND the reverse `workloadIdentityUser` binding  - 
   a present annotation with a missing binding still yields 403. Verify the real
   `spec.serviceAccountName` on the live pod before trusting any SA manifest name.
   *Top footgun.*
@@ -311,7 +311,7 @@ caveat are in `references/self-hosted-and-networkpolicy.md`.
   exit 4 → `ContinuousArchiving=False` → WAL piles on the PVC → CrashLoop → app
   shows a generic "can't read data" error. When a CNPG-backed app suddenly can't
   read, check `kubectl get cluster <cluster> -n <ns>` (ContinuousArchiving +
-  disk) **before** debugging the app. Audit ALL clusters together — the root cause
+  disk) **before** debugging the app. Audit ALL clusters together - the root cause
   is usually the shared SA/binding.
 - **GCS lifecycle must be a loose backstop strictly LONGER than barman retention.**
   barman keeps an anchor base backup OLDER than the window (daily backups → ~N+1d)
@@ -319,7 +319,7 @@ caveat are in `references/self-hosted-and-networkpolicy.md`.
   broken PITR + phantom catalog entries. Let barman own deletion for live clusters;
   size the GCS rule only to reap orphans from deleted clusters. Trimming this bucket
   "for cost" is false economy.
-- **pgvector must be installed by a superuser, declaratively — never the app role.**
+- **pgvector must be installed by a superuser, declaratively - never the app role.**
   The app role isn't superuser and `vector` isn't trusted, so an app-role
   `CREATE EXTENSION vector` (e.g. in a migration) fails "must be superuser" and
   crash-loops the backend. Use `postInitApplicationSQL` (fresh clusters) and/or a
@@ -330,9 +330,9 @@ caveat are in `references/self-hosted-and-networkpolicy.md`.
   specified at a time" if git says `initdb` but the cluster was `recovery`-
   bootstrapped (or vice versa). To switch, delete + recreate. Take a manual backup
   first.
-- **Give each app's DB its own Flux Kustomization — never share an atomic one.**
+- **Give each app's DB its own Flux Kustomization - never share an atomic one.**
   A shared Kustomization applies atomically, so ONE drifted/webhook-rejected
-  sibling Cluster blocks EVERY other DB — including a brand-new cluster that can
+  sibling Cluster blocks EVERY other DB - including a brand-new cluster that can
   then never apply.
 - **`destinationPath` is the PARENT prefix only.** CNPG/barman auto-appends the
   serverName; writing `.../cnpg/<svc>/<cluster>` yields a double-nested
@@ -348,7 +348,7 @@ caveat are in `references/self-hosted-and-networkpolicy.md`.
 - **WAL-archive alerts must be cluster-agnostic (label-based).** Because the
   failure is silent, alert on it: `CNPGWalArchivingFailing` (last archive failed
   more recently than it succeeded) + `CNPGWalReadyBacklogHigh` (>100 ready
-  segments). Scope by `and on (namespace,pod) cnpg_collector_up` — a
+  segments). Scope by `and on (namespace,pod) cnpg_collector_up` - a
   hardcoded/nonexistent namespace selector is a DEAD alert that never fires with
   green dashboards. Confirm >0 series live (`promtool` + real metric names).
 - **`podMonitor`/`serviceMonitor: true` requires the Prometheus Operator CRDs.**
@@ -364,10 +364,10 @@ caveat are in `references/self-hosted-and-networkpolicy.md`.
   adding policies and seeing archiving fail, suspect a missing egress allow first.
 - **Backup config: plugin is current, inline is deprecated.** Newer CNPG moves
   Barman Cloud into a plugin (`ObjectStore` CRD + `spec.plugins`); inline
-  `spec.backup.barmanObjectStore` is slated for removal (~1.28) — a deprecation
+  `spec.backup.barmanObjectStore` is slated for removal (~1.28) - a deprecation
   warning fires on every reconcile. A dangling/mistyped `barmanObjectName` (plugin)
   or a missing `ObjectStore` silently blocks the cluster. Pick ONE model per cluster.
-- **`alembic upgrade head` runs at boot** — a migration fault crash-loops the pod,
+- **`alembic upgrade head` runs at boot** - a migration fault crash-loops the pod,
   and CI using `create_all` won't catch it. Use unique descriptive revision IDs
   (≤32 chars; sequential ones collide → "multiple heads"), add a
   `test_alembic_single_head` guard, and verify
@@ -388,11 +388,11 @@ kubectl get cluster <cluster> -n <ns> -o jsonpath='{.status.conditions[?(@.type=
 kubectl get pods -n <ns> -l postgresql=<cluster>      # Running/Ready (1 dev, 2 prod)
 kubectl get scheduledbackup,backup -n <ns>            # immediate backup → completed
 
-# Archive auth test in-pod — VALID WAL name + real exit code (never /dev/null; ~1 min for WI propagation)
+# Archive auth test in-pod - VALID WAL name + real exit code (never /dev/null; ~1 min for WI propagation)
 kubectl exec -n <ns> <cluster>-1 -- bash -c \
   'barman-cloud-wal-archive --test gs://<backups-bucket>/cnpg/<svc> <cluster> 000000010000000000000001; echo EXIT=${PIPESTATUS[0]}'  # EXIT=0
 
-# ContinuousArchiving is sticky — force a fresh segment to flip it + drain backlog
+# ContinuousArchiving is sticky - force a fresh segment to flip it + drain backlog
 kubectl exec -n <ns> <cluster>-1 -- psql -U postgres -c 'SELECT pg_switch_wal();'
 
 # pgvector + connectivity + objects in GCS
@@ -406,19 +406,19 @@ instance logs for `403`/`AccessDenied`/endpoint errors, and list objects with
 `aws s3 ls s3://<backups-bucket>/<svc>/ --endpoint-url <s3-endpoint>` (or `mc ls`).
 See the reference for details.
 
-## Reuse — clone prod→dev and re-clone
+## Reuse - clone prod→dev and re-clone
 
 - **Clone prod → dev with data:** use `bootstrap.recovery` (not `initdb`) with
   `externalClusters` pointing at the prod backups prefix
   (`gs://<backups-bucket>/cnpg/<svc>`), and grant the dev backup SA cross-env read
-  on the prod prefix. Declare `recovery` in **git** (Flux-owned) — a manual
+  on the prod prefix. Declare `recovery` in **git** (Flux-owned) - a manual
   `kubectl` restore over a git `initdb` is what causes the two-bootstrap-methods
   conflict.
 - **Re-clone (refresh dev from prod):** `bootstrap` is create-time-only and
-  immutable — DELETE and RECREATE the Cluster (editing bootstrap in place does
+  immutable - DELETE and RECREATE the Cluster (editing bootstrap in place does
   nothing). Back up first if it holds anything you care about.
 - **Recovery can't outrun WI/IAM propagation:** if the binding letting the dev
-  restore read the prod backup isn't live yet, recovery fails — in dev, fall back
+  restore read the prod backup isn't live yet, recovery fails - in dev, fall back
   to a fresh `initdb` rather than blocking.
 - **Another app DB in the same env:** copy `fluxcd/databases/<env>/<svc>/` to
   `<svc2>`, swap names, append the new `<ns2>/<cluster2>` WI binding to the

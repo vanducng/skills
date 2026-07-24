@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# resolve-workflow.sh — dry-run resolver for a goal-dir.
+# resolve-workflow.sh - dry-run resolver for a goal-dir.
 #
 # Given {goal-dir}/goal.yaml, looks up the matching project profile
 # via lookup-profile.sh, merges the profile's action sequence with any
@@ -186,7 +186,7 @@ for action in "${ACTIONS_ARR[@]}"; do
   i=$((i + 1))
   meta="$(action_meta "$action")"
   if echo "$meta" | head -1 | grep -q UNKNOWN; then
-    printf '%2d. %-22s ❌ UNKNOWN ACTION — not in action-vocab.yaml\n' "$i" "$action"
+    printf '%2d. %-22s ❌ UNKNOWN ACTION - not in action-vocab.yaml\n' "$i" "$action"
     exit_code=5
     continue
   fi

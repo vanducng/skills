@@ -9,7 +9,7 @@ Track parallel scout agents via Claude Tasks (TaskCreate / TaskUpdate / TaskList
 | ≤ 2 | No | Overhead > benefit |
 | ≥ 3 | Yes | Coordination + progress visibility justify the cost |
 
-If Task tools are unavailable (some IDE harnesses), use `TodoWrite` with the same fields. The scouting workflow keeps working — tasks add observability, not functionality.
+If Task tools are unavailable (some IDE harnesses), use `TodoWrite` with the same fields. The scouting workflow keeps working - tasks add observability, not functionality.
 
 ## Registration flow
 
@@ -47,9 +47,9 @@ TaskCreate(
 
 ### Optional
 
-- `domain` — useful filter when multi-discipline scouts run in the same session
-- `searchPatterns` — key patterns this agent grepped for (aids debug if results disappoint)
-- `externalTool` — when `toolMode=external`
+- `domain` - useful filter when multi-discipline scouts run in the same session
+- `searchPatterns` - key patterns this agent grepped for (aids debug if results disappoint)
+- `externalTool` - when `toolMode=external`
 
 ## Lifecycle
 
@@ -104,7 +104,7 @@ TaskCreate(
 
 ## Integration with cook / planning tasks
 
-Scout tasks are **independent** from phase tasks — not parent/child.
+Scout tasks are **independent** from phase tasks - not parent/child.
 
 **Why:** different lifecycle. Scout finishes before cook continues. Mixing them confuses `TaskList`.
 
@@ -124,4 +124,4 @@ After registration, print one line:
 
 ## Error handling
 
-If `TaskCreate` fails — log a warning, proceed without task tracking. Scout still works; we just lose observability.
+If `TaskCreate` fails - log a warning, proceed without task tracking. Scout still works; we just lose observability.

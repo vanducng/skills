@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# intake-complete.sh — shared default-answer gate for #60 (codex-exec / CI).
+# intake-complete.sh - shared default-answer gate for #60 (codex-exec / CI).
 # Validates the ULTRACOOK_* intake env vars; lets both runtimes decide whether to
 # skip the interactive AskUserQuestion intake.
 #

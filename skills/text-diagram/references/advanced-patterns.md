@@ -14,7 +14,7 @@ The most reliable approach for complex diagrams. Think of the output as a 2D cha
 
 ### Why This Works
 - Forces you to think in absolute positions, not relative
-- Every character has a defined (row, col) — no drift
+- Every character has a defined (row, col) - no drift
 - Connectors automatically align because you place them at calculated positions
 
 ---
@@ -194,7 +194,7 @@ If different: make boxes same width, or use an L-shaped connector:
 3. **CJK characters:** 2 columns wide. Avoid in diagrams or account for double-width.
 4. **Emoji:** Variable width. NEVER use in diagrams.
 5. **Box-drawing chars:** All exactly 1 column wide. Safe.
-6. **Asymmetric padding:** the most common alignment bug — left padding doesn't match right padding inside a container, making child rows N-1 chars wide while borders are N chars wide.
+6. **Asymmetric padding:** the most common alignment bug - left padding doesn't match right padding inside a container, making child rows N-1 chars wide while borders are N chars wide.
 
 ---
 

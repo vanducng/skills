@@ -2,7 +2,7 @@
 /**
  * Smoke tests for file-browser. Boots the server on a random free port,
  * fires HTTP requests at every route, asserts status + key behaviors,
- * shuts down. No external runner — exits non-zero on first failure.
+ * shuts down. No external runner - exits non-zero on first failure.
  */
 
 const http = require('http');
@@ -187,7 +187,7 @@ async function main() {
   await test('Gallery surfaces markdown + pdf in Documents section', async () => {
     const r = await get(port, `/browse?dir=${encodeURIComponent(sandbox)}`);
     const html = r.body.toString();
-    // sandbox contains note.md, doc.pdf, people.csv, and workbook.xlsx — all should land in Documents.
+    // sandbox contains note.md, doc.pdf, people.csv, and workbook.xlsx - all should land in Documents.
     if (!html.includes('Documents (4)')) throw new Error('docs section count != 4');
     if (!html.includes('note.md')) throw new Error('note.md not listed');
     if (!html.includes('doc.pdf')) throw new Error('doc.pdf not listed in Documents');
@@ -350,7 +350,7 @@ async function main() {
     const r = await get(port, `/view?file=${encodeURIComponent(jsonPath)}`);
     if (r.status !== 200) throw new Error(`status ${r.status}`);
     const html = r.body.toString();
-    // hljs escapes quotes to &quot; — pretty-print indents to multi-line.
+    // hljs escapes quotes to &quot; - pretty-print indents to multi-line.
     if (!/&quot;a&quot;/.test(html)) throw new Error('json key missing');
     if (!/data-n="3"/.test(html)) throw new Error('json not pretty-printed (no line 3)');
   });
@@ -439,7 +439,7 @@ async function main() {
     if (/pdfjs-viewer\/viewer\.html/.test(html)) throw new Error('viewer leaked into raw view');
     // raw=1 routes through renderTextView; for the synthetic fixture (no NUL
     // bytes) that produces a hljs source view, real binary PDFs would show
-    // the binary fallback card. Either way the viewer must be absent — that's
+    // the binary fallback card. Either way the viewer must be absent - that's
     // the actual contract.
   });
 
@@ -457,7 +457,7 @@ async function main() {
     const r = await get(port, '/assets/pdfjs-viewer/build/pdf.worker.mjs');
     // Skip gracefully if postinstall hasn't populated assets (e.g. CI without npm install).
     if (r.status === 404) {
-      console.log('  (skipped — assets not vendored; run `npm install` or postinstall)');
+      console.log('  (skipped - assets not vendored; run `npm install` or postinstall)');
       return;
     }
     if (r.status !== 200) throw new Error(`status ${r.status}`);

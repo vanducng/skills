@@ -154,7 +154,7 @@ Secret stores for new connections:
 - `keyring`: OS Keychain/keyring service named `miudb` on CGO-enabled builds.
   Release binaries (`brew install`) are CGO-disabled and fall back to an
   encrypted file keyring at `~/.config/miu/db/keyring/<connection>:<kind>`
-  (JWE / PBES2-HS256+A128KW, one file per secret) — NOT the OS Keychain, so
+  (JWE / PBES2-HS256+A128KW, one file per secret) - NOT the OS Keychain, so
   `security find-generic-password -s miudb ...` finds nothing there.
 - `file`: local `credentials.json` with mode `0600`.
 - `inline`: leave the value in `connections.json`.
@@ -335,8 +335,8 @@ Two layers:
 
 ### Agentic polish recipe (how to make a good diagram)
 
-1. Scaffold: `miudb erd meta --stub --connection <CONN> --out-dir <dir>` — auto-detects framework tables (Laravel/Rails/Django/Prisma) and seeds blank `groups`/`descriptions`. The envelope `data.next_step` reminds you what to fill.
-2. Read `<dir>/schema.json` (the IR: `tables[] -> {pk, columns, fks, indexes, rows}`). Cheap, high-signal inputs: FK topology (which tables connect), table-name prefixes, FK hub degree, and row counts. Migration *filenames* (`ls database/migrations` / `db/migrate`) are a strong signal too — you do NOT need to read their contents.
+1. Scaffold: `miudb erd meta --stub --connection <CONN> --out-dir <dir>` - auto-detects framework tables (Laravel/Rails/Django/Prisma) and seeds blank `groups`/`descriptions`. The envelope `data.next_step` reminds you what to fill.
+2. Read `<dir>/schema.json` (the IR: `tables[] -> {pk, columns, fks, indexes, rows}`). Cheap, high-signal inputs: FK topology (which tables connect), table-name prefixes, FK hub degree, and row counts. Migration *filenames* (`ls database/migrations` / `db/migrate`) are a strong signal too - you do NOT need to read their contents.
 3. Edit `meta.json`:
    - **`groups`**: cluster every non-framework table into 5-9 domains. Densely-FK-connected tables belong together; split by name prefix and responsibility (catalog vs apply vs analytics vs CMS vs auth). Each group = `{ "color": "#hex", "tables": [...] }`. Put core domains in saturated colors, infra/marketing in muted. Palette: `#2563eb` blue, `#16a34a` green, `#9333ea` purple, `#d97706` amber, `#dc2626` red, `#0d9488` teal, `#db2777` pink, `#475569` slate.
    - **`descriptions`**: 1 line per important table (hubs + biggest by rows), inferred from name + columns + FK role (self-ref FK -> "conditional/nested"; double-FK + unique pair -> "junction"; `*_id` hub -> "owns/links X").
@@ -345,9 +345,9 @@ Two layers:
 
 Single-pass works: stub -> fill -> generate. Aim to leave 0 tables ungrouped (the renderer buckets ungrouped non-framework tables as "Other").
 
-**Worked example (a ~100-table SaaS schema):** the stub detects the framework tables; the FK hubs (a high-degree `users`/`accounts` table, a few central domain tables) plus name prefixes map cleanly to ~6-8 domains (e.g. Catalog, Orders, Billing, Analytics, Content, Auth) — grouping every non-framework table with colors + hub descriptions in one pass. Use generic examples; never paste real connection/schema names into the diagram metadata you commit.
+**Worked example (a ~100-table SaaS schema):** the stub detects the framework tables; the FK hubs (a high-degree `users`/`accounts` table, a few central domain tables) plus name prefixes map cleanly to ~6-8 domains (e.g. Catalog, Orders, Billing, Analytics, Content, Auth) - grouping every non-framework table with colors + hub descriptions in one pass. Use generic examples; never paste real connection/schema names into the diagram metadata you commit.
 
-**Viewer (the rendered `index.html`):** click a table to spotlight its FK chain; **Focus** (View options) hides everything except the selected table + its relations — best for reading a dense schema; **DBML** (toolbar) shows the dbdiagram.io/dbdocs source with Copy; Domain Groups has **all**/**clear**; the header shows live visible/total counts; hover truncated names for the full value. Initial zoom is clamped so columns stay legible — the **Fit** button zooms to the whole graph. State (filters/selection) is encoded in the share URL.
+**Viewer (the rendered `index.html`):** click a table to spotlight its FK chain; **Focus** (View options) hides everything except the selected table + its relations - best for reading a dense schema; **DBML** (toolbar) shows the dbdiagram.io/dbdocs source with Copy; Domain Groups has **all**/**clear**; the header shows live visible/total counts; hover truncated names for the full value. Initial zoom is clamped so columns stay legible - the **Fit** button zooms to the whole graph. State (filters/selection) is encoded in the share URL.
 
 ## Stdio protocol
 
@@ -410,7 +410,7 @@ Use `--since` to filter by relative duration (e.g. `24h`, `7d`); omit to read al
 - Command descriptions are available via `miudb describe <command>`.
 - Output is secret-hardened: credential-named values, password-bearing URLs, and
   `key=secret` assignments are redacted before stdout (`connections list` shows
-  `has_password: true`, never the value). Query-result *values* are NOT masked —
+  `has_password: true`, never the value). Query-result *values* are NOT masked  - 
   they're the user's data. Do not inspect credential stores unless asked.
 - The command catalog currently includes `connections test`, `mcp serve`, and
   the native `serve` protocol; choose the narrowest command that matches the

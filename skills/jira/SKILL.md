@@ -28,7 +28,7 @@ vd:jira --project acme --type task create ticket for the cleanup
 
 Copy `references/project.jira-rules.example.md` to the local rules directory and customize it. Never commit local company rule files.
 
-## Authentication (MANDATORY — run FIRST)
+## Authentication (MANDATORY - run FIRST)
 
 Before any Jira operation:
 
@@ -49,7 +49,7 @@ For Bug and Task creation, keep the ticket direct:
 - Omit implementation details, proposed code, and speculative analysis unless requested.
 - Apply assignee, sprint, parent, and initial status from the matching local type rules.
 
-## Instance Rules (MANDATORY — load before writes)
+## Instance Rules (MANDATORY - load before writes)
 
 After selecting the Jira instance, read its rules before drafting or executing any write:
 
@@ -70,9 +70,9 @@ Activate when user mentions:
 
 ## Safety Protocol (MANDATORY)
 
-1. **Read before write** — always fetch current state before modifications
-2. **Show before execute** — display proposed changes, get approval for writes
-3. **Verify after execute** — confirm the operation succeeded
+1. **Read before write** - always fetch current state before modifications
+2. **Show before execute** - display proposed changes, get approval for writes
+3. **Verify after execute** - confirm the operation succeeded
 4. **No bulk changes** without explicit user approval
 5. **Never transition** without checking available transitions first
 
@@ -99,7 +99,7 @@ jira issue create -tTask -s"Summary" -a$(jira me) --no-input
 
 **Structured descriptions:** Use REST API with Atlassian Document Format (ADF), not CLI `-b`, when headings/lists need to render cleanly. Paragraphs containing `- item` render as plain text; native `heading` and `bulletList` nodes render correctly.
 
-**CRITICAL — Underscore escaping bug:** The `jira` CLI escapes `_` to `\_` in descriptions, breaking code blocks. After creating/editing an issue with code snippets or underscored identifiers, ALWAYS update the description via REST API:
+**CRITICAL - Underscore escaping bug:** The `jira` CLI escapes `_` to `\_` in descriptions, breaking code blocks. After creating/editing an issue with code snippets or underscored identifiers, ALWAYS update the description via REST API:
 ```bash
 curl -s -X PUT "${JIRA_BASE_URL}/rest/api/3/issue/<KEY>" \
   -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
@@ -166,7 +166,7 @@ Load `references/jql.md` for:
 - Relative dates, ordering
 - Complex query examples
 
-**Skip references** for simple view/list/assign operations — use quick reference above.
+**Skip references** for simple view/list/assign operations - use quick reference above.
 
 ## Workflow: Write Operations
 
@@ -190,7 +190,7 @@ curl -s -X POST "${JIRA_BASE_URL}/rest/api/2/issue/<KEY>/attachments" \
   -F "file=@/path/to/file.png;filename=descriptive-name.png"
 ```
 
-### Inline images in description — NOT POSSIBLE via API
+### Inline images in description - NOT POSSIBLE via API
 Jira Cloud ADF `media` nodes require internal media service UUIDs (not attachment numeric IDs). These UUIDs are only generated through Jira's internal media service and are **not exposed via the public REST API**. Workarounds tried and failed:
 - Wiki markup `!filename!` → renders as literal text (ADF doesn't support wiki markup)
 - ADF `mediaSingle`/`media` with attachment ID → `ATTACHMENT_VALIDATION_ERROR`
@@ -205,7 +205,7 @@ Jira Cloud ADF `media` nodes require internal media service UUIDs (not attachmen
 | Description update (ADF) | **v3** | v2 returns "value must be a string" |
 | Attachment upload | **v2** | v3 returns "Issue does not exist" |
 | Attachment metadata | v2 or v3 | Both work |
-| Issue GET (view) | **v3** | May return 404 even when issue exists — see Known API Issues |
+| Issue GET (view) | **v3** | May return 404 even when issue exists - see Known API Issues |
 | Issue PUT (update) | **v3** | Works reliably with basic auth |
 | JQL search | **v3** `/search/jql` | Old `/search` endpoint returns 410 (deprecated) |
 
@@ -213,12 +213,12 @@ Jira Cloud ADF `media` nodes require internal media service UUIDs (not attachmen
 
 - **GET `/rest/api/3/issue/KEY` returns 404 but PUT works (204):** Jira Cloud permission quirk. If GET fails, verify issue exists via JQL search (`/rest/api/3/search/jql?jql=key=KEY`), then proceed directly with PUT.
 - **`/rest/api/3/search` deprecated (410):** Must use `/rest/api/3/search/jql` endpoint instead.
-- **`/rest/api/2/myself` returns 401:** May be deprecated on some instances. Skip identity verification — if JQL search works, auth is valid.
+- **`/rest/api/2/myself` returns 401:** May be deprecated on some instances. Skip identity verification - if JQL search works, auth is valid.
 - **`JIRA_BASE_URL` is unset:** Export the base URL from the selected local rules file.
 
 ## Known CLI Issues
 
-- `jira project list` may fail with shell escaping errors — use `jira issue list` or REST API instead
+- `jira project list` may fail with shell escaping errors - use `jira issue list` or REST API instead
 - `jira me` and `jira issue create/view` work reliably
 - Config location: `/Users/vanducng/.config/.jira/.config.yml`
 

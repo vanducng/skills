@@ -10,7 +10,7 @@ metadata:
 
 # Ultracook
 
-## What this skill is — and isn't
+## What this skill is - and isn't
 
 | Skill | Question it answers | Output |
 |---|---|---|
@@ -20,8 +20,8 @@ metadata:
 | `vd:auto-loop` | "Drive to a verifier until passing." | Verified completion |
 | **`vd:ultracook`** | **"Drive a goal end-to-end: intake → plan → cook → ship → verify, until done."** | **Verified deployment or graceful block** |
 
-Ultracook **conducts the whole workflow**. It owns design when the spec is ambiguous —
-the `brainstorm-first` shape runs `vd:brainstorm` before planning — but it does not run
+Ultracook **conducts the whole workflow**. It owns design when the spec is ambiguous  - 
+the `brainstorm-first` shape runs `vd:brainstorm` before planning - but it does not run
 the inner iteration itself: when an action has a verifier, ultracook delegates to
 `vd:auto-loop` and resumes when that terminates.
 
@@ -34,11 +34,11 @@ Claude Code primitives:
 |---|---|
 | `direct` | Do it in-session with `Read`/`Edit`/`Bash`. No goal-dir, no executor. Narrowest verification. |
 | `pipeline` | Intake → executor; dispatch each action via `Skill`; iterate via `vd:auto-loop` (Stop hook); wait on CI/builds via `Monitor`. |
-| `fan-out` | `Workflow` tool for deterministic fan-out/pipeline (repo-wide, migration, N-finder — `pipeline()` by default, `parallel()` only for genuine joins); `Task`/`Agent` subagents for a handful of independent packets launched in one message. |
+| `fan-out` | `Workflow` tool for deterministic fan-out/pipeline (repo-wide, migration, N-finder - `pipeline()` by default, `parallel()` only for genuine joins); `Task`/`Agent` subagents for a handful of independent packets launched in one message. |
 
 **Autonomy ↔ permission posture.** Ultracook's gates (`should-gate.sh`) are independent
 of Claude Code's permission mode, but pair naturally: run interactively (default /
-`acceptEdits`) through the plan-approval gate, then — once the plan is approved — let it
+`acceptEdits`) through the plan-approval gate, then - once the plan is approved - let it
 run autonomously (`acceptEdits` / `auto`) to a terminal state. The Stop-hook loop inside
 `vd:auto-loop` is the autonomous driver; ultracook re-gates only on the exceptions in
 `references/conductor.md`. Never use `bypassPermissions` for ultracook runs.
@@ -77,22 +77,22 @@ Mode is set at intake time (`goal.yaml.autonomy`) and can be edited in-place mid
 | `status` | Read state.json + last journal entry; print human summary (Phase 6). |
 | `kill --reason "<text>"` | Write `terminal=abandoned`; if mid-delegation, also cancel `vd:auto-loop` (Phase 6). |
 
-## Entry routing — intake OR resume
+## Entry routing - intake OR resume
 
 `vd:ultracook` is overloaded. The executor first decides which path to take based on `$1`:
 
 ```
 if $1 is empty (bare `vd:ultracook`):
-  # Resume mode — find in-progress goal-dirs (terminal == null).
+  # Resume mode - find in-progress goal-dirs (terminal == null).
   # State base resolution: $VD_STATE_PATH → <git-root>/.workbench/state (when .workbench exists) → XDG user state.
   # Discovery scans BOTH the resolved state base AND legacy plans/goals (read-either).
   candidates = scan [state_base, "plans/goals"] dedup sort-r \
                | filter: jq -e '.terminal == null' "$d/state.json"
   if exactly 1 candidate:
     print "resuming goal {slug} (current_phase={current_phase})"
-    jump to executor loop (skip intake — Phase 3+ protocol)
+    jump to executor loop (skip intake - Phase 3+ protocol)
   elif >1 candidate (#66 multi-goal disambiguation):
-    # Don't silently pick the newest — that orphans the others.
+    # Don't silently pick the newest - that orphans the others.
     run `bash scripts/status.sh --all` to show slug + state + age + last-action,
     then AskUserQuestion("Which goal to resume?") over the non-terminal candidates;
     jump to executor for the picked goal-dir.
@@ -104,13 +104,13 @@ elif $1 == "status" or "kill" or "resolve":
   dispatch to scripts/status.sh / kill.sh / resolve-workflow.sh (sub-verbs)
 
 else:
-  # New-goal mode — $1 is the short goal text.
+  # New-goal mode - $1 is the short goal text.
   run Intake flow (next section)
 ```
 
 The "Resume mode" mirrors `scripts/status.sh`'s auto-detect logic. **Phase 5's keystone test (cross-runtime state.json portability) depends on this entry path.** `runtimes/codex.md` must mirror identical resume-mode behavior.
 
-## Phase 1 — Intake (new-goal mode)
+## Phase 1 - Intake (new-goal mode)
 
 `vd:ultracook "<short goal>"` runs:
 
@@ -124,16 +124,16 @@ The "Resume mode" mirrors `scripts/status.sh`'s auto-detect logic. **Phase 5's k
 4. Writes `<state-base>/{date}-{slug}/goal.yaml` + `state.json` (terminal=null, current_phase=intake-complete). State base = `$VD_STATE_PATH` → `<git-root>/.workbench/state` (when `.workbench` exists) → `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default).
 5. Prints the goal-dir path so the next step (Phase 2 `resolve`) can chain.
 
-**Implementation:** `scripts/init-goal.sh` is called from this SKILL.md after the 4 `AskUserQuestion` prompts populate env vars (`ULTRACOOK_TARGET_KIND`, `ULTRACOOK_ACTION_SHAPE`, `ULTRACOOK_BRANCH`, `ULTRACOOK_AUTONOMY`, `ULTRACOOK_REUSE_WORKTREE`). The script handles slug derivation, worktree creation, and file writes. **`AskUserQuestion` cannot be called from bash** — it must be invoked from this SKILL.md and the answers passed to the script via env vars. See `references/architecture.md` for the two-layer pattern.
+**Implementation:** `scripts/init-goal.sh` is called from this SKILL.md after the 4 `AskUserQuestion` prompts populate env vars (`ULTRACOOK_TARGET_KIND`, `ULTRACOOK_ACTION_SHAPE`, `ULTRACOOK_BRANCH`, `ULTRACOOK_AUTONOMY`, `ULTRACOOK_REUSE_WORKTREE`). The script handles slug derivation, worktree creation, and file writes. **`AskUserQuestion` cannot be called from bash** - it must be invoked from this SKILL.md and the answers passed to the script via env vars. See `references/architecture.md` for the two-layer pattern.
 
 ## Schemas
 
-- `references/goal-schema.md` — `goal.yaml` shape (v1)
-- `references/state-schema.md` — `state.json` shape (v1) + atomic write protocol
-- `references/intake-template.md` — the 4 intake questions + answer-to-goal.yaml mapping
-- `references/architecture.md` — two-layer SKILL.md ↔ bash-script invariant
+- `references/goal-schema.md` - `goal.yaml` shape (v1)
+- `references/state-schema.md` - `state.json` shape (v1) + atomic write protocol
+- `references/intake-template.md` - the 4 intake questions + answer-to-goal.yaml mapping
+- `references/architecture.md` - two-layer SKILL.md ↔ bash-script invariant
 
-## Phase 3 — Executor protocol (manual mode)
+## Phase 3 - Executor protocol (manual mode)
 
 After intake (`state.terminal=null`, `current_phase=intake-complete`), the executor loop runs. Each iteration in pseudo-code:
 
@@ -154,7 +154,7 @@ while state.terminal is null:
     AskUserQuestion("Run {action}? run / skip / quit")
     if not "run": handle accordingly
 
-  # Dispatch via run-action.sh — returns the invocation hint.
+  # Dispatch via run-action.sh - returns the invocation hint.
   hint = `bash scripts/run-action.sh --goal-dir {goal_dir} --action {action}`
   case hint.dispatch_kind:
     "skill":    Skill(skill: hint.skill, args: hint.args)
@@ -199,7 +199,7 @@ Phase 4 layers autonomy modes on top of this protocol. Phase 5 swaps the cook+ve
 | `vd:ultracook resolve <goal-dir>` | `scripts/resolve-workflow.sh` | 0=resolved (dry-run printed) · 5=unknown action in vocab |
 | `vd:ultracook install-hooks [--apply\|--uninstall]` | `scripts/install-hooks.sh` | 0=ok/idempotent · 2=bad-args · 3=needs --apply/conflict · 4=write/parse fail |
 
-`kill.sh` returns a JSON hint — if `needs_auto_loop_cancel: true`, SKILL.md must invoke `Skill(skill: "vd:auto-loop", args: "--cancel")` BEFORE the killed state propagates to consumers. It also writes `{goal-dir}/.ultracook/cancel.sentinel` and (on Codex) prints a `codex_goal_note` reminding the user to `/goal cancel` in the TUI.
+`kill.sh` returns a JSON hint - if `needs_auto_loop_cancel: true`, SKILL.md must invoke `Skill(skill: "vd:auto-loop", args: "--cancel")` BEFORE the killed state propagates to consumers. It also writes `{goal-dir}/.ultracook/cancel.sentinel` and (on Codex) prints a `codex_goal_note` reminding the user to `/goal cancel` in the TUI.
 
 ## Codex runtime
 

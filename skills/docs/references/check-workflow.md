@@ -15,7 +15,7 @@ Validate-only. No writes. No subagents. Run this before `update` on an unfamilia
 
 ## Workflow
 
-### Step 1 — Required files
+### Step 1 - Required files
 
 Canonical required set (from `SKILL.md`):
 - `README.md`
@@ -26,7 +26,7 @@ Canonical required set (from `SKILL.md`):
 
 For each missing → report. Suggest `init` if many missing, `update` if a few.
 
-### Step 2 — Size check
+### Step 2 - Size check
 
 ```
 wc -l docs/*.md README.md 2>/dev/null | sort -rn
@@ -34,7 +34,7 @@ wc -l docs/*.md README.md 2>/dev/null | sort -rn
 
 Compare each to `docs.maxLoc`. Report files over budget with overage amount.
 
-### Step 3 — Freshness
+### Step 3 - Freshness
 
 For each doc file:
 ```
@@ -48,7 +48,7 @@ A doc is "stale" if:
 
 Report each stale file with last-edit date and commit count since.
 
-### Step 4 — Validation script
+### Step 4 - Validation script
 
 ```
 node $HOME/.claude/scripts/validate-docs.cjs docs/
@@ -59,20 +59,20 @@ Forward all output. Group by file. Highlight any error (vs warning).
 ## Output format
 
 ```
-# Docs Health Check — <date>
+# Docs Health Check - <date>
 
 ## Required files
 - [x] README.md (120 LOC)
 - [x] docs/development-guidelines.md (180 LOC)
 - [x] docs/system-architecture.md (450 LOC)
 - [x] docs/tech-stack.md (90 LOC)
-- [ ] docs/deployment.md — MISSING
+- [ ] docs/deployment.md - MISSING
 
 ## Size budget (max 800)
-- docs/system-architecture.md: 920 LOC — 120 OVER
+- docs/system-architecture.md: 920 LOC - 120 OVER
 
 ## Freshness
-- docs/tech-stack.md: last edit 2025-11-12 (182 days ago, 47 code commits since) — STALE
+- docs/tech-stack.md: last edit 2025-11-12 (182 days ago, 47 code commits since) - STALE
 
 ## Validation
 docs/system-architecture.md:
@@ -80,13 +80,13 @@ docs/system-architecture.md:
   - ERROR: cited path does not exist → src/old-module/foo.ts
 
 ## Recommended next action
-- `vd:docs update` — drift detected in 2 files
+- `vd:docs update` - drift detected in 2 files
 - Or `vd:docs init` for missing-file backfill
 ```
 
 ## Hard rules
 
 - **No writes.** Read-only across the board.
-- **No subagents.** Cheap and synchronous — no delegation needed.
-- **Surface every finding.** Even minor ones — this is the cheap step to fix them.
-- **Don't flag out-of-scope files.** `changelog.md`, `roadmap.md`, `prd.md`, `codebase-summary.md` aren't `vd:docs`'s problem — if they exist, leave them alone.
+- **No subagents.** Cheap and synchronous - no delegation needed.
+- **Surface every finding.** Even minor ones - this is the cheap step to fix them.
+- **Don't flag out-of-scope files.** `changelog.md`, `roadmap.md`, `prd.md`, `codebase-summary.md` aren't `vd:docs`'s problem - if they exist, leave them alone.

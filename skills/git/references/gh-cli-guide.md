@@ -15,7 +15,7 @@ gh auth logout        # Logout
 
 ### Create
 
-PR titles are **past tense (v-ed)** — describe what the PR did. Commit messages stay imperative; only the title flips. See `workflow-pr.md` for full rules.
+PR titles are **past tense (v-ed)** - describe what the PR did. Commit messages stay imperative; only the title flips. See `workflow-pr.md` for full rules.
 
 ```bash
 # Basic
@@ -29,7 +29,7 @@ gh pr create --base main \
   --body "$(cat <<'EOF'
 - **Why:** Replace home-rolled session middleware with OAuth2. Closes #42.
 - **What:** added OAuth2 provider; refresh-token rotation; rate-limited /login.
-- **Risks:** Breaking — sessions invalidated on deploy.
+- **Risks:** Breaking - sessions invalidated on deploy.
 
 **Tests:** ✓ 127
 **Docs:** ✓
@@ -43,7 +43,7 @@ gh pr create --draft --title "WIP: new feature"
 # Reviewers + labels
 gh pr create --reviewer user1,user2 --label "needs-review,priority:high"
 
-# Auto-fill (uses commit messages — imperative!)
+# Auto-fill (uses commit messages - imperative!)
 gh pr create --fill
 # After --fill, re-edit the title to past tense (v-ed) so it matches our convention:
 gh pr edit --title "feat(auth): added OAuth"
@@ -159,6 +159,6 @@ gh pr status --json url,title -q '.currentBranch,.createdBy,.needsReview'
 ## Tips
 
 - Use `--web` to open in browser when the JSON output isn't enough.
-- `gh api` is the escape hatch for anything the high-level commands don't cover — full GitHub REST API.
+- `gh api` is the escape hatch for anything the high-level commands don't cover - full GitHub REST API.
 - For long output, pipe through `less` or extract with `--jq`.
 - `gh repo set-default` to set the default repo for the current directory if `gh` keeps prompting.

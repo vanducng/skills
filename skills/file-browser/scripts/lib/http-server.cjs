@@ -203,7 +203,7 @@ function createHttpServer(options) {
       if (!isPathSafe(filePath)) return sendError(res, 403, 'Access denied');
       // Top-level document navigations get the wrapped /view page so the
       // sidebar + chrome show up. Iframes, media (<img>/<video>/<audio>),
-      // and fetch keep raw byte streaming — otherwise the HTML viewer's
+      // and fetch keep raw byte streaming - otherwise the HTML viewer's
       // own iframe (src=/file/...) would recursively reload the chrome.
       // ?raw=1 is the escape hatch for the "Open raw" button so the user
       // can land on the bare file even from a top-level click.

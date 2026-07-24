@@ -1,4 +1,4 @@
-# Skeleton Contract — pass-1 (YAML)
+# Skeleton Contract - pass-1 (YAML)
 
 You are emitting a **YAML skeleton** describing a diagram's structure. This is pass-1 of a two-pass pipeline. **DO NOT emit SVG, pixel coordinates, colors, or styling.** Pass-2 paints the SVG; Python computes layout. Your job is _what to show_, not _where_ or _how it looks_.
 
@@ -40,23 +40,23 @@ notes:                           # OPTIONAL free-floating annotations
 ### Supported edge `kind` values
 `sync`, `async`, `error`.
 
-## Validation rules (every one is enforced — emit nothing outside these)
+## Validation rules (every one is enforced - emit nothing outside these)
 
-1. **Allowed top-level keys: exactly** `type`, `preset`, `groups`, `elements`, `edges` (required) and `title`, `notes` (optional). Any other top-level key — `caption`, `metadata`, `description`, `version`, etc. — is **rejected**.
+1. **Allowed top-level keys: exactly** `type`, `preset`, `groups`, `elements`, `edges` (required) and `title`, `notes` (optional). Any other top-level key - `caption`, `metadata`, `description`, `version`, etc. - is **rejected**.
 2. `type` MUST be one of the eight supported diagram types.
 3. `preset` MUST be one of `warm | mono | pastel | cyberpunk`.
 4. Every element's `group` MUST reference an existing group by `name`.
 5. Every edge's `from` and `to` MUST reference an existing element by `name`.
 6. Every note's `attached` MUST reference an existing element by `name`.
 7. Element `kind` MUST be in the kind enum; edge `kind` MUST be in the edge-kind enum.
-8. Element `name` and group `name` MUST match `^[a-z][a-z0-9_-]*$` — start lower-case letter, then lower-case letters / digits / underscore / hyphen.
+8. Element `name` and group `name` MUST match `^[a-z][a-z0-9_-]*$` - start lower-case letter, then lower-case letters / digits / underscore / hyphen.
 9. AT MOST one element with `subject: true`.
 10. No duplicate element `name`s; no duplicate group `name`s.
 11. Element `label` ≤ 40 chars; edge `label` ≤ 4 words.
 
 ## Examples
 
-### Minimal — system-architecture, 2 groups, 4 elements, 3 edges
+### Minimal - system-architecture, 2 groups, 4 elements, 3 edges
 
 ```yaml
 type: system-architecture
@@ -91,7 +91,7 @@ edges:
   - {from: api, to: db, label: "reads", kind: sync}
 ```
 
-### Richer — system-architecture, 4 groups, 10 elements, 7 edges, 2 notes
+### Richer - system-architecture, 4 groups, 10 elements, 7 edges, 2 notes
 
 ```yaml
 type: system-architecture
@@ -132,7 +132,7 @@ notes:
 
 ### Per-type examples
 
-**data-flow** — pipeline of transformations (sources → process → sinks):
+**data-flow** - pipeline of transformations (sources → process → sinks):
 
 ```yaml
 type: data-flow
@@ -153,7 +153,7 @@ edges:
   - {from: ch, to: graf, label: "queries", kind: sync}
 ```
 
-**workflow** — process map with ownership lanes, decisions, queues, and terminal outcomes:
+**workflow** - process map with ownership lanes, decisions, queues, and terminal outcomes:
 
 ```yaml
 type: workflow
@@ -180,12 +180,12 @@ edges:
   - {from: pick, to: shipped, label: "fulfill", kind: sync}
 ```
 
-**c4-context** — system boundary with users + external systems. Use larger labels; mark the system-of-interest with `subject: true`.
+**c4-context** - system boundary with users + external systems. Use larger labels; mark the system-of-interest with `subject: true`.
 
 ```yaml
 type: c4-context
 preset: warm
-title: "Banking app — system context"
+title: "Banking app - system context"
 groups:
   - {name: users, label: "Users"}
   - {name: system, label: "System"}
@@ -199,12 +199,12 @@ edges:
   - {from: cbs, to: gw, label: "settles", kind: sync}
 ```
 
-**c4-container** — internal containers within a system. Use `service` for app/API tiers, `datastore` for DBs.
+**c4-container** - internal containers within a system. Use `service` for app/API tiers, `datastore` for DBs.
 
 ```yaml
 type: c4-container
 preset: mono
-title: "Internet banking — containers"
+title: "Internet banking - containers"
 groups:
   - {name: client, label: "Client apps"}
   - {name: api, label: "API tier"}
@@ -218,7 +218,7 @@ edges:
   - {from: api, to: accounts, label: "reads", kind: sync}
 ```
 
-**er-diagram** — entities + relationships. Use `entity` kind. Group by user-perceived clusters (party / order / catalog) — Phase 7 punts cluster-by-density.
+**er-diagram** - entities + relationships. Use `entity` kind. Group by user-perceived clusters (party / order / catalog) - Phase 7 punts cluster-by-density.
 
 ```yaml
 type: er-diagram
@@ -248,7 +248,7 @@ edges:
 - **Don't invent new `kind` values.** Stay inside the enum; if nothing fits, use `service` as the safe default.
 - **Don't mark more than one element with `subject: true`.** At most one per diagram.
 - **Don't write edge labels longer than 4 words.** If you need more, split into two edges or drop the label.
-- **Don't add unknown top-level keys** (`caption`, `metadata`, `description` — all rejected).
+- **Don't add unknown top-level keys** (`caption`, `metadata`, `description` - all rejected).
 - **Don't use camelCase or PascalCase** for `name` fields. Snake_case only.
 
 ## Response format

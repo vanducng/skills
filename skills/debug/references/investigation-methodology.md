@@ -11,15 +11,15 @@ Five-step structured investigation for system-level issues, incidents, and multi
 - Pod / container restarted, then app degraded
 - Need to understand "what happened" before fixing
 
-## Step 1 — Initial assessment
+## Step 1 - Initial assessment
 
 **Establish scope and impact before diving in.**
 
-1. **Collect symptoms** — error messages, affected endpoints/DAGs/dashboards, user reports
-2. **Identify affected components** — services, databases, message queues, schedulers, BI surfaces
-3. **Determine timeframe** — when did it start? Correlate with deployments / model runs / config changes / cron windows
-4. **Assess severity** — users affected? data integrity at risk? revenue impact? reporting blackout?
-5. **Check recent changes** — git, deploy logs, infra/IaC drift, dependency bumps, dbt model changes, schema migrations
+1. **Collect symptoms** - error messages, affected endpoints/DAGs/dashboards, user reports
+2. **Identify affected components** - services, databases, message queues, schedulers, BI surfaces
+3. **Determine timeframe** - when did it start? Correlate with deployments / model runs / config changes / cron windows
+4. **Assess severity** - users affected? data integrity at risk? revenue impact? reporting blackout?
+5. **Check recent changes** - git, deploy logs, infra/IaC drift, dependency bumps, dbt model changes, schema migrations
 
 ```bash
 # Recent app deploys (GitHub Actions)
@@ -34,7 +34,7 @@ kubectl rollout history deployment/<name> -n <ns>
 ls -la target/manifest.json target/run_results.json 2>/dev/null
 ```
 
-## Step 2 — Data collection
+## Step 2 - Data collection
 
 **Gather evidence systematically before analysis.**
 
@@ -63,18 +63,18 @@ cat target/run_results.json | jq '.results[] | select(.status != "success")'
 ```
 
 For codebase orientation:
-- `vd:scout` — locate the relevant files / models / manifests
-- `repomix` — generate a fresh codebase summary if `docs/codebase-summary.md` is missing or stale
+- `vd:scout` - locate the relevant files / models / manifests
+- `repomix` - generate a fresh codebase summary if `docs/codebase-summary.md` is missing or stale
 
-## Step 3 — Analysis
+## Step 3 - Analysis
 
 **Correlate evidence across sources.**
 
-1. **Timeline reconstruction** — order events chronologically across all logs (mind timezones)
-2. **Pattern identification** — recurring errors, time windows, affected segments (users / tenants / regions)
-3. **Execution path tracing** — follow the request / job / DAG through the system
-4. **Data integrity check** — for data issues, compare row counts, distributions, joins before/after
-5. **Dependency mapping** — which components depend on the failing one? Which feed it?
+1. **Timeline reconstruction** - order events chronologically across all logs (mind timezones)
+2. **Pattern identification** - recurring errors, time windows, affected segments (users / tenants / regions)
+3. **Execution path tracing** - follow the request / job / DAG through the system
+4. **Data integrity check** - for data issues, compare row counts, distributions, joins before/after
+5. **Dependency mapping** - which components depend on the failing one? Which feed it?
 
 **Key questions:**
 - Does the issue correlate with a specific deploy / migration / DAG run / config change?
@@ -83,26 +83,26 @@ For codebase orientation:
 - Upstream cause (data) or downstream symptom (rendering)?
 - Same problem reproducible in dev/staging?
 
-## Step 4 — Root cause identification
+## Step 4 - Root cause identification
 
 **Eliminate hypotheses systematically with evidence.**
 
 1. **List hypotheses** ranked by evidence strength
-2. **Test each** — design the smallest possible experiment that confirms or rejects
-3. **Validate with evidence** — logs, metrics, queries, reproduction steps
-4. **Consider environmental factors** — race conditions, resource limits, env-var drift across environments, DST, off-by-timezone
-5. **Document the chain** — full event sequence from trigger to symptom
+2. **Test each** - design the smallest possible experiment that confirms or rejects
+3. **Validate with evidence** - logs, metrics, queries, reproduction steps
+4. **Consider environmental factors** - race conditions, resource limits, env-var drift across environments, DST, off-by-timezone
+5. **Document the chain** - full event sequence from trigger to symptom
 
 **Avoid:** fixing the first hypothesis without testing alternatives. Multiple plausible causes require elimination.
 
-## Step 5 — Solution development
+## Step 5 - Solution development
 
 **Targeted, evidence-backed fixes.**
 
-1. **Immediate fix** — minimum change to restore service (rollback, scale, hotfix, disable a DAG, revert a model)
-2. **Root cause fix** — address the underlying issue permanently
-3. **Preventive measures** — monitoring, alerts, validation, dbt tests, K8s probes, defense-in-depth
-4. **Verification plan** — how to confirm the fix actually works (in prod, with fresh evidence)
+1. **Immediate fix** - minimum change to restore service (rollback, scale, hotfix, disable a DAG, revert a model)
+2. **Root cause fix** - address the underlying issue permanently
+3. **Preventive measures** - monitoring, alerts, validation, dbt tests, K8s probes, defense-in-depth
+4. **Verification plan** - how to confirm the fix actually works (in prod, with fresh evidence)
 
 **Prioritize:** impact × urgency. Restore service first, then fix root cause, then prevent recurrence.
 

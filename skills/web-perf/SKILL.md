@@ -1,9 +1,9 @@
 ---
 name: web-perf
-description: Measure Core Web Vitals (LCP, CLS, INP, FCP, TTFB), JS heap, and record DevTools performance traces against a running Chrome — attaches to vd:browser-profile's deterministic CDP ports, no Puppeteer, no separate browser. Use when the user says "why is this page slow", "measure web vitals", "check LCP/CLS/INP", "record a performance trace", "profile page load", or wants performance evidence in an e2e run.
+description: Measure Core Web Vitals (LCP, CLS, INP, FCP, TTFB), JS heap, and record DevTools performance traces against a running Chrome - attaches to vd:browser-profile's deterministic CDP ports, no Puppeteer, no separate browser. Use when the user says "why is this page slow", "measure web vitals", "check LCP/CLS/INP", "record a performance trace", "profile page load", or wants performance evidence in an e2e run.
 license: MIT
 allowed-tools: Bash, Read
-compatibility: Requires Node 22+ (global WebSocket) and a Chrome exposing a CDP port — typically a vd:browser-profile profile. No npm dependencies.
+compatibility: Requires Node 22+ (global WebSocket) and a Chrome exposing a CDP port - typically a vd:browser-profile profile. No npm dependencies.
 argument-hint: "[vitals|trace] --port <cdp-port> [--url <page>]"
 metadata:
   author: vanducng
@@ -13,17 +13,17 @@ metadata:
 
 # web-perf
 
-Performance measurement that attaches to the browser you already have. `vd:browser-trace` is a read-only observer — it never sends CDP commands, so it can't compute vitals or drive Chrome's tracer. This skill is the *active* counterpart: two stdlib Node scripts that connect to a CDP port (a `vd:browser-profile` profile's deterministic port, or any `--remote-debugging-port` Chrome), evaluate buffered `PerformanceObserver`s in-page, and stream a DevTools-loadable `trace.json` out.
+Performance measurement that attaches to the browser you already have. `vd:browser-trace` is a read-only observer - it never sends CDP commands, so it can't compute vitals or drive Chrome's tracer. This skill is the *active* counterpart: two stdlib Node scripts that connect to a CDP port (a `vd:browser-profile` profile's deterministic port, or any `--remote-debugging-port` Chrome), evaluate buffered `PerformanceObserver`s in-page, and stream a DevTools-loadable `trace.json` out.
 
-No Puppeteer, no bundled Chromium, no node_modules — measuring against the persistent profile means vitals reflect the *logged-in* app surface (authed dashboards, not marketing pages), with warm-cache caveats noted below.
+No Puppeteer, no bundled Chromium, no node_modules - measuring against the persistent profile means vitals reflect the *logged-in* app surface (authed dashboards, not marketing pages), with warm-cache caveats noted below.
 
-## What this skill is — and isn't
+## What this skill is - and isn't
 
 | Skill | Role |
 |---|---|
 | `vd:browser-trace` | Passive evidence: network/console/screenshots, never interferes |
-| `vd:web-perf` (this) | Active measurement: vitals, heap, Chrome tracing — sends CDP commands |
-| `vd:browser` | Driving: navigate/click/fill — pair it to create the interactions INP needs |
+| `vd:web-perf` (this) | Active measurement: vitals, heap, Chrome tracing - sends CDP commands |
+| `vd:browser` | Driving: navigate/click/fill - pair it to create the interactions INP needs |
 
 **Not for:** load testing (k6 territory), Lighthouse-style audits/scores, or production RUM.
 
@@ -50,7 +50,7 @@ node "$SKILL/perf-trace.cjs" --port $PORT --url https://myapp.test/dashboard --o
 ## Workflow
 
 1. Get a CDP port: an open profile (`e2e.cjs status --json` reports it) or `chrome --remote-debugging-port=NNNN --user-data-dir=<dedicated>` (Chrome 136+ refuses the default dir).
-2. Baseline: `vitals.cjs --url <page>` on the cold path; re-run for the warm read. A persistent profile has a primed cache — for cold-cache numbers use a fresh profile or note "warm" in the report.
+2. Baseline: `vitals.cjs --url <page>` on the cold path; re-run for the warm read. A persistent profile has a primed cache - for cold-cache numbers use a fresh profile or note "warm" in the report.
 3. INP needs interactions: drive clicks/typing via `vd:browser` first, then `vitals.cjs` *without* `--url` (re-navigating clears interaction history). `INP: n/a` on a fresh load is correct.
 4. Slow page? `perf-trace.cjs` around the navigation; the long-task summary names the top main-thread offenders, the trace file gives the flame chart.
 5. In an e2e run, append the vitals JSON and trace path to the flow report as evidence (`vd:web-e2e` report convention).
@@ -68,14 +68,14 @@ node "$SKILL/perf-trace.cjs" --port $PORT --url https://myapp.test/dashboard --o
 
 ## Security
 
-- Read-only against your own local Chrome; never point it at a CDP port you don't own — a CDP connection can read any page state in that browser.
-- Trace files can embed page URLs and timing of authed routes — treat as internal artifacts.
+- Read-only against your own local Chrome; never point it at a CDP port you don't own - a CDP connection can read any page state in that browser.
+- Trace files can embed page URLs and timing of authed routes - treat as internal artifacts.
 
 ## Integration points
 
-- **`vd:browser-profile`** — the deterministic port is the default attach target.
-- **`vd:web-e2e`** — perf evidence slots into flow reports; run vitals after a flow's steps for interaction-aware INP.
-- **`vd:browser-trace`** — both can attach to the same port simultaneously (tracer observes, this measures).
+- **`vd:browser-profile`** - the deterministic port is the default attach target.
+- **`vd:web-e2e`** - perf evidence slots into flow reports; run vitals after a flow's steps for interaction-aware INP.
+- **`vd:browser-trace`** - both can attach to the same port simultaneously (tracer observes, this measures).
 
 ## Future (deliberately out of scope for MVP)
 

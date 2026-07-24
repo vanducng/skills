@@ -1107,7 +1107,7 @@ test('integration: status reports disk size and merged flag', () => {
 test('integration: create from INSIDE a worktree redirects to main root, no nesting', () => {
   const parent = assertJSON(run('create "outer feat" --json', { cwd: TMP_REPO }).output);
   assert(fs.existsSync(parent.worktreePath), 'parent worktree created');
-  // Run create FROM the worktree — the historic nesting trigger.
+  // Run create FROM the worktree - the historic nesting trigger.
   const inner = assertJSON(run('create "inner feat" --json', { cwd: parent.worktreePath }).output);
   const treesRoot = path.join(fs.realpathSync(TMP_REPO), '.worktrees');
   assert(path.resolve(inner.worktreePath).startsWith(treesRoot + path.sep),

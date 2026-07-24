@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# notify.sh — push-notification wrapper. Tries terminal-notifier → ntfy.sh →
+# notify.sh - push-notification wrapper. Tries terminal-notifier → ntfy.sh →
 # Slack webhook → log fallback. Always exits 0 on bad-args=2; never breaks
 # the caller.
 #
@@ -61,7 +61,7 @@ if [ -n "${SLACK_WEBHOOK_URL:-}" ] && command -v curl >/dev/null 2>&1; then
   fi
 fi
 
-# 4. Log fallback — always works.
+# 4. Log fallback - always works.
 LOG="$HOME/.ultracook/notifications.log"
 mkdir -p "$(dirname "$LOG")"
 printf '%s [%s] %s%s\n' \

@@ -4,7 +4,7 @@
 
 Default image-gen engine. Delegates to the `omnimedia` skill's
 `codex_imagegen.py`, which drives Codex's `$imagegen` ($imagegen picks
-gpt-image-2 internally) on the user's ChatGPT subscription — no API key.
+gpt-image-2 internally) on the user's ChatGPT subscription - no API key.
 
 Reuses the tested wrapper rather than reimplementing the codex exec / PNG
 capture logic. See omnimedia/references/codex-imagegen.md.
@@ -55,7 +55,7 @@ def generate(
     wrapper = _wrapper()
     if wrapper is None:
         raise CodexUnavailable(
-            "omnimedia codex_imagegen.py not found — install the omnimedia skill, "
+            "omnimedia codex_imagegen.py not found - install the omnimedia skill, "
             "or pass --provider gemini."
         )
     if aspect_ratio:

@@ -1,4 +1,4 @@
-"""`twitter delete <url|id>` — delete a tweet."""
+"""`twitter delete <url|id>` - delete a tweet."""
 from __future__ import annotations
 
 import argparse

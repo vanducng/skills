@@ -84,7 +84,7 @@ def refine_prompt(
         "style references below. Output a single-paragraph image-generation "
         "prompt that follows ALL the visual conventions, layout rules, and "
         "composition rules. Do not invent components not in the description. "
-        "Output ONLY the refined prompt — no preamble, no markdown, no fences."
+        "Output ONLY the refined prompt - no preamble, no markdown, no fences."
     )
     user = (
         f"## User description\n{description}\n\n"
@@ -126,7 +126,7 @@ def generate_svg(
     system = (
         "You output ONLY valid SVG 1.1 markup. No preamble, no markdown fences, "
         "no explanation. Follow the SVG contract exactly: required root attributes, "
-        "layer ordering, class names, hard rules — especially the LAYOUT RULES "
+        "layer ordering, class names, hard rules - especially the LAYOUT RULES "
         "(boundary tiling, orthogonal routing, label-inside-parent, bidirectional "
         "single-path with two markers, white-fill occlusion behind arrow labels). "
         "Walk the pre-flight checklist mentally before emitting. Use the style "
@@ -164,7 +164,7 @@ def generate_skeleton(
     system = (
         "You are a diagram structure designer. Read the user's description and emit "
         "ONLY a YAML skeleton describing the diagram's nodes, edges, and groups. "
-        "DO NOT emit SVG, coordinates, colors, or styling. The schema is strict — "
+        "DO NOT emit SVG, coordinates, colors, or styling. The schema is strict - "
         "every rule will be validated; emit nothing outside the schema."
     )
     user = (
@@ -211,7 +211,7 @@ def paint_svg(
         "You are an SVG illustrator. You will receive a fully laid-out diagram "
         "skeleton with precomputed coordinates for every node, edge waypoint, and "
         "label. Your job is to PAINT the final SVG using the active preset's style "
-        "tokens — colors, line weights, marker shapes, decorations are entirely "
+        "tokens - colors, line weights, marker shapes, decorations are entirely "
         "your call. POSITIONS ARE LOCKED: you may NOT move any node, edge waypoint, "
         "or label more than 5% from the supplied coordinates. Every node listed "
         "must appear in the output."
@@ -221,8 +221,8 @@ def paint_svg(
         f"## Style tokens (active preset)\n{preset_tokens}\n\n"
         f"## Style foundations\n{style_foundations}\n\n"
         f"## Composition rules\n{composition_rules}\n\n"
-        f"## SVG contract — HARD CONSTRAINTS\n{svg_contract}\n\n"
-        f"## Painter contract — what 'paint' means here\n{painter_contract}\n\n"
+        f"## SVG contract - HARD CONSTRAINTS\n{svg_contract}\n\n"
+        f"## Painter contract - what 'paint' means here\n{painter_contract}\n\n"
         f"## Laid-out skeleton (coordinates are LOCKED)\n```yaml\n{laid_out_yaml}\n```\n\n"
         "Emit ONLY the final SVG. No fences, no preamble."
     )
@@ -249,7 +249,7 @@ def revise_svg(
         "You are a layout critic for SVG diagrams. You will be given a draft SVG "
         "and the layout contract it must satisfy. Walk every check in the "
         "pre-flight checklist on the draft. Then output ONLY a corrected SVG 1.1 "
-        "document — no markdown fences, no preamble, no explanation. If the draft "
+        "document - no markdown fences, no preamble, no explanation. If the draft "
         "is already perfect, re-emit it unchanged. Common defects to fix: "
         "(a) boundary rects that overlap each other, "
         "(b) text nodes outside their parent box, "
@@ -260,11 +260,11 @@ def revise_svg(
         "with marker-start AND marker-end), "
         "(f) arrow labels missing the white-fill <rect> occluder behind them, "
         "(g) elements closer than 24px to a sibling. "
-        "Preserve the original component set, palette, and class names — only fix "
+        "Preserve the original component set, palette, and class names - only fix "
         "geometry."
     )
     feedback_block = (
-        f"\n\n## Validator findings — fix THESE specifically\n{extra_feedback}\n"
+        f"\n\n## Validator findings - fix THESE specifically\n{extra_feedback}\n"
         if extra_feedback
         else ""
     )

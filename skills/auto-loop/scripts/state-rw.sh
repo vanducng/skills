@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# state-rw.sh — atomic read/write helpers for .auto-loop/goal-state.json.
+# state-rw.sh - atomic read/write helpers for .auto-loop/goal-state.json.
 # Validates against state-schema.json before any write. Atomic via tmpfile + mv (POSIX
 # rename atomicity on the same filesystem).
 #
@@ -23,7 +23,7 @@ _have_python_jsonschema() {
 }
 
 _validate_json() {
-  # _validate_json <json-string> — exit 0 if valid, non-zero with stderr message otherwise.
+  # _validate_json <json-string> - exit 0 if valid, non-zero with stderr message otherwise.
   local payload="$1"
 
   # Cheap structural check via jq first

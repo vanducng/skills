@@ -1,10 +1,10 @@
 # PR Title & Body Template
 
-Canonical PR conventions — shared by `vd:git pr` and `vd:ship`. Both skills source title/body rules from this file so PRs read the same regardless of which one opened them.
+Canonical PR conventions - shared by `vd:git pr` and `vd:ship`. Both skills source title/body rules from this file so PRs read the same regardless of which one opened them.
 
-## Body source — priority order
+## Body source - priority order
 
-1. **Repo template wins.** If a PR template exists in the repo, fill it verbatim — do not append, do not reorder.
+1. **Repo template wins.** If a PR template exists in the repo, fill it verbatim - do not append, do not reorder.
    ```bash
    for p in .github/pull_request_template.md .github/PULL_REQUEST_TEMPLATE.md docs/pull_request_template.md; do
      if [ -f "$p" ]; then cat "$p"; break; fi
@@ -23,11 +23,11 @@ PR readers have the diff one click away. Body explains *why* and *what's risky*,
 | **Notes / Additional Notes** | Optional. Only add a note if a reviewer genuinely needs it (sequencing, breaking change, manual deploy step, follow-up flagged). If nothing surprising, omit or write `none`. |
 | **Checklist** | Tick honestly. Don't pad with explanations. |
 
-These section *names* are conceptual — they map onto whichever body shape the repo uses. The **repo-template** path keeps the heading style (`## Context`, `## Main Changes`, `## Additional Notes`, `## Checklist`). The **fallback body** path collapses them into labelled bullets: `Why` = Context, `What` = Main Changes, `Risks` = Notes, and the verification block replaces Checklist. Don't introduce both styles in one PR.
+These section *names* are conceptual - they map onto whichever body shape the repo uses. The **repo-template** path keeps the heading style (`## Context`, `## Main Changes`, `## Additional Notes`, `## Checklist`). The **fallback body** path collapses them into labelled bullets: `Why` = Context, `What` = Main Changes, `Risks` = Notes, and the verification block replaces Checklist. Don't introduce both styles in one PR.
 
 ### Anti-patterns
 
-- ❌ Listing every file touched ("Created `models/observability/cnb_obs_dbt_test_runs.sql`, created `models/observability/cnb_obs_dbt_invocations.sql`, ...") — group instead: "5 dbt views + 1 incremental snapshot under `models/observability/`."
+- ❌ Listing every file touched ("Created `models/observability/cnb_obs_dbt_test_runs.sql`, created `models/observability/cnb_obs_dbt_invocations.sql`, ...") - group instead: "5 dbt views + 1 incremental snapshot under `models/observability/`."
 - ❌ Re-stating the diff in prose ("This PR builds on top of elementary which already populates run results...")
 - ❌ Multi-paragraph "Context" sections that recap scouting / brainstorming. That belongs in Jira / the plan file.
 - ❌ Marketing language ("Foundation for future tickets", "comprehensive solution").
@@ -87,11 +87,11 @@ Ticket #: PROJ-1234. Builds the observability surface (row counts + pipeline run
 - [x] schema reuses existing OPS_METRICS (no infra changes)
 ```
 
-The right version is ~25% the length and reviewers learn the same thing. The eight-line "Main Changes" enumeration became three. The five "Notes" became two — only the ones a reviewer can't infer from the diff.
+The right version is ~25% the length and reviewers learn the same thing. The eight-line "Main Changes" enumeration became three. The five "Notes" became two - only the ones a reviewer can't infer from the diff.
 
 ## Title
 
-PR titles flip to **past tense (v-ed)** — they narrate what the branch did, not what to do. Commit messages stay imperative; only the PR title flips.
+PR titles flip to **past tense (v-ed)** - they narrate what the branch did, not what to do. Commit messages stay imperative; only the PR title flips.
 
 - **Length:** ≤ 70 chars
 - **Ticket prefix in branch name** (regex `^([A-Z][A-Z0-9]+-[0-9]+)`):
@@ -140,28 +140,28 @@ ticket-prefixed title.
 
 ## Fallback body
 
-Three labelled bullets + a verification block (one field per line). No section headings — eliminates the Summary-vs-Changes overlap by construction. Same shape for 5-line fixes and 500-line features (the **What** bullet nests when needed).
+Three labelled bullets + a verification block (one field per line). No section headings - eliminates the Summary-vs-Changes overlap by construction. Same shape for 5-line fixes and 500-line features (the **What** bullet nests when needed).
 
 ```markdown
 - **Why:** <one-sentence motivation>. <Closes #N / Relates to #M if any>
        _OR nested bullets when there are multiple distinct drivers (cap 4)_
 - **What:** <semicolon-separated behavior shifts for ≤3 items, OR nested bullets for >3 (cap 7)>
-- **Risks:** <breaking changes / migration notes — or `none`>
+- **Risks:** <breaking changes / migration notes - or `none`>
 
-**Tests:** <✓ what ran / counts — or ✗ N failing, – skipped>
+**Tests:** <✓ what ran / counts - or ✗ N failing, – skipped>
 **Docs:** <✓ updated | – N/A>
 **Breaking:** <– none | ⚠ see CHANGELOG>
 ```
 
-> **One field per line** (blank line before the block). GitHub PR bodies render single newlines as breaks, so each field gets its own row — a descriptive `Tests:` value stays readable and never wraps `Docs:`/`Breaking:` onto a stray line. `Tests:` may name what ran (counts + suites); `Docs:`/`Breaking:` stay short. **Don't** collapse the three onto one `·`-joined line — that's the row that wrapped and pushed `Breaking:` onto its own line.
+> **One field per line** (blank line before the block). GitHub PR bodies render single newlines as breaks, so each field gets its own row - a descriptive `Tests:` value stays readable and never wraps `Docs:`/`Breaking:` onto a stray line. `Tests:` may name what ran (counts + suites); `Docs:`/`Breaking:` stay short. **Don't** collapse the three onto one `·`-joined line - that's the row that wrapped and pushed `Breaking:` onto its own line.
 
 ## Per-bullet fill rules
 
 | Bullet | Source | Synthesis rule |
 |--------|--------|----------------|
 | **Why** | Top of `[Unreleased]` / `[X.Y.Z]` changelog entry → top commit body → branch name verbalized | Default: one sentence; drop low-signal verbs (`add`, `update`), promote the noun, end inline with `Closes #N`. Multiple distinct drivers (compliance + performance + UX) → nest as bullets. Hard cap 4 nested bullets; more means the PR has too many goals. |
-| **What** | Commit subjects on the branch, deduped, grouped by behavioral domain | ≤3 items: semicolon-joined on one line. >3: nested bullets. Each item is a *behavior change*, not a file change. Reject "renamed file X" — keep "renamed cookie from `sid` to `__Host-session`". Hard cap 7 nested bullets — more is a scope smell. |
-| **Risks** | Breaking-change scan on diff: removed exports, schema migrations, env var changes, removed CLI flags, `BREAKING CHANGE:` in commit body | Lead with severity word: `Breaking — …` / `Migration — …` / `none`. Keep `none` explicit; never omit the bullet. |
+| **What** | Commit subjects on the branch, deduped, grouped by behavioral domain | ≤3 items: semicolon-joined on one line. >3: nested bullets. Each item is a *behavior change*, not a file change. Reject "renamed file X" - keep "renamed cookie from `sid` to `__Host-session`". Hard cap 7 nested bullets - more is a scope smell. |
+| **Risks** | Breaking-change scan on diff: removed exports, schema migrations, env var changes, removed CLI flags, `BREAKING CHANGE:` in commit body | Lead with severity word: `Breaking - …` / `Migration - …` / `none`. Keep `none` explicit; never omit the bullet. |
 | **Verification** | Live `gh pr checks` output for tests; `docs/` files in diff for Docs; same breaking-change scan for Breaking | Three bold-labelled lines, **one field per line** (`**Tests:**` / `**Docs:**` / `**Breaking:**`), preceded by a blank line. `Tests:` may summarize what actually ran (counts + suites, e.g. `✓ 64 backend + frontend schema/Prettier + browser UI check`) since it owns its own row; `Docs:`/`Breaking:` stay short. Never `·`-join all three onto one line (that wraps). Regenerate after CI reports green so reviewers see live status, not a commit-time snapshot. |
 
 ## Body examples
@@ -183,11 +183,11 @@ Three labelled bullets + a verification block (one field per line). No section h
 ```markdown
 - **Why:** Replace home-rolled session middleware with OAuth2 for security + standards compliance. Closes #42.
 - **What:** login redirects to provider OAuth flow; old `/api/login` removed; session cookie renamed to `__Host-session` with Secure+HttpOnly.
-- **Risks:** Breaking — existing sessions invalidated on deploy. Documented in CHANGELOG.
+- **Risks:** Breaking - existing sessions invalidated on deploy. Documented in CHANGELOG.
 
 **Tests:** ✓ 127
 **Docs:** ✓
-**Breaking:** ⚠ existing sessions invalidated — see CHANGELOG
+**Breaking:** ⚠ existing sessions invalidated - see CHANGELOG
 ```
 
 **PR with multiple motivations (nested Why):**
@@ -198,11 +198,11 @@ Three labelled bullets + a verification block (one field per line). No section h
   - existing middleware leaks request context across goroutines under load (#84)
   - moving to OAuth lets us drop the home-rolled crypto and 600 lines of auth code
 - **What:** login redirects to provider OAuth flow; old `/api/login` removed; session cookie renamed to `__Host-session` with Secure+HttpOnly.
-- **Risks:** Breaking — existing sessions invalidated on deploy. Documented in CHANGELOG.
+- **Risks:** Breaking - existing sessions invalidated on deploy. Documented in CHANGELOG.
 
 **Tests:** ✓ 127
 **Docs:** ✓
-**Breaking:** ⚠ existing sessions invalidated — see CHANGELOG
+**Breaking:** ⚠ existing sessions invalidated - see CHANGELOG
 ```
 
 **Large PR (>3 shifts, nested What):**
@@ -214,7 +214,7 @@ Three labelled bullets + a verification block (one field per line). No section h
   - session cookie renamed `sid` → `__Host-session`; Secure + HttpOnly
   - logout now revokes the provider token, not just the local cookie
   - server fails fast at startup if `OAUTH_GOOGLE_*` / `OAUTH_GITHUB_*` env vars are missing
-- **Risks:** Breaking — existing sessions invalidated on deploy. Migration: clients must re-authenticate. Documented in CHANGELOG.
+- **Risks:** Breaking - existing sessions invalidated on deploy. Migration: clients must re-authenticate. Documented in CHANGELOG.
 
 **Tests:** ✓ 412 unit + integration; e2e auth flow green
 **Docs:** ✓
@@ -223,8 +223,8 @@ Three labelled bullets + a verification block (one field per line). No section h
 
 ## Hard rules
 
-- **Repo template, when present, is law** — do not append, do not reorder. Just fill.
-- **Issue closers (`Closes #42`)** live inline in the **Why** bullet — no separate Linked-Issues section.
+- **Repo template, when present, is law** - do not append, do not reorder. Just fill.
+- **Issue closers (`Closes #42`)** live inline in the **Why** bullet - no separate Linked-Issues section.
 - **Verification block values** come from live tooling output, never the author's claim.
 - **Existing PR for this branch** → `gh pr edit`, never re-create.
 - **Beta PRs** target dev/beta branch, not main.

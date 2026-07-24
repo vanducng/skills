@@ -2,7 +2,7 @@
 
 A repo hero banner is a **brand-locked, fixed-size image** referenced from `README.md`
 (`<img src="docs/.../banner.png" width="840">`). The upstream catalog has **no banner
-template** — `opendesign search "banner"` returns social-card skills whose styling
+template** - `opendesign search "banner"` returns social-card skills whose styling
 would override the repo's brand. So do **not** force a catalog template here. Instead:
 evolve a self-contained `banner.html` in the repo's own brand and render it to PNG.
 
@@ -14,7 +14,7 @@ banner.html  →  headless Chrome screenshot @2x  →  banner.png  →  referenc
 
 1. **Find the brand.** Reuse the repo's existing banner/logo, docs theme tokens
    (`docs/.../theme.css`, an Astro/Starlight config), or the README accent colors.
-   If a `banner.html` already exists, **evolve it** — don't restyle from scratch.
+   If a `banner.html` already exists, **evolve it** - don't restyle from scratch.
 2. **Author one self-contained HTML file** at a fixed pixel size. System/`-apple-system`
    font stack only (no web-font fetch). A single `.banner` div of `width × height`,
    `overflow: hidden`, brand background, optional grid + corner glows.
@@ -46,12 +46,12 @@ banner.html  →  headless Chrome screenshot @2x  →  banner.png  →  referenc
 - **Invisible dim text.** Footer text in a near-bg color (e.g. `#62666d` on `#08090a`)
   renders as black → looks like a gap. Use a readable tone, or drop it.
 - **Redundancy.** Don't repeat what the README already shows (tagline, project URL,
-  "managed with X" — those live in the README subtitle + badges right below the image).
+  "managed with X" - those live in the README subtitle + badges right below the image).
   A banner that duplicates them just adds height that becomes dead space.
 
 ## Verify after generating (MANDATORY)
 
-Never claim done from the HTML alone — **always render, then check the PNG**:
+Never claim done from the HTML alone - **always render, then check the PNG**:
 
 1. **View** the rendered `banner.png` (read it as an image).
 2. **Measure** the content bounding box to confirm margins are tight and balanced:

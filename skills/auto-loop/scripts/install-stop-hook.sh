@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install-stop-hook.sh — install Stop hook for the active auto-loop into
+# install-stop-hook.sh - install Stop hook for the active auto-loop into
 # .claude/settings.local.json. Backs up prior config to .auto-loop/hooks-backup.json.
 # Refuses to install if a live heartbeat already exists.
 #
@@ -27,7 +27,7 @@ if [[ ! -f "$settings" ]]; then
   echo '{}' > "$settings"
 fi
 
-# Backup existing Stop config (whatever shape) — write `null` if absent.
+# Backup existing Stop config (whatever shape) - write `null` if absent.
 prior=$(jq '.hooks.Stop // null' "$settings")
 echo "{\"prior_stop\": $prior}" > "$backup"
 

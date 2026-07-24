@@ -15,7 +15,7 @@ https://skills.vanducng.dev/
 Deployment steps:
 
 1. Checkout the repo.
-2. Build with `withastro/action@v6` (`path: ./docs`) — installs deps and runs `astro build`.
+2. Build with `withastro/action@v6` (`path: ./docs`) - installs deps and runs `astro build`.
 3. Upload `docs/dist/` as the Pages artifact (the custom domain comes from `docs/public/CNAME`).
 4. Deploy with `actions/deploy-pages@v5`.
 

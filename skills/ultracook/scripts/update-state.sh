@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# update-state.sh — atomic merge-patch on {goal-dir}/state.json.
+# update-state.sh - atomic merge-patch on {goal-dir}/state.json.
 #
 # Usage:
 #   update-state.sh --goal-dir <dir>  (reads JSON merge patch from stdin)
 #
 # Stdin: a JSON object with the keys to overwrite. e.g.
 #   {"current_action": "cook", "iteration_count": 4}
-# Setting a key to null clears it (JSON Merge Patch semantics — RFC 7396).
+# Setting a key to null clears it (JSON Merge Patch semantics - RFC 7396).
 #
 # `updated_at` is auto-set to now() on every write.
 # Atomic: writes state.json.tmp in the same dir then mv.
@@ -27,7 +27,7 @@ done
 
 # Crash-recovery guard: if state.json.tmp exists, a previous write crashed.
 if [ -f "${GOAL_DIR}/state.json.tmp" ]; then
-  echo "update-state.sh: ${GOAL_DIR}/state.json.tmp exists — previous write crashed." >&2
+  echo "update-state.sh: ${GOAL_DIR}/state.json.tmp exists - previous write crashed." >&2
   echo "  manual recovery: rm '${GOAL_DIR}/state.json.tmp' (re-derive state from goal.yaml + iterations/ if needed)." >&2
   exit 3
 fi
@@ -51,10 +51,10 @@ with open(state_path) as f:
 
 patch = json.loads(os.environ["PATCH_JSON"])
 
-# RFC 7396 JSON Merge Patch (simplified — top-level only for v0.1):
+# RFC 7396 JSON Merge Patch (simplified - top-level only for v0.1):
 # - patch[k] = null  → remove key (set to null in our schema)
 # - patch[k] = value → set
-# - nested dicts: recursive merge (only one level — budgets_consumed,
+# - nested dicts: recursive merge (only one level - budgets_consumed,
 #   last_action_result).
 def merge(target, patch):
     if not isinstance(patch, dict):

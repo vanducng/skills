@@ -1,11 +1,11 @@
-# infra.toml — profile for the infra repo (dataplanelabs/infra).
+# infra.toml - profile for the infra repo (dataplanelabs/infra).
 #
 # Infra is the FluxCD + K8s manifests repo. Changes here usually deploy via
 # Flux auto-reconcile rather than an explicit reconcile cmd, BUT ultracook runs
 # can still verify the post-reconcile state.
 #
 # Auto-merge: per user policy, infra PRs are merged manually (similar caution
-# to skills repo — production cluster impact). Do NOT set --auto.
+# to skills repo - production cluster impact). Do NOT set --auto.
 
 [project]
 name = "infra"
@@ -21,7 +21,7 @@ default_sequence_pr_only  = ["plan", "cook", "code_review", "test", "ship", "wai
 default_sequence_cluster  = [
   "plan", "cook", "code_review", "test",
   "ship", "wait_ci",
-  # No image_build step for infra — manifests only.
+  # No image_build step for infra - manifests only.
   "reconcile",      # explicit flux nudge after merge
   "rollout_check",  # if a Deployment was touched
   "verify_smoke",
@@ -44,7 +44,7 @@ smoke_cmd = ""
 # SOPS context: secrets in the infra repo are age-encrypted. mise auto-loads
 # SOPS_AGE_KEY_FILE from .mise.toml at the repo root. The profile relies on
 # the user's mise activation; if it's not active, sops-touching steps will
-# fail clearly. Do not bake the age key path into the profile — it's a per-
+# fail clearly. Do not bake the age key path into the profile - it's a per-
 # machine secret.
 
 [budgets]

@@ -4,10 +4,10 @@ A style vocabulary to commit to a deliberate point of view (see `design-quality.
 
 ## Selection workflow
 
-1. **Classify the product** — what it is (SaaS, dashboard, e-commerce, portfolio, tool, mobile app), who uses it, in what context.
+1. **Classify the product** - what it is (SaaS, dashboard, e-commerce, portfolio, tool, mobile app), who uses it, in what context.
 2. **Pick the style** from the tables below whose *Best for* matches and whose *Avoid* does not describe your product.
-3. **Derive tokens** — pull a palette from `palettes-and-fonts.md` (by product type) and a font pairing (by mood). Set radius/shadow/motion from the style's technical notes.
-4. **Sanity-check accessibility** — low-contrast styles (neumorphism, glassmorphism, aurora, vaporwave) need explicit 4.5:1 verification before shipping.
+3. **Derive tokens** - pull a palette from `palettes-and-fonts.md` (by product type) and a font pairing (by mood). Set radius/shadow/motion from the style's technical notes.
+4. **Sanity-check accessibility** - low-contrast styles (neumorphism, glassmorphism, aurora, vaporwave) need explicit 4.5:1 verification before shipping.
 
 Native-integration overrides all of this: inside an existing app, match its design language instead of importing a bold style.
 
@@ -47,16 +47,16 @@ Native-integration overrides all of this: inside an existing app, match its desi
 
 When the product is analytics, match the dashboard flavor:
 
-- **Data-dense** — BI, financial analytics, enterprise reporting. High information density, muted chrome.
-- **Executive** — C-suite summaries. Few big numbers, generous whitespace.
-- **Real-time monitoring** — DevOps/ops. Live tiles, status color, alert emphasis.
-- **Drill-down analytics** — funnels, product analytics. Progressive disclosure, hierarchy.
-- **Comparative** — period-over-period, A/B. Side-by-side, delta indicators.
+- **Data-dense** - BI, financial analytics, enterprise reporting. High information density, muted chrome.
+- **Executive** - C-suite summaries. Few big numbers, generous whitespace.
+- **Real-time monitoring** - DevOps/ops. Live tiles, status color, alert emphasis.
+- **Drill-down analytics** - funnels, product analytics. Progressive disclosure, hierarchy.
+- **Comparative** - period-over-period, A/B. Side-by-side, delta indicators.
 
 ## Anti-slop rules
 
-- No emoji as structural icons — use an SVG icon set (Lucide/Heroicons) with consistent stroke width.
+- No emoji as structural icons - use an SVG icon set (Lucide/Heroicons) with consistent stroke width.
 - Don't mix flat and skeuomorphic randomly; keep one elevation/shadow scale.
 - One primary CTA per screen; secondary actions visually subordinate.
 - Avoid one-hue palettes and decorative orb/gradient backgrounds unless the domain calls for it.
-- Design light and dark variants together; never invert colors for dark mode — use desaturated tonal variants and re-check contrast.
+- Design light and dark variants together; never invert colors for dark mode - use desaturated tonal variants and re-check contrast.

@@ -225,7 +225,7 @@ async function main() {
   });
 
   // Build capture tasks: one per (section, ratio) pair
-  // Group by ratio to minimise viewport switches — captures within same ratio run sequentially,
+  // Group by ratio to minimise viewport switches - captures within same ratio run sequentially,
   // but different ratios run in parallel (each gets its own page context via browser.newPage).
   const results = [];
   const errors = [];

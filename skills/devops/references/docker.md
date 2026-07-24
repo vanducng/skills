@@ -8,7 +8,7 @@ Order layers cheapest-changing first so the cache stays warm. Copy dependency ma
 FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --omit=dev        # deps layer — cached until manifests change
+RUN npm ci --omit=dev        # deps layer - cached until manifests change
 COPY . .
 ENV NODE_ENV=production
 EXPOSE 3000
@@ -17,7 +17,7 @@ CMD ["node", "server.js"]
 ```
 
 **Rules that matter:**
-- **Multi-stage builds for production** — build in a fat image, copy only artifacts into a slim/`scratch` runtime. No build tools or source in the final image.
+- **Multi-stage builds for production** - build in a fat image, copy only artifacts into a slim/`scratch` runtime. No build tools or source in the final image.
 - **Pin specific base tags** (`node:20.11-alpine3.19`), never `latest`.
 - **Run as non-root** (`USER`); `COPY --chown` to set ownership.
 - **`.dockerignore`** to keep `node_modules`, `.git`, `.env`, logs out of the build context.
@@ -93,8 +93,8 @@ docker compose down --volumes   # stop + drop volumes
 
 ## Security & troubleshooting
 
-- **Scan images:** `docker scout cves myapp:1.0` or Trivy. Non-root user, minimal base, no secrets in layers (they persist in history — use build secrets/`--mount=type=secret`).
+- **Scan images:** `docker scout cves myapp:1.0` or Trivy. Non-root user, minimal base, no secrets in layers (they persist in history - use build secrets/`--mount=type=secret`).
 - **Container exits immediately:** `docker logs myapp`; override entrypoint to poke around: `docker run -it --entrypoint /bin/sh myapp`.
 - **Can't connect:** `docker port myapp`, `docker network inspect`, check the container actually listens on `0.0.0.0` not `127.0.0.1`.
-- **Out of disk:** `docker system df` then `docker system prune -a` / `docker volume prune` (destructive — confirm first).
+- **Out of disk:** `docker system df` then `docker system prune -a` / `docker volume prune` (destructive - confirm first).
 - **Stale build:** `docker build --no-cache` / `docker builder prune`.

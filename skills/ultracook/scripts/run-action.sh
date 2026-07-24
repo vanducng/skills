@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run-action.sh — resolve the dispatch for ONE action; either:
+# run-action.sh - resolve the dispatch for ONE action; either:
 #   - execute it (shell type), capturing output to iterations/NNN-{action}.log
 #   - OR emit a JSON "invocation hint" for SKILL.md to dispatch via Skill /
 #     Agent / Monitor tools.
@@ -21,7 +21,7 @@
 #   }
 #
 # Side effects: for kind=shell, runs the command and writes the log file.
-# For other kinds, no side effects — SKILL.md does the actual call.
+# For other kinds, no side effects - SKILL.md does the actual call.
 
 set -uo pipefail
 

@@ -1,6 +1,6 @@
 # Tailwind + shadcn/ui Idioms
 
-Implementation specifics for the shadcn/ui + Tailwind stack — the default for React/Next web UI in this skill. Use alongside `app-frameworks.md` (framework architecture) and `design-quality.md` (quality bar). Only reach here when actually building/theming components.
+Implementation specifics for the shadcn/ui + Tailwind stack - the default for React/Next web UI in this skill. Use alongside `app-frameworks.md` (framework architecture) and `design-quality.md` (quality bar). Only reach here when actually building/theming components.
 
 ## Setup
 
@@ -9,7 +9,7 @@ npx shadcn@latest init          # framework, TS, paths, base color, CSS variable
 npx shadcn@latest add button card dialog form input table
 ```
 
-shadcn is copy-paste distribution: components land in your repo (`components/ui/`), you own and edit them. There is no runtime dependency to upgrade — re-run `add` to pull newer versions. Prefer a shadcn/ui MCP (if connected) to search components and examples before hand-rolling.
+shadcn is copy-paste distribution: components land in your repo (`components/ui/`), you own and edit them. There is no runtime dependency to upgrade - re-run `add` to pull newer versions. Prefer a shadcn/ui MCP (if connected) to search components and examples before hand-rolling.
 
 Tailwind-only (no shadcn), Vite:
 
@@ -58,9 +58,9 @@ Mobile-first: unprefixed utilities are the base, then layer `sm: md: lg: xl: 2xl
 
 ## Component idioms
 
-- Compose from primitives (Radix under shadcn) rather than monolithic components; primitives carry the a11y (focus trap, roles, keyboard) for free — don't strip focus rings.
+- Compose from primitives (Radix under shadcn) rather than monolithic components; primitives carry the a11y (focus trap, roles, keyboard) for free - don't strip focus rings.
 - Extract a component only for true repetition; otherwise keep Tailwind utilities inline.
-- Avoid dynamically constructed class strings (`` `text-${color}-500` ``) — Tailwind's purge can't see them; use full class names or a lookup map.
+- Avoid dynamically constructed class strings (`` `text-${color}-500` ``) - Tailwind's purge can't see them; use full class names or a lookup map.
 - Forms: pair `react-hook-form` + `zodResolver` + shadcn `Form`/`FormField`/`FormMessage`. Visible labels (not placeholder-only), error below the field, disabled + spinner on async submit, auto-focus the first invalid field.
 - Tables: for large data pair shadcn Data Table (TanStack Table) with virtualization, stable column defs, and explicit empty/loading/error states.
 - Icons: one set (Lucide by default), consistent stroke width and size tokens; no emoji as structural icons.
@@ -73,4 +73,4 @@ For a spec-driven UI/UX review (accessibility, interaction, layout compliance), 
 https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md
 ```
 
-Fetch fresh each review (the rules evolve), read the files under review, apply every rule, and output `path:line — issue → fix`. This complements the render → score → refactor loop in `design-quality.md`: guidelines catch spec violations, the loop catches aesthetic and polish gaps.
+Fetch fresh each review (the rules evolve), read the files under review, apply every rule, and output `path:line - issue → fix`. This complements the render → score → refactor loop in `design-quality.md`: guidelines catch spec violations, the loop catches aesthetic and polish gaps.

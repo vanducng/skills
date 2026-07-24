@@ -1,6 +1,6 @@
 # Saturation Loop
 
-`--saturation` keeps generating until the dimensions stop yielding new cases — for when coverage must be exhaustive, not just a first pass.
+`--saturation` keeps generating until the dimensions stop yielding new cases - for when coverage must be exhaustive, not just a first pass.
 
 ## Round protocol
 
@@ -21,7 +21,7 @@ while dry < 2 and round < Iterations:    # Iterations default 5
 ```
 
 - **Dedupe key** = dimension + normalized condition (lowercase, whitespace-collapsed) so paraphrases of the same case don't re-count.
-- **Completeness critic** — each round after the first, before generating, ask: *"Which dimension is thinnest? Which cross-dimension combo is unexplored?"* Steer the next round there instead of re-walking evenly.
+- **Completeness critic** - each round after the first, before generating, ask: *"Which dimension is thinnest? Which cross-dimension combo is unexplored?"* Steer the next round there instead of re-walking evenly.
 
 ## Termination (always bounded)
 

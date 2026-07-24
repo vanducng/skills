@@ -6,7 +6,7 @@
 
 ```markdown
 # Goal
-<free text — the objective. Single paragraph or short bullet list. Be specific
+<free text - the objective. Single paragraph or short bullet list. Be specific
 about what "done" looks like; the audit subagent reads this verbatim.>
 
 # Verify
@@ -28,13 +28,13 @@ max_restarts: 5
 
 | Field | Required | Default | Notes |
 |---|---|---|---|
-| `# Goal` (block) | yes | — | Free-text objective. |
-| `verify:` | yes | — | Shell command in backticks; exit 0 = pass. Run 2× per gate check. |
+| `# Goal` (block) | yes | - | Free-text objective. |
+| `verify:` | yes | - | Shell command in backticks; exit 0 = pass. Run 2× per gate check. |
 | `allow:` | no | repo root | Comma-separated globs. Files outside this list trigger a soft warning in next-iter prompt (not blocking). |
 | `deny:` | no | empty | Comma-separated globs. Edits inside these globs trigger an immediate blocker. |
 | `max_iterations` | no | 40 | Hard cap. |
 | `max_tokens` | no | 2_000_000 | Advisory unless `ccusage` present. |
-| `max_wallclock` | no | `4h` | Floor cap — always enforced. Format: `30m`, `2h`, `4h30m`. |
+| `max_wallclock` | no | `4h` | Floor cap - always enforced. Format: `30m`, `2h`, `4h30m`. |
 | `restart_at_context_pct` | no | 70 | Phase-restart trigger. |
 | `max_restarts` | no | 5 | Anti-thrash safeguard. |
 

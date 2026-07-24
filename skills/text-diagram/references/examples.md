@@ -4,19 +4,19 @@
 
 **Goal:** Three boxes connected vertically.
 
-**Step 1 — Content:**
+**Step 1 - Content:**
 - Box A: "Input Data" (10 chars)
 - Box B: "Process" (7 chars)
 - Box C: "Output" (6 chars)
 
-**Step 2 — Dimensions:**
+**Step 2 - Dimensions:**
 - Padding: 1 space each side
 - Box A inner_width = 10 + 2 = 12, outer = 14
 - Box B inner_width = 10 + 2 = 12, outer = 14 (use max for uniform width)
 - Box C inner_width = 10 + 2 = 12, outer = 14
 - Connector column = 1 + floor(12/2) = 7 (0-indexed)
 
-**Step 3 — Render:**
+**Step 3 - Render:**
 ```
 ┌──────────────┐
 │  Input Data  │
@@ -44,12 +44,12 @@
 
 **Goal:** Container "Services" with 3 child boxes.
 
-**Step 1 — Content:**
+**Step 1 - Content:**
 - Child A: "Auth" (4 chars), "(JWT)" (5 chars) → 2 content lines
 - Child B: "Users" (5 chars), "(CRUD)" (6 chars) → 2 content lines
 - Child C: "Mail" (4 chars), "(SMTP)" (6 chars) → 2 content lines
 
-**Step 2 — Dimensions:**
+**Step 2 - Dimensions:**
 - Child padding: 1 space each side
 - Child A: inner = max(4,5)+2 = 8, outer = 10
 - Child B: inner = max(5,6)+2 = 8, outer = 10
@@ -60,7 +60,7 @@
 - Container inner = max(34, len("Services")) + 4 = 38
 - Container outer = 40
 
-**Step 3 — Render:**
+**Step 3 - Render:**
 ```
 ┌──────────────────────────────────────┐
 │ Services                             │
@@ -79,7 +79,7 @@
 - Child boxes all 10 chars wide, 4 lines tall (border + 2 content + border) ✓
 - Children aligned on same row ✓
 
-**Common bug:** It's tempting to write only 1 trailing space before the closing `│` on the children rows. That makes those rows 39 chars while the border is 40 — visibly misaligned in monospace. Always mirror the left padding.
+**Common bug:** It's tempting to write only 1 trailing space before the closing `│` on the children rows. That makes those rows 39 chars while the border is 40 - visibly misaligned in monospace. Always mirror the left padding.
 
 ---
 
@@ -87,12 +87,12 @@
 
 **Goal:** Pipeline: Validate → Transform → Load
 
-**Step 1 — Dimensions:**
+**Step 1 - Dimensions:**
 - Box widths: all uniform at outer=14 (inner=12)
 - Arrow: " → " (3 chars between boxes)
 - Total width: 14 + 3 + 14 + 3 + 14 = 48
 
-**Step 3 — Render:**
+**Step 3 - Render:**
 ```
 ┌────────────┐   ┌────────────┐   ┌────────────┐
 │  Validate  │ → │ Transform  │ → │    Load    │
@@ -110,7 +110,7 @@
 
 **Goal:** 3-tier diagram: YAML Manifest → GCPlane Engine → GoClaw Instance
 
-**Step 2 — Dimensions (bottom-up):**
+**Step 2 - Dimensions (bottom-up):**
 
 Tier 1 children (4 boxes, each outer=12, gap=2):
 - Row total: 12+2+12+2+12+2+12 = 54
@@ -125,7 +125,7 @@ Tier 3 children (Instance internals): 4 boxes (outer 14, 14, 14, 10) with 2-spac
 - Container inner = max(58, 41) + 4 = 62
 - Container outer = 64
 
-**Step 3 — Render (uniform outer = 64):**
+**Step 3 - Render (uniform outer = 64):**
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ YAML Manifest (camelCase)                                    │

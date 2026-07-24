@@ -99,7 +99,7 @@ Use `vd:devlog` for build-in-public engineering posts.
 ## Best Practices
 
 1. Lead with benefit, not feature | 2. One CTA per piece
-3. Specificity > vague claims | 4. Read aloud—if awkward, rewrite
+3. Specificity > vague claims | 4. Read aloud - if awkward, rewrite
 5. Test headlines first | 6. Match copy to awareness level
 
 ## Outputs

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# stop-hook-handler.sh — Claude Code Stop hook entrypoint.
+# stop-hook-handler.sh - Claude Code Stop hook entrypoint.
 #
 # Reads .auto-loop/heartbeat.json + goal-state.json. Decides whether to:
 #   (a) re-feed a next-iteration prompt (loop continues),
@@ -11,7 +11,7 @@
 # to instruct Claude Code to re-feed; emit `{}` (empty object) to allow the session
 # to end. Any other `decision` value triggers a JSON validation error in Claude Code.
 # `stop_hook_active=true` in the input payload means we're already inside a re-feed
-# chain — don't block again, or we infinite-loop.
+# chain - don't block again, or we infinite-loop.
 
 set -euo pipefail
 
@@ -27,7 +27,7 @@ fi
 stop_hook_active=$(printf '%s' "$hook_payload" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
 
 # Resolve workspace from the working-tree root (Claude Code runs hooks at the
-# workspace root; the worktree itself when inside one — keeps the cache tree-local).
+# workspace root; the worktree itself when inside one - keeps the cache tree-local).
 ws="${VD_AUTOLOOP_WORKSPACE:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 state_dir="$ws/.auto-loop"
 heartbeat="$state_dir/heartbeat.json"
@@ -50,13 +50,13 @@ log_gate() {
 }
 
 emit_block() {
-  # emit_block <prompt-string> — instruct Claude Code to re-feed.
+  # emit_block <prompt-string> - instruct Claude Code to re-feed.
   local prompt="$1"
   jq -nc --arg r "$prompt" '{decision: "block", reason: $r}'
 }
 
 emit_allow_stop() {
-  # emit_allow_stop — let session end. Empty JSON object is the documented
+  # emit_allow_stop - let session end. Empty JSON object is the documented
   # "no-op" shape; any unknown `decision` value is rejected by Claude Code.
   printf '{}\n'
 }
@@ -149,7 +149,7 @@ case "$current_status" in
         emit_allow_stop
         exit 0
       else
-        # Gate failed — re-read state, fall through to re-feed.
+        # Gate failed - re-read state, fall through to re-feed.
         current_status=$(jq -r '.status // "unmet"' "$state_file")
         next_action=$(jq -r '.next_action // ""' "$state_file")
       fi

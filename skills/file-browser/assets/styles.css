@@ -4,7 +4,7 @@
 @import url('./styles/novel-theme-variables.css');
 
 /* Lets the UA paint scrollbar/form-control colors correctly on the first
- * frame before our vars resolve — avoids white flash on dark navigation. */
+ * frame before our vars resolve - avoids white flash on dark navigation. */
 :root {
   color-scheme: light dark;
 }

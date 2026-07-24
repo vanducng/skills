@@ -154,7 +154,7 @@ if (baseIndex > -1) {
   const rawBase = args[baseIndex + 1];
   const sanitized = sanitizeBaseBranch(rawBase);
   if (sanitized && typeof sanitized === 'object' && sanitized.error) {
-    // Store error for later — will be reported during cmdCreate
+    // Store error for later - will be reported during cmdCreate
     explicitBaseError = sanitized;
   } else {
     explicitBase = sanitized; // null if empty/invalid, string if valid
@@ -329,13 +329,13 @@ function output(data) {
   }
 }
 
-// Structured exit codes — lets Codex / shell loops distinguish retry-able from fatal.
+// Structured exit codes - lets Codex / shell loops distinguish retry-able from fatal.
 // Mapping is conservative (GNU-ish): 2 = bad input, 10–17 = git/state, 13 = perms,
 // 28 = disk, 68 = network. Anything unrecognised → 1.
 const EXIT_CODES = {
   OK: 0,
-  FATAL_ARG: 2,            // bad CLI input — don't retry
-  ERROR_GIT: 10,           // git command failed — may be transient
+  FATAL_ARG: 2,            // bad CLI input - don't retry
+  ERROR_GIT: 10,           // git command failed - may be transient
   ERROR_CONFLICT: 17,      // worktree/branch already exists
   ERROR_PERM: 13,          // permission denied
   ERROR_DISK: 28,          // disk / mkdir failed
@@ -420,7 +420,7 @@ function git(command, options = {}) {
   }
 }
 
-// Non-shell git for commands that interpolate disk-derived names — filenames
+// Non-shell git for commands that interpolate disk-derived names - filenames
 // found in a cloned repo are attacker-controlled and must never hit a shell.
 function gitArgs(argv, options = {}) {
   try {
@@ -538,7 +538,7 @@ function resolveMainWorktree(currentToplevel) {
 }
 
 // A linked worktree is "nested" when its path lives inside ANOTHER linked
-// worktree (not the main repo — .worktrees under main is normal). This is the
+// worktree (not the main repo - .worktrees under main is normal). This is the
 // corrupt state that creating from inside a worktree used to produce. Each
 // offender carries its canonical home so repair can relocate it.
 function detectNestedWorktrees(records, treesRoot) {
@@ -601,7 +601,7 @@ function validateWorktreeRoot(rootPath) {
 }
 
 // Standard worktree location: <topmost-git-root>/.worktrees/
-// One rule for all repo types — standalone, monorepo, submodule (worktrees
+// One rule for all repo types - standalone, monorepo, submodule (worktrees
 // land at the superproject root). Deliberately a top-level sibling of the
 // .workbench artifact umbrella, NOT nested under it: worktrees are full checkouts
 // (heavy, contain source), so nesting would pollute artifact globs and bloat
@@ -655,7 +655,7 @@ function getWorktreeRoot(gitRoot, isMonorepo, explicitRoot = null) {
 
 // Make git ignore a path without touching tracked files: append to
 // .git/info/exclude (local-only, shared across worktrees via common dir).
-// Best-effort — returns a warning string on failure instead of aborting.
+// Best-effort - returns a warning string on failure instead of aborting.
 function ensureGitExcluded(repoCwd, line) {
   const check = gitArgs(['check-ignore', '-q', '--', line.replace(/^\//, '').replace(/\/$/, '')], { cwd: repoCwd });
   if (check.success) return { added: false };
@@ -744,7 +744,7 @@ function findEnvTemplates(dir) {
 }
 
 // Copy env templates to worktree (strips .example suffix).
-// Never clobbers an existing dest — real .env copies win over templates.
+// Never clobbers an existing dest - real .env copies win over templates.
 function copyEnvTemplates(srcDir, destDir) {
   const templates = findEnvTemplates(srcDir);
   const copied = [];
@@ -817,7 +817,7 @@ function copyUntrackedEnvFiles(srcDir, destDir) {
 
 // Detect install commands from lockfiles in the new worktree (root + one
 // level of subdirs for backend/frontend splits). One match per language
-// group per dir. Returned as suggestions — the caller runs them.
+// group per dir. Returned as suggestions - the caller runs them.
 const INSTALL_GROUPS = [
   [['bun.lock', 'bun install'], ['bun.lockb', 'bun install'], ['pnpm-lock.yaml', 'pnpm install'],
    ['yarn.lock', 'yarn install'], ['package-lock.json', 'npm install']],
@@ -835,7 +835,7 @@ function detectInstallCommands(dir) {
         dirsToCheck.push(e.name);
       }
     });
-  } catch { /* unreadable dir — root-only check */ }
+  } catch { /* unreadable dir - root-only check */ }
 
   const found = [];
   dirsToCheck.forEach(sub => {
@@ -852,7 +852,7 @@ function detectInstallCommands(dir) {
   return found;
 }
 
-// .worktreeinclude — same convention Claude Code's native worktrees use:
+// .worktreeinclude - same convention Claude Code's native worktrees use:
 // one repo-relative path per line (file or directory) to copy into each new
 // worktree. Lines starting with # are comments. Literal paths only.
 function readWorktreeInclude(srcDir) {
@@ -949,7 +949,7 @@ function worktreeId(worktreeName) {
     .slice(0, 63);
 }
 
-// Values land unquoted in .env.worktree which users `source` — strip
+// Values land unquoted in .env.worktree which users `source` - strip
 // anything shell-meaningful. worktreeName embeds the repo dir name, which
 // is not otherwise sanitized.
 function safeEnvValue(value) {
@@ -975,7 +975,7 @@ function buildWorktreeEnv(worktreeName, branchName, portBase, sourceDir, worktre
 function writeEnvWorktreeFile(worktreePath, env) {
   const fileVars = ['WORKTREE_NAME', 'WORKTREE_BRANCH', 'WORKTREE_ID', 'WORKTREE_PORT_BASE', 'PORT', 'COMPOSE_PROJECT_NAME'];
   const lines = [
-    '# Generated by the worktree skill — per-worktree identity + a block of 10 ports',
+    '# Generated by the worktree skill - per-worktree identity + a block of 10 ports',
     `# (${env.WORKTREE_PORT_BASE}-${Number(env.WORKTREE_PORT_BASE) + PORT_BLOCK_SIZE - 1}). Load: set -a; . ./${ENV_WORKTREE_FILE}; set +a`,
     ...fileVars.map(k => `${k}=${env[k]}`),
     '',
@@ -1374,7 +1374,7 @@ function cmdStatus() {
 
   const currentWorktree = worktrees.find(worktree => worktree.isCurrentWorktree) || null;
 
-  // Flag worktrees physically nested inside another linked worktree — the
+  // Flag worktrees physically nested inside another linked worktree - the
   // corrupt state an older create-from-inside-a-worktree could produce.
   const treesRoot = getWorktreeRoot(gitRoot, false).treesRoot || gitRoot;
   const nested = detectNestedWorktrees(worktrees, treesRoot);
@@ -1419,7 +1419,7 @@ function cmdStatus() {
     console.log(`\n   💾 ~${humanBytes(reclaimable)} reclaimable via: worktree clean --yes`);
   }
   if (nested.length > 0) {
-    console.log(`\n   ⚠️  ${nested.length} nested worktree(s) — created inside another worktree:`);
+    console.log(`\n   ⚠️  ${nested.length} nested worktree(s) - created inside another worktree:`);
     nested.forEach(n => console.log(`      ${n.path}\n         inside ${n.insideOf} → should live at ${n.canonical}`));
     console.log(`   Fix: worktree repair --yes  (relocates them to the main root)`);
   }
@@ -1533,7 +1533,7 @@ function cmdCreate() {
     warnings.push(`Ticket key detected: "${issueKey}" → branch "${sanitizedFeature}"`);
   }
 
-  // Create branch name — --no-prefix and ticket-key mode use sanitized feature as-is
+  // Create branch name - --no-prefix and ticket-key mode use sanitized feature as-is
   const branchName = preserveBranchCase ? sanitizedFeature : `${branchPrefix}/${sanitizedFeature}`;
 
   // Handle --base validation errors
@@ -1580,12 +1580,12 @@ function cmdCreate() {
   // Warn so the user understands why the path isn't where they're standing.
   if (worktreeRoot.redirectedFromWorktree && !explicitWorktreeRoot) {
     warnings.push(
-      `Ran from inside a linked worktree — creating the new worktree at the main repo root (${worktreesDir}), not nested under the current one.`
+      `Ran from inside a linked worktree - creating the new worktree at the main repo root (${worktreesDir}), not nested under the current one.`
     );
   }
 
   // Build worktree name: always include repo name for clarity.
-  // Use the MAIN worktree's basename (treesRoot), never the current toplevel —
+  // Use the MAIN worktree's basename (treesRoot), never the current toplevel  - 
   // inside a linked worktree path.basename(gitRoot) would be the worktree's
   // dir name and produce a doubled name like "repo-feat-x-newfeat".
   // Flatten slashes to dashes for filesystem-safe directory names
@@ -1680,7 +1680,7 @@ function cmdCreate() {
     });
   }
 
-  // Verify the checkout actually landed on the requested branch — guards
+  // Verify the checkout actually landed on the requested branch - guards
   // against silent attach-to-base incidents. Auto-rescue via git switch.
   const actualBranchRes = git('rev-parse --abbrev-ref HEAD', { silent: true, cwd: worktreePath });
   const actualBranch = actualBranchRes.success ? actualBranchRes.output : null;
@@ -1707,7 +1707,7 @@ function cmdCreate() {
       const behindRes = git(`rev-list --count ${baseBranch}..origin/${baseBranch}`, { silent: true, cwd: workDir });
       const behind = Number.parseInt(behindRes.output, 10);
       if (behindRes.success && Number.isFinite(behind) && behind > 0) {
-        warnings.push(`Base "${baseBranch}" is ${behind} commit(s) behind origin/${baseBranch} — stale base. Fetch first, or recreate with --base origin/${baseBranch}.`);
+        warnings.push(`Base "${baseBranch}" is ${behind} commit(s) behind origin/${baseBranch} - stale base. Fetch first, or recreate with --base origin/${baseBranch}.`);
       }
     }
   }
@@ -1824,7 +1824,7 @@ function cmdCreate() {
 }
 
 // Auto-detect a post-create hook script. Order: `.worktree/hooks/post-create`
-// (per-repo team convention) → `scripts/setup-worktree`. No Makefile sniffing —
+// (per-repo team convention) → `scripts/setup-worktree`. No Makefile sniffing  - 
 // too magical, easy to false-positive. Hook must be executable.
 function detectPostCreateHook(repoRoot) {
   const candidates = [
@@ -2038,7 +2038,7 @@ function cmdClean() {
 
   const willExecute = confirmYes && !dryRun;
   const totalBytes = candidates.reduce((sum, c) => sum + (c.sizeBytes || 0), 0);
-  // Stale admin metadata from worktrees whose dir was deleted manually —
+  // Stale admin metadata from worktrees whose dir was deleted manually  - 
   // clean subsumes the old `prune` command by handling these too.
   const stalePrune = (git('worktree prune --dry-run --verbose', { silent: true }).output || '')
     .split('\n').filter(Boolean);
@@ -2048,7 +2048,7 @@ function cmdClean() {
       console.log(JSON.stringify({
         success: true,
         dryRun: true,
-        message: candidates.length || stalePrune.length ? 'Dry run — pass --yes to remove' : 'Nothing to clean',
+        message: candidates.length || stalePrune.length ? 'Dry run - pass --yes to remove' : 'Nothing to clean',
         scope: { merged: wantMerged, stale: wantStale, includeDirty: cleanForce },
         candidates: candidates.map(c => ({ path: c.worktree.path, branch: c.worktree.branch, reasons: c.reasons, size: humanBytes(c.sizeBytes), sizeBytes: c.sizeBytes })),
         staleMetadata: stalePrune,
@@ -2058,13 +2058,13 @@ function cmdClean() {
       }, null, 2));
       return;
     }
-    console.log(`\n🧹 Worktree Clean (dry run — pass --yes to remove)`);
+    console.log(`\n🧹 Worktree Clean (dry run - pass --yes to remove)`);
     console.log(`   Scope: ${[wantMerged && 'merged', wantStale && 'stale'].filter(Boolean).join(' + ')}${cleanForce ? ' + dirty' : ''}`);
     if (candidates.length === 0 && stalePrune.length === 0) {
       console.log('   Nothing to clean.');
     } else {
       candidates.forEach(c => {
-        console.log(`   ${c.worktree.branch}  (${humanBytes(c.sizeBytes)})  — ${c.reasons.join(', ')}`);
+        console.log(`   ${c.worktree.branch}  (${humanBytes(c.sizeBytes)})  - ${c.reasons.join(', ')}`);
         console.log(`      ${c.worktree.path}`);
       });
       if (candidates.length) console.log(`\n   Reclaimable: ${humanBytes(totalBytes)} across ${candidates.length} worktree(s)`);
@@ -2129,7 +2129,7 @@ function cmdRepair() {
 
   if (!willExecute) {
     const message = nested.length
-      ? `${nested.length} nested worktree(s) to relocate — pass --yes to repair`
+      ? `${nested.length} nested worktree(s) to relocate - pass --yes to repair`
       : 'No nested worktrees; nothing to relocate';
     if (jsonOutput) {
       console.log(JSON.stringify({ success: true, dryRun: true, message, treesRoot, plan }, null, 2));
@@ -2145,7 +2145,7 @@ function cmdRepair() {
     return;
   }
 
-  // Always repair admin links first (safe, idempotent) — fixes gitdir pointers
+  // Always repair admin links first (safe, idempotent) - fixes gitdir pointers
   // left dangling by manual moves so subsequent `git worktree move` succeeds.
   git('worktree repair', { silent: true });
 

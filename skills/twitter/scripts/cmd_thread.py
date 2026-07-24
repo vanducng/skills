@@ -1,4 +1,4 @@
-"""`twitter thread "a" "b" "c"` — post a chained thread.
+"""`twitter thread "a" "b" "c"` - post a chained thread.
 
 Each tweet replies to the previous. On mid-thread failure, prints the IDs
 already posted so the user can resume manually (we never auto-delete).

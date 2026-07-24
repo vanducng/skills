@@ -1,6 +1,6 @@
-# samber/ro — Reactive streams for Go
+# samber/ro - Reactive streams for Go
 
-**Pinned: v0.3.0 (released 2026-03-02) · Apache-2.0 · ⚠ PRE-1.0 — young library, API churning · verified 2026-05-23**
+**Pinned: v0.3.0 (released 2026-03-02) · Apache-2.0 · ⚠ PRE-1.0 - young library, API churning · verified 2026-05-23**
 
 ReactiveX implementation for Go. 150+ type-safe operators, cold/hot observables, 5 subject types, declarative pipelines via `Pipe`, 40+ plugins (HTTP, cron, fsnotify, JSON, logging), automatic backpressure, error propagation, context integration.
 
@@ -15,22 +15,22 @@ Upstream: [github.com/samber/ro](https://github.com/samber/ro) · [ro.samber.dev
 **The cases where I'd actually reach for it:**
 
 1. Multi-source async pipeline that needs `CombineLatest` / `Zip` semantics and would be a 200-line `select { }` ladder otherwise
-2. Pub/sub with multiple consumers and replay semantics — `ReplaySubject` is genuinely useful for late-joiner WebSocket clients
+2. Pub/sub with multiple consumers and replay semantics - `ReplaySubject` is genuinely useful for late-joiner WebSocket clients
 3. Real-time event enrichment from 3+ async sources with retry/timeout/throttle per source
 
 **Where I deviate from upstream guidance:**
 
 - Upstream pitches it as a general-purpose tool. I'd recommend it as a **specialized tool**: reach for it when the channel-based equivalent would be unmistakably worse.
 - **Pre-1.0 means pin exact**, and budget for breaking changes between minors. v0.2 → v0.3 already had renames.
-- Always use typed `Pipe2`, `Pipe3`, … `Pipe25` — the untyped `Pipe(any, any, …)` loses compile-time type safety and surfaces errors at runtime. Never use it.
+- Always use typed `Pipe2`, `Pipe3`, … `Pipe25` - the untyped `Pipe(any, any, …)` loses compile-time type safety and surfaces errors at runtime. Never use it.
 - The 40+ plugins are worth knowing about, but most of them (`plugins/http`, `plugins/fsnotify`, `plugins/cron`) are wrappers over Go libraries you'd otherwise use directly. The plugin is convenient only if you're already in a reactive pipeline.
 
 **When I'd definitely skip:**
 
-- Finite slice transforms — `samber/lo`
-- Bounded goroutine fan-out — `errgroup` + `semaphore`
-- Simple pub/sub — channels with reference counting
-- Sequential async with retry — `cenkalti/backoff` + a loop
+- Finite slice transforms - `samber/lo`
+- Bounded goroutine fan-out - `errgroup` + `semaphore`
+- Simple pub/sub - channels with reference counting
+- Sequential async with retry - `cenkalti/backoff` + a loop
 
 ## Install
 
@@ -57,10 +57,10 @@ import "github.com/samber/ro"
 
 Four building blocks:
 
-1. **Observable** — a data source emitting values over time. Cold by default (each subscriber triggers independent execution from scratch)
-2. **Observer** — three callbacks: `onNext(T)`, `onError(error)`, `onComplete()`
-3. **Operator** — function turning one observable into another, chained via `Pipe`
-4. **Subscription** — the connection; call `.Wait()` to block or `.Unsubscribe()` to cancel
+1. **Observable** - a data source emitting values over time. Cold by default (each subscriber triggers independent execution from scratch)
+2. **Observer** - three callbacks: `onNext(T)`, `onError(error)`, `onComplete()`
+3. **Operator** - function turning one observable into another, chained via `Pipe`
+4. **Subscription** - the connection; call `.Wait()` to block or `.Unsubscribe()` to cancel
 
 ```go
 observable := ro.Pipe2(
@@ -96,17 +96,17 @@ values, err := ro.Collect(observable)
 | `Share()` | Cold → hot with reference counting. Last unsubscribe tears down |
 | `ShareReplay(n)` | Same + buffers last N for late subscribers |
 | `Connectable()` | Cold → hot, but waits for explicit `.Connect()` |
-| Subjects | Natively hot — call `.Send/.Error/.Complete` directly |
+| Subjects | Natively hot - call `.Send/.Error/.Complete` directly |
 
 | Subject | Replay behavior |
 |---|---|
-| `PublishSubject` | None — late subscribers miss past events |
+| `PublishSubject` | None - late subscribers miss past events |
 | `BehaviorSubject` | Replays last value to new subscribers |
 | `ReplaySubject` | Replays last N values |
 | `AsyncSubject` | Emits only last value, on complete |
 | `UnicastSubject` | Single subscriber only |
 
-`ReplaySubject` is the one I'd reach for in a WebSocket fan-out scenario — late-joining clients catch up on the last N events.
+`ReplaySubject` is the one I'd reach for in a WebSocket fan-out scenario - late-joining clients catch up on the last N events.
 
 ## Operator categories
 
@@ -149,7 +149,7 @@ Convenient if you're already in a reactive pipeline; otherwise prefer the underl
 | Data | Bytes, Strings, Sort, Strconv, Regexp, Template | `plugins/bytes`, `plugins/strings`, etc. |
 | System | Process, Signal | `plugins/proc`, `plugins/signal` |
 
-## When to use `ro` — concrete examples
+## When to use `ro` - concrete examples
 
 ### Multi-source enrichment (CombineLatest)
 
@@ -190,7 +190,7 @@ robust := ro.Pipe2(
 )
 ```
 
-## When *not* to use `ro` — concrete refusals
+## When *not* to use `ro` - concrete refusals
 
 - "I want to call N URLs in parallel and collect responses" → `errgroup`
 - "I want to debounce user input" → `time.AfterFunc` or `lo.Debounce`
@@ -201,6 +201,6 @@ If the answer is one of the above, reach for the simpler tool. `ro` earns its ke
 
 ## Cross-refs
 
-- See `lo.md` — for finite slice transforms (don't use ro for those)
-- See `oops.md` — error propagation through the reactive pipeline
-- See `vd:py2go` worker playbook — sometimes the Python `asyncio` source is reactive enough to warrant ro
+- See `lo.md` - for finite slice transforms (don't use ro for those)
+- See `oops.md` - error propagation through the reactive pipeline
+- See `vd:py2go` worker playbook - sometimes the Python `asyncio` source is reactive enough to warrant ro

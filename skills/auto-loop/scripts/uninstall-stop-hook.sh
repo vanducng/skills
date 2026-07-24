@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# uninstall-stop-hook.sh — restore prior Stop hook config from hooks-backup.json
+# uninstall-stop-hook.sh - restore prior Stop hook config from hooks-backup.json
 # and remove heartbeat. Leaves goal-state.json + logs intact for forensics.
 #
 # Usage: uninstall-stop-hook.sh <workspace-root>

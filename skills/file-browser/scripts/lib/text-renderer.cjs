@@ -214,7 +214,7 @@ body.single.text { --header-h: 40px; }
 body.single.text > .topbar { height: 40px; padding: 0 0.75rem; }
 body.single.text > .topbar .title { font-size: 0.85rem; }
 /* .stage in styles.css uses flex centering for media. With tall code, the
- * top of the content escapes upward and becomes unreachable by scroll —
+ * top of the content escapes upward and becomes unreachable by scroll  - 
  * force block layout here so scroll origin sits at content top. */
 body.single.text > main.stage {
   display: block;
@@ -312,7 +312,7 @@ function buildPage(name, filePath, cssHref, body, opts = {}) {
   const headPersist = opts.sidebar ? ROOT_PERSIST_HEAD_SCRIPT : '';
   const folderHref = withRoot(`/browse?dir=${encodeURIComponent(path.dirname(filePath))}`, treeRoot);
   // HTML source view (raw=1) gets a "Render" toggle back to the iframe
-  // and drops the Copy button — copying markup isn't a common need there.
+  // and drops the Copy button - copying markup isn't a common need there.
   const renderHref = opts.htmlSource
     ? withRoot(`/view?file=${encodeURIComponent(filePath)}`, treeRoot)
     : null;
@@ -391,7 +391,7 @@ function renderTextView(filePath, cssHref, opts = {}) {
   if (r.tooLarge) {
     const mb = (r.size / 1024 / 1024).toFixed(1);
     const body = `<div class="text-toolarge">
-      <p><strong>${esc(name)}</strong> is ${mb} MB — too large to render.</p>
+      <p><strong>${esc(name)}</strong> is ${mb} MB - too large to render.</p>
       <p><a href="/file${esc(filePath)}?raw=1" target="_blank" rel="noopener noreferrer">Open raw</a></p>
     </div>`;
     return buildPage(name, filePath, cssHref, body, opts);
@@ -450,7 +450,7 @@ async function renderTableView(filePath, cssHref, opts = {}) {
   if (r.tooLarge) {
     const mb = (r.size / 1024 / 1024).toFixed(1);
     const body = `<div class="text-toolarge">
-      <p><strong>${esc(name)}</strong> is ${mb} MB — too large to render.</p>
+      <p><strong>${esc(name)}</strong> is ${mb} MB - too large to render.</p>
       <p><a href="/file${esc(filePath)}?raw=1" target="_blank" rel="noopener noreferrer">Open raw</a></p>
     </div>`;
     return buildPage(name, filePath, cssHref, body, opts);

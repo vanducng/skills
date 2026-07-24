@@ -45,7 +45,7 @@ def test_generate_parses_quota_error(monkeypatch, tmp_path):
         args=[],
         returncode=1,
         stdout="",
-        stderr="error: 429 rate_limit_exceeded — quota exhausted",
+        stderr="error: 429 rate_limit_exceeded - quota exhausted",
     )
     monkeypatch.setattr(cig.subprocess, "run", lambda *a, **kw: fake)
 

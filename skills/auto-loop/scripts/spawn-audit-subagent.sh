@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# spawn-audit-subagent.sh — render audit prompt and invoke a fresh-context subagent.
+# spawn-audit-subagent.sh - render audit prompt and invoke a fresh-context subagent.
 #
 # Spawns via headless `claude -p` if available; falls back to a stub vote when not
-# (subagent invocation is impossible from a non-Claude-Code shell — vote=unmet).
+# (subagent invocation is impossible from a non-Claude-Code shell - vote=unmet).
 # Recursion guard: VD_AUTOLOOP_DEPTH must be 0 or unset on entry; child sees
 # VD_AUTOLOOP_DEPTH=1 and must refuse to spawn another loop.
 #
@@ -72,7 +72,7 @@ prompt=$(awk -v goal="$goal" \
 
 # --- Invoke subagent ---
 # Hard timeout: a hung audit subagent must not freeze the parent's Stop hook.
-# Restrict tools to read-only — the audit prompt says read-only, this enforces it
+# Restrict tools to read-only - the audit prompt says read-only, this enforces it
 # at the SDK level rather than relying on the model honouring instructions.
 TIMEOUT_BIN=""
 if command -v timeout >/dev/null 2>&1; then

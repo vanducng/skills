@@ -1,6 +1,6 @@
 # Red-Team Personas
 
-`--red-team` runs the threat pass from distinct attacker viewpoints — each persona is blind to what the others surface, so they catch different classes. Iterative, bounded.
+`--red-team` runs the threat pass from distinct attacker viewpoints - each persona is blind to what the others surface, so they catch different classes. Iterative, bounded.
 
 ## Personas
 

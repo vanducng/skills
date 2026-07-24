@@ -104,11 +104,11 @@ Tests often show these winners:
 ## Adding Value
 
 ```
-[CTA] — It's free
+[CTA] - It's free
 [CTA] (no credit card)
-[CTA] — Cancel anytime
-[CTA] — 30-second setup
-[CTA] — Risk-free
+[CTA] - Cancel anytime
+[CTA] - 30-second setup
+[CTA] - Risk-free
 ```
 
 ## CTA Placement

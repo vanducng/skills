@@ -7,12 +7,12 @@ Platform selection: sub-50ms global edge → Cloudflare Workers; large egress-fr
 ```bash
 gcloud auth login && gcloud config set project PROJECT_ID
 
-# Cloud Run — serverless containers (default for stateless HTTP)
+# Cloud Run - serverless containers (default for stateless HTTP)
 gcloud run deploy my-service \
   --image=gcr.io/PROJECT/img:tag --region=us-central1 --allow-unauthenticated
 gcloud run services describe my-service --region=us-central1
 
-# GKE — managed Kubernetes
+# GKE - managed Kubernetes
 gcloud container clusters create my-cluster --zone=us-central1-a \
   --num-nodes=3 --machine-type=e2-medium
 gcloud container clusters get-credentials my-cluster --zone=us-central1-a  # wires kubectl
@@ -64,7 +64,7 @@ wrangler secret put API_KEY     # encrypted secret, not in wrangler.toml
 
 ## Cross-platform habits
 
-- Authenticate and confirm the active project/account/region **before** any deploy — wrong-account deploys are the classic footgun.
+- Authenticate and confirm the active project/account/region **before** any deploy - wrong-account deploys are the classic footgun.
 - Keep infra in Terraform where possible; use the CLI for inspection, one-off ops, and local dev (`run/dev`).
 - Pin image tags to digests for production; scan before push.
 - Right-size compute and set autoscaling bounds; watch egress and idle-resource cost.

@@ -10,7 +10,7 @@ Use when `./docs/` is missing, empty, or has only a stub README. If `./docs/` al
 
 ## Phase 1: Parallel codebase scouting
 
-1. List top-level directories that exist — skip `.claude`, `.opencode`, `.git`, `node_modules`, `__pycache__`, `.venv`, `dist`, `build`, `secrets`
+1. List top-level directories that exist - skip `.claude`, `.opencode`, `.git`, `node_modules`, `__pycache__`, `.venv`, `dist`, `build`, `secrets`
 2. Activate `vd:scout` (internal mode) to map: stack, entry points, modules, configs, infra, CI workflows, deploy targets
 3. Probe specific artifacts to feed each doc:
    - **tech-stack**: `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `Gemfile`, lockfiles, `*.tool-versions`, `.nvmrc`, `Dockerfile` base images
@@ -30,7 +30,7 @@ Pass the digest to the writer. Files to create (canonical set):
 |---|---|
 | `README.md` (≤ 300 lines) | Stack summary, quick start (install + run), one-paragraph elevator pitch, links into `./docs/` |
 | `docs/development-guidelines.md` | Observed lint configs, naming conventions per language, file-layout rules, local dev setup steps, contribution flow |
-| `docs/system-architecture.md` | Components, data flow, integrations, module boundaries — each named with a file path |
+| `docs/system-architecture.md` | Components, data flow, integrations, module boundaries - each named with a file path |
 | `docs/tech-stack.md` | Language(s) + version, frameworks, runtimes, key libraries (with versions from lockfile), infra/services |
 | `docs/deployment.md` | CI/CD workflows (with `.github/workflows/*.yml` references), environments, deploy command, env vars, rollback note |
 
@@ -43,12 +43,12 @@ After writes complete:
 
 ## Phase 4: Validation
 
-1. `node $HOME/.claude/scripts/validate-docs.cjs docs/` — checks code refs, internal links, config keys
-2. Report findings inline. Non-blocking, but surface every warning — `init` is when these are cheapest to fix.
+1. `node $HOME/.claude/scripts/validate-docs.cjs docs/` - checks code refs, internal links, config keys
+2. Report findings inline. Non-blocking, but surface every warning - `init` is when these are cheapest to fix.
 
 ## Hard rules
 
 - **Do not** write code, fix bugs, or modify anything outside `./docs/` and `./README.md`.
 - **Do not** invent features, modules, or files not in the scout digest.
-- **Do not** copy boilerplate from generic templates — every section reflects this codebase.
-- **Do not** create `changelog.md`, `roadmap.md`, `prd.md`, or `codebase-summary.md` — those are deliberately out of scope.
+- **Do not** copy boilerplate from generic templates - every section reflects this codebase.
+- **Do not** create `changelog.md`, `roadmap.md`, `prd.md`, or `codebase-summary.md` - those are deliberately out of scope.

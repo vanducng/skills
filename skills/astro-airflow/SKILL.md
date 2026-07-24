@@ -1,6 +1,6 @@
 ---
 name: astro-airflow
-description: "Inspect and debug Airflow on Astronomer (Astro) deployments — fetch DAG runs, task instance logs, container logs, env vars, and deployment state without installing an MCP plugin. Use when the user mentions Astro/Astronomer, asks about DAG runs or task logs on staging/prod, says 'check the deployment', references `astro deployment`, `make airflow`, an Astro deployment ID, or a *.astronomer.run URL. Pairs the official `astro` CLI for platform ops with direct Airflow REST API calls for DAG-level data."
+description: "Inspect and debug Airflow on Astronomer (Astro) deployments - fetch DAG runs, task instance logs, container logs, env vars, and deployment state without installing an MCP plugin. Use when the user mentions Astro/Astronomer, asks about DAG runs or task logs on staging/prod, says 'check the deployment', references `astro deployment`, `make airflow`, an Astro deployment ID, or a *.astronomer.run URL. Pairs the official `astro` CLI for platform ops with direct Airflow REST API calls for DAG-level data."
 license: MIT
 metadata:
   author: vanducng
@@ -10,7 +10,7 @@ metadata:
 
 # astro-airflow
 
-Read-only debugging surface for Airflow on Astro. No MCP plugin install required — uses `astro` CLI for what it exposes (container logs, env vars, deployment metadata) and `curl` against the deployment's Airflow REST API for what it doesn't (DAG runs, task instance logs).
+Read-only debugging surface for Airflow on Astro. No MCP plugin install required - uses `astro` CLI for what it exposes (container logs, env vars, deployment metadata) and `curl` against the deployment's Airflow REST API for what it doesn't (DAG runs, task instance logs).
 
 ## When to use
 
@@ -21,14 +21,14 @@ Read-only debugging surface for Airflow on Astro. No MCP plugin install required
 - Need to compare staging vs prod env vars / connections / variables
 - Debugging a CI deploy that hit Astronomer
 
-**When NOT to use:** local-only Airflow questions where `make airflow CMD=...` or the local Astro container suffices — use those directly. This skill is for *remote* (staging/prod) inspection.
+**When NOT to use:** local-only Airflow questions where `make airflow CMD=...` or the local Astro container suffices - use those directly. This skill is for *remote* (staging/prod) inspection.
 
 ## Prerequisites
 
-- `astro` CLI installed and logged in (`astro login <org-hostname>`) — verify with `astro context list`
+- `astro` CLI installed and logged in (`astro login <org-hostname>`) - verify with `astro context list`
 - `curl` and `jq` (both standard)
 - A **Deployment API token** for the target deployment, stored in gopass. Mint via Astro UI → Deployment → Access → API Tokens. Use a custom least-privilege role with `deployment.get` + `deployment.airflow.*.get` permissions for read-only debugging.
-- Deployment **webserver URL** (e.g. `https://<org>.astronomer.run/<deployment-short-id>/`) — find via `astro deployment inspect <deployment-id> --key metadata.airflow_api_url`
+- Deployment **webserver URL** (e.g. `https://<org>.astronomer.run/<deployment-short-id>/`) - find via `astro deployment inspect <deployment-id> --key metadata.airflow_api_url`
 
 ## Core: `astro` CLI for platform ops
 
@@ -43,7 +43,7 @@ astro deployment inspect <deployment-id> --key metadata.workload_identity
 
 ### Container logs (scheduler / api-server / triggerer / workers)
 
-Container-level logs — Python tracebacks, scheduler errors, OOM kills. **Not** per-task logs. Component is a **boolean flag** (`--scheduler`, `--apiserver`, `--triggerer`, `--workers`, `--webserver`), not `--component <name>`.
+Container-level logs - Python tracebacks, scheduler errors, OOM kills. **Not** per-task logs. Component is a **boolean flag** (`--scheduler`, `--apiserver`, `--triggerer`, `--workers`, `--webserver`), not `--component <name>`.
 
 ```bash
 astro deployment logs <deployment-id> --scheduler                       # default last 500 lines
@@ -56,13 +56,13 @@ astro deployment logs <deployment-id> --triggerer
 astro deployment logs <deployment-id> --workers --keyword "OOMKilled"
 ```
 
-**Limitation:** Cannot combine `--error` (level) and `--keyword` (text) in the same call — pick one. To do both, run `--keyword "ERROR"` and grep the output for what you actually want.
+**Limitation:** Cannot combine `--error` (level) and `--keyword` (text) in the same call - pick one. To do both, run `--keyword "ERROR"` and grep the output for what you actually want.
 
 Use these when:
-- Scheduler isn't picking up DAGs (look for parse errors) — `--scheduler --keyword "ImportError\|Broken DAG"`
-- Triggerer is crashing (async task issues) — `--triggerer --error`
-- Workers OOM — `--workers --keyword "OOMKilled"`
-- DAG import errors not visible in UI — `--scheduler --keyword "Broken DAG"`
+- Scheduler isn't picking up DAGs (look for parse errors) - `--scheduler --keyword "ImportError\|Broken DAG"`
+- Triggerer is crashing (async task issues) - `--triggerer --error`
+- Workers OOM - `--workers --keyword "OOMKilled"`
+- DAG import errors not visible in UI - `--scheduler --keyword "Broken DAG"`
 
 ### Environment variables
 
@@ -88,7 +88,7 @@ Astro CLI does not expose per-task logs or structured DAG run state. Hit the dep
 
 ### Setup helpers (use once per session)
 
-Any Astro API token works as `Authorization: Bearer` for a deployment's Airflow API — **Deployment**
+Any Astro API token works as `Authorization: Bearer` for a deployment's Airflow API - **Deployment**
 (narrowest, preferred for prod automation), **Workspace** (any deployment in the workspace), or
 **Organization**. Verified June 2026: the CNB repo's `ASTRO_WORKSPACE_API_KEY` (in `cnb-ds-astro/.env`)
 hits prod's `/api/v2/...` fine. The same value works for the `astro` CLI via `export ASTRO_API_TOKEN=...`.
@@ -139,9 +139,9 @@ af "/api/v2/dags/<dag_id>/dagRuns/<run_id>/taskInstances/<task_id>" | jq
 
 **Gotcha (verified June 2026, Airflow 3.1):** the log endpoint returns
 `{"content": [ {event, timestamp, sources, ...}, ... ], "continuation_token": "..."}`.
-`content` is a **list of event objects**, not a string — `jq -r '.content'` yields `null`/nothing
+`content` is a **list of event objects**, not a string - `jq -r '.content'` yields `null`/nothing
 and looks like an "empty log". Iterate the list and read `.event`. (Only Airflow 2.x `/api/v1/`
-returned `.content` as a plain string.) **URL-encode the run_id** — scheduled IDs contain `+`/`:`
+returned `.content` as a plain string.) **URL-encode the run_id** - scheduled IDs contain `+`/`:`
 (`scheduled__2026-06-24T10:00:00+00:00`).
 
 ```bash
@@ -165,12 +165,12 @@ af "/api/v2/dags/<dag_id>"                             # DAG detail
 af "/api/v2/dags/<dag_id>/details"                     # parsed DAG (schedule, tasks, etc.)
 af "/api/v2/importErrors"                              # DAG parse errors
 af "/api/v2/connections"                               # list connections (no secrets)
-af "/api/v2/variables"                                 # list Airflow Variables (values included — careful)
+af "/api/v2/variables"                                 # list Airflow Variables (values included - careful)
 af "/api/v2/pools"                                     # slot pool status (find queue starvation)
 af "/api/v2/monitor/health"                            # scheduler / metadata DB health
 ```
 
-### Mutations (opt-in — only when the user explicitly asks; skill is read-only by default)
+### Mutations (opt-in - only when the user explicitly asks; skill is read-only by default)
 
 The `af()` wrapper is GET-only; use a write wrapper. Airflow 3.x removed the `dags set-run-state` CLI,
 so terminate runs via the API.
@@ -184,7 +184,7 @@ afw PATCH "/api/v2/dags/<dag_id>/dagRuns/<run_id>" '{"state":"failed"}'         
 ```
 
 **`max_active_runs=1` gotcha:** unpausing a DAG can spawn one scheduled run for the latest interval
-(catchup=false → just one), so a manual trigger then sits **queued** behind it — two runs in the UI
+(catchup=false → just one), so a manual trigger then sits **queued** behind it - two runs in the UI
 ≠ two running concurrently. To run only one, terminate the redundant (preferably the *queued* one, so
 no in-flight work is lost).
 
@@ -203,7 +203,7 @@ User wants...                            → Use
 "DAG won't import"                       → REST: /importErrors  AND  astro logs --scheduler
 "compare schedule/tasks staging vs prod" → REST: /dags/<id>/details on both URLs
 "pool is starved"                        → REST: /pools
-"trigger a backfill" / "clear failed"    → DO NOT — read-only token. Ask user to use Astro UI or `make airflow`.
+"trigger a backfill" / "clear failed"    → DO NOT - read-only token. Ask user to use Astro UI or `make airflow`.
 ```
 
 ## Patterns Claude should use
@@ -247,10 +247,10 @@ astro deployment logs <id> --scheduler --log-count 200 \
 
 - **Read-only by default.** This skill never triggers DAGs, clears tasks, or mutates state via API. If the user needs that, point them to the Astro UI or local `make airflow CMD='dags trigger ...'`.
 - **Token discipline.** Pull from gopass. Never echo `$ASTRO_TOKEN` to stdout. Never write it to a file outside the gopass store. Never commit to git.
-- **Distinct tokens per environment.** Don't reuse one token for staging + prod — different blast radii.
+- **Distinct tokens per environment.** Don't reuse one token for staging + prod - different blast radii.
 - **`--keyword` is regex, not glob.** Escape special chars (`.`, `(`, `|`).
 - **Log fetch is heavy.** Task logs on Astro can be multi-MB (Kubernetes pod logs in S3). Always tail with `| tail -n 200` unless explicitly asked for full log.
-- **Don't paste secret values into chat** when listing variables — summarize names only.
+- **Don't paste secret values into chat** when listing variables - summarize names only.
 - **Confirm deployment ID before mutating** any env var. Astronomer offers no undo for `variable update`.
 
 ## Failure modes

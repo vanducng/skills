@@ -17,7 +17,7 @@ codex login status   # expects: "Logged in using ChatGPT"
 codex --version      # tested on codex-cli 0.128.0
 ```
 
-No `OPENAI_API_KEY` is read or used by this provider — it strictly uses the subscription auth from `~/.codex/auth.json`.
+No `OPENAI_API_KEY` is read or used by this provider - it strictly uses the subscription auth from `~/.codex/auth.json`.
 
 ## Invocation
 
@@ -60,7 +60,7 @@ python scripts/gemini_batch_process.py --task generate --provider auto \
 
 ## Models
 
-The wrapper's `--model` flag forwards to `codex exec -m`, which selects the **Codex base model** (e.g. `gpt-5.5`, `o3`, `o4-mini`). It does **not** select an image-generation model — the image model (informally `gpt-image-2` / `gpt-image-1.5` / `gpt-image-1` / `gpt-image-1-mini`) is chosen internally by the `$imagegen` skill and isn't directly addressable from this wrapper. Common pitfall: passing `--model gpt-image-2` will fail because `codex exec -m` only accepts Codex base models.
+The wrapper's `--model` flag forwards to `codex exec -m`, which selects the **Codex base model** (e.g. `gpt-5.5`, `o3`, `o4-mini`). It does **not** select an image-generation model - the image model (informally `gpt-image-2` / `gpt-image-1.5` / `gpt-image-1` / `gpt-image-1-mini`) is chosen internally by the `$imagegen` skill and isn't directly addressable from this wrapper. Common pitfall: passing `--model gpt-image-2` will fail because `codex exec -m` only accepts Codex base models.
 
 If `--model` is omitted (or auto-detected to a non-Codex model like `gemini-3.1-flash-image-preview`), the wrapper drops the flag and lets Codex pick its default base model.
 
@@ -72,7 +72,7 @@ OpenAI doesn't publish per-image token math. The only public guidance is that im
 
 Expect **5–30 seconds per image**. Codex runs the full agent loop, not a thin API call. For tight inner loops (batch generation, design iteration) prefer `--provider gemini` (Imagen 4 Flash) or `--provider minimax` (image-01 batch).
 
-Codex is **one image per turn** — no batch mode.
+Codex is **one image per turn** - no batch mode.
 
 ## Cascade behavior
 
@@ -83,20 +83,20 @@ Codex is **one image per turn** — no batch mode.
 | `CodexQuotaExceeded` (rate-limit / 429) | `[auto] codex codex_quota, falling through to next provider`; advance to Google |
 | `CodexError` (any other failure) | `[auto] codex codex_error, falling through to next provider`; advance to Google |
 
-Explicit `--provider codex` does **not** fall through — you get the error directly so you can handle it.
+Explicit `--provider codex` does **not** fall through - you get the error directly so you can handle it.
 
 ## Output capture
 
 The wrapper does not parse Codex stdout. It uses two layers:
 
-1. **Filesystem glob (primary)** — runs `codex exec -C <tmpdir>` and looks for `<tmpdir>/*.png`, taking the newest mtime.
-2. **Last-message file (secondary)** — `codex exec -o <tmpdir>/last.txt` captures the agent's final message; if no PNG was found in the tmpdir, the wrapper parses `last.txt` and copies the path on its last line.
+1. **Filesystem glob (primary)** - runs `codex exec -C <tmpdir>` and looks for `<tmpdir>/*.png`, taking the newest mtime.
+2. **Last-message file (secondary)** - `codex exec -o <tmpdir>/last.txt` captures the agent's final message; if no PNG was found in the tmpdir, the wrapper parses `last.txt` and copies the path on its last line.
 
 This avoids brittleness when Codex output formats drift between minor versions.
 
 ## Limits and known issues
 
-- **Image-to-image / reference images** are supported via `--image/-i` (forwards to `codex exec -i`), requiring codex-cli ≥ 0.137. `$imagegen` treats attachments as reference/source; fidelity of the composite is model-dependent — verify on first real run.
+- **Image-to-image / reference images** are supported via `--image/-i` (forwards to `codex exec -i`), requiring codex-cli ≥ 0.137. `$imagegen` treats attachments as reference/source; fidelity of the composite is model-dependent - verify on first real run.
 - **No batch mode**. One image per `codex exec` turn. Cascading to MiniMax (`image-01`, 1–9 batch) is the path for batch generation.
 - **No streaming progress**. The wrapper blocks until Codex finishes (typical 5–30s).
 - **Sandbox**: runs with `--sandbox workspace-write` inside a tmpdir; no host filesystem writes outside the wrapper's `--out` target.
@@ -104,7 +104,7 @@ This avoids brittleness when Codex output formats drift between minor versions.
 ## Testing
 
 ```bash
-# Unit + mocked tests (default — fast)
+# Unit + mocked tests (default - fast)
 pytest scripts/tests/test_codex_imagegen.py
 
 # Provider-routing cascade tests

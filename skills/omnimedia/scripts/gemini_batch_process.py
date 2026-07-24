@@ -920,7 +920,7 @@ def batch_process(
                     print(f"  {i}. {exists} {path}")
             else:
                 print("  2-7. .env files (centralized resolver unavailable)")
-            print("\nQuick fix — add your key to any .env file above:")
+            print("\nQuick fix - add your key to any .env file above:")
             print("  echo 'GEMINI_API_KEY=your-key' >> ~/.claude/.env")
             print("\nOther options:")
             print("  - Run setup checker: python scripts/check_setup.py")

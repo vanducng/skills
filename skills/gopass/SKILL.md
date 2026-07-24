@@ -1,6 +1,6 @@
 ---
 name: gopass
-description: "Retrieve credentials (API keys, tokens, passwords) from the local gopass password store. Use when a task needs a secret that the user has stored in gopass — instead of asking the user to paste it, search the store and read the value with `gopass find` / `gopass show -o`. Also covers inserting, generating, listing, searching, syncing, and TOTP."
+description: "Retrieve credentials (API keys, tokens, passwords) from the local gopass password store. Use when a task needs a secret that the user has stored in gopass - instead of asking the user to paste it, search the store and read the value with `gopass find` / `gopass show -o`. Also covers inserting, generating, listing, searching, syncing, and TOTP."
 license: MIT
 metadata:
   author: vanducng
@@ -10,7 +10,7 @@ metadata:
 
 # gopass
 
-Local password store wrapped around GPG. Secrets live as encrypted files in a git repo and decrypt on demand. The user has it installed and initialized — commands "just work" on this machine.
+Local password store wrapped around GPG. Secrets live as encrypted files in a git repo and decrypt on demand. The user has it installed and initialized - commands "just work" on this machine.
 
 ## When to use
 
@@ -28,7 +28,7 @@ gopass ls                         # tree view of all secrets
 gopass find <keyword>             # search names (fast, no decrypt)
 gopass grep <string>              # search inside decrypted content (slow)
 gopass show <path>                # full content (password + key:value lines)
-gopass show -o <path>             # password ONLY — use this to capture into vars
+gopass show -o <path>             # password ONLY - use this to capture into vars
 gopass -c <path>                  # copy password to clipboard, clears in 45s
 ```
 
@@ -97,7 +97,7 @@ gopass show work/some-service               # everything (password + fields)
 
 - **Never echo / print / log a decrypted secret to terminal output the user is recording.** Pipe directly into the consumer (env var, config file write, stdin of a tool).
 - **Never write secrets to files outside the store** unless the user explicitly asks (e.g. populating a `.env`). When you do, confirm the file is gitignored first.
-- **Never commit a secret to a repo.** Even after generating one — the value goes in gopass, the consumer reads it at runtime.
+- **Never commit a secret to a repo.** Even after generating one - the value goes in gopass, the consumer reads it at runtime.
 - **Don't cache / restate / summarize** the secret value back to the user in chat. Confirm by name only ("retrieved `personal/ai/openai`").
 - If `gpg` errors with "Decryption failed" or "Inappropriate ioctl for device", run `gpgconf --kill gpg-agent && gpg-agent --daemon` and retry. Don't keep retrying blindly.
 
@@ -108,7 +108,7 @@ gopass show work/some-service               # everything (password + fields)
 | `entry is not in the password store` | wrong path | `gopass find <keyword>` to discover the real path |
 | `Decryption failed` | gpg-agent stuck | `gpgconf --kill gpg-agent && gpg-agent --daemon` |
 | `Inappropriate ioctl for device` | no TTY for passphrase | run from an interactive terminal, not a pipe |
-| `no secret key` | gpg key missing on this machine | escalate — only the user can import it |
+| `no secret key` | gpg key missing on this machine | escalate - only the user can import it |
 | sync conflict | concurrent edits | `cd "$(gopass config path)" && git status` then resolve |
 
 ## Discovery
@@ -123,4 +123,4 @@ gopass doctor                     # health check
 ## References
 
 - Official command docs: https://github.com/gopasspw/gopass/blob/master/docs/commands/
-- If the user's store has a `Makefile` at the store root, it may expose shortcuts (`make show PATH=...`, `make copy PATH=...`, `make search QUERY=...`) for interactive use — prefer raw `gopass` for scripting.
+- If the user's store has a `Makefile` at the store root, it may expose shortcuts (`make show PATH=...`, `make copy PATH=...`, `make search QUERY=...`) for interactive use - prefer raw `gopass` for scripting.

@@ -1,4 +1,4 @@
-// Template — adapt FINDERS / scope to the user's real setup before running.
+// Template - adapt FINDERS / scope to the user's real setup before running.
 // Mine repeated corrections from history and distill verified rule proposals.
 // Returns proposals; the main session presents them and writes only on approval.
 export const meta = {
@@ -67,9 +67,9 @@ const PROPOSALS = {
   } } },
 }
 
-// Each finder is blind to the others — a different angle on "corrections I keep making".
+// Each finder is blind to the others - a different angle on "corrections I keep making".
 const FINDERS = [
-  { key: 'sessions', prompt: `Read recent Claude Code session transcripts matching ${sessionsGlob} (newest first; JSONL, one event per line). Extract correction events: user messages that push back, override, or re-instruct the assistant — "no", "don't", "actually", "stop doing X", "I told you", "again", "use X not Y", reverts of the assistant's output. For each, capture the verbatim quote, surrounding context, and the rule it implies.` },
+  { key: 'sessions', prompt: `Read recent Claude Code session transcripts matching ${sessionsGlob} (newest first; JSONL, one event per line). Extract correction events: user messages that push back, override, or re-instruct the assistant - "no", "don't", "actually", "stop doing X", "I told you", "again", "use X not Y", reverts of the assistant's output. For each, capture the verbatim quote, surrounding context, and the rule it implies.` },
   { key: 'git', prompt: `In ${repoPath}, mine git history for corrections: revert commits, "fixup"/"actually"/"oops" subjects, and diffs to CLAUDE.md / rules/ files (each rule edit is itself a recorded correction). Extract the same correction-event shape.` },
   { key: 'reviews', prompt: `Use \`gh\` to fetch recent PR review comments authored by the user in ${repoPath}'s remote. Extract recurring review nits the user raises across PRs (same critique on multiple PRs). Same correction-event shape.` },
 ]

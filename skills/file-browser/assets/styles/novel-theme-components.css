@@ -76,7 +76,7 @@ blockquote p:last-child {
   margin-bottom: 0;
 }
 
-/* Tables — left-align with the content column. Allow the table to extend
+/* Tables - left-align with the content column. Allow the table to extend
    past the column's right edge when its intrinsic width is larger, but cap
    it so it can't bleed past the viewport edge. */
 table {
@@ -184,7 +184,7 @@ hr {
   border-color: var(--accent-hover);
 }
 
-/* Expanded state for code blocks — width and offset set dynamically by JS (initCodeExpand)
+/* Expanded state for code blocks - width and offset set dynamically by JS (initCodeExpand)
    to fill .main-content without affecting sibling content or using viewport units */
 .code-wrapper.expanded {
   max-width: none;

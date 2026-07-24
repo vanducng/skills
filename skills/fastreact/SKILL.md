@@ -8,7 +8,7 @@ metadata:
   version: "1.2.0"
 ---
 
-# fastreact — FastAPI + React full-stack webapp
+# fastreact - FastAPI + React full-stack webapp
 
 Build a production-shaped full-stack web app from a mockup to a running Docker Compose stack.
 **Backend:** FastAPI, uv, SQLModel, Postgres, Alembic, JWT + Google OAuth, boto3 (S3).
@@ -54,16 +54,16 @@ Auth/RBAC/S3 patterns: `references/auth-rbac.md`.
 `make up` builds + starts postgres, then backend (migrate + seed on entrypoint), then frontend (nginx). Pick host ports that are free (`lsof -iTCP:<port>`; common conflicts with other local stacks). `make logs`, `make seed`, `make clean` (down -v resets DB). Local setup + entrypoint: `references/local-setup.md`.
 
 ### 6. Seed + verify end-to-end
-Seed deterministic test users per role. Verify the real flow in the browser via `vd:web-e2e` (scaffold `.e2e/config.json` from its compose-spa example: readyz gate, form login, persistent profile per role) — login → core feature → RBAC — and curl the API (incl. real S3 upload/delete). For frontend layout work, run desktop and mobile viewport checks against the Docker stack and verify no horizontal overflow, hidden action controls, stale bundles, or console errors. The `agent-browser` CLI works as a lighter alternative when traces aren't needed. Loop on fixes until the stack is healthy and the flow passes.
+Seed deterministic test users per role. Verify the real flow in the browser via `vd:web-e2e` (scaffold `.e2e/config.json` from its compose-spa example: readyz gate, form login, persistent profile per role) - login → core feature → RBAC - and curl the API (incl. real S3 upload/delete). For frontend layout work, run desktop and mobile viewport checks against the Docker stack and verify no horizontal overflow, hidden action controls, stale bundles, or console errors. The `agent-browser` CLI works as a lighter alternative when traces aren't needed. Loop on fixes until the stack is healthy and the flow passes.
 
 ## Reusable assets
-- `scripts/scaffold.sh` — generates the project skeleton (run it; do not hand-create dirs).
-- `references/project-structure.md` — exact backend + frontend trees + naming conventions.
-- `references/local-setup.md` — docker-compose, Dockerfiles, entrypoint, Makefile, ports, seed.
-- `references/auth-rbac.md` — JWT + Google OAuth, role model, permission deps, S3 key scheme.
-- `references/design-mockup-workflow.md` — marketing-design + opendesign then theme port.
-- `references/gotchas.md` — the bugs that recur in this stack. READ before frontend↔backend integration.
-- `references/deployment.md` — AWS deploy: EC2+compose, SSM/Ansible, RDS, ALB, ECR, OIDC; security floor + pre-apply checklist.
+- `scripts/scaffold.sh` - generates the project skeleton (run it; do not hand-create dirs).
+- `references/project-structure.md` - exact backend + frontend trees + naming conventions.
+- `references/local-setup.md` - docker-compose, Dockerfiles, entrypoint, Makefile, ports, seed.
+- `references/auth-rbac.md` - JWT + Google OAuth, role model, permission deps, S3 key scheme.
+- `references/design-mockup-workflow.md` - marketing-design + opendesign then theme port.
+- `references/gotchas.md` - the bugs that recur in this stack. READ before frontend↔backend integration.
+- `references/deployment.md` - AWS deploy: EC2+compose, SSM/Ansible, RDS, ALB, ECR, OIDC; security floor + pre-apply checklist.
 
 ## Hard rules (this stack bites here; see references/gotchas.md)
 1. **FormData uploads:** never set `Content-Type: multipart/form-data` manually; in the axios request interceptor delete the default JSON header when `data instanceof FormData` so the browser sets the boundary. The backend `UploadFile` param name MUST match the FormData key (`files`/`file`).
