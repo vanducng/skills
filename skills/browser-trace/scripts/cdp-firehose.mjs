@@ -31,7 +31,11 @@ process.on('SIGINT', shutdown);
 try {
   client = await cdpConnect(target, {
     onEvent: (ev) => {
-      process.stdout.write(JSON.stringify({ method: ev.method, params: ev.params, ts: Date.now() }) + '\n');
+      // No backpressure handling: stdout is a file redirect (start-capture.mjs),
+      // where write() buffers to disk; EPIPE on teardown must not crash the stream.
+      try {
+        process.stdout.write(JSON.stringify({ method: ev.method, params: ev.params, ts: Date.now() }) + '\n');
+      } catch { /* EPIPE during shutdown */ }
     },
     onClose: () => process.exit(0),
   });

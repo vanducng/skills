@@ -192,10 +192,10 @@ Use dashed borders for optional/secondary elements:
 Or use simple dashes with colons for vertical:
 
 ```
-┌─────────┐   - - - - - -
+┌─────────┐ - - - - - -
 │  Core   │   : Plugin  :
 │ Module  │   : (opt.)  :
-└─────────┘   - - - - - -
+└─────────┘ - - - - - -
 ```
 
 ---

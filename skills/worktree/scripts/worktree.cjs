@@ -316,11 +316,11 @@ function output(data) {
       }
       if (data.projects && data.projects.length > 0) {
         console.log(`\n📁 Available projects:`);
-        data.projects.forEach(p => console.log(`   - ${p.name} (${p.path})`));
+        data.projects.forEach(p => console.log(` - ${p.name} (${p.path})`));
       }
       if (data.envFiles && data.envFiles.length > 0) {
         console.log(`\n🔐 Environment files found:`);
-        data.envFiles.forEach(f => console.log(`   - ${f}`));
+        data.envFiles.forEach(f => console.log(` - ${f}`));
       }
       if (data.dirtyState) {
         console.log(`\n⚠️  Working directory has uncommitted changes`);
@@ -395,7 +395,7 @@ function outputError(code, message, details = {}) {
     }
     if (details.availableProjects) {
       console.error(`\n   Available projects:`);
-      details.availableProjects.forEach(p => console.error(`     - ${p}`));
+      details.availableProjects.forEach(p => console.error(` - ${p}`));
     }
   }
   process.exit(exitCode);
@@ -1585,7 +1585,7 @@ function cmdCreate() {
   }
 
   // Build worktree name: always include repo name for clarity.
-  // Use the MAIN worktree's basename (treesRoot), never the current toplevel  - 
+  // Use the MAIN worktree's basename (treesRoot), never the current toplevel -
   // inside a linked worktree path.basename(gitRoot) would be the worktree's
   // dir name and produce a doubled name like "repo-feat-x-newfeat".
   // Flatten slashes to dashes for filesystem-safe directory names
@@ -1824,7 +1824,7 @@ function cmdCreate() {
 }
 
 // Auto-detect a post-create hook script. Order: `.worktree/hooks/post-create`
-// (per-repo team convention) → `scripts/setup-worktree`. No Makefile sniffing  - 
+// (per-repo team convention) → `scripts/setup-worktree`. No Makefile sniffing -
 // too magical, easy to false-positive. Hook must be executable.
 function detectPostCreateHook(repoRoot) {
   const candidates = [
@@ -2038,7 +2038,7 @@ function cmdClean() {
 
   const willExecute = confirmYes && !dryRun;
   const totalBytes = candidates.reduce((sum, c) => sum + (c.sizeBytes || 0), 0);
-  // Stale admin metadata from worktrees whose dir was deleted manually  - 
+  // Stale admin metadata from worktrees whose dir was deleted manually -
   // clean subsumes the old `prune` command by handling these too.
   const stalePrune = (git('worktree prune --dry-run --verbose', { silent: true }).output || '')
     .split('\n').filter(Boolean);
@@ -2064,7 +2064,7 @@ function cmdClean() {
       console.log('   Nothing to clean.');
     } else {
       candidates.forEach(c => {
-        console.log(`   ${c.worktree.branch}  (${humanBytes(c.sizeBytes)})  - ${c.reasons.join(', ')}`);
+        console.log(`   ${c.worktree.branch}  (${humanBytes(c.sizeBytes)}) - ${c.reasons.join(', ')}`);
         console.log(`      ${c.worktree.path}`);
       });
       if (candidates.length) console.log(`\n   Reclaimable: ${humanBytes(totalBytes)} across ${candidates.length} worktree(s)`);

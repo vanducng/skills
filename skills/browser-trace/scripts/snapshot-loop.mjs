@@ -33,7 +33,8 @@ async function ensureClient() {
   if (client) return client;
   try {
     client = await cdpConnect(target, { onClose: () => { client = null; } });
-  } catch {
+  } catch (e) {
+    console.error(`[snapshot-loop] cdpConnect failed: ${e.message}`);
     client = null;
   }
   return client;
@@ -41,6 +42,10 @@ async function ensureClient() {
 
 async function evalString(expression) {
   const r = await client.send('Runtime.evaluate', { expression, returnByValue: true });
+  if (r?.exceptionDetails) {
+    console.error(`[snapshot-loop] eval failed: ${r.exceptionDetails.text || 'exception'}`);
+    return '';
+  }
   return typeof r?.result?.value === 'string' ? r.result.value : '';
 }
 

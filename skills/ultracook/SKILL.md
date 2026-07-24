@@ -50,7 +50,7 @@ Before any dispatch, classify the task and pick a **mode** (how much workflow) a
 | `pipeline` | real feature/fix, phases, uncertainty, blast radius | intake → executor (brainstorm/plan/cook/ship slice) → `vd:auto-loop` → verify |
 | `fan-out` | repo-wide / migration / N-finder audit, independent packets | parallel packets via the runtime's native primitive; parent owns integration |
 
-Sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) and bare resume skip triage  - 
+Sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) and bare resume skip triage -
 they go straight to their scripts. `direct` mode finishes here without touching the
 executor. `pipeline` and `fan-out` continue to runtime dispatch below.
 
@@ -87,19 +87,19 @@ The sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) short-circuit the r
 ## Architecture
 
 ```
-SKILL.md (this file)        - conductor (classify) + router (detect + dispatch)
+SKILL.md (this file) - conductor (classify) + router (detect + dispatch)
 references/
-  conductor.md              - triage: mode/autonomy selection, gate map, fan-out packets
-  autonomy-modes.md         - manual/semi/auto gate semantics
-  architecture.md           - two-layer SKILL.md ↔ bash-script invariant
-  action-vocab.{md,yaml}    - 21 actions · verifier-vocab.{md,yaml} - 7 verifier types
-  codex-runtime.md          - Codex specifics · codex-gap-workarounds.md - Monitor/Skill bridges
+  conductor.md - triage: mode/autonomy selection, gate map, fan-out packets
+  autonomy-modes.md - manual/semi/auto gate semantics
+  architecture.md - two-layer SKILL.md ↔ bash-script invariant
+  action-vocab.{md,yaml} - 21 actions · verifier-vocab.{md,yaml} - 7 verifier types
+  codex-runtime.md - Codex specifics · codex-gap-workarounds.md - Monitor/Skill bridges
 runtimes/
-  claude-code.md            - Claude Code adapter (tools: Skill, Task, Workflow, Monitor, hooks)
-  codex.md                  - Codex adapter (codex exec, subagents, --ask-for-approval/--sandbox)
-  detect.md                 - runtime detection spec
-scripts/                    - runtime-agnostic bash (filesystem/git/parse); never call runtime tools
-projects/                   - 4 TOML profiles, picked by git remote
+  claude-code.md - Claude Code adapter (tools: Skill, Task, Workflow, Monitor, hooks)
+  codex.md - Codex adapter (codex exec, subagents, --ask-for-approval/--sandbox)
+  detect.md - runtime detection spec
+scripts/ - runtime-agnostic bash (filesystem/git/parse); never call runtime tools
+projects/ - 4 TOML profiles, picked by git remote
 ```
 
 ## See also

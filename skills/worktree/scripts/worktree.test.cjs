@@ -1168,7 +1168,7 @@ console.log(`\n📊 Test Results: ${passed} passed, ${failed} failed\n`);
 if (failed > 0) {
   console.log('Failed tests:');
   results.filter(r => r.status === 'FAIL').forEach(r => {
-    console.log(`  - ${r.name}: ${r.error}`);
+    console.log(` - ${r.name}: ${r.error}`);
   });
   process.exit(1);
 } else {

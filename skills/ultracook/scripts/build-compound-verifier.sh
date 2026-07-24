@@ -6,9 +6,9 @@
 # Usage: build-compound-verifier.sh --goal-dir <dir> --action <name> [--iter <N>]
 #
 # Reads:
-#   - action-vocab.yaml          → action's verifier binding
-#   - goal.yaml                  → placeholder values (test_cmd via profile)
-#   - state.json                 → pr_number, plan_dir, etc.
+# - action-vocab.yaml          → action's verifier binding
+# - goal.yaml                  → placeholder values (test_cmd via profile)
+# - state.json                 → pr_number, plan_dir, etc.
 #
 # Writes: {goal-dir}/verify-ultracook-{action}.sh (executable)
 # Stdout: absolute path to the written verify script.

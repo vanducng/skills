@@ -25,9 +25,9 @@ die() { echo "opendesign: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null || die "missing dependency: $1"; }
 
 # Sparse-checkout list (cone mode - directories only), justified per entry:
-#   skills/          - the 60 SKILL.md catalogs we compose from (core)
-#   design-systems/  - the 137 DESIGN.md token sets we apply (core)
-#   assets/          - device frames (mobile-app reference) + community pet
+#   skills/ - the 60 SKILL.md catalogs we compose from (core)
+#   design-systems/ - the 137 DESIGN.md token sets we apply (core)
+#   assets/ - device frames (mobile-app reference) + community pet
 #                      sprites (required by hatch-pet skill); ~36 small blobs
 # Deliberately NOT pulled: apps/, docs/, e2e/, scripts/, tools/, packages/,
 #   templates/, prompt-templates/, story/, specs/, craft/, .github/ - none are
@@ -100,8 +100,8 @@ cmd_list() {
 STOPWORDS=" a an and the for of in on with to from by is it as or my our your this that page site app web ui design build make create generate render show give need want like style "
 
 # Extract the high-signal slice of a skill or design-system file:
-#   - SKILL.md   → YAML frontmatter (between the two `---`) + the H1 title line
-#   - DESIGN.md  → first 25 lines (H1 + Category + theme paragraph)
+# - SKILL.md   → YAML frontmatter (between the two `---`) + the H1 title line
+# - DESIGN.md  → first 25 lines (H1 + Category + theme paragraph)
 extract_signal() {
   local file="$1"
   local base; base=$(basename "$file")
@@ -175,8 +175,8 @@ qmd_extract_folders() {
 #
 # Args: coll (qmd collection), base_dir (matching cache dir), tokens...
 # Per token (after stopword filter):
-#   - 1 vote per folder qmd's BM25 returns for the single-word search
-#   - 5 votes per folder whose literal name contains the token (substring)
+# - 1 vote per folder qmd's BM25 returns for the single-word search
+# - 5 votes per folder whose literal name contains the token (substring)
 qmd_vote_search() {
   local coll="$1" base_dir="$2"; shift 2
   local tokens="$*"

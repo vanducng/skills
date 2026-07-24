@@ -119,7 +119,7 @@ function validateConfig(cfg) {
   return errors;
 }
 
-// GET only (readyz-style endpoints commonly reject HEAD); redirects are NOT followed  - 
+// GET only (readyz-style endpoints commonly reject HEAD); redirects are NOT followed -
 // a 3xx is reported as its own status and must be expected explicitly.
 function httpGet(url, { insecureTLS = false, timeoutMs = 5000 } = {}) {
   return new Promise((resolve) => {
@@ -316,7 +316,7 @@ async function main() {
 
   const errors = validateConfig(cfg);
   if (errors.length) {
-    console.error(`invalid ${configPath}:\n  - ${errors.join('\n  - ')}`);
+    console.error(`invalid ${configPath}:\n - ${errors.join('\n - ')}`);
     process.exit(2);
   }
   const health = normalizeHealth(cfg.health && cfg.health.length ? cfg.health : [cfg.baseUrl]);

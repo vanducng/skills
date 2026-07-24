@@ -175,7 +175,7 @@ def test_api_connection(api_key):
         # Show some available models
         print_info("\nSample available models:")
         for model in models[:5]:
-            print(f"  - {model.name}")
+            print(f" - {model.name}")
 
         return True
 

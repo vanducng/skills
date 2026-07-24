@@ -2,15 +2,15 @@
 # codex-bridge.sh - Codex-side helpers for vd:ultracook.
 #
 # Functions provided (sourced or invoked as subcommand):
-#   codex_exec_resume_last <skill> <prompt>   - invoke another vd:* skill via
+#   codex_exec_resume_last <skill> <prompt> - invoke another vd:* skill via
 #                                                `codex exec resume --last`,
 #                                                relying on auto-match against
 #                                                skill description.
-#   codex_hook_payload_read                   - read PostToolUse JSON from stdin
+#   codex_hook_payload_read - read PostToolUse JSON from stdin
 #                                                and export HOOK_TOOL_NAME /
 #                                                HOOK_TOOL_INPUT / HOOK_TOOL_RESPONSE
 #                                                env vars for the caller.
-#   codex_exec_json_parse <jsonl-path>        - parse a Codex `--json` event
+#   codex_exec_json_parse <jsonl-path> - parse a Codex `--json` event
 #                                                stream and emit a single JSON
 #                                                with token totals + counts.
 #

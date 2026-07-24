@@ -84,7 +84,7 @@ Each iteration appends a row to `loop-results.tsv` in the working dir. Schema + 
 
 ```
 iteration  timestamp            commit   metric  delta  status   description
-0          2026-05-31T12:00:00  a1b2c3d  842     -      baseline initial bundle size
+0          2026-05-31T12:00:00  a1b2c3d  842 - baseline initial bundle size
 1          2026-05-31T12:01:10  e4f5a6b  810     -32    keep     tree-shake unused lodash imports
 2          2026-05-31T12:02:05  c7d8e9f  812     +2     discard  extract shared helper (regressed)
 ```

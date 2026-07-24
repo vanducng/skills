@@ -410,7 +410,7 @@ Use `--since` to filter by relative duration (e.g. `24h`, `7d`); omit to read al
 - Command descriptions are available via `miudb describe <command>`.
 - Output is secret-hardened: credential-named values, password-bearing URLs, and
   `key=secret` assignments are redacted before stdout (`connections list` shows
-  `has_password: true`, never the value). Query-result *values* are NOT masked  - 
+  `has_password: true`, never the value). Query-result *values* are NOT masked -
   they're the user's data. Do not inspect credential stores unless asked.
 - The command catalog currently includes `connections test`, `mcp serve`, and
   the native `serve` protocol; choose the narrowest command that matches the

@@ -72,7 +72,7 @@ bootstraps but backups fail silently.
 
 ## Step 1 - backup auth
 
-**Self-hosted (S3-compatible):** skip the Terraform/Workload-Identity below  - 
+**Self-hosted (S3-compatible):** skip the Terraform/Workload-Identity below -
 create an encrypted access-key Secret and use `s3Credentials` + `endpointURL` in
 the barman config. Full manifests in `references/self-hosted-and-networkpolicy.md`.
 
@@ -293,7 +293,7 @@ Calico/standard → vanilla `NetworkPolicy`). For instance pods
   `5432` · monitoring → `9187` · `cnpg-system` operator.
 - **Egress:** object store (`443` or store port) for barman · DNS `kube-system:53`
   · kube-apiserver · same-namespace · **the service CIDR** (e.g. K3s default
-  `10.43.0.0/16`) when the CNI is Cilium with eBPF kube-proxy replacement  - 
+  `10.43.0.0/16`) when the CNI is Cilium with eBPF kube-proxy replacement -
   ClusterIP services aren't pods, so this is required or in-cluster lookups fail.
 
 Full Cilium + vanilla manifests, the operator policy, and the host-firewall
@@ -303,7 +303,7 @@ caveat are in `references/self-hosted-and-networkpolicy.md`.
 
 - **Bind the `<cluster>` pod KSA, not the decoy `cnpg-backup-sa`.** The WI member
   must be `<ns>/<cluster>` (the cluster-named pod KSA CNPG auto-creates). WI needs
-  BOTH halves: the KSA annotation AND the reverse `workloadIdentityUser` binding  - 
+  BOTH halves: the KSA annotation AND the reverse `workloadIdentityUser` binding -
   a present annotation with a missing binding still yields 403. Verify the real
   `spec.serviceAccountName` on the live pod before trusting any SA manifest name.
   *Top footgun.*

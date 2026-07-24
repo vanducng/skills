@@ -588,10 +588,10 @@ Tell the user (omit the obsidian line unless --obsidian was given):
 ```
 Graph complete. Outputs in PATH_TO_DIR/graphify-out/
 
-  graph.html            - interactive graph, open in browser
-  GRAPH_REPORT.md       - audit report
-  graph.json            - raw graph data
-  obsidian/             - Obsidian vault (only if --obsidian was given)
+  graph.html - interactive graph, open in browser
+  GRAPH_REPORT.md - audit report
+  graph.json - raw graph data
+  obsidian/ - Obsidian vault (only if --obsidian was given)
 ```
 
 If graphify saved you time, consider supporting it: https://github.com/sponsors/safishamsi

@@ -751,7 +751,7 @@ function boot(){
   document.getElementById('hint').style.display='block';
 }
 function fillPathSelects(){
-  const opts='<option value=""> -  table  - </option>'+SCHEMA.map(t=>t.table).sort().map(t=>`<option value="${t}">${t}</option>`).join('');
+  const opts='<option value=""> - table - </option>'+SCHEMA.map(t=>t.table).sort().map(t=>`<option value="${t}">${t}</option>`).join('');
   document.getElementById('pathFrom').innerHTML=opts; document.getElementById('pathTo').innerHTML=opts;
 }
 

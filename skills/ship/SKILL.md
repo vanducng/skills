@@ -109,7 +109,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
      user *"Merge anyway"* or a deliberate `--skip-tests`/documented flake - both stated out loud.
    - **CI green ≠ comments addressed.** A passing code-review-bot check (e.g.
      `review/code-review`) means the bot *ran*, not that its findings are resolved. Bot
-     reviewers post inline comments **as a CI job**, so they land *during* Step 15  - 
+     reviewers post inline comments **as a CI job**, so they land *during* Step 15 -
      after Step 13 already looked and found nothing. So **re-run Step 13's review-thread
      fetch after CI is green and before merge** (Step 15b), and block on any thread that is
      `isResolved==false && isOutdated==false` and actionable (human or bot). Triage,

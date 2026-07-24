@@ -57,7 +57,7 @@ The [only/first/fastest] [thing] that [benefit]
 ### Testimonials
 ```
 "[Result achieved] in [timeframe]. [Emotional reaction]."
- -  [Name], [Title] at [Company]
+ - [Name], [Title] at [Company]
 ```
 
 ### Stats Bar

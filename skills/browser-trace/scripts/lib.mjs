@@ -132,7 +132,12 @@ export async function resolveWsUrl(target) {
     const page = list.find(x => x.type === 'page' && x.webSocketDebuggerUrl);
     if (page) return page.webSocketDebuggerUrl;
   } catch { /* fall through to /json/version */ }
-  const version = await (await fetch(`${base}/json/version`)).json();
+  let version;
+  try {
+    version = await (await fetch(`${base}/json/version`)).json();
+  } catch {
+    throw new Error(`no debuggable target on port ${t}`);
+  }
   if (version.webSocketDebuggerUrl) return version.webSocketDebuggerUrl;
   throw new Error(`no debuggable target on port ${t}`);
 }
@@ -180,7 +185,12 @@ export async function cdpConnect(target, { onEvent, onClose } = {}) {
         }
         const id = nextId++;
         pending.set(id, { resolve, reject });
-        ws.send(JSON.stringify({ id, method, params }));
+        try {
+          ws.send(JSON.stringify({ id, method, params }));
+        } catch {
+          pending.delete(id);
+          reject(new Error('websocket closed'));
+        }
       });
     },
     close() {

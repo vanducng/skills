@@ -214,7 +214,7 @@ body.single.text { --header-h: 40px; }
 body.single.text > .topbar { height: 40px; padding: 0 0.75rem; }
 body.single.text > .topbar .title { font-size: 0.85rem; }
 /* .stage in styles.css uses flex centering for media. With tall code, the
- * top of the content escapes upward and becomes unreachable by scroll  - 
+ * top of the content escapes upward and becomes unreachable by scroll -
  * force block layout here so scroll origin sits at content top. */
 body.single.text > main.stage {
   display: block;

@@ -57,10 +57,10 @@ cancel-loop: loop cancelled in $ws
 
 Working tree: untouched (any auto-loop commits remain - see git log for wip(auto-loop):).
 Forensics preserved under .auto-loop/:
-  goal-state.json     - final state
-  gate-history.jsonl  - all gate decisions
-  verifier-*.log      - per-iter verifier output
-  audit-*.json        - per-iter audit votes
+  goal-state.json - final state
+  gate-history.jsonl - all gate decisions
+  verifier-*.log - per-iter verifier output
+  audit-*.json - per-iter audit votes
 
 Re-run vd:auto-loop "<goal>" --verify "<cmd>" to start fresh.
 EOF

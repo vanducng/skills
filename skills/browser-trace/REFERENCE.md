@@ -191,10 +191,10 @@ jq -s '
     firstContentfulPaint: (map(select(.params.name == "firstContentfulPaint")) | first | .params.timestamp // null),
     networkIdle:        (map(select(.params.name == "networkIdle"))        | first | .params.timestamp // null)
   } | . + {
-    ttDCL_s:  (if .DOMContentLoaded   and .init then (.DOMContentLoaded   - .init) else null end),
-    ttLoad_s: (if .load               and .init then (.load               - .init) else null end),
+    ttDCL_s:  (if .DOMContentLoaded   and .init then (.DOMContentLoaded - .init) else null end),
+    ttLoad_s: (if .load               and .init then (.load - .init) else null end),
     ttFCP_s:  (if .firstContentfulPaint and .init then (.firstContentfulPaint - .init) else null end),
-    ttIdle_s: (if .networkIdle        and .init then (.networkIdle        - .init) else null end)
+    ttIdle_s: (if .networkIdle        and .init then (.networkIdle - .init) else null end)
   })
 ' page/lifecycle.jsonl
 ```
@@ -317,7 +317,7 @@ tail -f .o11y/<run-id>/cdp/raw.ndjson | jq -c '{m:.method, u:.params.request.url
 | ------------------ | -------------------------------------- | ------------------------------------------------------------ |
 | `O11Y_ROOT`        | `.o11y`                                | base directory under which `<run-id>/` is created             |
 | `O11Y_DOMAINS`     | `Network Console Runtime Log Page`     | space-separated CDP domains for the firehose                 |
-| `BROWSERBASE_API_KEY` | -                                   | required for `browse cloud sessions create` / `browse cloud sessions get`         |
+| `BROWSERBASE_API_KEY` | - | required for `browse cloud sessions create` / `browse cloud sessions get`         |
 
 The interval-second arg to `start-capture.mjs` controls only the sampler. The firehose is always streamed in real time.
 

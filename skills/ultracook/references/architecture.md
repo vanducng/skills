@@ -11,18 +11,18 @@ So `vd:ultracook` is structured in two layers:
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │ SKILL.md (Claude Code session)                                 │
-│   - Reads user prompt                                          │
-│   - Invokes AskUserQuestion, Skill, Monitor, Agent             │
-│   - Interprets bash-script outputs (env vars, JSON, exit code) │
-│   - Decides which runtime tool to call next                    │
+│ - Reads user prompt                                          │
+│ - Invokes AskUserQuestion, Skill, Monitor, Agent             │
+│ - Interprets bash-script outputs (env vars, JSON, exit code) │
+│ - Decides which runtime tool to call next                    │
 └──────────────────────┬─────────────────────────────────────────┘
                        │  passes env vars + reads stdout/exit
                        ▼
 ┌────────────────────────────────────────────────────────────────┐
 │ scripts/*.sh (subprocess)                                      │
-│   - Pure filesystem + git + jq/yq work                         │
-│   - Returns: stdout (JSON or env-var hints), exit code         │
-│   - Logs evidence to <state-base>/{slug}/iterations/NNN-*.log  │
+│ - Pure filesystem + git + jq/yq work                         │
+│ - Returns: stdout (JSON or env-var hints), exit code         │
+│ - Logs evidence to <state-base>/{slug}/iterations/NNN-*.log  │
 └────────────────────────────────────────────────────────────────┘
 ```
 

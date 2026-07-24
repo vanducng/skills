@@ -23,7 +23,7 @@ fi
 info "attaching agent-browser to '$NAME' on :$PORT"
 # The daemon may hold a stale session from a prior invocation; reset before connect.
 env -u AGENT_BROWSER_PROFILE agent-browser close --all >/dev/null 2>&1 || true
-env -u AGENT_BROWSER_PROFILE agent-browser connect "$PORT"
+env -u AGENT_BROWSER_PROFILE agent-browser connect "$PORT" || die "agent-browser connect to :$PORT failed. Ensure the profile is running (profile-open.sh $NAME) and the port is reachable."
 
 UA="$(env -u AGENT_BROWSER_PROFILE agent-browser eval 'navigator.userAgent' 2>/dev/null || true)"
 if [[ -z "$UA" || "$UA" == *HeadlessChrome* ]]; then

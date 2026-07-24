@@ -20,7 +20,7 @@ metadata:
 | `vd:auto-loop` | "Drive to a verifier until passing." | Verified completion |
 | **`vd:ultracook`** | **"Drive a goal end-to-end: intake → plan → cook → ship → verify, until done."** | **Verified deployment or graceful block** |
 
-Ultracook **conducts the whole workflow**. It owns design when the spec is ambiguous  - 
+Ultracook **conducts the whole workflow**. It owns design when the spec is ambiguous -
 the `brainstorm-first` shape runs `vd:brainstorm` before planning - but it does not run
 the inner iteration itself: when an action has a verifier, ultracook delegates to
 `vd:auto-loop` and resumes when that terminates.

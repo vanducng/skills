@@ -9,7 +9,7 @@
 #   eval-dod.sh --lint <plan.md>     validate the block only (known types, non-empty args); no execution
 #   eval-dod.sh --type <t> --arg <a> evaluate a single verifier
 #
-# DoD line format (one per line under "## Definition of Done"):  - <type>: <arg>
+# DoD line format (one per line under "## Definition of Done"): - <type>: <arg>
 #   test_suite_passes: <test cmd>     pass = exit 0
 #   cmd_exits_zero: <cmd>             pass = exit 0
 #   shell: <cmd>                      pass = exit 0

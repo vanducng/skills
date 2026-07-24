@@ -95,9 +95,9 @@ eval "$(read_profile)"
 # ── Merge actions: goal override wins; else profile's default-for-kind ────────
 
 # Merge rule:
-#   - goal.yaml.actions is the PREFIX (set by intake's action-shape question).
-#   - profile.default_sequence_<kind> is the BASE.
-#   - Dedup: skip base entries already present in the prefix.
+# - goal.yaml.actions is the PREFIX (set by intake's action-shape question).
+# - profile.default_sequence_<kind> is the BASE.
+# - Dedup: skip base entries already present in the prefix.
 if [ -n "$G_actions_override" ]; then
   RESOLVED_ACTIONS="$("$PYBIN" - <<PY
 import shlex

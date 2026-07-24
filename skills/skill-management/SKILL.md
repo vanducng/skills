@@ -73,7 +73,7 @@ bash scripts/validate.sh
 ```
 
 Then commit with `feat(skills): add <name> skill` so it lands in the
-catalog. Do NOT bump the plugin/marketplace manifest version manually  - 
+catalog. Do NOT bump the plugin/marketplace manifest version manually -
 that's a separate concern.
 
 If the user wants a skill that doesn't need eval iteration (a thin

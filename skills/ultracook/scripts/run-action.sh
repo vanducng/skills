@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run-action.sh - resolve the dispatch for ONE action; either:
-#   - execute it (shell type), capturing output to iterations/NNN-{action}.log
-#   - OR emit a JSON "invocation hint" for SKILL.md to dispatch via Skill /
+# - execute it (shell type), capturing output to iterations/NNN-{action}.log
+# - OR emit a JSON "invocation hint" for SKILL.md to dispatch via Skill /
 #     Agent / Monitor tools.
 #
 # The two-layer pattern (see references/architecture.md): bash can't call

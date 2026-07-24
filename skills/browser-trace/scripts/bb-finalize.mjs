@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // After stop-capture.mjs, pull final Browserbase-side artifacts (session
-// metadata, server logs, downloads) into the run dir. Logs are best-effort  - 
+// metadata, server logs, downloads) into the run dir. Logs are best-effort -
 // they're often sparse.
 //
 // Usage:

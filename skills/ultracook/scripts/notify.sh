@@ -11,10 +11,10 @@
 #   notify.sh --title "<t>" --body "<b>" [--deep-link <url>]
 #
 # Tool requirements (any one):
-#   - terminal-notifier (macOS):  brew install terminal-notifier
-#   - ntfy (any OS):              brew install ntfy + set NTFY_TOPIC env
-#   - Slack webhook:              set SLACK_WEBHOOK_URL env (treat as secret)
-#   - fallback log:               always available; writes to ~/.ultracook/notifications.log
+# - terminal-notifier (macOS):  brew install terminal-notifier
+# - ntfy (any OS):              brew install ntfy + set NTFY_TOPIC env
+# - Slack webhook:              set SLACK_WEBHOOK_URL env (treat as secret)
+# - fallback log:               always available; writes to ~/.ultracook/notifications.log
 
 set -uo pipefail
 

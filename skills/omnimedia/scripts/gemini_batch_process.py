@@ -923,8 +923,8 @@ def batch_process(
             print("\nQuick fix - add your key to any .env file above:")
             print("  echo 'GEMINI_API_KEY=your-key' >> ~/.claude/.env")
             print("\nOther options:")
-            print("  - Run setup checker: python scripts/check_setup.py")
-            print("  - Show full hierarchy: python ~/.claude/scripts/resolve_env.py --show-hierarchy --skill omnimedia -v")
+            print(" - Run setup checker: python scripts/check_setup.py")
+            print(" - Show full hierarchy: python ~/.claude/scripts/resolve_env.py --show-hierarchy --skill omnimedia -v")
             print("\nFor key rotation, add multiple keys to any .env:")
             print("   GEMINI_API_KEY=key1")
             print("   GEMINI_API_KEY_2=key2")
@@ -1225,7 +1225,7 @@ def print_results(results: List[Dict[str, Any]], task: str) -> None:
                 if generated_images:
                     print(f"Generated images: {len(generated_images)}")
                     for img in generated_images:
-                        print(f"  - {img}")
+                        print(f" - {img}")
                 else:
                     generated_image = result.get('generated_image')
                     if generated_image:

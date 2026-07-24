@@ -42,7 +42,7 @@ _validate_json() {
   ')
   if [[ -n "$missing" ]]; then
     echo "state-rw: missing required fields:" >&2
-    echo "$missing" | sed "s/^/  - /" >&2
+    echo "$missing" | sed "s/^/ - /" >&2
     return 1
   fi
 
