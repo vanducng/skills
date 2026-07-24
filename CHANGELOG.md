@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.32.0](https://github.com/vanducng/skills/compare/v1.31.1...v1.32.0) (2026-07-24)
+
+
+### Features
+
+* standardize local browser driving on agent-browser over CDP ([#304](https://github.com/vanducng/skills/issues/304)) ([51405ee](https://github.com/vanducng/skills/commit/51405eea5042875acdab85a3c3105ca83849aead))
+
 ## [1.31.1](https://github.com/vanducng/skills/compare/v1.31.0...v1.31.1) (2026-07-23)
 
 
