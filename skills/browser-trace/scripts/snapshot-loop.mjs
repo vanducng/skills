@@ -2,15 +2,14 @@
 // Periodic screenshot + DOM HTML + URL sampler. Invoked by start-capture.mjs;
 // not meant to be run directly.
 //
-// Each tick samples the traced CDP target through browse. Passing --cdp here
-// ensures this helper attaches to the traced target even when it runs outside
-// the user's main automation flow.
+// One persistent raw-CDP connection is reused across ticks (Page.captureScreenshot,
+// Runtime.evaluate) instead of spawning a process per sample. If the socket
+// drops, the next tick reconnects instead of crashing the loop.
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 
-import { isoStampForFilename, sleepMs } from './lib.mjs';
+import { cdpConnect, isoStampForFilename, sleepMs } from './lib.mjs';
 
 const [target, RD, intervalArg] = process.argv.slice(2);
 if (!target || !RD) {
@@ -22,17 +21,27 @@ const intervalMs = (Number(intervalArg) || 2) * 1000;
 const indexPath = path.join(RD, 'index.jsonl');
 
 let stopping = false;
-process.on('SIGTERM', () => { stopping = true; });
-process.on('SIGINT',  () => { stopping = true; });
+let client = null;
+function onSignal() {
+  stopping = true;
+  client?.close();
+}
+process.on('SIGTERM', onSignal);
+process.on('SIGINT',  onSignal);
 
-function getJsonField(stdout, field) {
-  if (!stdout) return '';
+async function ensureClient() {
+  if (client) return client;
   try {
-    const parsed = JSON.parse(stdout);
-    return typeof parsed?.[field] === 'string' ? parsed[field] : '';
+    client = await cdpConnect(target, { onClose: () => { client = null; } });
   } catch {
-    return '';
+    client = null;
   }
+  return client;
+}
+
+async function evalString(expression) {
+  const r = await client.send('Runtime.evaluate', { expression, returnByValue: true });
+  return typeof r?.result?.value === 'string' ? r.result.value : '';
 }
 
 while (!stopping) {
@@ -40,31 +49,33 @@ while (!stopping) {
   const png  = path.join(RD, 'screenshots', `${ts}.png`);
   const html = path.join(RD, 'dom',         `${ts}.html`);
   const tmp  = `${html}.partial`;
+  let urlValue = '';
 
-  // Best-effort screenshot. If browse fails we just don't get one this tick.
-  spawnSync('browse', ['screenshot', '--cdp', target, '--path', png], { stdio: 'ignore' });
-  if (fs.existsSync(png) && fs.statSync(png).size === 0) {
-    fs.unlinkSync(png);
+  if (await ensureClient()) {
+    // Best-effort screenshot. If the command fails we just don't get one this tick.
+    try {
+      const shot = await client.send('Page.captureScreenshot', { format: 'png' });
+      if (shot?.data) fs.writeFileSync(png, Buffer.from(shot.data, 'base64'));
+    } catch { /* best-effort */ }
+
+    // DOM dump via temp file → rename, so we never leave a 0-byte HTML behind.
+    try {
+      const htmlBody = await evalString('document.body.outerHTML');
+      if (htmlBody) {
+        fs.writeFileSync(tmp, htmlBody);
+        fs.renameSync(tmp, html);
+      }
+    } catch { /* best-effort */ }
+
+    try {
+      urlValue = await evalString('location.href');
+    } catch { /* best-effort */ }
   }
 
-  // DOM dump via temp file → rename, so we never leave a 0-byte HTML behind.
-  try {
-    const r = spawnSync('browse', ['get', 'html', 'body', '--cdp', target], { encoding: 'utf8' });
-    const htmlBody = getJsonField(r.stdout, 'html');
-    if (htmlBody) {
-      fs.writeFileSync(tmp, htmlBody);
-      fs.renameSync(tmp, html);
-    }
-  } catch { /* best-effort */ }
   // Cleanup any leftover .partial from a previous interrupted iteration.
   if (fs.existsSync(tmp)) {
     try { fs.unlinkSync(tmp); } catch {}
   }
-
-  // URL from the traced target. Returns {"url": "..."}.
-  let urlValue = '';
-  const u = spawnSync('browse', ['get', 'url', '--cdp', target], { encoding: 'utf8' });
-  urlValue = getJsonField(u.stdout, 'url');
 
   const screenshotRel = fs.existsSync(png)  ? `screenshots/${ts}.png` : '';
   const domRel        = fs.existsSync(html) ? `dom/${ts}.html`        : '';
@@ -73,3 +84,5 @@ while (!stopping) {
 
   await sleepMs(intervalMs);
 }
+
+client?.close();

@@ -1,10 +1,10 @@
-# Browser Trace — Examples
+# Browser Trace - Examples
 
 Five end-to-end debug scenarios. Each one shows: setup, running the capture, and the queries you'd run on the resulting tree.
 
-The recipes below use raw `jq` on the bisected files so you can see exactly what's there. Most everyday drill-down can also be done through `scripts/query.mjs <run-id> <command>` — see SKILL.md.
+The recipes below use raw `jq` on the bisected files so you can see exactly what's there. Most everyday drill-down can also be done through `scripts/query.mjs <run-id> <command>` - see SKILL.md.
 
-## Example 1: A form submit failed — find the request and see the page state
+## Example 1: A form submit failed - find the request and see the page state
 
 **User says**: "The signup form submit isn't working. I clicked Submit and nothing happened."
 
@@ -14,12 +14,13 @@ The recipes below use raw `jq` on the bisected files so you can see exactly what
   --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-o11y about:blank &
 node scripts/start-capture.mjs 9222 form-bug
 
-# Reproduce the bug.
-browse open https://example.com/signup --cdp 9222
-browse fill 'input[name=email]' 'user@example.com'
-browse fill 'input[name=password]' 'hunter2'
-browse snapshot
-browse click @0-7   # Submit button ref from `browse snapshot`
+# Reproduce the bug. agent-browser attaches to the same port over CDP;
+# env -u guards against a stray AGENT_BROWSER_PROFILE driving the wrong browser.
+env -u AGENT_BROWSER_PROFILE agent-browser connect 9222
+agent-browser open https://example.com/signup
+agent-browser fill 'input[name=email]' 'user@example.com'
+agent-browser fill 'input[name=password]' 'hunter2'
+agent-browser click 'button[type=submit]'
 
 node scripts/stop-capture.mjs form-bug
 node scripts/bisect-cdp.mjs form-bug
@@ -51,7 +52,7 @@ jq -c '.params.exceptionDetails
 ls dom/ | tail -3
 ```
 
-If the POST is missing entirely, the click handler is broken — open `dom/<latest>.html` and look at the button. If the POST returned 4xx, look at the body in `network/responses.jsonl`. If an exception fired, the stack frame in `console/exceptions.jsonl` points at the file and line.
+If the POST is missing entirely, the click handler is broken - open `dom/<latest>.html` and look at the button. If the POST returned 4xx, look at the body in `network/responses.jsonl`. If an exception fired, the stack frame in `console/exceptions.jsonl` points at the file and line.
 
 ## Example 2: Audit every 4xx/5xx and every third-party request in a run
 
@@ -59,7 +60,8 @@ If the POST is missing entirely, the click handler is broken — open `dom/<late
 
 ```bash
 node scripts/start-capture.mjs 9222 audit
-browse open https://your-site.example --cdp 9222
+env -u AGENT_BROWSER_PROFILE agent-browser connect 9222
+agent-browser open https://your-site.example
 # ...interact with the page...
 node scripts/stop-capture.mjs audit
 node scripts/bisect-cdp.mjs audit
@@ -91,9 +93,11 @@ jq -c 'select(.params.response.status >= 400 and .params.response.status < 600)
 
 ```bash
 node scripts/start-capture.mjs 9222 hang
-browse open https://example.com/checkout --cdp 9222
-browse click @0-12   # Continue button
-sleep 30             # let the hang play out
+env -u AGENT_BROWSER_PROFILE agent-browser connect 9222
+agent-browser open https://example.com/checkout
+agent-browser snapshot -i          # find the Continue button's ref
+agent-browser click @e12           # Continue button
+sleep 30                           # let the hang play out
 node scripts/stop-capture.mjs hang
 node scripts/bisect-cdp.mjs hang
 ```
@@ -134,6 +138,8 @@ URL=$(echo "$SESSION" | jq -r .connectUrl)
 
 BROWSE_NAME=prod-repro-browser
 browse open https://app.example.com/dashboard --cdp "$URL" --session "$BROWSE_NAME"
+# The firehose accepts a full ws:// / wss:// connectUrl, not just a port,
+# so the Browserbase connectUrl goes straight into start-capture.mjs.
 node scripts/start-capture.mjs "$URL" prod-repro
 
 # Drive whatever flow is suspected. The daemon caches the remote target,
@@ -204,14 +210,14 @@ Then look for the smoking gun:
 ```bash
 cd .o11y/stuck-debug
 
-# Pending requests that never finished — the most common cause of "stuck"
+# Pending requests that never finished - the most common cause of "stuck"
 jq -s '
   ([.[0][].params.requestId] - [.[1][].params.requestId] - [.[2][].params.requestId]) as $pending |
   .[0] | map(select(.params.requestId | IN($pending[])))
        | map({age_s: (now - .params.timestamp), url: .params.request.url})
 ' cdp/network/requests.jsonl cdp/network/finished.jsonl cdp/network/failed.jsonl
 
-# Last DOMContentLoaded / load on the top frame — when did the page actually settle?
+# Last DOMContentLoaded / load on the top frame - when did the page actually settle?
 jq -c 'select(.params.frameId == .params.loaderId or .params.frameId != null)
        | select(.params.name == "DOMContentLoaded" or .params.name == "load")
        | {name: .params.name, ts: .params.timestamp}' cdp/page/lifecycle.jsonl | tail

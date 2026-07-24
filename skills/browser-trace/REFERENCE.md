@@ -1,4 +1,4 @@
-# Browser Trace — Reference
+# Browser Trace - Reference
 
 Technical reference for the capture pipeline, the bisect mapping, and the jq recipe library.
 
@@ -7,29 +7,31 @@ Technical reference for the capture pipeline, the bisect mapping, and the jq rec
 ```
                        ┌──────────────────────────────────────┐
    main automation ──▶ │  Chrome / Browserbase CDP target     │ ◀── tracer (this skill)
-   (any framework)     └──────────────────────────────────────┘
-        │                                    │
-        ▼                                    ▼
-    drives page                browse cdp <target>     (firehose → raw.ndjson)
-                               browse screenshot --cdp <target> --path <file>  (sampler → screenshots/)
-                               browse get html body --cdp <target>             (sampler → dom/)
+   (agent-browser,     └──────────────────────────────────────┘
+    Playwright, …)          │                        │
+        │                   ▼                        ▼
+    drives page   cdp-firehose.mjs <target>   snapshot-loop.mjs <target>
+                  (native WebSocket, one       (one persistent WebSocket)
+                   event per line → raw.ndjson)  Page.captureScreenshot → screenshots/
+                                                 Runtime.evaluate outerHTML → dom/
+                                                 Runtime.evaluate location.href → index.jsonl
 ```
 
-CDP allows multiple concurrent clients on the same target. The tracer enables only read-only domains and never sends action commands like `Input.dispatch*` or `Runtime.evaluate`, so it cannot perturb the run.
+CDP allows multiple concurrent clients on the same target. The firehose is purely passive: it enables the observation domains and only listens, never sending a command that changes page state. The sampler issues read-only commands (`Page.captureScreenshot` and two `Runtime.evaluate` reads of `document.body.outerHTML` / `location.href`); it observes without driving the flow, so it cannot perturb the run.
 
-Sampler commands pass `--cdp <target>` because they run from the trace helper process and need to attach to the traced target directly. Normal follow-up commands in a browse daemon session do not need to repeat `--cdp` after the first `browse open ... --cdp <target>`. If the default daemon may already be active in another mode, use a named `--session` for sampler or automation commands.
+Both pieces open their own `WebSocket` to the target via `cdpConnect` in `lib.mjs`, which resolves a port to a debuggable page target (`/json/list`, falling back to `/json/version`) or accepts a full `ws://`/`wss://` URL as-is. When given a port, it picks the *first* page target in `/json/list`, so a multi-tab Chrome traces whichever tab is listed first; pass the specific tab's `webSocketDebuggerUrl` to trace a particular tab. The firehose exits if its socket closes (keeping `raw.ndjson` gap-free); the sampler reconnects on the next tick.
 
 ## Scripts
 
-All scripts read `O11Y_ROOT` (default `.o11y`) so runs land under `$O11Y_ROOT/<run-id>/`. They are Node ESM modules (`node` 18+) and depend only on `browse` plus the Node standard library — no `npm install` step. `jq` is referenced throughout the docs for ad-hoc querying but the scripts themselves don't need it.
+All scripts read `O11Y_ROOT` (default `.o11y`) so runs land under `$O11Y_ROOT/<run-id>/`. They are Node ESM modules (`node` 18+) and the local-capture pipeline depends only on the Node standard library, with no `npm install` step. Only the Browserbase helpers (`bb-capture.mjs`, `bb-finalize.mjs`) shell out to the `browse` CLI. `jq` is referenced throughout the docs for ad-hoc querying but the scripts themselves don't need it.
 
 ### `start-capture.mjs <target> [run-id] [interval-sec]`
 
 Starts both background processes and writes `manifest.json`.
 
-- `target` — port number (e.g. `9222`) or full WebSocket URL.
-- `run-id` — optional; defaults to `YYYYMMDDTHHMMSSZ`.
-- `interval-sec` — sampler period in seconds; default `2`.
+- `target` - port number (e.g. `9222`) or full WebSocket URL.
+- `run-id` - optional; defaults to `YYYYMMDDTHHMMSSZ`.
+- `interval-sec` - sampler period in seconds; default `2`.
 
 Honours `O11Y_DOMAINS` (space-separated) to control which CDP domains the firehose enables. Default: `Network Console Runtime Log Page`. Add `DOM` for DOM tree mutations, `Performance` for navigation timing, `Security` for mixed-content/cert events.
 
@@ -46,7 +48,7 @@ Slices `cdp/raw.ndjson` two ways, then writes `cdp/summary.json`:
 1. **Session-wide** buckets at `cdp/<domain>/...` (legacy layout, always written; see [bisect map](#bisect-map) below).
 2. **Per-page** buckets at `cdp/pages/<pid>/...`, indexed by top-level `Page.frameNavigated` boundaries. Pages are zero-padded so they lex-sort numerically (`000`, `001`, …). Within each page only non-empty bucket files are written so empty directories don't pollute search results.
 
-`cdp/summary.json` carries the run-level rollup: `sessionId`, `duration` (wall-clock ms anchored to `manifest.started_at`), `totalEvents`, and a `pages[]` array. Each entry has `{pageId, url, startMs, endMs, durationMs, eventCount, domains, network}` — same shape as the per-page `summary.json`.
+`cdp/summary.json` carries the run-level rollup: `sessionId`, `duration` (wall-clock ms anchored to `manifest.started_at`), `totalEvents`, and a `pages[]` array. Each entry has `{pageId, url, startMs, endMs, durationMs, eventCount, domains, network}` - same shape as the per-page `summary.json`.
 
 Idempotent: rerun safely. The `cdp/pages/` tree is wiped and rebuilt each call.
 
@@ -69,7 +71,7 @@ Bypassable with raw `jq`/`rg` against `cdp/summary.json` and `cdp/pages/<pid>/` 
 
 ### `snapshot-loop.mjs` *(internal)*
 
-Invoked by `start-capture.mjs`; not meant to be called directly. Loops at the configured interval, writing PNG + HTML + an entry to `index.jsonl` per tick. DOM dumps go through a `.partial` temp file so a SIGTERM mid-write never leaves a 0-byte HTML behind; `stop-capture.mjs` sweeps any survivors.
+Invoked by `start-capture.mjs`; not meant to be called directly. Holds one persistent CDP connection for the whole run and loops at the configured interval, writing PNG (`Page.captureScreenshot`) + HTML (`Runtime.evaluate` of `document.body.outerHTML`) + an entry to `index.jsonl` (`Runtime.evaluate` of `location.href`) per tick. If the socket drops it reconnects on the next tick. DOM dumps go through a `.partial` temp file so a SIGTERM mid-write never leaves a 0-byte HTML behind; `stop-capture.mjs` sweeps any survivors.
 
 ### `bb-capture.mjs --new|<session-id> [run-id] [interval-sec]`
 
@@ -83,9 +85,9 @@ Reads `BROWSERBASE_API_KEY`. `BB_SESSION_TIMEOUT` (default `600`) controls the t
 
 Pulls platform-side artifacts after the tracer has stopped:
 
-- **`browserbase/session.json`** — `browse cloud sessions get` snapshot. Always written; contains the post-run `proxyBytes`, `status`, `endedAt`.
-- **`browserbase/logs.json`** — `browse cloud sessions logs` output. Often `[]`. The CDP firehose is authoritative; this is a side channel for cases where Browserbase happened to record server-side log entries.
-- **`browserbase/downloads.zip`** — only kept when there's real content (size > 22 bytes — an empty Browserbase downloads zip is exactly the EOCD record).
+- **`browserbase/session.json`** - `browse cloud sessions get` snapshot. Always written; contains the post-run `proxyBytes`, `status`, `endedAt`.
+- **`browserbase/logs.json`** - `browse cloud sessions logs` output. Often `[]`. The CDP firehose is authoritative; this is a side channel for cases where Browserbase happened to record server-side log entries.
+- **`browserbase/downloads.zip`** - only kept when there's real content (size > 22 bytes - an empty Browserbase downloads zip is exactly the EOCD record).
 
 `--release` calls `browse cloud sessions update --status REQUEST_RELEASE` to end the session. Skip it when attaching to a session you don't own (e.g. one a production worker is using).
 
@@ -113,7 +115,7 @@ Pulls platform-side artifacts after the tracer has stopped:
 
 ### Note on response bodies
 
-`browse cdp` does not embed response bodies in the firehose — that requires a synchronous `Network.getResponseBody` round-trip per request. If you need bodies, use `browse network on` (in the `browser` skill) which writes per-request directories with `request.json` + `response.json` including body. The two skills compose: run `browse network on` for bodies + `browse cdp` for the timeline.
+The firehose does not embed response bodies: that would require a synchronous `Network.getResponseBody` round-trip per request, which the passive tracer deliberately avoids. If you need bodies, capture them from the driver side: `agent-browser network requests --json` locally, or `browse network on` (in the `browser` skill) on Browserbase, which writes per-request directories with `request.json` + `response.json` including body. The two compose: driver-side body capture for payloads + `cdp-firehose.mjs` for the timeline.
 
 ## jq recipe library
 
@@ -130,7 +132,7 @@ jq -r '.params.request.url' network/requests.jsonl \
 jq -c 'select(.params.type == "XHR" or .params.type == "Fetch")' \
   network/requests.jsonl
 
-# Slow responses (>1000ms) — join finished against requests by requestId
+# Slow responses (>1000ms) - join finished against requests by requestId
 jq -s '
   (.[0] | map({(.params.requestId): .params.timestamp}) | add) as $start |
   .[1] | map(select(.params.encodedDataLength != null))
@@ -176,7 +178,7 @@ jq -r 'select(.params.frame.parentId == null) | .params.frame.url' \
 
 ### Page lifecycle (timing milestones)
 
-`Page.lifecycleEvent` fires per-navigation for `init`, `commit`, `DOMContentLoaded`, `load`, `firstPaint`, `firstContentfulPaint`, `firstMeaningfulPaint`, `networkAlmostIdle`, `networkIdle`. Requires `browse cdp` ≥ the build that includes [stagehand#2056](https://github.com/browserbase/stagehand/pull/2056); on older builds `lifecycle.jsonl` will be empty.
+`Page.lifecycleEvent` fires per-navigation for `init`, `commit`, `DOMContentLoaded`, `load`, `firstPaint`, `firstContentfulPaint`, `firstMeaningfulPaint`, `networkAlmostIdle`, `networkIdle`. These only fire after `Page.setLifecycleEventsEnabled {enabled:true}`, which `cdp-firehose.mjs` sends whenever `Page` is in `O11Y_DOMAINS`; drop `Page` from the domain set and `lifecycle.jsonl` stays empty.
 
 ```bash
 # Time-to-DOMContentLoaded and time-to-load per navigation (seconds since loader start)
@@ -245,7 +247,7 @@ done
 
 They're complementary:
 
-- **tracer (this skill)** captures the firehose to disk — durable, searchable, scriptable. Use for postmortem and automated checks.
+- **tracer (this skill)** captures the firehose to disk - durable, searchable, scriptable. Use for postmortem and automated checks.
 - **`browse cloud sessions debug` URL** is an interactive Chrome DevTools view served by Browserbase, scoped to one running session. Use when you want to *watch* a live run, single-step through requests, or inspect the live DOM by hand.
 
 You can do both simultaneously: `bb-capture.mjs --new` prints the debugger URL when it starts, and stamps it in the manifest for later.
@@ -253,7 +255,7 @@ You can do both simultaneously: `bb-capture.mjs --new` prints the debugger URL w
 ### Notes on Browserbase data sources
 
 - `browse cloud sessions logs` is best-effort; in practice it's frequently empty even with `--log-session` on. Don't build queries on top of it; treat anything that lands there as a bonus.
-- Session replay artifact fetching is deprecated — neither helper fetches it. Use the screenshots + DOM dumps in `screenshots/` and `dom/`.
+- Session replay artifact fetching is deprecated - neither helper fetches it. Use the screenshots + DOM dumps in `screenshots/` and `dom/`.
 - `browse cloud sessions list` doesn't accept a `--status` filter; pipe through jq (`select(.status == "RUNNING")`).
 - The Browserbase proxy charges per byte. `browse cloud sessions get` returns running `proxyBytes`; the tracer's network buckets give you per-host detail to attribute it.
 
@@ -305,7 +307,7 @@ grep -lr 'api\.example\.com' .o11y/*/cdp/network/requests.jsonl
 # Search DOM dumps for an element class that came and went
 rg -l 'class="error-banner"' .o11y/<run-id>/dom/
 
-# Tail the firehose live (re-run start-capture is fine — it appends to raw.ndjson? no, it overwrites)
+# Tail the firehose live (re-run start-capture is fine - it appends to raw.ndjson? no, it overwrites)
 tail -f .o11y/<run-id>/cdp/raw.ndjson | jq -c '{m:.method, u:.params.request.url // .params.frame.url // ""}'
 ```
 
@@ -315,7 +317,7 @@ tail -f .o11y/<run-id>/cdp/raw.ndjson | jq -c '{m:.method, u:.params.request.url
 | ------------------ | -------------------------------------- | ------------------------------------------------------------ |
 | `O11Y_ROOT`        | `.o11y`                                | base directory under which `<run-id>/` is created             |
 | `O11Y_DOMAINS`     | `Network Console Runtime Log Page`     | space-separated CDP domains for the firehose                 |
-| `BROWSERBASE_API_KEY` | —                                   | required for `browse cloud sessions create` / `browse cloud sessions get`         |
+| `BROWSERBASE_API_KEY` | -                                   | required for `browse cloud sessions create` / `browse cloud sessions get`         |
 
 The interval-second arg to `start-capture.mjs` controls only the sampler. The firehose is always streamed in real time.
 
@@ -323,10 +325,10 @@ The interval-second arg to `start-capture.mjs` controls only the sampler. The fi
 
 | Symptom                                        | Likely cause                                                  | Fix                                                          |
 | ---------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------ |
-| `browse cdp exited immediately`                | unreachable target / completed Browserbase session             | verify port is listening (`curl http://localhost:9222/json/version`) or session is `RUNNING` (`browse cloud sessions get`) |
-| `error: unknown command 'cdp'`                 | older browse build lacks the command                          | `npm install -g browse@latest` (or the alpha tag if needed)   |
+| `cdp-firehose exited immediately`              | unreachable target / completed Browserbase session             | read the echoed `cdp/stderr.log`; verify the port has a debuggable page (`curl http://127.0.0.1:9222/json/version`) or the session is `RUNNING` (`browse cloud sessions get`) |
+| `cdp-firehose: no debuggable target on port N` | the port is up but has no page target yet                     | open a tab / navigate the driver first, then start the tracer |
 | Browserbase session ends as soon as tracer connects | tracer was the only client; no automation attached          | create with `--keep-alive`, attach automation with `browse open --cdp <connectUrl> --session <name>` first   |
-| `index.jsonl` shows `"url": ""`                 | sampler `browse get url` failed transiently                   | benign; happens during navigation transitions                 |
-| Screenshots empty / huge / inconsistent sizes  | viewport not set                                              | `browse viewport 1920 1080 --cdp <target>` once before capture |
-| `raw.ndjson` grows but bisect buckets empty    | wrong domains; e.g. you wanted DOM but didn't enable it       | `O11Y_DOMAINS="Network Console Runtime Log Page DOM" bash start-capture.mjs ...` |
+| `index.jsonl` shows `"url": ""`                 | sampler `Runtime.evaluate('location.href')` returned empty transiently | benign; happens during navigation transitions                 |
+| Screenshots empty / huge / inconsistent sizes  | viewport not set on the target                                | set the viewport from your driver before capture, or push a CDP `Emulation.setDeviceMetricsOverride` on the target |
+| `raw.ndjson` grows but bisect buckets empty    | wrong domains; e.g. you wanted DOM but didn't enable it       | `O11Y_DOMAINS="Network Console Runtime Log Page DOM" node scripts/start-capture.mjs ...` |
 | Loop process leaks after crash                  | `stop-capture.mjs` not run                                     | `pkill -f snapshot-loop.mjs`; PID files in `<run-dir>` are stale  |
