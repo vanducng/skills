@@ -11,6 +11,8 @@ APP_BUNDLE_NAME="$APP_NAME.app"
 APP_PATH="/Applications/$APP_BUNDLE_NAME"
 USER_APP_PATH="$HOME/Applications/$APP_BUNDLE_NAME"
 EGO_BROWSER_HELPER_NAME="ego-browser"
+EGO_BROWSER_BUNDLE_ID="com.citrolabs.ego.lite"
+EGO_BROWSER_TEAM_ID="JGQLC6YQYJ"
 
 # Temporary directories created when mounting the DMG; cleaned up on exit.
 TEMP_DIR=""
@@ -38,16 +40,13 @@ select_dmg_url() {
 	fi
 }
 
-run_with_sudo_if_needed() {
-	# Try without elevated privileges first; fall back to sudo to avoid unnecessary prompts.
-	if "$@"; then
-		return 0
+run_with_privilege_for() {
+	writable_path="$1"
+	shift
+	if [ -w "$writable_path" ]; then
+		"$@"
+		return
 	fi
-
-	if [ "$(id -u)" -eq 0 ]; then
-		return 1
-	fi
-
 	require_command sudo
 	sudo "$@"
 }
@@ -69,8 +68,37 @@ cleanup() {
 
 strip_quarantine_attributes() {
 	app_path="$1"
-	run_with_sudo_if_needed xattr -dr com.apple.quarantine "$app_path" \
+	run_with_privilege_for "$app_path" xattr -dr com.apple.quarantine "$app_path" \
 		>/dev/null 2>&1 || true
+}
+
+verify_ego_lite_app() {
+	app_path="$1"
+	require_command codesign
+	require_command spctl
+
+	codesign --verify --deep --strict "$app_path" ||
+		die "invalid code signature on $app_path"
+	signature=$(codesign -dv --verbose=4 "$app_path" 2>&1) ||
+		die "cannot read code signature from $app_path"
+	case "$signature" in
+	*"Identifier=$EGO_BROWSER_BUNDLE_ID"*"TeamIdentifier=$EGO_BROWSER_TEAM_ID"*) ;;
+	*) die "unexpected publisher signature on $app_path" ;;
+	esac
+	spctl --assess --type execute "$app_path" ||
+		die "$app_path is not accepted by Gatekeeper"
+}
+
+verify_ego_lite_pkg() {
+	pkg_path="$1"
+	require_command pkgutil
+
+	signature=$(pkgutil --check-signature "$pkg_path" 2>&1) ||
+		die "invalid package signature on $pkg_path"
+	case "$signature" in
+	*"$EGO_BROWSER_TEAM_ID"*) ;;
+	*) die "unexpected publisher signature on $pkg_path" ;;
+	esac
 }
 
 trap cleanup EXIT HUP INT TERM
@@ -165,17 +193,13 @@ install_ego_lite() {
 			die "failed to stage $APP_NAME from installer"
 		find_ego_browser_in_app "$staged_app" >/dev/null ||
 			die "installed $APP_NAME does not contain $EGO_BROWSER_HELPER_NAME"
-
-		# Strip quarantine attributes to prevent Gatekeeper from blocking the first launch.
-		log "Removing quarantine attributes from $APP_NAME ..."
-		xattr -dr com.apple.quarantine "$staged_app" \
-			>/dev/null 2>&1 || true
+		verify_ego_lite_app "$staged_app"
 
 		if [ -d "$APP_PATH" ]; then
-			run_with_sudo_if_needed rm -rf "$APP_PATH" ||
+			run_with_privilege_for "$(dirname "$APP_PATH")" rm -rf "$APP_PATH" ||
 				die "failed to replace existing $APP_PATH"
 		fi
-		run_with_sudo_if_needed mv "$staged_app" "$APP_PATH" ||
+		run_with_privilege_for "$(dirname "$APP_PATH")" mv "$staged_app" "$APP_PATH" ||
 			die "failed to move $APP_NAME to $APP_PATH"
 		return 0
 	fi
@@ -186,8 +210,9 @@ install_ego_lite() {
 	)
 
 	if [ -n "$pkg_in_dmg" ]; then
+		verify_ego_lite_pkg "$pkg_in_dmg"
 		log "Installing $APP_NAME package ..."
-		run_with_sudo_if_needed installer -pkg "$pkg_in_dmg" -target / ||
+		run_with_privilege_for / installer -pkg "$pkg_in_dmg" -target / ||
 			die "failed to install $APP_NAME package"
 		return 0
 	fi
@@ -207,6 +232,7 @@ main() {
 			die "$APP_NAME install completed, but app was not found"
 	fi
 
+	verify_ego_lite_app "$installed_app_path"
 	strip_quarantine_attributes "$installed_app_path"
 	cleanup
 

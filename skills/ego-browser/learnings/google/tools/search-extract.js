@@ -5,9 +5,9 @@ function boundedInteger(value, fallback, max) {
 }
 
 export async function searchAndExtract(ctx, args = {}) {
-  const query = args.query || "";
-  const maxResults = boundedInteger(args.maxResults, 10, 100);
+  const query = args.query;
   if (!query) throw new Error("search query is required");
+  const maxResults = boundedInteger(args.maxResults, 10, 100);
 
   await ctx.browser.openOrReuseTab(
     `https://www.google.com/search?q=${encodeURIComponent(query)}`,
