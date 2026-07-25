@@ -106,6 +106,7 @@ verify_ego_lite_pkg() {
 	local pkg_path="$1"
 	local signature
 	require_command pkgutil
+	require_command spctl
 
 	signature=$(pkgutil --check-signature "$pkg_path" 2>&1) ||
 		die "invalid package signature on $pkg_path"
@@ -113,6 +114,8 @@ verify_ego_lite_pkg() {
 	*"Developer ID Installer: CITRO LABS PTE. LIMITED ($EGO_BROWSER_TEAM_ID)"*) ;;
 	*) die "unexpected publisher signature on $pkg_path" ;;
 	esac
+	spctl --assess --type install "$pkg_path" ||
+		die "$pkg_path is not accepted by Gatekeeper"
 }
 
 trap cleanup EXIT HUP INT TERM
