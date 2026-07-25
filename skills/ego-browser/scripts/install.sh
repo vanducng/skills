@@ -48,6 +48,7 @@ run_with_privilege_for() {
 		return
 	fi
 	require_command sudo
+	log "Administrator privileges are required for $writable_path."
 	sudo "$@"
 }
 
@@ -209,6 +210,8 @@ install_ego_lite() {
 		verify_ego_lite_app "$staged_app"
 
 		if [ -d "$APP_PATH" ]; then
+			[ "$APP_PATH" = "/Applications/$APP_BUNDLE_NAME" ] ||
+				die "refusing to replace unexpected app path: $APP_PATH"
 			run_with_privilege_for "$(dirname "$APP_PATH")" rm -rf "$APP_PATH" ||
 				die "failed to replace existing $APP_PATH"
 		fi
@@ -255,4 +258,4 @@ main() {
 	exec open "$installed_app_path"
 }
 
-main
+main "$@"

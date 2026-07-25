@@ -11,7 +11,9 @@ export async function searchUsers(ctx, args = {}) {
   const cards = ctx.page.locator(
     '[data-testid="cellInnerDiv"]:has([data-testid="User-Name"])',
   );
-  const ready = await cards.first().waitFor({ state: "visible" });
+  const ready = await cards
+    .first()
+    .waitFor({ state: "visible", timeout: 10000 });
   if (!ready) return [];
 
   const users = await cards.evaluateAll((results) => {
