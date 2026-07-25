@@ -49,6 +49,13 @@ Once the command exists, verify the runtime with a minimal heredoc:
 
 ```bash
 ego-browser nodejs <<'EOF'
+if (
+  typeof taskSpaces !== 'object' ||
+  typeof page !== 'object' ||
+  typeof browser !== 'object'
+) {
+  throw new Error('ego-browser helper runtime is outdated')
+}
 console.log('ego-browser ready')
 EOF
 ```
@@ -65,3 +72,4 @@ Once the environment is ready, return to the user's original task and continue w
 - **Download failed**: the script retries 3 times automatically; if it still fails, it's usually a network issue - have the user check their network and retry.
 - **Gatekeeper still blocks it**: the script already tries to strip quarantine; if the first launch is still blocked, have the user allow ego lite manually under System Settings → Privacy & Security.
 - **Command still unavailable after onboarding**: confirm `~/.local/bin` is on the PATH (see above); or have the user reopen ego lite, finish onboarding, and retry.
+- **Helper globals are missing**: if `taskSpaces`, `page`, or `browser` is undefined, the app's embedded helper runtime is older than this skill. Ask the user before running `ego-browser upgrade`. After the upgrade, re-read `SKILL.md` because the app, CLI, and installed skill may all have changed.
