@@ -41,7 +41,7 @@ select_dmg_url() {
 }
 
 run_with_privilege_for() {
-	writable_path="$1"
+	local writable_path="$1"
 	shift
 	if [ -w "$writable_path" ]; then
 		"$@"
@@ -67,13 +67,14 @@ cleanup() {
 }
 
 strip_quarantine_attributes() {
-	app_path="$1"
+	local app_path="$1"
 	run_with_privilege_for "$app_path" xattr -dr com.apple.quarantine "$app_path" \
 		>/dev/null 2>&1 || true
 }
 
 verify_ego_lite_app() {
-	app_path="$1"
+	local app_path="$1"
+	local signature
 	require_command codesign
 	require_command spctl
 
@@ -90,13 +91,14 @@ verify_ego_lite_app() {
 }
 
 verify_ego_lite_pkg() {
-	pkg_path="$1"
+	local pkg_path="$1"
+	local signature
 	require_command pkgutil
 
 	signature=$(pkgutil --check-signature "$pkg_path" 2>&1) ||
 		die "invalid package signature on $pkg_path"
 	case "$signature" in
-	*"$EGO_BROWSER_TEAM_ID"*) ;;
+	*"Developer ID Installer: CITRO LABS PTE. LIMITED ($EGO_BROWSER_TEAM_ID)"*) ;;
 	*) die "unexpected publisher signature on $pkg_path" ;;
 	esac
 }
@@ -104,7 +106,8 @@ verify_ego_lite_pkg() {
 trap cleanup EXIT HUP INT TERM
 
 find_ego_browser_in_app() {
-	app_path="$1"
+	local app_path="$1"
+	local candidate
 
 	[ -d "$app_path/Contents" ] || return 1
 
@@ -128,7 +131,7 @@ find_ego_browser_in_app() {
 }
 
 is_ego_lite_app() {
-	app_path="$1"
+	local app_path="$1"
 
 	# The directory exists and contains a working ego-browser - ego lite is considered installed.
 	[ -d "$app_path" ] || return 1
@@ -136,6 +139,9 @@ is_ego_lite_app() {
 }
 
 find_ego_lite_app() {
+	local app_path
+	local apps_dir
+
 	for app_path in "$APP_PATH" "$USER_APP_PATH"; do
 		if is_ego_lite_app "$app_path"; then
 			printf '%s\n' "$app_path"
@@ -158,6 +164,13 @@ find_ego_lite_app() {
 }
 
 install_ego_lite() {
+	local temp_base_dir
+	local dmg_path
+	local dmg_url
+	local app_in_dmg
+	local staged_app
+	local pkg_in_dmg
+
 	require_command curl
 	require_command hdiutil
 
@@ -221,6 +234,8 @@ install_ego_lite() {
 }
 
 main() {
+	local installed_app_path
+
 	[ "$(uname -s)" = "Darwin" ] || die "this script only supports macOS"
 
 	# Install first if not present; otherwise use the ego-browser bundled inside the app.
