@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.33.0](https://github.com/vanducng/skills/compare/v1.32.0...v1.33.0) (2026-07-25)
+
+
+### Features
+
+* **browser:** added ego-browser and teardown guidance ([#306](https://github.com/vanducng/skills/issues/306)) ([06ea5e6](https://github.com/vanducng/skills/commit/06ea5e6e1488a7461dc01f8f65172cabe99da5bf))
+
 ## [1.32.0](https://github.com/vanducng/skills/compare/v1.31.1...v1.32.0) (2026-07-24)
 
 
