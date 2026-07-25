@@ -5,7 +5,7 @@ function boundedInteger(value, fallback, max) {
 }
 
 export async function getTimelinePosts(ctx, args = {}) {
-  const maxPosts = boundedInteger(args.maxPosts, 50, 100);
+  const maxPosts = boundedInteger(args?.maxPosts, 50, 100);
 
   const posts = await ctx.page
     .locator('[data-testid="tweet"]')

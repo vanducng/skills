@@ -1,5 +1,5 @@
 export async function searchUsers(ctx, args = {}) {
-  const query = args.query;
+  const query = args?.query;
   if (!query) throw new Error("search query is required");
 
   await ctx.browser.openOrReuseTab(
@@ -8,7 +8,9 @@ export async function searchUsers(ctx, args = {}) {
   );
   await ctx.page.waitForLoadState("load");
 
-  const cards = ctx.page.locator('[data-testid="cellInnerDiv"]');
+  const cards = ctx.page.locator(
+    '[data-testid="cellInnerDiv"]:has([data-testid="User-Name"])',
+  );
   const ready = await cards.first().waitFor({ state: "visible" });
   if (!ready) return [];
 

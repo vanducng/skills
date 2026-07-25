@@ -5,7 +5,7 @@ function boundedInteger(value, fallback, max) {
 }
 
 export async function searchAndExtract(ctx, args = {}) {
-  const query = args.query;
+  const query = args?.query;
   if (!query) throw new Error("search query is required");
   const maxResults = boundedInteger(args.maxResults, 10, 100);
 
@@ -22,11 +22,9 @@ export async function searchAndExtract(ctx, args = {}) {
         .slice(0, limit)
         .map((el) => ({
           title: el.querySelector("h3")?.innerText?.trim() || "",
-          url: el.querySelector("a")?.getAttribute("href") || "",
-          snippet:
-            el.querySelector("[data-sncf]")?.innerText?.trim() ||
-            el.querySelector("span")?.innerText?.trim() ||
-            "",
+          url:
+            el.querySelector("h3")?.closest("a")?.getAttribute("href") || "",
+          snippet: el.querySelector("[data-sncf]")?.innerText?.trim() || "",
         }))
         .filter((r) => r.title);
     }, maxResults);
