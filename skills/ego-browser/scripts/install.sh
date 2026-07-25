@@ -57,20 +57,27 @@ cleanup() {
 	if [ "$DMG_ATTACHED" = "1" ]; then
 		if ! hdiutil detach "$MOUNT_DIR" -quiet >/dev/null 2>&1; then
 			log "warning: failed to detach $MOUNT_DIR"
+		else
+			DMG_ATTACHED=""
 		fi
-		DMG_ATTACHED=""
 	fi
 
 	if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
-		rm -rf "$TEMP_DIR" >/dev/null 2>&1 ||
-			log "warning: failed to remove temporary directory: $TEMP_DIR"
+		if [ "$DMG_ATTACHED" = "1" ]; then
+			log "warning: skipping temp cleanup while DMG remains mounted"
+		else
+			rm -rf "$TEMP_DIR" >/dev/null 2>&1 ||
+				log "warning: failed to remove temporary directory: $TEMP_DIR"
+		fi
 	fi
 }
 
 strip_quarantine_attributes() {
 	local app_path="$1"
-	run_with_privilege_for "$app_path" xattr -dr com.apple.quarantine "$app_path" \
-		>/dev/null 2>&1 || true
+	if ! run_with_privilege_for "$app_path" xattr -dr com.apple.quarantine "$app_path" \
+		>/dev/null 2>&1; then
+		log "warning: failed to strip quarantine attribute on $app_path"
+	fi
 }
 
 verify_ego_lite_app() {

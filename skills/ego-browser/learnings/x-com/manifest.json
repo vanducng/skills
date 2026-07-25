@@ -17,7 +17,7 @@
       },
       "returns": {
         "type": "array",
-        "description": "Array of post objects with text, author, and timestamp."
+        "description": "Array of post objects with text, author, handle, and timestamp."
       }
     },
     "search_users": {
@@ -44,7 +44,7 @@
       "args": {},
       "returns": {
         "type": "object",
-        "description": "Tweet text, author, timestamp."
+        "description": "Tweet text, author, handle, and timestamp."
       }
     }
   }
