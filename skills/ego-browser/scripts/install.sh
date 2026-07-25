@@ -82,7 +82,9 @@ strip_quarantine_attributes() {
 
 verify_ego_lite_app() {
 	local app_path="$1"
+	local bundle_id
 	local signature
+	local team_id
 	require_command codesign
 	require_command spctl
 
@@ -90,10 +92,12 @@ verify_ego_lite_app() {
 		die "invalid code signature on $app_path"
 	signature=$(codesign -dv --verbose=4 "$app_path" 2>&1) ||
 		die "cannot read code signature from $app_path"
-	case "$signature" in
-	*"Identifier=$EGO_BROWSER_BUNDLE_ID"*"TeamIdentifier=$EGO_BROWSER_TEAM_ID"*) ;;
-	*) die "unexpected publisher signature on $app_path" ;;
-	esac
+	bundle_id=$(printf '%s\n' "$signature" | sed -n 's/^Identifier=//p')
+	team_id=$(printf '%s\n' "$signature" | sed -n 's/^TeamIdentifier=//p')
+	[ "$bundle_id" = "$EGO_BROWSER_BUNDLE_ID" ] ||
+		die "unexpected bundle identifier on $app_path"
+	[ "$team_id" = "$EGO_BROWSER_TEAM_ID" ] ||
+		die "unexpected team identifier on $app_path"
 	spctl --assess --type execute "$app_path" ||
 		die "$app_path is not accepted by Gatekeeper"
 }
@@ -209,6 +213,7 @@ install_ego_lite() {
 	if [ -n "$app_in_dmg" ]; then
 		staged_app="$TEMP_DIR/$APP_BUNDLE_NAME"
 
+		require_command ditto
 		log "Installing $APP_NAME to $APP_PATH ..."
 		ditto "$app_in_dmg" "$staged_app" ||
 			die "failed to stage $APP_NAME from installer"
