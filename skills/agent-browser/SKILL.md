@@ -53,6 +53,23 @@ env -u AGENT_BROWSER_PROFILE agent-browser eval 'navigator.userAgent'
 
 **The `AGENT_BROWSER_PROFILE` footgun.** If a shell rc exports `AGENT_BROWSER_PROFILE`, every command silently drives a self-launched headless profile browser instead of the CDP Chrome - with success exit codes. Nothing fails; the real Chrome just never moves. This is undetectable without the UA check. Sanitize with `env -u AGENT_BROWSER_PROFILE` on every call, or `unset AGENT_BROWSER_PROFILE` once in the session. One poisoned invocation also swaps the daemon's default session away from the CDP Chrome; recover with `agent-browser close --all`, then reconnect and re-verify.
 
+## Teardown - close what you launched
+
+**End every session by releasing the browser.** The background daemon keeps Chrome (and its
+authenticated session) alive between invocations, so a skipped teardown leaks a live logged-in
+window into the next run - and the next agent. This is a required last step, not an optional nicety.
+
+- **You launched the profile Chrome** (via `vd:browser-profile` `profile-open.sh <name>`, i.e.
+  it was not already running): close it when done - `profile-close.sh <name>`.
+- **You attached to a Chrome the human already had open**: do NOT close their window - just drop
+  the daemon's session with `agent-browser close` (or `close --all` to recover a poisoned default
+  session) so the next attach starts clean.
+- **Standalone `--profile` / `--session <name>`**: `agent-browser --session <name> close`, or a
+  bare `agent-browser close` for the default session, tears down the disposable Chromium.
+
+Rule of thumb: **if you opened it, you close it** - and run teardown even when the flow failed. A
+half-driven, still-open authenticated window is a security and correctness hazard, not just clutter.
+
 ## Verified 0.27.2 facts
 
 | Surface | Rule |
