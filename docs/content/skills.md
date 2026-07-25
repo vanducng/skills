@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 67 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 68 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -21,7 +21,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
 | Area | Skills |
 | --- | --- |
-| Browser automation and e2e | `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-perf` |
+| Browser automation and e2e | `vd:ego-browser`, `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-perf` |
 | Web and frontend | `vd:uiuxdesign`, `vd:opendesign`, `vd:fastreact` |
 | Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:tldraw-offline` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
@@ -30,7 +30,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:cktovd`, `vd:workbench` |
 | Skill lifecycle | `vd:skill-management`, `vd:skill-audit`, `vd:rule-miner`, `vd:skill-evolve` |
 
-Within browser automation, `vd:agent-browser` is the primary local driver - it connects over CDP to the persistent Chrome that `vd:browser-profile` launches, and keeps its own video-recording and network-mocking specialties. `vd:browser-trace` captures vendor-free raw-CDP traces (console, network, lifecycle) against that same local Chrome. `vd:browser` is scoped to Browserbase cloud sessions only - the escalation target for CAPTCHA, anti-bot, and proxy work when a local run hits a wall. `vd:web-e2e` orchestrates logged-in end-to-end flows on top of them.
+Within browser automation, `vd:ego-browser` drives logged-in browsing through isolated ego lite task spaces. `vd:agent-browser` is the direct CDP driver for the persistent Chrome that `vd:browser-profile` launches, and keeps its own video-recording and network-mocking specialties. `vd:browser-trace` captures vendor-free raw-CDP traces (console, network, lifecycle) against that same local Chrome. `vd:browser` is scoped to Browserbase cloud sessions only - the escalation target for CAPTCHA, anti-bot, and proxy work when a local run hits a wall. `vd:web-e2e` orchestrates logged-in end-to-end flows on top of them.
 
 `vd:jira` accepts `--project` and `--type bug|task` to apply untracked local rules from `~/.config/vd/jira-rules/`.
 

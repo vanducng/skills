@@ -12,6 +12,11 @@ type = 'git'
 url = 'https://github.com/browserbase/skills'
 ref = ''
 
+[sources.ego-lite]
+type = 'git'
+url = 'https://github.com/citrolabs/ego-lite'
+ref = ''
+
 [skills]
 [skills.browser]
 source = 'browserbase'
@@ -25,15 +30,21 @@ path = 'skills/browser-trace'
 mode = 'tracked'
 pin = ''
 
+[skills.ego-browser]
+source = 'ego-lite'
+path = 'skills/ego-browser'
+mode = 'tracked'
+pin = ''
+
 [targets]
 [targets.claude]
 mode = 'bundle'
 
 [targets.claude.bundle]
 name = 'vd'
-version = "1.32.0"
-description = "A daily-driver collection of skills for agentic coding. Build pipeline: scout → debug → brainstorm → plan → cook → ship. Plus code-review (PR review with inline gh-api comments + a consistent review voice), research (deep tech research), uiuxdesign (UI/UX design quality + web UI design, build, review, test), excalidraw (diagrams), markdown-render (book-like viewer), open-design (HTML design artifacts from nexu-io/open-design catalog), computer-clean (macOS disk cleanup), omnimedia (multimodal AI: Gemini analysis + Codex/Gemini/OpenRouter/MiniMax image gen), auto-loop (autonomous goal-pursuit with two-vote completion gate), optimize-loop (metric-optimization loop - drive a measurable metric with auto keep/discard), scenario (edge-case generation across 12 dimensions + saturation loop), security (STRIDE+OWASP threat-modeled audit with optional fix loop), browser + browser-profile + web-e2e (CDP automation with named persistent Chrome profiles and full e2e testing of local web apps), and gws (Google Workspace via the official CLI). Scout and debug span software, data engineering, devops, and analytics surfaces."
-plugin_description = "A daily-driver collection of skills for agentic coding, namespaced under `vd:` to avoid conflicts with other plugins."
+version = '1.32.0'
+description = 'A daily-driver collection of skills for agentic coding. Build pipeline: scout → debug → brainstorm → plan → cook → ship. Plus code-review (PR review with inline gh-api comments + a consistent review voice), research (deep tech research), uiuxdesign (UI/UX design quality + web UI design, build, review, test), excalidraw (diagrams), markdown-render (book-like viewer), open-design (HTML design artifacts from nexu-io/open-design catalog), computer-clean (macOS disk cleanup), omnimedia (multimodal AI: Gemini analysis + Codex/Gemini/OpenRouter/MiniMax image gen), auto-loop (autonomous goal-pursuit with two-vote completion gate), optimize-loop (metric-optimization loop - drive a measurable metric with auto keep/discard), scenario (edge-case generation across 12 dimensions + saturation loop), security (STRIDE+OWASP threat-modeled audit with optional fix loop), browser + browser-profile + web-e2e (CDP automation with named persistent Chrome profiles and full e2e testing of local web apps), and gws (Google Workspace via the official CLI). Scout and debug span software, data engineering, devops, and analytics surfaces.'
+plugin_description = 'A daily-driver collection of skills for agentic coding, namespaced under `vd:` to avoid conflicts with other plugins.'
 source = './'
 category = 'utilities'
 homepage = 'https://github.com/vanducng/skills'
