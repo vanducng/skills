@@ -2,6 +2,7 @@
 name: voice-agent
 description: "Operate the `vac` CLI with Retell. This skill should be used whenever work touches agents, prompts, tools, tests, calls, chats, numbers, voices, flows, LLMs, or knowledge bases."
 license: MIT
+argument-hint: "<Retell operation or investigation>"
 metadata:
   author: vanducng
   version: "0.1.0"
