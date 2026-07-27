@@ -282,6 +282,19 @@ git -C <worktree-path> switch --detach
 node $HOME/skills/skills/worktree/scripts/worktree.cjs remove <worktree-path>
 ```
 
+**A worktree left on the base branch blocks the main checkout.** Git allows one checkout per branch, so while a linked worktree holds `staging`, the main checkout cannot switch to it and the *next* `gh pr merge --delete-branch` fails its own post-merge checkout:
+
+```
+fatal: 'staging' is already used by worktree at <path>
+```
+
+The merge still lands - only the local checkout step fails - so confirm with `gh pr view <n> --json state,mergeCommit` before re-running anything. The same squat makes `--delete-branch` report `cannot delete branch '<b>' used by worktree at ...` for a merged feature branch. Free the branch by moving that worktree back to its own:
+
+```bash
+git worktree list                                # which worktree holds it
+git -C <worktree-path> switch <its-own-branch>   # or: switch --detach
+```
+
 ```bash
 # See what's reclaimable (safe, read-only)
 node $HOME/skills/skills/worktree/scripts/worktree.cjs clean
