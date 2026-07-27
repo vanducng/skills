@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.36.2](https://github.com/vanducng/skills/compare/v1.36.1...v1.36.2) (2026-07-27)
+
+
+### Bug Fixes
+
+* **ego-browser:** support active runtime helpers ([#320](https://github.com/vanducng/skills/issues/320)) ([a12c300](https://github.com/vanducng/skills/commit/a12c3008fc2df32bc188d556f1d36c3a18d15ae2))
+
 ## [1.36.1](https://github.com/vanducng/skills/compare/v1.36.0...v1.36.1) (2026-07-27)
 
 
