@@ -30,6 +30,8 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:cktovd`, `vd:workbench` |
 | Skill lifecycle | `vd:skill-management`, `vd:skill-audit`, `vd:rule-miner`, `vd:skill-evolve` |
 
+Inside Herdr, `vd:worktree` delegates current-pane naming to `vd:herdr` after a successful create, using a short `<project>:<intent>` label.
+
 Within browser automation, `vd:ego-browser` drives logged-in browsing through isolated ego lite task spaces. `vd:agent-browser` is the direct CDP driver for the persistent Chrome that `vd:browser-profile` launches, and keeps its own video-recording and network-mocking specialties. `vd:browser-trace` captures vendor-free raw-CDP traces (console, network, lifecycle) against that same local Chrome. `vd:browser` is scoped to Browserbase cloud sessions only - the escalation target for CAPTCHA, anti-bot, and proxy work when a local run hits a wall. `vd:web-e2e` orchestrates logged-in end-to-end flows on top of them.
 
 `vd:jira` accepts `--project` and `--type bug|task` to apply untracked local rules from `~/.config/vd/jira-rules/`.
