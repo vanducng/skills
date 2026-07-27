@@ -1,0 +1,37 @@
+{
+  "skill_name": "cli-ts",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Design a provider-neutral TypeScript CLI with nested commands that another coding agent can operate reliably. Include package, output, error, and test contracts.",
+      "expected_output": "A minimal architecture and public contract with JSON success, structured stderr errors, provider boundaries, and packed-artifact verification.",
+      "files": [],
+      "assertions": [
+        {"id": "cli-architecture", "text": "Separates thin command registration from core and provider services"},
+        {"id": "cli-errors", "text": "Defines stable code, message, retryable, and ordered next_steps fields"},
+        {"id": "cli-package", "text": "Tests the installed tarball rather than only source code"}
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Our GitHub Action publishes an npm CLI with NPM_TOKEN. Replace this with the safest current flow and specify the release checks.",
+      "expected_output": "An npm trusted publishing plan with least privilege, exact OIDC requirements, artifact verification, registry verification, and GitHub Release creation.",
+      "files": [],
+      "assertions": [
+        {"id": "cli-oidc", "text": "Uses npm trusted publishing with id-token write and no long-lived publish token"},
+        {"id": "cli-release", "text": "Verifies tag and package versions before publishing"},
+        {"id": "cli-release-artifact", "text": "Publishes the same packed artifact that was tested"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Add one flat command with two flags to a small existing TypeScript CLI. Decide whether to add Commander, oclif, or use Node itself.",
+      "expected_output": "A repository-first decision that preserves the current parser and prefers Node util.parseArgs when no parser exists and the command remains flat.",
+      "files": [],
+      "assertions": [
+        {"id": "cli-reuse", "text": "Inspects and preserves the existing parser and module format"},
+        {"id": "cli-yagni", "text": "Avoids oclif unless plugins, installers, or autoupdate are required"}
+      ]
+    }
+  ]
+}

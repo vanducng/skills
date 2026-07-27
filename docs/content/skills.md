@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 68 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 70 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -23,6 +23,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | --- | --- |
 | Browser automation and e2e | `vd:ego-browser`, `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-perf` |
 | Web and frontend | `vd:uiuxdesign`, `vd:opendesign`, `vd:fastreact` |
+| CLI engineering and operations | `vd:cli-ts`, `vd:voice-agent` |
 | Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:tldraw-offline` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
@@ -38,6 +39,8 @@ Within browser automation, `vd:ego-browser` drives logged-in browsing through is
 
 ## Language And Migration
 
+`vd:cli-ts` guides production TypeScript CLI architecture, agent-friendly contracts, npm packaging, CI/CD, documentation, and trusted publishing without replacing a repository's working stack unnecessarily.
+
 `vd:golang` consolidates idiomatic Go guidance - style and naming, error handling and safety, concurrency and performance, testing and CI, project layout and dependencies, and observability and gRPC - routing by topic to `skills/golang/references/`. `vd:gostack` is an opinionated reference for Sam Berthe's Go libraries (`lo`, `oops`, `do`, `mo`, `slog`, `hot`, `ro`), with per-library notes under `skills/gostack/references/`. `vd:py2go` runs end-to-end Python-to-Go migrations with six project-type playbooks and pinned stack defaults.
 
 ## Infrastructure And Deployment
@@ -51,5 +54,7 @@ Use `vd:scout` when you need a map, `vd:debug` when behavior is failing, `vd:pla
 Use `vd:docs` for canonical project docs in `docs/` and `README.md`.
 
 Use `vd:superwhisper-cli` to search local dictation history, prepare standups or commitment reviews, diagnose raw versus processed transcription errors, and maintain vocabulary or snippets with approval.
+
+Use `vd:voice-agent` to operate Retell through `vac` with bounded reads, explicit write authorization, current endpoint guidance, and structured recovery.
 
 Use `vd:tldraw-offline` to inspect, edit, persist, and verify canvases in the local tldraw desktop app. New canvases default to the injected feature visuals directory, with structural, persistence, and conditional visual completion gates.
