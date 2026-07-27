@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | repair | remove <name>"
 metadata:
   author: vanducng
-  version: "2.3.0"
+  version: "2.4.0"
 ---
 
 # Worktree
@@ -131,6 +131,8 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs create "<SLUG>" --prefix 
 ```bash
 node $HOME/skills/skills/worktree/scripts/worktree.cjs create "<PROJECT>" "<SLUG>" --prefix <TYPE>
 ```
+
+After every successful non-dry-run create that returns `worktreePath`, if `HERDR_ENV=1`, invoke `vd:herdr rename <project> <intent>` for the current pane. Pass the repository or selected monorepo project and the original feature description or ticket. Outside Herdr, skip the handoff. A rename failure does not invalidate the created worktree.
 
 `create` does the session-setup work automatically:
 

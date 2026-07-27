@@ -1,11 +1,11 @@
 ---
 name: herdr
-description: "Control Herdr, the terminal multiplexer for coding agents. Use only when the user explicitly mentions Herdr or asks to inspect or control its panes, tabs, workspaces, terminals, commands, or agents. Integrates with vd:worktree for isolated checkouts and vd:codex-workflow or vd:ultracook for workflow orchestration. Requires HERDR_ENV=1."
+description: "Control Herdr, the terminal multiplexer for coding agents. Use when the user mentions Herdr or another skill delegates pane control, including concise pane naming, inspection, commands, and agents. Integrates with vd:worktree, vd:codex-workflow, and vd:ultracook. Requires HERDR_ENV=1."
 license: AGPL-3.0
-argument-hint: "[inspect | start agent | run command | wait | read]"
+argument-hint: "[inspect | rename <project> <intent> | start agent | run command | wait | read]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Herdr
@@ -100,6 +100,22 @@ herdr tab list --workspace "$HERDR_WORKSPACE_ID"
 herdr pane current --current
 herdr pane list --workspace "$HERDR_WORKSPACE_ID"
 ```
+
+## Rename the current pane
+
+When another skill delegates pane naming, label the calling pane `<project>:<intent>`:
+
+- Use the shortest unambiguous project name.
+- Use a ticket key or two to four short words for the intent, not the full branch name.
+- Keep the full label at 40 characters or fewer. Shorten the intent first.
+
+Examples: `polaris:ELT-3267-calls`, `skills:herdr-pane-name`.
+
+```bash
+herdr pane rename "$HERDR_PANE_ID" "<project>:<intent>"
+```
+
+Treat this label as display metadata. If the rename fails, report it without failing the parent workflow.
 
 ## Control agents through panes
 
