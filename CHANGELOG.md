@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.36.0](https://github.com/vanducng/skills/compare/v1.35.2...v1.36.0) (2026-07-27)
+
+
+### Features
+
+* **skills:** add cli-ts and voice-agent skills ([#316](https://github.com/vanducng/skills/issues/316)) ([11f0ab2](https://github.com/vanducng/skills/commit/11f0ab2681447f05c32a31a829e826596ae833e6))
+
 ## [1.35.2](https://github.com/vanducng/skills/compare/v1.35.1...v1.35.2) (2026-07-27)
 
 
