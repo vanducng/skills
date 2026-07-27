@@ -63,8 +63,11 @@ Do not force a universal success wrapper onto an existing CLI. Preserve compatib
 
 - Use least-privilege workflow permissions and pin third-party actions by full commit SHA.
 - Prefer npm trusted publishing with OpenID Connect (OIDC) on supported hosted runners over long-lived publish tokens.
-- Verify tag and package versions match and the tagged commit belongs to the release branch.
-- Publish the same tested tarball, verify the registry version, then create the GitHub Release.
+- Preserve the trusted publisher's exact repository, workflow filename, environment, and allowed-action binding.
+- Keep one release authority. When Release Please is adopted, it owns versions, changelogs, tags, and GitHub Releases.
+- Gate publishing on the release action's output and keep it in the same workflow run when using `GITHUB_TOKEN`; action-created tags do not start another workflow.
+- Use a GitHub App token when release PR CI or auto-merge must run unattended. Otherwise document the approval-required CI state and verify the repository setting that permits Actions to create pull requests.
+- Verify tag and package versions match, publish the same tested tarball, and read the version back from npm.
 - Treat release, publish, tag, merge, and external writes as separate authorization boundaries.
 
 ## Security policy

@@ -32,6 +32,19 @@
         {"id": "cli-reuse", "text": "Inspects and preserves the existing parser and module format"},
         {"id": "cli-yagni", "text": "Avoids oclif unless plugins, installers, or autoupdate are required"}
       ]
+    },
+    {
+      "id": 3,
+      "prompt": "Migrate a tag-driven npm CLI release to Release Please. The last published version is 0.3.0, package.json already says 0.4.0, and npm trusted publishing is bound to publish.yml and environment npm. Make version bumps, GitHub Releases, and OIDC publication reliable.",
+      "expected_output": "A single-workflow Release Please plan that bootstraps from 0.3.0, preserves the trusted publisher binding, avoids duplicate release ownership, and accounts for GITHUB_TOKEN trigger behavior.",
+      "files": [],
+      "assertions": [
+        {"id": "cli-release-bootstrap", "text": "Initializes the manifest from the last published version rather than the unreleased package.json version"},
+        {"id": "cli-release-reconcile", "text": "Checks commits since the published tag to reconcile the expected next version with the unreleased package.json version"},
+        {"id": "cli-release-same-run", "text": "Gates validation and npm publication on release_created in the same workflow run"},
+        {"id": "cli-release-token", "text": "Requires the Actions pull-request setting, explains approval-required PR CI, and recommends a GitHub App token only for unattended CI or auto-merge"},
+        {"id": "cli-release-owner", "text": "Leaves version, changelog, tag, and GitHub Release creation to Release Please"}
+      ]
     }
   ]
 }
