@@ -49,22 +49,27 @@ Once the command exists, verify the runtime with a minimal heredoc:
 
 ```bash
 ego-browser nodejs <<'EOF'
-if (
-  typeof taskSpaces !== 'object' ||
-  typeof page !== 'object' ||
-  typeof browser !== 'object'
-) {
+const facadeReady =
+  typeof taskSpaces === 'object' &&
+  typeof page === 'object' &&
+  typeof browser === 'object'
+const legacyReady =
+  typeof useOrCreateTaskSpace === 'function' &&
+  typeof openOrReuseTab === 'function' &&
+  typeof pageInfo === 'function'
+
+if (!facadeReady && !legacyReady) {
   throw new Error('ego-browser helper runtime is outdated')
 }
-console.log('ego-browser ready')
+console.log(`ego-browser ready: ${facadeReady ? 'facade' : 'legacy'}`)
 EOF
 ```
 
-Printing `ego-browser ready` means the environment is ready.
+Printing `ego-browser ready: facade` or `ego-browser ready: legacy` means the environment is ready. Before writing browser code, read `$HOME/.local/share/ego/ego-skills/SKILL.md`; it ships with the active app and defines the matching helper names and signatures.
 
 ## After that, return to the original task
 
-Once the environment is ready, return to the user's original task and continue with the task space flow in `SKILL.md` - start from `taskSpaces.useOrCreate(name)` and proceed as usual.
+Once the environment is ready, return to the user's original task and follow the task-space API documented by the app-embedded skill, while preserving the lifecycle and confirmation policies in `SKILL.md`.
 
 ## Troubleshooting
 
@@ -72,4 +77,4 @@ Once the environment is ready, return to the user's original task and continue w
 - **Download failed**: the script retries 3 times automatically; if it still fails, it's usually a network issue - have the user check their network and retry.
 - **Gatekeeper still blocks it**: the script already tries to strip quarantine; if the first launch is still blocked, have the user allow ego lite manually under System Settings → Privacy & Security.
 - **Command still unavailable after onboarding**: confirm `~/.local/bin` is on the PATH (see above); or have the user reopen ego lite, finish onboarding, and retry.
-- **Helper globals are missing**: if `taskSpaces`, `page`, or `browser` is undefined, the app's embedded helper runtime is older than this skill. Ask the user before running `ego-browser upgrade`. After the upgrade, re-read `SKILL.md` because the app, CLI, and installed skill may all have changed.
+- **Facade globals are missing**: if the legacy readiness check passes, the runtime is ready; follow `$HOME/.local/share/ego/ego-skills/SKILL.md` instead of treating the missing facade as an install failure. If neither surface exists, ask the user before running `ego-browser upgrade`. After the upgrade, re-read both skills because the app, CLI, installed skill, and runtime API may all have changed.
