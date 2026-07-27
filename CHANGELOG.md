@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.35.0](https://github.com/vanducng/skills/compare/v1.34.0...v1.35.0) (2026-07-27)
+
+
+### Features
+
+* **ego-browser:** confirm completed space cleanup ([#310](https://github.com/vanducng/skills/issues/310)) ([47fadb5](https://github.com/vanducng/skills/commit/47fadb57c2249754acb3b183a0a0d1cbd70e2673))
+
 ## [1.34.0](https://github.com/vanducng/skills/compare/v1.33.0...v1.34.0) (2026-07-27)
 
 
