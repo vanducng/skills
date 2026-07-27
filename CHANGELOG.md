@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.35.1](https://github.com/vanducng/skills/compare/v1.35.0...v1.35.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* **miucr:** document the self-approval dead end on your own PR ([a5eb111](https://github.com/vanducng/skills/commit/a5eb111a262072f9c1feb0940d50db4edde63022))
+
 ## [1.35.0](https://github.com/vanducng/skills/compare/v1.34.0...v1.35.0) (2026-07-27)
 
 
