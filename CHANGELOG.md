@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.36.1](https://github.com/vanducng/skills/compare/v1.36.0...v1.36.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* **voice-agent:** clarified saved login authentication ([#318](https://github.com/vanducng/skills/issues/318)) ([a2bf71d](https://github.com/vanducng/skills/commit/a2bf71d27e8b334e5f4057063588969832501541))
+
 ## [1.36.0](https://github.com/vanducng/skills/compare/v1.35.2...v1.36.0) (2026-07-27)
 
 
