@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.35.2](https://github.com/vanducng/skills/compare/v1.35.1...v1.35.2) (2026-07-27)
+
+
+### Bug Fixes
+
+* **worktree:** document the base-branch squat that blocks the main checkout ([e4537e9](https://github.com/vanducng/skills/commit/e4537e990018acd451ca9e2b88e6dec2c5d11206))
+
 ## [1.35.1](https://github.com/vanducng/skills/compare/v1.35.0...v1.35.1) (2026-07-27)
 
 
