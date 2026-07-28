@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.39.0](https://github.com/vanducng/skills/compare/v1.38.0...v1.39.0) (2026-07-28)
+
+
+### Features
+
+* **voice-agent:** added environment tag routing ([#332](https://github.com/vanducng/skills/issues/332)) ([0499b70](https://github.com/vanducng/skills/commit/0499b702e5e8a79ba06d22f5dc42e21d5f68100f))
+
 ## [1.38.0](https://github.com/vanducng/skills/compare/v1.37.3...v1.38.0) (2026-07-28)
 
 
