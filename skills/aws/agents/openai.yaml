@@ -1,0 +1,4 @@
+interface:
+  display_name: "AWS"
+  short_description: "Operate AWS safely with the official CLI"
+  default_prompt: "Use $aws to inspect and operate AWS safely with the CLI."
