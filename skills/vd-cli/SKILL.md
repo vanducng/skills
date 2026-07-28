@@ -45,6 +45,17 @@ Skills stay plain directories on disk - no lock-in. `vd doctor` before
 editing vendored skills; local edits are detected and never silently
 overwritten by sync.
 
+## Hook deployment
+
+```sh
+vd install hooks --dry-run          # validate and preview hook-owned actions
+vd install hooks                    # deploy the manifest to Claude and Codex
+```
+
+Dry-run output must not print `settings.json` or `hooks.json` contents because
+those files can contain credentials. If file contents appear, stop, do not
+copy the output, and run `vd upgrade` before retrying.
+
 ## Observability (`vd obs`)
 
 All commands accept `--agent claude-code|codex`, `--project <p>`,
