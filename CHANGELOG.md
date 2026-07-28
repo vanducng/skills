@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.37.0](https://github.com/vanducng/skills/compare/v1.36.2...v1.37.0) (2026-07-28)
+
+
+### Features
+
+* **aws:** add AWS CLI operations skill ([#323](https://github.com/vanducng/skills/issues/323)) ([46fb15f](https://github.com/vanducng/skills/commit/46fb15f53c9dd3c61497e8d9aeb9c95cb52e9aea))
+
 ## [1.36.2](https://github.com/vanducng/skills/compare/v1.36.1...v1.36.2) (2026-07-27)
 
 
