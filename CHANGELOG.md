@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.37.2](https://github.com/vanducng/skills/compare/v1.37.1...v1.37.2) (2026-07-28)
+
+
+### Bug Fixes
+
+* **debug:** require causal proof before confirmation ([#326](https://github.com/vanducng/skills/issues/326)) ([e1e390f](https://github.com/vanducng/skills/commit/e1e390fd08c0d2f50d3d1dd2d8dc14246c1fa69b))
+
 ## [1.37.1](https://github.com/vanducng/skills/compare/v1.37.0...v1.37.1) (2026-07-28)
 
 
