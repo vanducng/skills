@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.38.0](https://github.com/vanducng/skills/compare/v1.37.3...v1.38.0) (2026-07-28)
+
+
+### Features
+
+* **hooks:** name Herdr panes from first prompt ([#330](https://github.com/vanducng/skills/issues/330)) ([771e739](https://github.com/vanducng/skills/commit/771e739655da55a0fea41d344312c42020c156ef))
+
 ## [1.37.3](https://github.com/vanducng/skills/compare/v1.37.2...v1.37.3) (2026-07-28)
 
 
