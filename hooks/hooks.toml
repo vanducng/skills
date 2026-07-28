@@ -35,6 +35,16 @@ runtime = "python3"
 event = "codex.UserPromptSubmit"
 
 [[hook]]
+file = "herdr-pane-name.py"
+runtime = "python3"
+event = "UserPromptSubmit"
+
+[[hook]]
+file = "herdr-pane-name.py"
+runtime = "python3"
+event = "codex.UserPromptSubmit"
+
+[[hook]]
 file = "scout-block.py"
 runtime = "python3"
 event = "PreToolUse"
