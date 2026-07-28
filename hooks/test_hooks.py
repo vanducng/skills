@@ -33,6 +33,7 @@ SESSION_INIT = os.path.join(HOOKS_DIR, 'session-init.py')
 SUBAGENT_INIT = os.path.join(HOOKS_DIR, 'subagent-init.py')
 STATUSLINE = os.path.join(HOOKS_DIR, 'statusline.py')
 SCOUT_BLOCK = os.path.join(HOOKS_DIR, 'scout-block.py')
+HERDR_PANE_NAME = os.path.join(HOOKS_DIR, 'herdr-pane-name.py')
 TEAM_INJECT = os.path.join(HOOKS_DIR, 'team-context-inject.py')
 TASK_COMPLETED = os.path.join(HOOKS_DIR, 'task-completed-handler.py')
 TEAMMATE_IDLE = os.path.join(HOOKS_DIR, 'teammate-idle-handler.py')
@@ -760,6 +761,191 @@ class DevRulesReminderTest(HookTestBase):
         obj = json.loads(out.strip())
         self.assertNotIn('additionalContext', obj)
         self.assertEqual(obj['hookSpecificOutput']['hookEventName'], 'UserPromptSubmit')
+
+
+@unittest.skipUnless(os.path.exists(HERDR_PANE_NAME), 'herdr-pane-name.py not present')
+class HerdrPaneNameTest(HookTestBase):
+    def setUp(self):
+        self.state_dir = self.mkdtemp('vd-herdr-state-')
+        self.bin_dir = self.mkdtemp('vd-herdr-bin-')
+        self.log_path = os.path.join(self.mkdtemp('vd-herdr-log-'), 'calls.jsonl')
+        self.repo = self.mk_temp_repo('herdr-pane-name')
+        fake = os.path.join(self.bin_dir, 'herdr')
+        with open(fake, 'w') as f:
+            f.write("""#!/usr/bin/env python3
+import json
+import os
+import sys
+import time
+
+with open(os.environ['HERDR_TEST_LOG'], 'a', encoding='utf-8') as handle:
+    handle.write(json.dumps(sys.argv[1:]) + '\\n')
+if os.environ.get('HERDR_TEST_SLEEP'):
+    time.sleep(float(os.environ['HERDR_TEST_SLEEP']))
+raise SystemExit(int(os.environ.get('HERDR_TEST_EXIT', '0')))
+""")
+        os.chmod(fake, 0o755)
+
+    def env(self, **overrides):
+        values = {
+            'HERDR_ENV': '1',
+            'HERDR_PANE_ID': 'w1:pane-test',
+            'HERDR_TEST_LOG': self.log_path,
+            'PATH': self.bin_dir + os.pathsep + os.environ.get('PATH', ''),
+            'TMPDIR': self.state_dir,
+        }
+        values.update(overrides)
+        return values
+
+    def payload(self, session_id=FIXED_SESSION_ID, prompt='Name the Herdr pane'):
+        return {
+            'session_id': session_id,
+            'cwd': self.repo,
+            'hook_event_name': 'UserPromptSubmit',
+            'prompt': prompt,
+        }
+
+    def calls(self):
+        if not os.path.exists(self.log_path):
+            return []
+        with open(self.log_path) as f:
+            return [json.loads(line) for line in f if line.strip()]
+
+    def run_hook(self, payload=None, env=None):
+        return run_json(HERDR_PANE_NAME, payload or self.payload(), env or self.env(), cwd=self.repo)
+
+    def test_first_prompt_renames_once_and_stores_no_prompt(self):
+        prompt = ('$vd:brainstorm Build a SessionStart hook for both codex and claude '
+                  'code, it will based on context')
+        payload = self.payload(prompt=prompt)
+        payload['cwd'] = os.path.dirname(HOOKS_DIR)
+        first = self.run_hook(payload)
+        second = self.run_hook(payload)
+        self.assertEqual(first, (0, '', ''))
+        self.assertEqual(second, (0, '', ''))
+        calls = self.calls()
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0:3], ['pane', 'rename', 'w1:pane-test'])
+        self.assertEqual(calls[0][3].split(':', 1)[1], 'session-start-hook-context')
+        state_path = os.path.join(self.state_dir, 'vd-session-%s.json' % FIXED_SESSION_ID)
+        with open(state_path) as f:
+            state_text = f.read()
+        self.assertNotIn(prompt, state_text)
+        self.assertEqual(json.loads(state_text)['herdrPaneRename']['label'], calls[0][3])
+
+    def test_concurrent_duplicate_deliveries_invoke_herdr_once(self):
+        encoded = json.dumps(self.payload())
+        env = dict(os.environ)
+        env.update(self.env())
+        processes = [
+            subprocess.Popen(
+                [sys.executable, HERDR_PANE_NAME],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=self.repo,
+                env=env,
+            )
+            for _ in range(8)
+        ]
+        results = [process.communicate(encoded, timeout=10) for process in processes]
+        self.assertTrue(all(process.returncode == 0 for process in processes))
+        self.assertTrue(all(result == ('', '') for result in results))
+        self.assertEqual(len(self.calls()), 1)
+
+    def test_failed_or_timed_out_rename_is_not_retried(self):
+        for suffix, overrides in (
+            ('failure', {'HERDR_TEST_EXIT': '1'}),
+            ('timeout', {'HERDR_TEST_SLEEP': '2'}),
+        ):
+            with self.subTest(suffix=suffix):
+                session_id = '%s-%s' % (FIXED_SESSION_ID, suffix)
+                payload = self.payload(session_id=session_id)
+                env = self.env(**overrides)
+                self.assertEqual(self.run_hook(payload, env)[0], 0)
+                self.assertEqual(self.run_hook(payload, env)[0], 0)
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_each_new_session_can_rename_once(self):
+        self.run_hook(self.payload(session_id='session-one'))
+        self.run_hook(self.payload(session_id='session-two'))
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_claude_and_codex_payloads_produce_same_label(self):
+        claude = self.payload(session_id='claude-session', prompt='Fix ELT-3267 call routing')
+        codex = self.payload(session_id='codex-session', prompt='Fix ELT-3267 call routing')
+        codex['turn_id'] = 'turn-1'
+        self.run_hook(claude)
+        self.run_hook(codex)
+        labels = [call[3] for call in self.calls()]
+        self.assertEqual(len(labels), 2)
+        self.assertEqual(labels[0], labels[1])
+        self.assertTrue(labels[0].endswith(':ELT-3267'))
+
+    def test_untrusted_prompt_cannot_escape_into_label(self):
+        cases = [
+            ('mixed-secret', '$vd:fix Add auth token sk_TestSecret123456789 from '
+             'https://example.com/private /tmp/password API_KEY=visible $(touch /tmp/pwn)'),
+            ('secret-ticket', 'Use token SECRET-1234567'),
+            ('compound-secret-ticket', 'Use access_token SECRET-1234567'),
+            ('long-secret-ticket', 'Use token value is SECRET-1234567'),
+            ('generic-secret-ticket', 'Use token value is ABC-1234567'),
+            ('qualified-secret-ticket', 'Use token named production ABC-1234567'),
+            ('refresh-token-ticket', 'Use refresh_token ABC-1234567'),
+            ('client-secret-ticket', 'Use client_secret ABC-1234567'),
+            ('private-key-ticket', 'Use private_key ABC-1234567'),
+            ('passphrase', 'Set passphrase hunter2'),
+            ('long-passphrase', 'Set passphrase value is hunter2'),
+            ('long-token', 'Use token named production hunter2'),
+            ('pin', 'Use PIN 123456'),
+            ('otp', 'Use OTP 654321'),
+            ('comma-secret', 'Use API key, ABC-1234567'),
+            ('bare-secret-ticket', 'Rotate SECRET-1234567'),
+        ]
+        for session_id, prompt in cases:
+            self.run_hook(self.payload(session_id=session_id, prompt=prompt))
+        labels = [call[3] for call in self.calls()]
+        self.assertEqual(len(labels), len(cases))
+        for label in labels:
+            self.assertLessEqual(len(label), 40)
+            self.assertRegex(label, r'^[A-Za-z0-9-]+:[A-Za-z0-9-]+$')
+            for secret in ('secret', 'abc-1234567', '123456', '654321', 'example',
+                           'hunter2', 'password', 'visible', '/tmp', '$('):
+                self.assertNotIn(secret.lower(), label.lower())
+        for session_id, prompt in cases:
+            state_path = os.path.join(self.state_dir, 'vd-session-%s.json' % session_id)
+            with open(state_path) as f:
+                self.assertNotIn(prompt, f.read())
+
+    def test_api_prompts_keep_normal_intent_and_ticket(self):
+        api_intent = self.payload(session_id='api-intent', prompt='Fix API response serialization')
+        api_ticket = self.payload(session_id='api-ticket', prompt='Fix API ELT-3267 call routing')
+        api_intent['cwd'] = os.path.dirname(HOOKS_DIR)
+        api_ticket['cwd'] = os.path.dirname(HOOKS_DIR)
+        self.run_hook(api_intent)
+        self.run_hook(api_ticket)
+        labels = [call[3] for call in self.calls()]
+        self.assertTrue(labels[0].endswith(':api-response-serialization'))
+        self.assertTrue(labels[1].endswith(':ELT-3267'))
+
+    def test_skill_only_prompt_uses_full_invocation_name(self):
+        self.run_hook(self.payload(prompt='$vd:code-review'))
+        self.assertTrue(self.calls()[0][3].endswith(':code-review'))
+
+    def test_ineligible_inputs_fail_open_without_rename(self):
+        cases = [
+            ('not-herdr', self.payload(session_id='not-herdr'), self.env(HERDR_ENV='0')),
+            ('no-pane', self.payload(session_id='no-pane'), self.env(HERDR_PANE_ID='')),
+            ('no-prompt', self.payload(session_id='no-prompt', prompt=''), self.env()),
+            ('subagent', dict(self.payload(session_id='subagent'), agent_id='agent-1'), self.env()),
+        ]
+        for name, payload, env in cases:
+            with self.subTest(name=name):
+                self.assertEqual(self.run_hook(payload, env), (0, '', ''))
+        code, out, err = run_raw(HERDR_PANE_NAME, '{bad json', self.env(), cwd=self.repo)
+        self.assertEqual((code, out, err), (0, '', ''))
+        self.assertEqual(self.calls(), [])
 
 
 class SessionInitProjectTypeTest(HookTestBase):
