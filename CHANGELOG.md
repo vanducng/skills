@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.37.3](https://github.com/vanducng/skills/compare/v1.37.2...v1.37.3) (2026-07-28)
+
+
+### Bug Fixes
+
+* **vd-cli:** document secret-safe hook deployment ([#328](https://github.com/vanducng/skills/issues/328)) ([5b69843](https://github.com/vanducng/skills/commit/5b69843c19161900118581ddb7cea52743be32fe))
+
 ## [1.37.2](https://github.com/vanducng/skills/compare/v1.37.1...v1.37.2) (2026-07-28)
 
 
