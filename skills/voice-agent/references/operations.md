@@ -18,7 +18,7 @@ Legend: RO is remote read, LW is local write, RW is remote mutation/action, DR i
 | `kb` / `kb sources` | KB `list`, `get` | KB create/delete; source add/delete | No DR |
 | `flows` | `list`, `get` | `create`, `update`, `delete` | No DR |
 | `flow-components` | `list`, `get` | `create`, `update`, `delete` | No DR |
-| `phone-numbers` | `list`, `get` | `import`, purchase, update, release | No DR; cost/destructive |
+| `phone-numbers` | `list`, `get` | `import`, purchase, update, release | No DR; update supports single-agent numeric/tag versions |
 | `calls` | Read through `transcripts` | create phone/web, register, update, update-live, stop, delete | No DR; external effect |
 | `transcripts` | `list`, `get`, `search`, `analyze` | None | RO |
 | `exports` | `list` | None | RO |
@@ -52,6 +52,8 @@ Do not accept old top-level arrays for current versioned lists. Current list res
 
 Environment tags point an agent environment to a version and carry tag-specific dynamic variables. Moving a tag switches dependent phone numbers, webhooks, and other traffic immediately. `vac retell agents tags assign` accepts existing tags and versions only, supports dry-run, preserves the complete tag map, and verifies the selected tag after assignment.
 
+Phone-number updates accept `--inbound-agent-version` with `--inbound-agent` and `--outbound-agent-version` with `--outbound-agent`. Version references can be numeric versions, `latest`, `latest_published`, or environment tags. Each single-agent shorthand replaces that direction with one binding at weight `1`.
+
 ## Webhooks
 
 Keep webhook types distinct:
@@ -76,6 +78,7 @@ Verify `x-retell-signature` against the raw body using the designated webhook ke
 - [Multilingual locale arrays](https://docs.retellai.com/deprecation-notice/2026/07-31_legacy_multilingual_setting)
 - [Update Call restriction](https://docs.retellai.com/deprecation-notice/2026/08-31_update_call_ended_calls_only)
 - [Weighted phone assignments](https://docs.retellai.com/deprecation-notice/2026/03-31_phone_number_agent_fields)
+- [Update Phone Number](https://docs.retellai.com/api-references/update-phone-number)
 - [Update Live Call](https://docs.retellai.com/api-references/update-live-call)
 - [Web call flow](https://docs.retellai.com/deploy/web-call)
 - [Secure webhook verification](https://docs.retellai.com/features/secure-webhook)

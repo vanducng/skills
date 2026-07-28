@@ -47,6 +47,18 @@
         {"id": "voice-tag-safety", "text": "Runs dry-run and obtains fresh confirmation before moving prod"},
         {"id": "voice-tag-verify", "text": "Assigns once and verifies the resulting tag version with a final read"}
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "Bind a Retell phone number inbound route to an agent using the prod environment tag.",
+      "expected_output": "A help-first number and tag pre-read, fresh routing confirmation, one paired agent/version update, and final phone-number read.",
+      "files": [],
+      "assertions": [
+        {"id": "voice-number-preflight", "text": "Reads the current number bindings, target tag, and exact update help before mutation"},
+        {"id": "voice-number-flags", "text": "Pairs --inbound-agent-version with --inbound-agent and does not invent weighted-spec syntax"},
+        {"id": "voice-number-confirm", "text": "Obtains fresh confirmation because phone-number update has no dry-run and changes routing"},
+        {"id": "voice-number-verify", "text": "Updates once and verifies agent_id, agent_version, and weight with a final read"}
+      ]
     }
   ]
 }
