@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.37.1](https://github.com/vanducng/skills/compare/v1.37.0...v1.37.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **cli-ts:** harden automated release guidance ([#322](https://github.com/vanducng/skills/issues/322)) ([f254cb5](https://github.com/vanducng/skills/commit/f254cb589603470910544ab46b33986c0ef5a0ad))
+
 ## [1.37.0](https://github.com/vanducng/skills/compare/v1.36.2...v1.37.0) (2026-07-28)
 
 
