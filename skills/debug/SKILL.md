@@ -20,6 +20,16 @@ NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
 
 Random fixes waste time and create new bugs. Find root cause → fix at source → validate at every layer → verify with fresh evidence before claiming done.
 
+## Proof gate
+
+Before calling a cause confirmed:
+
+1. Observe or reproduce the symptom at the closest realistic boundary.
+2. Compare the failing case with the nearest working control and find the first divergence.
+3. Show the evidence chain from trigger to mechanism to symptom.
+
+If any link is unverified, label it a hypothesis and run the smallest check that distinguishes it from the next plausible cause. Stop when the chain is proven and the requested decision is unblocked; keep unrelated findings separate.
+
 ## When to use
 
 | Surface | Triggers |
