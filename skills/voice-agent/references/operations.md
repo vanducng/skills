@@ -18,7 +18,7 @@ Legend: RO is remote read, LW is local write, RW is remote mutation/action, DR i
 | `kb` / `kb sources` | KB `list`, `get` | KB create/delete; source add/delete | No DR |
 | `flows` | `list`, `get` | `create`, `update`, `delete` | No DR |
 | `flow-components` | `list`, `get` | `create`, `update`, `delete` | No DR |
-| `phone-numbers` | `list`, `get` | `import`, purchase, update, release | No DR; update supports single-agent numeric/tag versions |
+| `phone-numbers` | `list`, `get` | `import`, purchase, update, release | No DR; cost/destructive; update supports single-agent numeric/tag versions |
 | `calls` | Read through `transcripts` | create phone/web, register, update, update-live, stop, delete | No DR; external effect |
 | `transcripts` | `list`, `get`, `search`, `analyze` | None | RO |
 | `exports` | `list` | None | RO |
