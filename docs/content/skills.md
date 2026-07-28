@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 70 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 71 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -27,7 +27,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:tldraw-offline` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
-| Data and workspace | `vd:cnb-ds-eda`, `vd:miudb`, `vd:vd-cli`, `vd:superwhisper-cli`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira` |
+| Data and workspace | `vd:cnb-ds-eda`, `vd:miudb`, `vd:vd-cli`, `vd:superwhisper-cli`, `vd:aws`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira` |
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:cktovd`, `vd:workbench` |
 | Skill lifecycle | `vd:skill-management`, `vd:skill-audit`, `vd:rule-miner`, `vd:skill-evolve` |
 
@@ -44,6 +44,8 @@ Within browser automation, `vd:ego-browser` drives logged-in browsing through is
 `vd:golang` consolidates idiomatic Go guidance - style and naming, error handling and safety, concurrency and performance, testing and CI, project layout and dependencies, and observability and gRPC - routing by topic to `skills/golang/references/`. `vd:gostack` is an opinionated reference for Sam Berthe's Go libraries (`lo`, `oops`, `do`, `mo`, `slog`, `hot`, `ro`), with per-library notes under `skills/gostack/references/`. `vd:py2go` runs end-to-end Python-to-Go migrations with six project-type playbooks and pinned stack defaults.
 
 ## Infrastructure And Deployment
+
+`vd:aws` operates AWS accounts and services through the official CLI with identity-first scoping, read-before-write diagnostics, explicit mutation boundaries, and a gopass-backed `reset-password` workflow.
 
 `vd:devops` covers deployment and infrastructure operations - Docker and Docker Compose, Kubernetes (`kubectl`, Helm, RBAC), Terraform/OpenTofu, cloud platforms (GKE/EKS, Cloud Run, Cloudflare Workers/R2/D1), GitHub Actions CI/CD, and GitOps (Argo CD, Flux) - with per-topic notes under `skills/devops/references/`.
 
