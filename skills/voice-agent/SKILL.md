@@ -5,8 +5,8 @@ license: MIT
 argument-hint: "<Retell operation or investigation>"
 metadata:
   author: vanducng
-  version: "0.1.0"
-  verified: "2026-07-27"
+  version: "0.2.0"
+  verified: "2026-07-28"
 ---
 
 # Voice Agent
@@ -55,10 +55,10 @@ Generated help is authoritative for current command paths and flags. Inspect lea
 ## Write workflow
 
 1. Require explicit authorization for every remote mutation or externally visible action.
-2. Require a fresh final confirmation for calls, SMS, batch calls, phone purchase/release, publishing, deletion, and number reassignment.
+2. Require a fresh final confirmation for calls, SMS, batch calls, phone purchase/release, publishing, deletion, number reassignment, and moving the `prod` tag.
 3. Pre-read the exact resource ID and version. Resolve ambiguous names before acting.
 4. Run the exact leaf help command. Never invent symmetric CRUD commands, flags, field names, or response paths.
-5. Use dry-run only where supported: `agent update`, `prompts update`, and `tools add|update|remove|import`. No command exposes `--confirm`.
+5. Use dry-run only where supported: `agent update`, `agents tags assign`, `prompts update`, and `tools add|update|remove|import`. No command exposes `--confirm`.
 6. Apply the smallest mutation once.
 7. Re-read the resource and report safe fields proving the result.
 
@@ -88,6 +88,26 @@ vac retell agents publish agent_123 --version 4
 
 Publishing is separate and requires an explicit draft version. Before pulling into an existing tree, run `prompts diff` or choose a fresh output directory because pull can overwrite local files.
 
+### Environment tag assignment
+
+Confirm the installed CLI exposes the command, then read the current tag and available versions:
+
+```bash
+vac retell agents tags assign --help
+vac retell agents tags get agent_123 prod
+vac retell agents versions agent_123 --fields version,is_published
+vac retell agents tags assign agent_123 prod --agent-version 4 --dry-run
+```
+
+Require explicit authorization for any tag assignment and fresh final confirmation before moving `prod`. Apply once, then verify with a new read:
+
+```bash
+vac retell agents tags assign agent_123 prod --agent-version 4
+vac retell agents tags get agent_123 prod
+```
+
+The tag must already exist and the version must belong to the agent. Moving a tag immediately switches phone numbers, webhooks, and other traffic that resolves through it. The command preserves every other tag and all tag dynamic variables, then verifies the selected tag before returning success. If `agents tags` is absent from generated help, report the installed CLI as unsupported and upgrade it only with user authorization. Do not bypass `vac` with direct API calls.
+
 ### Outbound call
 
 1. Inspect the phone-number binding and `vac retell concurrency get`.
@@ -97,7 +117,7 @@ Publishing is separate and requires an explicit draft version. Before pulling in
 5. Use `calls update-live` only while ongoing.
 6. Retrieve and analyze after completion.
 
-`calls update-live` in `vac 0.3.0` exposes only string dynamic-variable overrides. Report unsupported API fields instead of bypassing `vac`.
+`calls update-live` exposes only string dynamic-variable overrides. Report unsupported API fields instead of bypassing `vac`.
 
 ### Web call
 
