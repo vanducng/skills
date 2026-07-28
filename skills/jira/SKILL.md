@@ -1,6 +1,6 @@
 ---
 name: jira
-description: "Manage Jira issues via CLI. View, create, update, transition, assign, comment, sprint ops. Use when user mentions issue keys (PROJ-123), tickets, sprints, or keywords like jira/ticket/backlog."
+description: "Manage Jira issues via CLI and REST. View, create, update, transition, assign, comment, and run sprint ops, including evidence follow-ups, native mentions, structured ADF comments, and board-column moves. Use when user mentions issue keys (PROJ-123), tickets, follow-ups, sprints, or keywords like jira/ticket/backlog."
 license: MIT
 argument-hint: "[--project ALIAS] [--type bug|task] [ISSUE-KEY|request]"
 metadata:
@@ -117,6 +117,14 @@ jira sprint add SPRINT-ID ISSUE-KEY          # Add to active/known sprint
 jira issue link ISSUE-1 ISSUE-2 Relates      # Link issues
 ```
 
+### Follow-up Comments and Board Columns
+
+Read [`references/follow-up.md`](references/follow-up.md) before posting an evidence update with JSON/code or native mentions, or when the user names a board column such as review, QA, or staging instead of an exact workflow status.
+
+- Use REST v3 ADF for native bullets, `codeBlock`, and `mention`; plain `@Display Name` does not prove the user was mentioned.
+- Resolve board column to status IDs, then status ID to an available issue transition. Never assume the column label is the status name.
+- Show the resolved comment and column/status/transition mapping before writing, then re-read the stored ADF and resulting issue status.
+
 ### REST ADF Description Pattern
 Use this for clean Jira descriptions with sections and bullets:
 ```bash
@@ -165,6 +173,12 @@ Load `references/jql.md` for:
 - JQL syntax, operators, functions
 - Relative dates, ordering
 - Complex query examples
+
+Load `references/follow-up.md` for:
+- Evidence-based completion or release updates
+- Structured comments with JSON/code blocks or native mentions
+- Reporter mentions
+- Requests expressed as board columns rather than workflow statuses
 
 **Skip references** for simple view/list/assign operations - use quick reference above.
 
