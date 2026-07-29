@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.43.1](https://github.com/vanducng/skills/compare/v1.43.0...v1.43.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* **tech-docs:** scope search trigger sizing ([#352](https://github.com/vanducng/skills/issues/352)) ([0cdd412](https://github.com/vanducng/skills/commit/0cdd4122ea6871bc68c2484f070e615c654e2cf2))
+
 ## [1.43.0](https://github.com/vanducng/skills/compare/v1.42.0...v1.43.0) (2026-07-29)
 
 
