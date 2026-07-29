@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.40.2](https://github.com/vanducng/skills/compare/v1.40.1...v1.40.2) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docs:** restore Starlight layout ([#341](https://github.com/vanducng/skills/issues/341)) ([10d9748](https://github.com/vanducng/skills/commit/10d974879d67eb0205e0a869d8d3983c52015e2c))
+
 ## [1.40.1](https://github.com/vanducng/skills/compare/v1.40.0...v1.40.1) (2026-07-29)
 
 
