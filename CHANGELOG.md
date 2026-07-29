@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.43.2](https://github.com/vanducng/skills/compare/v1.43.1...v1.43.2) (2026-07-29)
+
+
+### Bug Fixes
+
+* **tech-docs:** keep header search clickable ([#354](https://github.com/vanducng/skills/issues/354)) ([4b9418f](https://github.com/vanducng/skills/commit/4b9418fdcc057236dba670f0854160920918b916))
+
 ## [1.43.1](https://github.com/vanducng/skills/compare/v1.43.0...v1.43.1) (2026-07-29)
 
 
