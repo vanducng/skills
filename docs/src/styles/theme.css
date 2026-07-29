@@ -1,5 +1,5 @@
 /* ============================================================
-   dotfiles docs theme — Prefab-inspired: deep-dark surface,
+   Shared docs theme - Prefab-inspired: deep-dark surface,
    pink/magenta accent, refined code. Layered over Starlight.
    ============================================================ */
 
@@ -37,22 +37,6 @@ starlight-theme-toggle {
   border-radius: 0.34rem;
   padding: 0.1em 0.36em;
   font-size: 0.84em;
-}
-
-/* ---- Center the article column. Starlight reserves half the leftover space
-   as TOC padding (content hugs left); give the TOC its natural width and let
-   the article center in the remaining area with symmetric margins.
-   NOTE: targets Starlight-private classes — verified against @astrojs/starlight
-   0.39.3; re-check on minor upgrades. ---- */
-@media (min-width: 72rem) {
-  [data-has-sidebar][data-has-toc] .main-pane {
-    width: calc(100% - 2 * var(--sl-sidebar-width)) !important;
-    --sl-content-margin-inline: auto;
-  }
-  [data-has-sidebar][data-has-toc] .right-sidebar,
-  [data-has-sidebar][data-has-toc] .right-sidebar-container {
-    width: var(--sl-sidebar-width) !important;
-  }
 }
 
 /* ---- Search modal: narrower, calmer than the full-width default ---- */
