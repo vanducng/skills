@@ -67,3 +67,34 @@ starlight-toc a[aria-current='true'] {
 :root {
   --sl-content-width: 45rem;
 }
+
+@media (min-width: 72rem) {
+  :root {
+    --docs-shell-offset: max(
+      var(--sl-nav-pad-x),
+      calc(
+        (100vw - (2 * var(--sl-sidebar-width)) - var(--sl-content-width)) / 2 -
+          var(--sl-nav-pad-x)
+      )
+    );
+  }
+
+  .sidebar-pane {
+    inset-inline-start: var(--docs-shell-offset);
+  }
+
+  .title-wrapper {
+    transform: translateX(calc(var(--docs-shell-offset) - var(--sl-nav-pad-x)));
+  }
+
+  .header > .sl-flex:has(> site-search) {
+    inline-size: min(
+      var(--sl-content-width),
+      calc(
+        50vw + (var(--sl-content-width) / 2) - var(--sl-sidebar-width) -
+          var(--docs-shell-offset) - var(--sl-nav-gap)
+      )
+    );
+    justify-content: center;
+  }
+}
