@@ -1,0 +1,4 @@
+interface:
+  display_name: "Smartsheet"
+  short_description: "Read and update Smartsheet with safe JSON workflows"
+  default_prompt: "Use $smartsheet for bounded reads and explicitly authorized, verified row writes."

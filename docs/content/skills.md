@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 70 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 71 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -23,7 +23,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | --- | --- |
 | Browser automation and e2e | `vd:ego-browser`, `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-perf` |
 | Web and frontend | `vd:uiuxdesign`, `vd:opendesign`, `vd:fastreact` |
-| CLI engineering and operations | `vd:cli-ts`, `vd:voice-agent` |
+| CLI engineering and operations | `vd:cli-ts`, `vd:smartsheet`, `vd:voice-agent` |
 | Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:tldraw-offline` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
@@ -56,6 +56,8 @@ Use `vd:scout` when you need a map, `vd:debug` when behavior is failing, `vd:pla
 Use `vd:docs` for canonical project docs in `docs/` and `README.md`.
 
 Use `vd:superwhisper-cli` to search local dictation history, prepare standups or commitment reviews, diagnose raw versus processed transcription errors, and maintain vocabulary or snippets with approval.
+
+Use `vd:smartsheet` to discover and read sheets with bounded JSON commands, then perform only explicitly authorized row additions or updates with read-back verification.
 
 Use `vd:voice-agent` to operate Retell through `vac` with bounded reads, explicit write authorization, current endpoint guidance, and structured recovery.
 
