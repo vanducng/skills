@@ -92,7 +92,7 @@ starlight-toc a[aria-current='true'] {
     inset-inline-start: var(--docs-sidebar-offset);
   }
 
-  .title-wrapper {
+  .title-wrapper > .site-title {
     transform: translateX(var(--docs-sidebar-offset));
   }
 
