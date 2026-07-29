@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 71 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 72 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -24,7 +24,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Browser automation and e2e | `vd:ego-browser`, `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-perf` |
 | Web and frontend | `vd:uiuxdesign`, `vd:opendesign`, `vd:fastreact` |
 | CLI engineering and operations | `vd:cli-ts`, `vd:smartsheet`, `vd:voice-agent` |
-| Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:tldraw-offline` |
+| Docs and diagrams | `vd:docs`, `vd:tech-docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:tldraw-offline` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
 | Data and workspace | `vd:miudb`, `vd:vd-cli`, `vd:superwhisper-cli`, `vd:aws`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira` |
@@ -53,7 +53,7 @@ Within browser automation, `vd:ego-browser` drives logged-in browsing through is
 
 Use `vd:scout` when you need a map, `vd:debug` when behavior is failing, `vd:plan` when the implementation path is not yet concrete, `vd:cook` when a plan is ready to execute, and `vd:ship` when the work is tested and ready for remote.
 
-Use `vd:docs` for canonical project docs in `docs/` and `README.md`.
+Use `vd:docs` for canonical internal project docs and ADRs. Use `vd:tech-docs` to create, modernize, validate, and ship a rendered public developer documentation site.
 
 Use `vd:superwhisper-cli` to search local dictation history, prepare standups or commitment reviews, diagnose raw versus processed transcription errors, and maintain vocabulary or snippets with approval.
 
