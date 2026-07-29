@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.43.0](https://github.com/vanducng/skills/compare/v1.42.0...v1.43.0) (2026-07-29)
+
+
+### Features
+
+* **jira:** support inline image comments ([#340](https://github.com/vanducng/skills/issues/340)) ([ac3495c](https://github.com/vanducng/skills/commit/ac3495c159e1cd68445cd8427e77cf5b6d66c968))
+
 ## [1.42.0](https://github.com/vanducng/skills/compare/v1.41.0...v1.42.0) (2026-07-29)
 
 
