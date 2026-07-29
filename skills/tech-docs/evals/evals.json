@@ -9,7 +9,7 @@
       "assertions": [
         {"id": "tech-docs-inspect", "text": "Inspects README, Go module, CLI help, release workflow, and existing docs before writing"},
         {"id": "tech-docs-contained", "text": "Keeps Astro dependencies and authored content inside one site root and commits the lockfile"},
-        {"id": "tech-docs-centered", "text": "Applies the centered profile and verifies search, article, separator, sidebar gap, and overflow geometry"},
+        {"id": "tech-docs-centered", "text": "Applies the centered profile and verifies header search alignment, native search-dialog control sizing, article, separator, sidebar gap, and overflow geometry"},
         {"id": "tech-docs-pages", "text": "Builds pull requests without deploying and deploys main through the official Astro Pages action"}
       ]
     },

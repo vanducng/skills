@@ -96,7 +96,7 @@ starlight-toc a[aria-current='true'] {
     transform: translateX(var(--docs-sidebar-offset));
   }
 
-  site-search button {
+  site-search > button {
     inline-size: var(--docs-search-width);
     margin-inline-start: calc(
       (var(--docs-article-width) - var(--docs-search-width)) / 2

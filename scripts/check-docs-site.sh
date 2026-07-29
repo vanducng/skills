@@ -33,6 +33,8 @@ home = text("docs/content/index.mdx")
 agent_ctx = text("docs/content/agent-context.md")
 dev_guidelines = text("docs/content/development-guidelines.md")
 readme = text("README.md")
+theme = text("docs/src/styles/theme.css")
+shared_theme = text("skills/tech-docs/assets/theme.css")
 
 skill_dirs = sorted(
     p.name for p in (repo / "skills").iterdir()
@@ -47,6 +49,8 @@ checks = [
     ("starlight integration configured", "@astrojs/starlight" in pkg and "starlight(" in cfg),
     ("llms.txt plugin configured", "starlight-llms-txt" in cfg and "starlight-llms-txt" in pkg),
     ("custom theme css configured", "customCss: ['./src/styles/theme.css']" in cfg and exists("docs/src/styles/theme.css")),
+    ("site search width targets trigger only", "site-search > button" in theme and "site-search button" not in theme),
+    ("shared theme search width targets trigger only", "site-search > button" in shared_theme and "site-search button" not in shared_theme),
     ("CNAME is custom domain", text("docs/public/CNAME").strip() == "skills.vanducng.dev"),
 
     # Canonical content pages

@@ -79,6 +79,7 @@ For `centered`, copy `assets/theme.css` to the site and register it with Starlig
 The centered profile must keep these relationships at desktop widths:
 
 - Search center equals article center within 1 px.
+- Search dialog controls keep their native size; the clear button is at most 3.5rem wide.
 - The separator starts and ends with the article column within 1 px.
 - Article-to-sidebar gap is at least 24 px.
 - Logo/title moves with the sidebar shell and keeps its native inner inset.
