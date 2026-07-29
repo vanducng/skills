@@ -123,6 +123,21 @@ Split responsibilities while keeping a single release authority:
 
 For npm trusted publishing, re-check the official requirements before each workflow change. As verified 2026-07-27, npm requires a supported hosted CI provider, npm 11.5.1 or newer, Node 22.14.0 or newer, the exact trusted repository and workflow filename, an allowed action, and `id-token: write`. Choose the narrowest allowed action, normally `npm publish`; use `npm stage publish` only when the workflow needs staged publication. If the trusted publisher specifies a GitHub environment, preserve that exact environment on the publish job. Public packages from public GitHub repositories receive provenance automatically. Do not cache release dependencies when npm guidance forbids it.
 
+Configure GitHub trust from npm 11.15.0 or newer after the package exists:
+
+```bash
+npm trust github <package> \
+  --file release.yml \
+  --repository owner/repo \
+  --environment npm \
+  --allow-publish
+npm trust list <package>
+```
+
+The command requires package write access and account-level 2FA. Omit `--environment` when the workflow has no GitHub environment. For a new package name, validate and smoke the exact tarball, publish the first version interactively, then configure trust for later OIDC releases. If OIDC publication returns `E404`, verify that the package exists and that the repository, workflow filename, environment, and allowed action match exactly. If the job is rejected before any runner step, inspect the GitHub environment's branch and tag deployment policy.
+
+Verify a registry-installed binary from a neutral temporary directory. Running `npm exec` inside the package's own checkout can resolve against local project state and produce a false failure.
+
 Semantic versioning policy:
 
 - Before 1.0: patch for compatible fixes; minor for features and breaking contracts, with breakage stated clearly.
