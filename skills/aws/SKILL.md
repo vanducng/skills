@@ -1,6 +1,6 @@
 ---
 name: aws
-description: Operate AWS accounts and services with the AWS CLI using identity-first, read-before-write, evidence-backed workflows. Use for AWS CLI tasks across IAM, STS, Organizations, CloudTrail, EC2, ECS, S3, Lambda, CloudWatch, and related services, including reset-password or --reset-password when an IAM console password must be reset and stored with gopass.
+description: Operate AWS accounts and services with the AWS CLI using identity-first, read-before-write, evidence-backed workflows. Use for AWS CLI inspection, incident diagnosis, deployment verification, and explicitly authorized changes across IAM, STS, Organizations, CloudTrail, CloudWatch, S3, Lambda, API Gateway, SQS, Route 53, ALB/ELBv2, EC2, EBS, SSM, ECS, and related services, including reset-password or --reset-password when an IAM console password must be reset and stored with gopass.
 license: MIT
 ---
 
@@ -11,7 +11,11 @@ Use the installed `aws` CLI for AWS inspection, diagnosis, and explicitly author
 ## Route the request
 
 - For `reset-password` or `--reset-password`, read [references/reset-password.md](references/reset-password.md) completely and use the `vd:gopass` skill.
-- For other requests, follow the general workflow below and load service-specific official documentation only when command behavior is unclear or likely to have changed.
+- For public endpoint tracing, incidents, cleanup, or cross-service verification, read [references/daily-operations.md](references/daily-operations.md), then load the service references it selects.
+- For Lambda, API Gateway, Function URLs, SQS, DLQs, serverless promotion, or retirement, read [references/serverless.md](references/serverless.md).
+- For Route 53, ALB/ELBv2, target groups, EC2, EBS, or SSM, read [references/compute-networking.md](references/compute-networking.md).
+- For CloudWatch, CloudTrail, S3, log analysis, audit correlation, or object verification, read [references/observability-storage.md](references/observability-storage.md).
+- For other requests, follow the general workflow below and load current service-specific official documentation when command behavior is unclear or likely to have changed.
 
 ## General workflow
 
@@ -35,6 +39,8 @@ Use the installed `aws` CLI for AWS inspection, diagnosis, and explicitly author
 - Add `--no-cli-pager` for non-interactive commands when pager configuration could block execution.
 - Treat IAM, STS, and Organizations as global services, but specify the recording region when querying CloudTrail.
 - Use `aws <service> <operation> help` before guessing an unfamiliar parameter.
+- Prefer AWS CLI waiters or refreshed service state over arbitrary sleeps after asynchronous changes.
+- Do not freeze service quotas, pricing, runtime matrices, or Region availability into reports; verify them from current official sources.
 - Never print credentials, password values, session tokens, secret payloads, or decrypted gopass content.
 - Keep secret values out of command arguments. Pipe them into supported `file:///dev/stdin` parameters or use another consumer-owned stdin mechanism.
 - Use the `vd:gopass` skill whenever AWS work needs a stored credential, token, or password.

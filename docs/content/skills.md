@@ -45,7 +45,7 @@ Within browser automation, `vd:ego-browser` drives logged-in browsing through is
 
 ## Infrastructure And Deployment
 
-`vd:aws` operates AWS accounts and services through the official CLI with identity-first scoping, read-before-write diagnostics, explicit mutation boundaries, and a gopass-backed `reset-password` workflow.
+`vd:aws` operates AWS accounts and services through the official CLI with identity-first scoping, cross-service incident tracing, focused references for serverless, compute/networking, observability/storage, explicit mutation boundaries, and a gopass-backed `reset-password` workflow.
 
 `vd:devops` covers deployment and infrastructure operations - Docker and Docker Compose, Kubernetes (`kubectl`, Helm, RBAC), Terraform/OpenTofu, cloud platforms (GKE/EKS, Cloud Run, Cloudflare Workers/R2/D1), GitHub Actions CI/CD, and GitOps (Argo CD, Flux) - with per-topic notes under `skills/devops/references/`.
 
