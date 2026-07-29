@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.41.0](https://github.com/vanducng/skills/compare/v1.40.4...v1.41.0) (2026-07-29)
+
+
+### Features
+
+* **smartsheet:** added safe CLI operator skill ([#345](https://github.com/vanducng/skills/issues/345)) ([1aba150](https://github.com/vanducng/skills/commit/1aba1500a3d9ca88a99eb5b1c5fc8e7d7418d79f))
+
 ## [1.40.4](https://github.com/vanducng/skills/compare/v1.40.3...v1.40.4) (2026-07-29)
 
 
