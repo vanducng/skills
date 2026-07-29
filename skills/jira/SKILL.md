@@ -234,7 +234,7 @@ Jira Cloud ADF `media` nodes require internal media service UUIDs (not attachmen
 
 - `jira project list` may fail with shell escaping errors - use `jira issue list` or REST API instead
 - `jira me` and `jira issue create/view` work reliably
-- Config location: `/Users/vanducng/.config/.jira/.config.yml`
+- Config location: `$HOME/.config/.jira/.config.yml`
 
 ## Error Handling
 

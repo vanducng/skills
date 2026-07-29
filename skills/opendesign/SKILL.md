@@ -42,7 +42,7 @@ This skill ships its CLI alongside `SKILL.md` so it works regardless of install 
 ```bash
 OPENDESIGN_BIN="<dir-of-this-SKILL.md>/scripts/opendesign"
 # Example resolved values (use whichever matches where this file was loaded):
-#   /Users/vanducng/skills/skills/opendesign/scripts/opendesign          (dev clone)
+#   $HOME/skills/skills/opendesign/scripts/opendesign                    (dev clone)
 #   ~/.claude/plugins/cache/vd-skills/skills/opendesign/scripts/opendesign   (plugin)
 #   ~/.claude/skills/opendesign/scripts/opendesign                       (user-level)
 ```

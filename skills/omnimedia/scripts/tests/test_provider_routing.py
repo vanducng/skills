@@ -173,7 +173,7 @@ def test_codex_only_for_image_gen_not_video(monkeypatch, base_kwargs, tmp_path):
 def test_validate_skips_codex_models(monkeypatch):
     """validate_model_task_combination must accept any model when provider=codex."""
     # Should not raise for arbitrary model under --provider codex
-    gbp.validate_model_task_combination("gpt-5.5", "generate", provider="codex")
+    gbp.validate_model_task_combination("gpt-5.6-sol", "generate", provider="codex")
     gbp.validate_model_task_combination("anything", "generate", provider="codex")
 
 

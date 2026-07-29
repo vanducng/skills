@@ -78,14 +78,14 @@ def test_generate_succeeds_via_filesystem_glob(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cig.subprocess, "run", fake_run)
 
-    out = cig.generate_image("a red cube", tmp_path / "result.png", model="gpt-5.5")
+    out = cig.generate_image("a red cube", tmp_path / "result.png", model="gpt-5.6-sol")
     assert out == (tmp_path / "result.png").resolve()
     assert out.read_bytes().startswith(b"\x89PNG")
     # Confirm CLI flags shape
     cmd = captured["cmd"]
     assert "--skip-git-repo-check" in cmd
     assert "--sandbox" in cmd and "workspace-write" in cmd
-    assert "-m" in cmd and "gpt-5.5" in cmd
+    assert "-m" in cmd and "gpt-5.6-sol" in cmd
 
 
 def test_generate_attaches_reference_images(monkeypatch, tmp_path):

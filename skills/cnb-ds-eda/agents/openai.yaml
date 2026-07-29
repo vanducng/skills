@@ -1,4 +1,0 @@
-interface:
-  display_name: "CNB DS EDA"
-  short_description: "Build CNB EDA notebooks and reports"
-  default_prompt: "Use $cnb-ds-eda to build an evidence-backed CNB EDA notebook report."
