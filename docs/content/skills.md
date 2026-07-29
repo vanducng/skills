@@ -35,7 +35,7 @@ Inside Herdr, `vd:worktree` delegates current-pane naming to `vd:herdr` after a 
 
 Within browser automation, `vd:ego-browser` drives logged-in browsing through isolated ego lite task spaces, follows the active app's embedded runtime contract, and asks before closing each completed space so short tasks do not leave clutter behind. `vd:agent-browser` is the direct CDP driver for the persistent Chrome that `vd:browser-profile` launches, and keeps its own video-recording and network-mocking specialties. `vd:browser-trace` captures vendor-free raw-CDP traces (console, network, lifecycle) against that same local Chrome. `vd:browser` is scoped to Browserbase cloud sessions only - the escalation target for CAPTCHA, anti-bot, and proxy work when a local run hits a wall. `vd:web-e2e` orchestrates logged-in end-to-end flows on top of them.
 
-`vd:jira` accepts `--project` and `--type bug|task` to apply untracked local rules from `~/.config/vd/jira-rules/`. For ticket follow-ups, it uses structured ADF comments with native mentions and maps board columns to verified workflow transitions.
+`vd:jira` uses the `vanducng/jira-cli` fork for native inline local-image comments, accepts `--project` and `--type bug|task` for untracked local rules, and maps board columns to verified workflow transitions.
 
 ## Language And Migration
 

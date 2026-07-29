@@ -1,15 +1,19 @@
 ---
 name: jira
-description: "Manage Jira issues via CLI and REST. View, create, update, transition, assign, comment, and run sprint ops, including evidence follow-ups, native mentions, structured ADF comments, and board-column moves. Use when user mentions issue keys (PROJ-123), tickets, follow-ups, sprints, or keywords like jira/ticket/backlog."
+description: "Manage Jira issues via CLI and REST. View, create, update, transition, assign, comment, and run sprint ops, including evidence follow-ups, native mentions, inline images, structured ADF comments, and board-column moves. Use when user mentions issue keys (PROJ-123), tickets, follow-ups, sprints, or keywords like jira/ticket/backlog."
 license: MIT
 argument-hint: "[--project ALIAS] [--type bug|task] [ISSUE-KEY|request]"
 metadata:
-  version: "1.1.0"
+  version: "1.3.0"
 ---
 
 # Jira Integration (CLI Backend)
 
-Uses `jira` CLI (ankitpokhrel/jira-cli). Backend confirmed available at `/opt/homebrew/bin/jira`.
+Uses the [`vanducng/jira-cli`](https://github.com/vanducng/jira-cli) fork, which preserves upstream compatibility and adds native inline local-image comments. Confirm the active binary supports the feature before an image write:
+
+```bash
+jira issue comment add --help | rg -- '--image'
+```
 
 ## Scope
 
@@ -112,7 +116,7 @@ Use Atlassian Document Format (ADF) with `codeBlock` node for code. See the REST
 ```bash
 jira issue move ISSUE-KEY "In Progress"      # Transition
 jira issue assign ISSUE-KEY $(jira me)       # Assign to self
-jira issue comment add ISSUE-KEY -b"Comment" # Add comment
+jira issue comment add ISSUE-KEY "Comment"   # Add comment
 jira sprint add SPRINT-ID ISSUE-KEY          # Add to active/known sprint
 jira issue link ISSUE-1 ISSUE-2 Relates      # Link issues
 ```
@@ -180,6 +184,11 @@ Load `references/follow-up.md` for:
 - Reporter mentions
 - Requests expressed as board columns rather than workflow statuses
 
+Load `references/inline-images.md` for:
+- Rendering remote or locally uploaded images inside comments
+- Choosing filename markup or ADF `mediaSingle`
+- Verifying that the stored comment contains the image
+
 **Skip references** for simple view/list/assign operations - use quick reference above.
 
 ## Workflow: Write Operations
@@ -195,28 +204,32 @@ Load `references/follow-up.md` for:
 
 ## Attachments
 
-### Upload attachment
-Use REST API **v2** (v3 returns permission errors for attachments):
+### Inline local image
+
+The fork uploads each image as an issue attachment, uses Jira's returned filename in the comment, and reports attachment IDs if comment creation fails after upload:
+
 ```bash
-curl -s -X POST "${JIRA_BASE_URL}/rest/api/2/issue/<KEY>/attachments" \
-  -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
-  -H "X-Atlassian-Token: no-check" \
-  -F "file=@/path/to/file.png;filename=descriptive-name.png"
+jira issue comment add ISSUE-KEY "Implementation flow" --image /path/to/flow.png
+jira issue comment add ISSUE-KEY "Before and after" -i before.png -i after.png
 ```
 
-### Inline images in description - NOT POSSIBLE via API
-Jira Cloud ADF `media` nodes require internal media service UUIDs (not attachment numeric IDs). These UUIDs are only generated through Jira's internal media service and are **not exposed via the public REST API**. Workarounds tried and failed:
-- Wiki markup `!filename!` → renders as literal text (ADF doesn't support wiki markup)
-- ADF `mediaSingle`/`media` with attachment ID → `ATTACHMENT_VALIDATION_ERROR`
-- ADF `media` with collection pattern → same error
+### Inline images in comments
 
-**Best approach:** Upload as attachment + reference in description text: "See screenshot in attachments."
+Use the CLI for public URLs or local files:
+
+- **Public URL:** Pass Markdown image syntax in the comment body.
+- **Local file:** Pass one or more `--image` paths. This is the default.
+- **Structured ADF:** Resolve the Media Services UUID from the attachment content redirect, then add a REST v3 `mediaSingle` node. The redirect-to-UUID mapping works on Jira Cloud but is not documented as a stable identifier contract.
+
+Never put the numeric attachment ID in an ADF `media` node; it causes `ATTACHMENT_VALIDATION_ERROR`. Never call Jira's private Media API. See [`references/inline-images.md`](references/inline-images.md) for commands and verification.
 
 ## REST API Version Notes
 
 | Endpoint | Use API Version | Notes |
 |----------|----------------|-------|
 | Description update (ADF) | **v3** | v2 returns "value must be a string" |
+| Simple inline image comment | **v2** | String body supports existing-attachment markup |
+| Structured inline image comment | **v3** | ADF requires the Media Services UUID, not the attachment ID |
 | Attachment upload | **v2** | v3 returns "Issue does not exist" |
 | Attachment metadata | v2 or v3 | Both work |
 | Issue GET (view) | **v3** | May return 404 even when issue exists - see Known API Issues |
@@ -232,6 +245,7 @@ Jira Cloud ADF `media` nodes require internal media service UUIDs (not attachmen
 
 ## Known CLI Issues
 
+- Upstream/Homebrew `jira-cli` 1.7.0 does not support `--image`; confirm PATH resolves the `vanducng/jira-cli` build
 - `jira project list` may fail with shell escaping errors - use `jira issue list` or REST API instead
 - `jira me` and `jira issue create/view` work reliably
 - Config location: `$HOME/.config/.jira/.config.yml`
@@ -241,5 +255,5 @@ Jira Cloud ADF `media` nodes require internal media service UUIDs (not attachmen
 - Auth errors → run `jira init` to reconfigure
 - "transition not available" → check available transitions with `jira issue view`
 - Field validation → check project issue types with `jira project list`
-- `ATTACHMENT_VALIDATION_ERROR` → don't try to embed images inline in ADF, use attachment reference instead
+- `ATTACHMENT_VALIDATION_ERROR` → use v2 filename markup or resolve the Media Services UUID per `references/inline-images.md`
 - `jira project list` shell errors → use REST API or skip, project is ELT by default
