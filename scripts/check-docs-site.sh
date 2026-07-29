@@ -49,6 +49,8 @@ checks = [
     ("starlight integration configured", "@astrojs/starlight" in pkg and "starlight(" in cfg),
     ("llms.txt plugin configured", "starlight-llms-txt" in cfg and "starlight-llms-txt" in pkg),
     ("custom theme css configured", "customCss: ['./src/styles/theme.css']" in cfg and exists("docs/src/styles/theme.css")),
+    ("site title offset targets link only", ".title-wrapper > .site-title" in theme and ".title-wrapper {\n    transform" not in theme),
+    ("shared theme title offset targets link only", ".title-wrapper > .site-title" in shared_theme and ".title-wrapper {\n    transform" not in shared_theme),
     ("site search width targets trigger only", "site-search > button" in theme and "site-search button" not in theme),
     ("shared theme search width targets trigger only", "site-search > button" in shared_theme and "site-search button" not in shared_theme),
     ("CNAME is custom domain", text("docs/public/CNAME").strip() == "skills.vanducng.dev"),
