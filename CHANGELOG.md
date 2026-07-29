@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.40.0](https://github.com/vanducng/skills/compare/v1.39.0...v1.40.0) (2026-07-29)
+
+
+### Features
+
+* **skills:** added AWS and voice-agent operations ([#335](https://github.com/vanducng/skills/issues/335)) ([4323abd](https://github.com/vanducng/skills/commit/4323abd4ce13e34c0d4ecaf14e28b25fce1cb363))
+
 ## [1.39.0](https://github.com/vanducng/skills/compare/v1.38.0...v1.39.0) (2026-07-28)
 
 
