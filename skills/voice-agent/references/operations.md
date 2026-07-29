@@ -33,6 +33,60 @@ Legend: RO is remote read, LW is local write, RW is remote mutation/action, DR i
 
 Cursor pagination is available on most list operations but not every resource. Use the command help and preserve opaque cursor values. Validate local output targets before `tools export`.
 
+## Versioned production-readiness checks
+
+When `vac retell agents tags --help` exposes environment tags, correlate the phone-number binding, tag version, published agent configuration, response engine, and account concurrency before calling an agent production-ready.
+
+```bash
+agent_id='<agent-id>'
+environment_tag='<environment-tag>'
+phone_number='<phone-number>'
+
+vac retell phone-numbers get "$phone_number" \
+  --fields phone_number,inbound_agents,outbound_agents
+
+tag_snapshot="$(vac retell agents tags get "$agent_id" "$environment_tag")"
+
+printf '%s\n' "$tag_snapshot" |
+  jq '{agent_id,tag,version,dynamic_variable_names:((.dynamic_variables // {}) | keys)}'
+
+engine_version="$(printf '%s\n' "$tag_snapshot" | jq -er '.version')"
+
+agent_snapshot="$(vac retell agent get "$agent_id" \
+  --engine-version "$engine_version" \
+  --fields agent_id,agent_name,version,is_published,webhook_url,response_engine)"
+
+printf '%s\n' "$agent_snapshot" | jq .
+
+vac retell concurrency get
+```
+
+`agents tags get` has no `--fields` flag and can return secret-bearing dynamic-variable values. Never print it raw; keep command tracing disabled while the snapshot exists and project names and metadata only. Agent and flow resource versions use `--engine-version`. The global `--version` flag prints the CLI version instead of selecting a resource version.
+
+If the agent uses a conversation flow, resolve its ID from the selected agent version and inspect that same engine version:
+
+```bash
+flow_id="$(printf '%s\n' "$agent_snapshot" | jq -er '.response_engine.conversation_flow_id')"
+flow_version="$(printf '%s\n' "$agent_snapshot" | jq -er '.response_engine.version')"
+
+test -n "$flow_id"
+
+vac retell flows get "$flow_id" \
+  --engine-version "$flow_version" \
+  --fields conversation_flow_id,version,knowledge_base_ids
+```
+
+Always clear the snapshots and verify the environment tag did not move during the inspection, whether or not the agent uses a conversation flow:
+
+```bash
+unset tag_snapshot agent_snapshot
+
+current_tag_version="$(vac retell agents tags get "$agent_id" "$environment_tag" | jq -er '.version')"
+test "$current_tag_version" = "$engine_version"
+```
+
+Treat agent IDs, phone numbers, webhook URLs, dynamic-variable values, and knowledge-base assignments as environment-specific evidence. Do not copy them into shared skill content or reports.
+
 ## Current Retell contract
 
 The project pins `retell-sdk` 5.48.0, verified 2026-07-28. Re-check `npm view retell-sdk version` and official deprecations before changing SDK-dependent code.
