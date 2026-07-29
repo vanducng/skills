@@ -71,7 +71,7 @@ short_goal: "fix cron job retry logic so failed tasks re-queue at exponential ba
 project:
   name: goclaw
   remote_url: git@github.com:dataplanelabs/goclaw.git
-  worktree_path: /Users/vanducng/git/personal/dataplanelabs/goclaw/.worktrees/goclaw-cron-retry-fix
+  worktree_path: $HOME/git/dataplanelabs/goclaw/.worktrees/goclaw-cron-retry-fix
   branch: fix/cron-retry
 
 target:

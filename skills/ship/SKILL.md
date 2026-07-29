@@ -76,6 +76,11 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 5. **Auto-decide everything else.** Patch-version bumps, changelog content, commit message, PR body - infer from diff and commits. Do not pause to ask.
 6. **Skip silently when a step doesn't apply.** No version file → skip version bump. No CHANGELOG → skip changelog. No test runner detected → ask once, then skip.
 7. **No secrets in commits.** Scan staged diff for API keys / tokens / passwords before commit. If found: stop, warn, suggest `.gitignore`.
+7b. **Portability scan on shareable content.** When the staged diff touches reusable/publishable content (`skills/**`, `hooks/**`, `agents/**`, docs, examples, fixtures), grep the diff before commit for:
+   - **Absolute home paths** - `/Users/<name>/`, `/home/<name>/`. Replace with `$HOME`, `~`, or a placeholder (`<repo-root>`, `<org>/<repo>`). A path is only allowed literal when it's a real fixed system path (`/etc/hosts`, `/usr/local/bin`).
+   - **Private identifiers** - employer/org names, internal repo or host names, customer names, connection names, ticket contents, personal emails. Replace with `<org>/<repo>`, `<connection>`, `<internal-host>`. Discover the real values at runtime from the repo/env instead of hardcoding.
+   - **Stale model ids** - model names pinned in prose/examples that no longer match what the tool actually uses. Verify against the source of truth (`~/.codex/config.toml`, the CLI binary's own default, provider docs) before changing one; a doc that correctly records an older default the tool still writes is **not** stale.
+   Findings block the commit the same way Rule 7 does. Fix, or state out loud why the literal is required.
 8. **`--auto` has a safety floor.** Even in auto mode, stop on: critical review issues, **unresolved PR review comments**, secret-scan hits, test failures, merge conflicts, push rejections, ambiguous mode (no branch-name match). Auto suppresses *judgement-call* prompts (issue creation, version bump level, no-test-runner, journal/docs skip) **and recoverable preflight conditions** (on-target-branch → auto-create feature branch per Rule 1). Auto NEVER suppresses safety violations or direct-push-to-target.
 9. **Ticket branch/title invariant.** If the work is tied to Jira, Linear,
    Shortcut, GitHub issue, or another tracker key, the branch must start with
@@ -146,7 +151,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 7.  Changelog     → auto-generate from commits + diff
 8.  Journal       → journal-writer subagent (background)
 9.  Docs          → docs-manager subagent (background, official only)
-10. Commit        → conventional commit, secret scan
+10. Commit        → conventional commit, secret scan + portability scan (Rules 7 / 7b)
 11. Push          → git push -u origin <branch>
 12. PR            → gh pr create/edit using repo template or canonical fallback
 13. PR comments   → fetch review threads + human/bot reviews + top-level comments; triage, then fix/reply/resolve valid feedback (re-run Step 4 after any fix); repair already-resolved threads that lack explanatory inline replies; after fixing, **re-trigger each bot's re-review** (`@codex review` / `@coderabbitai review` / `/gemini review`; re-run local `ocr`/`miucr`) and loop until zero unresolved actionable threads - see `references/bot-reviewers.md`
