@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.42.0](https://github.com/vanducng/skills/compare/v1.41.0...v1.42.0) (2026-07-29)
+
+
+### Features
+
+* **skills:** add tech-docs skill ([#349](https://github.com/vanducng/skills/issues/349)) ([e18fd00](https://github.com/vanducng/skills/commit/e18fd00b02fdbe8533900417b51782ccdb4746e8))
+
 ## [1.41.0](https://github.com/vanducng/skills/compare/v1.40.4...v1.41.0) (2026-07-29)
 
 
