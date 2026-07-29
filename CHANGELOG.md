@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.40.4](https://github.com/vanducng/skills/compare/v1.40.3...v1.40.4) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docs:** restore shell spacing ([#346](https://github.com/vanducng/skills/issues/346)) ([14cfa3b](https://github.com/vanducng/skills/commit/14cfa3b0e7931ab913ec9b65c8e8e9757383ccab))
+
 ## [1.40.3](https://github.com/vanducng/skills/compare/v1.40.2...v1.40.3) (2026-07-29)
 
 
