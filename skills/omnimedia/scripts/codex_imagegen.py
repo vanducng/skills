@@ -206,7 +206,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--model",
         default=None,
-        help="Optional Codex base model (e.g. gpt-5.5). NOT the image model - "
+        help="Optional Codex base model (e.g. gpt-5.6-sol). NOT the image model - "
              "image-model selection is internal to $imagegen.",
     )
     p.add_argument(

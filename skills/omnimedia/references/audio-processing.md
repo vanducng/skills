@@ -246,7 +246,7 @@ response = client.models.generate_content(
 **Model selection**:
 - Use `gemini-2.5-flash` ($1/1M tokens) for most tasks
 - Upgrade to `gemini-2.5-pro` ($3/1M tokens) for complex analysis
-- For high-volume: `gemini-1.5-flash` ($0.70/1M tokens)
+- For high-volume: `gemini-2.5-flash-lite` (lowest cost)
 
 **Reduce costs**:
 - Process only relevant segments using timestamps

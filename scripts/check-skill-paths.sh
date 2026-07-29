@@ -36,6 +36,20 @@ while IFS= read -r f; do
   violations=$((violations + $(printf '%s\n' "$hits" | wc -l | tr -d ' ')))
 done < <(find "$SKILLS_ROOT" -type f \( -name 'SKILL.md' -o -path '*/references/*.md' \) | sort)
 
+# Second pass: absolute home paths. Skills are publishable, so a machine-specific
+# /Users/<name> or /home/<name> must be $HOME, ~, or a <placeholder>. No allowlist —
+# a real fixed system path (/usr/local, /etc) never matches these prefixes.
+HOME_PATH_RE='(/Users/|/home/)[A-Za-z0-9_.-]+/'
+while IFS= read -r f; do
+  git -C "$REPO" check-ignore -q "$f" 2>/dev/null && continue
+  hits="$(grep -nE "$HOME_PATH_RE" "$f" || true)"
+  [[ -z "$hits" ]] && continue
+  flagged_files=$((flagged_files + 1))
+  echo "  ${f#"$SKILLS_ROOT"/} (absolute home path):"
+  while IFS= read -r line; do echo "    ${line}"; done <<< "$hits"
+  violations=$((violations + $(printf '%s\n' "$hits" | wc -l | tr -d ' ')))
+done < <(find "$SKILLS_ROOT" -type f \( -name 'SKILL.md' -o -path '*/references/*.md' \) | sort)
+
 echo
 if [[ $violations -eq 0 ]]; then
   echo "check-skill-paths: OK (0 hardcoded-path violations)"

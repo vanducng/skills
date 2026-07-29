@@ -60,7 +60,7 @@ python scripts/gemini_batch_process.py --task generate --provider auto \
 
 ## Models
 
-The wrapper's `--model` flag forwards to `codex exec -m`, which selects the **Codex base model** (e.g. `gpt-5.5`, `o3`, `o4-mini`). It does **not** select an image-generation model - the image model (informally `gpt-image-2` / `gpt-image-1.5` / `gpt-image-1` / `gpt-image-1-mini`) is chosen internally by the `$imagegen` skill and isn't directly addressable from this wrapper. Common pitfall: passing `--model gpt-image-2` will fail because `codex exec -m` only accepts Codex base models.
+The wrapper's `--model` flag forwards to `codex exec -m`, which selects the **Codex base model** (e.g. `gpt-5.6-sol`, `o3`, `o4-mini`). It does **not** select an image-generation model - the image model (informally `gpt-image-2` / `gpt-image-1.5` / `gpt-image-1` / `gpt-image-1-mini`) is chosen internally by the `$imagegen` skill and isn't directly addressable from this wrapper. Common pitfall: passing `--model gpt-image-2` will fail because `codex exec -m` only accepts Codex base models.
 
 If `--model` is omitted (or auto-detected to a non-Codex model like `gemini-3.1-flash-image-preview`), the wrapper drops the flag and lets Codex pick its default base model.
 
