@@ -77,6 +77,14 @@ starlight-toc a[aria-current='true'] {
           var(--sl-nav-pad-x)
       )
     );
+    --docs-article-width: min(
+      var(--sl-content-width),
+      calc(
+        50vw + (var(--sl-content-width) / 2) - var(--sl-sidebar-width) -
+          var(--docs-shell-offset) - var(--sl-nav-gap, 1.5rem)
+      )
+    );
+    --docs-search-width: min(22rem, var(--docs-article-width));
   }
 
   .sidebar-pane {
@@ -87,14 +95,10 @@ starlight-toc a[aria-current='true'] {
     transform: translateX(calc(var(--docs-shell-offset) - var(--sl-nav-pad-x)));
   }
 
-  .header > .sl-flex:has(> site-search) {
-    inline-size: min(
-      var(--sl-content-width),
-      calc(
-        50vw + (var(--sl-content-width) / 2) - var(--sl-sidebar-width) -
-          var(--docs-shell-offset) - var(--sl-nav-gap)
-      )
+  site-search button {
+    inline-size: var(--docs-search-width);
+    margin-inline-start: calc(
+      (var(--docs-article-width) - var(--docs-search-width)) / 2
     );
-    justify-content: center;
   }
 }
