@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.40.1](https://github.com/vanducng/skills/compare/v1.40.0...v1.40.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* **cli-ts:** harden npm audit triage ([#337](https://github.com/vanducng/skills/issues/337)) ([4edc4fe](https://github.com/vanducng/skills/commit/4edc4fe8d8561b1b8ff8111ae161ca4556f27853))
+
 ## [1.40.0](https://github.com/vanducng/skills/compare/v1.39.0...v1.40.0) (2026-07-29)
 
 
