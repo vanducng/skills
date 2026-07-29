@@ -6,7 +6,7 @@ argument-hint: "<Retell operation or investigation>"
 metadata:
   author: vanducng
   version: "0.1.0"
-  verified: "2026-07-27"
+  verified: "2026-07-29"
 ---
 
 # Voice Agent
@@ -24,8 +24,11 @@ This skill handles discovery and operation of Retell resources exposed by `vac`:
    ```bash
    command -v vac
    vac --version
+   type -a vac
    vac retell --help
    ```
+
+   If more than one `vac` is installed, keep discovery and execution on the same resolved binary and version. Do not combine help from one installation with commands run by another.
 
 2. Discover the exact group and operation:
 
