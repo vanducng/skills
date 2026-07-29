@@ -90,6 +90,29 @@ Adapt command names to the repository. A package smoke should:
 
 Run the supported Node matrix. Add macOS and Windows artifact smokes only when cross-platform support is claimed.
 
+### Dependency audit triage
+
+Use the repository's package manager and lockfile. For npm, capture machine output and the exit code separately because findings intentionally make `npm audit` exit non-zero. Keep stderr visible, validate the report before querying it, and distinguish reported vulnerabilities from registry, lockfile, or install failures.
+
+```bash
+audit_report="$(mktemp)"
+audit_errors="$(mktemp)"
+audit_status=0
+npm audit --json >"$audit_report" 2>"$audit_errors" || audit_status=$?
+
+if ! jq -e '.metadata.vulnerabilities | type == "object"' "$audit_report" >/dev/null; then
+  cat "$audit_report" "$audit_errors" >&2
+  rm -f "$audit_report" "$audit_errors"
+  exit 1
+fi
+[[ ! -s "$audit_errors" ]] || cat "$audit_errors" >&2
+printf 'npm audit exit: %s\n' "$audit_status"
+jq '.metadata.vulnerabilities' "$audit_report"
+rm -f "$audit_report" "$audit_errors"
+```
+
+Preview compatible remediation with `npm audit fix --dry-run` as captured human-readable evidence. Do not parse its `--json` output unless the repository's npm version has been verified to emit clean JSON; some supported versions prefix it with install-plan text. Before applying `npm audit fix`, require a clean worktree; afterwards inspect `package.json` and the lockfile diff, reinstall from the lockfile, rerun the full repository gate, and audit again. Do not use `--force` unless an explicitly approved dependency-range change is intended.
+
 ## CI and release
 
 Split responsibilities while keeping a single release authority:
@@ -138,6 +161,7 @@ Ship a repository-local skill when agents are expected to operate the CLI. Root 
 - [Node.js process and exit behavior](https://nodejs.org/api/process.html)
 - [TypeScript module resolution](https://www.typescriptlang.org/tsconfig/moduleResolution.html)
 - [npm package.json, files, and bin](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/)
+- [npm audit](https://docs.npmjs.com/cli/v11/commands/npm-audit/)
 - [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/)
 - [npm semantic versioning](https://docs.npmjs.com/about-semantic-versioning/)
 - [GitHub Node package publishing](https://docs.github.com/en/actions/tutorials/publish-packages/publish-nodejs-packages)

@@ -45,6 +45,20 @@
         {"id": "cli-release-token", "text": "Requires the Actions pull-request setting, explains approval-required PR CI, and recommends a GitHub App token only for unattended CI or auto-merge"},
         {"id": "cli-release-owner", "text": "Leaves version, changelog, tag, and GitHub Release creation to Release Please"}
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "Investigate npm audit findings in an existing TypeScript CLI and preview a safe remediation. The audit reports vulnerabilities with a non-zero exit code, and a prior script piped JSON directly into a parser while discarding stderr.",
+      "expected_output": "A package-manager-preserving audit workflow that captures stdout, stderr, and exit status separately, validates JSON, distinguishes findings from command failure, previews remediation, and verifies the resulting lockfile.",
+      "files": [],
+      "assertions": [
+        {"id": "cli-audit-capture", "text": "Captures npm audit JSON and exit status separately without hiding stderr"},
+        {"id": "cli-audit-exit", "text": "Treats a non-zero audit exit as possible findings rather than automatically as malformed output"},
+        {"id": "cli-audit-errors", "text": "Validates the vulnerability report shape and surfaces stderr when audit output indicates a command failure"},
+        {"id": "cli-audit-preview", "text": "Treats audit fix dry-run output as human evidence unless the active npm version is verified to emit clean JSON"},
+        {"id": "cli-audit-fix", "text": "Reviews the manifest and lockfile diff and reruns install, tests, and audit after remediation"},
+        {"id": "cli-audit-force", "text": "Avoids npm audit fix --force unless a dependency-range change is explicitly approved"}
+      ]
     }
   ]
 }
