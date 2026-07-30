@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.43.3](https://github.com/vanducng/skills/compare/v1.43.2...v1.43.3) (2026-07-30)
+
+
+### Bug Fixes
+
+* **ship:** add staging as a recognized ship target in the description ([#356](https://github.com/vanducng/skills/issues/356)) ([06c60d6](https://github.com/vanducng/skills/commit/06c60d6c5b4b75a4d34fda7a1665f34737712ee1))
+
 ## [1.43.2](https://github.com/vanducng/skills/compare/v1.43.1...v1.43.2) (2026-07-29)
 
 
