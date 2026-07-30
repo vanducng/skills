@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.44.0](https://github.com/vanducng/skills/compare/v1.43.3...v1.44.0) (2026-07-30)
+
+
+### Features
+
+* **skill:** improve Retell mutation guidance ([#358](https://github.com/vanducng/skills/issues/358)) ([15eca14](https://github.com/vanducng/skills/commit/15eca14388468a4365bc3b805b86e59fc1c5c5a9))
+
 ## [1.43.3](https://github.com/vanducng/skills/compare/v1.43.2...v1.43.3) (2026-07-30)
 
 
