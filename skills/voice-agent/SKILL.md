@@ -5,8 +5,8 @@ license: MIT
 argument-hint: "<Retell operation or investigation>"
 metadata:
   author: vanducng
-  version: "0.2.0"
-  verified: "2026-07-29"
+  version: "0.3.0"
+  verified: "2026-07-31"
 ---
 
 # Voice Agent
@@ -90,6 +90,27 @@ vac retell agents publish agent_123 --version 4
 ```
 
 Publishing is separate and requires an explicit draft version. Before pulling into an existing tree, run `prompts diff` or choose a fresh output directory because pull can overwrite local files.
+
+Resource versions are non-negative integers, including V0. Place resource-level `--version` after the leaf command. If publish returns success with `reconciled: true`, the initial provider response failed but the CLI confirmed the target version is published. Treat that as success. If publish still returns an error, read `agents versions` before deciding whether to retry.
+
+### Conversation-flow custom tool
+
+Inspect the leaf help and validate the definition before applying it:
+
+```bash
+vac retell tools add --help
+vac retell tools add agent_123 --file custom-tool.json --dry-run |
+  jq '{message,agent_id,tool_name,tool_id,location}'
+```
+
+After explicit authorization, apply once and capture the returned tool ID:
+
+```bash
+tool_result="$(vac retell tools add agent_123 --file custom-tool.json)"
+tool_id="$(printf '%s\n' "$tool_result" | jq -er '.tool_id')"
+```
+
+For a conversation-flow custom tool, `vac` preserves a supplied `tool_id` or generates one when absent and returns it in both dry-run and mutation output. Use the ID returned by the actual mutation when wiring the function node. Dry-run includes the tool preview, so always project safe fields and keep tool definitions and full tool responses out of logs because authorization headers may contain sensitive values. Clear captured output after verification with `unset tool_result tool_id`.
 
 ### Environment tag assignment
 

@@ -1,6 +1,6 @@
 # Voice Agent Operations Reference
 
-Use generated `vac ... --help` for exact arguments and flags. This matrix describes the stable workflow categories verified against current Voice Agent CLI source on 2026-07-28.
+Use generated `vac ... --help` for exact arguments and flags. This matrix describes the stable workflow categories verified against current Voice Agent CLI source on 2026-07-31.
 
 Legend: RO is remote read, LW is local write, RW is remote mutation/action, DR is dry-run available. No command exposes `--confirm`.
 
@@ -61,7 +61,7 @@ printf '%s\n' "$agent_snapshot" | jq .
 vac retell concurrency get
 ```
 
-`agents tags get` has no `--fields` flag and can return secret-bearing dynamic-variable values. Never print it raw; keep command tracing disabled while the snapshot exists and project names and metadata only. Agent and flow resource versions use `--engine-version`. The global `--version` flag prints the CLI version instead of selecting a resource version.
+`agents tags get` has no `--fields` flag and can return sensitive dynamic-variable values. Never print it raw; keep command tracing disabled while the snapshot exists and project names and metadata only. Agent and flow resource versions use `--engine-version`. A resource-level `--version` placed after its leaf command selects a non-negative numeric version, including V0. Root `vac --version` prints the CLI version.
 
 If the agent uses a conversation flow, resolve its ID from the selected agent version and inspect that same engine version:
 
@@ -89,7 +89,7 @@ Treat agent IDs, phone numbers, webhook URLs, dynamic-variable values, and knowl
 
 ## Current Retell contract
 
-The project pins `retell-sdk` 5.48.0, verified 2026-07-28. Re-check `npm view retell-sdk version` and official deprecations before changing SDK-dependent code.
+The project pins `retell-sdk` 5.48.0, verified 2026-07-31. Re-check `npm view retell-sdk version` and official deprecations before changing SDK-dependent code.
 
 Current and upcoming migrations:
 
