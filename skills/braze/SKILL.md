@@ -46,6 +46,8 @@ braze subscription --help
 braze subscription update --help
 ```
 
+Leaf help is the function contract. It includes the detailed purpose, permission, REST request, authoritative Braze documentation URL, safe JSON input, executable command, and typed option constraints. Follow the linked Braze page when nested object semantics or provider behavior affect the request.
+
 The CLI groups operations under categories such as `campaign`, `canvas`, `catalog`, `cdi`, `content-block`, `custom-attribute`, `event`, `kpi`, `message`, `purchase`, `sdk-authentication`, `segment`, `send`, `session`, `sms`, `subscription`, `template`, and `user`.
 
 ## Read with discovery
