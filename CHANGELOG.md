@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.46.0](https://github.com/vanducng/skills/compare/v1.45.0...v1.46.0) (2026-08-01)
+
+
+### Features
+
+* **braze:** documented persistent login ([#364](https://github.com/vanducng/skills/issues/364)) ([4a7b2f0](https://github.com/vanducng/skills/commit/4a7b2f0db1e8ff987e47232f3bfca50e63990810))
+
 ## [1.45.0](https://github.com/vanducng/skills/compare/v1.44.1...v1.45.0) (2026-08-01)
 
 
