@@ -1,11 +1,11 @@
 ---
 name: braze
-description: Operate Braze through the braze-cli category commands for campaigns, Canvas, catalogs, analytics, messaging, SMS, subscriptions, users, templates, and content blocks. Use when the user asks to inspect Braze data, diagnose REST permissions, change opt-in or opt-out state, or validate and ship the Braze CLI.
+description: Operate the Braze platform through braze-cli category commands for campaigns, Canvas, catalogs, analytics, messaging, SMS, subscriptions, users, templates, and content blocks. Use when the user asks to inspect Braze data, diagnose permissions, change opt-in or opt-out state, or validate and ship the Braze CLI.
 license: MIT
 allowed-tools:
   - Bash
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   binary: braze
 ---
 
@@ -24,16 +24,14 @@ braze workspace list
 
 If the binary is missing, report it and offer `npm install --global braze-cli`. Do not install or upgrade it unless the user asks.
 
-Use `BRAZE_REST_ENDPOINT`, `BRAZE_API_KEY`, and optional `BRAZE_APP_ID`. The CLI also reads the current directory's `.env` and supports the compatibility keys `braze_host`, `braze_api_token`, and `braze_login`. Never print, copy, or commit credential values.
-
-When the user asks for persistent credentials, run `braze login` from a configured directory, then verify without exposing values:
+Configure the CLI interactively, then verify without exposing values:
 
 ```bash
 braze login
 braze workspace list
 ```
 
-Login writes the standard names to the user config with mode `0600`. Process environment and current `.env` values override the saved config. Do not inspect or print the stored API key.
+Copy the REST endpoint and API key from [**Settings > APIs and Identifiers > API Keys**](https://www.braze.com/docs/api/basics#endpoints) in Braze. The App ID is optional. Login masks the API key and writes the user config with mode `0600`. Do not inspect, print, copy, or commit credential values.
 
 ## Discover commands by category
 
@@ -46,7 +44,7 @@ braze subscription --help
 braze subscription update --help
 ```
 
-Leaf help is the function contract. It includes the detailed purpose, permission, REST request, authoritative Braze documentation URL, safe JSON input, executable command, and typed option constraints. Follow the linked Braze page when nested object semantics or provider behavior affect the request.
+Leaf help is the function contract. It includes the detailed purpose, permission, authoritative Braze documentation, safe JSON input, executable command, and typed option constraints. Follow the linked Braze page when nested object semantics or provider behavior affect the request.
 
 The CLI groups operations under categories such as `campaign`, `canvas`, `catalog`, `cdi`, `content-block`, `custom-attribute`, `event`, `kpi`, `message`, `purchase`, `sdk-authentication`, `segment`, `send`, `session`, `sms`, `subscription`, `template`, and `user`.
 
@@ -83,7 +81,7 @@ Never retry an ambiguous write until a read proves whether Braze committed it. W
 
 - Parse stdout only after exit status 0.
 - Parse failures from stderr as `{ "ok": false, "error": { ... } }`.
-- Branch on `error.code` and retry only when `error.retryable` is true.
+- Read commands retry transient failures with bounded backoff. Retry again only when the final error sets `error.retryable` to true.
 - Treat HTTP 403 as a missing leaf permission and report the permission named by command help.
 - Keep provider payloads, user identifiers, phone numbers, emails, and credentials out of logs.
 - Use `--input @request.json` for reviewed complex objects and explicit flags for small inputs.
