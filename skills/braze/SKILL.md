@@ -5,7 +5,7 @@ license: MIT
 allowed-tools:
   - Bash
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   binary: braze
 ---
 
@@ -26,6 +26,15 @@ If the binary is missing, report it and offer `npm install --global braze-cli`. 
 
 Use `BRAZE_REST_ENDPOINT`, `BRAZE_API_KEY`, and optional `BRAZE_APP_ID`. The CLI also reads the current directory's `.env` and supports the compatibility keys `braze_host`, `braze_api_token`, and `braze_login`. Never print, copy, or commit credential values.
 
+When the user asks for persistent credentials, run `braze login` from a configured directory, then verify without exposing values:
+
+```bash
+braze login
+braze workspace list
+```
+
+Login writes the standard names to the user config with mode `0600`. Process environment and current `.env` values override the saved config. Do not inspect or print the stored API key.
+
 ## Discover commands by category
 
 Start at the resource category, then inspect the exact leaf help before relying on flags:
@@ -36,6 +45,8 @@ braze campaign list --help
 braze subscription --help
 braze subscription update --help
 ```
+
+Leaf help is the function contract. It includes the detailed purpose, permission, REST request, authoritative Braze documentation URL, safe JSON input, executable command, and typed option constraints. Follow the linked Braze page when nested object semantics or provider behavior affect the request.
 
 The CLI groups operations under categories such as `campaign`, `canvas`, `catalog`, `cdi`, `content-block`, `custom-attribute`, `event`, `kpi`, `message`, `purchase`, `sdk-authentication`, `segment`, `send`, `session`, `sms`, `subscription`, `template`, and `user`.
 
