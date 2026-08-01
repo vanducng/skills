@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.47.0](https://github.com/vanducng/skills/compare/v1.46.0...v1.47.0) (2026-08-01)
+
+
+### Features
+
+* **braze:** guide interactive login and retries ([#366](https://github.com/vanducng/skills/issues/366)) ([089bc69](https://github.com/vanducng/skills/commit/089bc69fb6e4e79e0d9e63ee5e9c421a2032e00d))
+
 ## [1.46.0](https://github.com/vanducng/skills/compare/v1.45.0...v1.46.0) (2026-08-01)
 
 
