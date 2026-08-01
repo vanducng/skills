@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.45.0](https://github.com/vanducng/skills/compare/v1.44.1...v1.45.0) (2026-08-01)
+
+
+### Features
+
+* **braze:** add Braze CLI operations skill ([#362](https://github.com/vanducng/skills/issues/362)) ([97a1217](https://github.com/vanducng/skills/commit/97a12175007924cf63c3eaa6fd4cf0e0d2362c94))
+
 ## [1.44.1](https://github.com/vanducng/skills/compare/v1.44.0...v1.44.1) (2026-08-01)
 
 
