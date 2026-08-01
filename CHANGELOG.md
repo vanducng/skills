@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.48.0](https://github.com/vanducng/skills/compare/v1.47.0...v1.48.0) (2026-08-01)
+
+
+### Features
+
+* add zero-tech-debt and code-refactor-review skills ([#369](https://github.com/vanducng/skills/issues/369)) ([d32acfe](https://github.com/vanducng/skills/commit/d32acfe2942127e93d33a75ba61b85fe843eb140))
+
 ## [1.47.0](https://github.com/vanducng/skills/compare/v1.46.0...v1.47.0) (2026-08-01)
 
 
