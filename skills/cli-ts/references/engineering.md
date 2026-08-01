@@ -4,7 +4,18 @@ Use this reference after inspecting the repository. Existing project conventions
 
 ## Architecture
 
-Recommended shape for a multi-provider operational CLI:
+Start with the structure required by the current domain count. For a single-service CLI, keep the SDK boundary direct:
+
+```text
+src/
+├── index.ts                 executable boundary
+├── cli.ts                   parser and root registration
+├── core/                    output, errors, config, pagination, JSON input
+├── commands/                command registration
+└── domain-name.ts           SDK configuration and translation
+```
+
+Introduce provider directories only when multiple providers or interchangeable backends are real requirements:
 
 ```text
 src/
@@ -20,7 +31,7 @@ src/
         └── types/
 ```
 
-Keep tests beside the code they validate. Use a local parser instance instead of a global singleton so command trees can be tested repeatedly. Keep command handlers responsible for parsing and orchestration only. Put SDK translation, retries, pagination, and provider-specific validation in services.
+Keep tests beside the code they validate. Use a local parser instance instead of a global singleton so command trees can be tested repeatedly. Keep command handlers responsible for parsing and orchestration only. For one service, keep SDK translation and service-specific behavior in its direct domain module, splitting it only when the file gains distinct responsibilities. For multiple providers, keep each provider's translation, retries, pagination, and validation inside its provider module.
 
 For greenfield bin-only packages, prefer one bundled executable and an explicit `files` allowlist. Preserve CommonJS in existing projects unless ESM migration is requested. For greenfield ESM, use `"type": "module"` and a bundler-aware TypeScript resolution mode when the bundler owns emission.
 
