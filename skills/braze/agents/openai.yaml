@@ -1,0 +1,4 @@
+interface:
+  display_name: "Braze CLI"
+  short_description: "Operate Braze safely through its REST CLI"
+  default_prompt: "Use $braze to inspect or update Braze through category-first commands with explicit write confirmation."
