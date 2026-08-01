@@ -5,7 +5,7 @@ license: MIT
 allowed-tools:
   - Bash
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   binary: braze
 ---
 
@@ -25,6 +25,15 @@ braze workspace list
 If the binary is missing, report it and offer `npm install --global braze-cli`. Do not install or upgrade it unless the user asks.
 
 Use `BRAZE_REST_ENDPOINT`, `BRAZE_API_KEY`, and optional `BRAZE_APP_ID`. The CLI also reads the current directory's `.env` and supports the compatibility keys `braze_host`, `braze_api_token`, and `braze_login`. Never print, copy, or commit credential values.
+
+When the user asks for persistent credentials, run `braze login` from a configured directory, then verify without exposing values:
+
+```bash
+braze login
+braze workspace list
+```
+
+Login writes the standard names to the user config with mode `0600`. Process environment and current `.env` values override the saved config. Do not inspect or print the stored API key.
 
 ## Discover commands by category
 
