@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.44.1](https://github.com/vanducng/skills/compare/v1.44.0...v1.44.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* **cli-ts:** make provider folders conditional ([#360](https://github.com/vanducng/skills/issues/360)) ([7a983a6](https://github.com/vanducng/skills/commit/7a983a610fad143fb513f0b79de25bbd549afdc6))
+
 ## [1.44.0](https://github.com/vanducng/skills/compare/v1.43.3...v1.44.0) (2026-07-30)
 
 
