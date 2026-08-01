@@ -12,6 +12,31 @@ Canonical PR conventions - shared by `vd:git pr` and `vd:ship`. Both skills sour
    ```
 2. **Otherwise** use the fallback template below.
 
+## Body transport and verification
+
+Send Markdown through `--body-file -`; never pass escaped newlines through
+`--body`. The quoted heredoc preserves real line breaks and prevents shell
+expansion.
+
+```bash
+gh pr create --title "<title>" --body-file - <<'EOF'
+<markdown body>
+EOF
+
+gh pr edit <number> --body-file - <<'EOF'
+<markdown body>
+EOF
+```
+
+After every create or edit, fail if GitHub stored literal `\n` sequences:
+
+```bash
+if gh pr view <number> --json body --jq .body | grep -Fq '\n'; then
+  echo 'PR body contains literal \n sequences' >&2
+  exit 1
+fi
+```
+
 ## Brevity rules (applies to both repo-template and fallback)
 
 PR readers have the diff one click away. Body explains *why* and *what's risky*, not *what changed line-by-line*. **A reviewer should scan the body in 10 seconds and decide whether to dive into the diff.**
@@ -227,6 +252,8 @@ Three labelled bullets + a verification block (one field per line). No section h
 - **Issue closers (`Closes #42`)** live inline in the **Why** bullet - no separate Linked-Issues section.
 - **Verification block values** come from live tooling output, never the author's claim.
 - **Existing PR for this branch** → `gh pr edit`, never re-create.
+- **Body transport is invariant:** use `--body-file -` with a quoted heredoc,
+  then run the literal-`\n` assertion above.
 - **Beta PRs** target dev/beta branch, not main.
 - **No AI attribution** in title, body, or PR comments. No "Generated with Claude" / `Co-Authored-By: Claude` / `https://claude.ai/code/session_...` links / emoji unless explicitly asked.
 - **`gh pr create --fill`** uses commit messages directly (imperative). After `--fill`, re-edit the title with `gh pr edit --title "<v-ed title>"` to flip it to past tense.

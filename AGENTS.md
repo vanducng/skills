@@ -22,6 +22,10 @@ When documenting skill handoffs or examples, use canonical skill IDs without a l
 
 Skills must work across computers and users. Never hardcode personal absolute paths, usernames, or machine-only locations; use repository-relative paths, `$HOME`, configurable environment variables, or hook-injected artifact roots. If a platform-specific default is necessary, document a portable override.
 
+## Privacy and Sensitive Information
+
+Treat every reusable skill, reference, example, fixture, and asset as public. Do not include private repository or organization names, internal URLs or hostnames, customer identifiers, usernames, emails, absolute personal paths, production identifiers, connection names, credentials, secrets, or sensitive business data. Use generic placeholders and resolve private values from the current environment or private repo-local configuration at runtime.
+
 ## Documentation Sync
 
 The `skills/` directory is the source of truth for the catalog; `docs/` must track it. When you add, remove, or rename a skill - or materially change what one does - update the docs in the same change:
