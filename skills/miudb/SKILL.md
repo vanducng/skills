@@ -407,6 +407,23 @@ Use `--since` to filter by relative duration (e.g. `24h`, `7d`); omit to read al
 - stdout is JSON.
 - stderr is diagnostics only.
 - `ok: false` is a structured failure, not necessarily a shell failure.
+- **Query results live at `data.result`** - `columns[]` (objects with `name`/`type`) and
+  `rows[]` (array-of-arrays, positional to `columns`), plus `truncated`. On failure there is
+  **no `data` key** at all; read top-level `error.code` / `error.message`. Parse defensively:
+
+  ```bash
+  miudb query run --connection <CONN> --sql '<SQL>' --output json | python3 -c "
+  import sys,json
+  d=json.load(sys.stdin)
+  if not d.get('ok'): print('ERR:', d['error']['message'][:200]); sys.exit(1)
+  r=d['data']['result']
+  print(' | '.join(c['name'] for c in r['columns']))
+  for row in r['rows']: print(' | '.join('' if v is None else str(v) for v in row))"
+  ```
+
+  Guarding on `ok` first matters: a blocked network or expired credential returns a well-formed
+  envelope with exit status 0, so an unguarded `d['data']` raises `KeyError` instead of showing
+  the real error.
 - Command descriptions are available via `miudb describe <command>`.
 - Output is secret-hardened: credential-named values, password-bearing URLs, and
   `key=secret` assignments are redacted before stdout (`connections list` shows
