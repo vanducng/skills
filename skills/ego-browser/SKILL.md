@@ -184,6 +184,20 @@ For login, captcha, or another manual step, finish all safe preparation in the c
 
 `taskSpaces.waitForAgentControl(nameOrId)` only polls; it never takes control. Use it only when the same script initiated the handoff and intentionally remains alive; after it resolves, continue the remaining work in that script.
 
+### Just showing the user a page - skip the bridge entirely
+
+When the user only needs to *look at* something (a local report, a built artifact, a URL) and no agent driving is required, do **not** open it in a task space and hand off. A handed-off space is still an agent-created space: the user lands in an unfamiliar space instead of the one they were working in, and the window may not even come forward.
+
+Open it with the OS handler instead - it lands in the user's own current space, with no ownership to unwind:
+
+```bash
+open -a "ego lite" "/absolute/path/to/report.html"   # macOS; a URL works too
+```
+
+Use the task-space route only when the agent must observe or act on the page. If you already handed off a space and the user says they want it in *their* space, re-open with `open -a` and offer to close the now-redundant agent space.
+
+Related: after any `handOff` the ego window is not necessarily frontmost - `open -a "ego lite"` with no argument brings it forward so the user actually sees what was handed to them.
+
 ## Choose the interaction path
 
 1. **Semantic: snapshot + locators.** Use for normal DOM pages. Observe with `page.snapshot()`, then act with semantic locators, current-command `@N` refs, or stable `loc=...` values.
