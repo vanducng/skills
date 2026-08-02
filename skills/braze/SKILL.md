@@ -33,6 +33,19 @@ braze workspace list
 
 Copy the REST endpoint and API key from [**Settings > APIs and Identifiers > API Keys**](https://www.braze.com/docs/api/basics#endpoints) in Braze. The App ID is optional. Login masks the API key and writes the user config with mode `0600`. Do not inspect, print, copy, or commit credential values.
 
+**Credentials come only from the saved config file.** `BRAZE_REST_ENDPOINT` and `BRAZE_API_KEY` in the environment are **ignored** - exporting them does nothing. `loadSavedConfig` reads `$XDG_CONFIG_HOME/braze/config.json` (default `~/.config/braze/config.json`) and nothing else; the environment is consulted only to locate that file. Verified: with both env vars set but an empty config dir, `workspace list` reports `api_key_configured: false`.
+
+This matters when a task needs a *different* key than the saved one (a read-only token, another workspace). Exporting env vars silently keeps using the saved key and the request fails with a confusing `403 permission_error` that looks like a missing scope. Point the CLI at a scratch config instead:
+
+```bash
+TMP=$(mktemp -d); mkdir -p "$TMP/braze"
+printf '{"BRAZE_REST_ENDPOINT":"%s","BRAZE_API_KEY":"%s"}\n' "$ENDPOINT" "$KEY" > "$TMP/braze/config.json"
+chmod 600 "$TMP/braze/config.json"
+XDG_CONFIG_HOME="$TMP" braze workspace list      # confirm it resolved
+# ... run the read commands ...
+rm -rf "$TMP"                                     # never leave the key on disk
+```
+
 ## Discover commands by category
 
 Start at the resource category, then inspect the exact leaf help before relying on flags:
@@ -85,6 +98,15 @@ Never retry an ambiguous write until a read proves whether Braze committed it. W
 - Treat HTTP 403 as a missing leaf permission and report the permission named by command help.
 - Keep provider payloads, user identifiers, phone numbers, emails, and credentials out of logs.
 - Use `--input @request.json` for reviewed complex objects and explicit flags for small inputs.
+- **Pass array options as one comma-separated value, never as a repeated flag.** `string[]` options are split on commas; repeating the flag keeps only the **last** value and fails silently - the call succeeds and quietly returns one record. Batching 50 identifiers this way collapses to 1 with no error.
+
+  ```bash
+  braze user export-ids --external-ids "id1,id2,id3"          # correct
+  braze user export-ids --external-ids id1 --external-ids id2 # WRONG - only id2 is sent
+  braze user export-ids --input '{"external_ids":["id1","id2"]}'  # also correct
+  ```
+
+  The same applies to every `string[]` option (`--email`, `--phone`, `--fields-to-export`, …). When a batched read returns fewer records than identifiers supplied, suspect this before suspecting the data.
 
 ## Validate the CLI repository
 
