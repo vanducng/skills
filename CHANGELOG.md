@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.48.1](https://github.com/vanducng/skills/compare/v1.48.0...v1.48.1) (2026-08-02)
+
+
+### Bug Fixes
+
+* **braze:** document file-only credential resolution and array flag trap ([ba17413](https://github.com/vanducng/skills/commit/ba17413ac7dc9cc32e74c01baf50db97dae4958f))
+
 ## [1.48.0](https://github.com/vanducng/skills/compare/v1.47.0...v1.48.0) (2026-08-01)
 
 
