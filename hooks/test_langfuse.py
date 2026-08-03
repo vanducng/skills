@@ -235,6 +235,20 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(len(first), 32)
         self.assertEqual(len(lf.span_id_for('sess-a', 'turn:0')), 16)
 
+    def test_list_attribute_elements_are_capped(self):
+        attribute = lf._attr('langfuse.trace.tags', ['x' * 5000, 'ok'])
+        values = attribute['value']['arrayValue']['values']
+        self.assertEqual(len(values[0]['stringValue']), lf.ATTR_ELEMENT_MAX)
+        self.assertEqual(values[1]['stringValue'], 'ok')
+
+    def test_usage_merge_accepts_floats_and_rejects_junk(self):
+        merged = tx._merge_usage({'input': 5}, {'input': 2.0, 'output': True,
+                                                'reasoning': None, 'cache_read': 'x'})
+        self.assertEqual(merged['input'], 7)
+        self.assertNotIn('output', merged, 'bool must not count as 1')
+        self.assertNotIn('reasoning', merged)
+        self.assertNotIn('cache_read', merged)
+
     def test_truncation_marks_dropped_chars(self):
         out = lf.truncate('x' * 100, 10)
         self.assertTrue(out.startswith('x' * 10))

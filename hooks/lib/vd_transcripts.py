@@ -339,10 +339,15 @@ def parse_pi(path):
 
 
 def _merge_usage(existing, incoming):
+    """Accumulate token counts. Accepts int or float (bool excluded: it is an int
+    subclass and would silently count as 1); anything else is dropped rather than
+    corrupting the total."""
     merged = dict(existing or {})
     for key, value in (incoming or {}).items():
-        if isinstance(value, int) and value >= 0:
-            merged[key] = merged.get(key, 0) + value
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        if value >= 0:
+            merged[key] = merged.get(key, 0) + int(value)
     return merged
 
 

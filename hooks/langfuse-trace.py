@@ -225,7 +225,12 @@ def scan(agent, limit, config, seed="", max_turns=None):
 
 
 def transcript_from_stdin():
-    """Claude Code hooks deliver JSON on stdin; Codex notify may too."""
+    """Read a hook payload from stdin.
+
+    Claude Code delivers JSON with transcript_path here. Codex's Stop hook is
+    wired with --agent/--latest instead, and other callers pass nothing, so
+    every failure mode (no stdin, empty, non-JSON, non-dict) returns None
+    rather than raising."""
     if sys.stdin is None or sys.stdin.isatty():
         return None, None
     try:

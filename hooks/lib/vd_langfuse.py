@@ -23,6 +23,7 @@ OTLP_PATH = "/api/public/otel/v1/traces"
 TIMEOUT_S = 20
 MAX_CHARS_DEFAULT = 20000
 BATCH_SIZE = 400
+ATTR_ELEMENT_MAX = 512
 
 
 class LangfuseConfig:
@@ -130,8 +131,10 @@ def _attr(key, value):
     if isinstance(value, float):
         return {"key": key, "value": {"doubleValue": value}}
     if isinstance(value, (list, tuple)):
+        # Elements never pass through truncate(), so cap them here rather than
+        # letting one oversized member inflate the whole request.
         return {"key": key, "value": {"arrayValue": {
-            "values": [{"stringValue": str(v)} for v in value]}}}
+            "values": [{"stringValue": str(v)[:ATTR_ELEMENT_MAX]} for v in value]}}}
     return {"key": key, "value": {"stringValue": str(value)}}
 
 
