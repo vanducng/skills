@@ -102,3 +102,30 @@ file = "agent-notify.py"
 runtime = "python3"
 event = "codex.notify"
 args = ["codex"]
+
+# Langfuse tracing — ships each turn to Langfuse (no-op without LANGFUSE_* keys).
+# Claude Code passes transcript_path on stdin; Codex resolves its newest rollout
+# via --latest (its Stop payload carries no transcript path).
+[[hook]]
+file = "langfuse-trace.py"
+runtime = "python3"
+event = "Stop"
+
+[[hook]]
+file = "langfuse-trace.py"
+runtime = "python3"
+event = "SessionEnd"
+
+[[hook]]
+file = "langfuse-trace.py"
+runtime = "python3"
+event = "codex.Stop"
+args = ["--agent", "codex", "--latest"]
+
+[[hook]]
+file = "lib/vd_langfuse.py"
+lib = true
+
+[[hook]]
+file = "lib/vd_transcripts.py"
+lib = true
