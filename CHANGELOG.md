@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.49.1](https://github.com/vanducng/skills/compare/v1.49.0...v1.49.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* **jira,miudb:** clarify short-flag doc gaps found by skill audit ([#371](https://github.com/vanducng/skills/issues/371)) ([b31c7f2](https://github.com/vanducng/skills/commit/b31c7f2c2b6115c9343f97b6923b106cf1f62827))
+
 ## [1.49.0](https://github.com/vanducng/skills/compare/v1.48.1...v1.49.0) (2026-08-03)
 
 
