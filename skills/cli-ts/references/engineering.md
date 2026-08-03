@@ -161,9 +161,20 @@ Use Conventional Commits with Release Please only when the repository already us
 
 For a single Node package, keep `release-please-config.json` and `.release-please-manifest.json` at the repository root. The manifest records the last published version, which can legitimately differ from an unreleased version already present in `package.json` during migration. Configure the Node release type and `bump-minor-pre-major: true` when the documented pre-1.0 policy maps breaking contracts to minor releases.
 
+Set `include-component-in-tag: false` for a single root package in a repository that already tags `vX.Y.Z`. Release Please otherwise searches for component-prefixed tags such as `pkg-v1.2.3`, finds no prior release, walks the entire history, and proposes an inflated version whose changelog re-credits already-published work. It also silently changes the tag convention that existing releases and any trusted publisher already depend on. The generated changelog's compare link is the fastest check: it must resolve to the real previous tag, not to a prefixed tag that does not exist.
+
 Before accepting that mismatch, derive the next version from Conventional Commits since the published tag under the configured version policy. If it matches the unreleased package version, keep both and verify the generated release PR. If it does not match, do not guess: restore package files to the published version before adoption, or use a documented one-time `Release-As` override when product intent explicitly requires that version.
 
 Run Release Please on pushes to the release branch with `contents: write`, `issues: write`, and `pull-requests: write`. Pin the action by full commit SHA. Gate validation and publication on its root `release_created` output, check `tag_name` against the packaged version, check that the tagged commit belongs to the release branch, and use its `version` output for registry verification.
+
+Checking out the release tag fetches only that tag's refspec, so the release branch has no remote-tracking ref and `fetch-depth` does not create one, because it bounds history depth rather than which refs are fetched. Fetch the branch explicitly with a destination refspec before any ancestry check, otherwise the check aborts the job under `set -e` and blocks every publish:
+
+```bash
+git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+git merge-base --is-ancestor HEAD origin/main
+```
+
+A bare `git fetch origin main` is not sufficient; it guarantees only `FETCH_HEAD`.
 
 The default `GITHUB_TOKEN` has three consequences:
 
