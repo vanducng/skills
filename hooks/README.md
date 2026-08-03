@@ -72,8 +72,13 @@ langfuse-trace.py --agent claude-code --latest --force   # re-send turns already
 - **Fail-open.** The exporter always exits 0 and is silent without credentials —
   observability must never block or slow an agent turn. Set `VD_LANGFUSE_DEBUG=1`
   to see what it did.
-- **Large sessions are batched** (400 spans/request), so a multi-thousand-span
-  backfill won't blow the request limit.
+- **Bounded per fire.** Each invocation ships at most `--max-turns` turns
+  (default 25, `VD_LANGFUSE_MAX_TURNS` to change, `0` for unlimited) and the
+  rest is picked up on later turns. Without the cap, the first fire against a
+  long existing session ships thousands of spans while a synchronous `Stop`
+  hook blocks the turn — a 2,200-span backfill measured ~10 min against
+  Langfuse Cloud. Spans are also batched 400/request so a large deliberate
+  backfill (`--scan`, or `--max-turns 0`) can't blow the request limit.
 - **Cost:** pi reports real per-message cost and it's sent verbatim. Claude Code
   and Codex don't, so Langfuse prices them from its own model table — define
   prices in Langfuse for any model it doesn't know (e.g. `gpt-5.6-sol`), or its

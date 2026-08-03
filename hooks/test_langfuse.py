@@ -348,6 +348,40 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, 'a hook must never fail the turn')
         self.assertFalse(json.loads(result.stdout)['ok'])
 
+    def test_max_turns_bounds_one_invocation_and_resumes(self):
+        """A first fire against a long session must not ship everything at once —
+        a synchronous Stop hook would block the turn for minutes."""
+        records = []
+        for index in range(5):
+            records.append({'type': 'user', 'timestamp': '2026-08-01T10:0%d:00.000Z' % index,
+                            'sessionId': 'sess-long',
+                            'message': {'role': 'user', 'content': 'ask %d' % index}})
+            records.append({'type': 'assistant', 'timestamp': '2026-08-01T10:0%d:05.000Z' % index,
+                            'sessionId': 'sess-long',
+                            'message': {'role': 'assistant', 'model': 'claude-opus-5',
+                                        'usage': {'input_tokens': 1, 'output_tokens': 1},
+                                        'content': [{'type': 'text', 'text': 'reply %d' % index}]}})
+        path = write_jsonl(os.path.join(self.tmp, 'long.jsonl'), records)
+
+        first = json.loads(self.run_export(
+            ['--transcript', path, '--agent', 'claude-code', '--max-turns', '2', '--json']).stdout)[0]
+        self.assertEqual(first['exported'], 2)
+        self.assertEqual(first['remaining'], 3)
+
+        second = json.loads(self.run_export(
+            ['--transcript', path, '--agent', 'claude-code', '--max-turns', '2', '--json']).stdout)[0]
+        self.assertEqual(second['exported'], 2, 'resumes where the cap stopped')
+        self.assertEqual(second['remaining'], 1)
+
+        third = json.loads(self.run_export(
+            ['--transcript', path, '--agent', 'claude-code', '--max-turns', '2', '--json']).stdout)[0]
+        self.assertEqual(third['exported'], 1)
+        self.assertEqual(third['remaining'], 0)
+
+        fourth = json.loads(self.run_export(
+            ['--transcript', path, '--agent', 'claude-code', '--json']).stdout)[0]
+        self.assertEqual(fourth['exported'], 0, 'all five turns accounted for exactly once')
+
     def test_state_file_records_turn_count(self):
         self.run_export(['--transcript', self.transcript, '--agent', 'claude-code', '--json'])
         with open(self.state, encoding='utf-8') as handle:

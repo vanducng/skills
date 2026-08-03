@@ -148,8 +148,12 @@ def build_spans(session, turns, config, seed=""):
     return trace_id, spans
 
 
-def export_transcript(path, agent=None, config=None, force=False, seed=""):
-    """Export unshipped turns of one transcript. Returns a result dict."""
+def export_transcript(path, agent=None, config=None, force=False, seed="", max_turns=None):
+    """Export unshipped turns of one transcript. Returns a result dict.
+
+    max_turns bounds a single invocation: the first fire against a long existing
+    session would otherwise ship thousands of spans while a Stop hook blocks the
+    turn. The remainder is picked up on subsequent fires (or via --scan)."""
     config = config or lf.load_config()
     if not config.enabled:
         return {"ok": False, "reason": "langfuse credentials not set", "path": path}
@@ -170,14 +174,21 @@ def export_transcript(path, agent=None, config=None, force=False, seed=""):
         return {"ok": True, "reason": "up to date", "path": path, "exported": 0,
                 "trace_id": lf.trace_id_for(session.id, seed)}
 
+    remaining = 0
+    if max_turns and len(pending) > max_turns:
+        remaining = len(pending) - max_turns
+        pending = pending[:max_turns]
+
     trace_id, spans = build_spans(session, pending, config, seed)
     ok, status, detail = lf.export_spans(config, spans)
     if ok:
-        state[key] = {"turns": len(session.turns), "trace_id": trace_id, "path": path}
+        # Advance only past what actually shipped, so a capped run resumes cleanly.
+        state[key] = {"turns": pending[-1].index + 1, "trace_id": trace_id, "path": path}
         write_state(state)
     return {"ok": ok, "status": status, "detail": detail, "path": path,
             "agent": session.agent, "session_id": session.id, "trace_id": trace_id,
-            "exported": len(pending) if ok else 0, "spans": len(spans)}
+            "exported": len(pending) if ok else 0, "spans": len(spans),
+            "remaining": remaining}
 
 
 def newest_transcript(agent):
@@ -197,7 +208,7 @@ def newest_transcript(agent):
     return newest
 
 
-def scan(agent, limit, config, seed=""):
+def scan(agent, limit, config, seed="", max_turns=None):
     root = os.path.expanduser(AGENT_DIRS[agent])
     found = []
     for directory, _, files in os.walk(root):
@@ -209,7 +220,8 @@ def scan(agent, limit, config, seed=""):
                 except OSError:
                     continue
     found.sort(reverse=True)
-    return [export_transcript(p, agent, config, seed=seed) for _, p in found[:limit]]
+    return [export_transcript(p, agent, config, seed=seed, max_turns=max_turns)
+            for _, p in found[:limit]]
 
 
 def transcript_from_stdin():
@@ -243,6 +255,9 @@ def main():
     parser.add_argument("--force", action="store_true", help="re-export turns already shipped")
     parser.add_argument("--seed", default=os.environ.get("VD_LANGFUSE_TRACE_SEED", ""),
                         help="salt for trace ids (use to start a fresh trace)")
+    parser.add_argument("--max-turns", type=int,
+                        default=int(os.environ.get("VD_LANGFUSE_MAX_TURNS") or 25),
+                        help="max turns per invocation (0 = unlimited); keeps a hook fire bounded")
     parser.add_argument("--json", action="store_true", help="print machine-readable results")
     args = parser.parse_args()
 
@@ -257,7 +272,7 @@ def main():
     if args.scan:
         if not args.agent:
             parser.error("--scan requires --agent")
-        results = scan(args.agent, args.limit, config, args.seed)
+        results = scan(args.agent, args.limit, config, args.seed, args.max_turns)
     else:
         path = args.transcript
         if not path:
@@ -268,7 +283,8 @@ def main():
             if args.json:
                 print(json.dumps({"ok": False, "reason": "no transcript"}))
             return 0
-        results = [export_transcript(path, args.agent, config, args.force, args.seed)]
+        results = [export_transcript(path, args.agent, config, args.force, args.seed,
+                                     args.max_turns)]
 
     if args.json:
         print(json.dumps(results, indent=2))
