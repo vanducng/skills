@@ -2,17 +2,19 @@
 """Behavioral tests for the Langfuse exporter (lib/vd_langfuse.py,
 lib/vd_transcripts.py, langfuse-trace.py).
 
-Offline by design: no test contacts Langfuse. Export is exercised by monkey-
-patching the one HTTP seam (vd_langfuse.export_spans), so span-building,
-transcript parsing, incremental state, and the fail-open contract are all
-asserted without credentials or a network.
+Offline by design: no test contacts Langfuse. Export runs the real script as a
+subprocess against a local HTTP server standing in for the OTLP endpoint, so the
+actual urllib POST path, span-building, transcript parsing, incremental state,
+and the fail-open contract are all asserted without credentials or a network.
 
 Run: python3 -m unittest hooks.test_langfuse
  or: python3 hooks/test_langfuse.py
 """
 
+import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -92,6 +94,7 @@ PI_RECORDS = [
 class TranscriptParsingTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
 
     def test_claude_turn_tools_and_usage(self):
         path = write_jsonl(os.path.join(self.tmp, 'c.jsonl'), CLAUDE_RECORDS)
@@ -154,6 +157,7 @@ class TranscriptParsingTests(unittest.TestCase):
 
     def test_detect_agent_from_content_when_path_is_unknown(self):
         tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
         for name, records, expected in (
                 ('a.jsonl', CLAUDE_RECORDS, 'claude-code'),
                 ('b.jsonl', CODEX_RECORDS, 'codex'),
@@ -165,6 +169,7 @@ class TranscriptParsingTests(unittest.TestCase):
 
     def test_unrecognisable_transcript_raises(self):
         tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
         path = write_jsonl(os.path.join(tmp, 'x.jsonl'), [{'type': 'mystery', 'a': 1}])
         with self.assertRaises(ValueError):
             tx.parse(path)
@@ -206,7 +211,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(len(lf.span_id_for('sess-a', 'turn:0')), 16)
 
     def test_truncation_marks_dropped_chars(self):
-        out = lf._truncate('x' * 100, 10)
+        out = lf.truncate('x' * 100, 10)
         self.assertTrue(out.startswith('x' * 10))
         self.assertIn('truncated 90 chars', out)
 
@@ -254,6 +259,7 @@ class ExportTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.state = os.path.join(self.tmp, 'state.json')
+        self.addCleanup(shutil.rmtree, self.tmp, True)
         self.transcript = write_jsonl(os.path.join(self.tmp, 'c.jsonl'), CLAUDE_RECORDS)
         type(self).received.clear()
 
@@ -329,17 +335,17 @@ class ExportTests(unittest.TestCase):
 
 class SpanShapeTests(unittest.TestCase):
     def test_build_spans_nests_generation_and_tools_under_turn(self):
-        sys.path.insert(0, HOOKS_DIR)
         tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
         path = write_jsonl(os.path.join(tmp, 'c.jsonl'), CLAUDE_RECORDS)
         session = tx.parse(path, 'claude-code')
         config = lf.load_config({'LANGFUSE_PUBLIC_KEY': 'pk', 'LANGFUSE_SECRET_KEY': 'sk'})
 
-        module = {'__file__': TRACE_SCRIPT, '__name__': 'langfuse_trace_under_test'}
-        with open(TRACE_SCRIPT, encoding='utf-8') as handle:
-            exec(compile(handle.read(), TRACE_SCRIPT, 'exec'), module)
+        spec = importlib.util.spec_from_file_location('langfuse_trace_under_test', TRACE_SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
-        trace_id, spans = module['build_spans'](session, session.turns, config)
+        trace_id, spans = module.build_spans(session, session.turns, config)
         by_id = {s['spanId']: s for s in spans}
         self.assertTrue(all(s['traceId'] == trace_id for s in spans))
 

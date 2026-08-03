@@ -172,7 +172,10 @@ def parse_claude(path):
                 if isinstance(block, dict) and block.get("type") == "tool_use":
                     call = ToolCall(block.get("name") or "tool", block.get("input"), None, ts)
                     turn.tools.append(call)
-                    pending[block.get("id")] = call
+                    # An id-less call would collide with every other id-less call
+                    # under a None key and silently steal their outputs.
+                    if block.get("id") is not None:
+                        pending[block["id"]] = call
             turn.end_ns = max(turn.end_ns, ts)
 
     return session
@@ -221,7 +224,8 @@ def parse_codex(path):
         elif ptype == "custom_tool_call" and turn is not None:
             call = ToolCall(payload.get("name") or "tool", payload.get("input"), None, ts)
             turn.tools.append(call)
-            pending[payload.get("call_id")] = call
+            if payload.get("call_id") is not None:
+                pending[payload["call_id"]] = call
 
         elif ptype == "custom_tool_call_output" and turn is not None:
             call = pending.pop(payload.get("call_id"), None)
@@ -241,8 +245,12 @@ def parse_codex(path):
                 })
 
         elif ptype == "task_complete" and turn is not None:
-            if payload.get("last_agent_message"):
-                turn.output = payload["last_agent_message"]
+            final = payload.get("last_agent_message")
+            # last_agent_message is the turn's answer; the agent_message records
+            # before it are commentary. Keep both, but don't repeat the answer
+            # when it was already streamed as the final agent_message.
+            if final and not (turn.output or "").rstrip().endswith(final.rstrip()):
+                turn.output = "\n".join(filter(None, [turn.output, final]))
             started = _epoch_to_ns(payload.get("started_at"))
             completed = _epoch_to_ns(payload.get("completed_at"))
             if started:
@@ -317,7 +325,10 @@ def parse_pi(path):
             turn.end_ns = max(turn.end_ns, ts)
 
         elif role == "toolResult" and turn is not None:
-            # pi emits tool results in call order without echoing the call id.
+            # pi emits tool results in call order and never echoes a call id, so
+            # positional matching is the only option. A tool whose result is
+            # genuinely absent would shift every later result by one; pi always
+            # emits a result per call (errors included), so that stays theoretical.
             text = _text_from_content(content)
             for call in turn.tools:
                 if call.output is None:

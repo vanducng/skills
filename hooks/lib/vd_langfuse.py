@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import re
+import socket
 import urllib.error
 import urllib.request
 
@@ -112,7 +113,7 @@ def span_id_for(session_id, suffix, seed=""):
     return _hex("vd-langfuse:span:%s:%s:%s" % (seed, session_id, suffix), 16)
 
 
-def _truncate(value, max_chars):
+def truncate(value, max_chars):
     if value is None:
         return None
     text = value if isinstance(value, str) else json.dumps(value, default=str)
@@ -213,8 +214,12 @@ def _post_batch(config, spans, service_name):
         body = ""
         try:
             body = exc.read().decode("utf-8", "replace")[:300]
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             pass
         return False, exc.code, body
-    except Exception as exc:
+    except socket.timeout:
+        return False, 0, "timeout after %ds" % TIMEOUT_S
+    except urllib.error.URLError as exc:
+        return False, 0, "unreachable: %s" % (getattr(exc, "reason", exc),)
+    except OSError as exc:
         return False, 0, str(exc)

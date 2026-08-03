@@ -8,7 +8,7 @@ shipped, so firing on every turn never duplicates work.
 
 Invocation
     Claude Code   Stop / SessionEnd hook (transcript_path arrives on stdin)
-    Codex         codex.notify hook (turn-ended payload on argv/stdin)
+    Codex         codex.Stop hook (newest rollout resolved via --latest)
     pi            langfuse-pi extension, or --scan for backfill
 
 Exit code is always 0: observability must never block an agent turn.
@@ -77,7 +77,7 @@ def build_spans(session, turns, config, seed=""):
         common["langfuse.environment"] = config.environment
 
     project = os.path.basename(session.cwd) if session.cwd else None
-    all_turns = session.turns or turns
+    all_turns = session.turns
     start_ns = min([t.start_ns for t in all_turns if t.start_ns] or [0])
     end_ns = max([t.end_ns for t in all_turns if t.end_ns] or [start_ns])
 
@@ -90,9 +90,9 @@ def build_spans(session, turns, config, seed=""):
             "langfuse.trace.metadata.cwd": session.cwd,
             "langfuse.trace.metadata.project": project,
             "langfuse.trace.metadata.model": session.model,
-            "langfuse.observation.input": lf._truncate(
+            "langfuse.observation.input": lf.truncate(
                 all_turns[0].user_input if all_turns else None, config.max_chars),
-            "langfuse.observation.output": lf._truncate(
+            "langfuse.observation.output": lf.truncate(
                 all_turns[-1].output if all_turns else None, config.max_chars),
         }
     ))]
@@ -103,8 +103,8 @@ def build_spans(session, turns, config, seed=""):
             trace_id, turn_id, "turn %d" % (turn.index + 1),
             turn.start_ns or start_ns, turn.end_ns or turn.start_ns or start_ns,
             dict(common, **{
-                "langfuse.observation.input": lf._truncate(turn.user_input, config.max_chars),
-                "langfuse.observation.output": lf._truncate(turn.output, config.max_chars),
+                "langfuse.observation.input": lf.truncate(turn.user_input, config.max_chars),
+                "langfuse.observation.output": lf.truncate(turn.output, config.max_chars),
                 "langfuse.observation.metadata.tool_count": len(turn.tools),
             }),
             parent_span_id=root_id,
@@ -114,8 +114,8 @@ def build_spans(session, turns, config, seed=""):
             generation = dict(common, **{
                 "langfuse.observation.type": "generation",
                 "gen_ai.request.model": turn.model,
-                "langfuse.observation.input": lf._truncate(turn.user_input, config.max_chars),
-                "langfuse.observation.output": lf._truncate(turn.output, config.max_chars),
+                "langfuse.observation.input": lf.truncate(turn.user_input, config.max_chars),
+                "langfuse.observation.output": lf.truncate(turn.output, config.max_chars),
             })
             generation.update(lf.usage_attributes(turn.usage))
             if turn.cost is not None:
@@ -138,8 +138,8 @@ def build_spans(session, turns, config, seed=""):
                 call.end_ns or call.start_ns or turn.end_ns or start_ns,
                 dict(common, **{
                     "langfuse.observation.type": "span",
-                    "langfuse.observation.input": lf._truncate(call.input, config.max_chars),
-                    "langfuse.observation.output": lf._truncate(call.output, config.max_chars),
+                    "langfuse.observation.input": lf.truncate(call.input, config.max_chars),
+                    "langfuse.observation.output": lf.truncate(call.output, config.max_chars),
                     "langfuse.observation.metadata.tool_name": call.name,
                 }),
                 parent_span_id=turn_id,
@@ -228,7 +228,9 @@ def transcript_from_stdin():
         return None, None
     if not isinstance(payload, dict):
         return None, None
-    return payload.get("transcript_path"), payload.get("session_id")
+    path = payload.get("transcript_path")
+    # Hook payloads are external input: a non-string here would reach open().
+    return (path if isinstance(path, str) else None), payload.get("session_id")
 
 
 def main():

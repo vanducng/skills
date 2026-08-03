@@ -26,9 +26,18 @@ const EXPORTER_CANDIDATES = [
   join(homedir(), ".claude", "hooks", "langfuse-trace.py"),
 ].filter((path): path is string => Boolean(path));
 
+function debug(message: string): void {
+  if (process.env.VD_LANGFUSE_DEBUG) console.error(`langfuse-trace (pi): ${message}`);
+}
+
 function exportSession(): void {
+  // Resolved per call, not at module load, so an exporter installed mid-session
+  // (or a VD_LANGFUSE_EXPORTER path created later) still gets picked up.
   const exporter = EXPORTER_CANDIDATES.find((path) => existsSync(path));
-  if (!exporter) return;
+  if (!exporter) {
+    debug(`no exporter found in: ${EXPORTER_CANDIDATES.join(", ")}`);
+    return;
+  }
 
   try {
     const child = spawn("python3", [exporter, "--agent", "pi", "--latest"], {
@@ -37,9 +46,11 @@ function exportSession(): void {
     });
     // Unref so a slow network call can never hold pi's event loop open on exit.
     child.unref();
-    child.on("error", () => {});
-  } catch {
-    // Tracing is best-effort; a spawn failure must not surface to the user.
+    // Fires when python3 isn't on PATH — silent by default, since tracing is
+    // best-effort, but diagnosable under VD_LANGFUSE_DEBUG.
+    child.on("error", (error) => debug(`spawn failed: ${error.message}`));
+  } catch (error) {
+    debug(`spawn threw: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
