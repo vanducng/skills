@@ -140,6 +140,31 @@ class TranscriptParsingTests(unittest.TestCase):
         self.assertEqual(turn.tools[0].name, 'bash')
         self.assertEqual(turn.tools[0].output, 'node1 ok')
 
+    def test_pi_tool_result_without_text_does_not_shift_later_results(self):
+        """A result with no text block must still close its call; otherwise the
+        next result re-matches it and every later tool output is off by one."""
+        records = list(PI_RECORDS[:4]) + [
+            {'type': 'message', 'timestamp': '2026-08-01T10:00:02.500Z',
+             'message': {'role': 'assistant', 'model': 'gpt-5.6-sol',
+                         'content': [{'type': 'toolCall', 'id': 'tc2', 'name': 'read',
+                                      'arguments': {'path': '/x'}}]}},
+            # first result carries no text block at all
+            {'type': 'message', 'timestamp': '2026-08-01T10:00:03.000Z',
+             'message': {'role': 'toolResult', 'content': [{'type': 'image'}]}},
+            {'type': 'message', 'timestamp': '2026-08-01T10:00:04.000Z',
+             'message': {'role': 'toolResult', 'content': [{'type': 'text', 'text': 'second'}]}},
+        ]
+        path = write_jsonl(os.path.join(self.tmp, 'pi2.jsonl'), records)
+        turn = tx.parse(path, 'pi').turns[0]
+        self.assertEqual([call.name for call in turn.tools], ['bash', 'read'])
+        self.assertEqual(turn.tools[0].output, '', 'text-less result still closes its call')
+        self.assertEqual(turn.tools[1].output, 'second', 'later results must not shift')
+
+    def test_detect_agent_normalizes_windows_separators(self):
+        self.assertEqual(
+            tx.detect_agent('/x/.codex/sessions/2026/rollout-a.jsonl'.replace('/', os.sep)),
+            'codex')
+
     def test_malformed_lines_do_not_raise(self):
         path = os.path.join(self.tmp, 'bad.jsonl')
         with open(path, 'w', encoding='utf-8') as handle:
@@ -184,13 +209,13 @@ class ConfigTests(unittest.TestCase):
             handle.write('export LANGFUSE_IGNORED=$(gopass show secret)\n')
             handle.write('export UNRELATED_TOKEN="nope"\n')
             path = handle.name
+        self.addCleanup(os.unlink, path)
         found = lf.load_envrc(path)
         self.assertEqual(found['LANGFUSE_PUBLIC_KEY'], 'pk-lf-abc')
         self.assertEqual(found['LANGFUSE_SECRET_KEY'], 'sk-lf-def')
         self.assertEqual(found['LANGFUSE_BASE_URL'], 'https://example.langfuse.com')
         self.assertNotIn('LANGFUSE_IGNORED', found, 'shell-expanded values must be skipped')
         self.assertNotIn('UNRELATED_TOKEN', found)
-        os.unlink(path)
 
     def test_config_disabled_without_keys(self):
         config = lf.load_config({'VD_LANGFUSE_ENVRC': '/nonexistent/.envrc'})
@@ -358,16 +383,20 @@ class SpanShapeTests(unittest.TestCase):
                     return item['value']
             return None
 
-        turn = next(s for s in spans if s['name'] == 'turn 1')
+        turn = next((s for s in spans if s['name'] == 'turn 1'), None)
+        self.assertIsNotNone(turn, 'turn span missing')
         self.assertEqual(turn['parentSpanId'], root[0]['spanId'])
 
-        generation = next(s for s in spans
-                          if attr(s, 'langfuse.observation.type') == {'stringValue': 'generation'})
+        generation = next((s for s in spans
+                           if attr(s, 'langfuse.observation.type') == {'stringValue': 'generation'}),
+                          None)
+        self.assertIsNotNone(generation, 'generation span missing')
         self.assertEqual(generation['parentSpanId'], turn['spanId'])
         self.assertEqual(attr(generation, 'gen_ai.request.model'), {'stringValue': 'claude-opus-5'})
         self.assertEqual(attr(generation, 'gen_ai.usage.input_tokens'), {'intValue': '10'})
 
-        tool = next(s for s in spans if s['name'] == 'tool: Bash')
+        tool = next((s for s in spans if s['name'] == 'tool: Bash'), None)
+        self.assertIsNotNone(tool, 'tool span missing')
         self.assertEqual(tool['parentSpanId'], turn['spanId'])
         self.assertIn(tool['spanId'], by_id)
 

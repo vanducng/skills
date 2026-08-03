@@ -31,8 +31,9 @@ function debug(message: string): void {
 }
 
 function exportSession(): void {
-  // Resolved per call, not at module load, so an exporter installed mid-session
-  // (or a VD_LANGFUSE_EXPORTER path created later) still gets picked up.
+  // The candidate list is built once at module load (VD_LANGFUSE_EXPORTER is read
+  // then), but existsSync runs per call, so an exporter installed mid-session is
+  // picked up without restarting pi. Changing VD_LANGFUSE_EXPORTER does need one.
   const exporter = EXPORTER_CANDIDATES.find((path) => existsSync(path));
   if (!exporter) {
     debug(`no exporter found in: ${EXPORTER_CANDIDATES.join(", ")}`);

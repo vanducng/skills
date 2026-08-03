@@ -267,7 +267,6 @@ def parse_codex(path):
 def parse_pi(path):
     session = Session(os.path.basename(path).split("_")[-1].replace(".jsonl", ""), "pi")
     turn = None
-    pending = {}
 
     for record in _read_jsonl(path):
         kind = record.get("type")
@@ -319,9 +318,8 @@ def parse_pi(path):
                 turn.output = "\n".join(filter(None, [turn.output, text]))
             for block in content:
                 if isinstance(block, dict) and block.get("type") == "toolCall":
-                    call = ToolCall(block.get("name") or "tool", block.get("arguments"), None, ts)
-                    turn.tools.append(call)
-                    pending[block.get("id")] = call
+                    turn.tools.append(
+                        ToolCall(block.get("name") or "tool", block.get("arguments"), None, ts))
             turn.end_ns = max(turn.end_ns, ts)
 
         elif role == "toolResult" and turn is not None:
@@ -332,7 +330,7 @@ def parse_pi(path):
             text = _text_from_content(content)
             for call in turn.tools:
                 if call.output is None:
-                    call.output = text
+                    call.output = text if text is not None else ""
                     call.end_ns = ts or call.start_ns
                     break
             turn.end_ns = max(turn.end_ns, ts)
@@ -353,7 +351,7 @@ PARSERS = {"claude-code": parse_claude, "codex": parse_codex, "pi": parse_pi}
 
 def detect_agent(path):
     """Infer the agent from a transcript path. Returns None when unknown."""
-    resolved = os.path.realpath(path)
+    resolved = os.path.realpath(path).replace(os.sep, "/")
     if "/.codex/sessions/" in resolved or os.path.basename(resolved).startswith("rollout-"):
         return "codex"
     if "/.pi/" in resolved:
