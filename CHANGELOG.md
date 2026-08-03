@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.49.0](https://github.com/vanducng/skills/compare/v1.48.1...v1.49.0) (2026-08-03)
+
+
+### Features
+
+* **hooks:** traced Claude Code, Codex, and pi sessions to Langfuse ([#375](https://github.com/vanducng/skills/issues/375)) ([0fd6c85](https://github.com/vanducng/skills/commit/0fd6c85ac191e80057d85b226a2c5fb410ec384b))
+
 ## [1.48.1](https://github.com/vanducng/skills/compare/v1.48.0...v1.48.1) (2026-08-02)
 
 
