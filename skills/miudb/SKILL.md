@@ -88,8 +88,11 @@ miudb connections list --basic --output json   # scannable: ref/name/group/db_ty
 
 Connections are addressed by **`group/name`** (e.g. `cnb/cdljn-prod`); a bare
 `name` works when it is unique across groups. The `ref` column from `--basic` is
-exactly what to pass to `--connection`/`-c`. If the named connection is not
-listed, stop and ask the user. Do not substitute a similar connection.
+exactly what to pass to `--connection`. The `-c` short flag only exists on
+`erd` subcommands (see below) - other commands like `query run` require the
+long `--connection` form and reject `-c` with "unknown shorthand flag". If the
+named connection is not listed, stop and ask the user. Do not substitute a
+similar connection.
 
 ## Add connections
 
