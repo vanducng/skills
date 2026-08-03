@@ -43,7 +43,9 @@
         {"id": "cli-release-reconcile", "text": "Checks commits since the published tag to reconcile the expected next version with the unreleased package.json version"},
         {"id": "cli-release-same-run", "text": "Gates validation and npm publication on release_created in the same workflow run"},
         {"id": "cli-release-token", "text": "Requires the Actions pull-request setting, explains approval-required PR CI, and recommends a GitHub App token only for unattended CI or auto-merge"},
-        {"id": "cli-release-owner", "text": "Leaves version, changelog, tag, and GitHub Release creation to Release Please"}
+        {"id": "cli-release-owner", "text": "Leaves version, changelog, tag, and GitHub Release creation to Release Please"},
+        {"id": "cli-release-tag-format", "text": "Disables include-component-in-tag so the existing vX.Y.Z tags bound the changelog instead of triggering a full-history walk"},
+        {"id": "cli-release-branch-fetch", "text": "Fetches the release branch with an explicit destination refspec before checking that the tagged commit is an ancestor of it"}
       ]
     },
     {
