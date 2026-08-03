@@ -40,6 +40,30 @@ kubectl describe pod <pod>
 kubectl logs <pod> --previous -c <container>
 ```
 
+### Alert triage: prove workload health separately from telemetry
+
+Trace the signal path before changing resources: workload → exporter/sidecar → Prometheus target → alert rule → notification adapter. An `absent(<metric>)` result proves only that Prometheus cannot see the time series, not that the workload is unhealthy.
+
+For an Airflow scheduler heartbeat alert, check the scheduler directly before tuning CPU or memory:
+
+```bash
+kubectl exec -n <ns> <scheduler-pod> -c scheduler -- \
+  airflow jobs check --job-type SchedulerJob --local
+kubectl get pods -n <ns> -o wide
+kubectl get events -n <ns> --sort-by='.lastTimestamp'
+```
+
+Then inspect the metric labels and exporter pod or scrape target. Correlate exporter restarts with node replacement or cluster maintenance. A healthy scheduler plus a restarted exporter is a telemetry gap, so fix or tolerate that gap instead of scaling the scheduler.
+
+When users report many chat alerts, reconcile each layer:
+
+1. Alertmanager's API shows current alerts, not a complete incident history.
+2. Prometheus `ALERTS{alertstate="firing"}` over a query range shows historical firing series.
+3. Notification-adapter logs show delivery batches.
+4. `group_by`, `group_interval`, `repeat_interval`, and `send_resolved` determine how those batches map to incidents.
+
+Do not treat notification batch count as unique incident count. Grouped updates, repeats, and resolved messages can all produce additional deliveries.
+
 | Pod state | Cause | Fix |
 | --- | --- | --- |
 | **Pending** | No schedulable node / resources | `kubectl describe pod` events; check requests vs node capacity, taints |
