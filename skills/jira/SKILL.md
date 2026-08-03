@@ -116,7 +116,7 @@ Use Atlassian Document Format (ADF) with `codeBlock` node for code. See the REST
 ```bash
 jira issue move ISSUE-KEY "In Progress"      # Transition
 jira issue assign ISSUE-KEY $(jira me)       # Assign to self
-jira issue comment add ISSUE-KEY "Comment"   # Add comment
+jira issue comment add ISSUE-KEY "Comment"   # Add comment (positional body, no -b flag)
 jira sprint add SPRINT-ID ISSUE-KEY          # Add to active/known sprint
 jira issue link ISSUE-1 ISSUE-2 Relates      # Link issues
 ```
