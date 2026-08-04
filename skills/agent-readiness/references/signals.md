@@ -177,6 +177,26 @@ stack is added by creating its file from `stacks/_template.md` and adding a row 
 A stack detected here with no readable file in the last column falls back to the catch-all clauses and is
 reported as a gap, per § Layout. It is never skipped.
 
+### Coverage additions (rubric change)
+
+Splitting the per-stack evidence into `stacks/*.md` forced every stack file to carry all 13 stack-heavy
+rows, which surfaced ecosystems the earlier flat enumeration had omitted. These five clauses now accept
+evidence that did not pass before:
+
+| Stack file | signal_id | Clause added |
+|---|---|---|
+| `stacks/rust.md` | naming_conventions_stated | rustc `non_snake_case`/`non_camel_case_types` raised to deny, or a clippy naming lint |
+| `stacks/csharp-dotnet.md` | naming_conventions_stated | `.editorconfig` `dotnet_naming_rule.*` carrying a severity |
+| `stacks/java-kotlin.md` | naming_conventions_stated | detekt or ktlint naming rules (previously checkstyle only) |
+| `stacks/java-kotlin.md` | runtime_version_pinned | SDKMAN `.sdkmanrc` |
+| `stacks/java-kotlin.md` | tech_debt_markers_tracked | checkstyle `TodoComment` |
+
+Each is an instance of a category the rubric already accepted (an automated naming check, a version-manager
+file, a marker lint), extended to an ecosystem that had no entry. A repo scored before and after this change
+can therefore score differently on `naming_conventions_stated`, `runtime_version_pinned`, and
+`tech_debt_markers_tracked`; when comparing two runs across it, check this table before treating the delta
+as a repo change.
+
 **Multi-stack rule (deterministic).** An app may detect as several stacks. A signal passes for that app
 only when **every code-bearing stack** in that app satisfies it. Evidence from a sibling app's stack never
 counts. Concretely, for a stack-heavy signal: open each code-bearing stack's file, read the row for that
@@ -416,9 +436,12 @@ Fix: safe when creating a new `.env.example` whose keys are the variable names c
 values; propose when an example file already exists (it would be edited) or when values must be guessed.
 Skip only when the collection below yields zero variables.
 Collect the variable names the code reads through its env-access API - the API per stack is the
-`env_vars_documented` row in that stack's `stacks/*.md` - excluding matches under the discovery
-exclusion paths (tests, fixtures, vendored and generated directories). For a stack with no file, collect
-through whatever env-access API that language provides and note it in the rationale.
+`env_vars_documented` row in that stack's `stacks/*.md`, which is mandatory in every stack file - excluding
+matches under the discovery exclusion paths (tests, fixtures, vendored and generated directories). A row
+reading the sentinel `N/A - <reason>` means that stack has no env-access API and contributes no names;
+record the reason in the rationale. For a stack with no file, or a stack file missing this row, collect
+through whatever env-access API that language provides, note it in the rationale, and report the gap per
+§ Layout - never treat it as an empty collection.
 PASS if ANY ONE of:
 - `.env.example`/`.env.sample`/`.env.dist` is committed and the collected set minus the keys it lists is empty, with **no real secret values**.
 - A typed/validated config schema (a zod env schema, pydantic settings, `config/*.php` reading those keys) enumerates the collected set with nothing left over.
@@ -480,7 +503,10 @@ value at each path; a value read from an env var contributes that env var's name
 
 Anything outside that table is not collected, even if it looks like a service. A framework absent from the
 table contributes only through its env keys. Each stack file repeats its own row of this table under
-`service_dependencies_documented`; the table here stays authoritative.
+`service_dependencies_documented`, a mandatory row; the table here stays authoritative. A row reading the
+sentinel `N/A - <reason>` means that ecosystem has no framework row here and contributes only through its
+env keys and compose images. A stack file missing the row is a gap to report per § Layout, scored against
+this table, never a reason to collect nothing.
 
 **"Maps to" means one of exactly these**, per collected name:
 - A compose/devcontainer service in this repo whose name or `image:` matches the collected name or its driver (`REDIS_URL` to a `redis` service, `pgsql` to a `postgres` image).
@@ -574,7 +600,7 @@ Fix: **safe** when it adds a new standalone scanner script and nothing else; pro
 lint rule to an existing config or a step to CI.
 PASS if ANY ONE of:
 - A committed CI step or script that inventories `TODO`/`FIXME`/`HACK`/`XXX` markers and reports the count or a trend.
-- A lint rule that flags bare markers, per the `tech_debt_markers_tracked` row in the stack's `stacks/*.md`: eslint `no-warning-comments` with its `terms`/`location` options (it flags terms only - it cannot require an owner or an issue link), or ruff `TD002`/`TD003` (missing author, missing issue link), or a dedicated scanner enforcing the link policy. RuboCop `Style/CommentAnnotation` checks annotation *formatting* only and does not pass an owner-or-link policy on its own.
+- A lint rule that flags bare markers, per the `tech_debt_markers_tracked` row in the stack's `stacks/*.md` (a mandatory row; the sentinel `N/A - <reason>` means the ecosystem has no such rule, so only the scanner and zero-marker clauses can pass, and a stack file missing the row is a gap reported per § Layout): eslint `no-warning-comments` with its `terms`/`location` options (it flags terms only - it cannot require an owner or an issue link), or ruff `TD002`/`TD003` (missing author, missing issue link), or a dedicated scanner enforcing the link policy. RuboCop `Style/CommentAnnotation` checks annotation *formatting* only and does not pass an owner-or-link policy on its own.
 - The repo has zero such markers and a documented policy forbidding them.
 - Any language: a committed mechanism that keeps the marker inventory visible rather than invisible.
 
