@@ -4,6 +4,71 @@
 selects which evidence to look for; it never changes which signals are evaluated.** A Go repo and a
 Laravel repo are scored against the same 30 rows, only the accepted evidence differs.
 
+## Layout: this file and the stack files
+
+The rubric is a signal x stack matrix. This file owns the **signal axis**: the registry of all 30, the
+scoring rules, and the full definition of the 17 signals whose evidence is the same in every ecosystem.
+`stacks/*.md` owns the **stack axis**: one file per ecosystem, each carrying a row for every one of the 13
+stack-heavy signals. Adding a ninth language is one new file plus one registry line, not an edit spread
+across thirteen definitions.
+
+| Question | File |
+|---|---|
+| Which signals exist, how are they scored, is this one skippable, what is its fix class | this file |
+| What counts as evidence for `lint_configured` in Rust | `stacks/rust.md`, row `lint_configured` |
+| How do I add a ninth stack | `stacks/_template.md` |
+
+A stack file never changes a signal's scope, skippability, or fix class, and never removes a signal's
+catch-all clause. It only supplies the per-language clauses.
+
+**A missing stack file is an error, never a skipped signal.** If a detected stack has no file under
+`stacks/`, score that stack's 13 signals against each signal's language-agnostic catch-all clause and
+**record the gap in the report** (the stack name and the signals scored that way). Never drop the signal:
+skipping shrinks `n` and inflates the pass rate, which is the opposite of the finding. The same applies to
+a stack file that is present but missing a row for a signal id.
+
+## Signal registry (all 30)
+
+The denominator depends on this table. Every signal id the run scores appears here exactly once, so `n` is
+countable in one place, and any id present in a stack file but absent here (or the reverse) is a defect in
+the rubric rather than a scoring judgement.
+
+`Fix` repeats the signal's own `Fix:` line for orientation only. `safe if*` means the classification is
+conditional and the signal's `Fix:` line states the condition; read that line before applying anything.
+
+| id | Group | Scope | Skippable | Fix | Evidence |
+|---|---|---|---|---|---|
+| agent_instructions_present | 1 | repo | no | safe if* | this file |
+| instructions_document_commands | 1 | repo | no | propose | this file |
+| instructions_validated_in_ci | 1 | repo | no | propose | this file |
+| instructions_freshness | 1 | repo | no | propose | this file |
+| instructions_scoped_per_app | 1 | app | no | safe if* | this file |
+| skills_or_prompt_library | 1 | repo | yes | propose | this file |
+| agent_config_committed | 1 | repo | yes | propose | this file |
+| test_command_declared | 2 | app | no | propose | stack file |
+| test_command_runnable | 2 | app | no | propose | stack file |
+| lint_configured | 2 | app | no | propose | stack file |
+| format_check_available | 2 | app | no | propose | stack file |
+| static_analysis_configured | 2 | app | no | propose | stack file |
+| coverage_threshold_enforced | 2 | app | no | propose | stack file |
+| ci_runs_on_pull_requests | 2 | repo | no | propose | this file |
+| ci_feedback_fast | 2 | repo | yes | propose | this file |
+| verification_baseline_green | 2 | app | no | propose | this file |
+| single_command_setup | 3 | repo | no | propose | this file |
+| env_vars_documented | 3 | repo | yes | safe if* | this file; env-access API per stack file |
+| dependencies_locked | 3 | app | no | propose | stack file |
+| runtime_version_pinned | 3 | app | no | propose | stack file |
+| dev_environment_declared | 3 | repo | no | propose | this file |
+| service_dependencies_documented | 3 | repo | yes | propose | this file; extractor keys per stack file |
+| readme_setup_steps | 3 | repo | no | safe if* | this file |
+| architecture_documented | 4 | repo | no | safe if* | this file |
+| module_boundaries_enforced | 4 | repo | yes | propose | stack file |
+| dead_code_detection | 4 | app | no | safe if* | stack file |
+| duplicate_code_detection | 4 | repo | no | safe if* | stack file |
+| file_size_or_complexity_guard | 4 | repo | no | propose | stack file |
+| naming_conventions_stated | 4 | repo | no | propose | stack file |
+| tech_debt_markers_tracked | 4 | repo | no | safe if* | this file; marker rules per stack file |
+
 ## How to read a signal
 
 | Field | Meaning |
@@ -13,10 +78,13 @@ Laravel repo are scored against the same 30 rows, only the accepted evidence dif
 | Skippable | `yes` = may score `null` and drop out of the final denominator. `no` = must score 0 or 1 |
 | Inspect | the files/commands to look at. Existence checks first, semantics only when cheap |
 | PASS if ANY ONE of | satisfying a single clause passes the signal. The last clause is always a language-agnostic catch-all |
+| Stack evidence | for the 13 stack-heavy signals the per-language clauses live in `stacks/<name>.md` under the signal's own id; the catch-all stays here |
 | Fix | **the single source of truth for fix classification.** `safe` = auto-applyable under the four-part test in SKILL.md `## --fix mode`. `safe if <condition>` = safe only while that condition holds, propose otherwise. `propose` = present as a diff, never write |
 
-There is deliberately no summary table of safe signals: two lists drift, and then two agents mutate
-different files. Read the `Fix:` line on the signal you are about to fix and nothing else.
+The registry's `Fix` column is an index, not a second classification: it never states a condition, and
+`safe if*` always sends you back to the signal's own `Fix:` line. Read that line on the signal you are about
+to fix and nothing else. Two lists that both claim to decide would drift, and then two agents mutate
+different files.
 
 Ambiguous evidence fails the item. Do not infer a passing state from a plausible-looking filename.
 
@@ -92,20 +160,27 @@ is never the primary test - it needs judgement, and judgement drifts between run
 
 ## Stack detection
 
-| Stack | Detect by | Manifest |
-|---|---|---|
-| TS/JS | `package.json` | `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock` (or legacy `bun.lockb`) |
-| Python | `pyproject.toml`, `setup.py`, `requirements*.txt` | `pyproject.toml`, `poetry.lock`, `uv.lock`, `Pipfile.lock` |
-| Go | `go.mod` | `go.mod`, `go.sum` |
-| Rust | `Cargo.toml` | `Cargo.toml`, `Cargo.lock` |
-| Ruby | `Gemfile` | `Gemfile`, `Gemfile.lock` |
-| Java/Kotlin | `pom.xml`, `build.gradle{,.kts}` | same, plus `gradle.lockfile` |
-| C# | `*.csproj`, `*.sln` | `*.csproj`, `packages.lock.json` |
-| PHP/Laravel | `composer.json` | `composer.json`, `composer.lock` |
+This is also the **stack index**: the last column names the file holding that stack's evidence rows. A new
+stack is added by creating its file from `stacks/_template.md` and adding a row here.
+
+| Stack | Detect by | Manifest | Evidence file |
+|---|---|---|---|
+| TS/JS | `package.json` | `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock` (or legacy `bun.lockb`) | `stacks/typescript-javascript.md` |
+| Python | `pyproject.toml`, `setup.py`, `requirements*.txt` | `pyproject.toml`, `poetry.lock`, `uv.lock`, `Pipfile.lock` | `stacks/python.md` |
+| Go | `go.mod` | `go.mod`, `go.sum` | `stacks/go.md` |
+| Rust | `Cargo.toml` | `Cargo.toml`, `Cargo.lock` | `stacks/rust.md` |
+| Ruby | `Gemfile` | `Gemfile`, `Gemfile.lock` | `stacks/ruby.md` |
+| Java/Kotlin | `pom.xml`, `build.gradle{,.kts}` | same, plus `gradle.lockfile` | `stacks/java-kotlin.md` |
+| C# | `*.csproj`, `*.sln` | `*.csproj`, `packages.lock.json` | `stacks/csharp-dotnet.md` |
+| PHP/Laravel | `composer.json` | `composer.json`, `composer.lock` | `stacks/php-laravel.md` |
+
+A stack detected here with no readable file in the last column falls back to the catch-all clauses and is
+reported as a gap, per § Layout. It is never skipped.
 
 **Multi-stack rule (deterministic).** An app may detect as several stacks. A signal passes for that app
 only when **every code-bearing stack** in that app satisfies it. Evidence from a sibling app's stack never
-counts.
+counts. Concretely, for a stack-heavy signal: open each code-bearing stack's file, read the row for that
+signal id, and pass the app only when every one of those rows is satisfied.
 
 A detected stack is **code-bearing** for an app when both hold, checked against the app directory only
 (exclusion paths from § App discovery removed):
@@ -118,8 +193,9 @@ A stack that fails either test is not code-bearing and does not participate: a l
 own, or a `pyproject.toml` holding only tool config for a non-Python app. Record the code-bearing stack
 list once per app; it is fixed for the whole run.
 
-An app detecting PHP and TS, both code-bearing, passes `lint_configured` only with a `pint.json` **and** an
-`eslint.config.js`. A `pint.json` alone scores that app 0 for the signal, because the TS half of the app
+An app detecting PHP and TS, both code-bearing, passes `lint_configured` only with a `pint.json` (the
+`lint_configured` row in `stacks/php-laravel.md`) **and** an `eslint.config.js` (the same row in
+`stacks/typescript-javascript.md`). A `pint.json` alone scores that app 0 for the signal, because the TS half of the app
 has no lint feedback loop and an agent editing it cannot check its own work. Record the per-stack verdict
 in the rationale (`php=pass (pint.json), ts=fail (no eslint/biome config)`) so a partial pass stays visible
 instead of being hidden behind a single 0.
@@ -216,35 +292,15 @@ group in practice: a repo scoring 0 here forces every verification back onto the
 group is propose-only - each one either edits an existing config, gates CI, or adds a dependency.
 
 **`test_command_declared`** - app scope, not skippable. Fix: propose.
+Stack evidence: the `test_command_declared` row in each code-bearing stack's `stacks/*.md`.
 PASS per app if ANY ONE of:
-- TS/JS: `package.json` has a `test` script that is not a placeholder (`echo "no test specified" && exit 1` fails).
-- Python: `pytest`/`tox`/`nox` config in `pyproject.toml`, `pytest.ini`, `tox.ini`, or `noxfile.py`.
-- Go: at least one `*_test.go` file (`go test ./...` is implicit).
-- Rust: `#[test]` or `#[cfg(test)]` in `src/`, or a `tests/` directory.
-- Ruby: `rspec`/`minitest` in the `Gemfile` plus `spec/` or `test/`.
-- Java/Kotlin: surefire/junit dependency in `pom.xml` or a `test` task in `build.gradle{,.kts}`.
-- C#: a test project referencing xunit/nunit/mstest.
-- PHP: `composer.json` has a `test` script, or `phpunit.xml`/`tests/Pest.php` exists with tests present.
+- Every code-bearing stack satisfies its own `test_command_declared` row.
 - Any language: a `Makefile`/`justfile`/`Taskfile.yml` target named `test`, or a CI step that runs a test command.
-
-`tests/Pest.php` is case-sensitive and lives under `tests/`; there is no root `pest.php`.
 
 **`test_command_runnable`** - app scope, not skippable. Fix: propose.
 Verify with a **collection-only or dry-run** invocation, never the full suite, inside the repo's declared
-environment:
-
-| Runner | Collection-only invocation |
-|---|---|
-| pytest | `pytest --collect-only -q` |
-| go test | `go test -run XXX_none ./...` |
-| Jest | `npx jest --listTests` |
-| Vitest | `npx vitest list` |
-| cargo | `cargo test --no-run` |
-| Pest | `vendor/bin/pest --list-tests` |
-| PHPUnit | `vendor/bin/phpunit --list-tests` |
-| Maven | `mvn -q -DskipTests test-compile` |
-| .NET | `dotnet test --list-tests` |
-| task runner | `just --dry-run test`, `make -n test` |
+environment. The invocation per runner is the `test_command_runnable` row in the stack file; for a task
+runner use `just --dry-run test` or `make -n test`.
 
 Pick the invocation for the runner the manifest actually declares. `--listTests` is Jest-only; `npm test`
 does not accept it generically, and `dotnet build` compiles without discovering any test.
@@ -259,15 +315,9 @@ it is slow, it can mutate state, and a failing test is a different problem from 
 **`lint_configured`** - app scope, not skippable. Fix: propose. A new linter config is auto-discovered by
 any linter the repo already runs, so it is not inert (SKILL.md condition 4), and under a
 `--max-warnings=0`-style policy even a `warn` rule fails the build.
+Stack evidence: the `lint_configured` row in each code-bearing stack's `stacks/*.md`.
 PASS per app if ANY ONE of:
-- TS/JS: `eslint.config.*`, `.eslintrc*`, or `biome.json` with rules, plus eslint/biome in devDependencies.
-- Python: `[tool.ruff]`, `.flake8`, `setup.cfg` `[flake8]`, or `.pylintrc`.
-- Go: `.golangci.yml`, or a CI step running `go vet ./...`.
-- Rust: a CI step running `cargo clippy`, or `[lints]` in `Cargo.toml`, or `clippy.toml`.
-- Ruby: `.rubocop.yml` plus rubocop in the `Gemfile`.
-- Java/Kotlin: checkstyle/spotbugs/detekt/ktlint config wired into the build.
-- C#: `.editorconfig` with analyzer severities, or a `Directory.Build.props` enabling analyzers.
-- PHP: `pint.json` or Pint in `composer.json` require-dev, or `phpcs.xml`.
+- Every code-bearing stack satisfies its own `lint_configured` row.
 - Any language: a committed config file for a named linter that a CI job or documented command actually invokes.
 
 **`format_check_available`** - app scope, not skippable. Fix: propose (the check step edits CI or the
@@ -275,15 +325,9 @@ manifest; a reformat rewrites the tree).
 Config presence alone does not pass. Require **both** a resolved formatter (a dependency in the committed
 manifest/lockfile, or a committed toolchain that provides it) **and** a declared non-mutating check
 command.
+Stack evidence: the `format_check_available` row in each code-bearing stack's `stacks/*.md`.
 PASS per app if ANY ONE of:
-- TS/JS: prettier or biome in devDependencies plus a `format:check`-style script running `prettier --check` or `biome check`.
-- Python: black/ruff/isort as a declared dependency plus a declared `black --check`, `ruff format --check`, or `isort --check-only` command.
-- Go: a CI step asserting `gofmt -l .` is empty (the toolchain provides gofmt; the *check* is the signal).
-- Rust: a declared `cargo fmt --check` command or CI step (`rustfmt.toml` alone only configures style).
-- Ruby: rubocop in the `Gemfile` with `Layout` cops enabled and a declared run command, or `standardrb`.
-- Java/Kotlin: spotless or ktlint wired into the build with a `check` goal/task.
-- C#: a declared `dotnet format --verify-no-changes` step.
-- PHP: Pint in require-dev plus a declared `pint --test` command (a default Pint install with no check command fails).
+- Every code-bearing stack satisfies its own `format_check_available` row.
 - Any language: a declared command that reports formatting drift without rewriting files, whose tool resolves.
 
 Never auto-apply a whole-tree reformat. It buries the next diff and rewrites blame for every file.
@@ -291,16 +335,9 @@ Never auto-apply a whole-tree reformat. It buries the next diff and rewrites bla
 **`static_analysis_configured`** - app scope, not skippable. Fix: propose.
 Require a resolved analyzer plus a declared invocation; a signature or type-stub directory is data, not an
 analysis run.
+Stack evidence: the `static_analysis_configured` row in each code-bearing stack's `stacks/*.md`.
 PASS per app if ANY ONE of:
-- TS: `tsconfig.json` with `"strict": true` (or all strict flags individually), plus a `typecheck`/`tsc --noEmit` command.
-- JS-only: JSDoc-based `checkJs` with a typecheck command, or a documented decision to skip typing plus a runtime schema validator at the boundaries.
-- Python: `[tool.mypy]`/`mypy.ini`/`[tool.pyright]` with a documented run command.
-- Go: `go vet` in CI, or golangci-lint with `staticcheck`/`govet` enabled (the compiler covers types).
-- Rust: `cargo clippy -- -D warnings` in CI (the compiler covers types).
-- Ruby: sorbet (`sorbet/config`) plus `srb tc`, or RBS signatures plus a declared `steep check` command (an RBS directory on its own runs nothing).
-- Java/Kotlin: errorprone, nullaway, or spotbugs wired into the build.
-- C#: `<Nullable>enable</Nullable>` plus `<TreatWarningsAsErrors>` or analyzer severities at error.
-- PHP: `phpstan.neon`/`phpstan.neon.dist` (or Larastan) with a declared level and phpstan in require-dev.
+- Every code-bearing stack satisfies its own `static_analysis_configured` row.
 - Any language: a committed static-analysis config that a CI job or documented command invokes.
 
 **`coverage_threshold_enforced`** - app scope, not skippable. Fix: propose (a threshold gates CI).
@@ -312,15 +349,9 @@ positive floor of **10 percent or more** (a fixed number chosen once, not per-ru
 baseline file the check compares against, a `--fail-under` value generated from the previous run, a service
 config with "coverage must not decrease" on the diff). A ratchet passes at any absolute level, because it
 still fails a build when the agent's change lowers coverage.
+Stack evidence: the `coverage_threshold_enforced` row in each code-bearing stack's `stacks/*.md`.
 PASS per app if ANY ONE of (each subject to the floor rule above):
-- TS/JS: `coverageThreshold` in jest config, or vitest `coverage.thresholds`.
-- Python: `[tool.coverage.report] fail_under = N`, or `--cov-fail-under=N` in the pytest addopts.
-- Go: a CI step comparing `go tool cover` output against a floor.
-- Rust: a `cargo tarpaulin --fail-under N` step, or `cargo llvm-cov --fail-under-lines N`.
-- Ruby: `SimpleCov.minimum_coverage N`.
-- Java/Kotlin: jacoco `check` rules with a `minimum` limit.
-- C#: coverlet `/p:Threshold=N`.
-- PHP: `--min` on Pest coverage, or a phpunit coverage check in CI.
+- Every code-bearing stack satisfies its own `coverage_threshold_enforced` row.
 - Any language: a CI step that exits non-zero when coverage drops below a committed number.
 
 **`ci_runs_on_pull_requests`** - repo scope, not skippable. Fix: propose (CI gating).
@@ -384,10 +415,10 @@ a place to get stuck.
 Fix: safe when creating a new `.env.example` whose keys are the variable names collected below, with empty
 values; propose when an example file already exists (it would be edited) or when values must be guessed.
 Skip only when the collection below yields zero variables.
-Collect the variable names the code reads through its env-access API - `process.env.X` / `import.meta.env.X`,
-`os.environ[...]` / `os.getenv`, `os.Getenv`, `std::env::var`, `ENV['X']`, `System.getenv`,
-`Environment.GetEnvironmentVariable`, `env('X')` / `getenv('X')` - excluding matches under the discovery
-exclusion paths (tests, fixtures, vendored and generated directories).
+Collect the variable names the code reads through its env-access API - the API per stack is the
+`env_vars_documented` row in that stack's `stacks/*.md` - excluding matches under the discovery
+exclusion paths (tests, fixtures, vendored and generated directories). For a stack with no file, collect
+through whatever env-access API that language provides and note it in the rationale.
 PASS if ANY ONE of:
 - `.env.example`/`.env.sample`/`.env.dist` is committed and the collected set minus the keys it lists is empty, with **no real secret values**.
 - A typed/validated config schema (a zod env schema, pydantic settings, `config/*.php` reading those keys) enumerates the collected set with nothing left over.
@@ -398,15 +429,9 @@ The predicate is a set difference over names, not a judgement about documentatio
 readiness gap.
 
 **`dependencies_locked`** - app scope, not skippable. Fix: propose (generating a lockfile changes resolution).
+Stack evidence: the `dependencies_locked` row in each code-bearing stack's `stacks/*.md`.
 PASS per app if ANY ONE of:
-- TS/JS: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, or legacy `bun.lockb` committed.
-- Python: `poetry.lock`, `uv.lock`, `Pipfile.lock`, or a fully pinned `requirements.txt` (every line `==`).
-- Go: `go.sum` committed.
-- Rust: `Cargo.lock` committed. An MSRV plus a CI matrix does **not** pass - it constrains the compiler, not the dependency set, and a fresh checkout still resolves new versions.
-- Ruby: `Gemfile.lock` committed.
-- Java/Kotlin: `gradle.lockfile` committed, or fully pinned Maven versions with no ranges. `gradle/verification-metadata.xml` verifies checksums of whatever was resolved; it does not lock resolution and does not pass on its own.
-- C#: `packages.lock.json`, or pinned `PackageReference` versions with `<CentralPackageTransitivePinningEnabled>`.
-- PHP: `composer.lock` committed.
+- Every code-bearing stack satisfies its own `dependencies_locked` row.
 - Any language: a committed lockfile or fully pinned manifest that reproduces an identical dependency set.
 
 Check `.gitignore` too: an ignored lockfile fails even when the file exists locally.
@@ -414,8 +439,11 @@ Check `.gitignore` too: an ignored lockfile fails even when the file exists loca
 **`runtime_version_pinned`** - app scope, not skippable. Fix: propose. A version-manager file is
 auto-discovered: dropping `.nvmrc` or `.python-version` into a repo switches the interpreter for every
 shell and hook that reads it (SKILL.md condition 4).
-Accept only evidence that actually **controls** which runtime executes:
+Accept only evidence that actually **controls** which runtime executes. Stack evidence: the
+`runtime_version_pinned` row in each code-bearing stack's `stacks/*.md` names that ecosystem's accepted
+files and its rejected compatibility declaration.
 PASS per app if ANY ONE of:
+- Every code-bearing stack satisfies its own `runtime_version_pinned` row.
 - A version-manager file: `.nvmrc`, `.node-version`, `.python-version`, `.ruby-version`, `.tool-versions`, `mise.toml`, `rust-toolchain.toml`.
 - An immutable container or devcontainer image reference: a digest (`@sha256:...`) or an exact version tag (`python:3.12.6-slim`); `:latest` or a floating major fails.
 - An ecosystem SDK selector that pins: .NET `global.json`.
@@ -451,7 +479,8 @@ value at each path; a value read from an env var contributes that env var's name
 | Any | a compose `image:` on a service the app connects to |
 
 Anything outside that table is not collected, even if it looks like a service. A framework absent from the
-table contributes only through its env keys.
+table contributes only through its env keys. Each stack file repeats its own row of this table under
+`service_dependencies_documented`; the table here stays authoritative.
 
 **"Maps to" means one of exactly these**, per collected name:
 - A compose/devcontainer service in this repo whose name or `image:` matches the collected name or its driver (`REDIS_URL` to a `redis` service, `pgsql` to a `postgres` image).
@@ -498,61 +527,44 @@ Fail a diagram with no file paths in it. An agent needs the mapping from concept
 **`module_boundaries_enforced`** - repo scope, **skippable**. Fix: propose - every passing clause is an
 enforced check, and enforcement can fail a build on pre-existing code.
 Skip for a single-module app with no internal layering claim.
+Stack evidence: the `module_boundaries_enforced` row in each code-bearing stack's `stacks/*.md`.
 PASS if ANY ONE of:
-- TS/JS: eslint `import/no-restricted-paths`, `no-restricted-imports` zones, `boundaries/*`, or a `dependency-cruiser` rule invoked by a command or CI step.
-- Python: `import-linter` contracts, or ruff `flake8-tidy-imports` banned-api rules.
-- Go: a `depguard` golangci-lint rule, or an `internal/` directory whose boundary the instruction file or architecture doc states (the compiler enforces `internal/`).
-- Rust: a workspace with more than one member crate plus a `cargo-deny`/clippy disallowed-path rule.
-- Ruby: packwerk.
-- Java/Kotlin: ArchUnit tests, or the Java module system.
-- C#: a solution-level layering test or `NetArchTest`.
-- PHP: deptrac, or an architecture test (Pest `arch()`) asserting a layering rule.
+- Every code-bearing stack satisfies its own `module_boundaries_enforced` row.
 - Any language: an automated check that fails when a declared boundary is crossed. Documentation alone does not pass.
 
 **`dead_code_detection`** - app scope, not skippable.
 Fix: safe when it adds a **new** tool config plus a **new** standalone runner script, touches no existing
 config, and adds nothing to a committed manifest; propose when the tool must be added as a dependency,
 when the rule belongs in an existing lint config, or when the repo enforces warnings-as-errors.
+Stack evidence: the `dead_code_detection` row in each code-bearing stack's `stacks/*.md`.
 PASS per app if ANY ONE of:
-- TS/JS: `knip.json`, `ts-prune`, or `unimported` wired into a command or CI step.
-- Python: `vulture` config, or ruff `F401`/`ERA` rules enabled.
-- Go: `unused` enabled in golangci-lint (`deadcode` is deactivated and no longer runs).
-- Rust: `#![deny(dead_code)]` or `cargo-udeps` in CI (rustc warns by default; the *gate* is the signal).
-- Ruby: `debride`, or rubocop `Lint/UselessAssignment` plus a documented unused-code pass.
-- Java/Kotlin: spotbugs/detekt unused-code detectors enabled.
-- C#: analyzer rules IDE0051/CS0169 at warning or above.
-- PHP: `composer-unused`, `phpstan` deadCode rules, or a documented unused-code pass.
+- Every code-bearing stack satisfies its own `dead_code_detection` row.
 - Any language: a committed config for a named dead-code tool that a command or CI step invokes.
 
 **`duplicate_code_detection`** - repo scope, not skippable.
 Fix: safe under the same conditions as `dead_code_detection`; propose for a hosted-service config
 (`.codeclimate.yml`, `sonar-project.properties`), which the service auto-discovers and starts acting on as
 soon as it lands.
+Stack evidence: the `duplicate_code_detection` row in each code-bearing stack's `stacks/*.md`.
 PASS if ANY ONE of:
-- `jscpd` config, `.jscpd.json`, or a `similarity-ts` step invoked by a command or CI step.
-- Python: `pylint` duplicate-code checker enabled with a threshold.
-- Java/Kotlin/C#/PHP: PMD CPD, `phpcpd`, or an equivalent copy-paste detector wired into a command.
+- Every code-bearing stack satisfies its own `duplicate_code_detection` row.
 - A code-quality service config committed (`.codeclimate.yml`, `sonar-project.properties`) with duplication rules on.
 - Any language: a committed duplicate-detection config a command or CI step invokes.
 
 **`file_size_or_complexity_guard`** - repo scope, not skippable. Fix: propose. The rule lands in an
 existing lint config, and a `warn` severity is not advisory under `--max-warnings=0`, `-Werror`, or
 `TreatWarningsAsErrors`.
+Stack evidence: the `file_size_or_complexity_guard` row in each code-bearing stack's `stacks/*.md`.
 PASS if ANY ONE of:
-- TS/JS: eslint `max-lines`, `max-lines-per-function`, or `complexity`.
-- Python: ruff `C901`/`PLR0915`, or flake8 `max-complexity`.
-- Go: golangci-lint `funlen`, `gocyclo`, or `cyclop`.
-- Rust: clippy `cognitive_complexity` or `too_many_lines` enabled.
-- Ruby: rubocop `Metrics/*` cops left enabled.
-- Java/Kotlin: checkstyle `FileLength`/`CyclomaticComplexity`, or detekt `LongMethod`.
-- C#: an analyzer or `.editorconfig` complexity rule.
-- PHP: phpstan/phpmd complexity rules, or a documented size budget checked in CI.
+- Every code-bearing stack satisfies its own `file_size_or_complexity_guard` row.
 - Any language: a committed rule that reports files or functions over a named threshold.
 
 **`naming_conventions_stated`** - repo scope, not skippable. Fix: propose - the enforcement clause gates a
 build, and the documentation clause edits the instruction file or guidelines doc.
+Stack evidence: the `naming_conventions_stated` row in each code-bearing stack's `stacks/*.md` names that
+ecosystem's automated check.
 PASS if ANY ONE of:
-- An automated check: eslint `@typescript-eslint/naming-convention`, ruff `N` rules, rubocop `Naming/*`, checkstyle naming rules, phpstan/Pint naming rules, golangci-lint `revive` naming.
+- An automated check: every code-bearing stack satisfies its own `naming_conventions_stated` row.
 - The instruction file or a development-guidelines doc states, for at least 3 of the 4 categories - files, directories, types/classes, tests - either a named case convention (kebab-case, snake_case, PascalCase, camelCase) or a literal pattern (`*_test.go`, `*.spec.ts`).
 
 "Use clear names" satisfies no category. Count the categories; do not rate the prose.
@@ -562,7 +574,7 @@ Fix: **safe** when it adds a new standalone scanner script and nothing else; pro
 lint rule to an existing config or a step to CI.
 PASS if ANY ONE of:
 - A committed CI step or script that inventories `TODO`/`FIXME`/`HACK`/`XXX` markers and reports the count or a trend.
-- A lint rule that flags bare markers: eslint `no-warning-comments` with its `terms`/`location` options (it flags terms only - it cannot require an owner or an issue link), or ruff `TD002`/`TD003` (missing author, missing issue link), or a dedicated scanner enforcing the link policy. RuboCop `Style/CommentAnnotation` checks annotation *formatting* only and does not pass an owner-or-link policy on its own.
+- A lint rule that flags bare markers, per the `tech_debt_markers_tracked` row in the stack's `stacks/*.md`: eslint `no-warning-comments` with its `terms`/`location` options (it flags terms only - it cannot require an owner or an issue link), or ruff `TD002`/`TD003` (missing author, missing issue link), or a dedicated scanner enforcing the link policy. RuboCop `Style/CommentAnnotation` checks annotation *formatting* only and does not pass an owner-or-link policy on its own.
 - The repo has zero such markers and a documented policy forbidding them.
 - Any language: a committed mechanism that keeps the marker inventory visible rather than invisible.
 

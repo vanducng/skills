@@ -24,15 +24,14 @@ metadata:
 | `vd:skill-creator` | "How do I author a skill an agent reliably loads?" | A `SKILL.md` |
 
 This skill **measures and remediates affordances**. It may create a scaffold (an `AGENTS.md`, an
-`ARCHITECTURE.md`) only when the repo's own evidence fills it enough to pass the signal, then hands the
-prose to the owning skill. It never writes the architecture narrative and never refactors code to raise a
-score.
+`ARCHITECTURE.md`) only when the repo's own evidence fills it enough to pass the signal, then hands the prose
+to the owning skill. It never writes the architecture narrative, and never refactors code to raise a score.
 
 ## Hard rules
 
 1. **Identical repo, identical output.** Score on committed evidence. Prefer existence checks over deep semantic analysis, order signals by id, and cap each rationale at ~500 characters. Record an `as_of` date and score every date-relative clause against it, run runnable checks in the repo's declared environment rather than against whatever the host happens to have installed, and treat missing API access as a fallback to static config evidence - never as non-applicability. Live measurements (CI durations, status APIs) are reported as observations and never change a score. A score that drifts with the host, the clock, or a token's permissions is not a property of the repo. **One signal is explicitly weaker:** `service_dependencies_documented` matches config keys to services by name, so `references/signals.md` marks it `determinism: narrowed` and requires the collected list verbatim in the rationale. That caveat is named rather than hidden; no other signal may claim it.
 2. **If evidence is ambiguous, fail the item.** A plausible filename is not a passing check. Optimistic scoring produces a number the user cannot act on.
-3. **Every signal is evaluated on every repo.** Stack detection selects which evidence to look for; it never changes which signals are scored. Only signals explicitly marked skippable in `references/signals.md` may score `null`.
+3. **Every signal is evaluated on every repo.** Stack detection selects which evidence to look for; it never changes which signals are scored. Only signals explicitly marked skippable in the `references/signals.md` registry may score `null`. **A missing or unreadable `references/stacks/<name>.md` is never a skip:** score that stack's signals on each signal's language-agnostic catch-all clause and record the gap in the report. Dropping them shrinks `n` and inflates the pass rate, hiding the finding instead of reporting it.
 4. **A fix that breaks existing tests is evidence the fix is wrong, not that the tests are wrong.** Proven the hard way: a readiness pass added a hard-throwing N+1 query guard, 21 tests broke, and the correct resolution was switching the guard to detect-and-log. Never adjust, skip, or delete a test to make a readiness fix pass.
 5. **Never game a signal.** No empty placeholder files, no config that technically satisfies a check while providing no value, no disabling a check so it stops failing. A signal exists to make the repo better for an agent, not to raise a number.
 6. **Re-score after fixing, never project.** Re-run the full scan **per branch** and report that branch's real before and after. There is no combined after-score across group branches, and an unapplied proposal moves no score - it is reported as pending and unverified. An arithmetic projection ("53.9% should reach ~66%") is unverified and has been wrong.
@@ -44,40 +43,39 @@ score.
 ### 1. Scope the repository
 
 Resolve the target path (default: the current repo root) and run `references/signals.md` § Preflight, which
-gives a defined score-or-skip outcome for a non-git target, a repo with no CI config, tooling that cannot
-be run, and a read-only sandbox. Record `as_of` (the UTC scan date) in the report header.
+gives a defined score-or-skip outcome for a non-git target, no CI config, unrunnable tooling, and a read-only
+sandbox. Record `as_of` (the UTC scan date) in the report header.
 
 Discover apps per `references/signals.md` § App discovery: collect candidates from concrete markers
 (workspace members, `go.mod`, Cargo members, `pom.xml` modules, `composer.json`, `pyproject.toml`, a
-`Dockerfile`, a deployment marker **carrying an explicit source mapping**), subtract the named exclusion
-paths, and dedupe to the outermost manifest. An image-only deployment manifest maps to no source directory,
-so it is context and not an app. "Could it move to its own repo?" is a tiebreaker only. If 0 candidates
-survive, count the repo root as 1. Detect the stack per app from its manifest; an app may match several,
-and a signal then passes for that app only when **every code-bearing stack** in it passes (a stack with its
-own manifest and its own source files under that app). Record the per-stack verdict so a partial pass stays
-visible.
+`Dockerfile`, a deployment marker **carrying an explicit source mapping**), subtract the named exclusion paths,
+and dedupe to the outermost manifest. An image-only deployment manifest maps to no source directory, so it is
+context and not an app. "Could it move to its own repo?" is a tiebreaker only. If 0 candidates survive, count
+the repo root as 1. Detect the stack per app per § Stack detection, which is also the index naming each stack's
+`references/stacks/<name>.md`; an app may match several, and a signal then passes for that app only when **every
+code-bearing stack** in it passes. Record the per-stack verdict so a partial pass stays visible.
 
 **Verify:** print `as_of`, the app list, and the detected stacks before scoring. A wrong N distorts every
 app-scope signal, and the user is the cheapest place to catch it.
 
 ### 2. Score the signals
 
-Load `references/signals.md` and walk all 30 signals (7 / 9 / 7 / 7 across the four groups) in id order.
-For each, record: `id`, group, scope, score as `numerator/denominator`, the evidence path or command output
-that decided it, and a rationale under ~500 characters. For a skipped signal record `null` plus the skip
-reason - only the signal's own stated skip condition qualifies, never an unreachable API or an uninstalled
-tool. Batch cheap checks: one `git ls-files` and one manifest read per app serve most signals; do not
-re-walk the tree per signal.
+Load the signal registry in `references/signals.md` - all 30 ids (7 / 9 / 7 / 7) with scope, skippability, fix
+class, and where the evidence lives - then load `references/stacks/<name>.md` for every stack detected in step 1.
+The registry defines the denominator; the stack files supply per-language evidence for the 13 stack-heavy signals.
+Walk all 30 in id order, recording `id`, group, scope, `numerator/denominator`, the deciding evidence, and a
+rationale under ~500 characters. A skipped signal records `null` plus its reason - only its own stated skip
+condition qualifies, never an unreachable API, an uninstalled tool, or a missing stack file.
 
-**Verify:** every signal has a score and a named piece of evidence. A signal with a verdict and no
-evidence is a guess - re-inspect or fail it.
+**Verify:** every signal has a score and a named piece of evidence. A verdict with no evidence is a guess -
+re-inspect or fail it.
 
 ### 3. Report
 
-Follow the canonical template in `references/signals.md` § Report contract: it fixes the filename fallback
-when no Reports path is injected, one-decimal percentages, the table columns, and the sort keys (signals in
-id order; gaps by group order then id). Ranking is **remediation priority, not scoring weight** - all
-signals score equally, but fix Group 2 gaps first: they are what removes the agent's ability to self-check.
+Follow the canonical template in `references/signals.md` § Report contract: the filename fallback when no Reports
+path is injected, one-decimal percentages, the table columns, the sort keys (signals in id order; gaps by group
+then id), and any stack that had no file (rule 3). Ranking is **remediation priority, not scoring weight** - all
+signals score equally, but fix Group 2 gaps first: they remove the agent's ability to self-check.
 
 **Verify:** recompute the pass rate from the signal table and confirm it matches the headline number.
 
@@ -165,7 +163,7 @@ claim a green run you did not observe.
 ## Anti-patterns
 
 - **Running the full test suite to score `test_command_runnable`.** Slow, can mutate state, and conflates "the command works" with "the tests pass". Use a collection-only or dry-run flag.
-- **Hardcoding one stack's evidence.** The original rubric checked `tsconfig.json` strict and `[tool.black]` with no fallback, so Go, Rust, and PHP repos matched no rule and the scoring improvised. Every criterion needs its per-language clauses plus a catch-all.
+- **Hardcoding one stack's evidence.** The original rubric checked `tsconfig.json` strict and `[tool.black]` with no fallback, so Go, Rust, and PHP repos matched no rule and the scoring improvised. Every criterion needs its per-language clauses (`references/stacks/`) plus a catch-all.
 - **Auto-applying a formatter.** Passes `format_check_available` and rewrites blame for the whole tree.
 - **Creating an `AGENTS.md` with a heading and a TODO.** Fails its own 100-character floor and teaches an agent nothing. A stub earns auto-apply only when generated content already passes the signal.
 - **Treating "it is a new file" as "nothing acts on it".** `CODEOWNERS`, `dependabot.yml`, a workflow file, and `.nvmrc` all act the moment they land. Condition 4 exists because of this - and it is about tools acting, not about a document being read.
@@ -189,7 +187,8 @@ claim a green run you did not observe.
 | "An empty `.env.example` still passes the check" | Gaming the signal. It has to list the variables the code actually reads. |
 | "This repo has no CI, so most signals should be skipped" | Only signals marked skippable may be null. Missing CI is a 0, and that is the finding. |
 | "I can compute the new score from the fixes I made" | Rule 6. Projections have been wrong; re-run the scan. |
-| "PHP/Go isn't in the rubric, so I'll approximate" | The rubric names evidence for eight stacks plus a catch-all clause per criterion. Use it. |
+| "PHP/Go isn't in the rubric, so I'll approximate" | `references/stacks/` holds a file per stack, eight of them, plus a catch-all clause per criterion. Use it. |
+| "There's no stack file for this language, so skip its signals" | Rule 3. Score them on the catch-all and report the gap; skipping inflates the rate. |
 | "Branch protection would fix three signals at once" | A remote change. Propose it; never apply it. |
 
 ## Workflow position
