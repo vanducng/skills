@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.51.0](https://github.com/vanducng/skills/compare/v1.50.0...v1.51.0) (2026-08-04)
+
+
+### Features
+
+* **agent-readiness:** score and remediate a repo's readiness for AI agents ([#381](https://github.com/vanducng/skills/issues/381)) ([4ade8ef](https://github.com/vanducng/skills/commit/4ade8ef164a955b57ce72e7c870166d9378244f5))
+
 ## [1.50.0](https://github.com/vanducng/skills/compare/v1.49.1...v1.50.0) (2026-08-04)
 
 
