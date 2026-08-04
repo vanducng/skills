@@ -34,7 +34,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
 Within the skill lifecycle, `vd:skill-creator` authors a brand-new skill (description routing, hard rules, verification); `vd:skill-management --create` delegates to it where the runtime supports invoking another skill (Claude Code) and otherwise falls back to the `scripts/new-skill.sh` scaffold, and `vd:skill-management` owns the surrounding mechanics - scaffolding, vendoring via `vd`, frontmatter validation, and releases. `vd:skill-evolve` improves skills that already exist from the current session, `vd:skill-audit` reports which skills actually get used, and `vd:rule-miner` distils repeated corrections into `CLAUDE.md` rules.
 
-`vd:agent-readiness` scores a repository against a fixed 29-signal rubric - agent instruction files, verifiable feedback loops, onboarding reproducibility, and codebase navigability - then applies the additive fixes that are safe and proposes the rest. It owns the score and the remediation plan and hands the writing to `vd:docs` and `vd:skill-creator`.
+`vd:agent-readiness` scores a repository against a fixed 30-signal rubric - agent instruction files, verifiable feedback loops, onboarding reproducibility, and codebase navigability - then applies the additive fixes that are safe and proposes the rest. It owns the score and the remediation plan and hands the writing to `vd:docs` and `vd:skill-creator`.
 
 Inside Herdr, `vd:worktree` delegates current-pane naming to `vd:herdr` after a successful create, using a short `<project>:<intent>` label.
 
