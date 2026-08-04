@@ -27,6 +27,8 @@ Two boundaries worth holding:
 - **New vs existing.** Authoring something that doesn't exist yet is this skill. Improving what already ships is `vd:skill-evolve`.
 - **Content vs mechanics.** What goes *inside* `SKILL.md` is this skill. Moving, vendoring, versioning, and releasing it is `vd:skill-management`.
 
+`vd:skill-management` also answers "create a skill" as the lifecycle entry point and hands authoring here (its `--create` mode). Either routing reaches the same place, so if that skill picked up the request first, continue rather than bouncing it back - then return to it for the scaffold-to-catalog mechanics once the content is written.
+
 Skills instruct an **agent**; docs inform a **human**. If the artifact's reader is a person, write docs instead.
 
 ## The bar: does this deserve to be a skill?
@@ -141,7 +143,7 @@ Do not report success on file creation alone.
 Run the repo's validator if one exists, and **let it fail loudly** - never mask the exit status with `|| true`, or a broken skill reports as shipped:
 
 ```bash
-[ -f scripts/validate.sh ] && bash scripts/validate.sh   # non-zero exit = do not ship
+if [ -f scripts/validate.sh ]; then bash scripts/validate.sh; fi   # non-zero exit = do not ship
 ```
 
 Then check by hand, since validators typically lint frontmatter and nothing else:
@@ -149,9 +151,12 @@ Then check by hand, since validators typically lint frontmatter and nothing else
 - [ ] Frontmatter parses; `name` is kebab-case and **equals the directory name** (a mismatch silently disables the skill in most loaders).
 - [ ] `description` names both the capability and the trigger phrases.
 - [ ] No personal paths anywhere in the skill, not just `SKILL.md`:
-      `grep -rnE '/Users/[a-z]|/home/[a-z]|C:\\\\Users' <skill-dir>/`
-- [ ] Every referenced file actually resolves - check each link and named artifact, since an `ls` of the directory only proves the directory exists:
-      `grep -oE '\]\([^)]+\.md\)|(references|scripts|assets)/[A-Za-z0-9._-]+' <skill-dir>/SKILL.md`
+      `grep -rnE '/Users/[a-z]|/home/[a-z]|C:\\Users' <skill-dir>/`
+- [ ] Every referenced file actually **resolves** - extracting the names is not enough, test each one:
+      ```bash
+      grep -rhoE '(references|scripts|assets)/[A-Za-z0-9._/-]+' <skill-dir>/ | sort -u |
+        while read -r f; do [ -e "<skill-dir>/$f" ] || echo "MISSING: $f"; done
+      ```
 - [ ] Repo-specific gates pass (docs sync, path guards, catalog counts) - see the root's `AGENTS.md`.
 - [ ] **Routing rehearsal**: read the description cold and ask *"would I load this for each trigger phrase, and NOT load it for a neighbour's task?"* Both directions matter - a description that over-triggers is as bad as one that never fires. Where the runtime can list or dry-run skill matching, use it; otherwise state plainly that routing is unverified rather than implying it was tested.
 
