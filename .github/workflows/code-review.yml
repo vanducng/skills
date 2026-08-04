@@ -1,10 +1,17 @@
 name: Code Review
 
+# `synchronize` is what makes a push re-review. Without it the reviewer only
+# ever sees the first commit, so later commits merge unreviewed and an already
+# fixed finding keeps displaying as open (PR #381).
 on:
   pull_request_target:
-    types: [opened, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
   issue_comment:
     types: [created]
+
+concurrency:
+  group: code-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
