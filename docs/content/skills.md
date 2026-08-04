@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 75 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 76 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -29,7 +29,9 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Design | `vd:apidesign`, `vd:dbdesign` |
 | Data and workspace | `vd:miudb`, `vd:vd-cli`, `vd:superwhisper-cli`, `vd:aws`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira` |
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:cktovd`, `vd:workbench` |
-| Skill lifecycle | `vd:skill-management`, `vd:skill-audit`, `vd:rule-miner`, `vd:skill-evolve` |
+| Skill lifecycle | `vd:skill-creator`, `vd:skill-management`, `vd:skill-audit`, `vd:rule-miner`, `vd:skill-evolve` |
+
+Within the skill lifecycle, `vd:skill-creator` authors a brand-new skill (description routing, hard rules, verification); `vd:skill-management --create` delegates to it where the runtime supports invoking another skill (Claude Code) and otherwise falls back to the `scripts/new-skill.sh` scaffold, and `vd:skill-management` owns the surrounding mechanics - scaffolding, vendoring via `vd`, frontmatter validation, and releases. `vd:skill-evolve` improves skills that already exist from the current session, `vd:skill-audit` reports which skills actually get used, and `vd:rule-miner` distils repeated corrections into `CLAUDE.md` rules.
 
 Inside Herdr, `vd:worktree` delegates current-pane naming to `vd:herdr` after a successful create, using a short `<project>:<intent>` label.
 
