@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.50.0](https://github.com/vanducng/skills/compare/v1.49.1...v1.50.0) (2026-08-04)
+
+
+### Features
+
+* **skill-creator:** add skill for authoring agent-ready skills ([#379](https://github.com/vanducng/skills/issues/379)) ([1b41dd1](https://github.com/vanducng/skills/commit/1b41dd117a5f4abedb76f908e55728cb4eee9cbd))
+
 ## [1.49.1](https://github.com/vanducng/skills/compare/v1.49.0...v1.49.1) (2026-08-03)
 
 
