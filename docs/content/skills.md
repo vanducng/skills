@@ -31,7 +31,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:cktovd`, `vd:workbench` |
 | Skill lifecycle | `vd:skill-creator`, `vd:skill-management`, `vd:skill-audit`, `vd:rule-miner`, `vd:skill-evolve` |
 
-Within the skill lifecycle, `vd:skill-creator` authors a brand-new skill (description routing, hard rules, verification) and is what `vd:skill-management --create` delegates to; `vd:skill-management` owns the surrounding mechanics - scaffolding, vendoring via `vd`, frontmatter validation, and releases. `vd:skill-evolve` improves skills that already exist from the current session, `vd:skill-audit` reports which skills actually get used, and `vd:rule-miner` distils repeated corrections into `CLAUDE.md` rules.
+Within the skill lifecycle, `vd:skill-creator` authors a brand-new skill (description routing, hard rules, verification); `vd:skill-management --create` delegates to it where the runtime supports invoking another skill (Claude Code) and otherwise falls back to the `scripts/new-skill.sh` scaffold, and `vd:skill-management` owns the surrounding mechanics - scaffolding, vendoring via `vd`, frontmatter validation, and releases. `vd:skill-evolve` improves skills that already exist from the current session, `vd:skill-audit` reports which skills actually get used, and `vd:rule-miner` distils repeated corrections into `CLAUDE.md` rules.
 
 Inside Herdr, `vd:worktree` delegates current-pane naming to `vd:herdr` after a successful create, using a short `<project>:<intent>` label.
 

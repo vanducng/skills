@@ -1,8 +1,8 @@
 ---
 name: skill-creator
-description: "Author agent-ready skills for any stack or agent runtime - turns a vague capability request into a routable SKILL.md with a trigger-rich description, hard rules, and a verification loop. Activates when the user says 'create a skill', 'make this a skill', 'turn this into a skill', 'write a skill for X', 'my skill never triggers', 'why doesn't my skill activate', or asks to extract a repeated workflow into something reusable. Do not use for improving skills that already exist (skill-evolve), release/vendoring mechanics (skill-management), or usage statistics (skill-audit)."
+description: "Authors the CONTENT of a brand-new agent skill for any stack or agent runtime - turns a vague capability request into a routable SKILL.md with a trigger-rich description, hard rules, and a verification loop, and repairs a skill that never activates. Activates when the user says 'create a skill', 'write a skill for X', 'make this a skill', 'turn this into a skill', 'my skill never triggers', 'why doesn't my skill activate', or asks to extract a repeated workflow into something reusable. Owns authoring and routing repair; defers to vd:skill-management for scaffolding, vendoring, versioning and release mechanics, vd:skill-evolve for improving skills that already exist, vd:skill-audit for usage statistics, and vd:rule-miner for standing CLAUDE.md rules."
 license: MIT
-argument-hint: "[capability | --audit <name> | --extract] [--dir <skills-root>] [--quick]"
+argument-hint: "[capability | --audit <name> | --extract] [--dir <skills-root>]"
 metadata:
   author: vanducng
   version: "1.0.0"
@@ -16,16 +16,16 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
-| **`skill-creator`** (this) | "How do I author this capability so an agent reliably uses it?" | A validated `SKILL.md` (+ optional `references/`, `scripts/`) |
-| `skill-management` | "How do I scaffold, vendor, validate, and release skills?" | Lifecycle/CLI orchestration (delegates authoring here) |
-| `skill-evolve` | "How should *existing* skills change given this session?" | Edits to skills that already exist |
-| `skill-audit` | "Which skills actually get used?" | Usage report from session history |
-| `docs` | "How do I explain this to humans?" | Prose documentation |
+| **`vd:skill-creator`** (this) | "How do I author this capability so an agent reliably uses it?" | A validated `SKILL.md` (+ optional `references/`, `scripts/`) |
+| `vd:skill-management` | "How do I scaffold, vendor, validate, and release skills?" | Lifecycle/CLI orchestration (delegates authoring here) |
+| `vd:skill-evolve` | "How should *existing* skills change given this session?" | Edits to skills that already exist |
+| `vd:skill-audit` | "Which skills actually get used?" | Usage report from session history |
+| `vd:docs` | "How do I explain this to humans?" | Prose documentation |
 
 Two boundaries worth holding:
 
-- **New vs existing.** Authoring something that doesn't exist yet is this skill. Improving what already ships is `skill-evolve`.
-- **Content vs mechanics.** What goes *inside* `SKILL.md` is this skill. Moving, vendoring, versioning, and releasing it is `skill-management`.
+- **New vs existing.** Authoring something that doesn't exist yet is this skill. Improving what already ships is `vd:skill-evolve`.
+- **Content vs mechanics.** What goes *inside* `SKILL.md` is this skill. Moving, vendoring, versioning, and releasing it is `vd:skill-management`.
 
 Skills instruct an **agent**; docs inform a **human**. If the artifact's reader is a person, write docs instead.
 
@@ -65,19 +65,29 @@ Can't answer "what goes wrong without it?" → return to the bar above.
 
 ### 2. Locate the target and learn local convention
 
-Skill roots differ by agent and project. Detect rather than assume; honor `--dir` when given.
+Skill roots differ by agent and project. Detect rather than assume, and **resolve in this order** - a project-local root always wins over a global one, so the skill lands where the user is working:
+
+1. explicit `--dir <path>`
+2. a root declared by the repo (`AGENTS.md`, `CONTRIBUTING.md`, a manifest)
+3. project-local: `./skills`, `./.agents/skills`, `./.claude/skills`
+4. runtime-global fallbacks: `$HOME/.factory/skills`, `$HOME/.claude/skills`, `$HOME/.agents/skills`
 
 ```bash
-# Common roots - check which exist before writing.
-ls -d ./.agents/skills ./.claude/skills "$HOME/.factory/skills" "$HOME/.claude/skills" 2>/dev/null
+for d in ./skills ./.agents/skills ./.claude/skills \
+         "$HOME/.factory/skills" "$HOME/.claude/skills" "$HOME/.agents/skills"; do
+  [ -d "$d" ] && echo "candidate: $d"
+done
 ```
+
+If several candidates exist at the *same* precedence level, **ask** rather than guess - writing a project skill into a global root (or the reverse) is silently wrong and hard to notice later.
 
 If the root is a git repo or ships helper scripts, **its conventions win over this skill's defaults**:
 
 ```bash
 ls scripts/ 2>/dev/null                      # new-skill.sh, validate.sh, check-*.sh
-sed -n '1,40p' AGENTS.md CONTRIBUTING.md 2>/dev/null
 ```
+
+Read any `AGENTS.md` / `CONTRIBUTING.md` / `CLAUDE.md` at that root **in full** - naming, privacy, validation, and catalog-sync rules are often stated far down the file, and a missed one fails the repo's own gates.
 
 Read 2-3 existing skills in that root and match their frontmatter fields, heading depth, and voice. A skill that looks foreign to its catalog is harder to trust and maintain. Prefer a provided scaffold (`scripts/new-skill.sh <name>`) over hand-creating the directory.
 
@@ -128,18 +138,22 @@ Guidance:
 
 Do not report success on file creation alone.
 
+Run the repo's validator if one exists, and **let it fail loudly** - never mask the exit status with `|| true`, or a broken skill reports as shipped:
+
 ```bash
-bash scripts/validate.sh 2>/dev/null || true      # repo validator, if present
+[ -f scripts/validate.sh ] && bash scripts/validate.sh   # non-zero exit = do not ship
 ```
 
-Then check by hand, since most validators only lint frontmatter:
+Then check by hand, since validators typically lint frontmatter and nothing else:
 
 - [ ] Frontmatter parses; `name` is kebab-case and **equals the directory name** (a mismatch silently disables the skill in most loaders).
 - [ ] `description` names both the capability and the trigger phrases.
-- [ ] No hardcoded personal paths: `grep -nE '/Users/[a-z]|/home/[a-z]' SKILL.md`
-- [ ] Every referenced script/reference file exists: `ls references/ scripts/ 2>/dev/null`
+- [ ] No personal paths anywhere in the skill, not just `SKILL.md`:
+      `grep -rnE '/Users/[a-z]|/home/[a-z]|C:\\\\Users' <skill-dir>/`
+- [ ] Every referenced file actually resolves - check each link and named artifact, since an `ls` of the directory only proves the directory exists:
+      `grep -oE '\]\([^)]+\.md\)|(references|scripts|assets)/[A-Za-z0-9._-]+' <skill-dir>/SKILL.md`
 - [ ] Repo-specific gates pass (docs sync, path guards, catalog counts) - see the root's `AGENTS.md`.
-- [ ] **Routing rehearsal**: read the description cold and ask *"would I load this for each trigger phrase, and NOT load it for a neighbour's task?"* Both directions matter - a description that over-triggers is as bad as one that never fires.
+- [ ] **Routing rehearsal**: read the description cold and ask *"would I load this for each trigger phrase, and NOT load it for a neighbour's task?"* Both directions matter - a description that over-triggers is as bad as one that never fires. Where the runtime can list or dry-run skill matching, use it; otherwise state plainly that routing is unverified rather than implying it was tested.
 
 Ship only when all pass.
 
@@ -192,7 +206,7 @@ When the user says *"we keep doing this"*: reconstruct the actual steps taken (d
 ```
 repeated task / vague capability request
         ↓
-skill-creator  →  validate  →  catalog sync  →  review  →  ship
-        ↑                                                    │
-        └──────────── --audit when it doesn't fire ←──────────┘
+vd:skill-creator  →  validate  →  catalog sync  →  review  →  ship
+        ↑                                                       │
+        └──────────── --audit when it doesn't fire ←─────────────┘
 ```
