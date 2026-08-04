@@ -21,7 +21,10 @@ jobs:
   review:
     # Explicit secrets (not `inherit`): the reusable workflow is in a different
     # account (dataplanelabs), and `secrets: inherit` does not cross owners.
-    uses: dataplanelabs/workflows/.github/workflows/code-review.yml@main
+    # Pinned to a SHA, not @main: this job runs on pull_request_target, so it has
+    # write permissions and the review secrets. A mutable ref would let a force
+    # push in that repo run arbitrary code here.
+    uses: dataplanelabs/workflows/.github/workflows/code-review.yml@3f0b08bfbb333ad2b190decb8abe76afe8f2e429 # main @ 2026-06-20
     secrets:
       OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
       OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
