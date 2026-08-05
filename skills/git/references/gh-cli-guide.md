@@ -70,6 +70,83 @@ gh api repos/{owner}/{repo}/pulls/123/comments    # all review comments (line-le
 gh api repos/{owner}/{repo}/issues/123/comments   # issue-style comments
 ```
 
+### Attach screenshots (before/after evidence)
+
+Optional - use when captures already exist and an image is genuinely clearer than a sentence.
+Never hold up a PR to produce one.
+
+`gh` has no first-party way to attach a local image so it renders inline. **On a private
+repo most workarounds silently produce broken images** - GitHub's camo proxy cannot
+authenticate to private content, so `raw.githubusercontent.com` URLs, release assets, and
+gists all render as broken icons. Only `user-attachments` URLs work.
+
+Upload via the endpoint the browser's drag-drop uses; it accepts a normal bearer token:
+
+```bash
+gh_upload_image() {  # usage: gh_upload_image <file> [owner/repo]
+  local file="$1" repo="${2:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
+  local rid; rid=$(gh api "repos/$repo" --jq '.id')   # numeric id, NOT owner/repo
+  local type; case "$file" in
+    *.png) type=image/png;; *.gif) type=image/gif;;
+    *.jpg|*.jpeg) type=image/jpeg;; *) type=application/octet-stream;; esac
+  curl -sS -X POST \
+    "https://uploads.github.com/user-attachments/assets?name=$(basename "$file")&content_type=$type&repository_id=$rid" \
+    -H "Authorization: Bearer $(gh auth token)" \
+    -H "Accept: application/json" \
+    --data-binary @"$file" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['url'])"
+}
+```
+
+Returns `https://github.com/user-attachments/assets/<uuid>` (HTTP 201). GitHub rewrites it on
+render to a signed, expiring `private-user-images.githubusercontent.com/...?jwt=...` URL scoped
+to the viewer, so the image inherits repo visibility.
+
+Embed side by side with HTML, not `![]()` - markdown image syntax has no width control:
+
+```bash
+BEFORE=$(gh_upload_image before.png)
+AFTER=$(gh_upload_image after.png)
+gh pr view 123 --json body --jq '.body' > /tmp/body.md
+BEFORE="$BEFORE" AFTER="$AFTER" python3 - <<'PY'
+import os, pathlib
+p = pathlib.Path("/tmp/body.md"); t = p.read_text()
+table = ('<table>\n<tr><th>Before</th><th>After</th></tr>\n'
+         f'<tr><td><img src="{os.environ["BEFORE"]}" width="480"></td>'
+         f'<td><img src="{os.environ["AFTER"]}" width="480"></td></tr>\n</table>\n')
+assert "<!-- SCREENSHOTS -->" in t, "no marker in PR body"
+p.write_text(t.replace("<!-- SCREENSHOTS -->", table, 1))
+PY
+gh pr edit 123 --body-file /tmp/body.md
+```
+
+Leave a `<!-- SCREENSHOTS -->` marker when drafting the body - invisible when rendered, and it
+gives the upload step a deterministic insertion point.
+
+**Verify** - a broken embed looks fine in the raw body, so check the rendered result:
+
+```bash
+# On a private repo the asset must 404 unauthenticated. A 200 means it leaked publicly.
+curl -s -o /dev/null -w "%{http_code}\n" "$BEFORE"                                                 # expect 404
+curl -s -o /dev/null -w "%{http_code}\n" -L -H "Authorization: Bearer $(gh auth token)" "$BEFORE"   # expect 200
+```
+
+Open the PR and check `naturalWidth` - a broken image reports `0`:
+
+```js
+[...document.querySelectorAll('img')].filter(i => i.naturalWidth > 200)
+  .map(i => ({ w: i.naturalWidth, h: i.naturalHeight }))
+```
+
+Caveats:
+
+- **Undocumented endpoint.** No published size/rate limits or deprecation policy. Check for
+  HTTP 201 and a `url` key; never assume success in unattended automation.
+- `repository_id` must be the numeric id - passing `owner/repo` fails.
+- Verified with a user token via `gh auth token`; untested with `GITHUB_TOKEN` in Actions.
+- Cropping: `sips -c H W` crops from the **center**. For top-left use
+  `python3 -c "from PIL import Image; Image.open('in.png').crop((0,0,W,H)).save('out.png')"`.
+
 ### Merge
 
 ```bash
