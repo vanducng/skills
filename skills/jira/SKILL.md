@@ -248,6 +248,7 @@ Never put the numeric attachment ID in an ADF `media` node; it causes `ATTACHMEN
 - Upstream/Homebrew `jira-cli` 1.7.0 does not support `--image`; confirm PATH resolves the `vanducng/jira-cli` build
 - `jira project list` may fail with shell escaping errors - use `jira issue list` or REST API instead
 - `jira me` and `jira issue create/view` work reliably
+- `jira issue create` can still hang despite `--no-input` when combining a large `-b"$(cat file)"` body with `-a`/`-P` flags in one call (observed: hung the full 10min timeout). Wrap in `timeout 60 jira issue create ...`; if it times out, create the issue via REST API (`POST /rest/api/3/issue`) instead
 - Config location: `$HOME/.config/.jira/.config.yml`
 
 ## Error Handling
