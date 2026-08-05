@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.52.2](https://github.com/vanducng/skills/compare/v1.52.1...v1.52.2) (2026-08-05)
+
+
+### Bug Fixes
+
+* **ship:** resolve every review thread, not just the actionable ones ([e62bc55](https://github.com/vanducng/skills/commit/e62bc554c5d607931400171cc389a111e3b8bb16))
+
 ## [1.52.1](https://github.com/vanducng/skills/compare/v1.52.0...v1.52.1) (2026-08-05)
 
 
