@@ -12,7 +12,7 @@ metadata:
 
 Monthly hourly invoicing for contract clients. One Google Sheet per client, one
 tab per month (`202607`, `202608`, ...). Rows are billable work reconciled from
-merged GitHub PRs, linked to their tracker tickets, plus meeting rows.
+GitHub PRs, linked to their tracker tickets, plus meeting rows.
 
 Every client-specific value - spreadsheet id, org, repos, Jira host, rate - lives
 in a private rules file **outside this repo**. This skill ships no client data.
@@ -63,6 +63,10 @@ scripts/harvest-prs.py --client <alias> 2026-08
 
 Groups PRs by the client's local working day across all configured repos, citing
 each with its repo label, and flags dependency-bump PRs.
+
+All PR states are harvested, not just merged - a superseded or closed PR still
+represents work done. Unmerged ones are marked `[not merged]` so you can judge
+whether they are billable or were abandoned.
 
 ### 3. Map to tickets and hours
 

@@ -67,7 +67,7 @@ def fetch(slug):
     try:
         out = subprocess.run(
             ["gh", "pr", "list", "--repo", slug, "--state", "all", "--limit", str(LIMIT),
-             "--json", "number,title,author,createdAt"],
+             "--json", "number,title,author,createdAt,mergedAt"],
             capture_output=True, text=True, check=True,
         ).stdout
     except subprocess.CalledProcessError as e:
@@ -97,11 +97,12 @@ def main():
         slug, label = repo["slug"], repo.get("label", "")
         prs = fetch(slug)
         stamps = [p["createdAt"] for p in prs]
-        if stamps and min(stamps) >= f"{year:04d}-{month:02d}-01":
+        # only a full page can be truncated; a short page is the whole repo
+        if len(prs) >= LIMIT and stamps and min(stamps) >= f"{year:04d}-{month:02d}-01":
             sys.exit(
-                f"{slug}: fetched {len(prs)} PRs, oldest {min(stamps)[:10]} - the window "
-                f"never reaches back to {args.month}, so results would be silently "
-                f"incomplete. Raise LIMIT (currently {LIMIT})."
+                f"{slug}: hit the {LIMIT}-PR page limit and the oldest is "
+                f"{min(stamps)[:10]}, so the window never reaches back to {args.month} "
+                f"and results would be silently incomplete. Raise LIMIT."
             )
         for p in prs:
             # author is null for PRs from deleted accounts
@@ -111,7 +112,9 @@ def main():
                  .replace(tzinfo=datetime.timezone.utc).astimezone(tz))
             if (d.year, d.month) == (year, month):
                 cite = f"{label}PR #{p['number']}"
-                days[d.date()].append((d.strftime("%H:%M"), cite, p["title"]))
+                # unmerged work still took effort, but flag it so it can be judged
+                state = "" if p.get("mergedAt") else "  [not merged]"
+                days[d.date()].append((d.strftime("%H:%M"), cite, p["title"], state))
 
     if not days:
         print(f"no PRs by {author} in {args.month} for {cfg.get('client', args.client)}")
@@ -121,12 +124,12 @@ def main():
     for day in sorted(days):
         items = sorted(days[day])
         total += len(items)
-        bots = sum(1 for _, _, t in items if t.startswith("chore(deps)"))
+        bots = sum(1 for _, _, t, _ in items if t.startswith("chore(deps)"))
         note = f"  [{bots} dependency bump - exclude from effort]" if bots else ""
         print(f"\n### {day} {day.strftime('%a')} | {len(items)} PRs "
               f"| {items[0][0]}-{items[-1][0]}{note}")
-        for t, cite, title in items:
-            print(f"  {t} {cite:<16} {title[:88]}")
+        for t, cite, title, state in items:
+            print(f"  {t} {cite:<16} {title[:88]}{state}")
 
     print(f"\n{total} PRs across {len(days)} days in {args.month} "
           f"({cfg.get('client', args.client)}, {cfg['timezone']})")
