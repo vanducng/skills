@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.52.1](https://github.com/vanducng/skills/compare/v1.52.0...v1.52.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **hooks:** resolve merge-guard repo from the command, not just session cwd ([11d46ae](https://github.com/vanducng/skills/commit/11d46ae3271d45b2609a447e43852090282badae))
+
 ## [1.52.0](https://github.com/vanducng/skills/compare/v1.51.1...v1.52.0) (2026-08-05)
 
 
