@@ -104,7 +104,8 @@ def main():
                 f"incomplete. Raise LIMIT (currently {LIMIT})."
             )
         for p in prs:
-            if p["author"]["login"] != author:
+            # author is null for PRs from deleted accounts
+            if (p.get("author") or {}).get("login") != author:
                 continue
             d = (datetime.datetime.strptime(p["createdAt"], "%Y-%m-%dT%H:%M:%SZ")
                  .replace(tzinfo=datetime.timezone.utc).astimezone(tz))
