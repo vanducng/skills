@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.52.0](https://github.com/vanducng/skills/compare/v1.51.1...v1.52.0) (2026-08-05)
+
+
+### Features
+
+* **issue-invoice:** monthly hourly invoicing from PRs and tickets ([#386](https://github.com/vanducng/skills/issues/386)) ([da4df9a](https://github.com/vanducng/skills/commit/da4df9a68b40575e0e3eb3011792d71a517ea39d))
+
 ## [1.51.1](https://github.com/vanducng/skills/compare/v1.51.0...v1.51.1) (2026-08-05)
 
 
