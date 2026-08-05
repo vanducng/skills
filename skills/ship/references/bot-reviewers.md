@@ -16,7 +16,9 @@ How to respond to each automated PR reviewer (Step 13 / 15b). Two classes:
 - These triggers are **PR-level comments** (`gh pr comment <n> --body "<trigger>"`), not thread replies.
 - Do not use `@coderabbitai resolve` or GraphQL `resolveReviewThread` until every addressed thread has an inline reply explaining the outcome.
 - If a thread is already resolved but lacks an explanatory inline reply, post the missing rationale before treating it as clear.
-- After pushing fixes, the bot also auto-marks its old threads **outdated** when the cited lines change - those drop out of the unresolved set on their own.
+- **You can resolve any thread, including a bot's.** `resolveReviewThread` needs write access on the repo, not authorship of the comment - being the PR author is enough. Never leave a thread open on the belief that only its author can close it; try the mutation.
+- After pushing fixes, the bot auto-marks its old threads **outdated** when the cited lines change. Outdated is **not** resolved: those threads still render as open review conversations to a human. Reply and resolve them too - "the code moved" is itself a valid resolution note.
+- **Finish the job**: replying is not resolving. Every thread you fixed, or explained as a deliberate non-fix, gets resolved in the same pass. Leaving replied-but-open threads pushes the cleanup onto the reviewer.
 - Severity tags to triage by: CodeRabbit uses prose + `🛠️ Refactor/⚠️ Potential issue`; Gemini uses `high/medium/low`; Codex uses `P1/P2/P3` badges. Treat P1/high/⚠️ as blocking.
 
 ## Local CLI reviewers
@@ -29,12 +31,21 @@ These post line-level findings locally (and can apply fixes); they don't watch t
 
 ## The loop (per iteration)
 
-1. **Fetch** all review threads, then classify unresolved actionable threads (`isResolved==false && isOutdated==false`) and resolved threads missing a rationale reply.
+1. **Fetch** all review threads, then classify: unresolved actionable (`isResolved==false && isOutdated==false`), unresolved-but-outdated (`isOutdated==true` - still needs a reply + resolve, just no code work), and resolved threads missing a rationale reply.
 2. **Triage** each - validate against codebase contracts/types/tests, not just the suggested patch. Apply the *root-cause* fix even if it differs from the suggestion.
 3. **Reply inline** on each thread with the resolution (what changed + why, or why it's a deliberate non-fix).
 4. **Resolve** only after the reply is posted and the thread is still the intended one. For already-resolved threads without a reply, add the retrospective inline reply and re-fetch.
 5. **Re-trigger** every GH bot with its command above; **re-run** local CLIs.
-6. **Re-fetch** after the bots finish (async, ~1-5 min). Repeat until **zero unresolved actionable threads, zero silent resolves, AND green CI**.
+6. **Re-fetch** after the bots finish (async, ~1-5 min). Repeat until **zero unresolved threads of any kind, zero silent resolves, AND green CI**.
+
+Exit check - `unresolved` must be `0`, not just "no actionable ones left":
+
+```bash
+gh api graphql -f query='{repository(owner:"OWNER",name:"REPO"){pullRequest(number:NUM){
+  reviewThreads(first:100){nodes{isResolved}}}}}' \
+ --jq '.data.repository.pullRequest.reviewThreads.nodes
+       | "resolved: \([.[]|select(.isResolved)]|length) · unresolved: \([.[]|select(.isResolved==false)]|length)"'
+```
 
 Watch for the **self-introduced regression**: a re-review often flags a flaw in *your fix* (e.g. an over-aggressive fast-fail). Treat those like any new finding - don't dismiss because "I just fixed that area."
 
