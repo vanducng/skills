@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.51.1](https://github.com/vanducng/skills/compare/v1.51.0...v1.51.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **jira:** document issue-create hang risk despite --no-input ([#384](https://github.com/vanducng/skills/issues/384)) ([7e1776b](https://github.com/vanducng/skills/commit/7e1776b3d024bf26ef8d175a5846237585636b3f))
+
 ## [1.51.0](https://github.com/vanducng/skills/compare/v1.50.0...v1.51.0) (2026-08-04)
 
 
