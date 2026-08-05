@@ -10,6 +10,7 @@ stdin; exit 2 + stderr blocks the tool; exit 0 allows. Fail-open on any error
 (GitHub branch protection is the reliable server-side backstop). Stdlib only.
 """
 import json
+import os
 import re
 import subprocess
 import sys
@@ -33,13 +34,25 @@ def main():
     if not re.search(r"\bgh\s+pr\s+merge\b", cmd):
         return 0
 
-    # Resolve gh against the agent's cwd (the repo where the merge would run).
+    # Resolve the repo the merge actually targets, not merely the session cwd:
+    # an explicit -R/--repo wins, else a leading `cd <dir> &&`, else the agent's cwd.
+    # Without this a cross-repo merge is checked against the wrong PR number.
     cwd = (data.get("cwd") or "").strip() or None
+    m = re.search(r"(?:-R|--repo)[=\s]+([^\s|;&]+/[^\s|;&]+)", cmd)
+    repo_flag = m.group(1) if m else None
+    if not repo_flag:
+        m = re.search(r"^\s*cd\s+([^\s|;&]+)\s*&&", cmd)
+        if m:
+            cwd = os.path.expanduser(m.group(1).strip("'\""))
+
     try:
         m = re.search(r"\bgh\s+pr\s+merge\b[^|;&\n]*?\b(\d+)\b", cmd)
         num = int(m.group(1)) if m else int(json.loads(gh(["pr", "view", "--json", "number"], cwd))["number"])
-        repo = json.loads(gh(["repo", "view", "--json", "owner,name"], cwd))
-        owner, name = repo["owner"]["login"], repo["name"]
+        if repo_flag:
+            owner, name = repo_flag.split("/", 1)
+        else:
+            repo = json.loads(gh(["repo", "view", "--json", "owner,name"], cwd))
+            owner, name = repo["owner"]["login"], repo["name"]
         q = ("query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){"
              "pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved isOutdated}}}}}")
         n = gh(["api", "graphql", "-f", "query=" + q, "-f", "o=" + owner, "-f", "r=" + name,
