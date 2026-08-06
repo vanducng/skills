@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.52.3](https://github.com/vanducng/skills/compare/v1.52.2...v1.52.3) (2026-08-06)
+
+
+### Bug Fixes
+
+* **miucr,voice-agent:** close skill-audit trigger and timeout gaps ([#391](https://github.com/vanducng/skills/issues/391)) ([e1c2956](https://github.com/vanducng/skills/commit/e1c2956fd471e116ea278e1fe0be54b94db276df))
+
 ## [1.52.2](https://github.com/vanducng/skills/compare/v1.52.1...v1.52.2) (2026-08-05)
 
 
