@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.52.4](https://github.com/vanducng/skills/compare/v1.52.3...v1.52.4) (2026-08-06)
+
+
+### Bug Fixes
+
+* **herdr:** corrected license and repo after the 0.8.0 upstream changes ([#393](https://github.com/vanducng/skills/issues/393)) ([aab1aaf](https://github.com/vanducng/skills/commit/aab1aafc8c9ca7f084ebbe0e462c97f11e9a743b))
+
 ## [1.52.3](https://github.com/vanducng/skills/compare/v1.52.2...v1.52.3) (2026-08-06)
 
 
