@@ -1,18 +1,18 @@
 ---
 name: herdr
 description: "Control Herdr, the terminal multiplexer for coding agents. Use when the user mentions Herdr or another skill delegates pane control, including concise pane naming, inspection, commands, and agents. Integrates with vd:worktree, vd:codex-workflow, and vd:ultracook. Requires HERDR_ENV=1."
-license: AGPL-3.0
+license: Apache-2.0
 argument-hint: "[inspect | rename <project> <intent> | start agent | run command | wait | read]"
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Herdr
 
 Herdr is a terminal multiplexer and runtime for coding agents. It organizes terminals into workspaces, tabs, and panes, detects agent identity and status, and exposes the running session through the `herdr` CLI.
 
-This skill adapts the [official Herdr agent skill](https://github.com/ogulcancelik/herdr/blob/master/SKILL.md) to the `vd:` workflow. The installed CLI remains authoritative when its syntax differs from this file.
+This skill adapts the [official Herdr agent skill](https://github.com/herdrdev/herdr/blob/master/SKILL.md) to the `vd:` workflow. The installed CLI remains authoritative when its syntax differs from this file; `herdr --skill` (0.8.0+) prints the exact skill bundled with the running binary.
 
 ## Scope and routing
 
