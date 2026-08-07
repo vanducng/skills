@@ -223,3 +223,4 @@ Combine the paths within the same Bash invocation whenever their next inputs are
 # References:
 - [screencast video recording](references/video.md)
 - [install](references/install.md)
+- [Google Sheets: reliable cell writes](references/google-sheets.md) - read before writing cells in Google Sheets; commits are silently discarded unless written via synthetic paste, and verification must use the export CSV endpoint
