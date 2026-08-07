@@ -1,4 +1,4 @@
-# Google Sheets Overview
+# Google Sheets: reliable cell writes
 
 Sheets is a canvas app: the grid is not DOM. Only two DOM anchors matter, and
 the biggest trap is that **cell edits can be silently discarded** - typed text
