@@ -68,7 +68,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 2. **Never force push.** Plain `git push` only. If rejected → `git pull --rebase`, retry once, then stop.
 3. **Never skip failing tests.** A red test stops the pipeline. Fix it (kick back to `vd:cook`) or pass `--skip-tests` deliberately.
 4. **Never bypass critical review issues silently.** Each critical finding gets an `AskUserQuestion`: fix now / acknowledge / false-positive.
-4b. **Never silently ignore PR feedback - always reply inline, valid or not.** After the PR exists (and again after CI in Step 15b), always fetch review threads, `CHANGES_REQUESTED` reviews, `COMMENTED` reviews from humans/bots, and top-level PR comments. Triage each item for validity/actionability before changing code, validating every suggestion against codebase contracts, types, config schemas, tests, and local rules. Then **every** comment gets an inline reply before its thread is resolved - no exceptions, including bot comments and ones you disagree with:
+4b. **Never silently ignore PR feedback - always reply inline, valid or not.** After the PR exists (and again before handoff in Step 15b, whatever CI did), always fetch review threads, `CHANGES_REQUESTED` reviews, `COMMENTED` reviews from humans/bots, and top-level PR comments. Triage each item for validity/actionability before changing code, validating every suggestion against codebase contracts, types, config schemas, tests, and local rules. Then **every** comment gets an inline reply before its thread is resolved - no exceptions, including bot comments and ones you disagree with:
    - **Valid** → apply the fix (if the suggested patch isn't the best fix, apply the better root-cause fix), then reply inline **naming the exact fix commit SHA** (e.g. "Fixed in `a1b2c3d`.") and what changed. Re-run Step 4 verification after the fix.
    - **Invalid / false-positive / won't-fix** → reply inline with the concrete rationale (why it's wrong, or why it's out of scope + where it's tracked). Do not resolve with an empty/one-word reply.
    - **Deferred / out-of-scope** (valid but intentionally not in this PR) → reply inline saying so and link the follow-up (ticket/PR/issue), then resolve.
@@ -114,9 +114,10 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
      user *"Merge anyway"* or a deliberate `--skip-tests`/documented flake - both stated out loud.
    - **CI green ≠ comments addressed.** A passing code-review-bot check (e.g.
      `review/code-review`) means the bot *ran*, not that its findings are resolved. Bot
-     reviewers post inline comments **as a CI job**, so they land *during* Step 15 -
-     after Step 13 already looked and found nothing. So **re-run Step 13's review-thread
-     fetch after CI is green and before merge** (Step 15b), and block on any thread that is
+     reviewers post inline comments minutes after the PR opens - as a CI job, or via their
+     own webhook independent of CI - so they land *after* Step 13 already looked and found
+     nothing. So **re-run Step 13's review-thread fetch before merge or handoff, whatever
+     state CI is in** (Step 15b), and block on any thread that is
      `isResolved==false && isOutdated==false` and actionable (human or bot). Triage,
      fix the valid ones (re-run Step 4 after fixes), reply inline with rationale, resolve each, repair any already-resolved thread that lacks an explanatory inline reply, then merge.
      **0 unresolved actionable threads is a merge precondition, alongside green CI** - a
@@ -157,11 +158,13 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 13. PR comments   → fetch review threads + human/bot reviews + top-level comments; triage, then fix/reply/resolve valid feedback (re-run Step 4 after any fix); repair already-resolved threads that lack explanatory inline replies; after fixing, **re-trigger each bot's re-review** (`@codex review` / `@coderabbitai review` / `/gemini review`; re-run local `ocr`/`miucr`) and loop until zero unresolved actionable threads - see `references/bot-reviewers.md`
 14. Release       → `--release` only: detect auto-release tool; tag + push if manual
 15. CI watch      → wait for PR checks; on failure prompt user (every mode)
-15b. Re-check comments → after CI green, RE-RUN Step 13: code-review bots post inline comments as a CI job, so they appear only now. Block merge on any unresolved actionable thread (Rule 11). Not suppressed by `--auto`.
+15b. Re-check comments → RE-RUN Step 13 before any handoff or merge, **whatever CI did** (green, red, still pending, never triggered). Review bots post inline comments on their own schedule - typically 1-5 min after the PR opens - so Step 13's fetch almost always precedes them. Block merge on any unresolved actionable thread (Rule 11). Not suppressed by `--auto`.
 16. Merge         → **only** with `--auto`/`--merge` (or an explicit "merge anyway"): `gh pr merge` once Step 15 green AND 15b clear. **A bare ship stops at Step 15b and hands off the PR URL - no merge** (Hard rule 0).
 ```
 
-> **Ordering matters.** Step 13 runs once at PR creation (catches pre-existing human reviews), but a code-review **bot** reviews *as CI* - its comments land during Step 15, after Step 13. **Step 15b re-fetches** so bot findings can't slip to merge. Without it, a green `review/code-review` check reads as "approved" when it only means "the bot finished."
+> **Ordering matters.** Step 13 runs at PR creation (catches pre-existing human reviews), but review **bots** post on their own schedule - as a CI job, or minutes later via their own webhook. Either way their comments land *after* Step 13's first look. **Step 15b re-fetches** so bot findings can't slip to merge. Without it, a green `review/code-review` check reads as "approved" when it only means "the bot finished."
+>
+> **Step 15b is not conditional on CI.** A bot that posts via its own webhook (Codex connector, CodeRabbit, miu-cr) comments whether or not Actions ever ran. Gating the re-check on "CI green" means a repo with broken, disabled, or queued-forever CI silently skips every bot finding - the ship reports `0 actionable` while real P2 defects sit unread on the PR. Re-fetch before handoff, always.
 
 **Detailed steps:** see `references/ship-workflow.md`
 **Auto-detection logic:** see `references/auto-detect.md`
@@ -176,10 +179,10 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 - Skip steps via flags when work already done in this session.
 - Staging mode auto-skips journal (Step 8) and docs (Step 9).
 - Beta mode auto-skips docs (Step 9).
-- Step 13 (PR comments) always performs one GraphQL fetch after the PR exists. If there are no unresolved review threads, no silently resolved threads to repair, no `CHANGES_REQUESTED` reviews, no substantive `COMMENTED` reviews from humans/bots, and no top-level PR comments, report `PR comments: 0 actionable` and continue. Skipped entirely only with `--skip-pr-comments`.
+- Step 13 (PR comments) fetches review feedback after the PR exists. **Do not fetch once at t+0 and call it clear** - review bots post asynchronously, typically 1-5 min after the PR opens, so an immediate fetch reliably returns zero and reads as "no feedback". Poll until either actionable threads appear or the configured review bots have reported (a bot's summary/top-level comment, or its check reaching a terminal state), with a sensible cap (~5 min). Only then may you report `PR comments: 0 actionable` and continue. Skipped entirely only with `--skip-pr-comments`.
 - Step 14 runs only with `--release`. If auto-release tooling detected, it's a no-op (CI handles tagging).
 - Step 15 (CI watch) always runs after PR creation. CI failure prompts the user even in `--auto`.
-- Step 15b (re-check comments) always runs after CI green when any check is a code-review bot (e.g. `review/code-review`) - those post inline comments as a CI job, so they only exist post-CI. Re-runs Step 13's fetch; one GraphQL call. Blocks merge on unresolved actionable threads even in `--auto` (not suppressible - safety floor, Rule 11).
+- Step 15b (re-check comments) always runs before handoff or merge, **regardless of CI state** - green, red, pending, or never triggered. Re-runs Step 13's fetch; one GraphQL call. Blocks merge on unresolved actionable threads even in `--auto` (not suppressible - safety floor, Rule 11). Never gate this on CI: when CI is broken or absent, bot comments still arrive, and a CI-gated re-check silently skips them.
 - Step 16 runs only with `--auto` or `--merge`, only after Step 15 reports green **and** Step 15b is clear (or user explicitly opted to merge anyway). Uses `gh pr merge` (auto-queue under `--auto`), which respects branch protection - queues the merge; never bypasses. A bare ship skips Step 16 entirely and hands off the PR (Hard rule 0).
 
 ## Output
