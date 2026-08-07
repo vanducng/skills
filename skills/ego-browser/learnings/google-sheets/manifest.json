@@ -1,0 +1,6 @@
+{
+  "id": "google-sheets",
+  "name": "Google Sheets",
+  "domains": ["docs.google.com"],
+  "notes": ["notes/overview.md"]
+}
