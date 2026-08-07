@@ -402,12 +402,13 @@ Without this re-fetch, those comments slip straight to merge. (Exact trap: gocla
 **Run after Step 15 is green, before Step 16, in every mode** (including `--auto`).
 Skip only when `--skip-pr-comments` was passed.
 
-1. Re-fetch all review threads - same GraphQL query as Step 13, one call:
+1. Re-fetch review threads and top-level comments in one call:
    ```bash
    gh api graphql -f query='
      query($owner:String!,$repo:String!,$pr:Int!){
        repository(owner:$owner,name:$repo){
          pullRequest(number:$pr){
+           comments(first:50){ nodes{ author{login} body url updatedAt } }
            reviewThreads(first:100){ nodes{
              id isResolved isOutdated
              comments(first:10){ nodes{ databaseId author{login} body path line url } }
@@ -417,7 +418,13 @@ Skip only when `--skip-pr-comments` was passed.
 2. Keep threads where `isResolved == false && isOutdated == false`. These are the
    actionable ones - human or bot, no distinction. Also keep resolved threads
    that lack a later explanatory inline reply; those must be repaired before merge.
-3. **0 actionable threads and 0 silent resolves → done, continue to Step 16.** Otherwise **STOP merge** and
+   For each configured async reviewer, select its latest top-level status by
+   `updatedAt`; treat `queued`, `reviewing`, or `in progress` as non-terminal
+   even when no thread exists yet.
+3. **0 actionable threads, 0 silent resolves, and every configured reviewer terminal → done, continue to Step 16.**
+   If the polling cap expires while a reviewer is non-terminal, stop and report
+   that status; never convert the timeout or an empty thread list into clearance.
+   Otherwise **STOP merge** and
    triage or repair each (same blocking model as Step 13 / Rule 4b):
    - Valid + actionable → fix at root cause (re-run **Step 4** tests after fixes),
      reply on the thread explaining the fix, then resolve it.
