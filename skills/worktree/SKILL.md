@@ -75,6 +75,8 @@ Run the create command with `--no-prefix` for ticket branches:
 node $HOME/skills/skills/worktree/scripts/worktree.cjs create "ELT-3267" --no-prefix
 ```
 
+**Monorepo repos need the project arg too** (`repoType === "monorepo"` from Step 1) - skipping straight to this example without it fails with `MISSING_ARGS`. Do Step 4 first, then run `create "<PROJECT>" "ELT-3267" --no-prefix`.
+
 **Use `--no-prefix` (skip Step 3) when the caller supplies an exact branch name** - uppercase letters, an issue-tracker key, or slashes used as a convention:
 - `ND-1377-cleanup-docs` → `--no-prefix` → branch `ND-1377-cleanup-docs`
 - `kai/feat/604-startup-option` → `--no-prefix` → branch `kai/feat/604-startup-option`
