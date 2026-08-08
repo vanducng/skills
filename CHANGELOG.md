@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.53.1](https://github.com/vanducng/skills/compare/v1.53.0...v1.53.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **worktree:** clarify monorepo args in create quick example ([512b3c4](https://github.com/vanducng/skills/commit/512b3c4adf223e332a07f682d0c540a8c8ea8655))
+
 ## [1.53.0](https://github.com/vanducng/skills/compare/v1.52.5...v1.53.0) (2026-08-07)
 
 
