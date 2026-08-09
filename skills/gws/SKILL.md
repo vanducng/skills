@@ -1,217 +1,169 @@
 ---
 name: gws
-description: "Manage Google Workspace from the CLI: Gmail, Drive, Calendar, Sheets, Docs, Tasks, Chat, and Workspace Admin for vanducng.dev via the official `gws` command. Use when the user mentions gmail, drive, calendar, sheets, docs, workspace, gws, vanducng.dev, email, files, events, or Workspace users/groups."
+description: "Manage Google Workspace from the CLI: Gmail, Drive, Calendar, Sheets, Docs, Slides, Tasks, Chat, and audit reports via the official `gws` command, with multi-account support through per-account config dirs. Use when the user mentions gmail, drive, calendar, sheets, docs, workspace, gws, email, files, events, or names a configured account alias."
 license: MIT
-argument-hint: "[service] [resource] [method] [flags] | auth | gmail | drive | calendar | sheets | admin"
+argument-hint: "[account-alias] [service] [resource] [method] [flags] | auth | gmail | drive | calendar | sheets"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "2.0.0"
   upstream: "https://github.com/googleworkspace/cli"
 ---
 
 # gws
 
-Google Workspace operations through the official `gws` CLI from `googleworkspace/cli`. This is the local safety wrapper and workflow guide; use the CLI for execution and load references only for multi-step recipes.
+Google Workspace operations through the official `gws` CLI. This is the local safety wrapper and workflow guide; use the CLI for execution and load references only for multi-step recipes.
 
-## Defaults
+## Multi-Account Model
 
-- **Primary account:** `me@vanducng.dev`
-- **Primary domain:** `vanducng.dev`
-- **Timezone:** `Asia/Ho_Chi_Minh`
-- **CLI:** `gws`
-- **Response shape:** JSON; pipe to `jq` for inspection and summaries
+Upstream removed native multi-account support in v0.7.0 (`--account`, `gws auth list`, `GOOGLE_WORKSPACE_CLI_ACCOUNT` no longer exist - do not use them). Accounts are isolated by config directory instead:
 
-## When To Use
+- Account registry: `~/.config/vd/gws-accounts/<alias>.gws-account.md` - one file per account declaring email, domain, timezone, and its config dir. See `references/account.gws-account.example.md`.
+- Credentials: one dir per account under `~/.config/vd/gws/<alias>/`, selected via `GOOGLE_WORKSPACE_CLI_CONFIG_DIR`.
+- The default `~/.config/gws` holds no credentials by design: a bare `gws` call fails with exit code 2 instead of silently using an ambiguous account.
 
-Use this skill when the user asks to:
+Every command is prefixed with the account's config dir:
 
-- Read, search, send, reply to, label, or archive Gmail
-- List, upload, download, share, move, or inspect Drive files
-- Read agenda, create events, update events, or manage Calendar calendars
-- Create, read, or append Google Sheets data
-- Create or inspect Google Docs
-- Manage Workspace users, groups, memberships, aliases, domains, or audit logs for `vanducng.dev`
-- Run a raw Workspace API call through `gws`
+```bash
+GOOGLE_WORKSPACE_CLI_CONFIG_DIR="$HOME/.config/vd/gws/<alias>" gws <service> ...
+```
 
-Do not use this for Drive backup/sync work where `rclone` is a better fit, IMAP mailbox backups where `mbsync` or `gyb` is better, or high-volume Workspace provisioning where `GAM7` is more mature.
+### Account resolution
+
+1. List configured aliases: `ls ~/.config/vd/gws-accounts/` and read the file for the chosen alias.
+2. If the user named an account (alias or email), use it.
+3. For reads where context makes the account obvious (work domain vs personal), pick it and state which account you used.
+4. For writes, or when ambiguous: ask which account, or echo the chosen account and get confirmation.
+5. Before any mutating operation, verify the live identity matches the intended account:
+
+```bash
+GOOGLE_WORKSPACE_CLI_CONFIG_DIR="$HOME/.config/vd/gws/<alias>" \
+  gws gmail users getProfile --params '{"userId":"me"}' | jq -r '.emailAddress'
+```
+
+Silent wrong-account operation is the known failure mode of this CLI (upstream issue #439); the identity check is mandatory before sends, deletes, shares, and permission changes.
 
 ## Preflight
 
-Before any Workspace operation:
-
 ```bash
-command -v gws
-gws --version
-gws auth list
+command -v gws && gws --version
+ls ~/.config/vd/gws-accounts/
+GOOGLE_WORKSPACE_CLI_CONFIG_DIR="$HOME/.config/vd/gws/<alias>" gws auth status
 ```
 
-If `gws` is missing:
+`auth status` must show `token_valid: true` (or at least `has_refresh_token: true`). If `gws` is missing: `brew install googleworkspace-cli`.
+
+### Adding an account
 
 ```bash
-brew install googleworkspace-cli
-# or
-npm install -g @googleworkspace/cli
+mkdir -p ~/.config/vd/gws/<alias>
+cp <existing-alias-dir>/client_secret.json ~/.config/vd/gws/<alias>/   # OAuth client is shared
+GOOGLE_WORKSPACE_CLI_CONFIG_DIR="$HOME/.config/vd/gws/<alias>" gws auth login
 ```
 
-For first-time auth:
+The login opens a browser; the user picks the Google account there (the user must run this themselves - suggest the `! <command>` prompt prefix). Then create `~/.config/vd/gws-accounts/<alias>.gws-account.md` from the example and verify with the `getProfile` identity check. Scope selection: `--readonly`, or `-s gmail,drive,calendar` to limit services; explain any new scopes before asking the user to re-authenticate.
 
-```bash
-gws auth setup
-gws auth login --account me@vanducng.dev
-gws auth default --account me@vanducng.dev
-```
-
-For admin operations, verify scopes before writing:
-
-```bash
-gws auth login --account me@vanducng.dev -s admin.directory,admin.reports
-```
-
-Explain any new scopes before asking the user to re-authenticate.
-
-## Account Rules
-
-- Admin or `vanducng.dev` requests: always pass `--account me@vanducng.dev`.
-- Read-only personal requests: use the default account if only one account is configured.
-- Mutating personal requests: if multiple accounts are configured and the user did not name one, ask which account to use.
-- Cross-account writes: echo the exact `--account` before executing.
-
-Resolution without `--account` is:
-
-1. `GWS_ACCOUNT`
-2. `gws auth default`
-3. CLI error
-
-Prefer explicit `--account` on every mutating command.
+Service accounts are not a login-free alternative: gws cannot impersonate a user (no `--subject`; upstream #632/#776), so a service account sees no Gmail and an empty Drive. Refresh tokens make login a one-time event per account - if re-auth is demanded weekly, the GCP project's OAuth consent screen is likely in Testing status (publish it), or the Workspace org enforces a session-length policy.
 
 ## Safety Protocol
 
-1. **Read before write:** run `list` or `get` first and summarize the target.
-2. **Confirm destructive operations:** never delete, suspend, transfer ownership, reset passwords, remove group members, or bulk-mutate without explicit user approval.
-3. **Verify after write:** re-run `get` or `list` and report the changed state.
-4. **No mass mail:** block sends above 10 recipients unless the user explicitly reconfirms the batch.
-5. **Admin caution:** double-check `primaryEmail`, `groupKey`, and `customer` before any Admin SDK write.
-6. **Prefer reversible actions:** suspend before delete, archive before delete, share with reader before writer.
-7. **Do not print secrets:** temporary passwords or OAuth values must not be echoed in chat or committed.
+1. **Read before write:** run `list`/`get` first and summarize the target.
+2. **Verify identity before mutating** (see account resolution above).
+3. **Confirm destructive operations:** never delete, transfer ownership, remove permissions, or bulk-mutate without explicit user approval.
+4. **Verify after write:** re-run `get`/`list` and report the changed state.
+5. **No mass mail:** block sends above 10 recipients unless the user explicitly reconfirms.
+6. **Prefer reversible actions:** archive over delete, reader over writer shares.
+7. **Do not print secrets:** never echo OAuth values or tokens; `gws auth export` output must not appear in chat.
 
 ## Command Pattern
 
-Raw API call:
-
 ```bash
-gws <service> <resource> <method> --account <email> --params '{...}' --json '{...}'
+GWS="GOOGLE_WORKSPACE_CLI_CONFIG_DIR=$HOME/.config/vd/gws/<alias>"   # conceptual; write the env inline per command
+
+# Raw API call
+gws <service> <resource> [sub-resource] <method> --params '{...}' --json '{...}'
+
+# Helper verbs (per-service, discover with: gws <service> --help)
+gws gmail +send|+triage|+reply|+reply-all|+forward|+read
+gws calendar +agenda|+insert
+gws drive +upload
+gws sheets +append|+read
+
+# Schema discovery
+gws schema <service>.<resource>.<method>
 ```
 
-Helper recipe:
-
-```bash
-gws <service> +<verb> --account <email> [flags]
-```
-
-Environment-pinned:
-
-```bash
-GWS_ACCOUNT=me@vanducng.dev gws <service> <resource> <method> --params '{...}'
-```
+Response shape is JSON; pipe to `jq`. Use `--page-all` for pagination, `--dry-run` to validate locally.
 
 ## Quick Reference
 
-### Gmail
+All commands below need the `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` prefix; omitted for brevity.
+
+### Gmail (note: resource path is `users messages`, `userId` required)
 
 ```bash
-gws gmail messages list --account me@vanducng.dev --params '{"maxResults":10,"q":"is:unread"}'
-gws gmail messages get --account me@vanducng.dev --params '{"id":"<MSG_ID>","format":"metadata","metadataHeaders":["From","Subject","Date"]}'
-gws gmail +send --account me@vanducng.dev --to alice@example.com --subject "Hi" --body "..."
-gws gmail +reply --account me@vanducng.dev --thread-id <THREAD_ID> --body "..."
+gws gmail users messages list --params '{"userId":"me","maxResults":10,"q":"is:unread"}'
+gws gmail users messages get --params '{"userId":"me","id":"<MSG_ID>","format":"metadata","metadataHeaders":["From","Subject","Date"]}'
+gws gmail +triage
+gws gmail +send --to alice@example.com --subject "Hi" --body "..."
+gws gmail +reply --help   # threading handled automatically
 ```
 
 ### Drive
 
 ```bash
-gws drive files list --account me@vanducng.dev --params '{"pageSize":20,"q":"trashed=false"}'
-gws drive files get --account me@vanducng.dev --params '{"fileId":"<ID>"}'
-gws drive +upload --account me@vanducng.dev --local ./report.pdf --parent <FOLDER_ID>
-gws drive +download --account me@vanducng.dev --file-id <ID> --out ./report.pdf
-gws drive permissions create --account me@vanducng.dev --params '{"fileId":"<ID>"}' --json '{"role":"reader","type":"user","emailAddress":"x@y.com"}'
+gws drive files list --params '{"pageSize":20,"q":"trashed=false"}'
+gws drive files get --params '{"fileId":"<ID>"}'
+gws drive +upload --help
+gws drive files get --params '{"fileId":"<ID>","alt":"media"}' --output ./file.pdf
+gws drive permissions create --params '{"fileId":"<ID>"}' --json '{"role":"reader","type":"user","emailAddress":"x@y.com"}'
 ```
 
 ### Calendar
 
 ```bash
-gws calendar calendars list --account me@vanducng.dev
-gws calendar +agenda --account me@vanducng.dev --timezone Asia/Ho_Chi_Minh
-gws calendar events insert --account me@vanducng.dev --params '{"calendarId":"primary"}' --json '{"summary":"Team Sync","start":{"dateTime":"2026-05-28T14:00:00+07:00"},"end":{"dateTime":"2026-05-28T15:00:00+07:00"}}'
+gws calendar +agenda
+gws calendar calendarList list
+gws calendar events insert --params '{"calendarId":"primary"}' --json '{"summary":"Team Sync","start":{"dateTime":"2026-05-28T14:00:00+07:00"},"end":{"dateTime":"2026-05-28T15:00:00+07:00"}}'
 ```
 
-### Sheets
+### Sheets / Docs
 
 ```bash
-gws sheets spreadsheets create --account me@vanducng.dev --json '{"properties":{"title":"Q2 Budget"}}'
-gws sheets spreadsheets values get --account me@vanducng.dev --params '{"spreadsheetId":"<ID>","range":"Sheet1!A:Z"}'
-gws sheets +append --account me@vanducng.dev --spreadsheet-id <ID> --range "Sheet1!A:Z" --values '[["a","b","c"]]'
+gws sheets spreadsheets create --json '{"properties":{"title":"Q2 Budget"}}'
+gws sheets spreadsheets values get --params '{"spreadsheetId":"<ID>","range":"Sheet1!A:Z"}'
+gws sheets +append --help
+gws docs documents create --json '{"title":"Notes"}'
+gws docs documents get --params '{"documentId":"<ID>"}'
 ```
 
-### Docs
+### Audit reports (admin-reports)
 
 ```bash
-gws docs documents create --account me@vanducng.dev --json '{"title":"Notes"}'
-gws docs documents get --account me@vanducng.dev --params '{"documentId":"<ID>"}'
+gws reports activities list --params '{"userKey":"all","applicationName":"login","maxResults":50}'
 ```
 
-### Admin
-
-```bash
-gws admin users list --account me@vanducng.dev --params '{"domain":"vanducng.dev","maxResults":50}'
-gws admin users get --account me@vanducng.dev --params '{"userKey":"user@vanducng.dev"}'
-gws admin groups list --account me@vanducng.dev --params '{"domain":"vanducng.dev"}'
-gws admin members list --account me@vanducng.dev --params '{"groupKey":"team@vanducng.dev"}'
-```
+**Not available:** Admin SDK Directory (users/groups/domains management) is not exposed by gws 0.22.5. For Workspace user/group administration use the Admin console or GAM7; do not fabricate `gws admin ...` commands.
 
 ## Workflow
 
-For reads:
+Reads: confirm account → narrowest list/get → summarize relevant JSON fields, stating which account served the data.
 
-```text
-1. Confirm account and command scope
-2. Run the narrowest list/get command
-3. Summarize relevant JSON fields
-```
-
-For writes:
-
-```text
-1. Read current state
-2. Show account, object id, and proposed mutation
-3. Get approval for destructive or high-impact writes
-4. Execute with explicit --account
-5. Verify with get/list
-```
-
-For admin writes:
-
-```text
-1. Verify target user/group exists
-2. Verify admin scopes are available
-3. Prefer reversible operation
-4. Ask for explicit confirmation
-5. Execute and verify
-```
+Writes: read current state → identity check → show account + object id + proposed mutation → approval for destructive/high-impact → execute → verify with get/list.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `403 insufficientPermissions` | Scope not granted | Re-login with the needed `-s` scope |
-| `401 invalid_grant` | Token expired or revoked | `gws auth logout --account <email>` then `gws auth login --account <email>` |
-| `accessNotConfigured` | API disabled in GCP project | Enable the API in Google Cloud Console |
-| Admin call returns 403 | Missing admin scopes or non-admin account | Re-auth `me@vanducng.dev` with admin scopes |
-| `command not found: gws` | CLI not installed or not on PATH | Install with Homebrew/npm and check `/opt/homebrew/bin` |
-| Wrong account used | Default account mismatch | Run `gws auth list`; pass explicit `--account` or `GWS_ACCOUNT=...` |
-| `account not found` | Account not logged in | `gws auth login --account <email>` |
+| Exit code 2 / `auth_method: none` | No credentials in the selected config dir | Wrong alias, or run the login for that dir |
+| `invalid_rapt` / `invalid_grant` | Refresh token expired (consent screen in Testing, or org session policy) | Re-login for that dir; publish the OAuth app to stop weekly expiry |
+| `403 insufficientPermissions` | Scope not granted | Re-login with the needed `-s` services |
+| `accessNotConfigured` | API disabled in the GCP project | Enable it in Google Cloud Console |
+| Unknown service `admin` | Directory API not in gws | Use Admin console or GAM7 |
+| `unrecognized subcommand`/`--account` errors | Command from removed multi-account era | Use `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` per this skill |
+| Wrong account answered | Config dir mismatch | Run the `getProfile` identity check; fix the alias mapping |
 
 ## References
 
-- `references/recipes.md` for common Gmail, Drive, Calendar, and Sheets workflows
-- `references/admin-vanducng-dev.md` for Workspace Admin runbooks
+- `references/recipes.md` - multi-step Gmail, Drive, Calendar, and Sheets workflows
+- `references/account.gws-account.example.md` - template for a new account registry file
 - Official CLI: https://github.com/googleworkspace/cli
-- CLI skills documentation: https://github.com/googleworkspace/cli/blob/main/docs/skills.md

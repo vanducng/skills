@@ -42,3 +42,5 @@ docs/content/diagrams/
 
 # Employer-specific skill: local-only, never published (see AGENTS.md Reusable Skill Privacy)
 skills/cnb-ds-eda/
+
+.envrc
