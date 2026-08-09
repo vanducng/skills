@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.53.0](https://github.com/vanducng/skills/compare/v1.52.5...v1.53.0) (2026-08-09)
+
+
+### Features
+
+* **ego-browser:** add google-sheets learning for reliable cell writes ([7c1bb8d](https://github.com/vanducng/skills/commit/7c1bb8d7e28e2f7437bce5ba2c7a1fe5bafe89ba))
+
 ## [1.52.5](https://github.com/vanducng/skills/compare/v1.52.4...v1.52.5) (2026-08-07)
 
 
