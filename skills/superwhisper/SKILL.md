@@ -1,22 +1,22 @@
 ---
-name: superwhisper-cli
+name: superwhisper
 description: >
   Operate the official Superwhisper CLI and MCP to search or read dictation
-  history, build standups and commitment reviews, compare raw and processed
-  transcripts, inspect usage, and manage vocabulary or snippets with approval.
-  Use when the user asks what they said about a topic, wants recent voice notes
-  summarized, needs Superwhisper transcription diagnosis, or asks to inspect,
-  export, or maintain Superwhisper data.
+  history, diagnose pronunciation and raw-versus-processed transcription
+  errors, detect unwanted expansion of short utterances, inspect usage, build
+  standups or commitment reviews, and manage vocabulary or snippets with
+  approval. Use when the user asks what they said, why a word or acronym was
+  transcribed incorrectly, why processed text contains extra instructions, or
+  wants to inspect, export, or maintain Superwhisper data.
 license: MIT
 allowed-tools:
   - Bash
 metadata:
-  author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
   binary: superwhisper
 ---
 
-# Superwhisper CLI
+# Superwhisper
 
 Use the official `superwhisper` command to retrieve local dictation history
 without opening the app. The CLI is the source of truth. Do not read its
@@ -41,6 +41,18 @@ relevant.
 If Superwhisper MCP tools are already available, they may replace equivalent
 shell calls. Do not register or install the MCP server implicitly.
 
+## Invocation modes
+
+Treat these as skill arguments, not flags supported by the `superwhisper`
+binary:
+
+| Argument | Workflow |
+| --- | --- |
+| `--pronunciation <expected-term>` | Find repeated recognition variants, compare raw and processed text, and suggest pronunciation or vocabulary changes. |
+| `--diagnose <term-or-recording-id>` | Determine whether an error came from speech recognition or mode processing, including unwanted short-input expansion. |
+
+Without an argument, infer the workflow from the request.
+
 ## Retrieve in stages
 
 Start with the smallest metadata or result set that can answer the request:
@@ -56,10 +68,9 @@ superwhisper read <recording-id>
 
 1. Use `history` for recent recordings and `search` for a named topic.
 2. Narrow by `--mode`, `--since`, `--before`, and `--limit`.
-3. Show the candidate dates, modes, IDs, and compact excerpts.
+3. Show candidate dates, modes, IDs, and compact excerpts.
 4. Read full text only for the IDs needed to answer.
-5. Use `read <id> --raw` only to inspect the voice transcription before mode
-   processing.
+5. Use `read <id> --raw` only to inspect transcription before mode processing.
 
 Search supports FTS5 syntax: `AND`, `OR`, `NOT`, quoted phrases, and
 `prefix*`. If a broad boolean query is unreliable, run a few focused searches
@@ -91,7 +102,7 @@ Search the requested window for phrases such as `"I will"`, `"I need to"`,
 a dated checklist with recording IDs. Do not turn ideas or hypotheticals into
 commitments.
 
-### Transcription diagnosis
+## Transcription diagnosis
 
 For a small set of affected recordings, compare:
 
@@ -100,11 +111,55 @@ superwhisper read <recording-id> --raw
 superwhisper read <recording-id>
 ```
 
-Repeated errors in raw text indicate voice transcription or vocabulary
-problems. Errors introduced only in processed text indicate mode instructions
-or language-model behavior.
+Classify the cause from the earliest stage where the error appears:
 
-### Vocabulary and snippets
+- Repeated errors in raw text indicate speech recognition, pronunciation, or
+  vocabulary problems.
+- Correct raw text with incorrect processed text indicates mode instructions
+  or language-model behavior.
+- Correct raw text with extra processed sentences indicates unwanted mode
+  expansion, not pronunciation failure.
+
+For processed-only expansion, inspect JSON only when needed. Compare
+`rawWordCount` with `llmWordCount` and determine whether the added phrase is
+present only in `llmResult`. Do not quote or expose `prompt`, `promptContext`,
+clipboard content, selected text, or application context unless the request
+requires it.
+
+When a one-word term or acronym is expanded into a task, recommend switching
+to a raw mode or adding this constraint to the active mode:
+
+```text
+When the transcription is a single word, acronym, or command name, return only
+that transcription. Never infer or append a task from context.
+```
+
+The CLI cannot edit mode instructions. Do not claim to have applied this
+constraint unless the user changes it through a supported Superwhisper
+interface and the result is verified with a new recording.
+
+## Pronunciation diagnosis
+
+Use `--pronunciation <expected-term>` when the user provides the intended
+spelling. Otherwise confirm the intended term before recommending a durable
+change.
+
+1. Inspect a bounded recent window with `history`.
+2. Shortlist clustered variants that plausibly represent the expected term.
+3. Compare raw and processed text for 3 to 8 representative recordings.
+4. State whether the error begins in recognition or processing.
+5. Report the date, recording ID, intended term, and observed variants.
+6. Give a practical pronunciation: syllable or letter breakdown, stress, and
+   IPA only when confident.
+7. For acronyms, recommend separate letter names with brief pauses and a
+   contextual phrase such as `the C-L-I command`.
+8. Check current vocabulary and propose the smallest exact diff. Get approval
+   before applying it.
+
+Do not infer that every unusual nearby word is a mistake. Prefer repeated raw
+variants or an explicit correction from the user.
+
+## Vocabulary and snippets
 
 Read current state freely:
 
@@ -146,5 +201,7 @@ chooses that tracked location.
 ## Output
 
 Lead with the requested answer. For synthesized findings, include the relevant
-recording date and ID. State when results are incomplete because the search
-window, mode filter, or query may exclude related recordings.
+recording date and ID. For pronunciation findings, include the intended term,
+observed raw variants, pronunciation guidance, and any proposed vocabulary
+diff. State when results are incomplete because the search window, mode
+filter, or query may exclude related recordings.
