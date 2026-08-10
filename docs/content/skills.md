@@ -27,7 +27,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Docs and diagrams | `vd:docs`, `vd:tech-docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:tldraw-offline` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
-| Data and workspace | `vd:miudb`, `vd:vd-cli`, `vd:superwhisper-cli`, `vd:aws`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:issue-invoice` |
+| Data and workspace | `vd:miudb`, `vd:vd-cli`, `vd:superwhisper`, `vd:aws`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:issue-invoice` |
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:cktovd`, `vd:workbench` |
 | Skill lifecycle | `vd:skill-creator`, `vd:skill-management`, `vd:skill-audit`, `vd:rule-miner`, `vd:skill-evolve` |
 | Repository readiness | `vd:agent-readiness` |
@@ -62,7 +62,7 @@ Within review, the four passes answer different questions: `vd:code-review` asks
 
 Use `vd:docs` for canonical internal project docs and ADRs. Use `vd:tech-docs` to create, modernize, validate, and ship a rendered public developer documentation site.
 
-Use `vd:superwhisper-cli` to search local dictation history, prepare standups or commitment reviews, diagnose raw versus processed transcription errors, and maintain vocabulary or snippets with approval.
+Use `vd:superwhisper` to search local dictation history, prepare standups or commitment reviews, diagnose pronunciation and raw-versus-processed transcription errors, detect unwanted short-input expansion, and maintain vocabulary or snippets with approval. Invoke `vd:superwhisper --pronunciation <term>` for repeated recognition errors or `vd:superwhisper --diagnose <term-or-recording-id>` for processing failures.
 
 Use `vd:braze` for category-first Braze reads, leaf-permission diagnosis, explicit opt-in or opt-out changes, and end-to-end `braze-cli` validation.
 
