@@ -152,10 +152,13 @@ def mine_claude_session(path, registry, cutoff_epoch=0):
     id2call = {}
     corrections_seen = set()
 
-    def invoke(name, ts, included):
+    def invoke(name, ts, included, reset_unknown=False):
         nonlocal cur
         skill = normalize(name, registry)
         if not skill:
+            if reset_unknown:
+                cur = NONE
+                marks.append((ts or "", NONE))
             return
         cur = skill
         marks.append((ts or "", skill))
@@ -185,13 +188,13 @@ def mine_claude_session(path, registry, cutoff_epoch=0):
                 if not isinstance(c, dict) or c.get("type") != "tool_use":
                     continue
                 name = c.get("name") or "?"
+                if name == "Skill":
+                    invoke(str((c.get("input") or {}).get("skill") or ""), ts, included, reset_unknown=True)
                 if included:
                     row["usage_by_tool"][name] += 1
                     bump(row, cur, "tool_calls")
                 if len(id2call) < ID_MAP_CAP:
                     id2call[c.get("id")] = (name, cur)
-                if name == "Skill":
-                    invoke(str((c.get("input") or {}).get("skill") or ""), ts, included)
         elif kind == "user":
             content = (d.get("message") or {}).get("content")
             if included and isinstance(content, list):

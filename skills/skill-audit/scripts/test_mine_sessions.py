@@ -71,6 +71,37 @@ class Attribution(unittest.TestCase):
         self.assertEqual(attr["cook"]["tokens"], 20)
         self.assertEqual(attr[m.NONE]["tokens"], 5)
 
+    def test_unrecognized_skill_tool_call_resets_window_to_none(self):
+        # Regression: an explicit Skill tool_use targeting a name outside the
+        # registry (built-in command, foreign project skill, typo) must not
+        # leave subsequent activity attributed to the stale prior skill.
+        path = write(self.root / "proj" / "s1b.jsonl", [
+            cc_text("t01", "<command-name>/cook</command-name>"),
+            cc_assistant("t02", "Skill", "a0", skill="review-pr"),
+            cc_result("t03", "a0", True),
+            cc_assistant("t04", "Bash", "a1", tokens=9),
+            cc_result("t05", "a1", True),
+        ])
+        attr = m.mine_claude_session(path, REGISTRY)["attr"]
+        self.assertEqual(attr["cook"]["tool_errors"], 0)
+        self.assertEqual(attr["cook"]["tool_calls"], 0)
+        self.assertEqual(attr[m.NONE]["tool_errors"], 2)
+        self.assertEqual(attr[m.NONE]["tool_calls"], 2)
+        self.assertEqual(attr[m.NONE]["tokens"], 9)
+
+    def test_harness_command_in_text_does_not_reset_window(self):
+        # <command-name> matches include harmless harness commands (/model,
+        # /cost, /clear); those must not fragment an in-progress skill window.
+        path = write(self.root / "proj" / "s1c.jsonl", [
+            cc_text("t01", "<command-name>/cook</command-name>"),
+            cc_text("t02", "<command-name>/model</command-name>"),
+            cc_assistant("t03", "Bash", "a1"),
+            cc_result("t04", "a1", True),
+        ])
+        attr = m.mine_claude_session(path, REGISTRY)["attr"]
+        self.assertEqual(attr["cook"]["tool_errors"], 1)
+        self.assertEqual(attr[m.NONE]["tool_errors"], 0)
+
     def test_error_lands_on_the_skill_that_made_the_call(self):
         path = write(self.root / "proj" / "s2.jsonl", [
             cc_text("t01", "<command-name>/scout</command-name>"),
