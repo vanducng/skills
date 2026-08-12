@@ -49,6 +49,23 @@ du -sh ~/.cache/* 2>/dev/null | sort -rh | head -15
 du -sh ~/Library/Developer/Xcode/{DerivedData,Archives,iOS\ DeviceSupport} 2>/dev/null
 ```
 
+### Git worktree audit (developers)
+
+Discover worktree roots read-only under existing development roots, then inspect each repository with `vd:worktree`:
+
+```bash
+for root in "$HOME/git" "$HOME/code" "$HOME/src" "$HOME/projects" \
+           "$HOME/worktrees" "$HOME/Worktrees" "$HOME/repos" "$HOME/dev"; do
+  [ -d "$root" ] || continue
+  find "$root" -maxdepth 8 -type d \
+    \( -name .worktrees -o -name worktrees \
+       -o -path '*/.claude/worktrees' -o -path '*/.dmux/worktrees' \) \
+    -print 2>/dev/null
+done
+```
+
+Run `node "$HOME/skills/skills/worktree/scripts/worktree.cjs" clean` from each repository root. It is a dry run unless `--yes` is supplied, reports branch state and reclaimable size, and skips dirty worktrees unless `--force` is supplied.
+
 ## Phase 2 - Classify
 
 Bucket discovered items by risk.
@@ -73,6 +90,13 @@ Standard regenerable caches. Apply only if path exists.
 | Old JetBrains caches (>1yr) | `rm -rf ~/Library/Caches/JetBrains/*<old-year>*` |
 | App auto-updaters | `~/Library/Caches/*ShipIt*`, `~/Library/Caches/*.updater` |
 | Xcode `DerivedData` | `rm -rf ~/Library/Developer/Xcode/DerivedData` (rebuilds on next compile) |
+
+### 🟡 Git worktrees (project data) - confirm by cleanup mode
+
+- Merged into the repository base: eligible for `clean merged` after a fresh dry run.
+- Gone from the remote: eligible only for `clean all`; local-only commits may remain.
+- Dirty worktrees: always skip; inspect and approve each path before any forced removal.
+- Prunable Git metadata: report separately; it may reclaim no checkout space.
 
 ### 🟡 Review (user data, easy wins - confirm each)
 
@@ -104,6 +128,15 @@ Present a single summary table (path · size · bucket) and ask:
 2. For 🟡: which to keep / delete?
 3. For each 🔴: is the underlying app still in use? Run dependency checks (Phase 4) before approval.
 
+For worktrees, accept these reusable approval aliases:
+
+| User phrase | Action | Scope |
+|---|---|---|
+| `clean merged` or `clean merge` | `worktree.cjs clean --merged --yes` | Clean worktrees whose branches are merged into base |
+| `clean all` | `worktree.cjs clean --yes` | Clean merged and stale/gone-from-remote worktrees; still skip dirty worktrees |
+
+Always show the dry-run candidates and total size before applying either alias. Never infer approval for dirty paths from `clean all`.
+
 ## Phase 4 - Execute
 
 ### App-quit guard
@@ -112,6 +145,19 @@ Before deleting any app's data dir, quit the app cleanly:
 ```bash
 osascript -e 'quit app "<App Name>"' 2>/dev/null; sleep 1
 ```
+
+### Git worktree cleanup
+
+Use `vd:worktree` commands from each repository root. Do not use `rm -rf` on a worktree. Refresh the dry run immediately before execution, pass `--yes` only after the matching approval alias, and never pass `--force` unless the user explicitly names the dirty worktree.
+
+Before removing each candidate, check for active agent processes and open files:
+
+```bash
+ps -axo pid=,command= | rg -F "$WT" || true
+lsof -nP +D "$WT" 2>/dev/null | head -50
+```
+
+If either command finds a process, stop and ask the user to close it. Do not kill agent processes automatically.
 
 ### Container engine migration (generic)
 
@@ -163,6 +209,7 @@ Always **preview first** with `find … -print` before adding `-delete`. Show to
 
 ```bash
 df -h /                             # confirm space freed
+node "$HOME/skills/skills/worktree/scripts/worktree.cjs" clean --merged 2>/dev/null
 docker context show 2>/dev/null     # if container engines were touched
 docker version --format '{{.Server.Version}}' 2>/dev/null
 ```
