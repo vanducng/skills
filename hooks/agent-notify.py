@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Telegram notifier for coding-agent hooks.
 
-Pings a Telegram chat when Claude Code / Codex finishes a turn or needs
+Pings a Telegram chat when Claude Code / Codex / Grok finishes a turn or needs
 approval, with enough context (what / when / where) to triage the next action.
 
 Wiring (see install.py):
   Claude (~/.claude/settings.json):  Stop + Notification hooks  (JSON on stdin)
   Codex  (~/.codex/config.toml):     notify program            (JSON as last arg)
+  Grok   (~/.grok/hooks/*.json):     Stop + Notification hooks (JSON on stdin)
 
 Usage:
   agent-notify.py claude stop|notification     # JSON on stdin
+  agent-notify.py grok stop|notification       # JSON on stdin (Grok envelope)
   agent-notify.py codex '<json>'               # JSON as last arg
 
 Config comes from the ENV (installable on any machine), e.g. in ~/.envrc:
@@ -17,7 +19,7 @@ Config comes from the ENV (installable on any machine), e.g. in ~/.envrc:
   export TELEGRAM_CHAT_ID=...
   export CODEX_NOTIFY_FORWARD=...        # optional: chain a prior Codex notify
   export CODEX_NOTIFY_FORWARD_ARG=...    # optional
-  export AGENT_NOTIFY_STOP=off|always   # claude turn-complete sound+push (default off)
+  export AGENT_NOTIFY_STOP=off|always   # turn-complete sound+push (default off)
   export AGENT_NOTIFY_SOUND=on|off      # macOS afplay ping (default on)
   export AGENT_NOTIFY_DRYRUN=1          # optional: print text/sound intent, skip side effects
 Stdlib only — no pip installs, no jq.
@@ -187,16 +189,22 @@ def main():
     configured = bool(cfg["TELEGRAM_BOT_TOKEN"] and cfg["TELEGRAM_CHAT_ID"])
 
     src = sys.argv[1] if len(sys.argv) > 1 else ""
-    if src == "claude":
+    brands = {
+        "claude": ("CLAUDE", "🟠"),
+        "grok": ("GROK", "⚫"),
+    }
+    if src in brands:
         event = sys.argv[2] if len(sys.argv) > 2 else "stop"
         try:
             payload = json.load(sys.stdin)
         except Exception:
             payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
         if event == "notification":
             play_sound("needs")  # plays even when Telegram is unconfigured
-            msg = payload.get("message", "")
-            what = "needs approval" if "permission" in msg.lower() else "needs you"
+            msg = payload.get("message") or payload.get("lastAssistantMessage") or ""
+            what = "needs approval" if "permission" in msg.lower() or "approval" in msg.lower() else "needs you"
             icon, preview = "🔔", msg
         else:
             # Per-turn "turn complete" sound+push spam during autonomous / auto-accept
@@ -204,13 +212,15 @@ def main():
             # AGENT_NOTIFY_STOP=always restores the legacy per-turn sound + push.
             if os.environ.get("AGENT_NOTIFY_STOP", "off").lower() != "always":
                 if DEBUG:
-                    print("SUPPRESS claude stop (AGENT_NOTIFY_STOP=off)")
+                    print(f"SUPPRESS {src} stop (AGENT_NOTIFY_STOP=off)")
                 return
             play_sound("done")
-            icon, what, preview = "✅", "turn complete", ""
+            icon, what = "✅", "turn complete"
+            preview = payload.get("lastAssistantMessage") or payload.get("last_assistant_message") or ""
         if not configured:
             return  # sound done; no Telegram creds → nothing to send
-        text = build("CLAUDE", "🟠", icon, what, payload.get("cwd", ""), preview)
+        label, color = brands[src]
+        text = build(label, color, icon, what, payload.get("cwd", ""), preview)
     elif src == "codex":
         if not configured:
             return
