@@ -1,6 +1,6 @@
 # Agent hooks
 
-Hooks for coding agents (Claude Code, Codex, pi), managed in this repo.
+Hooks for coding agents (Claude Code, Codex, Grok, pi), managed in this repo.
 
 ## langfuse-trace.py — Langfuse session tracing
 
@@ -91,10 +91,11 @@ langfuse-trace.py --agent claude-code --latest --force   # re-send turns already
 
 ## agent-notify.py — Telegram notifier
 
-Pings a Telegram chat when **Claude Code** or **Codex** finishes a turn or needs
-approval, with what / when / where context for quick triage. Each agent has a
-distinct colour — **🟠 Claude**, **🔵 Codex** — and the message preview is an
-expandable blockquote (tap to expand) so long turns stay tidy.
+Pings a Telegram chat when **Claude Code**, **Codex**, or **Grok** finishes a
+turn or needs approval, with what / when / where context for quick triage. Each
+agent has a distinct colour — **🟠 Claude**, **🔵 Codex**, **⚫ Grok** — and the
+message preview is an expandable blockquote (tap to expand) so long turns stay
+tidy.
 
 ```
 🟠 CLAUDE · ✅ turn complete          🔵 CODEX · 🔔 needs approval
@@ -129,6 +130,7 @@ Status icons: ✅ turn complete · 🔔 needs you / needs approval.
 That registers:
 - **Claude** `~/.claude/settings.json` — `Stop` + `Notification` hooks → `agent-notify.py claude …` (JSON on stdin).
 - **Codex** `~/.codex/config.toml` — `notify = ["python3", ".../agent-notify.py", "codex"]` (JSON as last arg). Any prior `notify` is preserved if you set `CODEX_NOTIFY_FORWARD`.
+- **Grok** is wired from the dotfiles stow package (`make stow-grok`) via `~/.grok/hooks/lifecycle.json` → `agent-notify.py grok …` (JSON on stdin).
 
 ### Notes
 
