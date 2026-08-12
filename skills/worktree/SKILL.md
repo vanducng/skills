@@ -275,6 +275,25 @@ docker compose -p "$COMPOSE_PROJECT_NAME" down -v 2>/dev/null || true
 
 **`remove` vs `clean`:** `remove` takes a name and removes that one. It force-removes the checkout and deletes the local branch when `git branch -d` accepts it; Git may accept a branch merged to its upstream even when it is not merged to the base branch. If `remove` reports `branchKept`, leave it unless the user explicitly asked to discard it too, then run `git branch -D <branch>`. `clean` takes no target - it finds every worktree whose branch is merged into its base or gone from the remote, shows them with disk sizes (dry-run by default), and removes them on `--yes`. `clean` also prunes stale git metadata (the old `prune` command folded in here). Both rescue untracked `.env*` files to `<trees-root>/.env-backups/<name>/` before deletion.
 
+Human approval aliases used by cleanup workflows map to the supported flags:
+
+| Approval phrase | Command | Scope |
+|---|---|---|
+| `clean merged` or `clean merge` | `clean --merged --yes` | Clean worktrees whose branches are merged into base |
+| `clean all` | `clean --yes` | Clean merged and stale/gone-from-remote worktrees; dirty worktrees remain skipped |
+
+Always run the matching command without `--yes` first. Do not add `--force` unless the user explicitly approves a named dirty worktree.
+
+Before removing a candidate, check whether an agent still uses its checkout:
+
+```bash
+WT=<worktree-path>
+ps -axo pid=,command= | rg -F "$WT" || true
+lsof -nP +D "$WT" 2>/dev/null | head -50
+```
+
+If either command finds a process or open file, skip that worktree and ask the user to close the agent. Never kill the process automatically.
+
 After a merge helper such as `gh pr merge --delete-branch`, re-check the linked worktree's current branch before `remove`: the helper may leave it on the base branch. If the worktree is on a branch you must keep (`main`, `staging`, `dev`), detach first so `remove` skips branch deletion:
 
 ```bash
