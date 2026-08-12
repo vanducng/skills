@@ -432,11 +432,28 @@ try:
         except Exception:
             sys.exit(0)  # fail-open on parse error
 
-        tool_input = data.get('tool_input') if isinstance(data, dict) else None
+        if not isinstance(data, dict):
+            sys.exit(0)
+
+        tool_input = data.get('tool_input')
+        if not isinstance(tool_input, dict):
+            tool_input = data.get('toolInput')
         if not isinstance(tool_input, dict):
             sys.exit(0)
 
-        tool_name = str(data.get('tool_name') or 'unknown')
+        raw_name = str(data.get('tool_name') or data.get('toolName') or 'unknown')
+        tool_aliases = {
+            'run_terminal_command': 'Bash',
+            'bash': 'Bash',
+            'read_file': 'Read',
+            'search_replace': 'Edit',
+            'write': 'Write',
+            'multiedit': 'Edit',
+            'grep': 'Grep',
+            'list_dir': 'Glob',
+            'listdir': 'Glob',
+        }
+        tool_name = tool_aliases.get(raw_name, tool_aliases.get(raw_name.lower(), raw_name))
         raw_cwd = data.get('cwd')
         cwd = raw_cwd.strip() if (isinstance(raw_cwd, str) and raw_cwd.strip()) else os.getcwd()
         claude_dir = os.path.join(os.path.expanduser('~'), '.claude')

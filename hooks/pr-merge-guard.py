@@ -23,14 +23,34 @@ def gh(args, cwd=None, timeout=15):
     return r.stdout.strip()
 
 
+def tool_name(data):
+    name = data.get("tool_name") or data.get("toolName") or ""
+    aliases = {
+        "run_terminal_command": "Bash",
+        "bash": "Bash",
+        "Bash": "Bash",
+    }
+    return aliases.get(name, aliases.get(str(name).lower(), name))
+
+
+def tool_input(data):
+    value = data.get("tool_input")
+    if isinstance(value, dict):
+        return value
+    value = data.get("toolInput")
+    return value if isinstance(value, dict) else {}
+
+
 def main():
     try:
         data = json.load(sys.stdin)
     except Exception:
         return 0
-    if data.get("tool_name") != "Bash":
+    if not isinstance(data, dict):
         return 0
-    cmd = (data.get("tool_input") or {}).get("command", "") or ""
+    if tool_name(data) != "Bash":
+        return 0
+    cmd = tool_input(data).get("command", "") or ""
     if not re.search(r"\bgh\s+pr\s+merge\b", cmd):
         return 0
 
