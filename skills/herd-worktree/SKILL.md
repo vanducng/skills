@@ -193,6 +193,7 @@ Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` 
 | Assets not loading / wrong port | stale Vite → `pkill -f "node.*vite"`, `rm -f public/hot`, `npm run dev` from the worktree |
 | Missing vendor/ or node_modules/ | worktrees don't share them → `composer install` / `npm install` in the worktree |
 | Reading `public/build/manifest.json` or a `vendor/...` path blocked ("BLOCKED: Access to 'build' denied") | harness scout-block hook denies path *reads* containing a `build`/`vendor` segment (the `npm run build` command itself is allowed) → add `!public/build` (or `!vendor`, no trailing slash) to `.vdignore`, or keep `npm run dev` running so no manifest read is needed |
+| Bash call rejected: "too complex to verify that it stays inside the worktree" / "Refusing to run it - a worktree-isolated session's git operations must target its own worktree" | after `vd:worktree` moves the session into the worktree, the harness's worktree-isolation guard rejects compound Bash (pipes, `$()`, heredocs, `env`, `git -C`) → run one plain command per Bash call instead of chaining |
 
 ## Checklist
 
