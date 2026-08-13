@@ -140,7 +140,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
    types and should be released, either: (a) title the headline commit `feat:`/`fix:`, or
    (b) force it after merge with an empty commit `git commit --allow-empty -m "chore: release X.Y.Z" -m "Release-As: X.Y.Z"` pushed to the release branch. In `--auto`, if the
    whole branch is non-releasing and substantive, surface this and offer the `Release-As` force.
-15. **Promote hotfixes from the exact staging-tested branch.** When the same hotfix branch was merged to a staging/release branch and then must go to `main`, reopen or recreate a PR from that exact hotfix branch to `main`. Do not cherry-pick onto a `-main` branch and do not replace it with a release-branch PR unless the user explicitly asks for a release. Verify the hotfix HEAD is reachable from the staging branch before creating the production PR.
+15. **Promote hotfixes from the staging-tested branch.** When the same hotfix branch was merged to a staging/release branch and then must go to `main`, reopen or recreate a PR from that hotfix branch to `main`. Do not cherry-pick onto a `-main` branch and do not replace it with a release-branch PR unless the user explicitly asks for a release. Before the staging merge, inspect any production provenance gate: if it requires the exact hotfix HEAD in staging, use a merge strategy that preserves that ancestry. After staging, verify provenance using the repository's contract before creating the production PR.
 
 ## Pipeline
 

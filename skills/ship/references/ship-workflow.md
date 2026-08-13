@@ -80,15 +80,17 @@ Step 12 must use the same ticket key: `TICKET: <past-tense summary>`.
 
 Before creating a production PR for a hotfix that was already tested through a staging/release branch:
 
-1. Identify the exact hotfix branch and its current HEAD. Prefer the branch already merged to staging, even if its remote was deleted after that merge.
-2. Verify that exact HEAD is reachable from the staging branch:
+1. Identify the hotfix branch and its pre-staging HEAD. Prefer the branch already used for staging, even if its remote was deleted after that merge.
+2. Inspect the repository's production provenance check before merging to staging. If it requires the hotfix HEAD to be reachable from staging, merge the staging PR with a merge commit rather than squash/rebase, and do not delete the only local reference until promotion is complete.
+3. Verify provenance using the repository's contract. For ancestry-based gates:
    ```bash
    git fetch --no-tags origin --prune
    git merge-base --is-ancestor <hotfix-head> origin/<staging-branch>
    ```
-3. Restore the same remote branch if needed with a normal push, then create the `hotfix-branch -> main` PR.
-4. Do not cherry-pick the patch onto a new `*-main` branch. Rewritten commit IDs can fail staging-provenance checks even when the file diff is identical.
-5. Do not substitute `<release-branch> -> main` unless the user explicitly requested a full release. A release PR can promote unrelated staged work and is not equivalent to a hotfix PR.
+   If staging used squash/rebase, do not pretend ancestry passed. Use the repository's documented squash-safe check, or stop and ask how hotfix provenance is recorded.
+4. Restore the same remote branch if needed with a normal push, then create the `hotfix-branch -> main` PR.
+5. Do not cherry-pick the patch onto a new `*-main` branch. Rewritten commit IDs can fail staging-provenance checks even when the file diff is identical.
+6. Do not substitute `<release-branch> -> main` unless the user explicitly requested a full release. A release PR can promote unrelated staged work and is not equivalent to a hotfix PR.
 
 ## Step 2: Link issues
 
