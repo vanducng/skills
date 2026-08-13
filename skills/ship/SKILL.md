@@ -68,6 +68,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 2. **Never force push.** Plain `git push` only. If rejected → `git pull --rebase`, retry once, then stop.
 3. **Never skip failing tests.** A red test stops the pipeline. Fix it (kick back to `vd:cook`) or pass `--skip-tests` deliberately.
 4. **Never bypass critical review issues silently.** Each critical finding gets an `AskUserQuestion`: fix now / acknowledge / false-positive.
+4a. **Never choose or request human reviewers implicitly.** Preserve existing review requests and repository-configured reviewers, but do not run `gh pr edit --add-reviewer`, select a teammate from collaborator history, or otherwise notify a human unless the user explicitly asks or a checked-in repo rule names that reviewer for this change. A required approval is a handoff blocker, not permission to nominate someone. `--auto` does not relax this rule.
 4b. **Never silently ignore PR feedback - always reply inline, valid or not.** After the PR exists (and again before handoff in Step 15b, whatever CI did), always fetch review threads, `CHANGES_REQUESTED` reviews, `COMMENTED` reviews from humans/bots, and top-level PR comments. Triage each item for validity/actionability before changing code, validating every suggestion against codebase contracts, types, config schemas, tests, and local rules. Then **every** comment gets an inline reply before its thread is resolved - no exceptions, including bot comments and ones you disagree with:
    - **Valid** → apply the fix (if the suggested patch isn't the best fix, apply the better root-cause fix), then reply inline **naming the exact fix commit SHA** (e.g. "Fixed in `a1b2c3d`.") and what changed. Re-run Step 4 verification after the fix.
    - **Invalid / false-positive / won't-fix** → reply inline with the concrete rationale (why it's wrong, or why it's out of scope + where it's tracked). Do not resolve with an empty/one-word reply.
@@ -139,6 +140,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
    types and should be released, either: (a) title the headline commit `feat:`/`fix:`, or
    (b) force it after merge with an empty commit `git commit --allow-empty -m "chore: release X.Y.Z" -m "Release-As: X.Y.Z"` pushed to the release branch. In `--auto`, if the
    whole branch is non-releasing and substantive, surface this and offer the `Release-As` force.
+15. **Promote hotfixes from the exact staging-tested branch.** When the same hotfix branch was merged to a staging/release branch and then must go to `main`, reopen or recreate a PR from that exact hotfix branch to `main`. Do not cherry-pick onto a `-main` branch and do not replace it with a release-branch PR unless the user explicitly asks for a release. Verify the hotfix HEAD is reachable from the staging branch before creating the production PR.
 
 ## Pipeline
 
