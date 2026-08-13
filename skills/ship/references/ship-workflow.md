@@ -76,6 +76,22 @@ git push origin --delete "$CURRENT_BRANCH"
 Do not create a PR from a generic branch when a ticket is known. The PR title in
 Step 12 must use the same ticket key: `TICKET: <past-tense summary>`.
 
+### Step 1c: Hotfix promotion guard
+
+Before creating a production PR for a hotfix that was already tested through a staging/release branch:
+
+1. Identify the hotfix branch and its pre-staging HEAD. Prefer the branch already used for staging, even if its remote was deleted after that merge.
+2. Inspect the repository's production provenance check before merging to staging. If it requires the hotfix HEAD to be reachable from staging, merge the staging PR with a merge commit rather than squash/rebase, and do not delete the only local reference until promotion is complete.
+3. Verify provenance using the repository's contract. For ancestry-based gates:
+   ```bash
+   git fetch --no-tags origin --prune
+   git merge-base --is-ancestor <hotfix-head> origin/<staging-branch>
+   ```
+   If staging used squash/rebase, do not pretend ancestry passed. Use the repository's documented squash-safe check, or stop and ask how hotfix provenance is recorded.
+4. Restore the same remote branch if needed with a normal push, then create the `hotfix-branch -> main` PR.
+5. Do not cherry-pick the patch onto a new `*-main` branch. Rewritten commit IDs can fail staging-provenance checks even when the file diff is identical.
+6. Do not substitute `<release-branch> -> main` unless the user explicitly requested a full release. A release PR can promote unrelated staged work and is not equivalent to a hotfix PR.
+
 ## Step 2: Link issues
 
 1. Search related open issues (keywords from branch + commits):
@@ -245,7 +261,8 @@ git push -u origin "$(git branch --show-current)"
    ```
 5. Inline issue refs from Step 2 in the template's context/why area (`Closes #N` / `Relates to #M`) - no separate Linked-Issues section.
 6. Re-read the created/updated PR body and verify it matches the selected repo template or canonical fallback before continuing.
-7. **Output the PR URL** - final user-facing line (unless Steps 13–16 run after).
+7. Do not add human reviewers unless the user explicitly requested them or a checked-in repository rule names them. Preserve review requests that already exist. If branch protection requires approval and none arrives, report the blocker without selecting a collaborator yourself.
+8. **Output the PR URL** - final user-facing line (unless Steps 13–16 run after).
 
 ## Step 13: PR review comments
 
