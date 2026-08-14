@@ -1,8 +1,8 @@
 ---
 name: resume-screen
-description: "Screens a batch of operator-supplied resumes against a job description and writes a scored Excel workbook (knockouts, 100-point factors, overlays, fact-check). Use when screening resumes, scoring candidates against a JD, building a hiring scorecard, ranking applicants, or producing a candidate spreadsheet. Activates when the user says 'screen these resumes', 'score candidates against the JD', 'resume scorecard', 'rank these applicants', or 'build a hiring spreadsheet'. Role scorecards live as profiles (default data-platform-engineer). Do not use for LinkedIn Recruiter sourcing, Google Drive download/upload, writing a JD, or browser-based file transfer."
+description: "Screens a batch of operator-supplied resumes against a job description and writes a scored Excel workbook (knockouts, 100-point factors, overlays, logged-in fact-check). Use when screening resumes, scoring candidates against a JD, building a hiring scorecard, ranking applicants, or producing a candidate spreadsheet. Activates when the user says 'screen these resumes', 'score candidates against the JD', 'resume scorecard', 'rank these applicants', or 'build a hiring spreadsheet'. Role scorecards live as profiles (default data-platform-engineer). Fact-check composes vd:ego-browser or a named vd:browser-profile plus vd:agent-browser in connect mode — it does not reimplement a browser. Do not use for LinkedIn Recruiter sourcing, Google Drive download/upload, writing a JD, or browser-based file transfer."
 license: MIT
-argument-hint: "<jd-path> <resumes-dir-or-files> [--profile <id>]"
+argument-hint: "<jd-path> <resumes-dir-or-files> [--profile <id>] [--browser-profile <name>]"
 metadata:
   author: vanducng
   version: "1.0.0"
@@ -17,6 +17,7 @@ metadata:
 | Skill / activity | Question it answers | This skill? |
 |---|---|---|
 | **`vd:resume-screen`** (this) | "Given these files, who advances, and why?" | Yes — scored workbook |
+| `vd:ego-browser` / `vd:browser-profile` + `vd:agent-browser` | "Open this logged-in page" | Composed for fact-check only — do not reimplement |
 | Sourcing / LinkedIn Recruiter | "Who should we reach out to?" | No |
 | Google Drive or browser file transfer | "Fetch or upload the packet" | No — operator already has the files |
 | Writing or rewriting a JD | "What should this role say?" | No |
@@ -31,6 +32,7 @@ Role-specific judgement lives in `references/profiles/`. The scoring engine, fac
 | Job description | Yes | Local `.md` / `.txt` / `.pdf`, or pasted URL text the operator already captured |
 | Resume files | Yes | A folder or an explicit list: `.pdf` / `.docx` / `.txt` / `.md` |
 | Role profile | No | Default `data-platform-engineer`. Must be a row in `references/profiles/README.md` |
+| Browser profile name | No | `--browser-profile <name>` for the `vd:browser-profile` fallback when ego-browser is not available. Operator is already logged into LinkedIn/GitHub in that Chrome. |
 
 Resolve the skill root from the loaded `SKILL.md` path. Load, in order:
 
@@ -56,26 +58,27 @@ Do not commit real candidate files or a workbook that contains real PII.
 ## Hard rules
 
 1. **Operator-supplied files only.** Do not download from Google Drive, scrape Recruiter, or use a browser to move files. If a file is missing, stop and ask.
-2. **Never invent a URL.** Extract LinkedIn / GitHub / portfolio / cert badge URLs from the resume. Open only those. Missing URL = Unverified, not a guess.
-3. **`Total` is a formula.** Use `scripts/write-scorecard.py`. A baked-in number will drift from the factor cells.
-4. **Still score Out rows.** A knockout sets `Tier=Out` and fills `Knockouts`; the seven factors and overlays are still filled.
-5. **Overlays do not rewrite `Total`.** Low startup fit may cap P1 → P2. A years-knockout plus High fit is a **waiver flag**, not a silent Out → P1 promotion.
-6. **HR owns logistics.** Never put hybrid / timezone / salary / "does this band work" in `Screen_questions`. Location/hours is a factor and a knockout **only** when the resume clearly says they cannot meet the JD.
-7. **Never ask for cert IDs.** Unverified SnowPro/AWS/Databricks → a *technical* question in `Cert_notes` or `Screen_questions`, not "show me the badge."
-8. **Resume mills are not automatic Out.** Identical stack on every job or JD-copied bullets → `Claim_feasibility=Stretched` and `Startup_fit=Low`, unless employers/titles fail fact-check.
-9. **No real hiring PII in this skill.** Examples stay fictional. Do not write real candidate names, LinkedIn slugs, or employer packets into `skills/resume-screen/`.
+2. **Never invent a URL.** Extract LinkedIn / GitHub / portfolio / blog / cert badge URLs from the resume. Open only those. Missing URL = Unverified, not a guess.
+3. **Compose a catalog browser — do not reimplement one.** Fact-check follows the ladder in [`references/fact-check.md`](references/fact-check.md): `vd:ego-browser` first; else a named `vd:browser-profile` driven by `vd:agent-browser` in **connect** mode (`profile-attach.sh`). Never `agent-browser --profile` (that launches a Playwright browser with no saved logins). Never ask the operator to paste a password.
+4. **`Total` is a formula.** Use `scripts/write-scorecard.py`. A baked-in number will drift from the factor cells.
+5. **Still score Out rows.** A knockout sets `Tier=Out` and fills `Knockouts`; the seven factors and overlays are still filled.
+6. **Overlays do not rewrite `Total`.** Low startup fit may cap P1 → P2. A years-knockout plus High fit is a **waiver flag**, not a silent Out → P1 promotion.
+7. **HR owns logistics.** Never put hybrid / timezone / salary / "does this band work" in `Screen_questions`. Location/hours is a factor and a knockout **only** when the resume clearly says they cannot meet the JD.
+8. **Never ask for cert IDs.** Unverified SnowPro/AWS/Databricks → a *technical* question in `Cert_notes` or `Screen_questions`, not "show me the badge."
+9. **Resume mills are not automatic Out.** Identical stack on every job or JD-copied bullets → `Claim_feasibility=Stretched` and `Startup_fit=Low`, unless employers/titles fail fact-check.
+10. **No real hiring PII in this skill.** Examples stay fictional. Do not write real candidate names, LinkedIn slugs, or employer packets into `skills/resume-screen/`.
 
 ## Workflow
 
 ### 1. Scope
 
-Confirm JD path, resume list, and profile id (default `data-platform-engineer`). List resume files; skip non-resume junk. Print the profile title and the JD's must-haves (language, warehouse, years, hours/location, band) before scoring.
+Confirm JD path, resume list, role profile id (default `data-platform-engineer`), and optional `--browser-profile <name>`. List resume files; skip non-resume junk. Print the profile title and the JD's must-haves (language, warehouse, years, hours/location, band) before scoring.
 
 **Verify:** every resume path you will score is a file the operator gave you.
 
 ### 2. Extract
 
-For each resume, pull a fact sheet: name, claimed titles, employers, dates, relevant years (data/platform/cloud engineering only), stack, location/hours statements, and every LinkedIn / GitHub / portfolio / cert URL **verbatim**.
+For each resume, pull a fact sheet: name, claimed titles, employers, dates, relevant years (data/platform/cloud engineering only), stack, location/hours statements, and every LinkedIn / GitHub / portfolio / blog / cert URL **verbatim**.
 
 Analyst-only, QA-only, or Tableau-only time does not count toward the years knockout. Unknown location/hours is not a knockout.
 
@@ -83,9 +86,19 @@ Analyst-only, QA-only, or Tableau-only time does not count toward the years knoc
 
 ### 3. Fact-check
 
-Follow [`references/fact-check.md`](references/fact-check.md). Open extracted URLs (public page or browser). Compare employer, title, dates, and stack. Certs are Verified only with a working badge URL or a clear LinkedIn Licenses listing for that person. Missing public Licenses is **not** a contradiction.
+Follow [`references/fact-check.md`](references/fact-check.md). Load the composed skill's `SKILL.md` before driving anything — this skill does not ship a browser.
 
-**Verify:** `Fact_check` is one of `Verified` | `Partial` | `Unverified` | `Contradicted`, and `FactIntegrity_10` matches that verdict.
+| Order | When | What to load |
+|---|---|---|
+| 1 | `ego-browser` CLI or ego lite runtime is present | `vd:ego-browser` — logged-in scan in an isolated task space |
+| 2 | Else, operator named `--browser-profile` (or has one open) | `vd:browser-profile` `profile-attach.sh` then `vd:agent-browser` **connect** mode. Optional `vd:browser-trace` on that port |
+| 3 | Public badge hosts (Credly, `credentials.databricks.com`, `achieve.snowflake.com`) | Plain HTTP fetch — no login |
+| 4 | Local LinkedIn/GitHub anti-bot / CAPTCHA / empty wall | Escalate that URL only to `vd:browser` (Browserbase). Not the default |
+| 5 | No browser skill available | Public fetch. Login-walled LinkedIn → `Unverified`. Do not ask for a password |
+
+Open each **extracted** URL. Read jobs, dates, Licenses & Certifications, GitHub repos/languages/recency, portfolio/blog posts. Record `Verified` / `Partial` / `Unverified` / `Contradicted` **with the source URL**. Certs are Verified only with a working badge URL or a clear LinkedIn Licenses listing for that person. Missing public Licenses is **not** a contradiction.
+
+**Verify:** `Fact_check` is one of those four values, every opened URL was on the fact sheet, and `FactIntegrity_10` matches the verdict.
 
 ### 4. Score
 
@@ -113,6 +126,9 @@ python3 "<skill-root>/scripts/write-scorecard.py" \
 - Using the extracted text dump as the `File` value.
 - Promoting a waiver candidate to P1 because the GitHub is strong.
 - Inventing Credly/LinkedIn URLs so the sheet looks complete.
+- Driving fact-check with `agent-browser --profile` (empty logins) or a homegrown Playwright/Puppeteer script.
+- Asking the operator to paste a LinkedIn or GitHub password.
+- Escalating every page to `vd:browser` (Browserbase) when the local profile would have worked.
 
 ## Rationalizations to catch
 
@@ -120,6 +136,9 @@ python3 "<skill-root>/scripts/write-scorecard.py" \
 |---|---|
 | "I'll grab the packet from Drive; it's faster." | Operator supplies files. Stop and ask. |
 | "The cert is probably real; I'll mark Verified." | No badge URL and no public Licenses listing → Unverified. |
+| "I'll just launch agent-browser --profile; it's simpler." | That browser has no saved LinkedIn/GitHub session. Attach to `vd:browser-profile` instead. |
+| "Paste your LinkedIn password so I can log in." | Never. Operator logs in once in their Chrome or ego lite; we reuse that session. |
+| "LinkedIn asked me to sign in, so the resume is fake." | Login wall without a browser session → Unverified, not Contradicted. |
 | "Low startup fit should drop the score." | Cap the tier. Do not rewrite `Total`. |
 | "They're in the wrong timezone — knockout." | Only if the resume *says* they cannot meet the JD. Otherwise score `Location_10` and leave it to HR. |
 | "Same bullets at every employer — Out." | Mill pattern → Stretched / Low fit, not a knockout, unless fact-check breaks. |

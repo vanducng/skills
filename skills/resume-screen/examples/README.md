@@ -20,4 +20,4 @@ python3 ../scripts/write-scorecard.py \
   --out /tmp/resume-screen-sample.xlsx
 ```
 
-All people, URLs, and employers below are invented. `example.com` / `github.com/example/` links are placeholders — a real screen would only include URLs that appeared on a resume.
+All people, URLs, and employers below are invented. `example.com` / `github.com/example/` links are placeholders — a real screen would only include URLs that appeared on a resume, and would open them through the fact-check ladder in `references/fact-check.md` (`vd:ego-browser`, or a named `vd:browser-profile` plus `vd:agent-browser` connect — never `agent-browser --profile`).

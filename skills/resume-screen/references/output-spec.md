@@ -31,17 +31,17 @@ Order is fixed for the default seven-factor engine. Do not insert columns before
 | S | `Timeline_gaps` | text | |
 | T | `Timeline_consistency` | `Holds` \| `Soft mismatch` \| `Breaks` | |
 | U | `Years_relevant` | number | |
-| V | `Fact_check` | `Verified` \| `Partial` \| `Unverified` \| `Contradicted` | |
+| V | `Fact_check` | `Verified` \| `Partial` \| `Unverified` \| `Contradicted` | From the live page read; login wall without a session is Unverified |
 | W | `Waiver` | text | `No` or `Yes — …` |
 | X | `LinkedIn_URL` | hyperlink or empty | Only an extracted URL |
 | Y | `GitHub_URL` | text/URL or empty | Extracted only |
-| Z | `Portfolio_URL` | text/URL or empty | Extracted only |
+| Z | `Portfolio_URL` | text/URL or empty | Extracted portfolio and/or blog URL |
 | AA | `Certs_claimed` | text | |
 | AB | `Certs_verified` | text | Include the source URL in the cell |
 | AC | `Certs_unverified` | text | |
 | AD | `Cert_notes` | text | Technical probe if claimed-only; never "show the badge" |
 | AE | `Screen_questions` | text | 3–5; P1/P2/waiver only; no HR logistics |
-| AF | `Notes` | text | Short rationale |
+| AF | `Notes` | text | Short rationale; include fact-check source URLs that are not already in X–Z / `Certs_verified` |
 
 A future profile may rename the seven factor headers and reweight them (still summing to 100) via the JSON `factors` array. Column letters H–N stay the factor block; `Total` stays `=SUM(H:N)`.
 
@@ -114,3 +114,4 @@ Documentation, not scores. The script fills:
 5. Waiver rows are `Tier=Out`, `Decision=Waiver candidate`, and have screen questions.
 6. Out-contradiction rows have empty `Screen_questions`.
 7. `Screen_questions` contain no hybrid / timezone / salary / band-acceptance language.
+8. Every non-empty LinkedIn/GitHub/portfolio/cert URL on the row was extracted from the resume (never invented). A login-walled LinkedIn without a browser session is `Unverified`, not `Contradicted`.
