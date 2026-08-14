@@ -16,6 +16,7 @@ import argparse
 import csv
 import datetime as dt
 import json
+import math
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -110,20 +111,21 @@ def as_number(value, default=0):
 
 
 def parse_number(value):
-    """Return int/float, or None if missing / empty / non-numeric."""
+    """Return a finite int/float, or None if missing / empty / non-numeric / NaN / inf."""
     if value is None or value == "":
         return None
     if isinstance(value, bool):
         return None
     if isinstance(value, (int, float)):
-        return value
+        return value if math.isfinite(value) else None
     text = str(value).strip()
     if not text or text.startswith("="):
         return None
     try:
-        return int(text) if re.fullmatch(r"-?\d+", text) else float(text)
+        parsed = int(text) if re.fullmatch(r"-?\d+", text) else float(text)
     except ValueError:
         return None
+    return parsed if math.isfinite(parsed) else None
 
 
 def load_input(path: Path) -> dict:
@@ -177,7 +179,7 @@ def validate(rows: list[dict], factors: list[dict]) -> None:
         for factor in factors:
             raw = lookup(row, factor["id"])
             value = parse_number(raw)
-            if value is None:
+            if value is None or value != value:
                 errors.append(
                     f"row {i}: {factor['id']} missing or not a number ({raw!r})"
                 )

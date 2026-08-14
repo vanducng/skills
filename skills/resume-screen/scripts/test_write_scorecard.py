@@ -144,6 +144,30 @@ class WriteScorecardTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 m.main(["--input", str(payload), "--out", str(tmp / "out.xlsx")])
 
+    def test_nan_factor_fails(self):
+        for bad in (float("nan"), "nan"):
+            row = dict(JORDAN)
+            row["Pipelines_25"] = bad
+            with tempfile.TemporaryDirectory() as raw:
+                tmp = Path(raw)
+                payload = tmp / "in.json"
+                payload.write_text(json.dumps({"candidates": [row]}))
+                with self.assertRaises(SystemExit) as ctx:
+                    m.main(["--input", str(payload), "--out", str(tmp / "out.xlsx")])
+                self.assertIn("Pipelines_25", str(ctx.exception))
+
+    def test_inf_factor_fails(self):
+        for bad in (float("inf"), float("-inf"), "inf", "-inf"):
+            row = dict(JORDAN)
+            row["Band_10"] = bad
+            with tempfile.TemporaryDirectory() as raw:
+                tmp = Path(raw)
+                payload = tmp / "in.json"
+                payload.write_text(json.dumps({"candidates": [row]}))
+                with self.assertRaises(SystemExit) as ctx:
+                    m.main(["--input", str(payload), "--out", str(tmp / "out.xlsx")])
+                self.assertIn("Band_10", str(ctx.exception))
+
     def test_sort_puts_waiver_before_other_out(self):
         out_row = {
             "name": "Riley Chen",
