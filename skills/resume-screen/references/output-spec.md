@@ -12,7 +12,7 @@ Order is fixed for the default seven-factor engine. Do not insert columns before
 |---|---|---|---|
 | A | `Rank` | int | 1..n after sort (P1, P2, P3, waiver-Out, other Out; then `Total` desc) |
 | B | `Name` | text | From the resume. Examples in this skill are fictional |
-| C | `File` | hyperlink | Operator-provided path or URL. Display text may be the basename. **Never** an extracted `.txt` name |
+| C | `File` | hyperlink | Operator-provided path or URL. Display text may be the basename. **Never** an extracted `.txt` name. The writer resolves relative paths against the `--out` directory (`--file-base`) so a demo packet uses `resumes/<name>.md` beside the xlsx |
 | D | `Tier` | `P1` \| `P2` \| `P3` \| `Out` | After overlay caps |
 | E | `Decision` | `Advance` \| `Maybe` \| `Hold` \| `Out` \| `Waiver candidate` | |
 | F | `Total` | **formula** | `=SUM(H{row}:N{row})` — never a literal |

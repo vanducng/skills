@@ -4,7 +4,7 @@
   "candidates": [
     {
       "name": "Jordan Hale",
-      "file": "examples/resumes/jordan-hale.md",
+      "file": "resumes/jordan-hale.md",
       "tier": "P1",
       "decision": "Advance",
       "knockouts": "",
@@ -36,7 +36,7 @@
     },
     {
       "name": "Morgan Ellis",
-      "file": "examples/resumes/morgan-ellis.md",
+      "file": "resumes/morgan-ellis.md",
       "tier": "P2",
       "decision": "Maybe",
       "knockouts": "",
@@ -68,7 +68,7 @@
     },
     {
       "name": "Avery Kim",
-      "file": "examples/resumes/avery-kim.md",
+      "file": "resumes/avery-kim.md",
       "tier": "Out",
       "decision": "Waiver candidate",
       "knockouts": "Under ~3 years of actual data/platform/cloud engineering",
@@ -100,7 +100,7 @@
     },
     {
       "name": "Riley Chen",
-      "file": "examples/resumes/riley-chen.md",
+      "file": "resumes/riley-chen.md",
       "tier": "Out",
       "decision": "Out",
       "knockouts": "Material fact-check fail: LinkedIn title/employer contradict the resume",

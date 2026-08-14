@@ -172,6 +172,18 @@ class WriteScorecardTests(unittest.TestCase):
             self.assertIn("Waiver candidate", xml)
             self.assertIn("Contradicted", xml)
 
+    def test_resolve_file_href_beside_workbook(self):
+        examples = Path(__file__).resolve().parent.parent / "examples"
+        self.assertEqual(
+            m.resolve_file_href("resumes/jordan-hale.md", examples),
+            "resumes/jordan-hale.md",
+        )
+        self.assertEqual(
+            m.resolve_file_href("examples/resumes/jordan-hale.md", examples),
+            "resumes/jordan-hale.md",
+        )
+        self.assertTrue((examples / "resumes/jordan-hale.md").is_file())
+
     def test_computed_total_matches_seven_factors(self):
         self.assertEqual(m.computed_total(JORDAN, m.FACTORS_DEFAULT), 86)
         self.assertEqual(

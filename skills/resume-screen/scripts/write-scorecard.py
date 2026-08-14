@@ -183,9 +183,38 @@ def hyperlink_formula(url: str, display: str | None = None) -> str:
     return f'HYPERLINK("{target}","{label}")'
 
 
-def candidate_cells(rank: int, row: dict, factors: list[dict], excel_row: int) -> list[tuple]:
+def resolve_file_href(file_path: str, file_base: Path) -> str:
+    """Make File a hyperlink that resolves next to the workbook when possible.
+
+    Relative paths that already exist under file_base (the --out directory) are
+    kept. A repo-relative `examples/resumes/...` path is stripped to
+    `resumes/...` when that file sits beside the xlsx. Absolute operator paths
+    are left absolute.
+    """
+    raw = str(file_path).strip()
+    if not raw:
+        return raw
+    p = Path(raw)
+    if p.is_absolute():
+        return p.as_posix()
+    base = file_base.resolve()
+    if (base / p).is_file():
+        return p.as_posix()
+    if p.parts and p.parts[0] == "examples":
+        stripped = Path(*p.parts[1:])
+        if (base / stripped).is_file():
+            return stripped.as_posix()
+    if p.is_file():
+        try:
+            return p.resolve().relative_to(base).as_posix()
+        except ValueError:
+            return p.resolve().as_posix()
+    return raw
+
+
+def candidate_cells(rank: int, row: dict, factors: list[dict], excel_row: int, file_base: Path) -> list[tuple]:
     """Return list of (col_idx, value, kind) where kind is n|s|f."""
-    file_path = str(lookup(row, "file"))
+    file_path = resolve_file_href(str(lookup(row, "file")), file_base)
     file_label = Path(file_path).name or file_path
     linkedin = str(lookup(row, "linkedin_url", "LinkedIn_URL") or "").strip()
     cells = [
@@ -255,13 +284,13 @@ def build_sheet(rows: list[list[tuple]], freeze: bool = True) -> str:
     return "".join(parts)
 
 
-def candidates_sheet(rows: list[dict], factors: list[dict]) -> str:
+def candidates_sheet(rows: list[dict], factors: list[dict], file_base: Path) -> str:
     heads = headers(factors)
     header_row = [(i, h, "s", 1) for i, h in enumerate(heads, 1)]
     data_rows = [header_row]
     for rank, row in enumerate(rows, 1):
         excel_row = rank + 1
-        cells = candidate_cells(rank, row, factors, excel_row)
+        cells = candidate_cells(rank, row, factors, excel_row, file_base)
         data_rows.append([(c, v, k) for c, v, k in cells])
     return build_sheet(data_rows, freeze=True)
 
@@ -413,6 +442,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--jd", default="", help="JD path or label (overrides JSON)")
     parser.add_argument("--no-sort", action="store_true", help="Keep input order instead of P1/P2/P3/waiver/Out")
     parser.add_argument("--check", action="store_true", help="After write, assert SUM/HYPERLINK formulas exist")
+    parser.add_argument(
+        "--file-base",
+        default="",
+        help="Directory File hyperlinks are resolved against (default: parent of --out)",
+    )
     args = parser.parse_args(argv)
 
     src = Path(args.input)
@@ -433,7 +467,8 @@ def main(argv: list[str] | None = None) -> int:
         "generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     out = Path(args.out)
-    write_xlsx(out, candidates_sheet(rows, factors), scorecard_sheet(meta, factors))
+    file_base = Path(args.file_base) if args.file_base else out.parent
+    write_xlsx(out, candidates_sheet(rows, factors, file_base), scorecard_sheet(meta, factors))
     print(f"wrote {out} ({len(rows)} candidates, profile={meta['profile']})")
     if args.check:
         check_xlsx(out)

@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """End-to-end assertions for the fictional resume-screen example packet.
 
-No real PII. No Drive. No browser run — this cloud VM has no ego-browser /
-agent-browser CLI; routing and the Unverified fallback are contract-tested
-against SKILL.md and fact-check.md instead.
+No real PII. No Drive. Writes the workbook under tempfile — never overwrites
+the committed examples/sample-scorecard.xlsx. Browser CLI presence on PATH
+does not skip the SKILL.md / fact-check.md routing contract.
 """
 
 from __future__ import annotations
 
 import importlib.util
-import json
 import re
 import shutil
+import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 import zipfile
@@ -20,7 +20,6 @@ from pathlib import Path
 SKILL = Path(__file__).resolve().parent.parent
 EXAMPLES = SKILL / "examples"
 RESUMES = EXAMPLES / "resumes"
-XLSX = EXAMPLES / "sample-scorecard.xlsx"
 SCORED = EXAMPLES / "scored-candidates.json"
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
@@ -123,32 +122,47 @@ def load_candidates_sheet(path: Path) -> tuple[list[str], list[dict]]:
     return headers, rows
 
 
-def rebuild_xlsx() -> Path:
+def write_xlsx_to(tmp: Path) -> Path:
+    out = tmp / "sample-scorecard.xlsx"
     writer.main([
         "--input", str(SCORED),
-        "--out", str(XLSX),
+        "--out", str(out),
+        "--file-base", str(EXAMPLES),
         "--profile", "data-platform-engineer",
-        "--jd", "examples/sample-jd.md",
+        "--jd", "sample-jd.md",
         "--check",
     ])
-    return XLSX
+    return out
 
 
 class ExampleScreenTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.xlsx = rebuild_xlsx()
+        cls._tmpdir = tempfile.TemporaryDirectory()
+        cls.xlsx = write_xlsx_to(Path(cls._tmpdir.name))
         cls.headers, cls.rows = load_candidates_sheet(cls.xlsx)
         cls.by_name = {r["Name"]: r for r in cls.rows}
 
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmpdir.cleanup()
+
+    def test_does_not_rewrite_committed_workbook(self):
+        self.assertTrue(self.xlsx.is_file())
+        self.assertNotEqual(self.xlsx.resolve(), (EXAMPLES / "sample-scorecard.xlsx").resolve())
+
     def test_resume_files_exist_and_are_the_file_targets(self):
         for slug in ("jordan-hale", "morgan-ellis", "riley-chen", "avery-kim"):
-            path = RESUMES / f"{slug}.md"
-            self.assertTrue(path.is_file(), path)
+            beside_xlsx = EXAMPLES / "resumes" / f"{slug}.md"
+            self.assertTrue(beside_xlsx.is_file(), beside_xlsx)
             row = next(r for r in self.rows if slug in r["File"])
-            self.assertIn(f"examples/resumes/{slug}.md", row["File"])
+            self.assertIn(f"resumes/{slug}.md", row["File"])
+            self.assertNotIn("examples/resumes/", row["File"])
             self.assertNotIn(".txt", row["File"])
             self.assertTrue(row["File"].startswith("=HYPERLINK("))
+            href = re.search(r'HYPERLINK\("([^"]+)"', row["File"])
+            self.assertIsNotNone(href)
+            self.assertTrue((EXAMPLES / href.group(1)).is_file(), href.group(1))
 
     def test_required_columns(self):
         missing = REQUIRED_HEADERS - set(self.headers)
@@ -161,16 +175,14 @@ class ExampleScreenTests(unittest.TestCase):
         for i, row in enumerate(self.rows, start=2):
             total = row["Total"]
             self.assertRegex(total, rf"^=SUM\(H{i}:N{i}\)$", total)
-            summed = sum(float(row[fid]) for fid in FACTORS)
-            # Recalculate what Excel would display
-            self.assertEqual(summed, sum(float(row[fid]) for fid in FACTORS))
+            displayed = sum(float(row[fid]) for fid in FACTORS)
             expected = {
                 "Jordan Hale": 86,
                 "Morgan Ellis": 84,
                 "Avery Kim": 71,
                 "Riley Chen": 48,
             }[row["Name"]]
-            self.assertEqual(summed, expected, row["Name"])
+            self.assertEqual(displayed, expected, f"{row['Name']}: SUM(H{i}:N{i}) cells")
 
     def test_archetype_decisions(self):
         jordan = self.by_name["Jordan Hale"]
@@ -238,7 +250,7 @@ class ExampleScreenTests(unittest.TestCase):
 
 
 class BrowserRoutingContractTests(unittest.TestCase):
-    """No ego-browser / agent-browser CLI on this VM — test the written contract."""
+    """Routing contract is independent of whether browser CLIs are on PATH."""
 
     def setUp(self):
         self.skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
@@ -266,9 +278,12 @@ class BrowserRoutingContractTests(unittest.TestCase):
         for name in ("ego-browser", "agent-browser", "browser-profile"):
             self.assertTrue((root / name / "SKILL.md").is_file(), name)
 
-    def test_browser_clis_absent_here(self):
-        self.assertIsNone(shutil.which("ego-browser"))
-        self.assertIsNone(shutil.which("agent-browser"))
+    def test_browser_cli_presence_does_not_skip_routing_contract(self):
+        # Probe only. Installed CLIs on a developer machine are OK.
+        shutil.which("ego-browser")
+        shutil.which("agent-browser")
+        self.test_routes_to_sibling_skills_by_name()
+        self.test_fallback_marks_login_walled_linkedin_unverified()
 
 
 if __name__ == "__main__":

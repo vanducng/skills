@@ -13,18 +13,15 @@ These files exist so an agent can see the *shape* of a screen. They are not a re
 | [`sample-scorecard.csv`](sample-scorecard.csv) | Same columns as the Excel spec; `Total` is `=SUM(H{row}:N{row})` |
 | [`sample-scorecard.xlsx`](sample-scorecard.xlsx) | Generated workbook (`Candidates` + `Scorecard`) |
 
-Rebuild the demo workbook from the scored JSON:
+`File` hyperlinks are relative to this directory (`resumes/<name>.md`) so they resolve when the workbook is opened from `examples/`.
+
+Rebuild the committed demo workbook (explicit; unittest does not do this):
 
 ```bash
-python3 ../scripts/write-scorecard.py \
-  --input scored-candidates.json \
-  --profile data-platform-engineer \
-  --jd sample-jd.md \
-  --out sample-scorecard.xlsx \
-  --check
+python3 ../scripts/build-example-workbook.py
 ```
 
-Assertions (formulas, columns, archetypes, no PII, browser-routing contract):
+Assertions (formulas, columns, archetypes, no PII, browser-routing contract). Tests write a workbook under a temp dir and do not touch `sample-scorecard.xlsx`:
 
 ```bash
 python3 ../scripts/test_example_screen.py
