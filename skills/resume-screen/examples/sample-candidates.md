@@ -2,13 +2,13 @@
 
 Four rows that exercise the engine. Names, employers, and URLs are invented. Use them to check scoring — not as a real slate.
 
-Resume files in a real run would be operator-supplied PDFs; here the `File` value is a placeholder path (`resumes/<slug>.pdf`).
+Operator-supplied resume files for this packet are the fictional markdown files under `resumes/`. The `File` column hyperlinks to those paths — not an extracted dump name.
 
 ---
 
 ## 1. P1 — Jordan Hale
 
-**File:** `resumes/jordan-hale.pdf`  
+**File:** `resumes/jordan-hale.md`  
 **Archetype:** 4–5 years data engineering, warehouse + dbt + Airflow, LinkedIn matches, High/Medium small-company fit.
 
 **Resume claims (fake):** Data Engineer at a 80-person product company (2022–present) and a smaller startup before that. Python, SQL, Snowflake, dbt, Airflow, AWS Lambda, Terraform. LinkedIn `https://example.com/in/jordan-hale` matches titles and dates. GitHub `https://github.com/example/jordan-hale` has dbt project + DAG snippets. Credly badge URL for SnowPro Core loads.
@@ -36,7 +36,7 @@ Resume files in a real run would be operator-supplied PDFs; here the `File` valu
 
 ## 2. P1 → P2 cap — Morgan Ellis
 
-**File:** `resumes/morgan-ellis.pdf`  
+**File:** `resumes/morgan-ellis.md`  
 **Archetype:** High skill score, enterprise specialist, Low small-company fit, likely above a mid-level product-company band.
 
 **Resume claims (fake):** 11 years, current title "Lead Data Architect" at a global bank. Deep Snowflake, dbt Cloud, Control-M (not Airflow), Ab Initio heritage, large platform PMO. LinkedIn `https://example.com/in/morgan-ellis` matches. No GitHub. SnowPro Advanced badge URL verifies.
@@ -65,7 +65,7 @@ Resume files in a real run would be operator-supplied PDFs; here the `File` valu
 
 ## 3. Out — contradiction — Riley Chen
 
-**File:** `resumes/riley-chen.pdf`  
+**File:** `resumes/riley-chen.md`  
 **Archetype:** LinkedIn title/employer contradicts a resume rewritten as data engineering (SWE → DE).
 
 **Resume claims (fake):** "Senior Data Engineer" at Northwind Apps 2021–2026; Python, SQL, Snowflake, dbt, Airflow. LinkedIn `https://example.com/in/riley-chen` lists **Software Engineer** at a different employer (Globex Retail) for those same dates; no warehouse, no dbt. GitHub is a Java Spring monorepo.
@@ -93,7 +93,7 @@ Resume files in a real run would be operator-supplied PDFs; here the `File` valu
 
 ## 4. Waiver — Avery Kim
 
-**File:** `resumes/avery-kim.pdf`  
+**File:** `resumes/avery-kim.md`  
 **Archetype:** ~1 year relevant, but real GitHub and end-to-end hats. Out on years only. High small-company fit.
 
 **Resume claims (fake):** 14 months as the only data hire at a 12-person startup. Built ingest → Snowflake → dbt → a Dagster schedule → a Streamlit ops page. Python + SQL throughout. LinkedIn `https://example.com/in/avery-kim` is thin (no Licenses tab — **not** a contradiction). GitHub `https://github.com/example/avery-kim` shows the repo. No certs.
