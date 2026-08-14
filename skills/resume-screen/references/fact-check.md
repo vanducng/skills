@@ -2,7 +2,16 @@
 
 Fact-check is a **read of pages the resume already pointed to**. It is not sourcing, not Recruiter, not Drive, and not a request that the candidate prove documents.
 
-This skill does **not** implement a browser. It composes catalog skills. Load the chosen skill's `SKILL.md` and follow that skill's contract (task spaces, attach, teardown). Canonical IDs: `vd:ego-browser`, `vd:browser-profile`, `vd:agent-browser`, `vd:browser-trace`, `vd:browser`.
+This skill does **not** implement a browser. It does **not** invent a third driver. It composes the two catalog browsers that already live in this repo, by name:
+
+| Prefer | Catalog id | Lives at |
+|---|---|---|
+| 1 | `vd:ego-browser` | `skills/ego-browser/` |
+| 2 | `vd:browser-profile` + `vd:agent-browser` | `skills/browser-profile/`, `skills/agent-browser/` |
+
+Load that sibling `SKILL.md` before the first command. Hard rules below are copied from those skills — follow them; do not paraphrase them away.
+
+`vd:browser` (Browserbase, `skills/browser/`) is **not** a third driver. Use it only if LinkedIn/GitHub anti-bot blocks the local profile. `vd:browser-trace` is optional read-only evidence on the same CDP port, not a driver.
 
 ## Extract, then open
 
@@ -14,74 +23,67 @@ From the resume text (and only from the resume text), collect:
 - Blog / writing URLs
 - Certificate or badge URLs (Credly, Databricks credentials, Snowflake achieve, Acclaim, vendor cert portals)
 
-**Never construct a LinkedIn slug, GitHub handle, blog, or badge URL from the candidate's name.** If the resume has no URL for a channel, leave that column empty and treat that channel as unseen.
+**Never invent a URL.** Never construct a LinkedIn slug, GitHub handle, blog, or badge URL from the candidate's name. If the resume has no URL for a channel, leave that column empty and treat that channel as unseen.
 
 Open only extracted URLs. Record the verdict **with the source URL you actually opened**.
 
-## Transport ladder
+---
 
-Pick the first row that applies. Do not skip down to Browserbase because it feels easier.
+## Prefer `vd:ego-browser` (`skills/ego-browser/`)
 
-| Order | Use when | Load | Do | Do not |
-|---|---|---|---|---|
-| 1 | `ego-browser` is on `PATH`, or `$HOME/.local/share/ego/ego-skills/SKILL.md` exists (ego lite runtime) | `vd:ego-browser` | Isolated task space; reuse the user's login; open each extracted URL; read the live page | Write a `.js` file under the skill; import Playwright; close the space without asking |
-| 2 | Else, operator passed `--browser-profile <name>` or already has that Chrome open | `vd:browser-profile` then `vd:agent-browser` | `profile-attach.sh <name>` (connect + UA check). Drive with `agent-browser` **connect** mode. Optional `vd:browser-trace` on the same deterministic port | `agent-browser --profile` — that launches a separate Playwright browser with **no** saved logins |
-| 3 | URL host is a public badge page | Plain HTTP fetch | `curl` / `fetch` Credly, `credentials.databricks.com`, `achieve.snowflake.com` (and similar badge hosts) | Open a browser just to load a public badge |
-| 4 | Local logged-in Chrome hits CAPTCHA, Cloudflare, empty anti-bot, or 403/429 on LinkedIn/GitHub | `vd:browser` | Escalate **that URL only** to Browserbase cloud | Use Browserbase as the default driver; use it for file transfer |
-| 5 | No browser skill is available | Public fetch | Fetch what is public. If LinkedIn (or another page) is login-walled, mark that channel `Unverified` and say so | Ask the operator to paste a password; invent a session |
+Use when ego lite / the `ego-browser` CLI is available. An isolated task space inherits the operator's login (LinkedIn, GitHub).
 
-If ego-browser's first real command fails because the CLI is missing, fall through to row 2, then 5. Do not install a browser stack as part of this skill.
+Hard rules from that skill:
 
-### Row 1 — `vd:ego-browser`
+- Run as `ego-browser nodejs <<'EOF' ... EOF` (or a temp file if the worktree guard rejects heredocs). Do not import Playwright or launch another browser.
+- One Bash invocation for the whole profile scan when possible. `taskSpaces.useOrCreate('screen <candidate> linkedin')` once; reuse that `task.id`.
+- `browser.openOrReuseTab(url)` for each extracted URL (LinkedIn, GitHub, portfolio, blog). Never invent a URL.
+- Prefer a stable profile URL over clicking through search UI.
+- If login / captcha / SSO: `taskSpaces.handOff`, tell the operator what to do, wait for explicit confirmation, then `takeOver`. Do not `takeOver` automatically. Do not ask for passwords.
+- After the scan, print JSON evidence (jobs, dates, licenses, GitHub repos). Do **not** `taskSpaces.complete(..., { keep: false })` until the operator confirms closing that space.
+- Read `$HOME/.local/share/ego/ego-skills/SKILL.md` if helper names differ.
 
-Read `vd:ego-browser` before the first command. One task space for the whole screen (`resume-screen fact-check`). `taskSpaces.useOrCreate` once; reuse that `task.id`. One Bash invocation should open the extracted URLs, read them, and print structured evidence.
+If the first real `ego-browser` command fails because the CLI is missing, fall through to `vd:agent-browser` + `vd:browser-profile`. Do not install a browser stack as part of this skill.
 
-Follow that skill's lifecycle: do not call `taskSpaces.complete` in the scan invocation. After the workbook is written, ask whether to close the ego space. Silence is not confirmation. Never close a user-owned space.
+---
 
-Hand off only if LinkedIn/GitHub presents a captcha or a login the session does not already have — then tell the operator what to do in *their* window. Do not ask for a password. Resume after they confirm.
+## Else `vd:agent-browser` + `vd:browser-profile`
 
-### Row 2 — `vd:browser-profile` + `vd:agent-browser` connect
+Use when `vd:ego-browser` is not available and a persistent logged-in Chrome profile exists (`--browser-profile <name>`, e.g. `linkedin-work`).
 
-The operator logs into LinkedIn and GitHub **once** in a named Chrome (`vd:browser-profile`). Login survives across runs. This skill only attaches.
+Hard rules from those skills:
 
-```bash
-# Resolve the browser-profile scripts dir the same way that skill does
-# (skill root / scripts). Do not hardcode a machine-specific path.
-profile-list.sh                              # confirm <name> exists
-# If Chrome is not open: profile-open.sh <name>
-# Then ask the operator to confirm they are logged into LinkedIn/GitHub
-# in that window. Never ask for a password.
-profile-attach.sh <name>                     # env-sanitized connect + UA check
-# UA must NOT contain HeadlessChrome — if it does, stop (wrong browser)
-```
-
-Then drive **that** Chrome:
+- Attach with `profile-attach.sh <name>` from `vd:browser-profile` (canonical). Never `agent-browser --profile` for this — that launches a separate Playwright browser with no shared login.
+- Always `env -u AGENT_BROWSER_PROFILE` (or the attach wrapper). Then `eval 'navigator.userAgent'` must **not** contain `HeadlessChrome`. If it does, stop; you are on the wrong browser.
+- Drive LinkedIn/GitHub with `open`, `snapshot -i`, `get text`, semantic `find`. After SPA nav, assert `get url` (do not trust `wait --url`).
+- Confirm the profile identity with the operator if not already pinned (e.g. a `linkedin-work` profile). Wrong-account actions are hard to undo.
+- Teardown: if **you** opened the profile Chrome, `profile-close.sh`. If you attached to a Chrome the human already had open, do **not** close their window — `agent-browser close` only.
+- Screenshot paths must be positional and absolute. Never `har start <path>`.
+- `vd:browser` (Browserbase) only if LinkedIn/GitHub anti-bot blocks the local profile.
 
 ```bash
+# Resolve scripts from the vd:browser-profile skill root. No machine-specific path.
+profile-attach.sh <name>    # env-sanitized connect + UA check
+env -u AGENT_BROWSER_PROFILE agent-browser eval 'navigator.userAgent'
+# must NOT contain HeadlessChrome
 env -u AGENT_BROWSER_PROFILE agent-browser open "<extracted-url>"
 env -u AGENT_BROWSER_PROFILE agent-browser snapshot -i
-# read jobs / dates / Licenses, or GitHub repos / languages / recency
+env -u AGENT_BROWSER_PROFILE agent-browser get url
 ```
 
-`profile-attach.sh` is the only sanctioned attach. A shell-rc `AGENT_BROWSER_PROFILE` silently redirects successful commands at a Playwright browser with empty cookies — that is why every call is `env -u AGENT_BROWSER_PROFILE`.
+---
 
-**Never** `agent-browser --profile …` for fact-check. That flag launches a separate Playwright-owned browser. It does not share the operator's LinkedIn/GitHub cookies.
+## Public fetch still OK
 
-Optional evidence: `vd:browser-trace` as a second CDP client on the profile's deterministic port (see `vd:browser-profile` — `9300 + cksum(name) % 100`). Write traces under the injected `Reports:` path when present. Trace does not drive the page.
+Credly / `credentials.databricks.com` / `achieve.snowflake.com` badge URLs: HTTP fetch, no login. Verified only if the page loads and names this person / this cert. A 404 or a generic marketing page is Unverified, not a contradiction.
 
-Teardown (from `vd:agent-browser`): if **you** opened the profile Chrome, `profile-close.sh <name>` when the screen is done. If the operator already had it open, do not close their window — `agent-browser close` to drop the daemon session only.
+---
 
-### Row 3 — public badge fetch
+## If neither browser skill is runnable
 
-No login. `GET` the extracted badge URL. Verified only if the page loads and names this person / this cert. A 404 or a generic marketing page is Unverified, not a contradiction.
+Public fetch only. Mark login-walled LinkedIn as `Unverified`. Do not invent profile content. Do not ask the operator to paste a password. Tell them they can re-run with ego lite or a logged-in `--browser-profile <name>`.
 
-### Row 4 — Browserbase escalation
-
-Load `vd:browser`. Use it only after the local logged-in profile is blocked by anti-bot on LinkedIn or GitHub. Still open only extracted URLs. Still no Drive, no Recruiter search.
-
-### Row 5 — no browser
-
-Public `GET`. GitHub user pages and badge URLs often work. LinkedIn almost always login-walls anonymous fetch — that is `Unverified` for the LinkedIn channel, **not** `Contradicted`. Tell the operator they can re-run with ego lite or a logged-in `--browser-profile <name>`. Do not collect a password.
+---
 
 ## What to read on the live page
 
@@ -108,13 +110,13 @@ Compare employer, title, dates, and stack. Naming variants ("Acme Inc." vs "Acme
 
 A login wall is Unverified. A loaded LinkedIn that lists a different employer for the same dates is Contradicted.
 
-Put the source URL next to the evidence (`Certs_verified`, `Notes`, or the LinkedIn/GitHub/Portfolio columns). Never write a URL you did not extract and open.
+Put the source URL next to the evidence (`Certs_verified`, `Notes`, or the LinkedIn/GitHub/Portfolio columns). Never write a URL you did not extract and open. Never invent profile content to fill a login wall.
 
 ## Certificates
 
 | Evidence | `Certs_verified` | Notes |
 |---|---|---|
-| Working badge URL (Credly, Databricks credentials, Snowflake achieve, etc.) that loads and names this person / this cert | List the cert + the URL | Prefer HTTP fetch (row 3) |
+| Working badge URL (Credly, Databricks credentials, Snowflake achieve, etc.) that loads and names this person / this cert | List the cert + the URL | HTTP fetch — no login |
 | Clearly listed on **that person's** LinkedIn Licenses & certifications (logged-in read counts) | List the cert + the LinkedIn URL | |
 | Named on the resume with no public proof | — | Put it in `Certs_unverified` |
 | LinkedIn profile loads but Licenses is empty or hidden | — | **Not a contradiction.** Public and even logged-in LinkedIn often hide licenses |

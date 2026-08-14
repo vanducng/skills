@@ -59,7 +59,7 @@ Do not commit real candidate files or a workbook that contains real PII.
 
 1. **Operator-supplied files only.** Do not download from Google Drive, scrape Recruiter, or use a browser to move files. If a file is missing, stop and ask.
 2. **Never invent a URL.** Extract LinkedIn / GitHub / portfolio / blog / cert badge URLs from the resume. Open only those. Missing URL = Unverified, not a guess.
-3. **Compose a catalog browser — do not reimplement one.** Fact-check follows the ladder in [`references/fact-check.md`](references/fact-check.md): `vd:ego-browser` first; else a named `vd:browser-profile` driven by `vd:agent-browser` in **connect** mode (`profile-attach.sh`). Never `agent-browser --profile` (that launches a Playwright browser with no saved logins). Never ask the operator to paste a password.
+3. **Compose the two catalog browsers — do not reimplement one, do not invent a third driver.** Hard rules are copied in [`references/fact-check.md`](references/fact-check.md). Prefer `vd:ego-browser` (`skills/ego-browser/`). Else `vd:browser-profile` + `vd:agent-browser` connect (`profile-attach.sh`). Never `agent-browser --profile`. Never ask for a password.
 4. **`Total` is a formula.** Use `scripts/write-scorecard.py`. A baked-in number will drift from the factor cells.
 5. **Still score Out rows.** A knockout sets `Tier=Out` and fills `Knockouts`; the seven factors and overlays are still filled.
 6. **Overlays do not rewrite `Total`.** Low startup fit may cap P1 → P2. A years-knockout plus High fit is a **waiver flag**, not a silent Out → P1 promotion.
@@ -86,17 +86,13 @@ Analyst-only, QA-only, or Tableau-only time does not count toward the years knoc
 
 ### 3. Fact-check
 
-Follow [`references/fact-check.md`](references/fact-check.md). Load the composed skill's `SKILL.md` before driving anything — this skill does not ship a browser.
+Do not reimplement a browser. Do not invent a third driver. Load [`references/fact-check.md`](references/fact-check.md) and the sibling `SKILL.md` you compose:
 
-| Order | When | What to load |
-|---|---|---|
-| 1 | `ego-browser` CLI or ego lite runtime is present | `vd:ego-browser` — logged-in scan in an isolated task space |
-| 2 | Else, operator named `--browser-profile` (or has one open) | `vd:browser-profile` `profile-attach.sh` then `vd:agent-browser` **connect** mode. Optional `vd:browser-trace` on that port |
-| 3 | Public badge hosts (Credly, `credentials.databricks.com`, `achieve.snowflake.com`) | Plain HTTP fetch — no login |
-| 4 | Local LinkedIn/GitHub anti-bot / CAPTCHA / empty wall | Escalate that URL only to `vd:browser` (Browserbase). Not the default |
-| 5 | No browser skill available | Public fetch. Login-walled LinkedIn → `Unverified`. Do not ask for a password |
+- Prefer **`vd:ego-browser`** (`skills/ego-browser/`) when ego lite / the `ego-browser` CLI is available.
+- Else **`vd:browser-profile`** + **`vd:agent-browser`** (`skills/browser-profile/`, `skills/agent-browser/`) — `profile-attach.sh`, never `--profile`.
+- Public badge URLs: HTTP fetch. If neither browser skill is runnable: public fetch; login-walled LinkedIn is `Unverified`. Do not invent profile content.
 
-Open each **extracted** URL. Read jobs, dates, Licenses & Certifications, GitHub repos/languages/recency, portfolio/blog posts. Record `Verified` / `Partial` / `Unverified` / `Contradicted` **with the source URL**. Certs are Verified only with a working badge URL or a clear LinkedIn Licenses listing for that person. Missing public Licenses is **not** a contradiction.
+Record `Verified` / `Partial` / `Unverified` / `Contradicted` with the source URL. Certs are Verified only with a working badge URL or a clear LinkedIn Licenses listing. Missing Licenses is **not** a contradiction.
 
 **Verify:** `Fact_check` is one of those four values, every opened URL was on the fact sheet, and `FactIntegrity_10` matches the verdict.
 
