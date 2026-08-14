@@ -20,6 +20,8 @@ jobs:
           python3 hooks/test_hooks.py
           python3 hooks/test_agent_notify.py
           python3 skills/workbench/scripts/test_workbench.py
+          python3 skills/resume-screen/scripts/test_write_scorecard.py
+          python3 skills/resume-screen/scripts/test_example_screen.py
       - name: Check release version consistency
         run: bash scripts/check-release-versions.sh
       - name: Check docs site contract

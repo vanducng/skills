@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 78 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 79 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -28,6 +28,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
 | Data and workspace | `vd:miudb`, `vd:vd-cli`, `vd:superwhisper`, `vd:aws`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:issue-invoice` |
+| Hiring and screening | `vd:resume-screen` |
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:cktovd`, `vd:workbench` |
 | Skill lifecycle | `vd:skill-creator`, `vd:skill-management`, `vd:skill-audit`, `vd:rule-miner`, `vd:skill-evolve` |
 | Repository readiness | `vd:agent-readiness` |
@@ -73,3 +74,5 @@ Use `vd:smartsheet` to discover and read sheets with bounded JSON commands, then
 Use `vd:voice-agent` to operate Retell through `vac` with bounded reads, explicit write authorization, current endpoint guidance, and structured recovery.
 
 Use `vd:tldraw-offline` to inspect, edit, persist, and verify canvases in the local tldraw desktop app. New canvases default to the injected feature visuals directory, with structural, persistence, and conditional visual completion gates.
+
+`vd:resume-screen` scores operator-supplied resumes against a JD into an Excel workbook (knockouts, a 100-point factor `Total` that is an Excel formula, overlays, fact-check). Role scorecards are profiles under the skill — add a new role with a profile file and one index row, not a fork of the skill. The operator provides the JD and resume files; the skill does not pull from Google Drive or LinkedIn Recruiter. Logged-in fact-check composes `vd:ego-browser`, or a named `vd:browser-profile` driven by `vd:agent-browser` in connect mode (`vd:browser` only if LinkedIn/GitHub anti-bot blocks the local profile).
