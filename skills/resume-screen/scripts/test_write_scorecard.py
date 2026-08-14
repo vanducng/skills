@@ -112,6 +112,38 @@ class WriteScorecardTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 m.main(["--input", str(payload), "--out", str(tmp / "out.xlsx")])
 
+    def test_omitted_factor_fails(self):
+        row = dict(JORDAN)
+        del row["Pipelines_25"]
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            payload = tmp / "in.json"
+            payload.write_text(json.dumps({"candidates": [row]}))
+            with self.assertRaises(SystemExit) as ctx:
+                m.main(["--input", str(payload), "--out", str(tmp / "out.xlsx")])
+            self.assertIn("Pipelines_25", str(ctx.exception))
+
+    def test_non_numeric_factor_fails(self):
+        row = dict(JORDAN)
+        row["Pipelines_25"] = "22 pts"
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            payload = tmp / "in.json"
+            payload.write_text(json.dumps({"candidates": [row]}))
+            with self.assertRaises(SystemExit) as ctx:
+                m.main(["--input", str(payload), "--out", str(tmp / "out.xlsx")])
+            self.assertIn("Pipelines_25", str(ctx.exception))
+
+    def test_empty_factor_fails(self):
+        row = dict(JORDAN)
+        row["Cloud_15"] = ""
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            payload = tmp / "in.json"
+            payload.write_text(json.dumps({"candidates": [row]}))
+            with self.assertRaises(SystemExit):
+                m.main(["--input", str(payload), "--out", str(tmp / "out.xlsx")])
+
     def test_sort_puts_waiver_before_other_out(self):
         out_row = {
             "name": "Riley Chen",

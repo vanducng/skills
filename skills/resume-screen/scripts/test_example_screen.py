@@ -2,15 +2,14 @@
 """End-to-end assertions for the fictional resume-screen example packet.
 
 No real PII. No Drive. Writes the workbook under tempfile — never overwrites
-the committed examples/sample-scorecard.xlsx. Browser CLI presence on PATH
-does not skip the SKILL.md / fact-check.md routing contract.
+the committed examples/sample-scorecard.xlsx. SKILL.md / fact-check.md routing
+is contract-tested regardless of whether browser CLIs are on PATH.
 """
 
 from __future__ import annotations
 
 import importlib.util
 import re
-import shutil
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -277,13 +276,6 @@ class BrowserRoutingContractTests(unittest.TestCase):
         root = SKILL.parent
         for name in ("ego-browser", "agent-browser", "browser-profile"):
             self.assertTrue((root / name / "SKILL.md").is_file(), name)
-
-    def test_browser_cli_presence_does_not_skip_routing_contract(self):
-        # Probe only. Installed CLIs on a developer machine are OK.
-        shutil.which("ego-browser")
-        shutil.which("agent-browser")
-        self.test_routes_to_sibling_skills_by_name()
-        self.test_fallback_marks_login_walled_linkedin_unverified()
 
 
 if __name__ == "__main__":

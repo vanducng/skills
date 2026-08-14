@@ -105,17 +105,25 @@ def lookup(row: dict, *names: str):
 
 
 def as_number(value, default=0):
+    parsed = parse_number(value)
+    return default if parsed is None else parsed
+
+
+def parse_number(value):
+    """Return int/float, or None if missing / empty / non-numeric."""
     if value is None or value == "":
-        return default
+        return None
+    if isinstance(value, bool):
+        return None
     if isinstance(value, (int, float)):
         return value
     text = str(value).strip()
-    if text.startswith("="):
-        return default
+    if not text or text.startswith("="):
+        return None
     try:
         return int(text) if re.fullmatch(r"-?\d+", text) else float(text)
     except ValueError:
-        return default
+        return None
 
 
 def load_input(path: Path) -> dict:
@@ -132,8 +140,10 @@ def load_input(path: Path) -> dict:
 
 
 def factor_value(row: dict, factor_id: str) -> float:
-    raw = lookup(row, factor_id)
-    return as_number(raw, 0)
+    parsed = parse_number(lookup(row, factor_id))
+    if parsed is None:
+        raise ValueError(f"{factor_id} missing or not a number")
+    return parsed
 
 
 def computed_total(row: dict, factors: list[dict]) -> float:
@@ -165,7 +175,13 @@ def validate(rows: list[dict], factors: list[dict]) -> None:
         if not lookup(row, "file"):
             errors.append(f"row {i}: missing file (operator-provided resume path or URL)")
         for factor in factors:
-            value = factor_value(row, factor["id"])
+            raw = lookup(row, factor["id"])
+            value = parse_number(raw)
+            if value is None:
+                errors.append(
+                    f"row {i}: {factor['id']} missing or not a number ({raw!r})"
+                )
+                continue
             maximum = factor["max"]
             if value < 0 or value > maximum:
                 errors.append(f"row {i}: {factor['id']}={value} outside 0–{maximum}")
@@ -457,9 +473,9 @@ def main(argv: list[str] | None = None) -> int:
     rows = list(payload.get("candidates") or [])
     if not rows:
         sys.exit("no candidates in input")
+    validate(rows, factors)
     if not args.no_sort:
         rows = sort_candidates(rows, factors)
-    validate(rows, factors)
 
     meta = {
         "profile": args.profile or payload.get("profile") or "data-platform-engineer",
