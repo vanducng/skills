@@ -21,7 +21,7 @@ Rebuild the committed demo workbook (explicit; unittest does not do this):
 python3 ../scripts/build-example-workbook.py
 ```
 
-Assertions (formulas, columns, archetypes, no PII, browser-routing contract). Tests write a workbook under a temp dir and do not touch `sample-scorecard.xlsx`. CI runs both suites from `.github/workflows/validate.yml` (same step as the other skill unittests):
+Assertions (formulas, columns, archetypes, no PII, browser-routing contract). Tests write a workbook under a temp dir and do not touch `sample-scorecard.xlsx`; they also compare `sheet1.xml` of that temp file to the committed workbook so the xlsx cannot silently drift from `scored-candidates.json`. CI runs both suites from `.github/workflows/validate.yml` (same step as the other skill unittests):
 
 ```bash
 python3 ../scripts/test_example_screen.py

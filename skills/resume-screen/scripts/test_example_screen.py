@@ -150,6 +150,18 @@ class ExampleScreenTests(unittest.TestCase):
         self.assertTrue(self.xlsx.is_file())
         self.assertNotEqual(self.xlsx.resolve(), (EXAMPLES / "sample-scorecard.xlsx").resolve())
 
+    def test_committed_workbook_matches_json_source(self):
+        committed = EXAMPLES / "sample-scorecard.xlsx"
+        self.assertTrue(committed.is_file(), committed)
+        self.assertNotEqual(self.xlsx.resolve(), committed.resolve())
+        with zipfile.ZipFile(self.xlsx) as fresh, zipfile.ZipFile(committed) as tracked:
+            self.assertEqual(
+                fresh.read("xl/worksheets/sheet1.xml"),
+                tracked.read("xl/worksheets/sheet1.xml"),
+                "examples/sample-scorecard.xlsx drifted from scored-candidates.json; "
+                "run scripts/build-example-workbook.py",
+            )
+
     def test_resume_files_exist_and_are_the_file_targets(self):
         for slug in ("jordan-hale", "morgan-ellis", "riley-chen", "avery-kim"):
             beside_xlsx = EXAMPLES / "resumes" / f"{slug}.md"
