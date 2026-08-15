@@ -39,3 +39,12 @@ Run `bash scripts/validate.sh` for any skill change, and `bash scripts/check-doc
 ## Commit & Pull Request Guidelines
 
 Commit history follows Conventional Commits. Use scopes for focused components, for example `feat(file-browser): add preview mode` or `fix(diagram): validate skeleton schema`. Skill-only changes may omit a scope, as in `feat: add my-new-skill`. Do not mention AI tools in commit messages. Pull requests should describe the change, list validation commands run, link related issues, and include screenshots or sample output when changing rendered assets, browser UI, diagrams, or CLI output.
+
+## Cursor Cloud specific instructions
+
+The base image already provides everything the core suite needs: Bash, Python 3 (stdlib only), Node.js 22, and Go. The cloud update script only runs `npm install` in the two sub-projects that have lockfiles (`skills/file-browser` and `docs`); everything else needs no dependency install.
+
+- Core validation + tests (the same suite as `.github/workflows/validate.yml`) run with zero dependency install: `bash scripts/validate.sh`, the `python3` hook/skill test files listed in that workflow, `bash scripts/check-release-versions.sh`, and `bash scripts/check-docs-site.sh --check`. See the "Build, Test, and Development Commands" and "Testing Guidelines" sections above for the canonical commands.
+- `skills/file-browser`: after `npm install` (its `postinstall` fetches PDF.js viewer assets), run `npm test` / `npm start`. Non-obvious runtime caveats when launching the server directly (`node scripts/server.cjs`): it takes CLI flags (`--dir <path>` or `--file <path>`), NOT env vars; it forks/backgrounds by default, so pass `--foreground` to keep it in the current process; and it only binds within ports 3556–3600 (`--port` outside that range fails with "No available port"). It binds to `localhost` by default. Browse a directory at `/browse?dir=<url-encoded-abs-path>` and view a file at `/view?file=<url-encoded-abs-path>`.
+- `docs`: after `npm install`, build with `npm run build` or serve with `npm run dev` (Astro + Starlight). `llms*.txt` are generated at build time — never hand-edit.
+- Other skills carry optional, skill-specific dependencies (e.g. `skills/twitter` and `skills/omnimedia` Python `requirements.txt`, `skills/show-off/scripts` and `skills/browser-trace` npm packages, plus various external API keys/CLIs). These are intentionally NOT installed by the update script; install them on demand only when exercising that specific skill.
