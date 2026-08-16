@@ -1,62 +1,36 @@
 # Autonomy modes - `manual` / `semi` / `auto`
 
-Three modes control how often `vd:ultracook`'s executor pauses for user confirmation. Mode is set at intake (`goal.yaml.autonomy`) and can be edited in-place mid-flight - the executor re-reads goal.yaml each iteration.
+Three modes control how often the flow pauses for user confirmation. Mode is set when the goal is created (`state.json.autonomy`) and can be edited in place mid-flight - the executor re-reads state each iteration.
 
 ## Mode definitions
 
 | Mode | Gates on… | Use when |
 |---|---|---|
-| `manual` | EVERY action | Debugging the skill; first-time use; high-stakes goals |
-| **`semi`** (default) | First `plan` (initial design approval), `ship` (high blast radius), final `verify_*` actions | Normal workflow - most goals run here |
+| `manual` | EVERY stage | Debugging the skill; first-time use; high-stakes goals |
+| **`semi`** (default) | First `plan` approval (initial design), `ship` (high blast radius), the final stage's done-when check | Normal workflow - most goals run here |
 | `auto` | Nothing (only stops on terminal state) | Trusted small fixes; CI-driven runs; user is away |
 
-## Implementation: `scripts/should-gate.sh`
+**Hard gates override all modes** - the always-ask list in `conductor.md` (delete/deploy/migrations/secrets/broad codemods/expensive fan-outs) fires even in `auto`.
 
-```
-should-gate.sh --mode <mode> --action <name> --phase-state <first|repeat>
-  → exit 0  = GATE  (caller AskUserQuestion's the user)
-  → exit 1  = PROCEED (no gate)
-  → exit 2  = invalid input
-```
+## Gate semantics
 
-The `--phase-state` arg distinguishes "first time we hit this action this run" vs "we're retrying" - only `semi` mode uses this to gate on the FIRST `plan` but not on plan re-runs.
+- `semi` gates the **first** time a stage needs approval, not on retries of the same stage - re-gating every cook iteration is approval fatigue, the failure mode this mode exists to prevent.
+- Once a gate clears, escalate back to the user only on *exceptions* (unrelated test failure, merge conflict, non-auto-fixable structural error, service down after retries, never-seen error).
+- Gate questions are one clear decision each, with the evidence attached ("Plan written - N phases, audit found 1 HIGH. Approve, revise, or abort?"). Where Plannotator is installed, plan approval rides its plan-review hook instead of a terminal question.
 
-## Gate selection per mode (default policies)
+## On `blocked`
 
-`semi` gates when ANY of:
-- action = `plan` AND phase_state = first
-- action = `ship`
-- action = `verify_smoke`
-- action's `gate_default` in action-vocab.yaml contains `"semi"`
-
-`manual` gates always.
-
-`auto` gates never.
-
-User-level override: even in `auto`, a goal.yaml field `gates: [list]` (v0.2) could force gates on named actions. Not in v0.1 - edit autonomy mode instead.
-
-## Terminal-blocked push notification
-
-On `state.terminal = blocked` in `semi` or `auto` mode, SKILL.md emits `PushNotification` with:
-
-```
-title:  "vd:ultracook blocked"
-body:   "{slug}: {blocker_reason}"
-deep_link: "<path-to-journal-entry>"
-```
-
-This pages the user if they walked away. `manual` mode skips the push (user is present and watching).
+When `state.terminal = blocked` in `semi` or `auto`, surface loudly: print the blocker reason and the journal/state path, and use the host's notification primitive if one exists (the user may have walked away). `manual` mode skips the notification - the user is present.
 
 ## Mid-flight edits
 
-Switching modes by editing `goal.yaml.autonomy` is the supported override path. Examples:
+Editing `state.json.autonomy` is the supported override path:
 
-- Stuck in `manual` and tired of clicking? Edit to `semi` - the next iteration's `should-gate.sh` call respects the new mode.
-- Running `auto` and want to inspect mid-cook? Edit to `manual` - the next action will gate.
-- Want to skip the `verify_smoke` gate? Either drop the action from `goal.yaml.actions`, or move to `auto`.
+- Stuck in `manual` and tired of clicking? Edit to `semi` - the next stage respects it.
+- Running `auto` and want to inspect mid-cook? Edit to `manual` - the next stage gates.
 
 ## Anti-patterns
 
-- **Hardcoding gates inside scripts.** All gate logic flows through `should-gate.sh`. Other scripts call it; no script makes gate decisions independently.
-- **`auto` mode default for first-time users.** The skill ships `semi` as the intake default for a reason - `auto` requires trust calibration that only comes from successful semi runs.
-- **Removing the `ship` gate from `semi`.** Ship is the highest blast-radius action. Always keep its semi gate unless you also remove ship from the sequence entirely.
+- **`auto` as the default for first-time users.** `semi` is the default for a reason - `auto` requires trust calibration that only comes from successful semi runs.
+- **Removing the `ship` gate from `semi`.** Ship is the highest blast-radius stage. Keep its gate unless ship isn't in the flow at all.
+- **Vague gate conditions.** "Proceed if confident" is not a gate. Every gate resolves to a checkable question.
