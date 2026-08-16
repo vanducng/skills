@@ -13,7 +13,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Discover | `vd:scout`, `vd:graphify`, `vd:research`, `vd:brainstorm` |
 | Plan | `vd:plan`, `vd:plan-audit`, `vd:scenario` |
 | Execute | `vd:cook`, `vd:fix`, `vd:debug`, `vd:codex-workflow` |
-| Review and ship | `vd:code-review`, `vd:code-refactor-review`, `vd:simplify`, `vd:zero-tech-debt`, `vd:security`, `vd:ship`, `vd:git` |
+| Review and ship | `vd:code-review`, `vd:code-refactor-review`, `vd:miucr`, `vd:simplify`, `vd:zero-tech-debt`, `vd:security`, `vd:ship`, `vd:git` |
 | Iterate | `vd:auto-loop`, `vd:optimize-loop` |
 | Orchestrate | `vd:ultracook` |
 
@@ -60,7 +60,7 @@ Within browser automation, `vd:ego-browser` drives logged-in browsing through is
 
 Use `vd:scout` when you need a map, `vd:debug` when behavior is failing, `vd:plan` when the implementation path is not yet concrete, `vd:cook` when a plan is ready to execute, and `vd:ship` when the work is tested and ready for remote.
 
-Within review, the four passes answer different questions: `vd:code-review` asks whether a change is ready to land and posts inline PR comments, `vd:code-refactor-review` stays local and asks whether the change fits the codebase or reads as slop, `vd:simplify` reduces reading complexity with behavior frozen, and `vd:zero-tech-debt` reshapes a working feature into the form it should have had from day one, deleting compatibility paths only after proving them dead.
+Within review, the four passes answer different questions: `vd:code-review` asks whether a change is ready to land and posts inline PR comments, `vd:code-refactor-review` stays local and asks whether the change fits the codebase or reads as slop, `vd:simplify` reduces reading complexity with behavior frozen, and `vd:zero-tech-debt` reshapes a working feature into the form it should have had from day one, deleting compatibility paths only after proving them dead. `vd:miucr` is the deterministic owned reviewer CLI (`miu-cr`) for when the review itself must be reproducible and gated by severity thresholds rather than agent judgment.
 
 Use `vd:docs` for canonical internal project docs and ADRs. Use `vd:tech-docs` to create, modernize, validate, and ship a rendered public developer documentation site.
 
