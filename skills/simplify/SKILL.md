@@ -1,12 +1,12 @@
 ---
 name: simplify
-description: "Reduce the complexity of existing code without changing behavior - deep nesting, long functions, dead code, unclear names, the wrong abstraction. Use after a feature works but reads heavier than it should, or to clean up code written under time pressure. Triggers: 'simplify this', 'clean up this code', 'reduce complexity', 'refactor for clarity', 'this is hard to read', 'untangle this'."
+description: "Reduce the complexity of existing code - default freezes behavior (nesting, long functions, dead code, unclear names); --aggressive reshapes as if designed right from day one (delete compat cruft, collapse mode flags); --scan surveys the codebase for refactor candidates and reports. Triggers: 'simplify this', 'clean up this code', 'reduce complexity', 'this is hard to read', 'untangle this', 'zero tech debt', 'remove the compat layer', 'rebuild this as if from scratch', 'where should we refactor'."
 license: MIT
-argument-hint: "[path or scope] (defaults to recently changed code)"
+argument-hint: "[path or scope] [--aggressive | --scan] (defaults to recently changed code)"
 metadata:
   author: vanducng
   attribution: "Adapted from addyosmani/agent-skills code-simplification and the Claude code-simplifier plugin"
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # simplify
@@ -19,12 +19,26 @@ The goal is **not fewer lines** - it's code a new teammate understands faster. E
 
 | Skill | When | Output |
 |---|---|---|
-| **`vd:simplify`** (this) | Existing code works but reads heavy - reduce complexity, behavior unchanged | Refactor commits, tests still green |
+| **`vd:simplify`** (this) | Existing code works but reads heavy or carries historical shape | Refactor commits, tests still green |
 | `vd:cook` | Writing new code | Simplicity is built in at write-time (Pragmatism rules), not a later pass |
-| `vd:code-review` | Judging someone's diff | Reports findings; never edits |
+| `vd:code-review` | Judging someone's diff (`--refactor` for the fit/slop lens) | Reports findings; never edits |
 | `vd:fix` | Code is broken | Changes behavior to fix a bug |
 
 Use this when the code is *correct but cluttered*. If it's buggy, that's `vd:fix`. If you're still writing it, that's `vd:cook`.
+
+## Modes
+
+| Mode | Question | Surface contract |
+|---|---|---|
+| **default** | "Can this read easier?" | Behavior **and** surface frozen - readability only |
+| `--aggressive` | "What shape should this have had from day one?" | May change the surface: delete dead paths, collapse mode flags, rename to product intent. Full playbook: [`references/aggressive.md`](references/aggressive.md) |
+| `--scan` | "Where in this codebase is refactoring worth it?" | No edits - explores and reports candidates; user picks one, then run default or `--aggressive` on it |
+
+Shape first, reading second: when both apply, run `--aggressive` before the default pass - polishing code you're about to delete is waste.
+
+### `--scan` - find the candidates
+
+Explore organically - follow the code's actual seams, don't walk a rigid checklist. Look for **deepening opportunities**: shallow modules (big interface, thin logic), one concept implemented twice under different names, boundaries that leak implementation detail, god files that every change touches, historical shape (compat layers, `v2` suffixes, mode flags). For each candidate write: what it is (`path`), why it hurts (evidence - churn from `git log`, duplication cites), the before/after shape in 2-3 lines, and a recommendation strength (do-now / worthwhile / marginal). Cap at ~6 candidates, strongest first. Write the report to the injected `Reports:` path as `simplify-scan-{date}-{slug}.md`, surface the top 3 inline, and stop - the user picks; don't start refactoring unprompted. To sharpen a picked candidate's end state, grill it: `vd:brainstorm --grill`.
 
 ## When to use
 
@@ -34,9 +48,9 @@ Use this when the code is *correct but cluttered*. If it's buggy, that's `vd:fix
 
 **Not for:** code that's already clean (don't simplify for its own sake), code you don't yet understand (comprehend first), hot paths where the simpler form is measurably slower, or a module you're about to rewrite anyway.
 
-## Hard rules
+## Hard rules (default mode)
 
-1. **Behavior is frozen.** Same output for every input, same errors, same side effects and ordering. If you're unsure a change preserves behavior, don't make it.
+1. **Behavior is frozen.** Same output for every input, same errors, same side effects and ordering. If you're unsure a change preserves behavior, don't make it. (`--aggressive` relaxes only the *surface* part - the surviving flow's behavior stays frozen; its rules live in the reference.)
 2. **Tests are the proof.** Run them after every single change. A simplification that needs a test edited to pass is a behavior change in disguise - stop and reconsider.
 3. **One change at a time.** Batching means you can't tell which edit broke something.
 4. **Refactor commits stand alone.** Never mix a `refactor:` with a `feat:`/`fix:`. Two concerns = two commits (or two PRs).
@@ -106,7 +120,8 @@ Step back: is it genuinely easier to understand? Did you introduce a pattern for
 ## Integration points
 
 - **`vd:cook`** - Step E surfaces complexity during a feature; bank the note and run `vd:simplify` as a *separate* follow-up commit, never tangled into the feature diff.
-- **`vd:code-review`** - review flags complexity (report-only); this skill is how you act on it.
+- **`vd:code-review`** - review flags complexity and cruft (report-only; `--refactor` for the fit lens); this skill is how you act on it.
+- **`vd:brainstorm --grill`** - sharpen a `--scan` candidate's end state before reshaping.
 - **`vd:git`** - refactor commits stay isolated per the `vd:git` skill's `references/commit-standards.md`.
 
 ## Future (out of scope for MVP)

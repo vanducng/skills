@@ -1,30 +1,10 @@
----
-name: zero-tech-debt
-description: "Rework a change as if the intended architecture existed from day one - delete compatibility cruft, collapse mode flags, and reshape around the final product surface. Use after a feature works but still carries the scars of how it was built. Triggers: 'zero tech debt', 'rebuild this as if from scratch', 'remove the compat layer', 'what would this look like if we designed it right', 'this flag exists only for the old path'."
-license: MIT
-argument-hint: "[path, PR, or scope] (defaults to the current branch diff)"
-metadata:
-  author: vanducng
-  version: "0.1.0"
----
-
-# zero-tech-debt
+# Aggressive mode (`--aggressive`) - zero tech debt
 
 > Optimize for the code that should exist, not for the smallest diff from the code that does.
 
-A working feature usually encodes its own history: a mode flag from the migration, a wrapper kept "just in case", a route alias nobody hits, a prop threaded three levels for one caller that no longer exists. This skill removes the history and leaves the end state.
+A working feature usually encodes its own history: a mode flag from the migration, a wrapper kept "just in case", a route alias nobody hits, a prop threaded three levels for one caller that no longer exists. Aggressive mode removes the history and leaves the end state. Unlike default simplify, it **may change the surface** - delete dead paths, collapse flags, rename to product intent.
 
-## What this skill is - and isn't
-
-| Skill | When | Behavior |
-|---|---|---|
-| **`vd:zero-tech-debt`** (this) | Feature works but its *shape* is historical | **May change the surface** - delete dead paths, collapse flags, rename to product intent |
-| `vd:simplify` | Code reads heavy but the shape is right | Behavior frozen - readability only |
-| `vd:code-refactor-review` | Judging someone's diff for fit and slop | Reports; edits only when asked |
-| `vd:cook` | Writing new code | Builds the end state first time |
-| `vd:fix` | Code is broken | Changes behavior to correct a bug |
-
-Rule of thumb: if deleting the old path would break a *real* caller, that's a migration, not this skill.
+Rule of thumb: if deleting the old path would break a *real* caller, that's a migration, not this mode.
 
 ## When to use
 
@@ -38,10 +18,10 @@ Rule of thumb: if deleting the old path would break a *real* caller, that's a mi
 ## Hard rules
 
 1. **Write the end state first.** One or two sentences, before touching anything. Can't state it? You're designing, not refactoring - go to `vd:brainstorm`.
-2. **Prove dead before deleting.** A search that returns zero callers is evidence. "Probably unused" is not. See the recipe below.
+2. **Prove dead before deleting.** A search that returns zero callers is evidence. "Probably unused" is not.
 3. **The intended flow's behavior is frozen.** You may delete paths nobody uses; you may not quietly change what the surviving path does. That's a separate commit.
 4. **No framework for one feature.** Collapsing three flags into one clear component is the goal. Inventing a plugin registry is the failure.
-5. **Refactor commits stand alone.** Never mixed with a `feat:` or `fix:`. Deletion commits are their own reviewable unit.
+5. **Deletion commits are their own reviewable unit.**
 6. **Scope stops at coherence.** Include what makes the final shape make sense. Everything else is a follow-up.
 
 ## Workflow
@@ -87,7 +67,7 @@ rg -n '<dag_id>|<task_id>' dags/                     # Airflow references
 ### 3. Reshape around the final surface
 
 - One clear component, function, or flow instead of one generic thing with mode flags.
-- Split only on a real boundary: different state ownership, different layout, different permissions, different domain command. "It got long" is not a boundary - that's `vd:simplify`.
+- Split only on a real boundary: different state ownership, different layout, different permissions, different domain command. "It got long" is not a boundary - that's default simplify.
 - When two backing entities are one product concept, unify them into a single model at the boundary and split back only at the adapter or persistence layer.
 
 ### 4. Move shared rules to one place
@@ -116,11 +96,8 @@ Tests that had to be edited to pass are a signal: either behavior changed (rever
 - **Scope drift.** "While I'm here" is how a 200-line cleanup becomes an unreviewable 2000-line one.
 - **Deleting the only test coverage** along with the dead path, leaving the surviving path untested.
 
-## Integration points
+## Hand-offs
 
-- **`vd:cook`** - run this as a follow-up pass after the feature is green, never tangled into the feature diff.
-- **`vd:simplify`** - complementary: this fixes the *shape*, that fixes the *reading*. Shape first.
-- **`vd:code-refactor-review`** - use it to find the cruft; use this to remove it.
-- **`vd:scout`** - when the caller search spans services or repos, dispatch it rather than grepping by hand.
-- **`vd:git`** - deletions and renames land as separate `refactor:` commits.
-- **`vd:ship`** - deprecation-path items become changelog entries, not silent removals.
+- `vd:code-review --refactor` finds the cruft; this mode removes it.
+- `vd:scout` when the caller search spans services or repos.
+- `vd:ship` - deprecation-path items become changelog entries, not silent removals.
