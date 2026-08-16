@@ -1,11 +1,11 @@
 ---
 name: brainstorm
-description: "Explore the solution space when the path isn't obvious - invent options, stress-test them, pick one. Use for architecture decisions, design tradeoffs, ambiguous problems, and when the user asks 'how should I approach X?'. Default produces a decision brief; pass `--quick` for chat-only, `--deep` for multi-round adversarial debate with full design doc."
+description: "Explore the solution space when the path isn't obvious - invent options, grill the user through the open decisions, pick one. Use for architecture decisions, design tradeoffs, ambiguous problems, when the user asks 'how should I approach X?', or says 'grill me' / 'interview me' / 'sharpen this idea'. Default produces a decision brief with Plannotator-first grilling rounds; pass `--grill` for interview-only, `--quick` for chat-only, `--deep` for multi-round adversarial debate with full design doc."
 license: MIT
-argument-hint: "[topic or problem] [--quick | --deep]"
+argument-hint: "[topic or problem] [--grill | --quick | --deep]"
 metadata:
   author: vanducng
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # Brainstorm
@@ -18,7 +18,7 @@ metadata:
 | **`vd:brainstorm`** | **"How should I approach this - what are the options?"** | **Decision brief with 3+ invented/curated approaches** |
 | `vd:plan` | "Given the chosen approach, what are the steps?" | Phased implementation plan |
 
-Brainstorm is **solution-space exploration**. You may end up recommending a known pattern, but the job is to surface paths the user hasn't considered, then converge.
+Brainstorm is **solution-space exploration** with two motions: **diverge** (invent genuinely different options) and **converge** (grill the user through every load-bearing decision until nothing ambiguous remains - see [`references/grilling.md`](references/grilling.md)). You may end up recommending a known pattern, but the job is to surface paths the user hasn't considered, then converge decisively.
 
 ## Hard rules
 
@@ -33,7 +33,8 @@ Brainstorm is **solution-space exploration**. You may end up recommending a know
 | Mode | When | Output |
 |---|---|---|
 | `--quick` | Single decision, low stakes, user wants chat | Verbal recommendation only - no file written |
-| **default** | Standard architecture/design decision | Decision brief saved to disk |
+| `--grill` | The idea/approach already exists - sharpen it via interview, no new options needed. Also the entry point `vd:plan` and `vd:ultracook` use when they hit an underspecified decision | Grilling rounds (Plannotator-first) until the frontier is empty; sharpened summary in chat or appended to the calling artifact |
+| **default** | Standard architecture/design decision | Decision brief saved to disk, sharpened through grilling rounds |
 | `--deep` | High-stakes, multi-component, irreversible | Full design doc with red-team round, decomposition, migration paths |
 
 Detect mode from the argument or the user's language ("just a quick take" → `--quick`, "this is going to production" / "we need to get this right" → `--deep`). Announce the mode in your first message.
@@ -49,9 +50,11 @@ Before generating options, write down (in your reply, briefly):
 - **Out of scope** - name what this decision explicitly is *not* solving, so options don't sprawl. Carry these into the brief's Non-goals.
 - **Reversibility** - how expensive to switch later. High reversibility → bias toward speed. Low reversibility → bias toward depth.
 
-If any of those are unclear or assumed, **ask before generating options**. Generating 3 wrong-shaped options because you assumed the constraints wastes the whole session.
+If any of those are unclear or assumed, **grill before generating options**. Generating 3 wrong-shaped options because you assumed the constraints wastes the whole session.
 
-**How to ask:** one clarifying question per message. Prefer multiple choice (A/B/C) over open-ended when the answer space is bounded - it's faster to answer and surfaces hidden assumptions. Save open-ended for "what does success look like?" style framing. Don't stack 4 questions in one reply.
+**How to ask - grill in rounds.** Follow [`references/grilling.md`](references/grilling.md): model the decision as a tree, resolve every fact yourself (code, docs, web - never ask the user for facts), then emit each round as *all* currently-askable decision questions at once, numbered, each with a recommended answer. **Plannotator-first**: when `plannotator` is available, write the round as an annotatable brief and open it with `plannotator-annotate` so the user answers via inline comments, deletions, and labels; fall back to chat rounds otherwise. Rotate coverage angles (scope, failure, data, reversibility, ops, sequencing) across rounds. Done when the frontier is empty.
+
+In `--grill` mode this loop *is* the whole session: skip Phases 2-5, grill until the frontier is empty, then hand the sharpened decision back (to the user, or to the calling skill).
 
 ### Scope check (mandatory)
 
@@ -84,6 +87,8 @@ If you find yourself generating "X with Postgres / X with MySQL / X with SQLite"
 For a deeper toolkit (SCAMPER, How-Might-We, JTBD, pre-mortem), see [`references/ideation-frameworks.md`](references/ideation-frameworks.md).
 
 Where helpful, pull in proven patterns: search the web (`WebSearch`), read library docs, scan the codebase. Don't invent in a vacuum when the wheel exists. But also don't *only* surface known options - the user could have searched too.
+
+**When an option's viability hinges on a question no document can answer** ("is this API ergonomic?", "is it fast enough?"), take a prototype detour: build the smallest throwaway thing that answers it, on a `prototype/` branch, and feed the measured answer back into Phase 3. Rules in [`references/prototype.md`](references/prototype.md).
 
 **For visual brainstorming** (UI layouts, page/dashboard structure, comparing visual designs): produce a **visual draft** alongside text options - a single static HTML page rendering A/B/C panels in the browser, so the user can react to shapes, not just words. See [Visual draft mode](#visual-draft-mode) below. The brief itself stays text-only - visual drafts are intermediate artifacts.
 
@@ -220,7 +225,11 @@ After writing the brief, re-read it with fresh eyes and fix issues inline. No se
 
 ### User review gate
 
-After self-review, surface the file with an openable location and stop. Do not auto-invoke `vd:plan`:
+After self-review, surface the brief for annotation and stop. Do not auto-invoke `vd:plan`.
+
+**Plannotator available:** open the brief with `plannotator-annotate <path>` - the user reviews it as a document, marking deletions (cut scope), comments (change direction), and labels; their annotations come back as structured feedback. Apply the feedback, re-run self-review, and re-surface (the version trail shows what changed between iterations).
+
+**Otherwise:**
 
 > Brief saved to `[brainstorm-topic.md](/absolute/path/to/brainstorm-topic.md)` (`file:///absolute/path/to/brainstorm-topic.md`). Recommendation: **{Option X}**, runner-up **{Option Y}** if {condition}. Please review and tell me if you want changes - or say "plan it" and I'll hand off to `vd:plan`.
 
@@ -340,7 +349,7 @@ The brainstorm's job is to pick the direction. Materializing it is downstream.
 
 ## Output rules
 
-1. Announce mode (`--quick` / default / `--deep`) in your first reply
+1. Announce mode (`--quick` / `--grill` / default / `--deep`) in your first reply
 2. Phase 1 (frame + scope check) happens *before* any option generation - visible to the user
 3. If decomposition triggers, stop and ask - do not deepen
 4. Default and `--deep` modes save the brief to disk; `--quick` does not
@@ -354,6 +363,8 @@ The brainstorm's job is to pick the direction. Materializing it is downstream.
 **Typically follows:** `vd:scout` (after surveying the surface), `vd:debug` (when the diagnosis exposes a design decision worth re-deciding), or a fresh ambiguous request
 
 **Typically precedes:** `vd:plan` (for the chosen approach), or `vd:research` (if Phase 3 surfaced an unknown option that needs deep evaluation)
+
+**Invoked by:** `vd:plan` and `vd:ultracook` (semi mode) call `vd:brainstorm --grill` when they hit an underspecified decision mid-flow
 
 **Compares to:** `vd:research` (known options, cited comparison) - when the user names options, prefer `research`; when the path is unclear, prefer `brainstorm`
 

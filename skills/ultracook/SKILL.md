@@ -1,109 +1,103 @@
 ---
 name: ultracook
-description: "Dynamic workflow conductor. Classifies a coding task, picks the smallest viable workflow - direct, pipeline (brainstorm → plan → cook → ship), or parallel fan-out - stays interactive until a gate clears, then runs autonomously to verified done. Dual-runtime (Claude Code + Codex) with on-disk resumable state and hard guardrails. Use when the user types ultracook / $ultracook, asks to orchestrate, run the whole pipeline, drive a feature/fix/migration end-to-end, or split work across agents."
+description: "Workflow conductor over the vd: skill stack. Classifies a coding task, picks the smallest viable workflow - direct, pipeline (brainstorm → plan → cook → review → ship), or parallel fan-out - stays interactive until a gate clears, then runs autonomously to verified done, with resumable on-disk state. Use when the user types ultracook / $ultracook, asks to orchestrate, run the whole pipeline, drive a feature/fix/migration end-to-end, or split work across agents."
 license: MIT
-argument-hint: "[<short goal> | resume | status | kill --reason <text> | resolve <goal-dir>] [--reuse] [--manual | --semi | --auto]"
+argument-hint: "[<short goal> | resume | status | kill --reason <text>] [--reuse] [--manual | --semi | --auto]"
 metadata:
   author: vanducng
-  version: "0.4.0"
+  version: "1.0.0"
 ---
 
-# Ultracook - dynamic workflow conductor
+# Ultracook - workflow conductor
 
-`vd:ultracook` is the conductor over the `vd:` skill stack. Given a task it does two
-things, in order: **classify** it and pick the smallest viable workflow (the
-*conductor*), then run it through the right runtime primitives (the *router*). It
-composes existing skills - it never reimplements `vd:plan`, `vd:cook`, `vd:ship`, etc.
-
-The spine is **brainstorm → plan → cook → ship**, but ultracook runs only the slice a
-task earns: a typo goes `direct` (no machinery); a feature goes `pipeline`
-(intake → executor, gating at high-blast transitions, then autonomous); a repo-wide
-migration goes `fan-out` (parallel packets). It stays human-in-the-loop until a gate
-clears, then drives autonomously to a terminal state, with state on disk so it
-resumes across context compaction.
-
-This file is the entry point. It runs triage, detects the runtime (Claude Code or
-Codex), and dispatches to the adapter under `runtimes/`.
+Ultracook is a **map, not a cage**. Given a task it classifies the work, picks the smallest slice of the **brainstorm → plan → cook → review → ship** spine that the task earns, and then runs that flow by invoking the named skills - each stage's discipline lives in the invoked skill, never here. A typo goes `direct` (no machinery); a feature goes `pipeline`; a repo-wide migration goes `fan-out`. Every skill it composes stays independently invokable.
 
 ## Quick reference
 
 | Form | Action |
 |---|---|
-| `vd:ultracook "<goal>"` | New goal - intake → goal.yaml + state.json → executor loop |
-| `vd:ultracook` (no args) | Resume - auto-detect most recent in-progress goal-dir, skip intake, jump to executor |
-| `vd:ultracook status [--all]` | One-screen status; `--all`/`--list` enumerates every goal-dir (scripts/status.sh) |
-| `vd:ultracook kill --reason "<text>"` | Write terminal=abandoned + cancel.sentinel (scripts/kill.sh - runtime-agnostic) |
-| `vd:ultracook resolve <goal-dir>` | Dry-run the resolved workflow (scripts/resolve-workflow.sh - runtime-agnostic) |
-| `vd:ultracook install-hooks [--apply\|--uninstall]` | Register Codex hooks in `~/.codex/config.toml` (scripts/install-hooks.sh) |
+| `vd:ultracook "<goal>"` | New goal - classify → confirm flow → state.json → run stages |
+| `vd:ultracook` (no args) | Resume - list in-progress goals (`scripts/status.sh <state-base>`); exactly one → continue it from the first stage that is neither done nor skipped, several → ask which (no silent newest-wins) |
+| `vd:ultracook status [<slug>]` | One-line status per goal; stage detail for one (`scripts/status.sh <state-base>[/<slug>]`) |
+| `vd:ultracook kill --reason "<text>"` | Mark abandoned (`scripts/kill.sh`; refuses if already terminal). If a `vd:auto-loop` is active, also cancel it via auto-loop's own cancel command |
 
-Flags: `--reuse` (no worktree), `--manual` / `--semi` (default) / `--auto` (autonomy). CI/exec: `--target-kind` `--action-shape` `--autonomy` (+`--branch` `--reuse-worktree`) with `ULTRACOOK_EXEC=1` skip intake.
+Flags: `--reuse` (work in the current checkout instead of a `vd:worktree`), `--manual` / `--semi` (default) / `--auto` (autonomy - see `references/autonomy-modes.md`).
 
-## Conductor - classify first
+## Step 1 - Classify
 
-Before any dispatch, classify the task and pick a **mode** (how much workflow) and an
-**autonomy** (how often to gate). Full heuristics + gate map in
-[`references/conductor.md`](references/conductor.md); the short form:
+Read the goal and pick a **mode** (how much workflow) and an **autonomy** (how often to gate). Full heuristics, gate map, and fan-out packet shapes in [`references/conductor.md`](references/conductor.md); the short form:
 
 | Mode | Pick when | What runs |
 |---|---|---|
-| `direct` | trivial, clear, single-surface, reversible | do it inline - **no goal-dir** - narrowest check, report |
-| `pipeline` | real feature/fix, phases, uncertainty, blast radius | intake → executor (brainstorm/plan/cook/ship slice) → `vd:auto-loop` → verify |
-| `fan-out` | repo-wide / migration / N-finder audit, independent packets | parallel packets via the runtime's native primitive; parent owns integration |
+| `direct` | trivial, clear, single-surface, reversible | do it inline - **no state file** - narrowest useful check, report |
+| `pipeline` | real feature/fix, phases, uncertainty, blast radius | compose a stage flow (below), run to terminal |
+| `fan-out` | repo-wide / migration / N-finder audit, independent packets | parallel subagents with disjoint write scope; parent owns integration |
 
-Sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) and bare resume skip triage -
-they go straight to their scripts. `direct` mode finishes here without touching the
-executor. `pipeline` and `fan-out` continue to runtime dispatch below.
+`direct` finishes right here - do the task, run the narrowest check, done. If mid-task it turns out bigger than classified, stop and re-enter as `pipeline` (say so).
 
-**Progressive autonomy:** `semi` (default) gates the first `plan`, `ship`, and final
-`verify_*`, then runs autonomously; re-gate only on exceptions (unrelated test
-failure, merge conflict, non-auto-fixable error). Hard gates (delete, deploy,
-migration, secrets, broad codemod, expensive fan-out) always ask, even in `auto`.
+## Step 2 - Compose the flow (pipeline mode)
 
-## Runtime dispatch
+Pick the slice of the spine the task needs, as a list of **stages**. Each stage is a skill name plus a checkable **done-when** gate:
 
-1. Run `bash scripts/detect-runtime.sh`. Output is `claude-code`, `codex`, or `codex-exec`.
-2. If exit 3 (unknown - no env signals + no CLI on PATH): print "Cannot detect runtime. Set `ULTRACOOK_RUNTIME` env var explicitly."
-3. Else follow the runtime body:
-   - `claude-code` → see `runtimes/claude-code.md`
-   - `codex` → see `runtimes/codex.md` (interactive TUI - intake via `ask_user_question`)
-   - `codex-exec` → `runtimes/codex.md` in **CI / non-interactive mode**: skip interactive intake. Read default-answer flags (`--target-kind`, `--action-shape`, `--autonomy`; optional `--branch`, `--reuse-worktree`) into `ULTRACOOK_*` env, then `bash scripts/intake-complete.sh`. If it prints `ready` → call `init-goal.sh` directly. If `missing:`/`invalid:` → refuse with that exact line; never silently fall back to interactive intake.
+| Stage | Skill | Done when |
+|---|---|---|
+| brainstorm | `vd:brainstorm` (or `--grill` to sharpen an existing idea) | decision brief approved / grilling frontier empty |
+| plan | `vd:plan` | plan files written and approved - Plannotator's plan-review hook intercepts the handoff where installed; add `vd:plan --audit` before cook when stakes are high |
+| cook | `vd:cook --auto` | all phases completed and the plan's Definition of Done passes (`eval-dod.sh` exit 0) |
+| review | `vd:code-review` | review pass with no blocking findings |
+| ship | `vd:ship` | PR open and CI green (never auto-merge on this repo) |
 
-`codex-exec` is an explicit exec contract: set `ULTRACOOK_EXEC=1` (or `ULTRACOOK_RUNTIME=codex-exec`). detect-runtime.sh never infers exec from TTY/process state - no env var distinguishes `codex exec` from `codex` TUI in codex-cli. When both Claude and Codex env signals are present, detection assumes `claude-code` (CODEX_SESSION_ID leaks via `inherit=all`); override with `ULTRACOOK_RUNTIME=codex`.
+Common slices: ambiguous spec → all five; clear fix → `cook → review → ship`; "just plan it" → `plan` only; cross-cutting refactor → `plan → cook → review`. Stages the task doesn't need are skipped, not ceremonially run. Other skills slot in the same way when the goal calls for them (`vd:scout` before plan, `vd:fix` instead of cook for a diagnosed bug, `vd:simplify` after review) - a stage is just a skill name + done-when, there is no fixed vocabulary.
 
-The sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) short-circuit the runtime dispatch - they invoke `scripts/<sub-verb>.sh` directly because those scripts are runtime-agnostic.
+In `semi`/`manual`, show the proposed flow (one line per stage with its done-when) and let the user edit before starting. In `auto`, the proposal stands.
 
-## Hard rules (apply across both runtimes)
+Then initialize state (see [`references/state.md`](references/state.md)):
 
-1. **State on disk is source of truth.** `<state-base>/{slug}/goal.yaml` + `state.json` survive context compaction. State base resolves to `$VD_STATE_PATH` → `<git-root>/.workbench/state` when `.workbench/` exists → `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default). Legacy `plans/goals` is read for old runs only; do not write new ultracook state into the project tree.
-2. **Loop primitive = `vd:auto-loop` (Stop hook on Claude / `--codex` → native `/goal` on Codex).** Not `ScheduleWakeup`. Monitor is only for event-driven async waits.
-3. **No auto-merge on the skills repo.** `vd:ship official` (no `--auto`).
-4. **Closed-set verifier vocabulary + `shell` escape.** Six built-ins + `shell`.
-5. **Two verifier layers.** Per-action verifiers (cook iteration) vs workflow-level `target.verifiers` (verify_* phases). Never mix.
-6. **Hard guardrails.** Global iter cap (30), per-phase retry caps (3 rebases, 2 CI reruns), same-signature failure recognizer, token-cap prompt-back at 80%.
-7. **Composes existing `vd:*` skills** - never reimplements.
-8. **Feature-first repos - claim a feature at intake.** If the hook context shows `Feature: none` (paths under `_global/scratch/`), run `workbench new <slug>` once at intake so the whole run (pipeline slices + any direct artifacts) lands in `features/<slug>/` instead of the shared scratch bin. Idempotent; skip when a feature is already active (`feat/*` branch, active plan, or prior `workbench new`).
-9. **Observability stays in scope.** While routing direct, pipeline, or fan-out work, keep log/debug visibility in the acceptance bar: behavior-changing code should expose stable structured fields, reason codes, decision inputs, timing/counts when useful, and short human reasons, without leaking secrets or large prompt/diff payloads.
+```bash
+bash scripts/update-state.sh init "<state-base>/<slug>" <<'JSON'
+{ "goal": "...", "mode": "pipeline", "autonomy": "semi", "stages": [ ... ] }
+JSON
+```
 
-## Architecture
+## Step 3 - Run the flow
+
+For each stage, in order:
+
+1. Mark it `running` (`update-state.sh patch`), then **invoke the stage's skill** and let it drive - ultracook never reimplements a stage inline.
+2. **Gate per autonomy mode** (`references/autonomy-modes.md`): `semi` gates the first plan approval, ship, and final verify; `manual` gates every stage; `auto` gates nothing. **Hard gates always ask, even in `auto`** - the list lives in conductor.md (delete/deploy/migrations/secrets/broad codemods/expensive fan-outs).
+3. **Check the done-when with evidence**, not vibes. Prefer the skill's own gate (cook's DoD runner, ship's CI watch). Record one line of evidence in the stage entry; mark `done`.
+4. **On failure**: update `last_failure_signature` (`stage|command|exit-code`) and retry through the stage skill. Long red→green grinding (cook iterations, CI retries) is delegated to `vd:auto-loop` - it owns the stop-hook loop and its own two-vote done gate; ultracook just reads the outcome. If an underspecified decision surfaces mid-stage, invoke `vd:brainstorm --grill` rather than guessing.
+5. When all stages are `done`, set `terminal: done` with a one-line reason. Summarize: stages run, evidence per stage, PR link if shipped.
+
+## Hard rules
+
+1. **State on disk is source of truth.** `<state-base>/<slug>/state.json` (resolution order in `references/state.md`) survives context compaction; resume = read it and continue from the first stage that is neither `done` nor `skipped`.
+2. **Composes existing `vd:*` skills - never reimplements them.** If a stage needs behavior its skill lacks, improve that skill, not this file.
+3. **Guardrails on every autonomous run:** iteration cap 30 → `blocked`; 3 identical failure signatures in a row → `blocked` with the signature surfaced; at ~80% context, checkpoint state and prompt back rather than degrading silently.
+4. **Once a gate clears, don't re-gate.** Escalate only on exceptions: unrelated test failure, merge conflict, non-auto-fixable structural error, a service down after retries, a never-seen error. This is what prevents approval fatigue.
+5. **No auto-merge on the skills repo.** `vd:ship official` (no `--auto`).
+6. **Feature-first repos - claim a feature at intake.** If the hook context shows `Feature: none`, run `workbench new <slug>` once so the whole run's artifacts land in `features/<slug>/`. Idempotent; skip when a feature is already active.
+7. **Observability stays in scope.** Behavior-changing code keeps log/debug visibility in the acceptance bar: stable structured fields, reason codes, short human reasons; no secrets or unbounded payloads.
+
+## Runtime notes
+
+Ultracook is runtime-agnostic prose: it names skills and shell scripts, nothing host-specific. Use the host's native primitives where a stage needs them - subagents/`Workflow` for fan-out packets on Claude Code, Codex subagents on Codex; `vd:auto-loop` handles the loop primitive per host (Stop hook on Claude Code, `--codex` native `/goal` on Codex). If a primitive is missing, run the stage inline sequentially and say so - degraded, not dead.
+
+## Files
 
 ```
-SKILL.md (this file) - conductor (classify) + router (detect + dispatch)
 references/
-  conductor.md - triage: mode/autonomy selection, gate map, fan-out packets
-  autonomy-modes.md - manual/semi/auto gate semantics
-  architecture.md - two-layer SKILL.md ↔ bash-script invariant
-  action-vocab.{md,yaml} - 21 actions · verifier-vocab.{md,yaml} - 7 verifier types
-  codex-runtime.md - Codex specifics · codex-gap-workarounds.md - Monitor/Skill bridges
-runtimes/
-  claude-code.md - Claude Code adapter (tools: Skill, Task, Workflow, Monitor, hooks)
-  codex.md - Codex adapter (codex exec, subagents, --ask-for-approval/--sandbox)
-  detect.md - runtime detection spec
-scripts/ - runtime-agnostic bash (filesystem/git/parse); never call runtime tools
-projects/ - 4 TOML profiles, picked by git remote
+  conductor.md       - classification heuristics, gate map, hard-gate list, fan-out packets
+  autonomy-modes.md  - manual/semi/auto gate semantics
+  state.md           - state.json schema v2 + state-base resolution
+scripts/
+  update-state.sh    - init/patch state.json (atomic)
+  status.sh          - one-line status per goal, stage detail per goal
+  kill.sh            - mark abandoned (refuses to overwrite a terminal state)
+  test-state-scripts.sh - self-contained tests for the three scripts above
 ```
 
-## See also
+## Workflow position
 
-- `references/conductor.md` - how a task is classified and routed
-- `runtimes/detect.md` - detection precedence + ambiguity rules
-- `README.md` - install + quick-start for both runtimes
+**Composes:** `vd:brainstorm`, `vd:plan` (+ `--audit`), `vd:cook`, `vd:code-review`, `vd:ship`, `vd:scout`, `vd:fix`, `vd:debug`, `vd:simplify`, `vd:docs`, `vd:journal`, `vd:worktree`, `vd:auto-loop`, `vd:optimize-loop`
+**Compares to:** invoking the skills by hand (same flow, you gate every step yourself); `vd:auto-loop` (single-goal grinder - ultracook's iteration engine, not a competitor); `vd:codex-workflow` (deterministic scripted steps on Codex when you already know the exact sequence)

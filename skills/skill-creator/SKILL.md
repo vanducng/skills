@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[capability | --audit <name> | --extract] [--dir <skills-root>]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Skill Creator
@@ -127,6 +127,8 @@ Default skeleton - drop any section that would be filler:
 ## Anti-patterns                        # concrete failure modes to avoid
 ## Rationalizations to catch            # two-column: "thought" vs "reality"
 ```
+
+Before writing, load [`references/writing-principles.md`](references/writing-principles.md) - the two loads, the no-op test, length-tracks-failure-risk, progressive disclosure, leading words, the negation trap, completion criteria over adverbs, environment-as-truth. Every guidance line below is an application of those.
 
 Guidance:
 - **Tables over prose** for anything with cases. Agents apply them more reliably.

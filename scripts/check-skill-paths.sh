@@ -17,9 +17,9 @@ ENFORCE=0
 
 # Hardcoded artifact paths + the retired interim mechanism (feature-folder.json).
 FORBIDDEN='(\.workbench/|plans/(reports|visuals|journals)|feature-folder\.json)'
-# Allowed to reference umbrella paths: migrator + lifecycle owner + skill-authoring docs,
+# Allowed to reference umbrella paths: lifecycle owner + skill-authoring docs,
 # plus consumers that READ the layout (devlog) and skills that DOCUMENT it (worktree, ultracook).
-ALLOWLIST_RE='^(cktovd|workbench|skill-creator|template-skill|worktree|ultracook|devlog)$'
+ALLOWLIST_RE='^(workbench|skill-creator|template-skill|worktree|ultracook|devlog)$'
 
 violations=0
 flagged_files=0
