@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "init|update|check|adr [topic] [--inline] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Docs
@@ -29,7 +29,7 @@ Keep `./docs/` honest. Scout the code, diff it against what the docs claim, writ
 | `init` | `references/init-workflow.md` | Fresh repo - no `./docs/` yet, or only a stub README |
 | `update` | `references/update-workflow.md` | Code drifted from docs after a feature, refactor, or migration |
 | `check` | `references/check-workflow.md` | Validate-only: required files, size, freshness, broken refs. No writes. |
-| `adr` | `references/adr-workflow.md` | Record an architecture decision (the *why* behind an irreversible choice) under `docs/decisions/` |
+| `adr` | `references/adr-workflow.md` | Record an architecture decision under `docs/decisions/` - only when it passes the three-part gate (hard to reverse AND surprising AND a real trade-off) |
 
 Parse `$ARGUMENTS` first word (in runtimes without `$ARGUMENTS` substitution, use the text following the skill name in the user's message):
 - `init` / `update` / `check` / `adr` → load the matching reference
@@ -53,6 +53,7 @@ Intentionally short. Every file here earns its place - code-derivable, frequentl
 | `docs/system-architecture.md` | Components, data flow, integrations, module boundaries | Yes |
 | `docs/tech-stack.md` | Languages, frameworks, runtimes, key libraries, infra services - what powers this | Yes |
 | `docs/deployment.md` | CI/CD pipelines, environments, deploy steps, env vars, rollback procedure | Yes |
+| `docs/glossary.md` | **A glossary and nothing else** - one precise definition per domain term, with banned synonyms where confusion is real ("Customer, not Account"). Agents and reviewers challenge fuzzy language against it | Optional - create when domain terms start meaning different things to different people |
 
 **Out of scope** (by design):
 - Changelog → `vd:ship` writes `CHANGELOG.md` directly
