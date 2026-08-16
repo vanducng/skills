@@ -18,9 +18,18 @@ render() {
   DETAIL="$detail" "$(command -v python3)" - "$dir" <<'PY'
 import json, sys, os
 d = sys.argv[1]
-with open(os.path.join(d, "state.json")) as f:
-    s = json.load(f)
 slug = os.path.basename(d.rstrip("/"))
+try:
+    with open(os.path.join(d, "state.json")) as f:
+        s = json.load(f)
+except Exception as e:
+    # One corrupt/truncated state.json must not hide the other goals.
+    print(f"{slug:32} unreadable   state.json failed to parse ({e.__class__.__name__}) - inspect or delete the dir")
+    raise SystemExit(0)
+if s.get("version") != 2:
+    # Legacy v0.x goals share the state base but are not resumable (and kill.sh rejects them).
+    print(f"{slug:32} legacy-v{s.get('version', '?')}    not resumable by ultracook v1 - finish with old tooling or delete the dir")
+    raise SystemExit(0)
 term = s.get("terminal") or "in-progress"
 stages = s.get("stages", [])
 done = sum(1 for st in stages if st.get("status") == "done")
