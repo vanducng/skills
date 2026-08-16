@@ -1,6 +1,6 @@
 ---
 name: auto-loop
-description: "Drive a Claude Code session toward a verifiable goal until done or a hard cap fires - autonomous loop, no user intervention. Use for refactor batches, test-coverage runs, migration loops where success is a check command (tests, lint, custom predicate) plus a fresh-context audit. Hosts the loop intra-session via Stop hook with two-vote completion gate; supports optional Codex /goal delegation."
+description: "Drive a Claude Code session toward a verifiable goal until done or a hard cap fires - autonomous loop, no user intervention. Use for refactor batches, test-suite green-up runs, migration loops where success is a check command (tests, lint, custom predicate) plus a fresh-context audit. Hosts the loop intra-session via Stop hook with two-vote completion gate; supports optional Codex /goal delegation. For numeric-metric keep/discard loops, use vd:optimize-loop."
 license: MIT
 argument-hint: "<goal> --verify <cmd> [--max-iterations N] [--max-tokens T] [--max-wallclock D] [--codex] | --status | --cancel"
 metadata:

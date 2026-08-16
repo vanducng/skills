@@ -1,6 +1,6 @@
 ---
 name: debug
-description: "Debug systematically across software, data pipelines, infrastructure, and analytics. Find root cause before fixing - for bugs, test failures, CI/CD breakage, K8s/Cloud incidents, dbt/Airflow pipeline failures, schema drift, freshness violations, dashboard wrong-numbers, and performance issues. Validates at every layer; verifies with fresh evidence before claiming done."
+description: "Debug systematically across software, data pipelines, infrastructure, and analytics. Find root cause and produce verified evidence - for bugs, test failures, CI/CD breakage, K8s/Cloud incidents, dbt/Airflow pipeline failures, schema drift, freshness violations, dashboard wrong-numbers, and performance issues. Diagnoses and hands the fix to vd:fix; validates at every layer and verifies with fresh evidence before claiming a cause."
 license: MIT
 argument-hint: "[error or issue description]"
 metadata:
@@ -18,7 +18,7 @@ Comprehensive debugging across the four disciplines you work in: software, data 
 NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
 ```
 
-Random fixes waste time and create new bugs. Find root cause → fix at source → validate at every layer → verify with fresh evidence before claiming done.
+Random fixes waste time and create new bugs. Find root cause → trace the mechanism to its source → validate at every layer → verify with fresh evidence before claiming done, then hand the fix to `vd:fix`.
 
 ## Proof gate
 

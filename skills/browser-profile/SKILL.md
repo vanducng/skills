@@ -3,6 +3,9 @@ name: browser-profile
 description: Manage named persistent browser profiles (cookies, localStorage, IndexedDB, cache) that both you and Claude can use against the SAME Chrome window without collisions. Each profile lives in its own `--user-data-dir` and exposes a deterministic `--remote-debugging-port`. Use when the user says "open profile X", "attach to profile X", "log me into staging once and reuse it", or asks to test frontend flows with persistent auth across runs. Pairs with the `agent-browser` CLI (`agent-browser connect <port>`) for the CDP attach step.
 license: MIT
 allowed-tools: Bash, Read
+metadata:
+  author: vanducng
+  version: "0.1.0"
 ---
 
 # browser-profile

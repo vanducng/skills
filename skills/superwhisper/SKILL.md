@@ -12,6 +12,7 @@ license: MIT
 allowed-tools:
   - Bash
 metadata:
+  author: vanducng
   version: "1.1.0"
   binary: superwhisper
 ---

@@ -1,6 +1,10 @@
 ---
 name: workbench
 description: Manage the feature-first .workbench umbrella - create, resolve, switch, list, archive, and gc per-feature folders ({ticket}-{slug}) that group plans/reports/visuals/journals/state. Use when the user says "workbench new", "list features", "archive feature", "switch feature", "what feature am I on", "clean up .workbench", or needs to organize agent artifacts under .workbench/features/.
+license: MIT
+metadata:
+  author: vanducng
+  version: "0.1.0"
 ---
 
 # Workbench

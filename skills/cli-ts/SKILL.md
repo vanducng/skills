@@ -1,6 +1,6 @@
 ---
 name: cli-ts
-description: "Build and maintain production TypeScript CLIs. This skill should be used whenever work touches commands, packaging, CI/CD, npm publishing, docs, providers, or agent-friendly output."
+description: "Build and maintain production TypeScript CLIs as stable public APIs - command contracts, packed-artifact correctness, npm publishing, CI/CD, docs, providers, and agent-friendly output. Use when the user asks to scaffold or build a TypeScript CLI, add commands or flags, package or publish to npm, wire CI/CD, or make CLI output automation-friendly."
 license: MIT
 argument-hint: "<CLI task or repository>"
 metadata:

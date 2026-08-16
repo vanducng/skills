@@ -2,6 +2,9 @@
 name: aws
 description: Operate AWS accounts and services with the AWS CLI using identity-first, read-before-write, evidence-backed workflows. Use for AWS CLI inspection, incident diagnosis, deployment verification, and explicitly authorized changes across IAM, STS, Organizations, CloudTrail, CloudWatch, S3, Lambda, API Gateway, SQS, Route 53, ALB/ELBv2, EC2, EBS, SSM, ECS, and related services, including reset-password or --reset-password when an IAM console password must be reset and stored with gopass.
 license: MIT
+metadata:
+  author: vanducng
+  version: "0.1.0"
 ---
 
 # AWS

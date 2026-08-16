@@ -17,7 +17,7 @@ metadata:
 
 | Skill | Does |
 |---|---|
-| `vd:test` | **Runs** tests, reports pass/fail |
+| `vd:cook --tdd` | **Runs** the tests (tests-first), reports pass/fail |
 | `vd:brainstorm` | Explores *solution* options |
 | **`scenario`** | **Enumerates** edge cases & failure modes to test - does not run or fix them |
 

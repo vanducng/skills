@@ -1,6 +1,10 @@
 ---
 name: miucr
-description: Review code/diffs/PRs with the owned `miucr` CLI (miu-cr, a pure-Go AI code reviewer). Use when asked to review staged changes, a commit, a ref range, or a GitHub PR; to run/parse a gated review; compare reviewer quality with eval; to drive reviews over MCP; to run the serve webhook/poll daemon or GitHub Action; or to diagnose/upgrade miucr itself (over/under-approving, webhook/poll host issues, its docker-compose stack, binary version). Output is the stable `miucr.cli/v1` JSON envelope; parse it, don't grep prose.
+description: Review code/diffs/PRs with the owned `miucr` CLI (miu-cr, a pure-Go AI code reviewer). Use when asked to review staged changes, a commit, a ref range, or a GitHub PR; to run/parse a gated review; compare reviewer quality with eval; to drive reviews over MCP; to run the serve webhook/poll daemon or GitHub Action; or to diagnose/upgrade miucr itself (over/under-approving, webhook/poll host issues, its docker-compose stack, binary version). Output is the stable `miucr.cli/v1` JSON envelope; parse it, don't grep prose. For an authored, opinionated PR review via gh, use vd:code-review.
+license: MIT
+metadata:
+  author: vanducng
+  version: "0.1.0"
 ---
 
 # miucr: owned AI code-review CLI (v0.65.0)

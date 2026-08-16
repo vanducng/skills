@@ -6,6 +6,7 @@ description: >
   connections, smoke-test connections, inspect tunnel-backed databases, or
   produce agent-readable JSON from SQLite, Postgres, MySQL, Snowflake, or
   BigQuery.
+license: MIT
 allowed-tools:
   - Bash
 metadata:

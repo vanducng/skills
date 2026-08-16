@@ -6,6 +6,8 @@ description: >
   and Codex, inspect agent sessions, tokens, or API-equivalent cost, find
   which skills or tools are erroring, or run the self-heal loop over
   `vd obs health --json` to diagnose and fix a failing skill from evidence.
+  The repo's skill-catalog lifecycle wrapper is vd:skill-management.
+license: MIT
 allowed-tools:
   - Bash
 metadata:

@@ -3,9 +3,9 @@ name: twitter
 description: Read and post on X/Twitter from the CLI - fetch tweets, timelines, and search; post tweets, replies, threads, and media. Cookie-based auth via twikit, bootstrapped from the local Dia browser session, secrets stored in gopass. Auto-falls back to agent-browser when twikit hits internal-API drift or X's "looks automated" Error 226. Use whenever the user asks to read a tweet/profile/search, post/reply/thread, delete a tweet, or run `twitter doctor` / `import-from-dia` / `login` to manage credentials.
 keywords: [twitter, x, social, tweet, twikit, dia, gopass]
 license: MIT
-version: 0.1.0
 metadata:
   author: vanducng
+  version: "0.1.0"
 ---
 
 # twitter

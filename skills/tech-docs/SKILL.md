@@ -2,6 +2,9 @@
 name: tech-docs
 description: "Create, modernize, validate, and ship a public technical documentation site for any CLI, library, service, or developer tool using Astro Starlight. Use when the user asks to build a docs website, add Starlight, reproduce the shared centered docs style, organize technical docs navigation, migrate an existing docs site, fix responsive docs layout, or verify and deploy developer documentation."
 license: MIT
+metadata:
+  author: vanducng
+  version: "0.1.0"
 ---
 
 # Tech Docs

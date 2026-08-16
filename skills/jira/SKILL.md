@@ -4,6 +4,7 @@ description: "Manage Jira issues via CLI and REST. View, create, update, transit
 license: MIT
 argument-hint: "[--project ALIAS] [--type bug|task] [ISSUE-KEY|request]"
 metadata:
+  author: vanducng
   version: "1.3.0"
 ---
 

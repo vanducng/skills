@@ -92,7 +92,7 @@ Switch modes mid-flight by editing `goal.yaml.autonomy` - the executor re-reads 
 
 ## Composes
 
-- `vd:scout`, `vd:research`, `vd:brainstorm`, `vd:plan`, `vd:plan-audit`, `vd:cook`, `vd:ship`, `vd:debug`, `vd:fix`, `vd:test`, `vd:docs`, `vd:journal`, `vd:worktree`, `vd:auto-loop`
+- `vd:scout`, `vd:research`, `vd:brainstorm`, `vd:plan`, `vd:plan-audit`, `vd:cook`, `vd:ship`, `vd:debug`, `vd:fix`, `vd:docs`, `vd:journal`, `vd:worktree`, `vd:auto-loop`
 
 When an action has a verifier defined (`cook`, `test`), ultracook delegates iteration to `vd:auto-loop` and resumes when it terminates. Requires `vd:auto-loop` installed.
 
