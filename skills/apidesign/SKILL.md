@@ -5,8 +5,8 @@ license: MIT
 argument-hint: "<surface to design - endpoint, module boundary, or contract>"
 metadata:
   author: vanducng
-  attribution: "Adapted from addyosmani/agent-skills api-and-interface-design"
-  version: "0.1.0"
+  attribution: "Adapted from addyosmani/agent-skills api-and-interface-design; deep-module vocabulary adapted from Ousterhout's A Philosophy of Software Design"
+  version: "0.2.0"
 ---
 
 # apidesign
@@ -31,6 +31,10 @@ Storage shape and API shape inform each other but aren't the same decision - des
 - Designing new endpoints or a service's public surface.
 - Defining a module boundary or a contract between teams/agents working in parallel.
 - Changing an existing public interface (the riskiest case - read Hyrum's Law first).
+
+## Vocabulary
+
+This skill owns the catalog's shared design language - **deep vs shallow modules, seams, adapters, leverage, locality, the deletion test, design-it-twice** - defined precisely in [`references/deep-modules.md`](references/deep-modules.md). Use those terms (and avoid their listed synonyms) when discussing any interface; `vd:tdd`, `vd:simplify --scan`, and `vd:code-review --refactor` anchor on them.
 
 ## Two laws that shape everything
 

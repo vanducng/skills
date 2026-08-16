@@ -2,11 +2,15 @@
 
 An ADR (Architecture Decision Record) captures the **why** behind a consequential, hard-to-reverse choice - the context, the alternatives weighed, and what it commits you to. It's the artifact that stops "why is it built this way?" from becoming archaeology six months later. The decision itself comes from `vd:brainstorm`/`vd:research`; this is where it lands permanently.
 
-## When to write one
+## When to write one - the three-part gate
 
-- A low-reversibility choice: framework, datastore, auth model, public API shape, a boundary between services.
-- A decision someone will question later, where the *alternatives we rejected and why* is the valuable part.
-- **Not** for routine, easily-reversed choices - those are commit messages, not ADRs.
+Write an ADR only when the decision passes **all three** tests:
+
+1. **Hard to reverse** - framework, datastore, auth model, public API shape, a boundary between services.
+2. **Surprising** - a future reader would ask "why on earth is it built this way?" If the choice is what any engineer would expect, it needs no record.
+3. **A real trade-off** - genuine alternatives were rejected for reasons worth keeping. If nothing was given up, there's nothing to explain.
+
+Fails any one → no ADR. Routine or easily-reversed choices are commit messages; obvious choices are self-documenting; no-alternative choices have no "why" to record. The gate exists because ADR spam buries the decisions that matter.
 
 ## Location & numbering
 
