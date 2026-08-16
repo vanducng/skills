@@ -50,7 +50,7 @@ Plannotator's plan-review hook where installed.
 ```
 vd:ultracook                           # resume an in-progress goal
 vd:ultracook status [<slug>]           # all goals one-line each; stage detail for one (scripts/status.sh)
-vd:ultracook kill --reason "<text>"    # terminal=abandoned + cancel.sentinel (scripts/kill.sh)
+vd:ultracook kill --reason "<text>"    # terminal=abandoned; refuses if already terminal (scripts/kill.sh)
 ```
 
 When more than one goal is in flight, bare resume lists them (via `status.sh`) and

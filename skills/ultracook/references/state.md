@@ -41,7 +41,7 @@ All writes go through `scripts/update-state.sh` (`init` for creation, `patch` fo
 - **`evidence`** - one line of proof captured when the stage completes ("go test → 142 passed", "PR #91 CI green"). Enough for `status.sh` to answer "how do we know?" without re-reading transcripts.
 - **`iteration_count`** - incremented per stage attempt including retries. Hard cap 30 → `blocked`.
 - **`last_failure_signature`** / **`last_failure_count`** - the repeat-failure recognizer: signature = `stage|failing command|exit code`. Three identical signatures in a row → `blocked` (don't burn iterations re-hitting the same wall; surface it).
-- **`terminal`** - `null` (in progress) / `done` / `blocked` / `abandoned`, with `terminal_reason` set whenever non-null. `kill.sh` sets `abandoned` and drops `cancel.sentinel` for any loop still watching.
+- **`terminal`** - `null` (in progress) / `done` / `blocked` / `abandoned`, with `terminal_reason` set whenever non-null. `kill.sh` sets `abandoned` (refusing to overwrite an existing terminal state); the executor re-reads state each stage and stops on terminal. An active `vd:auto-loop` is cancelled through its own cancel command, not through state.
 - **`autonomy`** - `manual` / `semi` / `auto`; editable mid-flight (the executor re-reads state each iteration). See `autonomy-modes.md`.
 
 ## Crash recovery

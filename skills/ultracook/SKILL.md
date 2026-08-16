@@ -19,7 +19,7 @@ Ultracook is a **map, not a cage**. Given a task it classifies the work, picks t
 | `vd:ultracook "<goal>"` | New goal - classify → confirm flow → state.json → run stages |
 | `vd:ultracook` (no args) | Resume - list in-progress goals (`scripts/status.sh <state-base>`); exactly one → continue it from the first non-done stage, several → ask which (no silent newest-wins) |
 | `vd:ultracook status [<slug>]` | One-line status per goal; stage detail for one (`scripts/status.sh <state-base>[/<slug>]`) |
-| `vd:ultracook kill --reason "<text>"` | Mark abandoned + drop cancel sentinel (`scripts/kill.sh`) |
+| `vd:ultracook kill --reason "<text>"` | Mark abandoned (`scripts/kill.sh`; refuses if already terminal). If a `vd:auto-loop` is active, also cancel it via auto-loop's own cancel command |
 
 Flags: `--reuse` (work in the current checkout instead of a `vd:worktree`), `--manual` / `--semi` (default) / `--auto` (autonomy - see `references/autonomy-modes.md`).
 
@@ -93,7 +93,7 @@ references/
 scripts/
   update-state.sh    - init/patch state.json (atomic)
   status.sh          - one-line status per goal, stage detail per goal
-  kill.sh            - mark abandoned + cancel sentinel
+  kill.sh            - mark abandoned (refuses to overwrite a terminal state)
 ```
 
 ## Workflow position
