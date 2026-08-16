@@ -1,6 +1,6 @@
 ---
 name: skill-management
-description: "Manage the lifecycle of agent skills in this repo - create new skills via skill-creator, pull/sync upstream skills with the `vd` CLI, validate frontmatter, bump versions, and ship releases through conventional commits. Use when the user says 'create a skill', 'add a skill', 'sync skills', 'release vd', 'bump version', 'update tracked skills', 'validate skills', or asks how to publish a new vd version."
+description: "Manage the lifecycle of agent skills in this repo - create new skills via skill-creator, pull/sync upstream skills with the `vd` CLI, validate frontmatter, bump versions, and ship releases through conventional commits. Use when the user says 'create a skill', 'add a skill', 'sync skills', 'release vd', 'bump version', 'update tracked skills', 'validate skills', or asks how to publish a new vd version. The underlying `vd` CLI reference (incl. `vd obs` observability) is vd:vd-cli."
 license: MIT
 argument-hint: "[--create <name> | --add <src> | --list | --sync | --update | --remove <name> | --diff <name> | --doctor | --validate | --release [patch|minor|major]]"
 metadata:

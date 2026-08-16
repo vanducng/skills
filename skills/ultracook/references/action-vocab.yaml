@@ -68,7 +68,7 @@ actions:
     delegated_to: null
 
   test:
-    dispatch: "skill:vd:test"
+    dispatch: "agent:tester"
     args: ""
     verifier:
       type: test_suite_passes

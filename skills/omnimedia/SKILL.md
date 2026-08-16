@@ -1,6 +1,6 @@
 ---
 name: omnimedia
-description: Multimodal AI - Gemini for analysis (vision/transcribe/OCR/extract); image generation via Codex (ChatGPT subscription), Gemini/Imagen, OpenRouter, MiniMax; video, speech, music via Gemini + MiniMax.
+description: Multimodal AI - Gemini for analysis (vision/transcribe/OCR/extract); image generation via Codex (ChatGPT subscription), Gemini/Imagen, OpenRouter, MiniMax; video, speech, music via Gemini + MiniMax. Use when the user asks to analyze, transcribe, OCR, or describe an image/audio/video/document, or to generate an image, video, voiceover, or music.
 license: MIT
 allowed-tools:
   - Bash
@@ -8,6 +8,9 @@ allowed-tools:
   - Write
   - Edit
 argument-hint: "[file-path] [prompt]"
+metadata:
+  author: vanducng
+  version: "0.1.0"
 ---
 
 # Omnimedia

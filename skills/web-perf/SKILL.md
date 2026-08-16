@@ -23,7 +23,7 @@ No Puppeteer, no bundled Chromium, no node_modules - measuring against the persi
 |---|---|
 | `vd:browser-trace` | Passive evidence: network/console/screenshots, never interferes |
 | `vd:web-perf` (this) | Active measurement: vitals, heap, Chrome tracing - sends CDP commands |
-| `vd:browser` | Driving: navigate/click/fill - pair it to create the interactions INP needs |
+| `vd:agent-browser` | Driving: navigate/click/fill - pair it to create the interactions INP needs |
 
 **Not for:** load testing (k6 territory), Lighthouse-style audits/scores, or production RUM.
 
@@ -51,7 +51,7 @@ node "$SKILL/perf-trace.cjs" --port $PORT --url https://myapp.test/dashboard --o
 
 1. Get a CDP port: an open profile (`e2e.cjs status --json` reports it) or `chrome --remote-debugging-port=NNNN --user-data-dir=<dedicated>` (Chrome 136+ refuses the default dir).
 2. Baseline: `vitals.cjs --url <page>` on the cold path; re-run for the warm read. A persistent profile has a primed cache - for cold-cache numbers use a fresh profile or note "warm" in the report.
-3. INP needs interactions: drive clicks/typing via `vd:browser` first, then `vitals.cjs` *without* `--url` (re-navigating clears interaction history). `INP: n/a` on a fresh load is correct.
+3. INP needs interactions: drive clicks/typing via `vd:agent-browser` first, then `vitals.cjs` *without* `--url` (re-navigating clears interaction history). `INP: n/a` on a fresh load is correct.
 4. Slow page? `perf-trace.cjs` around the navigation; the long-task summary names the top main-thread offenders, the trace file gives the flame chart.
 5. In an e2e run, append the vitals JSON and trace path to the flow report as evidence (`vd:web-e2e` report convention).
 

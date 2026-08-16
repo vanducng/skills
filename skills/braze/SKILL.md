@@ -5,6 +5,7 @@ license: MIT
 allowed-tools:
   - Bash
 metadata:
+  author: vanducng
   version: "1.2.0"
   binary: braze
 ---

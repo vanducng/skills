@@ -1,6 +1,6 @@
 ---
 name: ship
-description: "Ship a feature branch end-to-end: merge target → test → review → version/changelog → commit → push → PR, then drive CI green and hand off the PR. Use when ready to land a branch on main/master (official), staging/uat (staging), or dev/beta (beta). Merge is opt-in - a bare ship stops at a green PR; it merges only with --auto or --merge. Stops on test failures, critical review issues, or major version bumps."
+description: "Ship a feature branch end-to-end: merge target → test → review → version/changelog → commit → push → PR, then drive CI green and hand off the PR. Use after `vd:cook` when the branch is implemented and tested, ready to land on main/master (official), staging/uat (staging), or dev/beta (beta). Merge is opt-in - a bare ship stops at a green PR; it merges only with --auto or --merge. Stops on test failures, critical review issues, or major version bumps."
 license: MIT
 argument-hint: "[official|staging|beta] [--auto] [--merge] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-journal] [--skip-docs] [--dry-run]"
 metadata:

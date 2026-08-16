@@ -15,7 +15,7 @@ The closed set of actions `vd:ultracook`'s executor (Phase 3) can dispatch. Each
 | `plan_audit` | skill `vd:plan-audit` | `{plan_dir}` | - | - | when risk_tier=high | - |
 | `cook` | skill `vd:cook` | `--auto {plan_dir}` | `test_suite_passes` (per profile) | - | never (long-running) | `vd:auto-loop` |
 | `code_review` | agent `code-reviewer` | - | - | `[test]` | never | - |
-| `test` | skill `vd:test` | - | `test_suite_passes` | `[code_review]` | never | `vd:auto-loop` |
+| `test` | agent `tester` | - | `test_suite_passes` | `[code_review]` | never | `vd:auto-loop` |
 | `ship` | skill `vd:ship` | `{ship_mode}` (from profile) | `ci_green({pr_number})` | - | `semi`,`manual` | - |
 | `wait_ci` | monitor `gh pr checks {pr_number}` | - | - | - | never | - |
 | `image_build_wait` | monitor `gh run view {run_id}` | - | - | - | never | - |

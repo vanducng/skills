@@ -1,6 +1,10 @@
 ---
 name: smartsheet
-description: Operate the Smartsheet CLI for bounded sheet discovery and reads, explicitly authorized bulk row additions or updates, structured JSON automation, and verified write workflows.
+description: Operate the `smartsheet` CLI for bounded sheet discovery and reads, explicitly authorized bulk row additions or updates, structured JSON automation, and verified write workflows. Use when the user says "smartsheet", asks to list sheets, read or add/update rows, or script Smartsheet through its JSON contract.
+license: MIT
+metadata:
+  author: vanducng
+  version: "0.1.0"
 ---
 
 # Smartsheet

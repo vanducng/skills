@@ -1,9 +1,11 @@
 ---
 name: computer-clean
 description: "Audit and reclaim disk space on macOS. Discovers cache hogs, dev caches, dead app data, old Downloads, dup installers, and obsolete container/VM images. Use when user says 'clean disk', 'free up space', 'computer-clean', 'cleanup mac', 'disk full', or shows ≥85% disk usage."
+license: MIT
 category: utilities
 keywords: [disk, cleanup, space, cache, mac, macos, prune, storage]
 metadata:
+  author: vanducng
   version: "1.1.0"
 ---
 
