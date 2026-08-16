@@ -93,7 +93,7 @@ Resume = read the file, continue from the first stage that is neither `done` nor
 - `references/conductor.md` - classification heuristics, gate map, hard gates, fan-out packets
 - `references/autonomy-modes.md` - manual/semi/auto semantics
 - `references/state.md` - state.json schema v2
-- `scripts/` - `update-state.sh` (init/patch, atomic), `status.sh`, `kill.sh`
+- `scripts/` - `update-state.sh` (init/patch, atomic), `status.sh`, `kill.sh`; tested by `test-state-scripts.sh`
 
 ## Versioning
 

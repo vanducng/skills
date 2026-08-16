@@ -94,6 +94,7 @@ scripts/
   update-state.sh    - init/patch state.json (atomic)
   status.sh          - one-line status per goal, stage detail per goal
   kill.sh            - mark abandoned (refuses to overwrite a terminal state)
+  test-state-scripts.sh - self-contained tests for the three scripts above
 ```
 
 ## Workflow position
