@@ -210,5 +210,5 @@ prefixes belong at the boundary where the user actually calls the skill.
 ## Workflow position
 
 **Typically follows:** a short intent ("ship X to staging and verify").
-**Typically composes:** `vd:scout`, `vd:brainstorm`, `vd:plan`, `vd:plan-audit`, `vd:cook`, `vd:ship`, `vd:debug`, `vd:fix`, `vd:research`, `vd:test`, `vd:docs`, `vd:journal`, `vd:worktree`, `vd:auto-loop`.
+**Typically composes:** `vd:scout`, `vd:brainstorm`, `vd:plan`, `vd:plan-audit`, `vd:cook`, `vd:ship`, `vd:debug`, `vd:fix`, `vd:research`, `vd:docs`, `vd:journal`, `vd:worktree`, `vd:auto-loop`.
 **Compares to:** `vd:cook` (one phase at a time, no e2e drive) and `vd:auto-loop` (iterate to a verifier, no workflow shape).
