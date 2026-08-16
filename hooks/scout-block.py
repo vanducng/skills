@@ -44,7 +44,7 @@ try:
     # ponytail: target/ is only a build dir next to Cargo.toml/pom.xml; name-only match false-positives on Go internal/target packages.
     TARGET_SOURCE = '(^|/)target(/|$)'
 
-    # ponytail: .git/info/exclude is a legit worktree/cktovd write target; the rest of .git stays blocked.
+    # ponytail: .git/info/exclude is a legit worktree write target; the rest of .git stays blocked.
     GIT_INFO_EXCLUDE_RE = re.compile(r'(^|/)\.git/info/exclude$')
 
     # -- minimal gitignore-style pattern matching -----------------------------
