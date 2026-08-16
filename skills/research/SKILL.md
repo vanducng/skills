@@ -1,6 +1,6 @@
 ---
 name: research
-description: "Deep technical research with multi-option evaluation. Use for technology selection, architecture decisions, library/framework comparison, security and performance analysis. Default mode is thorough; pass `--deep` for exhaustive coverage with expanded comparison matrices and edge-case analysis."
+description: "Deep technical research with multi-option evaluation. Use for technology selection, architecture decisions, library/framework comparison, security and performance analysis. Default mode is thorough; pass `--deep` for exhaustive coverage with expanded comparison matrices and edge-case analysis. For inventing and stress-testing options without external evidence, use vd:brainstorm."
 license: MIT
 argument-hint: "[topic] [--deep]"
 metadata:

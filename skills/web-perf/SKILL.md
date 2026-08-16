@@ -23,7 +23,7 @@ No Puppeteer, no bundled Chromium, no node_modules - measuring against the persi
 |---|---|
 | `vd:browser-trace` | Passive evidence: network/console/screenshots, never interferes |
 | `vd:web-perf` (this) | Active measurement: vitals, heap, Chrome tracing - sends CDP commands |
-| `vd:browser` | Driving: navigate/click/fill - pair it to create the interactions INP needs |
+| `vd:agent-browser` | Driving: navigate/click/fill - pair it to create the interactions INP needs |
 
 **Not for:** load testing (k6 territory), Lighthouse-style audits/scores, or production RUM.
 
