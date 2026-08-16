@@ -1,11 +1,11 @@
 ---
 name: git
-description: "Granular git operations with conventional commits - stage, commit, push, PR, merge. Auto-splits commits by type/scope, blocks on secrets, delegates verbose work to git-manager subagent. Use when you want explicit control; for full ship-it pipeline use vd:ship."
+description: "Granular git operations with conventional commits - stage, commit, push, PR, merge, and merge/rebase conflict resolution (resolve by intent, never --abort). Auto-splits commits by type/scope, blocks on secrets, delegates verbose work to git-manager subagent. Use when you want explicit control; for full ship-it pipeline use vd:ship."
 license: MIT
 argument-hint: "cm|cp|pr|merge [args] [--inline]"
 metadata:
   author: vanducng
-  version: "1.0.1"
+  version: "1.1.0"
 ---
 
 # Git
@@ -29,7 +29,7 @@ Use `vd:git` when you're mid-work and want to checkpoint, hand off a PR, or merg
 | `cm` | `references/workflow-commit.md` | Stage + analyze + (split or single) + commit |
 | `cp` | `references/workflow-commit.md` + `references/workflow-push.md` | Same as `cm`, then push |
 | `pr` | `references/workflow-pr.md` | Create a Pull Request from remote diff |
-| `merge` | `references/workflow-merge.md` | Merge `<from>` into `<to>` using `origin/<from>` |
+| `merge` | `references/workflow-merge.md` | Merge `<from>` into `<to>` using `origin/<from>`. On conflicts (any merge/rebase/cherry-pick): `references/conflict-resolution.md` |
 
 Parse `$ARGUMENTS` first word (runtimes without argument substitution: use the text following the skill name in the user's message):
 - `cm` / `cp` / `pr` / `merge` → load the matching reference
@@ -163,4 +163,5 @@ For multi-commit splits, repeat the `commit:` line per group.
 | `references/commit-standards.md` | Conventional commit format, types, examples |
 | `references/safety-protocols.md` | Secret detection, branch protection, recovery |
 | `references/branch-management.md` | Naming, lifecycle, strategies |
+| `references/conflict-resolution.md` | Merge/rebase conflicts - resolve by intent traced to primary sources, never `--abort` |
 | `references/gh-cli-guide.md` | `gh` CLI commands cheat sheet |

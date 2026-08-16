@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # eval-dod.sh - evaluate a plan's "## Definition of Done" verifiers.
 # The mechanical form of vd:cook's final goal gate; vd:plan uses --lint to validate
-# the block it writes. Vocab mirrors vd:ultracook's verifier-vocab (local subset).
+# the block it writes. This script is the canonical DoD verifier vocabulary.
 # Plain shell only → runs identically under Claude Code and Codex.
 #
 # Usage:
@@ -15,7 +15,7 @@
 #   shell: <cmd>                      pass = exit 0
 #   http_status: <url> [code]         pass = HTTP status == code (default 200)
 #   manual_confirm: <prompt>          needs user - never auto-passes (gate reports it)
-#   ci_green / pod_image_matches      workflow-level - belong to vd:ultracook, not this gate
+#   ci_green / pod_image_matches      workflow-level - belong to vd:ship's CI watch / deploy tooling, not this gate
 #
 # Exit: 0 all pass · 1 one-or-more unmet/needs-user · 2 usage/parse error.
 set -uo pipefail
@@ -84,7 +84,7 @@ eval_one() {
       echo "NEEDS_USER ($arg)"
       ;;
     ci_green|pod_image_matches)
-      echo "FAIL (workflow-level verifier - run via vd:ultracook, not the cook gate)"
+      echo "FAIL (workflow-level verifier - belongs to vd:ship CI watch / deploy tooling, not the cook gate)"
       ;;
     *)
       echo "FAIL (unknown verifier type: $type)"

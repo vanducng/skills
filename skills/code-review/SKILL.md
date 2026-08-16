@@ -1,11 +1,11 @@
 ---
 name: code-review
-description: "Review code with a sharp, encouraging voice - inline GitHub PR comments + a tight summary. Supports PR (default), pending changes, commit hash, and codebase modes. Encodes an opinionated review style: severity-prefixed, concise, actionable, no fluff."
+description: "Review code with a sharp, encouraging voice - inline GitHub PR comments + a tight summary. Reviews on two axes (Spec fidelity + Standards) via parallel subagents. Supports PR (default), pending changes, commit hash, codebase, and --refactor ('does this fit the codebase / is this slop' - local, report-only) modes. Encodes an opinionated review style: severity-prefixed, concise, actionable, no fluff."
 license: MIT
-argument-hint: "[#PR | URL | COMMIT | --pending | codebase] [--dry-run] [--post] [--no-inline]"
+argument-hint: "[#PR | URL | COMMIT | --pending | codebase | --refactor] [--dry-run] [--post] [--no-inline]"
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Code Review
@@ -33,6 +33,7 @@ Auto-detect from arguments. Ambiguous or empty → `AskUserQuestion` (Claude Cod
 | 7+ hex chars (`abc1234`) | **Commit** | `git show <sha>` |
 | `--pending` | **Pending** | `git diff` (staged + unstaged) |
 | `codebase` | **Codebase** | Broad scan via subagents |
+| `--refactor` | **Refactor** - "does this fit the codebase, or is it slop?" Local, report-only, never posts. Full lens: [`references/refactor-lens.md`](references/refactor-lens.md) | `git diff` / ref range / `gh pr diff` |
 | *(none, recent changes in context)* | **Recent** | Whatever was just edited |
 
 Flags:
@@ -142,7 +143,18 @@ Capture `headRefOid` - every inline comment's `commit_id` MUST equal this so com
 | 300–1500 lines | Read full files for security-sensitive or core-logic changes; spot-check the rest. |
 | > 1500 lines | Batch via parallel `Task(Explore)` subagents grouped by directory; synthesize findings. Don't pour the whole diff into your context. No subagents (Codex) → review directory-by-directory sequentially, or use `codex-review.md`. |
 
-### 3. Build the review payload
+### 3. Review on two axes
+
+Pin the diff to a fixed ref first (`headRefOid` for PRs, `HEAD` otherwise) - the review target must not move mid-pass. Then review along two independent axes:
+
+- **Spec fidelity** - does the change do what was agreed, all of it, and nothing beyond it? Find the spec in order: PR body → linked issue → plan dir (`plan.md` + phase files) → the conversation. Flag missing scope, silent extra scope, and behavior that contradicts a stated decision.
+- **Standards** - is the code well built regardless of what it was supposed to do? Correctness/security/reliability per the [Checklist](#checklist-apply-to-every-diff), plus the smells baseline in [`references/code-smells.md`](references/code-smells.md).
+
+Run the axes as **two parallel subagents** (`Task(Explore)` / `general-purpose`), each getting the diff + only its axis brief - isolation is the point: the spec reader shouldn't be primed by style complaints and vice versa. Cap each subagent's report at ~400 words. Aggregate **without reranking** - merge both finding lists into the payload, keep each axis's severities as given, and note in the summary which axis each Critical came from. No subagent tool → run the two passes sequentially yourself, spec axis first, in separate fresh looks.
+
+Skip the fan-out for trivial diffs (<50 lines, no spec to check) - a single pass with both hats on is proportionate there.
+
+### 4. Build the review payload
 
 Collect findings as you go into this structure (memory only - don't write a file):
 
@@ -167,7 +179,7 @@ Collect findings as you go into this structure (memory only - don't write a file
 - For a multi-line comment, use `start_line` + `line`. Both on the same `side`.
 - If the targeted line is unchanged context (not in the diff), GitHub rejects the comment. In that case, anchor to the nearest changed line and reference the real line in the body: *"Re. L44 (unchanged): …"*.
 
-### 4. Post the review
+### 5. Post the review
 
 Default behavior:
 - PR mode + no `--dry-run` → **post** via single `gh api` call (see below).
@@ -184,7 +196,7 @@ gh api \
 
 If the call returns 422 with `Pull request review thread line must be part of the diff`, the comment anchored to an unchanged line. Move it to the nearest diff line and retry - once. Never auto-retry more than once; surface the error to the user.
 
-### 5. Confirm
+### 6. Confirm
 
 After posting, print:
 ```
@@ -209,7 +221,7 @@ It composes two patterns:
 1. **Review (fan-out)** - one agent per dimension (`correctness`, `security`, `reliability`, `performance`, `api`, `tests`), each with its own clean context. They map onto the [Checklist](#checklist-apply-to-every-diff) below, so coverage doesn't degrade the way a single long pass does (no "addressed 20 of 50" laziness).
 2. **Verify (adversarial)** - each candidate finding faces `votes` independent refuters prompted to *kill* it. Majority-refute drops the finding. Only survivors come back.
 
-**Then post as normal.** The workflow returns `{ confirmed, dropped }`. Map `confirmed` into the same review payload (§3) and post the **one** review (§4) with the usual severity prefixes and voice. Mention the filter in the summary: *"Adversarial pass: N findings confirmed, M refuted and dropped."* `--dry-run` still prints instead of posting.
+**Then post as normal.** The workflow returns `{ confirmed, dropped }`. Map `confirmed` into the same review payload (§4) and post the **one** review (§5) with the usual severity prefixes and voice. Mention the filter in the summary: *"Adversarial pass: N findings confirmed, M refuted and dropped."* `--dry-run` still prints instead of posting.
 
 **Portability & cost.** The `Workflow` tool is Claude Code-only - in another runtime, fall back to the standard pass and say so. Ultra spends materially more tokens (≈ dimensions × findings × votes agents); the default non-ultra path remains correct for everyday reviews.
 

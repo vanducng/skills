@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[error or issue description]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Debug
@@ -19,6 +19,12 @@ NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
 ```
 
 Random fixes waste time and create new bugs. Find root cause → fix at source → validate at every layer → verify with fresh evidence before claiming done.
+
+## Feedback-loop gate
+
+**No red-capable command, no hypothesizing.** Before proposing any cause, build a feedback loop: one command (or tight sequence) that demonstrably *fails* when the bug is present and passes when it's gone - a failing test, a curl that returns the wrong body, a query that shows the wrong count. Then tighten it: cut its runtime and noise until iterating is cheap. For non-deterministic bugs, loop the command until the failure rate is measurable - "sometimes fails" is not a repro, "fails 3/50 runs" is.
+
+Only after the loop exists, hypothesize - **3-5 ranked, falsifiable hypotheses**, most likely first, each with the check that would disprove it. Show the list before testing them (the user often eliminates half from knowledge you don't have). Test one at a time against the loop; a hypothesis you can't design a disproving check for isn't a hypothesis, it's a hunch.
 
 ## Proof gate
 
@@ -116,7 +122,7 @@ If catching yourself thinking:
 
 - "Quick fix for now, investigate later"
 - "Just try changing X and see if it works"
-- "It's probably X, let me fix that"
+- "It's probably X, let me fix that" *(no feedback loop exists yet - build the repro first)*
 - "Should work now" / "Seems fixed"
 - "Tests pass, we're done"
 - "The dashboard looks right now, ship it" *(without confirming the underlying number)*

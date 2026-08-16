@@ -476,7 +476,7 @@ class ScoutBlockTest(HookTestBase):
         self.assertEqual(code, 2, err)
 
     def test_allows_git_info_exclude(self):
-        # (c) worktree/cktovd flows legitimately read/write .git/info/exclude
+        # (c) worktree flows legitimately read/write .git/info/exclude
         for cmd in ('echo dist >> .git/info/exclude', 'cat .git/info/exclude'):
             code, _, err = self._bash(cmd)
             self.assertEqual(code, 0, '%s: %s' % (cmd, err))

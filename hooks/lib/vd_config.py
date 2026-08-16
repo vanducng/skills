@@ -3,7 +3,7 @@
 Local config resolves via git-root (not a literal unexpanded HOME string).
 paths.umbrella (default null) opts a repo into the .workbench/ layout.
 Config file: .vd.json only. A lingering legacy .ck.json raises a migration
-error (run the cktovd skill) — vd no longer reads .ck.json.
+error (rename it to .vd.json) - vd no longer reads .ck.json.
 """
 
 import copy
@@ -134,7 +134,7 @@ def assert_migrated(vd_path, ck_path):
     if not os.path.exists(vd_path) and os.path.exists(ck_path):
         raise RuntimeError(
             'Legacy %s found at %s but no %s. '
-            'vd no longer reads .ck.json — run the cktovd skill, or rename it to %s.'
+            'vd no longer reads .ck.json - rename it to %s (same shape; move claudekit-only keys under vd equivalents as needed).'
             % (os.path.basename(ck_path), ck_path, os.path.basename(vd_path), os.path.basename(vd_path))
         )
 
