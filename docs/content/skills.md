@@ -37,7 +37,7 @@ Where [Plannotator](https://plannotator.ai) is installed, plan approval rides it
 | Product CLIs | `vd:miucr` (AI code-review CLI), `vd:miudb` (database CLI), `vd:vd-cli` (skill manager), `vd:cli-ts` (build your own) |
 | SaaS and workspace operations | `vd:gws`, `vd:jira`, `vd:smartsheet`, `vd:braze`, `vd:voice-agent`, `vd:superwhisper` |
 | Local operations and isolation | `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:computer-clean`, `vd:journal`, `vd:workbench` |
-| Personal ops | `vd:issue-invoice`, `vd:resume-screen` |
+| Personal ops | `vd:issue-invoice` |
 | Skill lifecycle | `vd:skill-creator`, `vd:skill-management`, `vd:skill-audit`, `vd:rule-miner`, `vd:skill-evolve` |
 | Repository readiness | `vd:agent-readiness` |
 
@@ -95,5 +95,3 @@ Use `vd:braze` for category-first Braze reads, leaf-permission diagnosis, explic
 Use `vd:smartsheet` to discover and read sheets with bounded JSON commands, then perform only explicitly authorized row additions or updates with read-back verification.
 
 Use `vd:voice-agent` to operate Retell through `vac` with bounded reads, explicit write authorization, current endpoint guidance, and structured recovery.
-
-`vd:resume-screen` scores operator-supplied resumes against a JD into an Excel workbook (knockouts, a 100-point factor `Total` that is an Excel formula, overlays, fact-check). Role scorecards are profiles under the skill - add a new role with a profile file and one index row, not a fork of the skill. The operator provides the JD and resume files; the skill does not pull from Google Drive or LinkedIn Recruiter. Logged-in fact-check composes `vd:ego-browser`, or a named `vd:browser-profile` driven by `vd:agent-browser` in connect mode (`vd:browser` only if LinkedIn/GitHub anti-bot blocks the local profile).

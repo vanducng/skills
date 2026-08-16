@@ -17,8 +17,8 @@ Ultracook is a **map, not a cage**. Given a task it classifies the work, picks t
 | Form | Action |
 |---|---|
 | `vd:ultracook "<goal>"` | New goal - classify → confirm flow → state.json → run stages |
-| `vd:ultracook` (no args) | Resume - read the most recent in-progress goal's `state.json`, continue from the first non-done stage |
-| `vd:ultracook status [--all]` | One-screen status (`scripts/status.sh <state-base>[/<slug>]`) |
+| `vd:ultracook` (no args) | Resume - list in-progress goals (`scripts/status.sh <state-base>`); exactly one → continue it from the first non-done stage, several → ask which (no silent newest-wins) |
+| `vd:ultracook status [<slug>]` | One-line status per goal; stage detail for one (`scripts/status.sh <state-base>[/<slug>]`) |
 | `vd:ultracook kill --reason "<text>"` | Mark abandoned + drop cancel sentinel (`scripts/kill.sh`) |
 
 Flags: `--reuse` (work in the current checkout instead of a `vd:worktree`), `--manual` / `--semi` (default) / `--auto` (autonomy - see `references/autonomy-modes.md`).

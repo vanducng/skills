@@ -101,7 +101,7 @@ Rule: if the word is *broken/failing/wrong*, route through debug/fix (they enfor
 
 ## Everything else
 
-Language guidance (`vd:golang`, `vd:gostack`, `vd:py2go`), infra/ops (`vd:aws`, `vd:devops`, `vd:cnpg`, `vd:astro-airflow`), product CLIs (`vd:miudb`, `vd:vd-cli`), workspace tools (`vd:gws`, `vd:jira`, `vd:smartsheet`, `vd:braze`), parallel isolation (`vd:worktree`, `vd:herdr`, `vd:herd-worktree`), personal ops (`vd:computer-clean`, `vd:issue-invoice`, `vd:resume-screen`, `vd:superwhisper`, `vd:twitter`, `vd:devlog`), and the rest are cataloged with one-line purposes in the repo's `docs/content/skills.md` - route by their own descriptions.
+Language guidance (`vd:golang`, `vd:gostack`, `vd:py2go`), infra/ops (`vd:aws`, `vd:devops`, `vd:cnpg`, `vd:astro-airflow`), product CLIs (`vd:miudb`, `vd:vd-cli`), workspace tools (`vd:gws`, `vd:jira`, `vd:smartsheet`, `vd:braze`), parallel isolation (`vd:worktree`, `vd:herdr`, `vd:herd-worktree`), personal ops (`vd:computer-clean`, `vd:issue-invoice`, `vd:superwhisper`, `vd:twitter`, `vd:devlog`), and the rest are cataloged with one-line purposes in the repo's `docs/content/skills.md` - route by their own descriptions.
 
 ## Output rule
 

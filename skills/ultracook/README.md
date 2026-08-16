@@ -48,13 +48,13 @@ Plannotator's plan-review hook where installed.
 ## Sub-verbs
 
 ```
-vd:ultracook                           # resume the most recent in-progress goal
-vd:ultracook status [--all]            # one-screen status (scripts/status.sh)
+vd:ultracook                           # resume an in-progress goal
+vd:ultracook status [<slug>]           # all goals one-line each; stage detail for one (scripts/status.sh)
 vd:ultracook kill --reason "<text>"    # terminal=abandoned + cancel.sentinel (scripts/kill.sh)
 ```
 
-When more than one goal is in flight, bare resume and `status --all` list them so you
-pick - no silent newest-wins.
+When more than one goal is in flight, bare resume lists them (via `status.sh`) and
+asks which to continue - no silent newest-wins.
 
 ## Modes
 
