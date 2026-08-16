@@ -78,7 +78,7 @@ State base: `$VD_STATE_PATH` → `<git-root>/.workbench/state` when `.workbench/
                                   # iteration counters, terminal state - schema in references/state.md
 ```
 
-Resume = read the file, continue from the first non-done stage.
+Resume = read the file, continue from the first stage that is neither `done` nor `skipped`.
 
 ## Hard guardrails
 

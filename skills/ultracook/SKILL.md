@@ -17,7 +17,7 @@ Ultracook is a **map, not a cage**. Given a task it classifies the work, picks t
 | Form | Action |
 |---|---|
 | `vd:ultracook "<goal>"` | New goal - classify → confirm flow → state.json → run stages |
-| `vd:ultracook` (no args) | Resume - list in-progress goals (`scripts/status.sh <state-base>`); exactly one → continue it from the first non-done stage, several → ask which (no silent newest-wins) |
+| `vd:ultracook` (no args) | Resume - list in-progress goals (`scripts/status.sh <state-base>`); exactly one → continue it from the first stage that is neither done nor skipped, several → ask which (no silent newest-wins) |
 | `vd:ultracook status [<slug>]` | One-line status per goal; stage detail for one (`scripts/status.sh <state-base>[/<slug>]`) |
 | `vd:ultracook kill --reason "<text>"` | Mark abandoned (`scripts/kill.sh`; refuses if already terminal). If a `vd:auto-loop` is active, also cancel it via auto-loop's own cancel command |
 
@@ -71,7 +71,7 @@ For each stage, in order:
 
 ## Hard rules
 
-1. **State on disk is source of truth.** `<state-base>/<slug>/state.json` (resolution order in `references/state.md`) survives context compaction; resume = read it and continue from the first non-done stage.
+1. **State on disk is source of truth.** `<state-base>/<slug>/state.json` (resolution order in `references/state.md`) survives context compaction; resume = read it and continue from the first stage that is neither `done` nor `skipped`.
 2. **Composes existing `vd:*` skills - never reimplements them.** If a stage needs behavior its skill lacks, improve that skill, not this file.
 3. **Guardrails on every autonomous run:** iteration cap 30 → `blocked`; 3 identical failure signatures in a row → `blocked` with the signature surfaced; at ~80% context, checkpoint state and prompt back rather than degrading silently.
 4. **Once a gate clears, don't re-gate.** Escalate only on exceptions: unrelated test failure, merge conflict, non-auto-fixable structural error, a service down after retries, a never-seen error. This is what prevents approval fatigue.

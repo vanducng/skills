@@ -1,6 +1,6 @@
 # state.json schema (v2)
 
-One file per goal: `<state-base>/<slug>/state.json`. It is the single source of truth for "where are we" and survives context compaction - resume means "read this file, continue from the first non-done stage."
+One file per goal: `<state-base>/<slug>/state.json`. It is the single source of truth for "where are we" and survives context compaction - resume means "read this file, continue from the first stage that is neither `done` nor `skipped`."
 
 State base resolves in order: `$VD_STATE_PATH` → `<git-root>/.workbench/state` when `.workbench/` exists → `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default). Never write ultracook state into the project tree outside `.workbench/`.
 
