@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[plan-dir | plan.md | task] [--auto | --quick] [--tdd] [--no-test]"
 metadata:
   author: vanducng
-  version: "1.4.1"
+  version: "1.5.0"
 ---
 
 # Cook
@@ -43,7 +43,7 @@ Composable flags:
 
 | Flag | Effect |
 |---|---|
-| `--tdd` | Step B of every phase opens with writing the phase's `Tests` as failing tests. Implementation comes after. |
+| `--tdd` | Step B of every phase opens with writing the phase's `Tests` as failing tests, following `vd:tdd` discipline (test at the plan's `## Test Seams`, red before green, no implementation-coupled tests). Implementation comes after. |
 | `--no-test` | Skip the test step. Docs/config-only changes. Warn the user loudly. |
 | `--skip-preflight` | Skip Step 0. Use when audit already ran or you trust the plan against current codebase. |
 
@@ -129,7 +129,7 @@ If the plan and the codebase disagree (e.g. plan says "add to file X" but X has 
 - After each file: re-read the diff. Compilers don't catch logic.
 - If a step grows beyond the phase's scope (files not listed in the phase get touched) → stop and decide explicitly. Don't scope-drift.
 
-`--tdd`: Step B opens with writing the phase's `Tests` section as failing tests, then implementing.
+`--tdd`: Step B opens with writing the phase's `Tests` section as failing tests per `vd:tdd` (at the plan's agreed seams - propose seams first if the plan has none), then implementing.
 
 **Doubt gate (non-trivial decisions only).** When a step forces a real judgment call - branching logic a compiler can't check, a module-vs-service boundary, a context-dependent correctness property, or anything with irreversible blast radius - spawn a fresh-context reviewer on *just that decision's* diff + the contract it must satisfy. Pass the artifact and the contract, **not your reasoning for why it's right** - withholding the claim is what makes the second look independent. Skip it for mechanical edits, rename/move, or anything fully covered by a passing test. This is in-flight course-correction, cheaper than catching it at Step E.
 
@@ -211,14 +211,7 @@ After the last phase passes:
 
 ## Specials
 
-- **Migrations** - phase A (migration) must include a tested rollback path before phase B (consumers) starts. Untested rollback = hope, not migration.
-- **API breaking changes** - verify all callers compile/run after each step. If you can't add new without breaking old, the plan is wrong → kick back.
-- **Performance work** - Step C must compare against baseline numbers from the plan. "Faster" without numbers is unfalsifiable.
-- **Refactors with `--tdd`** - Step B's failing tests document **current** behavior. After implementation, all tests must still pass. A new green that wasn't green before is suspicious - investigate, don't celebrate.
-- **UI work** - Step C must include manual browser verification. Type errors and visual bugs are orthogonal.
-- **Library upgrades** - every phase ends with a smoke of one feature touched by the upgraded library. Don't lump smokes into a final QA phase.
-- **Bug fixes** (`--quick`) - write the test that reproduces the bug *first*, watch it fail, then fix. Without the failing test you have no proof the bug existed.
-- **Parallel fan-out** (phases cooked concurrently by separate agents in one checkout, e.g. via `Workflow`/`Task`) - four rules earn the speedup without corruption: (1) **scaffold the shared surface in the foundation phase** - route registry, barrel imports, type stubs - so parallel phases fill *disjoint* files and never both touch the registry; (2) **strict glob ownership per phase** + "commit only your paths, never `git add -A`"; the one phase that edits or deletes a shared file (the registry, the god-component) owns that edit *alone*; (3) **resume from uncommitted state on agent death** - long fan-outs lose agents to session limits and transient API socket drops mid-phase; recover by reading the uncommitted tree, amending the phase prompt with a `RESUME NOTE: read git status/diff, continue from there`, and re-running (`Workflow resumeFromRunId` returns completed phases from cache); (4) **run the full integrated gate at HEAD after the fan-out** - per-phase "DONE" claims don't catch cross-phase compile/test gaps, and a generated/gitignored dir (e.g. `proto/gen`) can throw phantom "undefined X" errors that look like a broken merge - regenerate before trusting a red build.
+Situation playbooks live in [`references/specials.md`](references/specials.md) - load the matching section when the work is one of: **migrations** (rollback tested before consumers), **API breaking changes** (add → migrate → remove, callers green each step), **performance** (baseline or it's unfalsifiable), **refactors with `--tdd`** (tests freeze current behavior), **UI** (manual browser check), **library upgrades** (smoke per phase), **bug fixes** (failing test first), or **parallel fan-out** (disjoint file ownership, resume protocol, integrated gate at HEAD).
 
 ## Workflow position
 

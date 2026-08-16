@@ -17,7 +17,7 @@ metadata:
 
 | Skill | Does |
 |---|---|
-| `vd:test` | **Runs** tests, reports pass/fail |
+| `vd:tdd` | **Writes** tests at agreed seams, red-before-green |
 | `vd:brainstorm` | Explores *solution* options |
 | **`scenario`** | **Enumerates** edge cases & failure modes to test - does not run or fix them |
 
