@@ -24,7 +24,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Browser automation and e2e | `vd:ego-browser`, `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-perf` |
 | Web and frontend | `vd:uiuxdesign`, `vd:opendesign`, `vd:fastreact` |
 | CLI engineering and operations | `vd:braze`, `vd:cli-ts`, `vd:smartsheet`, `vd:voice-agent` |
-| Docs and diagrams | `vd:docs`, `vd:tech-docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:tldraw-offline` |
+| Docs and diagrams | `vd:docs`, `vd:tech-docs`, `vd:diagram`, `vd:diagram-design`, `vd:text-diagram`, `vd:excalidraw` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
 | Data and workspace | `vd:miudb`, `vd:vd-cli`, `vd:superwhisper`, `vd:aws`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:issue-invoice` |
@@ -64,6 +64,8 @@ Within review, the four passes answer different questions: `vd:code-review` asks
 
 Use `vd:docs` for canonical internal project docs and ADRs. Use `vd:tech-docs` to create, modernize, validate, and ship a rendered public developer documentation site.
 
+Use `vd:diagram-design` for polished, accessible, self-contained HTML/SVG diagrams with editorial layout guidance, Mermaid and draw.io redraw workflows, optional brand tokens, and packaged geometry, accessibility, motion, and skin checks. Use `vd:text-diagram` for ASCII sketches, `vd:diagram` for general SVG or raster output, and `vd:excalidraw` for editable whiteboard canvases.
+
 Use `vd:superwhisper` to search local dictation history, prepare standups or commitment reviews, diagnose pronunciation and raw-versus-processed transcription errors, detect unwanted short-input expansion, and maintain vocabulary or snippets with approval. Invoke `vd:superwhisper --pronunciation <term>` for repeated recognition errors or `vd:superwhisper --diagnose <term-or-recording-id>` for processing failures.
 
 Use `vd:braze` for category-first Braze reads, leaf-permission diagnosis, explicit opt-in or opt-out changes, and end-to-end `braze-cli` validation.
@@ -71,5 +73,3 @@ Use `vd:braze` for category-first Braze reads, leaf-permission diagnosis, explic
 Use `vd:smartsheet` to discover and read sheets with bounded JSON commands, then perform only explicitly authorized row additions or updates with read-back verification.
 
 Use `vd:voice-agent` to operate Retell through `vac` with bounded reads, explicit write authorization, current endpoint guidance, and structured recovery.
-
-Use `vd:tldraw-offline` to inspect, edit, persist, and verify canvases in the local tldraw desktop app. New canvases default to the injected feature visuals directory, with structural, persistence, and conditional visual completion gates.
