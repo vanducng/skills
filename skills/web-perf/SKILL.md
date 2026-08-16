@@ -51,7 +51,7 @@ node "$SKILL/perf-trace.cjs" --port $PORT --url https://myapp.test/dashboard --o
 
 1. Get a CDP port: an open profile (`e2e.cjs status --json` reports it) or `chrome --remote-debugging-port=NNNN --user-data-dir=<dedicated>` (Chrome 136+ refuses the default dir).
 2. Baseline: `vitals.cjs --url <page>` on the cold path; re-run for the warm read. A persistent profile has a primed cache - for cold-cache numbers use a fresh profile or note "warm" in the report.
-3. INP needs interactions: drive clicks/typing via `vd:browser` first, then `vitals.cjs` *without* `--url` (re-navigating clears interaction history). `INP: n/a` on a fresh load is correct.
+3. INP needs interactions: drive clicks/typing via `vd:agent-browser` first, then `vitals.cjs` *without* `--url` (re-navigating clears interaction history). `INP: n/a` on a fresh load is correct.
 4. Slow page? `perf-trace.cjs` around the navigation; the long-task summary names the top main-thread offenders, the trace file gives the flame chart.
 5. In an e2e run, append the vitals JSON and trace path to the flow report as evidence (`vd:web-e2e` report convention).
 
