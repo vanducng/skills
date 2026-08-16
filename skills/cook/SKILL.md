@@ -109,7 +109,7 @@ Validate the phase's mechanical assumptions against the live codebase. Fast loca
 2. Revise the phase manually then resume
 3. Abort cook
 
-Don't auto-fix the plan - user owns the decision. Pre-flight is mechanical, not logical: ordering / dependency / success-criteria realism is `vd:plan-audit`'s job. `--skip-preflight` bypasses Step 0 entirely.
+Don't auto-fix the plan - user owns the decision. Pre-flight is mechanical, not logical: ordering / dependency / success-criteria realism is `vd:plan --audit`'s job. `--skip-preflight` bypasses Step 0 entirely.
 
 ### Step A - Conform
 
