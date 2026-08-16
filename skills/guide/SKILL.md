@@ -78,7 +78,7 @@ Rule: if the word is *broken/failing/wrong*, route through debug/fix (they enfor
 | Rendered architecture/ER/C4/sequence diagram (image/SVG) | `vd:diagram` |
 | ASCII diagram inline in markdown/chat | `vd:text-diagram` |
 | Editable whiteboard via Excalidraw MCP | `vd:excalidraw` |
-| Local `.tldraw` canvas files | `vd:tldraw-offline` |
+| Polished editable HTML/SVG diagram artifact (architecture, ER, sequence, charts) | `vd:diagram-design` |
 | Polished single-file HTML page/mockup/deck | `vd:opendesign` |
 | Product UI critique + frontend implementation quality | `vd:uiuxdesign` |
 | Brand raster assets (logos, banners, social) | `vd:marketing-design` |

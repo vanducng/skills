@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 77 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 76 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -32,7 +32,7 @@ Where [Plannotator](https://plannotator.ai) is installed, plan approval rides it
 | Browser automation and e2e | `vd:ego-browser`, `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-perf` |
 | Web and frontend | `vd:uiuxdesign`, `vd:opendesign`, `vd:fastreact` |
 | Design contracts | `vd:apidesign` (owns the deep-module design vocabulary), `vd:dbdesign` |
-| Docs and diagrams | `vd:docs`, `vd:tech-docs`, `vd:diagram`, `vd:text-diagram`, `vd:excalidraw`, `vd:tldraw-offline` |
+| Docs and diagrams | `vd:docs`, `vd:tech-docs`, `vd:diagram`, `vd:diagram-design`, `vd:text-diagram`, `vd:excalidraw` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Product CLIs | `vd:miucr` (AI code-review CLI), `vd:miudb` (database CLI), `vd:vd-cli` (skill manager), `vd:cli-ts` (build your own) |
 | SaaS and workspace operations | `vd:gws`, `vd:jira`, `vd:smartsheet`, `vd:braze`, `vd:voice-agent`, `vd:superwhisper` |
@@ -51,7 +51,7 @@ Inside Herdr, `vd:worktree` delegates current-pane naming to `vd:herdr` after a 
 
 Within browser automation, `vd:ego-browser` drives logged-in browsing through isolated ego lite task spaces, follows the active app's embedded runtime contract, and asks before closing each completed space so short tasks do not leave clutter behind. `vd:agent-browser` is the direct CDP driver for the persistent Chrome that `vd:browser-profile` launches, and keeps its own video-recording and network-mocking specialties. `vd:browser-trace` captures vendor-free raw-CDP traces (console, network, lifecycle) against that same local Chrome. `vd:browser` is scoped to Browserbase cloud sessions only - the escalation target for CAPTCHA, anti-bot, and proxy work when a local run hits a wall. `vd:web-e2e` orchestrates logged-in end-to-end flows on top of them.
 
-`vd:miucr` operates the `miucr` AI code-review CLI - staged/PR reviews, MCP server mode, webhook daemon, and evals - as an alternative review surface to `vd:code-review`'s inline-comment flow.
+`vd:miucr` operates the `miucr` AI code-review CLI - staged/PR reviews, MCP server mode, webhook daemon, and evals. It is the deterministic owned reviewer for when the review itself must be reproducible and gated by severity thresholds rather than agent judgment; `vd:code-review` remains the inline-comment agent flow.
 
 `vd:jira` uses the `vanducng/jira-cli` fork for native inline local-image comments, accepts `--project` and `--type bug|task` for untracked local rules, and maps board columns to verified workflow transitions.
 
@@ -95,7 +95,5 @@ Use `vd:braze` for category-first Braze reads, leaf-permission diagnosis, explic
 Use `vd:smartsheet` to discover and read sheets with bounded JSON commands, then perform only explicitly authorized row additions or updates with read-back verification.
 
 Use `vd:voice-agent` to operate Retell through `vac` with bounded reads, explicit write authorization, current endpoint guidance, and structured recovery.
-
-Use `vd:tldraw-offline` to inspect, edit, persist, and verify canvases in the local tldraw desktop app. New canvases default to the injected feature visuals directory, with structural, persistence, and conditional visual completion gates.
 
 `vd:resume-screen` scores operator-supplied resumes against a JD into an Excel workbook (knockouts, a 100-point factor `Total` that is an Excel formula, overlays, fact-check). Role scorecards are profiles under the skill - add a new role with a profile file and one index row, not a fork of the skill. The operator provides the JD and resume files; the skill does not pull from Google Drive or LinkedIn Recruiter. Logged-in fact-check composes `vd:ego-browser`, or a named `vd:browser-profile` driven by `vd:agent-browser` in connect mode (`vd:browser` only if LinkedIn/GitHub anti-bot blocks the local profile).
