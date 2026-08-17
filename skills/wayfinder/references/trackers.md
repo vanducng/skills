@@ -14,7 +14,7 @@ The map needs five operations from whatever tracker the repo uses: create the ma
 | Create map | `gh issue create --title "<map name>" --label wayfinder:map --body-file <map.md>` (create labels once with `gh label create`) |
 | Create ticket | `gh issue create --title "<question gist>" --label "wayfinder:<type>" --body $'## Question\n<question>'` then link as sub-issue of the map (native sub-issues via `gh api` `addSubIssue`; fall back to a `Map: #<n>` body line + task-list on the map if unavailable) |
 | Blocking edge | Native issue dependencies ("blocked by") via the issue UI/API where the plan supports it; fall back to a `Blocked by: #<n>` body line |
-| Frontier query | Open, unassigned children whose blockers are all closed: `gh issue list --label "wayfinder:" --no-assignee --state open` then filter blocked ones by reading their dependency field/body line |
+| Frontier query | Open, unassigned children whose blockers are all closed. GitHub label filters are exact-match (no prefix search), so query each type label: `for t in research prototype grilling task; do gh issue list --label "wayfinder:$t" --no-assignee --state open --json number,title; done` then drop tickets whose dependency field/`Blocked by:` line names an open issue |
 | Claim | `gh issue edit <n> --add-assignee @me` |
 | Resolve | `gh issue comment <n> --body "<answer>"` then `gh issue close <n>` |
 
