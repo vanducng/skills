@@ -62,7 +62,7 @@ If the request describes 3+ independent concerns ("build platform with auth + bi
 
 > This spans N independent subsystems. Each deserves its own brainstorm. Suggested decomposition: [A, B, C]. Suggested order: [reason]. Pick one to start.
 
-Do not deepen until the user picks one. This is the single most common failure mode of brainstorming sessions.
+Do not deepen until the user picks one. This is the single most common failure mode of brainstorming sessions. When the decomposition itself spans more sessions than one brainstorm-per-part can carry - many interdependent decisions, weeks of fog - offer `vd:wayfinder` to chart the whole space as a decision map instead.
 
 ## Phase 2 - Diverge
 

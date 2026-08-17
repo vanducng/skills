@@ -74,7 +74,7 @@ If the goal spans 3+ independent shippable features → **stop**. Reply:
 
 > This plan would have N+ phases across independent features. Suggest splitting into separate plans: [A, B, C]. Build order: [reason]. Pick one to start.
 
-A plan with 12+ phases is almost always two plans pretending to be one.
+A plan with 12+ phases is almost always two plans pretending to be one. And if the *decisions* themselves span more sessions than the phases do - the approach is still foggy across multiple fronts - escalate to `vd:wayfinder` instead: chart the open decisions as a map, then come back here per cleared chunk.
 
 ## Phase 2 - Discover (`--deep` only, optional in default)
 
