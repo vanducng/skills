@@ -96,7 +96,7 @@ Beyond the live tickets lies the fog: decisions you can tell are coming but can'
 2. **Map the frontier** - grill again, *breadth-first*: fan across the whole space, not deep on one thread. **No fog surfaced?** The journey fits one session - stop; this needs `vd:brainstorm`/`vd:plan`, not a map. Say so.
 3. **Create the map** (`wayfinder:map`): Destination + Notes filled, Decisions-so-far empty, fog sketched into Not yet specified.
 4. **Create the specifiable tickets** as children, then wire blocking edges in a second pass (issues need ids before they can reference each other).
-5. **Fire the research subagents** - each `research` ticket resolves in parallel via `vd:research`.
+5. **Fire the research subagents** - claim each `research` ticket first (assign it, per hard rule 3 - unclaimed tickets stay on the frontier and a concurrent session would duplicate the work), then resolve them in parallel via `vd:research`.
 6. Stop. Charting is one session's work; it hand-resolves nothing.
 
 ### Work the map (map URL/id in, ticket optional)
