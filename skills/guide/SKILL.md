@@ -55,6 +55,7 @@ Rule: if the word is *broken/failing/wrong*, route through debug/fix (they enfor
 
 - `vd:brainstorm` - path unclear, invent 3+ divergent options, then grill to converge.
 - `vd:brainstorm --grill` - the idea exists; sharpen it by interviewing the user (rounds of questions with recommended answers, Plannotator-first).
+- `vd:wayfinder` - the idea is too big for any single session: chart it as a map of decision tickets on the issue tracker, resolve one per session until the way is clear, then hand each chunk to `vd:plan`. Plans decisions, not builds.
 - `vd:research` - options are known; compare with citations.
 - `vd:scenario` - enumerate edge cases across 12 risk dimensions (feeds test selection, not a test runner).
 - `vd:tdd` - testing discipline: seams, red-before-green, anti-patterns.

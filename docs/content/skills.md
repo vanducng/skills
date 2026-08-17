@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 76 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 77 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -14,7 +14,7 @@ Not sure where to start? `vd:guide` is the catalog's router - it maps a situatio
 | --- | --- |
 | Route | `vd:guide` |
 | Discover | `vd:scout`, `vd:graphify`, `vd:research` |
-| Decide | `vd:brainstorm` (diverge into options, grill to converge - Plannotator-first), `vd:scenario` |
+| Decide | `vd:brainstorm` (diverge into options, grill to converge - Plannotator-first), `vd:wayfinder` (multi-session decision maps on the issue tracker), `vd:scenario` |
 | Plan | `vd:plan` (phased plan + Definition of Done; `--audit` for an independent clean-context check) |
 | Execute | `vd:cook`, `vd:fix`, `vd:debug`, `vd:tdd`, `vd:codex-workflow` |
 | Review and ship | `vd:code-review` (incl. `--refactor` fit/slop lens), `vd:simplify` (incl. `--aggressive` reshape and `--scan` survey), `vd:security`, `vd:miucr`, `vd:ship`, `vd:git` |
@@ -24,6 +24,8 @@ Not sure where to start? `vd:guide` is the catalog's router - it maps a situatio
 `vd:ultracook` is the conductor over the stack: it classifies a task (direct / pipeline / fan-out), composes the needed slice of **brainstorm → plan → cook → review → ship** as stages with checkable done-when gates, and runs to a verified terminal state with resumable on-disk state. Each stage's discipline lives in the invoked skill - ultracook is a map, not a cage.
 
 Where [Plannotator](https://plannotator.ai) is installed, plan approval rides its plan-review hook (annotate in the browser, structured feedback back to the agent), and `vd:brainstorm` delivers its grilling rounds as annotatable briefs via `plannotator-annotate`.
+
+For work too big for any single session, `vd:wayfinder` (adapted from mattpocock/skills) charts a shared map of decision tickets on the issue tracker - GitHub Issues, Jira, or a local-markdown fallback - and resolves one per session until the way is clear, then hands each buildable chunk to `vd:plan`. It plans decisions, not builds; the tracker is the memory between sessions.
 
 ## Agent And Tooling Skills
 
