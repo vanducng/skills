@@ -15,16 +15,52 @@ Common entries:
 | Goal | Skill |
 | --- | --- |
 | Align on what to build | `vd:interview` |
+| Stress-test a plan or idea | `vd:interview --grill` |
 | Scout a codebase | `vd:scout` |
 | Debug a failure | `vd:debug` |
-| Explore approaches | `vd:brainstorm` |
-| Chart a multi-session effort | `vd:wayfinder` |
+| Explore one-session approaches | `vd:brainstorm` |
+| Chart a multi-session effort | `vd:interview --wayfinder` |
 | Plan a multi-step change | `vd:plan` |
 | Execute a plan | `vd:cook` |
 | Ship a branch | `vd:ship` |
 | Update docs | `vd:docs` |
 
 Source: `skills/<name>/SKILL.md` frontmatter.
+
+## From ask to ship
+
+One spine: **interview → brainstorm → plan → cook → ship**. Interview flags only change how you enter it.
+
+| If | Use |
+| --- | --- |
+| Who / why / success / out of scope is missing | `vd:interview` |
+| You have a plan to stress-test | `vd:interview --grill` |
+| Deciding will not fit one session | `vd:interview --wayfinder` |
+| Want is clear, how is not | `vd:brainstorm` |
+| Approach is picked | `vd:plan` → `vd:cook` → `vd:code-review` → `vd:ship` |
+| Something is broken | `vd:debug` → `vd:fix`, then review and ship |
+
+```mermaid
+flowchart TD
+  ask[Ask] --> broken{Broken?}
+  broken -->|yes| debug[debug then fix]
+  debug --> review
+  broken -->|no| want{Want clear?}
+  want -->|no| iv[interview]
+  iv --> span
+  want -->|yes| span{Fits one session?}
+  span -->|no| wf[interview --wayfinder]
+  wf --> plan
+  span -->|yes| how{How decided?}
+  how -->|no| bs[brainstorm]
+  bs --> plan
+  how -->|yes| plan[plan]
+  plan --> cook[cook]
+  cook --> review[code-review]
+  review --> ship[ship]
+```
+
+`--wayfinder` stays on interview until one chunk is clear, then that chunk joins at `plan` and ships like anything else. `vd:ultracook` runs the smallest slice of this same path.
 
 ## Edit A Skill
 
