@@ -18,6 +18,7 @@ metadata:
 |---|---|---|
 | **`vd:interview`** | **"What do you actually want?"** | **Confirmed intent (outcome / user / success / constraint / out of scope)** |
 | `vd:brainstorm` | "How should we approach this?" | Decision brief with 3+ options |
+| `vd:wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
 | `vd:research` | "Which known option should I pick?" | Cited comparison |
 | `vd:plan` | "What are the steps?" | Phased plan |
 
@@ -141,7 +142,8 @@ Then hand off. Do not start the next skill until they pick one, unless they alre
 
 | After confirm | Next |
 |---|---|
-| How is undecided | `vd:brainstorm` with this file |
+| How is undecided, one session | `vd:brainstorm` with this file |
+| How is undecided and the deciding will not fit one session | `vd:wayfinder` with this file |
 | How is decided | `vd:plan` with this file |
 | Tiny, mechanical, already specified | they may skip to `vd:cook --quick` - they say so |
 
@@ -178,12 +180,12 @@ Then hand off. Do not start the next skill until they pick one, unless they alre
 - [ ] Six-line restate including Out of scope
 - [ ] Explicit yes (not "sounds good")
 - [ ] Intent file written to `Reports:` only after the yes
-- [ ] Handoff named (`vd:brainstorm` / `vd:plan` / user-requested `--quick`)
+- [ ] Handoff named (`vd:brainstorm` / `vd:wayfinder` / `vd:plan` / user-requested `--quick`)
 
 ## Workflow position
 
 **Typically follows:** a vague ask, `vd:ultracook` when want is unclear, or a user saying "interview me" / "grill me"
 
-**Typically precedes:** `vd:brainstorm` (how) or `vd:plan` (steps)
+**Typically precedes:** `vd:brainstorm` (how), `vd:wayfinder` (multi-session deciding), or `vd:plan` (steps)
 
-**Compares to:** `vd:brainstorm` Phase 1 asks clarifying questions to frame *options*. This skill refuses options until want is confirmed.
+**Compares to:** `vd:brainstorm` Phase 1 asks clarifying questions to frame *options*. This skill refuses options until want is confirmed. `vd:wayfinder` charts many sessions of decisions once the destination is named.
