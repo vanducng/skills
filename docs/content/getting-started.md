@@ -19,7 +19,7 @@ Common entries:
 | Scout a codebase | `vd:scout` |
 | Debug a failure | `vd:debug` |
 | Explore one-session approaches | `vd:brainstorm` |
-| Chart a multi-session effort | `vd:wayfinder` |
+| Chart a multi-session effort | `vd:interview --wayfinder` |
 | Plan a multi-step change | `vd:plan` |
 | Execute a plan | `vd:cook` |
 | Ship a branch | `vd:ship` |

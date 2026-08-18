@@ -16,11 +16,11 @@ metadata:
 |---|---|---|
 | `vd:interview` | "What do you actually want?" | Confirmed intent |
 | `vd:brainstorm` | "How should I approach this?" | Decision brief |
-| `vd:wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
+| `vd:interview --wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
 | `vd:plan` | "Given the approach, what are the steps?" | Phased plan |
 | **`vd:cook`** | **"Execute the plan - turn the spec into code."** | **Code changes, tests passing, plan status updated** |
 
-Cook **implements**. It does not design. If during cooking you find the plan is wrong, **stop** and kick back to `vd:plan` (or `vd:brainstorm` if the approach itself is wrong, or `vd:wayfinder` if the remaining deciding will not fit one session) - don't silently redesign while typing.
+Cook **implements**. It does not design. If during cooking you find the plan is wrong, **stop** and kick back to `vd:plan` (or `vd:brainstorm` if the approach itself is wrong, or `vd:interview --wayfinder` if the remaining deciding will not fit one session) - don't silently redesign while typing.
 
 ## Hard rules
 
@@ -236,7 +236,7 @@ After the last phase passes:
 
 ## Workflow position
 
-**Typically follows:** `vd:plan` (execute the plan), `vd:interview` → `vd:brainstorm` → `vd:plan` chain, or a cleared `vd:wayfinder` chunk
+**Typically follows:** `vd:plan` (execute the plan), `vd:interview` → `vd:brainstorm` → `vd:plan` chain, or a cleared `vd:interview --wayfinder` chunk
 **Typically precedes:** code review, PR open, deploy
 **Compares to:** `vd:fix` (narrow bug fixes - `--quick` covers similar ground)
-**Kick-back triggers:** want is unconfirmed → `vd:interview`; plan is wrong → `vd:plan`; approach is wrong → `vd:brainstorm`; remaining deciding will not fit one session → `vd:wayfinder`. Do not redesign in cook.
+**Kick-back triggers:** want is unconfirmed → `vd:interview`; plan is wrong → `vd:plan`; approach is wrong → `vd:brainstorm`; remaining deciding will not fit one session → `vd:interview --wayfinder`. Do not redesign in cook.

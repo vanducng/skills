@@ -1,11 +1,11 @@
 ---
 name: interview
-description: "Extracts what the user actually wants before any options, plan, or code. One question at a time with a stated hypothesis until an explicit yes on a restated intent (outcome, user, success, constraint, out of scope). Use when the ask is underspecified, missing who/why/success/constraint, or the user says 'interview me', 'grill me', 'before we start', 'are we sure', 'align first'. Pass --grill to walk an existing plan or idea. Do not use for unambiguous mechanical edits, pure info questions, or solution-space exploration (vd:brainstorm). Do not use when the deciding will not fit one session (vd:wayfinder)."
+description: "Extracts what the user actually wants before any options, plan, or code. One question at a time with a stated hypothesis until an explicit yes on a restated intent (outcome, user, success, constraint, out of scope). Use when the ask is underspecified, missing who/why/success/constraint, or the user says 'interview me', 'grill me', 'before we start', 'are we sure', 'align first'. Pass --grill to walk an existing plan or idea. Pass --wayfinder (or 'chart this', 'work the map', 'this is huge', 'we'll be at this for a while') when the deciding will not fit one session - a shared map of decision tickets. Do not use for unambiguous mechanical edits, pure info questions, or solution-space exploration (vd:brainstorm)."
 license: MIT
-argument-hint: "[topic or ask] [--grill]"
+argument-hint: "[topic or ask] [--grill | --wayfinder]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Interview
@@ -18,14 +18,16 @@ metadata:
 |---|---|---|
 | **`vd:interview`** | **"What do you actually want?"** | **Confirmed intent (outcome / user / success / constraint / out of scope)** |
 | `vd:interview --grill` | "Are these decisions the right ones?" | Same yes gate; each blocking decision walked |
+| `vd:interview --wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
 | `vd:brainstorm` | "How should we approach this?" | Decision brief with 3+ options |
-| `vd:wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
 | `vd:research` | "Which known option should I pick?" | Cited comparison |
 | `vd:plan` | "What are the steps?" | Phased plan |
 
-Interview extracts **want**. `--grill` walks an existing plan or idea. This is the only grilling mode in the catalog. It does not invent approaches, write phases, or touch source. If the user already knows the outcome and is choosing between designs, that is `vd:brainstorm`. If the deciding will not fit one session, that is `vd:wayfinder`.
+Interview extracts **want**. `--grill` walks an existing plan or idea. `--wayfinder` charts a multi-session decision map. Those are modes of this skill, not other skills. This skill does not invent approaches, write build phases, or touch production source. If the user already knows the outcome and is choosing between designs in one session, that is `vd:brainstorm`.
 
 ## Hard rules
+
+Default and `--grill` (want / walk-an-idea). `--wayfinder` uses the map rules in [`references/wayfinder.md`](references/wayfinder.md) instead.
 
 1. **One question per message.** Batching is a survey, not an interview. Why: a stacked list gets a polite yes, not a decision.
 2. **State a hypothesis + confidence before asking.** Attach your best guess and a recommended answer. Why: reacting is faster than generating from scratch, and a visible guess is easy to correct.
@@ -41,10 +43,13 @@ Interview extracts **want**. `--grill` walks an existing plan or idea. This is t
 |---|---|---|
 | **default** | Ask is a want ("build X", "make it faster") | Extract outcome until confirmed |
 | `--grill` | User has a plan/idea to stress-test | Walk decisions one at a time with a recommended answer; same yes gate |
+| `--wayfinder` | Deciding will not fit one session | Chart and work a shared map of decision tickets - [`references/wayfinder.md`](references/wayfinder.md) |
 
-Detect `--grill` from the flag or "grill this", "stress-test my plan". Announce the mode in the first reply.
+Detect `--grill` from the flag or "grill this", "stress-test my plan". Detect `--wayfinder` from the flag or "chart this", "wayfinder", "work the map", "this is huge", "we'll be at this for a while". If both could apply, `--wayfinder` wins (it will call `--grill` on individual tickets). Announce the mode in the first reply.
 
 ## Workflow
+
+`--wayfinder` does not use this loop. Follow [`references/wayfinder.md`](references/wayfinder.md).
 
 ### 0. Interactive check
 
@@ -144,7 +149,7 @@ Then hand off. Do not start the next skill until they pick one, unless they alre
 | After confirm | Next |
 |---|---|
 | How is undecided, one session | `vd:brainstorm` with this file |
-| How is undecided and the deciding will not fit one session | `vd:wayfinder` with this file |
+| How is undecided and the deciding will not fit one session | stay on this skill: `--wayfinder` |
 | How is decided | `vd:plan` with this file |
 | Tiny, mechanical, already specified | they may skip to `vd:cook --quick` - they say so |
 
@@ -161,6 +166,7 @@ Then hand off. Do not start the next skill until they pick one, unless they alre
 | "We've talked enough, I get it" | Can you predict their answer to the next three questions? If not, you don't. |
 | "They said yes" | A yes to a vague restate is hollow. Rewrite the six lines. |
 | "Non-interactive, I'll assume" | Hard rule 7. Missing slots are a blocker. |
+| "This needs a separate wayfinder skill" | `--wayfinder` is this skill. Do not look for `vd:wayfinder`. |
 
 ## Red flags
 
@@ -171,8 +177,11 @@ Then hand off. Do not start the next skill until they pick one, unless they alre
 - Skipping Out of scope
 - Confidence below 70% with no reason
 - Saving the intent file before the yes
+- Opening a 12-phase plan instead of switching to `--wayfinder`
 
 ## Verification
+
+Default / `--grill`:
 
 - [ ] Hypothesis + confidence in the first turn
 - [ ] One question at a time, each with a recommended answer
@@ -181,12 +190,14 @@ Then hand off. Do not start the next skill until they pick one, unless they alre
 - [ ] Six-line restate including Out of scope
 - [ ] Explicit yes (not "sounds good")
 - [ ] Intent file written to `Reports:` only after the yes
-- [ ] Handoff named (`vd:brainstorm` / `vd:wayfinder` / `vd:plan` / user-requested `--quick`)
+- [ ] Handoff named (`vd:brainstorm` / `--wayfinder` / `vd:plan` / user-requested `--quick`)
+
+`--wayfinder`: follow the verification list in [`references/wayfinder.md`](references/wayfinder.md).
 
 ## Workflow position
 
-**Typically follows:** a vague ask, `vd:ultracook` when want is unclear, or a user saying "interview me" / "grill me"
+**Typically follows:** a vague ask, `vd:ultracook` when want is unclear, or a user saying "interview me" / "grill me" / "chart this"
 
-**Typically precedes:** `vd:brainstorm` (how), `vd:wayfinder` (multi-session deciding), or `vd:plan` (steps)
+**Typically precedes:** `vd:brainstorm` (how) or `vd:plan` (steps). `--wayfinder` precedes `vd:plan` per cleared chunk.
 
-**Compares to:** `vd:brainstorm` Phase 1 asks clarifying questions to frame *options*. This skill refuses options until want is confirmed. `--grill` is still this skill, not a brainstorm mode. `vd:wayfinder` charts many sessions of decisions once the destination is named.
+**Compares to:** `vd:brainstorm` Phase 1 asks clarifying questions to frame *options*. Default interview refuses options until want is confirmed. `--grill` walks an existing idea. `--wayfinder` charts many sessions of decisions once the destination is named.

@@ -16,7 +16,7 @@ things, in order: **classify** it and pick the smallest viable workflow (the
 composes existing skills - it never reimplements `vd:plan`, `vd:cook`, `vd:ship`, etc.
 
 The one-session spine is **interview → brainstorm → plan → cook → ship**. If the deciding
-will not fit one session, stop and run `vd:wayfinder` before opening a pipeline. Ultracook
+will not fit one session, stop and run `vd:interview --wayfinder` before opening a pipeline. Ultracook
 runs only the slice a task earns: a typo goes `direct` (no machinery); a feature goes `pipeline`
 (intake → executor, gating at high-blast transitions, then autonomous); a repo-wide
 migration goes `fan-out` (parallel packets). It stays human-in-the-loop until a gate

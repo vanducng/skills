@@ -47,7 +47,7 @@ For Claude Code development symlinks instead of the marketplace plugin: `vd inst
 
 ## What's inside
 
-Skills share one build pipeline - **interview → brainstorm → plan → cook → ship** - with `vd:wayfinder` when the deciding will not fit one session, alongside review, research, debugging, diagramming, browser automation, data and workspace tooling, and more. Each skill is a self-contained directory under `skills/<name>/` with a `SKILL.md`.
+Skills share one build pipeline - **interview → brainstorm → plan → cook → ship** - with `vd:interview --wayfinder` when the deciding will not fit one session, alongside review, research, debugging, diagramming, browser automation, data and workspace tooling, and more. Each skill is a self-contained directory under `skills/<name>/` with a `SKILL.md`.
 
 > Browse the full catalog with "use this when" guidance → **[skills.vanducng.dev/skills](https://skills.vanducng.dev/skills/)**
 
