@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.54.1](https://github.com/vanducng/skills/compare/v1.54.0...v1.54.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **release:** restore 1.54.0 and pin release-please bootstrap ([#435](https://github.com/vanducng/skills/issues/435)) ([04521d6](https://github.com/vanducng/skills/commit/04521d6f979ee7933a20c9ba168c8c6435f3a118))
+
 ## [1.54.0](https://github.com/vanducng/skills/compare/v1.53.1...v1.54.0) (2026-08-18)
 
 ### Changed
