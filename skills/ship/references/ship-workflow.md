@@ -91,7 +91,7 @@ Step 12 must use the same ticket key: `TICKET: <past-tense summary>`.
 3. **Found:** record issue numbers for Step 12.
 4. **None found, official or staging mode:** offer (`AskUserQuestion`) to create a tracking issue. If yes:
    ```bash
-   gh issue create --title "<type>: <summary>" --body "$(cat <<'EOF'
+   gh issue create --title "<type>: <summary>" --body-file - <<'EOF'
    ## Problem Statement
    <infer from diff + commits>
 
@@ -104,7 +104,6 @@ Step 12 must use the same ticket key: `TICKET: <past-tense summary>`.
    - [ ] Review approved
    - [ ] Merged to <target>
    EOF
-   )"
    ```
 5. **Beta mode, none found:** skip silently - beta ships don't need issue traceability.
 
@@ -233,16 +232,17 @@ git push -u origin "$(git branch --show-current)"
    - Body: prefer `.github/pull_request_template.md` if present and fill it without adding, removing, or renaming sections. Otherwise fill the canonical fallback (3 labelled bullets - Why / What / Risks - plus a multi-line verification block, one field per line). Never use ad hoc `Summary`, `Changes`, `Validation`, or mixed template bodies.
 4. Create / update PR:
    ```bash
-   gh pr create --base <target> --title "<title>" --body "$(cat <<'EOF'
+   gh pr create --base <target> --title "<title>" --body-file - <<'EOF'
    <body>
    EOF
-   )"
    # PR already exists for this branch:
-   gh pr edit --title "<title>" --body "$(cat <<'EOF'
+   gh pr edit --title "<title>" --body-file - <<'EOF'
    <body>
    EOF
-   )"
    ```
+   Nested `--body "$(cat <<'EOF' …)"` dies in agent bash wrappers
+   (`bad substitution: no closing ')'`). `--body-file` is the safe path;
+   see `../git/references/gh-cli-guide.md`.
 5. Inline issue refs from Step 2 in the template's context/why area (`Closes #N` / `Relates to #M`) - no separate Linked-Issues section.
 6. Re-read the created/updated PR body and verify it matches the selected repo template or canonical fallback before continuing.
 7. **Output the PR URL** - final user-facing line (unless Steps 13–16 run after).
@@ -376,7 +376,10 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
    COUNT=$(gh pr checks "$PR_NUMBER" --json state -q 'length' 2>/dev/null || echo 0)
    [ "$COUNT" -eq 0 ] && echo "no CI checks - skipping" && exit 0
    ```
-2. Wait for checks to settle (cap at 15 min so the skill doesn't block forever):
+2. Wait for checks to settle (cap at 15 min so the skill doesn't block forever).
+   A one-shot `gh pr checks` exits **8** while anything is pending — that is
+   retry, not failure. Never `gh pr checks N && gh pr merge N`. This step is
+   the pipeline waiter; the granular helper is `../git/scripts/wait-for-checks.sh`.
    ```bash
    timeout 900 gh pr checks "$PR_NUMBER" --watch --fail-fast || true
    STATE=$(gh pr checks "$PR_NUMBER" --json state -q '[.[].state] | unique | join(",")')

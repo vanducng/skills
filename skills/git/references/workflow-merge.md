@@ -7,6 +7,15 @@ Default: execute via `git-manager` subagent. `--inline` keeps it in main context
 - `TO_BRANCH` - target (default `main`)
 - `FROM_BRANCH` - source (default current branch)
 
+## This verb is a local git merge
+
+`vd:git merge` merges `origin/<from>` into a local checkout of `<to>`. It is **not**
+`gh pr merge`. To land a GitHub pull request, use `references/gh-cli-guide.md`:
+wait with `scripts/wait-for-checks.sh` (exit 8 = pending, retry) then merge, or
+queue `gh pr merge --auto`. Do not write `gh pr checks N && gh pr merge N`.
+Unresolved review threads stay blocked by `hooks/pr-merge-guard.py`. Full-pipeline
+CI watch is `vd:ship` Step 15.
+
 ## Why `origin/<from>`, not local
 
 Merging `origin/<from>` ensures you merge only committed + pushed changes - not local WIP. If a teammate is collaborating on the source branch, their commits matter; yours-not-yet-pushed don't.

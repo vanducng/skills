@@ -1,11 +1,11 @@
 ---
 name: git
-description: "Granular git operations with conventional commits - stage, commit, push, PR, merge. Auto-splits commits by type/scope, blocks on secrets, delegates verbose work to git-manager subagent. Use when you want explicit control; for full ship-it pipeline use vd:ship."
+description: "Granular git operations with conventional commits - stage, commit, push, PR, merge. Auto-splits commits by type/scope, blocks on secrets, delegates verbose work to git-manager subagent. GitHub CLI conventions: --body-file for PR bodies, treat gh pr checks exit 8 (pending) as retry not failure, guard run-id assignment before gh run view. Use when you want explicit control; for full ship-it pipeline use vd:ship."
 license: MIT
 argument-hint: "cm|cp|pr|merge [args] [--inline]"
 metadata:
   author: vanducng
-  version: "1.0.1"
+  version: "1.1.0"
 ---
 
 # Git
@@ -61,6 +61,7 @@ Default for all verbs except `cm` (single-commit case) is subagent delegation - 
 5. **No AI attribution in commit messages, PR bodies, or PR comments.** No "Generated with Claude", no `Co-Authored-By: Claude`, no `https://claude.ai/code/session_...` session links, no emojis unless asked.
 6. **Never amend a published commit.** New commit on top instead.
 7. **PR feedback is evidence-based.** For `pr`, fetch unresolved review threads and substantive review/top-level comments when a PR already exists or after creating/updating one. Validate comments against codebase contracts, types, config schemas, tests, and repo rules before changing code. If a suggestion is directionally valid but the literal patch is not the best fix, apply the better root-cause fix and explain that in the reply. Never resolve a review thread before posting an inline rationale on that thread.
+8. **Pending checks are retry, not failure.** `gh pr checks` exits **8** while CI is still queued. Do not write `gh pr checks N && gh pr merge N` — the merge never runs. Wait with `scripts/wait-for-checks.sh` (or `gh pr checks --watch`) before an immediate merge, or queue `gh pr merge --auto`. Unresolved review threads stay blocked by `hooks/pr-merge-guard.py`. Full-pipeline CI watch is `vd:ship` Step 15 — do not reimplement it here.
 
 ## Conventional commit format
 
@@ -159,7 +160,8 @@ For multi-commit splits, repeat the `commit:` line per group.
 | `references/workflow-push.md` | Push with upstream handling |
 | `references/workflow-pr.md` | PR creation process from remote diff |
 | `references/pr-template.md` | **Canonical** PR title + body conventions (shared with `vd:ship`) |
-| `references/workflow-merge.md` | Merge `origin/<from>` into `<to>` |
+| `references/workflow-merge.md` | Local merge of `origin/<from>` into `<to>` (not `gh pr merge`) |
+| `scripts/wait-for-checks.sh` | Poll `gh pr checks` until terminal; exit 8 (pending) is retry |
 | `references/commit-standards.md` | Conventional commit format, types, examples |
 | `references/safety-protocols.md` | Secret detection, branch protection, recovery |
 | `references/branch-management.md` | Naming, lifecycle, strategies |
