@@ -1,6 +1,6 @@
 ---
 name: plan
-description: "Turn a chosen approach into a phased implementation plan with concrete steps, file changes, and success criteria. Use after `vd:brainstorm` (or any decided design) when you need to sequence the work before building. Default produces plan.md + phase files; pass `--quick` for a single-file plan, `--deep` for research dispatch + red-team review."
+description: "Turn a chosen approach into a phased implementation plan with concrete steps, file changes, and success criteria. Use after `vd:interview` and `vd:brainstorm` (or any decided design) when you need to sequence the work before building. Default produces plan.md + phase files; pass `--quick` for a single-file plan, `--deep` for research dispatch + red-team review."
 license: MIT
 argument-hint: "[task or path to brainstorm brief] [--quick | --deep] [--tdd]"
 metadata:
@@ -14,6 +14,7 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
+| `vd:interview` | "What do you actually want?" | Confirmed intent |
 | `vd:brainstorm` | "How should I approach this - what are the options?" | Decision brief with 3+ approaches |
 | `vd:research` | "Which of these known options should I pick?" | Comparison report with citations |
 | **`vd:plan`** | **"Given the chosen approach, what are the steps to ship it?"** | **Phased plan: `plan.md` + `phase-XX-*.md`** |
@@ -57,7 +58,9 @@ Before writing any plan file, in your reply, capture:
 - **Scope boundary** - what's *out* of scope. Out-of-scope items get listed but not planned.
 - **Constraints** - language, runtime, team size, existing systems that can't change.
 
-If any of these are unclear after reading the task / brainstorm brief, **ask before writing files**. A misaimed plan wastes more than the 60 seconds it takes to clarify.
+If who / why / success / constraint / out of scope are not confirmed (no interview intent file, no brainstorm brief, no explicit user restate), **stop and run `vd:interview`** before writing files. A misaimed plan wastes more than the interview.
+
+If only a sequencing detail is fuzzy after a confirmed intent, **ask before writing files**.
 
 ### Capture decisions (mandatory if any non-goals stated)
 
@@ -288,6 +291,7 @@ After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as th
 | "The phases overlap a bit" | Then they're one phase. Merge them. |
 | "I'll skip the success criteria - they're obvious" | They're never obvious. Future-you, on review, will not remember. Write them. |
 | "This phase has 15 steps but it's one concern" | 15 steps = unreviewable PR = not one phase. Split. |
+| "They said build X, I know what they mean" | If Outcome / Success / Out of scope aren't confirmed, `vd:interview` first. Don't plan a guess. |
 
 ## Quality bar
 
@@ -319,7 +323,7 @@ After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as th
 
 ## Workflow position
 
-**Typically follows:** `vd:brainstorm` (after deciding the approach), `vd:research` (after picking a known option), `vd:scout` or `vd:debug` (after discovery)
+**Typically follows:** `vd:interview` (confirmed want) then `vd:brainstorm` (after deciding the approach), `vd:research` (after picking a known option), `vd:scout` or `vd:debug` (after discovery)
 **Typically precedes:** `vd:cook` (execute the plan), or manual implementation phase-by-phase
 **Often followed by:** `vd:plan-audit` (auto on `--deep`, recommended after default mode) for independent verification
-**Compares to:** `vd:brainstorm` (pre-decision exploration) - if you find yourself debating approaches inside a plan, kick back to brainstorm
+**Compares to:** `vd:interview` (want, no steps) and `vd:brainstorm` (pre-decision exploration) - if you find yourself debating approaches inside a plan, kick back to brainstorm

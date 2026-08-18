@@ -22,7 +22,11 @@ fi
 
 invalid=()
 case "$ULTRACOOK_TARGET_KIND" in local|pr-only|cluster) ;; *) invalid+=("target-kind=$ULTRACOOK_TARGET_KIND (want local|pr-only|cluster)") ;; esac
-case "$ULTRACOOK_ACTION_SHAPE" in brainstorm-first|plan-only|fix-and-ship|refactor) ;; *) invalid+=("action-shape=$ULTRACOOK_ACTION_SHAPE (want brainstorm-first|plan-only|fix-and-ship|refactor)") ;; esac
+case "$ULTRACOOK_ACTION_SHAPE" in interview-first|brainstorm-first|plan-only|fix-and-ship|refactor) ;; *) invalid+=("action-shape=$ULTRACOOK_ACTION_SHAPE (want interview-first|brainstorm-first|plan-only|fix-and-ship|refactor)") ;; esac
+# interview-first needs a live user; refuse it in exec/CI rather than inventing intent
+if [ "${ULTRACOOK_EXEC:-}" = "1" ] && [ "$ULTRACOOK_ACTION_SHAPE" = "interview-first" ]; then
+  invalid+=("action-shape=interview-first is interactive-only (use brainstorm-first or plan-only under ULTRACOOK_EXEC=1)")
+fi
 case "$ULTRACOOK_AUTONOMY" in manual|semi|auto) ;; *) invalid+=("autonomy=$ULTRACOOK_AUTONOMY (want manual|semi|auto)") ;; esac
 if [ "${#invalid[@]}" -gt 0 ]; then
   echo "invalid: ${invalid[*]}"; exit 3

@@ -21,6 +21,14 @@ actions:
     gate_default: []
     delegated_to: null
 
+  interview:
+    dispatch: "skill:vd:interview"
+    args: ""
+    verifier: null
+    parallel_with: []
+    gate_default: [semi, manual]
+    delegated_to: null
+
   brainstorm:
     dispatch: "skill:vd:brainstorm"
     args: "--deep"

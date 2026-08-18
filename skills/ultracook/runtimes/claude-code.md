@@ -1,6 +1,6 @@
 ---
 name: ultracook
-description: "Claude Code adapter for the ultracook conductor. Drives a task through the brainstorm → plan → cook → ship spine using Claude Code primitives (Skill, Task, Workflow, Monitor, Stop-hook loops), gating per autonomy mode, resuming from on-disk state."
+description: "Claude Code adapter for the ultracook conductor. Drives a task through the interview → brainstorm → plan → cook → ship spine using Claude Code primitives (Skill, Task, Workflow, Monitor, Stop-hook loops), gating per autonomy mode, resuming from on-disk state."
 license: MIT
 argument-hint: "<short goal> [--reuse] [--manual | --semi | --auto] | status | kill --reason <text> | resolve <goal-dir>"
 metadata:
@@ -14,14 +14,16 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
+| `vd:interview` | "What do you actually want?" | Confirmed intent |
 | `vd:plan` | "What are the steps?" | Phased plan |
 | `vd:cook` | "Execute the plan." | Code changes |
 | `vd:ship` | "Land the branch." | Merged target |
 | `vd:auto-loop` | "Drive to a verifier until passing." | Verified completion |
 | **`vd:ultracook`** | **"Drive a goal end-to-end: intake → plan → cook → ship → verify, until done."** | **Verified deployment or graceful block** |
 
-Ultracook **conducts the whole workflow**. It owns design when the spec is ambiguous -
-the `brainstorm-first` shape runs `vd:brainstorm` before planning - but it does not run
+Ultracook **conducts the whole workflow**. It owns alignment when the want is
+unclear (`interview-first` runs `vd:interview`) and design when the approach is
+ambiguous (`brainstorm-first` runs `vd:brainstorm` before planning) - but it does not run
 the inner iteration itself: when an action has a verifier, ultracook delegates to
 `vd:auto-loop` and resumes when that terminates.
 
@@ -116,7 +118,7 @@ The "Resume mode" mirrors `scripts/status.sh`'s auto-detect logic. **Phase 5's k
 
 1. Up to 4 `AskUserQuestion` prompts (see `references/intake-template.md`):
    - target kind (local / pr-only / cluster)
-   - action shape (brainstorm-first / plan-only / fix-and-ship / refactor)
+   - action shape (interview-first / brainstorm-first / plan-only / fix-and-ship / refactor)
    - branch name (suggested from slug; skip when `--reuse`)
    - autonomy (manual / semi / auto; default semi)
 2. Computes slug from short goal (kebab-case, max 40 chars).

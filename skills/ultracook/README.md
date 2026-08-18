@@ -3,7 +3,7 @@
 Hand ultracook a task; it classifies the work and runs the smallest viable workflow:
 
 - **direct** - trivial/clear → just do it, no machinery.
-- **pipeline** - a real feature/fix → **brainstorm → plan → cook → ship → verify**, gating
+- **pipeline** - a real feature/fix → **interview → brainstorm → plan → cook → ship → verify**, gating
   at high-blast transitions, then autonomous; resumes across context compaction.
 - **fan-out** - repo-wide / migration / N-finder audit → parallel packets via the
   runtime's native primitive; the parent owns integration.
@@ -143,7 +143,7 @@ Adding a new project: drop a `<name>.toml` in `projects/` with `remote_matches` 
 - `references/goal-schema.md` - goal.yaml v1
 - `references/state-schema.md` - state.json v1 + atomic-write
 - `references/intake-template.md` - 4 intake questions
-- `references/action-vocab.md` + `.yaml` - 21 actions
+- `references/action-vocab.md` + `.yaml` - 22 actions
 - `references/verifier-vocab.md` + `.yaml` - 7 verifier types
 - `references/autonomy-modes.md` - manual/semi/auto semantics
 - `references/monitor-recipes.md` - wait_ci / image_build_wait / rollout_check patterns
