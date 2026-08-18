@@ -76,7 +76,7 @@ checks = [
     ("install docs use v2 go path", "github.com/vanducng/vd-cli/v2/cmd/vd@latest" in install),
     ("install docs cover codex", "vd install codex --scope repo" in install),
     ("install docs cover claude dev", "vd install claude --dev" in install),
-    ("install docs avoid unshipped windows arm asset", "vd_windows_arm64.zip" not in install),
+    ("install docs cover shipped windows arm asset", "vd_windows_arm64.zip" in install),
 
     # Deployment
     ("pages workflow builds with astro", "withastro/action" in pages and "path: ./docs" in pages),
