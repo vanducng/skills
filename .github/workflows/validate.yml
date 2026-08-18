@@ -24,5 +24,7 @@ jobs:
         run: bash skills/git/scripts/wait-for-checks.test.sh
       - name: Check release version consistency
         run: bash scripts/check-release-versions.sh
+      - name: Check release tag does not collide
+        run: bash scripts/check-release-tag-collision.sh
       - name: Check docs site contract
         run: bash scripts/check-docs-site.sh --check
