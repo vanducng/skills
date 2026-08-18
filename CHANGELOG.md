@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.55.0](https://github.com/vanducng/skills/compare/v1.54.1...v1.55.0) (2026-08-18)
+
+
+### Features
+
+* add wayfinder skill for multi-session decision maps ([#437](https://github.com/vanducng/skills/issues/437)) ([b285587](https://github.com/vanducng/skills/commit/b285587d7597ced3fd740678b526f304f3a74c53))
+
 ## [1.54.1](https://github.com/vanducng/skills/compare/v1.54.0...v1.54.1) (2026-08-18)
 
 
