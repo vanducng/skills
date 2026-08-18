@@ -2,6 +2,12 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.54.0](https://github.com/vanducng/skills/compare/v1.53.1...v1.54.0) (2026-08-18)
+
+### Changed
+
+* jump catalog version past historical tags v1.0.0-v1.53.1 so GitHub Releases no longer fail with tag_name already_exists
+
 ## [1.7.0](https://github.com/vanducng/skills/compare/v1.6.0...v1.7.0) (2026-08-18)
 
 
