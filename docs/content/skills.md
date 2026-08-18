@@ -19,7 +19,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Iterate | `vd:auto-loop`, `vd:optimize-loop` |
 | Orchestrate | `vd:ultracook` |
 
-`vd:interview` is the alignment skill: default extracts want, `--grill` walks an existing plan, `--wayfinder` charts a multi-session map of decision tickets on the issue tracker (GitHub Issues, Jira, or a local-markdown fallback). One-session deciding after want is confirmed is `vd:brainstorm`. There is no separate `vd:wayfinder` skill.
+`vd:interview` is the alignment skill: default extracts want, `--grill` walks an existing plan, `--wayfinder` charts a multi-session map of decision tickets. One-session deciding after want is confirmed is `vd:brainstorm`. There is no separate `vd:wayfinder` skill. The ask-to-ship path is on [Getting Started](/getting-started/#from-ask-to-ship).
 
 ## Agent And Tooling Skills
 
