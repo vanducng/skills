@@ -1,6 +1,6 @@
 ---
 name: plan
-description: "Turn a chosen approach into a phased implementation plan with concrete steps, file changes, and success criteria. Use after `vd:interview` and `vd:brainstorm` (or any decided design) when you need to sequence the work before building. Default produces plan.md + phase files; pass `--quick` for a single-file plan, `--deep` for research dispatch + red-team review."
+description: "Turn a chosen approach into a phased implementation plan with concrete steps, file changes, and success criteria. Use after `vd:interview` and `vd:brainstorm` (or a cleared `vd:interview --wayfinder` chunk, or any decided design) when you need to sequence the work before building. Default produces plan.md + phase files; pass `--quick` for a single-file plan, `--deep` for research dispatch + red-team review. Do not use while the approach is still foggy across multiple fronts - that's vd:interview --wayfinder."
 license: MIT
 argument-hint: "[task or path to brainstorm brief] [--quick | --deep] [--tdd]"
 metadata:
@@ -16,12 +16,12 @@ metadata:
 |---|---|---|
 | `vd:interview` | "What do you actually want?" | Confirmed intent |
 | `vd:brainstorm` | "How should I approach this - what are the options?" | Decision brief with 3+ approaches |
-| `vd:wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
+| `vd:interview --wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
 | `vd:research` | "Which of these known options should I pick?" | Comparison report with citations |
 | **`vd:plan`** | **"Given the chosen approach, what are the steps to ship it?"** | **Phased plan: `plan.md` + `phase-XX-*.md`** |
 | `vd:cook` (or manual impl) | "Execute the plan." | Code changes |
 
-Plan converts a *decided* approach into a *sequenced* implementation. If the approach isn't decided, stop and run `vd:brainstorm` first. A plan that opens with "we should consider whether to use X or Y" is a brainstorm in disguise - kick it back.
+Plan converts a *decided* approach into a *sequenced* implementation. If the approach isn't decided, stop and run `vd:brainstorm` first. If the *deciding* itself will not fit one session, stop and run `vd:interview --wayfinder`. A plan that opens with "we should consider whether to use X or Y" is a brainstorm in disguise - kick it back.
 
 ## Hard rules
 
@@ -75,7 +75,7 @@ If the goal spans 3+ independent shippable features → **stop**. Reply:
 
 > This plan would have N+ phases across independent features. Suggest splitting into separate plans: [A, B, C]. Build order: [reason]. Pick one to start.
 
-A plan with 12+ phases is almost always two plans pretending to be one. And if the *decisions* themselves span more sessions than the phases do - the approach is still foggy across multiple fronts - escalate to `vd:wayfinder` instead: chart the open decisions as a map, then come back here per cleared chunk.
+A plan with 12+ phases is almost always two plans pretending to be one. And if the *decisions* themselves span more sessions than the phases do - the approach is still foggy across multiple fronts - escalate to `vd:interview --wayfinder` instead: chart the open decisions as a map, then come back here per cleared chunk.
 
 ## Phase 2 - Discover (`--deep` only, optional in default)
 
@@ -324,7 +324,7 @@ After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as th
 
 ## Workflow position
 
-**Typically follows:** `vd:interview` (confirmed want) then `vd:brainstorm` (after deciding the approach), `vd:wayfinder` (after a multi-session map is cleared for this chunk), `vd:research` (after picking a known option), `vd:scout` or `vd:debug` (after discovery)
+**Typically follows:** `vd:interview` (confirmed want) then `vd:brainstorm` (after deciding the approach), `vd:interview --wayfinder` (after a multi-session map is cleared for this chunk), `vd:research` (after picking a known option), `vd:scout` or `vd:debug` (after discovery)
 **Typically precedes:** `vd:cook` (execute the plan), or manual implementation phase-by-phase
 **Often followed by:** `vd:plan-audit` (auto on `--deep`, recommended after default mode) for independent verification
-**Compares to:** `vd:interview` (want, no steps) and `vd:brainstorm` (pre-decision exploration) - if you find yourself debating approaches inside a plan, kick back to brainstorm
+**Compares to:** `vd:interview` (want, no steps), `vd:brainstorm` (pre-decision exploration), and `vd:interview --wayfinder` (multi-session deciding) - if you find yourself debating approaches inside a plan, kick back to brainstorm or `vd:interview --wayfinder`

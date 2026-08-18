@@ -1,4 +1,4 @@
-# Tracker operations for wayfinder
+# Tracker operations for `vd:interview --wayfinder`
 
 The map needs five operations from whatever tracker the repo uses: create the map issue, create child tickets, wire blocking edges, query the frontier, and claim/close tickets. Resolve the tracker in this order and say which you picked:
 
@@ -6,6 +6,8 @@ The map needs five operations from whatever tracker the repo uses: create the ma
 2. **GitHub Issues** - the repo has a GitHub remote and `gh auth status` succeeds.
 3. **Jira** - `vd:jira` is configured for this project.
 4. **Local markdown** - no tracker available; files under the injected `Plans:` path.
+
+Labels keep the `wayfinder:*` prefix so existing maps still query. That prefix is a tracker type, not a skill ID.
 
 ## GitHub Issues (`gh`)
 
