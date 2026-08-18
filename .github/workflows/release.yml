@@ -18,7 +18,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      # MiuMun app token (not GITHUB_TOKEN) so the auto-merged release commit re-triggers this workflow and cuts the tag.
+      # MiuMun app token (not GITHUB_TOKEN) so a later merge of the release PR re-triggers this workflow and cuts the tag.
       - name: Generate MiuMun app token
         id: app_token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
@@ -34,9 +34,6 @@ jobs:
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      # Immediate squash (main is unprotected, so --auto has no checks to gate on); --repo avoids needing a checkout.
-      - name: Auto-merge release PR
-        if: ${{ steps.release.outputs.pr }}
-        env:
-          GH_TOKEN: ${{ steps.app_token.outputs.token }}
-        run: gh pr merge --squash --repo "${{ github.repository }}" "${{ fromJson(steps.release.outputs.pr).number }}"
+      # Do not auto-merge. An old bootstrap-sha plus auto-merge published
+      # colliding versions (1.5.0-1.7.0, then 0.43.0) over the catalog.
+      # Review the proposed version against existing tags before merging.
