@@ -20,6 +20,7 @@ Read the goal text + repo signals. Score these axes (cheap heuristics, not a mod
 |---|---|---|
 | **Want-clarity** | missing who / why / success / constraint / out of scope; "build me X"; convention words | interview-first (interactive only) |
 | **How-clarity** | "maybe", "could", "or", contradictory or open-ended *approach* after want is known | brainstorm-first |
+| **Session-span** | "this is huge", "we'll be at this for a while", 3+ interdependent decisions still in fog | `vd:wayfinder` (do not open a pipeline) |
 | **Reversibility** | delete / drop / force-push / deploy / migrate / revoke | approval gate |
 | **Scope / blast** | "all", "every", "bulk", repo-wide, many files, external system | plan + fan-out |
 | **Complexity** | multi-file, new subsystem, cross-cutting, >~50 LOC | pipeline |
@@ -32,6 +33,7 @@ A task can score on several axes - take the strongest pull.
 ```
 want unclear (who/why/success missing)   → pipeline, shape = interview-first (semi/manual only)
 how unclear, want known                  → pipeline, shape = brainstorm-first
+deciding will not fit one session        → vd:wayfinder; do not open a pipeline
 irreversible AND high blast radius       → pipeline + hard gate (always ask)
 repo-wide / migration / N-finder audit   → fan-out
 multi-file / real feature / has verifier → pipeline
@@ -58,8 +60,9 @@ parallelism (Claude Code `Workflow` tool / `Task` subagents; Codex subagents). S
 
 ## Step 3 - Choose the workflow shape
 
-The spine is **interview → brainstorm → plan → cook → ship**. Run the smallest slice; skip stages
-the task doesn't need. This maps onto the intake `action_shape`:
+The one-session spine is **interview → brainstorm → plan → cook → ship**. Run the smallest
+slice; skip stages the task doesn't need. If session-span fires, run `vd:wayfinder`
+instead of proposing a shape. This maps onto the intake `action_shape`:
 
 | Proposed shape | Spine slice | Pick when |
 |---|---|---|
@@ -152,6 +155,7 @@ then verifies.
 | "fix this typo in the README" | clear, tiny, reversible | `direct` |
 | "build me a dashboard" | want unconfirmed | `pipeline` / interview-first / semi |
 | "should we use SSE or WebSockets for notifications?" | want known, ambiguous design | `pipeline` / brainstorm-first / semi |
+| "rebuild billing, auth, and admin - we'll be at this for weeks" | deciding will not fit one session | `vd:wayfinder` (no pipeline) |
 | "implement settings export, ship to staging, verify" | real feature, clear-ish | `pipeline` / fix-and-ship / semi |
 | "migrate all API clients to the new SDK" | repo-wide, many sites | `fan-out` + hard gate (broad codemod) |
 | "get lint errors to zero" | mechanical, measurable | `pipeline` / fix-and-ship / auto (delegates to `vd:optimize-loop`) |

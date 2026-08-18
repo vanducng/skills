@@ -1,12 +1,12 @@
 ---
 name: wayfinder
-description: "Plan work too big for one agent session as a shared map of decision tickets on an issue tracker, resolved one at a time until the way is clear. Use when a loose idea spans many sessions ('this is huge', 'we'll be at this for a while'), when the user says 'chart this', 'wayfinder', 'work the map', or when brainstorm/plan would produce a 12-phase mega-plan. Plans decisions, not builds - hand the cleared way to vd:plan/vd:cook per chunk. Not for work that fits one session (vd:interview + vd:brainstorm + vd:plan cover that)."
+description: "Plan work too big for one agent session as a shared map of decision tickets on an issue tracker, resolved one at a time until the way is clear. Use when a loose idea spans many sessions ('this is huge', 'we'll be at this for a while'), when the user says 'chart this', 'wayfinder', 'work the map', or when interview/brainstorm/plan would produce a 12-phase mega-plan. Plans decisions, not builds - hand the cleared way to vd:plan/vd:cook per chunk. Not for one-session work: want is vd:interview, how is vd:brainstorm, steps are vd:plan."
 license: MIT
 argument-hint: "[loose idea to chart | map URL/id [ticket]]"
 metadata:
   author: vanducng
-  attribution: "Adapted from mattpocock/skills wayfinder (MIT); ported from vanducng/skills#425"
-  version: "0.1.0"
+  attribution: "Adapted from mattpocock/skills wayfinder (MIT)"
+  version: "0.2.0"
 ---
 
 # Wayfinder
@@ -15,26 +15,21 @@ A loose idea has arrived - too big for one agent session, and wrapped in fog: th
 
 The map is the shared memory *between* sessions: each session loads the low-res map, resolves one ticket, records the answer, and stops. Context windows stay small; the tracker carries the accumulated decisions.
 
-This is the #425 skill (commits `489bbcf`, `2f800da`, `d2af5c5` - both review findings included). That line composed grilling as `vd:brainstorm --grill` (Plannotator-first) and prototypes as `skills/brainstorm/references/prototype.md`, and routed through `vd:guide`. On this catalog those targets remapped:
-
-| #425 compose | Invoke here |
-|---|---|
-| `vd:brainstorm --grill` | `vd:interview --grill` |
-| `skills/brainstorm/references/prototype.md` | throwaway artifact (design skill or `vd:cook --quick`), linked, never merged |
-| `vd:guide` | `docs/content/skills.md` plus interview / brainstorm / plan handoffs |
-
 ## What this skill is - and isn't
 
 | Skill | Question it answers | Horizon |
 |---|---|---|
 | `vd:interview` | "What do you actually want?" | One session; want, not how |
-| `vd:interview --grill` | "Are these decisions the right ones?" (#425: `vd:brainstorm --grill`) | One session; stress-test a plan or idea |
+| `vd:interview --grill` | "Are these decisions the right ones?" | One session; walk an existing plan or idea |
 | `vd:brainstorm` | "How should I approach this one decision?" | One session |
+| `vd:research` | "Which known option should I pick?" | One session; cited comparison |
 | `vd:plan` | "Given the decided approach, what are the build steps?" | One plan, phases sized to one session each |
 | **`vd:wayfinder`** | **"The idea is bigger than any session can hold - what must be decided, in what order, before anyone can plan?"** | **Many sessions; the tracker is the memory** |
 | `vd:ultracook` | "Drive a decided goal through plan → cook → ship." | One goal, one pipeline |
 
 **Plan, don't do.** Each ticket resolves a decision; the map is done when nothing is left to decide before someone goes and builds. The pull to just do the work is usually the signal you've reached the edge of the map - hand off to `vd:plan` (then `vd:cook` or `vd:ultracook`) for that chunk instead.
+
+Grill lives only on `vd:interview --grill`. Do not invent a second grilling skill. Prototype rules live in [`references/prototype.md`](references/prototype.md).
 
 ## Hard rules
 
@@ -84,11 +79,13 @@ Every ticket is **HITL** (worked *with* a human - the agent never answers the hu
 | Type | Mode | Resolves via | Use when |
 |---|---|---|---|
 | `research` | AFK | Subagent running `vd:research`; findings linked from the ticket | A fact outside the repo blocks a decision |
-| `prototype` | HITL | Throwaway artifact (design skill or `vd:cook --quick` spike); linked, never merged | "How should it look/behave?" is the question |
+| `prototype` | HITL | Throwaway spike per [`references/prototype.md`](references/prototype.md); artifact linked, never merged | "How should it look/behave?" is the question |
 | `grilling` | HITL | `vd:interview --grill` (one question at a time, recommended answer, explicit yes); sharpen terms against `docs/glossary.md` where one exists | The default - the question is a conversation |
 | `task` | either | Do the unblocking work (sign up, provision, move data); record what was done + resulting facts | Manual work must happen before a decision *can* be made |
 
 `task` is the one type that *does* rather than decides - it earns its place by unblocking a decision, not by delivering the destination.
+
+If a grilling ticket isolates a single "how" with a confirmed want, that ticket may hand to `vd:brainstorm` for the 3+ options, then record the pick on the ticket. Brainstorm does not replace grilling and does not own `--grill`.
 
 ## Fog of war
 
@@ -102,8 +99,8 @@ Beyond the live tickets lies the fog: decisions you can tell are coming but can'
 
 ### Chart the map (loose idea in)
 
-1. **Name the destination** - grill it down with `vd:interview --grill` (or `vd:interview` if want is still unconfirmed). Settled first, because it fixes the scope.
-2. **Map the frontier** - grill again, *breadth-first*: fan across the whole space, not deep on one thread. **No fog surfaced?** The journey fits one session - stop; this needs `vd:brainstorm`/`vd:plan`, not a map. Say so.
+1. **Name the destination** - `vd:interview` if want is unconfirmed; `vd:interview --grill` if they already brought a plan or idea. Settled first, because it fixes the scope.
+2. **Map the frontier** - grill again, *breadth-first*: fan across the whole space, not deep on one thread. **No fog surfaced?** The journey fits one session - stop. Want unclear → `vd:interview`. How unclear → `vd:brainstorm`. How decided → `vd:plan`. Say so.
 3. **Create the map** (`wayfinder:map`): Destination + Notes filled, Decisions-so-far empty, fog sketched into Not yet specified.
 4. **Create the specifiable tickets** as children, then wire blocking edges in a second pass (issues need ids before they can reference each other).
 5. **Fire the research subagents** - claim each `research` ticket first (assign it, per hard rule 3 - unclaimed tickets stay on the frontier and a concurrent session would duplicate the work), then resolve them in parallel via `vd:research`.
@@ -123,9 +120,11 @@ Expect other sessions to be editing the tracker concurrently - the user may run 
 
 When the frontier is empty and no fog remains, the way is clear. Per buildable chunk: `vd:plan` (the map's decisions are the plan's inputs - link the relevant tickets from `decisions.md`), then `vd:cook` or `vd:ultracook`. The map issue stays open until the destination itself is reached, then closes linking the shipped artifacts.
 
+If `vd:ultracook` is already conducting a goal and the deciding will not fit one session, **stop the pipeline** and run this skill. Do not open a 12-phase plan to paper over fog.
+
 ## Workflow position
 
-**Typically follows:** a loose idea too big to brainstorm in one sitting; `vd:scout` when the fog is about the codebase itself
-**Composes:** `vd:interview --grill` (grilling tickets + charting; #425's `vd:brainstorm --grill`), `vd:research` (research tickets), throwaway prototype spikes, `vd:jira` / `gh` (tracker ops), `vd:docs` glossary (term sharpening)
+**Typically follows:** a loose idea too big for one interview or brainstorm; `vd:scout` when the fog is about the codebase itself
+**Composes:** `vd:interview --grill` (grilling tickets + charting), `vd:research` (research tickets), [`references/prototype.md`](references/prototype.md) (prototype tickets), `vd:brainstorm` (one isolated how, after want is confirmed), `vd:jira` / `gh` (tracker ops), `vd:docs` glossary (term sharpening)
 **Typically precedes:** `vd:plan` → `vd:cook` / `vd:ultracook` per cleared chunk
-**Compares to:** `vd:plan` `--quick`/default (work that fits one plan); `vd:ultracook` fan-out (parallel *execution* of decided work - wayfinder parallelizes *deciding*)
+**Compares to:** `vd:interview` + `vd:brainstorm` + `vd:plan` (work that fits one session); `vd:ultracook` fan-out (parallel *execution* of decided work - wayfinder parallelizes *deciding*)

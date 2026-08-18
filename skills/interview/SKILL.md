@@ -1,6 +1,6 @@
 ---
 name: interview
-description: "Extracts what the user actually wants before any options, plan, or code. One question at a time with a stated hypothesis until an explicit yes on a restated intent (outcome, user, success, constraint, out of scope). Use when the ask is underspecified, missing who/why/success/constraint, or the user says 'interview me', 'grill me', 'before we start', 'are we sure', 'align first'. Do not use for unambiguous mechanical edits, pure info questions, or solution-space exploration - that's vd:brainstorm."
+description: "Extracts what the user actually wants before any options, plan, or code. One question at a time with a stated hypothesis until an explicit yes on a restated intent (outcome, user, success, constraint, out of scope). Use when the ask is underspecified, missing who/why/success/constraint, or the user says 'interview me', 'grill me', 'before we start', 'are we sure', 'align first'. Pass --grill to walk an existing plan or idea. Do not use for unambiguous mechanical edits, pure info questions, or solution-space exploration (vd:brainstorm). Do not use when the deciding will not fit one session (vd:wayfinder)."
 license: MIT
 argument-hint: "[topic or ask] [--grill]"
 metadata:
@@ -17,12 +17,13 @@ metadata:
 | Skill | Question it answers | Output |
 |---|---|---|
 | **`vd:interview`** | **"What do you actually want?"** | **Confirmed intent (outcome / user / success / constraint / out of scope)** |
+| `vd:interview --grill` | "Are these decisions the right ones?" | Same yes gate; each blocking decision walked |
 | `vd:brainstorm` | "How should we approach this?" | Decision brief with 3+ options |
 | `vd:wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
 | `vd:research` | "Which known option should I pick?" | Cited comparison |
 | `vd:plan` | "What are the steps?" | Phased plan |
 
-Interview extracts **want**. It does not invent approaches, write phases, or touch source. If the user already knows the outcome and is choosing between designs, that is `vd:brainstorm`.
+Interview extracts **want**. `--grill` walks an existing plan or idea. This is the only grilling mode in the catalog. It does not invent approaches, write phases, or touch source. If the user already knows the outcome and is choosing between designs, that is `vd:brainstorm`. If the deciding will not fit one session, that is `vd:wayfinder`.
 
 ## Hard rules
 
@@ -138,7 +139,7 @@ Write to the injected `Reports:` path: `interview-{YYYYMMDD-HHMM}-{slug}.md`. Do
 {only decisions the user actually made}
 ```
 
-Then hand off. Do not start the next skill until they pick one, unless they already said "then plan" / "then brainstorm":
+Then hand off. Do not start the next skill until they pick one, unless they already said "then plan" / "then brainstorm" / "then wayfinder":
 
 | After confirm | Next |
 |---|---|
@@ -188,4 +189,4 @@ Then hand off. Do not start the next skill until they pick one, unless they alre
 
 **Typically precedes:** `vd:brainstorm` (how), `vd:wayfinder` (multi-session deciding), or `vd:plan` (steps)
 
-**Compares to:** `vd:brainstorm` Phase 1 asks clarifying questions to frame *options*. This skill refuses options until want is confirmed. `vd:wayfinder` charts many sessions of decisions once the destination is named.
+**Compares to:** `vd:brainstorm` Phase 1 asks clarifying questions to frame *options*. This skill refuses options until want is confirmed. `--grill` is still this skill, not a brainstorm mode. `vd:wayfinder` charts many sessions of decisions once the destination is named.

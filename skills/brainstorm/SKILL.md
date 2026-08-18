@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: "Explore the solution space when the path isn't obvious - invent options, stress-test them, pick one. Use for architecture decisions, design tradeoffs, ambiguous problems, and when the user asks 'how should I approach X?'. Default produces a decision brief; pass `--quick` for chat-only, `--deep` for multi-round adversarial debate with full design doc."
+description: "Explore the solution space when the path isn't obvious - invent options, stress-test them, pick one. Use for architecture decisions, design tradeoffs, and when the user asks 'how should I approach X?'. Default produces a decision brief; pass `--quick` for chat-only, `--deep` for multi-round adversarial debate with full design doc. Do not use when want is unconfirmed (vd:interview), when the user says 'grill me' (vd:interview --grill), or when the deciding will not fit one session (vd:wayfinder)."
 license: MIT
 argument-hint: "[topic or problem] [--quick | --deep]"
 metadata:
@@ -15,12 +15,13 @@ metadata:
 | Skill | Question it answers | Output |
 |---|---|---|
 | `vd:interview` | "What do you actually want?" | Confirmed intent (outcome / success / out of scope) |
+| `vd:interview --grill` | "Are these decisions the right ones?" | Same yes gate; decisions walked |
 | `vd:research` | "Which of these known options should I pick?" | Comparison report with citations |
 | **`vd:brainstorm`** | **"How should I approach this - what are the options?"** | **Decision brief with 3+ invented/curated approaches** |
 | `vd:wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
 | `vd:plan` | "Given the chosen approach, what are the steps?" | Phased implementation plan |
 
-Brainstorm is **solution-space exploration**. You may end up recommending a known pattern, but the job is to surface paths the user hasn't considered, then converge.
+Brainstorm is **solution-space exploration**. You may end up recommending a known pattern, but the job is to surface paths the user hasn't considered, then converge. It does not own grilling - that is `vd:interview --grill`.
 
 ## Hard rules
 
@@ -361,7 +362,7 @@ The brainstorm's job is to pick the direction. Materializing it is downstream.
 
 **Typically precedes:** `vd:plan` (for the chosen approach), or `vd:research` (if Phase 3 surfaced an unknown option that needs deep evaluation)
 
-**Compares to:** `vd:interview` (extract want, no options) - when the outcome is unconfirmed, prefer `interview`. `vd:research` (known options, cited comparison) - when the user names options, prefer `research`; when the path is unclear, prefer `brainstorm`. `vd:wayfinder` - when the deciding itself will not fit one session.
+**Compares to:** `vd:interview` (extract want, no options) - when the outcome is unconfirmed, prefer `interview`. `vd:interview --grill` (walk an existing idea) - not a brainstorm mode. `vd:research` (known options, cited comparison) - when the user names options, prefer `research`; when the path is unclear, prefer `brainstorm`. `vd:wayfinder` - when the deciding itself will not fit one session.
 
 ## Cross-discipline cues
 

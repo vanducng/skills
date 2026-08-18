@@ -11,15 +11,15 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Stage | Skills |
 | --- | --- |
 | Define | `vd:interview` |
-| Discover | `vd:scout`, `vd:graphify`, `vd:research`, `vd:brainstorm` |
-| Decide | `vd:wayfinder` |
+| Discover | `vd:scout`, `vd:graphify`, `vd:research` |
+| Decide | `vd:brainstorm`, `vd:wayfinder` |
 | Plan | `vd:plan`, `vd:plan-audit`, `vd:scenario` |
 | Execute | `vd:cook`, `vd:fix`, `vd:debug`, `vd:codex-workflow` |
 | Review and ship | `vd:code-review`, `vd:code-refactor-review`, `vd:miucr`, `vd:simplify`, `vd:zero-tech-debt`, `vd:security`, `vd:ship`, `vd:git` |
 | Iterate | `vd:auto-loop`, `vd:optimize-loop` |
 | Orchestrate | `vd:ultracook` |
 
-For work too big for any single session, `vd:wayfinder` (adapted from mattpocock/skills) charts a shared map of decision tickets on the issue tracker - GitHub Issues, Jira, or a local-markdown fallback - and resolves one per session until the way is clear, then hands each buildable chunk to `vd:plan`. It plans decisions, not builds; the tracker is the memory between sessions.
+One-session deciding is `vd:brainstorm`. Multi-session deciding is `vd:wayfinder`: a shared map of decision tickets on the issue tracker (GitHub Issues, Jira, or a local-markdown fallback), resolved one per session until the way is clear, then each buildable chunk hands off to `vd:plan`. Grill lives only on `vd:interview --grill`; wayfinder grilling tickets invoke that mode. Wayfinder plans decisions, not builds; the tracker is the memory between sessions.
 
 ## Agent And Tooling Skills
 
@@ -64,7 +64,7 @@ Within browser automation, `vd:ego-browser` drives logged-in browsing through is
 
 ## Choosing The Right Skill
 
-Use `vd:interview` when the ask is underspecified (who / why / success / out of scope missing), `vd:interview --grill` when a plan or idea needs its decisions walked one at a time, `vd:scout` when you need a map of the repo, `vd:debug` when behavior is failing, `vd:brainstorm` when the outcome is known but the approach is not, `vd:wayfinder` when the deciding itself will not fit one session, `vd:plan` when the implementation path is not yet concrete, `vd:cook` when a plan is ready to execute, `vd:git` for a single commit/push/PR/merge (GitHub CLI: `--body-file` for PR bodies; `gh pr checks` exit 8 is pending, not failure), and `vd:ship` when the work is tested and ready for remote.
+Use `vd:interview` when the ask is underspecified (who / why / success / out of scope missing), `vd:interview --grill` when a plan or idea needs its decisions walked one at a time, `vd:scout` when you need a map of the repo, `vd:debug` when behavior is failing, `vd:brainstorm` when the outcome is known but the one-session approach is not, `vd:wayfinder` when the deciding itself will not fit one session, `vd:plan` when the implementation path is not yet concrete, `vd:cook` when a plan is ready to execute, `vd:git` for a single commit/push/PR/merge (GitHub CLI: `--body-file` for PR bodies; `gh pr checks` exit 8 is pending, not failure), and `vd:ship` when the work is tested and ready for remote.
 
 Within review, the four passes answer different questions: `vd:code-review` asks whether a change is ready to land and posts inline PR comments, `vd:code-refactor-review` stays local and asks whether the change fits the codebase or reads as slop, `vd:simplify` reduces reading complexity with behavior frozen, and `vd:zero-tech-debt` reshapes a working feature into the form it should have had from day one, deleting compatibility paths only after proving them dead. `vd:miucr` is the deterministic owned reviewer CLI (`miu-cr`) for when the review itself must be reproducible and gated by severity thresholds rather than agent judgment.
 

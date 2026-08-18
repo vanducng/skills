@@ -15,9 +15,10 @@ Common entries:
 | Goal | Skill |
 | --- | --- |
 | Align on what to build | `vd:interview` |
+| Stress-test a plan or idea | `vd:interview --grill` |
 | Scout a codebase | `vd:scout` |
 | Debug a failure | `vd:debug` |
-| Explore approaches | `vd:brainstorm` |
+| Explore one-session approaches | `vd:brainstorm` |
 | Chart a multi-session effort | `vd:wayfinder` |
 | Plan a multi-step change | `vd:plan` |
 | Execute a plan | `vd:cook` |
