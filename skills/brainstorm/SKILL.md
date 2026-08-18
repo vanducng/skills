@@ -17,6 +17,7 @@ metadata:
 | `vd:interview` | "What do you actually want?" | Confirmed intent (outcome / success / out of scope) |
 | `vd:research` | "Which of these known options should I pick?" | Comparison report with citations |
 | **`vd:brainstorm`** | **"How should I approach this - what are the options?"** | **Decision brief with 3+ invented/curated approaches** |
+| `vd:wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
 | `vd:plan` | "Given the chosen approach, what are the steps?" | Phased implementation plan |
 
 Brainstorm is **solution-space exploration**. You may end up recommending a known pattern, but the job is to surface paths the user hasn't considered, then converge.
@@ -62,7 +63,7 @@ If the request describes 3+ independent concerns ("build platform with auth + bi
 
 > This spans N independent subsystems. Each deserves its own brainstorm. Suggested decomposition: [A, B, C]. Suggested order: [reason]. Pick one to start.
 
-Do not deepen until the user picks one. This is the single most common failure mode of brainstorming sessions.
+Do not deepen until the user picks one. This is the single most common failure mode of brainstorming sessions. When the decomposition itself spans more sessions than one brainstorm-per-part can carry - many interdependent decisions, weeks of fog - offer `vd:wayfinder` to chart the whole space as a decision map instead.
 
 ## Phase 2 - Diverge
 
@@ -360,7 +361,7 @@ The brainstorm's job is to pick the direction. Materializing it is downstream.
 
 **Typically precedes:** `vd:plan` (for the chosen approach), or `vd:research` (if Phase 3 surfaced an unknown option that needs deep evaluation)
 
-**Compares to:** `vd:interview` (extract want, no options) - when the outcome is unconfirmed, prefer `interview`. `vd:research` (known options, cited comparison) - when the user names options, prefer `research`; when the path is unclear, prefer `brainstorm`.
+**Compares to:** `vd:interview` (extract want, no options) - when the outcome is unconfirmed, prefer `interview`. `vd:research` (known options, cited comparison) - when the user names options, prefer `research`; when the path is unclear, prefer `brainstorm`. `vd:wayfinder` - when the deciding itself will not fit one session.
 
 ## Cross-discipline cues
 
