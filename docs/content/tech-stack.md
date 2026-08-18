@@ -23,19 +23,19 @@ title: "Tech Stack"
 
 ## CLI Integration
 
-The standalone `vd` CLI is maintained in `vanducng/vd-cli`, not in this repo. Its current public release is `v2.1.0`, and the local installed binary reports `vd 2.1.0`.
+The standalone `vd` CLI is maintained in `vanducng/vd-cli`, not in this repo. Its current public release is `v3.13.7`.
 
 `vd-cli` is a Go module using:
 
 | Dependency | Version |
 | --- | --- |
 | Go module path | `github.com/vanducng/vd-cli/v2` |
-| Go directive | `1.23` |
+| Go directive | `1.23.0` |
 | Cobra | `v1.10.2` |
 | go-toml | `v2.3.1` |
 | yaml.v3 | `v3.0.1` |
 
-Source: `/Users/vanducng/git/personal/agents/vd-cli/go.mod`.
+Source: `go.mod` in the [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli) repository.
 
 ## CI And Release
 

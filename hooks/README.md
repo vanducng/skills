@@ -4,7 +4,7 @@ Hooks for coding agents (Claude Code, Codex, Grok, pi), managed in this repo.
 
 ## langfuse-trace.py — Langfuse session tracing
 
-Ships **Claude Code**, **Codex**, and **pi** sessions to [Langfuse](https://langfuse.com)
+Ships **Claude Code** and **Codex** sessions to [Langfuse](https://langfuse.com)
 as observation trees: one trace per session, a span per turn, a nested generation
 per turn (model + token usage + cost), and a child span per tool call.
 
@@ -48,11 +48,12 @@ SDK, no `uv`, no `pip`, matching the rest of these hooks.
    Registers `Stop` + `SessionEnd` (Claude Code) and `Stop` (Codex, via
    `~/.codex/hooks.json` — your `notify` chain is left alone).
 
-3. pi has no hook system, so it gets a small extension instead:
-   ```sh
-   pi install ~/skills/hooks/pi/langfuse-trace
-   ```
-   It fires on `agent_settled` and spawns the same exporter, detached.
+3. pi is traced by the official [`pi-langfuse`](https://langfuse.com/integrations/developer-tools/pi-agent)
+   extension instead (`pi install npm:pi-langfuse`, registered in the dotfiles-managed
+   `~/.pi/agent/settings.json`). It traces in-process — richer than this exporter
+   (per-request generations, tool observations, scores, secret redaction) — and
+   reads the same `LANGFUSE_*` environment variables. The exporter keeps its
+   `--agent pi` adapter for one-off backfills of old sessions only.
 
 ### Usage outside hooks
 

@@ -7,9 +7,9 @@ This page covers two layers:
 - Install the standalone `vd` CLI, which manages skills across agent hosts.
 - Install this skill catalog into Claude Code or Codex.
 
-Current verified CLI release: `vd-cli` `v2.1.0`, published from `vanducng/vd-cli` on 2026-05-24. The installed local binary reports `vd 2.1.0`.
+Current verified CLI release: `vd-cli` `v3.13.7`, published from `vanducng/vd-cli` on 2026-08-10.
 
-Sources: `README.md`, `skills.toml`, `vd install --help`, `gh release view v2.1.0 --repo vanducng/vd-cli`.
+Sources: `README.md`, `skills.toml`, `vd install --help`, `gh release view v3.13.7 --repo vanducng/vd-cli`.
 
 ## Install The `vd` CLI
 
@@ -43,18 +43,21 @@ Release tarballs are published as `vd_linux_x86_64.tar.gz` and `vd_linux_arm64.t
 Windows x86_64 has a prebuilt zip:
 
 ```powershell
-$version = "v2.1.0"
+$version = "v3.13.7"
 $asset = "vd_windows_x86_64.zip"
 Invoke-WebRequest "https://github.com/vanducng/vd-cli/releases/download/$version/$asset" -OutFile $asset
 Expand-Archive $asset -DestinationPath ".\vd" -Force
 .\vd\vd.exe --version
 ```
 
-For Windows ARM64, use Go for now:
+Windows ARM64 also has a prebuilt zip:
 
 ```powershell
-go install github.com/vanducng/vd-cli/v2/cmd/vd@latest
-vd --version
+$version = "v3.13.7"
+$asset = "vd_windows_arm64.zip"
+Invoke-WebRequest "https://github.com/vanducng/vd-cli/releases/download/$version/$asset" -OutFile $asset
+Expand-Archive $asset -DestinationPath ".\vd" -Force
+.\vd\vd.exe --version
 ```
 
 ## Install The Skill Catalog
