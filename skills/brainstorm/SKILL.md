@@ -14,6 +14,7 @@ metadata:
 
 | Skill | Question it answers | Output |
 |---|---|---|
+| `vd:interview` | "What do you actually want?" | Confirmed intent (outcome / success / out of scope) |
 | `vd:research` | "Which of these known options should I pick?" | Comparison report with citations |
 | **`vd:brainstorm`** | **"How should I approach this - what are the options?"** | **Decision brief with 3+ invented/curated approaches** |
 | `vd:plan` | "Given the chosen approach, what are the steps?" | Phased implementation plan |
@@ -49,7 +50,9 @@ Before generating options, write down (in your reply, briefly):
 - **Out of scope** - name what this decision explicitly is *not* solving, so options don't sprawl. Carry these into the brief's Non-goals.
 - **Reversibility** - how expensive to switch later. High reversibility → bias toward speed. Low reversibility → bias toward depth.
 
-If any of those are unclear or assumed, **ask before generating options**. Generating 3 wrong-shaped options because you assumed the constraints wastes the whole session.
+If the *want* is unclear (missing who / why / success / constraint / out of scope) → **stop and run `vd:interview`**. Generating 3 options for an unconfirmed outcome is the wrong skill. Brainstorm starts after intent is confirmed.
+
+If only a *constraint* or success criterion is fuzzy but the outcome is known, **ask before generating options**. Generating 3 wrong-shaped options because you assumed the constraints wastes the whole session.
 
 **How to ask:** one clarifying question per message. Prefer multiple choice (A/B/C) over open-ended when the answer space is bounded - it's faster to answer and surfaces hidden assumptions. Save open-ended for "what does success look like?" style framing. Don't stack 4 questions in one reply.
 
@@ -320,6 +323,8 @@ The brainstorm's job is to pick the direction. Materializing it is downstream.
 | "Let me just look at the code first" | Brainstorm tells you what to look for. Phase 1 first. |
 | "User wants action, not discussion" | Bad action wastes more time than 10 minutes of brainstorming. Push back politely. |
 | "I'll converge later - let me explore more" | If you've laid out 3 stress-tested options, you have enough. Pick. |
+| "I'll generate options so they can figure out what they want" | Options widen the search. `vd:interview` narrows it. Run that first. |
+| "They said 'build a dashboard' - I know what that means" | Convention, not intent. If you cannot write Outcome / Success / Out of scope, interview first. |
 
 ## Quality bar
 
@@ -351,11 +356,11 @@ The brainstorm's job is to pick the direction. Materializing it is downstream.
 
 ## Workflow position
 
-**Typically follows:** `vd:scout` (after surveying the surface), `vd:debug` (when the diagnosis exposes a design decision worth re-deciding), or a fresh ambiguous request
+**Typically follows:** `vd:interview` (confirmed want), `vd:scout` (after surveying the surface), `vd:debug` (when the diagnosis exposes a design decision worth re-deciding)
 
 **Typically precedes:** `vd:plan` (for the chosen approach), or `vd:research` (if Phase 3 surfaced an unknown option that needs deep evaluation)
 
-**Compares to:** `vd:research` (known options, cited comparison) - when the user names options, prefer `research`; when the path is unclear, prefer `brainstorm`
+**Compares to:** `vd:interview` (extract want, no options) - when the outcome is unconfirmed, prefer `interview`. `vd:research` (known options, cited comparison) - when the user names options, prefer `research`; when the path is unclear, prefer `brainstorm`.
 
 ## Cross-discipline cues
 

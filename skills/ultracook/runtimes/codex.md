@@ -108,7 +108,7 @@ else:
 
 1. Four `ask_user_question` prompts (see `references/intake-template.md` for the question shape):
    - target kind (local / pr-only / cluster)
-   - action shape (brainstorm-first / plan-only / fix-and-ship / refactor)
+   - action shape (interview-first / brainstorm-first / plan-only / fix-and-ship / refactor)
    - branch name (suggested from slug; skip when `--reuse`)
    - autonomy (manual / semi / auto; default semi)
 2. Read the 4 answers, set env vars: `ULTRACOOK_TARGET_KIND`, `ULTRACOOK_ACTION_SHAPE`, `ULTRACOOK_BRANCH`, `ULTRACOOK_AUTONOMY`, `ULTRACOOK_REUSE_WORKTREE` (if `--reuse`).

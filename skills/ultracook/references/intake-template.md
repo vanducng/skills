@@ -26,12 +26,14 @@ Phase 1's `vd:ultracook "<short goal>"` runs these via `AskUserQuestion`. Order 
 
 | Label | Description |
 |---|---|
-| `Brainstorm-first` | Design phase needed - invoke `vd:brainstorm` before `vd:plan`. Use for unfamiliar / multi-option work. |
-| `Plan-only` | Skip brainstorm; jump straight to `vd:plan`. Use when the approach is decided. |
+| `Interview-first` | Want is unclear - invoke `vd:interview` before anything else. Interactive only; not valid under `ULTRACOOK_EXEC=1`. |
+| `Brainstorm-first` | Design phase needed - invoke `vd:brainstorm` before `vd:plan`. Use when the outcome is known and the approach is not. |
+| `Plan-only` | Skip interview/brainstorm; jump straight to `vd:plan`. Use when the approach is decided. |
 | `Fix-and-ship` | No design phase; treat as a small targeted fix. Invoke `vd:fix --auto` instead of plan+cook. |
 | `Refactor` | TDD shape - plan with `--tdd` flag. |
 
 **Maps to:** prepends to the resolved workflow's action sequence:
+- Interview-first → `[interview, ...]` (interview hands off to brainstorm or plan)
 - Brainstorm-first → `[brainstorm, plan, ...]`
 - Plan-only → `[plan, ...]`
 - Fix-and-ship → `[fix, ...]` (skips plan)

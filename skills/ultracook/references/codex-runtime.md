@@ -8,7 +8,7 @@
 |---|---|---|
 | Skill discovery | ✓ | `vd install codex ultracook` symlinks into `~/.agents/skills/ultracook/` (auto-discovered) |
 | Intake (4 ask_user_question prompts) | ✓ | Mirrors Claude Code's AskUserQuestion flow |
-| Sequential executor | ✓ | Same protocol as Claude Code; all 21 actions wired |
+| Sequential executor | ✓ | Same protocol as Claude Code; all 22 actions wired |
 | Skill-to-skill dispatch (`vd:plan`, `vd:cook`, etc.) | ✓ | Via `codex exec resume --last "use vd:<skill> ..."` - see Workaround 1 |
 | Loop primitive (cook+verify iteration) | ✓ | Delegates to `vd:auto-loop --codex` → native `/goal` |
 | Monitor analog (wait_ci, image_build_wait, rollout_check) | ✓ | PostToolUse hook + `additionalContext` - see Workaround 2 |

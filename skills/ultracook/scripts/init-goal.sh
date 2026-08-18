@@ -10,7 +10,7 @@ set -euo pipefail
 # ── Required env vars (set by SKILL.md from AskUserQuestion answers) ──────────
 
 : "${ULTRACOOK_TARGET_KIND:?ULTRACOOK_TARGET_KIND not set (local | pr-only | cluster)}"
-: "${ULTRACOOK_ACTION_SHAPE:?ULTRACOOK_ACTION_SHAPE not set (brainstorm-first | plan-only | fix-and-ship | refactor)}"
+: "${ULTRACOOK_ACTION_SHAPE:?ULTRACOOK_ACTION_SHAPE not set (interview-first | brainstorm-first | plan-only | fix-and-ship | refactor)}"
 : "${ULTRACOOK_AUTONOMY:?ULTRACOOK_AUTONOMY not set (manual | semi | auto)}"
 
 ULTRACOOK_REUSE_WORKTREE="${ULTRACOOK_REUSE_WORKTREE:-0}"   # 0 (default) = create, 1 = skip
@@ -34,7 +34,7 @@ fi
 case "$ULTRACOOK_TARGET_KIND" in local|pr-only|cluster) ;; *)
   echo "ULTRACOOK_TARGET_KIND must be local|pr-only|cluster (got: $ULTRACOOK_TARGET_KIND)" >&2; exit 2 ;;
 esac
-case "$ULTRACOOK_ACTION_SHAPE" in brainstorm-first|plan-only|fix-and-ship|refactor) ;; *)
+case "$ULTRACOOK_ACTION_SHAPE" in interview-first|brainstorm-first|plan-only|fix-and-ship|refactor) ;; *)
   echo "ULTRACOOK_ACTION_SHAPE invalid (got: $ULTRACOOK_ACTION_SHAPE)" >&2; exit 2 ;;
 esac
 case "$ULTRACOOK_AUTONOMY" in manual|semi|auto) ;; *)
@@ -180,6 +180,7 @@ mkdir -p "${GOAL_DIR}/iterations"
 # ── Determine first action from action-shape ──────────────────────────────────
 
 case "$ULTRACOOK_ACTION_SHAPE" in
+  interview-first)  FIRST_ACTION="interview" ;;
   brainstorm-first) FIRST_ACTION="brainstorm" ;;
   plan-only)        FIRST_ACTION="plan" ;;
   fix-and-ship)     FIRST_ACTION="fix" ;;

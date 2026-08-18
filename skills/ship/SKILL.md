@@ -209,6 +209,18 @@ With `--auto` / `--merge` - same pipeline, then merges on green:
 ✓ Merged: #123 (squash, branch deleted)
 ```
 
+## Anti-rationalization
+
+| Excuse | Reality |
+|---|---|
+| "CI is green, I'll merge the bare ship" | Hard rule 0. Green makes merge *safe*, not *requested*. Wait for `--auto`, `--merge`, or "land it". |
+| "Tests already passed last session, skip them" | Only with `--skip-tests` said out loud. Stale green is not this branch. |
+| "Review can wait until after the PR" | Pre-landing review catches the bug you would otherwise shepherd through CI. |
+| "Bot comments aren't real review" | Every comment gets an inline reply. Bots catch secrets, types, and broken contracts. |
+| "I'll fetch comments once at t+0" | Review bots post 1-5 min later. An immediate zero is a lie. Poll. |
+| "Force-push will clean the history" | Hard rule 2. Rebase and retry once, then stop. |
+| "It's just a docs tweak, skip the scan" | Secrets and `/Users/<name>/` paths hide in docs and skills too. Scan the staged diff. |
+
 ## Workflow position
 
 **Typically follows:** `vd:cook` (cook implements, ship lands)

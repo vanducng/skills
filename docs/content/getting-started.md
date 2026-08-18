@@ -14,8 +14,10 @@ Common entries:
 
 | Goal | Skill |
 | --- | --- |
+| Align on what to build | `vd:interview` |
 | Scout a codebase | `vd:scout` |
 | Debug a failure | `vd:debug` |
+| Explore approaches | `vd:brainstorm` |
 | Plan a multi-step change | `vd:plan` |
 | Execute a plan | `vd:cook` |
 | Ship a branch | `vd:ship` |

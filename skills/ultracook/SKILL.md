@@ -1,6 +1,6 @@
 ---
 name: ultracook
-description: "Dynamic workflow conductor. Classifies a coding task, picks the smallest viable workflow - direct, pipeline (brainstorm → plan → cook → ship), or parallel fan-out - stays interactive until a gate clears, then runs autonomously to verified done. Dual-runtime (Claude Code + Codex) with on-disk resumable state and hard guardrails. Use when the user types ultracook / $ultracook, asks to orchestrate, run the whole pipeline, drive a feature/fix/migration end-to-end, or split work across agents."
+description: "Dynamic workflow conductor. Classifies a coding task, picks the smallest viable workflow - direct, pipeline (interview → brainstorm → plan → cook → ship), or parallel fan-out - stays interactive until a gate clears, then runs autonomously to verified done. Dual-runtime (Claude Code + Codex) with on-disk resumable state and hard guardrails. Use when the user types ultracook / $ultracook, asks to orchestrate, run the whole pipeline, drive a feature/fix/migration end-to-end, or split work across agents."
 license: MIT
 argument-hint: "[<short goal> | resume | status | kill --reason <text> | resolve <goal-dir>] [--reuse] [--manual | --semi | --auto]"
 metadata:
@@ -15,7 +15,7 @@ things, in order: **classify** it and pick the smallest viable workflow (the
 *conductor*), then run it through the right runtime primitives (the *router*). It
 composes existing skills - it never reimplements `vd:plan`, `vd:cook`, `vd:ship`, etc.
 
-The spine is **brainstorm → plan → cook → ship**, but ultracook runs only the slice a
+The spine is **interview → brainstorm → plan → cook → ship**, but ultracook runs only the slice a
 task earns: a typo goes `direct` (no machinery); a feature goes `pipeline`
 (intake → executor, gating at high-blast transitions, then autonomous); a repo-wide
 migration goes `fan-out` (parallel packets). It stays human-in-the-loop until a gate
@@ -47,7 +47,7 @@ Before any dispatch, classify the task and pick a **mode** (how much workflow) a
 | Mode | Pick when | What runs |
 |---|---|---|
 | `direct` | trivial, clear, single-surface, reversible | do it inline - **no goal-dir** - narrowest check, report |
-| `pipeline` | real feature/fix, phases, uncertainty, blast radius | intake → executor (brainstorm/plan/cook/ship slice) → `vd:auto-loop` → verify |
+| `pipeline` | real feature/fix, phases, uncertainty, blast radius | intake → executor (interview/brainstorm/plan/cook/ship slice) → `vd:auto-loop` → verify |
 | `fan-out` | repo-wide / migration / N-finder audit, independent packets | parallel packets via the runtime's native primitive; parent owns integration |
 
 Sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) and bare resume skip triage -
@@ -92,7 +92,7 @@ references/
   conductor.md - triage: mode/autonomy selection, gate map, fan-out packets
   autonomy-modes.md - manual/semi/auto gate semantics
   architecture.md - two-layer SKILL.md ↔ bash-script invariant
-  action-vocab.{md,yaml} - 21 actions · verifier-vocab.{md,yaml} - 7 verifier types
+  action-vocab.{md,yaml} - 22 actions · verifier-vocab.{md,yaml} - 7 verifier types
   codex-runtime.md - Codex specifics · codex-gap-workarounds.md - Monitor/Skill bridges
 runtimes/
   claude-code.md - Claude Code adapter (tools: Skill, Task, Workflow, Monitor, hooks)

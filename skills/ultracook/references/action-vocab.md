@@ -10,6 +10,7 @@ The closed set of actions `vd:ultracook`'s executor (Phase 3) can dispatch. Each
 |---|---|---|---|---|---|---|
 | `scout` | skill `vd:scout` | - | - | `[research]` | never | - |
 | `research` | skill `vd:research` | - | - | `[scout]` | never | - |
+| `interview` | skill `vd:interview` | - | - | - | `semi`,`manual` | - |
 | `brainstorm` | skill `vd:brainstorm` | `--deep` | - | - | `semi`,`manual` | - |
 | `plan` | skill `vd:plan` | `--deep` | `cmd_exits_zero(test -d {plan_dir})` | - | `semi`,`manual` | - |
 | `plan_audit` | skill `vd:plan-audit` | `{plan_dir}` | - | - | when risk_tier=high | - |

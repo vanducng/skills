@@ -18,7 +18,8 @@ Read the goal text + repo signals. Score these axes (cheap heuristics, not a mod
 
 | Axis | Signal | Pull toward |
 |---|---|---|
-| **Clarity** | "maybe", "could", "or", contradictory or open-ended spec | brainstorm-first |
+| **Want-clarity** | missing who / why / success / constraint / out of scope; "build me X"; convention words | interview-first (interactive only) |
+| **How-clarity** | "maybe", "could", "or", contradictory or open-ended *approach* after want is known | brainstorm-first |
 | **Reversibility** | delete / drop / force-push / deploy / migrate / revoke | approval gate |
 | **Scope / blast** | "all", "every", "bulk", repo-wide, many files, external system | plan + fan-out |
 | **Complexity** | multi-file, new subsystem, cross-cutting, >~50 LOC | pipeline |
@@ -29,11 +30,13 @@ A task can score on several axes - take the strongest pull.
 ## Step 2 - Pick a mode
 
 ```
-ambiguous spec                          → pipeline, shape = brainstorm-first
+want unclear (who/why/success missing)   → pipeline, shape = interview-first (semi/manual only)
+how unclear, want known                  → pipeline, shape = brainstorm-first
 irreversible AND high blast radius       → pipeline + hard gate (always ask)
 repo-wide / migration / N-finder audit   → fan-out
 multi-file / real feature / has verifier → pipeline
 small, clear, single-surface, reversible → direct
+want unclear AND autonomy=auto / exec    → block; do not invent intent
 ```
 
 ### `direct` - just do it
@@ -41,7 +44,7 @@ Trivial, clear, low-blast: a typo, one function, a narrow question, one command,
 config tweak. **Do not** create a goal-dir or `state.json`. Do the task, run the
 narrowest useful check, report. Mention the full pipeline wasn't needed only if useful.
 
-### `pipeline` - the goal loop (brainstorm → plan → cook → ship)
+### `pipeline` - the goal loop (interview → brainstorm → plan → cook → ship)
 A real feature/fix with phases, uncertainty, or blast radius. This is the executor
 core: intake → `resolve-workflow.sh` → executor → `vd:auto-loop` for iteration → terminal.
 The conductor proposes the **action shape** (see Step 3); intake confirms it (`semi`)
@@ -55,12 +58,13 @@ parallelism (Claude Code `Workflow` tool / `Task` subagents; Codex subagents). S
 
 ## Step 3 - Choose the workflow shape
 
-The spine is **brainstorm → plan → cook → ship**. Run the smallest slice; skip stages
+The spine is **interview → brainstorm → plan → cook → ship**. Run the smallest slice; skip stages
 the task doesn't need. This maps onto the intake `action_shape`:
 
 | Proposed shape | Spine slice | Pick when |
 |---|---|---|
-| `brainstorm-first` | brainstorm → plan → cook → ship | spec is ambiguous / design not decided |
+| `interview-first` | interview → (brainstorm\|plan) → cook → ship | want is unconfirmed (who/why/success/out of scope) |
+| `brainstorm-first` | brainstorm → plan → cook → ship | want known, approach not decided |
 | `plan-only` | plan (stop) | user wants a plan, not execution |
 | `fix-and-ship` | (scout) → cook → ship | clear fix, design already obvious |
 | `refactor` | plan → cook → verify | cross-cutting change, no new behavior |
@@ -146,7 +150,8 @@ then verifies.
 | Prompt | Classify | Mode / shape / autonomy |
 |---|---|---|
 | "fix this typo in the README" | clear, tiny, reversible | `direct` |
-| "should we use SSE or WebSockets for notifications?" | ambiguous design | `pipeline` / brainstorm-first / semi |
+| "build me a dashboard" | want unconfirmed | `pipeline` / interview-first / semi |
+| "should we use SSE or WebSockets for notifications?" | want known, ambiguous design | `pipeline` / brainstorm-first / semi |
 | "implement settings export, ship to staging, verify" | real feature, clear-ish | `pipeline` / fix-and-ship / semi |
 | "migrate all API clients to the new SDK" | repo-wide, many sites | `fan-out` + hard gate (broad codemod) |
 | "get lint errors to zero" | mechanical, measurable | `pipeline` / fix-and-ship / auto (delegates to `vd:optimize-loop`) |
