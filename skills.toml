@@ -42,7 +42,7 @@ mode = 'bundle'
 
 [targets.claude.bundle]
 name = 'vd'
-version = "1.5.0"
+version = "1.6.0"
 description = 'A daily-driver collection of skills for agentic coding. Build pipeline: interview → scout → debug → brainstorm → plan → cook → ship. Plus code-review (PR review with inline gh-api comments + a consistent review voice), research (deep tech research), uiuxdesign (UI/UX design quality + web UI design, build, review, test), excalidraw (diagrams), file-browser (book-like viewer), opendesign (HTML design artifacts from nexu-io/open-design catalog), computer-clean (macOS disk cleanup), omnimedia (multimodal AI: Gemini analysis + Codex/Gemini/OpenRouter/MiniMax image gen), auto-loop (autonomous goal-pursuit with two-vote completion gate), optimize-loop (metric-optimization loop - drive a measurable metric with auto keep/discard), scenario (edge-case generation across 12 dimensions + saturation loop), security (STRIDE+OWASP threat-modeled audit with optional fix loop), ego-browser + browser + browser-profile + web-e2e (shared-browser and CDP automation with named persistent profiles and full e2e testing of local web apps), and gws (Google Workspace via the official CLI). Scout and debug span software, data engineering, devops, and analytics surfaces.'
 plugin_description = 'A daily-driver collection of skills for agentic coding, namespaced under `vd:` to avoid conflicts with other plugins.'
 source = './'
