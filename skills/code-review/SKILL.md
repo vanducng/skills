@@ -129,7 +129,8 @@ This is the path that produces the GitHub artifact. Treat it as the primary mode
 PR=$1   # accepts "#123", "123", or full URL - normalize to number
 gh pr view  "$PR" --json title,body,author,baseRefName,headRefName,files,additions,deletions,state,reviewDecision,headRefOid
 gh pr diff  "$PR"
-gh pr checks "$PR" 2>/dev/null || echo "(no checks)"
+# Exit 8 = pending (retry), not "no checks". Print the table; ignore the rc.
+gh pr checks "$PR" || true
 ```
 
 Capture `headRefOid` - every inline comment's `commit_id` MUST equal this so comments stay anchored if the author force-pushes mid-review.

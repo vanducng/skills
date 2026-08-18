@@ -20,6 +20,8 @@ jobs:
           python3 hooks/test_hooks.py
           python3 hooks/test_agent_notify.py
           python3 skills/workbench/scripts/test_workbench.py
+      - name: Run git skill helper tests
+        run: bash skills/git/scripts/wait-for-checks.test.sh
       - name: Check release version consistency
         run: bash scripts/check-release-versions.sh
       - name: Check docs site contract
