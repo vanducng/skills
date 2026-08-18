@@ -76,10 +76,14 @@ This file owns the *process* (sync remote, diff, create PR). `pr-template.md` ow
 
 ## Tool 3 - Create PR
 
+Pass the body as a file. Nested `--body "$(cat <<'EOF' …)"` dies in agent bash
+wrappers with `bad substitution: no closing ')'`. `--body-file` (or `--body-file -`
+reading a heredoc on stdin) is the safe path. See `gh-cli-guide.md`.
+
 ```bash
 gh pr create --base "$TO" --head "$FROM" \
   --title "<v-ed title>" \
-  --body "$(cat <<'EOF'
+  --body-file - <<'EOF'
 - **Why:** ...
 - **What:** ...
 - **Risks:** none.
@@ -88,12 +92,15 @@ gh pr create --base "$TO" --head "$FROM" \
 **Docs:** – N/A
 **Breaking:** –
 EOF
-)"
 ```
 
-**Existing PR for this branch:** use `gh pr edit`, don't re-create.
+**Existing PR for this branch:** `gh pr edit --body-file`, don't re-create.
 **Draft mode** when WIP: add `--draft`.
-**Auto-merge** only on explicit user request: `gh pr merge --auto --squash` after creation.
+**Landing:** only on explicit user request. Never `gh pr checks N && gh pr merge N`
+— `gh pr checks` exits **8** while a check is pending, so the merge never runs.
+Wait with `scripts/wait-for-checks.sh` then merge, or queue `gh pr merge --auto`.
+Unresolved review threads stay blocked by `hooks/pr-merge-guard.py`. Full CI
+watch + comment gates: `vd:ship` Steps 15–16.
 
 ## Tool 4 - PR feedback pass
 
@@ -193,6 +200,8 @@ After a valid fix:
 | Push rejected | `git pull --rebase`, resolve, retry |
 | `gh: not authenticated` | Surface `gh auth status`, ask user |
 | Existing open PR for this branch | Show URL, ask user: update vs create new |
+| `bad substitution: no closing ')'` | Rewrite with `--body-file` / `--body-file -`; do not retry the `$(cat <<` form |
+| `gh pr checks` exit 8 | Pending, not failure. Poll (`wait-for-checks.sh`) or queue `gh pr merge --auto` |
 
 ## Hard rules
 

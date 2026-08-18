@@ -61,7 +61,7 @@ Within browser automation, `vd:ego-browser` drives logged-in browsing through is
 
 ## Choosing The Right Skill
 
-Use `vd:interview` when the ask is underspecified (who / why / success / out of scope missing), `vd:scout` when you need a map, `vd:debug` when behavior is failing, `vd:brainstorm` when the outcome is known but the approach is not, `vd:plan` when the implementation path is not yet concrete, `vd:cook` when a plan is ready to execute, and `vd:ship` when the work is tested and ready for remote.
+Use `vd:interview` when the ask is underspecified (who / why / success / out of scope missing), `vd:scout` when you need a map, `vd:debug` when behavior is failing, `vd:brainstorm` when the outcome is known but the approach is not, `vd:plan` when the implementation path is not yet concrete, `vd:cook` when a plan is ready to execute, `vd:git` for a single commit/push/PR/merge (GitHub CLI: `--body-file` for PR bodies; `gh pr checks` exit 8 is pending, not failure), and `vd:ship` when the work is tested and ready for remote.
 
 Within review, the four passes answer different questions: `vd:code-review` asks whether a change is ready to land and posts inline PR comments, `vd:code-refactor-review` stays local and asks whether the change fits the codebase or reads as slop, `vd:simplify` reduces reading complexity with behavior frozen, and `vd:zero-tech-debt` reshapes a working feature into the form it should have had from day one, deleting compatibility paths only after proving them dead. `vd:miucr` is the deterministic owned reviewer CLI (`miu-cr`) for when the review itself must be reproducible and gated by severity thresholds rather than agent judgment.
 
