@@ -52,7 +52,7 @@ Suppress sparingly - fix the root cause. `//nolint` **must** name the linter and
 
 ## Modernization
 
-Keep code on current Go idioms (covers Go 1.21–1.26). Never do large refactors while the developer is on another task - mention opportunities, let them decide, and record ignored suggestions in a `.modernize` file so they aren't re-suggested. The `modernize` linter (golangci-lint v2.6.0+) auto-detects many of these.
+Keep code on current Go idioms (covers Go 1.21-1.26). Never do large refactors while the developer is on another task - mention opportunities, let them decide, and record ignored suggestions in a `.modernize` file so they aren't re-suggested. The `modernize` linter (golangci-lint v2.6.0+) auto-detects many of these.
 
 **High priority (safety/correctness):** remove loop-var shadow copies (1.22); `math/rand` → `math/rand/v2` (drop `rand.Seed`); `os.Root` for user paths (1.24); `errors.Is`/`As`; migrate deprecated crypto (`crypto/ecdh`, `crypto/sha3`, etc.); run `govulncheck`.
 

@@ -38,7 +38,7 @@ go get github.com/samber/mo@v1.16.0
 | `Option[T]` | Value may be absent | Rust `Option`, Java `Optional` |
 | `Result[T]` | Operation may fail | Rust `Result<T, E>`, replaces `(T, error)` |
 | `Either[L, R]` | Value of one of two types | Scala `Either`, TS discriminated union |
-| `Either3…Either5` | One of 3–5 types | Same, wider |
+| `Either3…Either5` | One of 3-5 types | Same, wider |
 | `Future[T]` | Async value not yet available | JS `Promise` |
 | `IO[T]` | Lazy synchronous effect | Haskell `IO` |
 | `Task[T]` | Lazy async computation | fp-ts `Task` |

@@ -15,7 +15,7 @@ metadata:
 Research is a deliverable, not a code change. The general "ship the smallest thing" rules **do not apply here**. For this skill:
 
 - **Be deep, not shallow.** Surface findings are useless - dig until you understand *why*, not just *what*.
-- **Evaluate multiple options.** Never recommend one approach without comparing at least 2–3 viable alternatives on the same criteria. A single-option report is a failure.
+- **Evaluate multiple options.** Never recommend one approach without comparing at least 2-3 viable alternatives on the same criteria. A single-option report is a failure.
 - **Brutal honesty.** Call out tradeoffs, deprecation, weak maintainership, security holes, vendor lock-in, hidden costs. No marketing language. No hedging.
 - **Straight to the demand.** The user asked a specific question - answer *that* question completely before adding context. No filler, no padding, no recap of what they already know.
 - **Cover every angle the user implied.** If they ask "what's the best message queue", they implicitly want: throughput, durability, ops burden, language support, cost, lock-in. Address all of them.
@@ -37,7 +37,7 @@ Before searching, write down:
 - The decision the user is trying to make
 - Evaluation criteria - list them explicitly. For tech selection at minimum: performance, security, maturity/maintainership, ops burden, ecosystem, cost, lock-in
 - Recency bar (last 12 months unless historical context is needed)
-- The 2–3+ candidate options to compare (if the user named one, find competitors)
+- The 2-3+ candidate options to compare (if the user named one, find competitors)
 
 If the user gave only one option to research, **expand to alternatives anyway** - saying "X is good" without "vs Y, Z" is a single-option failure.
 

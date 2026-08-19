@@ -576,7 +576,7 @@ def _produce_svg_free(
     revise: bool = True,
 ) -> tuple[str, str | None]:
     """Pure-LLM SVG path. UNCHANGED from pre-skeleton-engine behavior."""
-    print(f"→ generating SVG draft (preset: {preset}, model: {REFINE_MODEL}, ~10–20s)…", flush=True)
+    print(f"→ generating SVG draft (preset: {preset}, model: {REFINE_MODEL}, ~10-20s)…", flush=True)
     svg_text = generate_svg(
         description=description,
         type_ref=refs["type_ref"],
@@ -585,7 +585,7 @@ def _produce_svg_free(
         svg_contract=refs["svg_contract"],
     )
     if revise:
-        print(f"→ critiquing + revising layout (~10–20s)…", flush=True)
+        print(f"→ critiquing + revising layout (~10-20s)…", flush=True)
         svg_text = revise_svg(
             draft_svg=svg_text,
             description=description,
@@ -785,7 +785,7 @@ def _produce_image(
             has_reference_images=bool(reference_images),
         )
     else:
-        print(f"→ refining prompt (preset: {preset}, model: {REFINE_MODEL}, ~5–10s)…", flush=True)
+        print(f"→ refining prompt (preset: {preset}, model: {REFINE_MODEL}, ~5-10s)…", flush=True)
         refined = refine_prompt(
             description=description,
             type_ref=refs["type_ref"],
@@ -794,7 +794,7 @@ def _produce_image(
         )
     if image_provider == "codex":
         if codex_available():
-            print(f"→ generating PNG via codex ({CODEX_IMAGE_MODEL}, ~30–120s)…", flush=True)
+            print(f"→ generating PNG via codex ({CODEX_IMAGE_MODEL}, ~30-120s)…", flush=True)
             try:
                 codex_generate_image(
                     prompt=refined,
@@ -822,7 +822,7 @@ def _produce_image(
     if reference_images:
         print("⚠ reference images are only supported by the Codex provider; OpenRouter fallback ignores them", file=sys.stderr, flush=True)
 
-    print(f"→ generating PNG (model: {IMAGE_MODEL}, ~30–90s)…", flush=True)
+    print(f"→ generating PNG (model: {IMAGE_MODEL}, ~30-90s)…", flush=True)
     generate_image(
         prompt=refined,
         output_path=str(output_path),

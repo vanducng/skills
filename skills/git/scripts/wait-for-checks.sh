@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# wait-for-checks.sh — poll `gh pr checks` until the result is terminal.
+# wait-for-checks.sh - poll `gh pr checks` until the result is terminal.
 #
 # `gh pr checks` exits 8 while any check is still pending. Treat 8 as retry,
-# never as failure. Do not write `gh pr checks N && gh pr merge N` — the merge
+# never as failure. Do not write `gh pr checks N && gh pr merge N` - the merge
 # never runs while CI is queued.
 #
 # This script does not merge. hooks/pr-merge-guard.py still blocks
 # `gh pr merge` while review threads are unresolved. To queue a merge until
 # GitHub is satisfied, use `gh pr merge --auto` instead of waiting here.
-# Full-pipeline CI watch lives in vd:ship Step 15 — do not duplicate it.
+# Full-pipeline CI watch lives in vd:ship Step 15 - do not duplicate it.
 #
 # Only exit 8 is retried. Auth errors, usage errors, and upstream HTTP
-# failures (including 503) are terminal — surface them, do not back off.
+# failures (including 503) are terminal - surface them, do not back off.
 #
 # Usage:
 #   wait-for-checks.sh [PR] [--timeout SEC] [--interval SEC] [--required]

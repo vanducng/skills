@@ -111,6 +111,6 @@ YOUR_MEASURE_COMMAND | YOUR_EXTRACT_COMMAND
 | One number | stdout last line = a bare number |
 | Exit codes | 0 = valid measurement, non-zero = crash (logged, skipped) |
 | Runtime | < 30s; sample if expensive |
-| Determinism | varies run-to-run → `Noise: high`, 3–5 runs |
+| Determinism | varies run-to-run → `Noise: high`, 3-5 runs |
 | Units | consistent across all iterations; never change mid-loop |
 | Direction | declare `lower` or `higher` explicitly |

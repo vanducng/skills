@@ -34,7 +34,7 @@ Applied to schematics:
 
 - Every node represents a distinct idea. Two nodes that always travel together are one node.
 - Every connection carries information. If the relationship is obvious from layout, remove the line.
-- Coral is **editorial, not a flag.** 1–2 focal nodes per diagram. Using it on 5 nodes erases the signal.
+- Coral is **editorial, not a flag.** 1-2 focal nodes per diagram. Using it on 5 nodes erases the signal.
 - The schematic isn't done when everything is added. It's done when nothing can be removed.
 
 **Target density: 4/10.** Enough to be technically complete. Not so dense it needs a guide. Above 9 nodes, it's probably two diagrams.
@@ -87,7 +87,7 @@ The pattern owns semantic primitives and its tighter budget; the type owns layou
 | Events positioned in time | **Timeline** | [type-timeline.md](references/type-timeline.md) |
 | Cross-functional process with handoffs | **Swimlane** | [type-swimlane.md](references/type-swimlane.md) |
 | Two-axis positioning / prioritization | **Quadrant** | [type-quadrant.md](references/type-quadrant.md) |
-| Multiple entities scored across 3–5 quantitative criteria | **Radar / Spider** | [type-radar.md](references/type-radar.md) |
+| Multiple entities scored across 3-5 quantitative criteria | **Radar / Spider** | [type-radar.md](references/type-radar.md) |
 | Reinforcing cycle / flywheel where the last step feeds the first and a shared hub accumulates state | **Loop** | [type-loop.md](references/type-loop.md) |
 | Hierarchy through containment / scope | **Nested** | [type-nested.md](references/type-nested.md) |
 | Parent → children relationships | **Tree** | [type-tree.md](references/type-tree.md) |
@@ -134,11 +134,11 @@ These mark "AI slop" schematics of any type:
 | Vertical `writing-mode` text on arrows | Unreadable |
 | 3 equal-width summary cards as default | Generic grid - vary widths |
 | Shadow on any element | Shadows are out. Borders are in. |
-| `rounded-2xl` on boxes | Max radius 6–10px or none |
-| Coral on every "important" node | Coral is 1–2 editorial accents, not a signaling system |
+| `rounded-2xl` on boxes | Max radius 6-10px or none |
+| Coral on every "important" node | Coral is 1-2 editorial accents, not a signaling system |
 | Reproducing Mermaid's renderer layout | Imports automatic spacing and routing instead of making an editorial layout |
 | Diagonal / slanted connectors between off-axis nodes | Rounded right-angle (orthogonal) elbows are mandatory - see §6 Mandatory connector rules |
-| Arrow label sitting on or touching its connector | Label must have a 6–10px gap above the line so the connector stays visible |
+| Arrow label sitting on or touching its connector | Label must have a 6-10px gap above the line so the connector stays visible |
 | Arrow label mask overlapping a node box | Nodes paint after labels - the fill clips the text into a fragment on the border. See §6 rule 6 |
 | Two connectors overlapping or running on the same path | Each connection must be independently traceable - bridge crossings, offset parallels |
 | Two connectors sharing a single attach point on a box | Fan attach points along the edge (≥12px apart) so every arrow is clearly distinct - see §6 rule 4 |
@@ -162,16 +162,16 @@ Type-specific anti-patterns live in each `references/type-*.md`.
 | `ink` | Primary text / stroke |
 | `muted`, `soft` | Secondary text, default arrows, sublabels |
 | `rule`, `rule-solid` | Hairline borders |
-| `accent`, `accent-tint` | 1–2 focal elements per diagram |
+| `accent`, `accent-tint` | 1-2 focal elements per diagram |
 | `link` | HTTP/API calls, external arrows |
 
-**Focal rule:** `accent` goes on 1–2 elements max. Everything else is `ink` / `muted` / `soft`. If you're tempted to accent 4 things, you haven't decided what's focal yet.
+**Focal rule:** `accent` goes on 1-2 elements max. Everything else is `ink` / `muted` / `soft`. If you're tempted to accent 4 things, you haven't decided what's focal yet.
 
 ### Node type → treatment
 
 | Type | Fill | Stroke |
 |---|---|---|
-| **Focal** (1–2 max) | `accent-tint` | `accent` |
+| **Focal** (1-2 max) | `accent-tint` | `accent` |
 | **Backend / API / Step** | white | `ink` |
 | **Store / State** | `ink @ 0.05` | `muted` |
 | **External / Cloud** | `ink @ 0.03` | `ink @ 0.30` |
@@ -184,7 +184,7 @@ Type-specific anti-patterns live in each `references/type-*.md`.
 - **Title** - Instrument Serif, 1.75rem, 400 - H1 only
 - **Node name** - Geist (sans), 12px, 600 - human-readable labels
 - **Sublabel** - Geist Mono, 9px - ports, URLs, field types
-- **Eyebrow / tag** - Geist Mono, 7–8px, uppercase, tracked - type tags, axis labels
+- **Eyebrow / tag** - Geist Mono, 7-8px, uppercase, tracked - type tags, axis labels
 - **Arrow label** - Geist Mono, 8px - annotation on arrows
 - **Editorial aside** - Instrument Serif *italic*, 14px - callouts only
 
@@ -257,7 +257,7 @@ These six rules are **non-negotiable**. Run the pre-output checklist (§9) to ve
 
 1. **Rounded right-angle (orthogonal) connectors are mandatory.** Never use diagonal `<line>` or straight slanted paths between nodes that don't share an x or y axis. Every bend must be a quarter-arc with `r=8` (or `r=6` minimum for tight layouts). See `references/type-architecture.md` for the elbow-path formula. Reserve plain straight `<line>` only for connections whose endpoints share the same x or y coordinate. Diagonal connectors are an automatic fail.
 
-2. **Label-to-connector margin: 6–10px gap, always.** A label must never sit *on* its arrow - the connector must remain visible. Place the label centered above (or beside, for vertical segments) the line with a **minimum 6px gap** between the bottom of the label's mask rect and the connector stroke. The opaque mask rect prevents the arrow from bleeding through, but the *visible* gap between mask edge and line preserves the reader's ability to trace the connection. If the label is large enough that 6px feels cramped, push it to 8–10px. Never let the mask rect touch or overlap the stroke.
+2. **Label-to-connector margin: 6-10px gap, always.** A label must never sit *on* its arrow - the connector must remain visible. Place the label centered above (or beside, for vertical segments) the line with a **minimum 6px gap** between the bottom of the label's mask rect and the connector stroke. The opaque mask rect prevents the arrow from bleeding through, but the *visible* gap between mask edge and line preserves the reader's ability to trace the connection. If the label is large enough that 6px feels cramped, push it to 8-10px. Never let the mask rect touch or overlap the stroke.
 
 3. **No overlapping connectors.** Two connectors must never share the same stroke path, run parallel on top of each other, or be drawn on top of each other for any segment. When two orthogonal arrows must cross at a single point, apply the **bridge / hop** primitive (see `references/type-architecture.md` § Crossing arrows). When two arrows naturally want to overlap, offset their routing by ≥12px so each line is independently traceable. If you find yourself stacking connectors, redesign the layout - it means two nodes are too close, or the diagram is over budget (split into overview + detail).
 
@@ -310,9 +310,9 @@ Every arrow label needs an opaque rect behind it. Without one it bleeds through 
 Rules:
 
 - ≤14 characters, all-caps, centered on segment midpoint.
-- **Mandatory 6–10px gap** between the bottom of the mask rect and the arrow stroke. The connector must remain visible - a label that hides its own arrow is a hard fail.
+- **Mandatory 6-10px gap** between the bottom of the mask rect and the arrow stroke. The connector must remain visible - a label that hides its own arrow is a hard fail.
 - Never `writing-mode` vertical.
-- For vertical segments, place the label to the side (not on the line) with the same 6–10px horizontal gap.
+- For vertical segments, place the label to the side (not on the line) with the same 6-10px horizontal gap.
 
 ### Legend - horizontal strip at the bottom
 
@@ -386,7 +386,7 @@ If you exceed, split into two diagrams (overview + detail).
 
 1. **Header** - eyebrow (Geist Mono), title (Instrument Serif), optional subtitle (Geist muted).
 2. **Diagram container** - default: **clean, borderless**, no background - the SVG sits directly on the page paper. Optional *framed* variant (for card-heavy layouts or hero placements): `paper-2` bg + 1px `rule` border + 8px radius + `1.5rem` padding + `overflow-x: auto`.
-3. **Summary cards** - 2–3 col grid with *varied* widths (e.g., `1.1fr 1fr 0.9fr`).
+3. **Summary cards** - 2-3 col grid with *varied* widths (e.g., `1.1fr 1fr 0.9fr`).
 4. **Footer** - colophon in Geist Mono, muted, hairline top border.
 
 ---
@@ -450,7 +450,7 @@ Run before producing any diagram.
 - [ ] `<title>` / `<desc>` IDs are prefixed for this diagram and variant - never bare `title` / `desc`?
 - [ ] Arrows drawn before boxes?
 - [ ] **Every connector between off-axis nodes uses a rounded right-angle elbow (`r=8`)? No diagonal `<line>` slants?**
-- [ ] **Every arrow label has a visible 6–10px gap above its connector? (Mask rect not touching the stroke.)**
+- [ ] **Every arrow label has a visible 6-10px gap above its connector? (Mask rect not touching the stroke.)**
 - [ ] **No two connectors overlap, share a stroke path, or run on top of each other? Crossings use the bridge/hop primitive?**
 - [ ] **When several connectors enter or exit the same edge of a box, each has its own attach point (≥12px apart)? No connector hides another?**
 - [ ] **No connector passes behind a non-endpoint box, except the unavoidable-intervening-box case (§6 rule 5) - and in that case, the stroke is dashed and the label sits at the visible end?**
@@ -550,7 +550,7 @@ Every diagram is an accessible figure by default:
 2. `<title>` is the first child of `<svg>`, before `<defs>`. Assistive technology may ignore a title placed later.
 3. The IDs are prefixed per diagram and variant: `<slug>-title` / `<slug>-desc`, where the slug matches the file (`loop`, `loop-dark`, `loop-full`). Bare `title` / `desc` IDs are banned because two inline diagrams would create duplicate IDs and the second could be announced with the first diagram's name.
 4. `<title>` is the short name of the subject - roughly the page `<h1>`, and about 60 characters or fewer.
-5. `<desc>` is one sentence stating what the diagram shows in terms a reader needs without the image. Describe the content, not the geometry: “Org chart showing a command center routing work to specialist agents and escalation owners,” not “A box at the top with five boxes below it.” A shape-by-shape narration is worse than no useful description.
+5. `<desc>` is one sentence stating what the diagram shows in terms a reader needs without the image. Describe the content, not the geometry: "Org chart showing a command center routing work to specialist agents and escalation owners," not "A box at the top with five boxes below it." A shape-by-shape narration is worse than no useful description.
 6. Decorative-only SVG, such as the specimen glyphs in `assets/icons.html`, carries `aria-hidden="true"` instead. Giving decorative marks accessible names adds noise.
 
 ### Exporting to PNG / SVG

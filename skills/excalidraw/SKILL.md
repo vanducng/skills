@@ -262,7 +262,7 @@ After every batch, verify ALL:
 | Invisible arrows | Connections you cannot trace | Increase gap to ≥120px vertical |
 | Arrow label collision | YES/NO labels overlap shapes | Shorten label or widen gap |
 | Element overlap | Shapes share space | Reposition with proper spacing |
-| Readability | Text legible at 50–70% zoom | Bump fontSize to ≥16 |
+| Readability | Text legible at 50-70% zoom | Bump fontSize to ≥16 |
 | Color consistency | Colors match a single domain preset | Re-pick from one table above |
 | Color budget | More than 5 active semantic colors in one diagram | Merge similar components; use shape/stroke/labels for extra meaning |
 | Stroke + fill contrast | Light fill + dark stroke (or inverse) | Use the pairs in tables - never light fill + light stroke |

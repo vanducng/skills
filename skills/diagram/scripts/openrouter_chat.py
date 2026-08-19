@@ -42,7 +42,7 @@ def classify_type(description: str, available_types: list[str]) -> tuple[str, fl
     system = (
         f"Classify the diagram type from this list: {types_str}. "
         "Reply with ONLY one of those exact strings on the first line. "
-        "On the second line, write a confidence number 0.0–1.0. "
+        "On the second line, write a confidence number 0.0-1.0. "
         "If unclear, pick the closest match with low confidence."
     )
     response = chat(

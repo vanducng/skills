@@ -143,9 +143,9 @@ Fix at the dim level - one canonical `dim_customer` everyone uses, with explicit
 
 | Bug | Symptom | Fix |
 |---|---|---|
-| UTC vs local TZ | Day-boundary metrics shift by ~5–8h | Standardize: store UTC, render local; document everywhere |
+| UTC vs local TZ | Day-boundary metrics shift by ~5-8h | Standardize: store UTC, render local; document everywhere |
 | DST transition | One day has 23 or 25 hours; aggregates blip | Use date arithmetic in the warehouse's stable type, not naive timestamps |
-| Week start | "Week 1" includes different days in two reports | Settle on ISO weeks (Mon–Sun) or US (Sun–Sat); document |
+| Week start | "Week 1" includes different days in two reports | Settle on ISO weeks (Mon-Sun) or US (Sun-Sat); document |
 | Snapshot at midnight skipped | Data exists only between 00:00 and the BI refresh; midnight queries return empty | Refresh after the load completes, not on a clock |
 
 ## Performance - dashboard takes minutes to load

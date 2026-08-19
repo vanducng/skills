@@ -12,7 +12,7 @@ Use **Org Chart** instead of **Tree** when the nodes are people, agents, teams, 
 - Each node should answer three questions when space allows:
   1. **Name** - human-readable role/person/agent in Geist sans.
   2. **How to invoke** - Slack handle, queue, issue prefix, or trigger in Geist Mono.
-  3. **Scope** - 2–4 terse ownership words, not a paragraph.
+  3. **Scope** - 2-4 terse ownership words, not a paragraph.
 - Show non-Slack / not-yet-live owners with dashed optional styling rather than hiding them. Missing routes are operationally important.
 - Put escalation / approval rules in a small side callout or footer strip, not as extra org nodes.
 

@@ -1,6 +1,6 @@
 # Data Flow
 
-**Best for:** visualising how data moves through a pipeline *across organisational roles* - who initiates, who processes, who publishes, and who consumes. The canonical use case is a multi-role data platform (Admin → Engineers → Scientists → Consumers) with 4–6 process steps. Use when the reader needs to understand **who does what at each stage**, not just the technical components.
+**Best for:** visualising how data moves through a pipeline *across organisational roles* - who initiates, who processes, who publishes, and who consumes. The canonical use case is a multi-role data platform (Admin → Engineers → Scientists → Consumers) with 4-6 process steps. Use when the reader needs to understand **who does what at each stage**, not just the technical components.
 
 Prefer standard **Swimlane** for cross-functional business processes (HR approvals, support tickets). Use **Data flow** when the subject is a data pipeline with typed payloads (raw files, tables, reports) and role-scoped access boundaries.
 

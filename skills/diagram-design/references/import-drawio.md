@@ -68,13 +68,13 @@ Work from the digest, not from coordinates. In order:
 
 1. **Name the story.** One sentence: *"A request enters through the gateway, gets authenticated, and lands in Postgres."* Everything that doesn't serve that sentence is a degrade-ladder candidate.
 2. **Apply the detail level.** Walk [`output-spec.md` §3](output-spec.md) degrade ladder until you're under the node ceiling. The digest's *collapsible groups* section is step 3 of that ladder, pre-computed.
-3. **Pick 1–2 focal nodes.** The digest's `hubs` ranking (highest degree) is the usual answer, but the focal node is the one the *reader* should look at first - sometimes that's the entry point or the new component, not the busiest one. These get `accent`; everything else does not.
+3. **Pick 1-2 focal nodes.** The digest's `hubs` ranking (highest degree) is the usual answer, but the focal node is the one the *reader* should look at first - sometimes that's the entry point or the new component, not the busiest one. These get `accent`; everything else does not.
 4. **Rewrite every label** at the audience level ([`output-spec.md` §4](output-spec.md)). draw.io labels are written by the author for the author: `svc-auth-prod-v2` becomes `Auth Service`. Preserve proper nouns, expand acronyms once.
 5. **Prune edges.** Source graphs carry edges that layout already implies. If A sits above B in a stack and everything flows down, the arrow is noise. Keep edges that carry a label, cross a zone boundary, or run against the dominant direction.
 
 ## Step 5 - Redraw
 
-Fresh layout on the 4px grid, per the type reference and SKILL.md §6–§7. Explicitly:
+Fresh layout on the 4px grid, per the type reference and SKILL.md §6-§7. Explicitly:
 
 - **Discard source coordinates.** draw.io positions are hand-dragged and land on odd pixels. Lay out from scratch: dominant flow left→right (or top→bottom), zones aligned, even gaps.
 - **Discard source colors.** Map them to semantic roles instead:
@@ -104,7 +104,7 @@ Fresh layout on the 4px grid, per the type reference and SKILL.md §6–§7. Exp
 | `image` (custom PNG/vendor logo) | Nearest icon, or a labeled box. Never re-embed the source image. |
 | `text` (floating label) | Drop, or fold into a zone label |
 
-- **Reroute every connector.** Source waypoints are dead weight - the digest reports a waypoint count so you know how tangled the original was, not so you can reproduce it. Rounded orthogonal elbows, fanned attach points, no overlaps: SKILL.md §6 rules 1–5, no exceptions for imported content.
+- **Reroute every connector.** Source waypoints are dead weight - the digest reports a waypoint count so you know how tangled the original was, not so you can reproduce it. Rounded orthogonal elbows, fanned attach points, no overlaps: SKILL.md §6 rules 1-5, no exceptions for imported content.
 - **Set the `viewBox` from the size preset**, then lay out inside it - don't draw first and crop after.
 
 ## Step 6 - Deliver

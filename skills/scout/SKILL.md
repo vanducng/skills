@@ -17,7 +17,7 @@ Token-efficient parallel scouting that finds the right files before you touch th
 | Argument | What | When |
 |---|---|---|
 | _(none)_ | **Internal** - Explore subagents in parallel (`references/internal-scouting.md`) | Default in Claude Code. Best for ≥6 logical segments. |
-| `ext` | **External** - Gemini / OpenCode CLI in parallel (`references/external-scouting.md`) | Large surfaces (1M+ ctx) and you have one of the CLIs installed. SCALE 1–5. |
+| `ext` | **External** - Gemini / OpenCode CLI in parallel (`references/external-scouting.md`) | Large surfaces (1M+ ctx) and you have one of the CLIs installed. SCALE 1-5. |
 
 Internal mode needs the Task/Explore tool (Claude Code). In a runtime without it (e.g. Codex), use `ext` mode - run its `gemini`/`opencode` bash commands sequentially - or fall back to inline `Glob`/`Grep` sweeps.
 
@@ -115,7 +115,7 @@ Skip task registration if SCALE ≤ 2 (overhead > benefit) or if Task tools are 
 ### 4. Spawn parallel agents
 
 - **Internal:** load `references/internal-scouting.md` and spawn N `Explore` subagents in one Task tool message.
-- **External:** load `references/external-scouting.md`. Pick `gemini` (SCALE ≤ 3) or `opencode` (SCALE 4–5). Wrap with `timeout 120`.
+- **External:** load `references/external-scouting.md`. Pick `gemini` (SCALE ≤ 3) or `opencode` (SCALE 4-5). Wrap with `timeout 120`.
 - Each agent gets: explicit dir scope, search targets, **3-minute timeout**, and the report shape it must return.
 - Each agent has <200K tokens - keep prompts terse, hand it the dir list, not the whole repo.
 

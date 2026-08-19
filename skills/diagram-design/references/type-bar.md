@@ -6,9 +6,9 @@
 
 - **Orientation:** Vertical bars (columns) are default. Horizontal bars are appropriate when category labels are long or you have more than 8 categories.
 - **Plot area margins:** left 80px (y-axis labels), bottom 60px (x-axis labels), top 40px, right 40px - inside a `0 0 1000 500` viewBox.
-- **Bar count cap:** 4–8 bars. More than 8 → group into periods or split into two charts.
+- **Bar count cap:** 4-8 bars. More than 8 → group into periods or split into two charts.
 - **Bar width:** ≥ 50% of the column pitch (the gap should never exceed the bar). Typical: pitch=110px, bar=72px.
-- **Y-axis gridlines:** 4–6 horizontal lines at regular intervals. Stroke `rgba(45,49,66,0.08)` (very faint), 0.8px. X-axis baseline at `rgba(45,49,66,0.25)`, 1px.
+- **Y-axis gridlines:** 4-6 horizontal lines at regular intervals. Stroke `rgba(45,49,66,0.08)` (very faint), 0.8px. X-axis baseline at `rgba(45,49,66,0.25)`, 1px.
 - **Y-axis labels:** right-aligned Geist Mono 8px muted, at x=72 (8px left of the plot area).
 - **X-axis labels:** centered below each bar, Geist sans 11px 600 for category names.
 - **Value labels:** Geist Mono 8px above each bar. Focal bar label in accent; others in muted.

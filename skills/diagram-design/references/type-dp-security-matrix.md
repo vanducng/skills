@@ -33,9 +33,9 @@ components:                             # 2..14 rows, ordered top → bottom
 cells:                                  # explicit (row, col) entries; omitted → defaults to "none"
   # value = displayed text (free-form)
   # level = visual category: full | rw | read | none  (closed vocabulary, drives styling)
-  # focal: true (max 1)            - overrides level to focal styling
-  # sub: "second-line text"        - used inside focal cell
-  # color: "#hex"                  - optional per-cell color override (§4)
+  # focal: true (max 1) - overrides level to focal styling
+  # sub: "second-line text" - used inside focal cell
+  # color: "#hex" - optional per-cell color override (§4)
   - { row: 0, col: 0, value: "Admin", level: "full" }
   - { row: 0, col: 1, value: "Login", level: "read" }
   - { row: 0, col: 2, value: "Login", level: "read" }

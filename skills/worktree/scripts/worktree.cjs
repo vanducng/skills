@@ -330,7 +330,7 @@ function output(data) {
 }
 
 // Structured exit codes - lets Codex / shell loops distinguish retry-able from fatal.
-// Mapping is conservative (GNU-ish): 2 = bad input, 10–17 = git/state, 13 = perms,
+// Mapping is conservative (GNU-ish): 2 = bad input, 10-17 = git/state, 13 = perms,
 // 28 = disk, 68 = network. Anything unrecognised → 1.
 const EXIT_CODES = {
   OK: 0,
@@ -898,7 +898,7 @@ function copyWorktreeIncludeEntries(srcDir, destDir, entries) {
 }
 
 // Per-worktree port block: deterministic hash of the worktree name maps to a
-// block of 10 ports in 20000–39990 (below the ephemeral range, clear of
+// block of 10 ports in 20000-39990 (below the ephemeral range, clear of
 // common dev defaults). Collisions with sibling worktrees probe forward.
 const ENV_WORKTREE_FILE = '.env.worktree';
 const PORT_BLOCK_SIZE = 10;
