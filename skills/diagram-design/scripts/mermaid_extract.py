@@ -1148,7 +1148,7 @@ def digest(
             output.append("- collapsible groups (simplify here first):")
             for group in info["collapsible_groups"]:
                 output.append(
-                    f"  - {_escape_markdown(group['label'])} - {group['children']} children: "
+                    f" - {_escape_markdown(group['label'])} - {group['children']} children: "
                     + ", ".join(_escape_markdown(label) for label in group["child_labels"])
                 )
 

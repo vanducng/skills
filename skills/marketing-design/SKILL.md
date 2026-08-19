@@ -53,7 +53,7 @@ Raster generators (`logo`, `cip`) default to **Codex `$imagegen` (gpt-image-2)**
 | `poster` | model-agnostic prompt emitter | - | n/a | prints a prompt for any image model |
 | `banner` / social photos | HTML→screenshot | - | n/a | not direct AI image gen |
 
-`--provider`: `codex` (default) · `gemini` (force Nano Banana) · `auto` (codex→gemini). Codex takes 5–30s/image. Reference-image compositing requires codex-cli ≥ 0.137.
+`--provider`: `codex` (default) · `gemini` (force Nano Banana) · `auto` (codex→gemini). Codex takes 5-30s/image. Reference-image compositing requires codex-cli ≥ 0.137.
 
 ## Logo Design (Built-in)
 

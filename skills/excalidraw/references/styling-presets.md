@@ -264,7 +264,7 @@ Before declaring a diagram done, verify:
 - [ ] No more than 5 active semantic colors in one diagram
 - [ ] Each color/shape used has a documented semantic role
 - [ ] Stroke + fill pairs have visible contrast
-- [ ] All text legible at 50–70% zoom (fontSize ≥16)
+- [ ] All text legible at 50-70% zoom (fontSize ≥16)
 - [ ] Same shape always means the same thing in this diagram
 - [ ] Every arrow labeled with what flows + how (sync/async/stream/batch)
 - [ ] Aligned to grid, ≥40px between unconnected, ≥120px between connected

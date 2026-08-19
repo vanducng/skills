@@ -93,8 +93,8 @@ How much of the source survives. This is a *count* dial - it governs how many el
 
 `balanced` and `simplified` sit inside the standard complexity budget (SKILL.md §7). **`faithful` deliberately exceeds it** - that's the trade, and it comes with conditions:
 
-1. **Zoning is mandatory.** Above 9 nodes, every node belongs to a labeled zone (2–4 zones, hairline-bordered, `paper-2` fill, mono uppercase zone label at top-left). An unzoned 20-node diagram is a wiring diagram, not a schematic.
-2. **Connector rules don't relax.** SKILL.md §6 rules 1–5 still apply at 24 nodes. If you can't route it without overlaps, you're over the real ceiling - split.
+1. **Zoning is mandatory.** Above 9 nodes, every node belongs to a labeled zone (2-4 zones, hairline-bordered, `paper-2` fill, mono uppercase zone label at top-left). An unzoned 20-node diagram is a wiring diagram, not a schematic.
+2. **Connector rules don't relax.** SKILL.md §6 rules 1-5 still apply at 24 nodes. If you can't route it without overlaps, you're over the real ceiling - split.
 3. **Above 24 nodes, split.** Produce an overview (zones as nodes, `balanced` grammar) plus one detail diagram per zone. Name them `<base>-overview.html`, `<base>-<zone>.html`. Never ship a 40-node single canvas.
 4. **Accent stays at 2.** More nodes never buys more focal elements.
 
@@ -109,7 +109,7 @@ When the source has more than the level allows, cut in this order and stop as so
 5. **Cross-cutting infrastructure** - logging, metrics, secrets, CI. At `simplified` these go without asking; at `balanced` keep at most one, and only if the diagram is about it.
 6. **Still over?** Split into overview + detail. Splitting beats shrinking.
 
-Anything cut in steps 2–6 goes in the fidelity ledger (§5). Step 1 doesn't need reporting.
+Anything cut in steps 2-6 goes in the fidelity ledger (§5). Step 1 doesn't need reporting.
 
 ---
 

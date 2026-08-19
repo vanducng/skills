@@ -25,9 +25,9 @@ Optional displacement filter that wobbles every stroke and edge slightly - turns
 
 | Parameter | Range | Effect |
 |---|---|---|
-| `baseFrequency` | 0.01–0.04 | Lower = lazy wavy lines; higher = jittery. 0.02 default. |
-| `numOctaves` | 1–3 | More = more noise detail. 2 is plenty. |
-| `scale` | 1–6 | 1 barely-there, 1.5 default, 2 visible, 4+ cartoon. |
+| `baseFrequency` | 0.01-0.04 | Lower = lazy wavy lines; higher = jittery. 0.02 default. |
+| `numOctaves` | 1-3 | More = more noise detail. 2 is plenty. |
+| `scale` | 1-6 | 1 barely-there, 1.5 default, 2 visible, 4+ cartoon. |
 | `seed` | integer | Swap for a different random pattern. |
 
 ## Critical rule

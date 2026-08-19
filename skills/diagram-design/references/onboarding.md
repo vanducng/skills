@@ -44,7 +44,7 @@ future diagrams use your tokens
 
 ### Step 1 - fetch the page
 
-Use `agent-browser` (preferred) or a plain `fetch`. If the site has multiple pages worth sampling (landing + blog + product), fetch 2–3 and merge the palette signals.
+Use `agent-browser` (preferred) or a plain `fetch`. If the site has multiple pages worth sampling (landing + blog + product), fetch 2-3 and merge the palette signals.
 
 ```bash
 agent-browser navigate https://example.com --screenshot out.png --html out.html
@@ -140,7 +140,7 @@ Include a compact **brand fidelity receipt** with the preview:
 - `exact` or `fallback` for each font role;
 - any page-specific figure styling that should override the global site skin.
 
-The receipt is required when the user says “match this site,” “use their branding,” or provides a page as the visual reference.
+The receipt is required when the user says "match this site," "use their branding," or provides a page as the visual reference.
 
 ---
 
@@ -158,7 +158,7 @@ After onboarding, the user should:
 ## When URL onboarding fails
 
 - **Site uses webfonts you can't replicate** (custom-hosted, paid): keep the schematic defaults for typography and skin only the colors.
-- **Brand has 6+ colors** and you can't identify a clear hierarchy: pick one as `accent`, demote the rest to `muted` variants or ignore them. The schematic grammar only uses 5–7 roles.
+- **Brand has 6+ colors** and you can't identify a clear hierarchy: pick one as `accent`, demote the rest to `muted` variants or ignore them. The schematic grammar only uses 5-7 roles.
 - **Site is dark-mode first**: flip the inversion - treat their dark paper as the default `paper`, and generate a light variant via inversion.
 - **Homepage is all imagery, no text**: ask for a blog or docs URL instead - text-heavy pages expose the type hierarchy.
 

@@ -32,7 +32,7 @@ banner.html  →  headless Chrome screenshot @2x  →  banner.png  →  referenc
 
 ## Sizing
 
-- Width **1280** is a safe default. Height = **just enough for the content** (≈ 260–320).
+- Width **1280** is a safe default. Height = **just enough for the content** (≈ 260-320).
 - Aim for a wide aspect (~**4:1**); a tall banner forces a dead band (see pitfalls).
 - The README scales by `width=`, so absolute height only sets the aspect ratio.
 
@@ -63,7 +63,7 @@ Never claim done from the HTML alone - **always render, then check the PNG**:
    def has_content(y, thr=55):
        return any(px[x,y][0]>thr or px[x,y][1]>thr or px[x,y][2]>thr+10 for x in range(0,W,3))
    bot = max(y for y in range(H) if has_content(y))
-   print(f"bottom margin = {H-1-bot}px ({(H-1-bot)//2}px @1x)")  # want it small (~20–40 @1x)
+   print(f"bottom margin = {H-1-bot}px ({(H-1-bot)//2}px @1x)")  # want it small (~20-40 @1x)
    ```
 
    (The top-left glow makes top-margin detection unreliable; trust the bottom number,

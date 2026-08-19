@@ -54,7 +54,7 @@ Load the selected `type-*.md`. Override the grammar only when the content disagr
 
 1. Name the story in one sentence.
 2. Apply the requested detail level using `output-spec.md`'s degrade ladder. Start with unconnected nodes and the digest's collapsible groups.
-3. Pick 1–2 focal nodes using the hubs as evidence, not as an automatic answer.
+3. Pick 1-2 focal nodes using the hubs as evidence, not as an automatic answer.
 4. Rewrite labels for the audience. Preserve proper nouns and meaning; strip source markup.
 5. Preserve meaningful edge labels, state guards, sequence order/fragments, ER cardinality/fields, and container membership.
 6. Treat direction (`TD`, `LR`, `RL`, `BT`) as a hint. A chosen type's layout conventions may override it.

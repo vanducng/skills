@@ -6,7 +6,7 @@
 - Group components by tier or trust boundary (frontend → backend → data; public → private).
 - Primary flow runs left→right or top→down. Pick one and hold it.
 - Draw arrows before boxes so z-order puts connections behind components.
-- 1–2 coral focal nodes: the primary integration point, the primary data store, or the key decision node.
+- 1-2 coral focal nodes: the primary integration point, the primary data store, or the key decision node.
 - Dashed boundary rectangles mark regions (VPC, security group, trust zone); labels sit on a paper-colored mask over the boundary line.
 
 ## Connector style
@@ -62,7 +62,7 @@ Group 2+ nodes that serve the same tier or trust boundary with a zone rect - dra
 ```
 
 Rules:
-- Leave 12–16px above the first enclosed node - the eyebrow label sits in this margin.
+- Leave 12-16px above the first enclosed node - the eyebrow label sits in this margin.
 - Zone fill: `rgba(45,49,66,0.02)` (2% ink wash). Any stronger competes with node fills.
 - Max 3 zones per diagram. More and it reads like a swimlane (use that type instead).
 - Dark mode: swap `rgba(45,49,66,…)` → `rgba(245,245,245,…)` same opacities; label mask fill = `paper` (dark).

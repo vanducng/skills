@@ -58,6 +58,6 @@ Heading + body pairing, all Google Fonts. Match the heading/body personalities; 
 ## Applying tokens
 
 - Load fonts with `display: swap` and `font-preload` only the critical face; reserve space to avoid layout shift.
-- Base body 16px, line-height 1.5–1.75, measure 60–75 chars desktop / 35–60 mobile.
-- Type scale: 12 · 14 · 16 · 18 · 24 · 32 (extend up as needed); weight carries hierarchy - 400 body, 500 labels, 600–700 headings.
+- Base body 16px, line-height 1.5-1.75, measure 60-75 chars desktop / 35-60 mobile.
+- Type scale: 12 · 14 · 16 · 18 · 24 · 32 (extend up as needed); weight carries hierarchy - 400 body, 500 labels, 600-700 headings.
 - Never hardcode raw hex in components; map these to semantic tokens (`--primary`, `--muted-foreground`, …) and theme light/dark separately.

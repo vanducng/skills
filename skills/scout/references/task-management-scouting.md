@@ -74,7 +74,7 @@ TaskCreate(
               scale:6, agentIndex:1, totalAgents:6, toolMode:"internal",
               priority:"P2", effort:"3m" }
 )
-# → repeat for agents 2–6 with distinct scopes
+# → repeat for agents 2-6 with distinct scopes
 ```
 
 ### Data eng, internal, SCALE=4

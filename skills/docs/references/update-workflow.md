@@ -30,8 +30,8 @@ You (main agent) spawn the readers - subagents cannot spawn subagents.
 1. `ls docs/*.md README.md 2>/dev/null | wc -l`
 2. `wc -l docs/*.md README.md 2>/dev/null | sort -rn`
 3. Strategy:
-   - 1–3 files → skip parallel; writer reads directly
-   - 4–5 files → spawn 2–3 `Explore` agents
+   - 1-3 files → skip parallel; writer reads directly
+   - 4-5 files → spawn 2-3 `Explore` agents
    - 6+ files (uncommon for this canonical set) → cap at 4 agents
 4. Distribute files by LOC - larger files get a dedicated agent
 5. Each agent prompt: "Read these docs. Extract: stated facts that touch code (paths, modules, configs, versions), sections likely stale given this drift digest: <digest summary>. Files: <list>"

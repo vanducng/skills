@@ -36,7 +36,7 @@ Style: the surface background color, primary-color borders, accent color highlig
 
 Typography: sans-serif for node names, monospace for payload labels (JSON, Avro, Parquet, k/s). 14pt minimum.
 
-Layout: strict left-to-right. Sources at x≈0–15%, transformations in the middle, sinks at x≈85–100%. Buffer/queue shapes between transformations when batching is implied. ≥40px breathing room. ≤15 elements.
+Layout: strict left-to-right. Sources at x≈0-15%, transformations in the middle, sinks at x≈85-100%. Buffer/queue shapes between transformations when batching is implied. ≥40px breathing room. ≤15 elements.
 
 Do NOT invent sources or sinks. Do NOT use rainbow colors. Maximum 5 colors total.
 ```

@@ -85,11 +85,11 @@ Detect mode from the argument; announce in your first reply.
 
 ### 1. Scout (mandatory)
 
-- Activate `vd:scout` OR launch 2–3 parallel `Explore` subagents.
+- Activate `vd:scout` OR launch 2-3 parallel `Explore` subagents.
 - Discover: project type/language/framework, affected files/models/manifests, direct callers/dependents, related tests, recent git changes (`git log -p -- <path>`), and local patterns for similar fixes.
 - Read `./docs` if the project is unfamiliar.
 - **Quick mode:** just locate the file(s) + immediate deps.
-- **Scout before questions.** Always scan the codebase BEFORE asking anything. State a 3–6 bullet codebase-context summary first (project type/stack, the symptom file + its callers, related tests, the suspect recent commit). Only then ask a clarifying question - grounded in concrete files, logs, commits, or functions you found. Never ask what the scan already answers.
+- **Scout before questions.** Always scan the codebase BEFORE asking anything. State a 3-6 bullet codebase-context summary first (project type/stack, the symptom file + its callers, related tests, the suspect recent commit). Only then ask a clarifying question - grounded in concrete files, logs, commits, or functions you found. Never ask what the scan already answers.
 
 Output: `✓ Scouted - N files, M deps, K tests`
 
@@ -122,7 +122,7 @@ Classify the fix after scouting and diagnosis, then choose how much workflow to 
 | Scope | Indicators | Behavior |
 |---|---|---|
 | **Quick** | Single file, clear type/lint/syntax error, root cause obvious from evidence | Minimal scout + diagnose; exact rerun; type/lint/build verification as relevant. |
-| **Standard** | 2–5 files, user-visible bug, test failure, multi-step but local cause | Full loop: playbook, fix, adjacent tests, blast-radius sweep, regression guard. |
+| **Standard** | 2-5 files, user-visible bug, test failure, multi-step but local cause | Full loop: playbook, fix, adjacent tests, blast-radius sweep, regression guard. |
 | **Deep** | 5+ files, architecture/design impact, perf/security risk, data/infra cross-surface issue | Pause before broad changes unless `--auto`; consider `vd:brainstorm` or `vd:plan`; verify across every affected surface. |
 | **Parallel** | 2+ independent issues or independent affected surfaces | Split by issue/surface, diagnose separately, then run integration verification once all fixes land. |
 
@@ -153,7 +153,7 @@ See `references/verify-and-prevent.md`. Highlights:
 - **Contract check**: confirm public API contracts, exported function signatures/types, response shapes, DB schemas, metric definitions, env vars, Terraform outputs, and job/DAG schedules are unchanged - or call out the intentional change and migration path.
 - **Regression test**: add or update a test/check that fails without the fix and passes with it. dbt → add or fix a test; Airflow → add a sensor / assertion; Terraform → add a `terraform validate`/CI guardrail; backend → unit + integration; frontend → component test + e2e if the bug was reachable from the UI.
 - **Defense-in-depth**: where applicable, add a guard at a layer above the bug (schema constraint, type narrowing, K8s probe, CI check) so the same class can't recur silently.
-- **Regression found ≠ verification failed**: if the original symptom is gone but the sweep/contract check broke something else, **STOP - don't patch around it.** Present what broke + why + 2–4 options (revert / update dependents / narrow scope / accept) via `AskUserQuestion` (AskUserQuestion in Claude Code; plain-text numbered question elsewhere). See `references/verify-and-prevent.md` → "When the sweep finds a regression". Hard stop even in `--auto`.
+- **Regression found ≠ verification failed**: if the original symptom is gone but the sweep/contract check broke something else, **STOP - don't patch around it.** Present what broke + why + 2-4 options (revert / update dependents / narrow scope / accept) via `AskUserQuestion` (AskUserQuestion in Claude Code; plain-text numbered question elsewhere). See `references/verify-and-prevent.md` → "When the sweep finds a regression". Hard stop even in `--auto`.
 - **Verification loop**: if it fails, back to Step 2. After **3 failed verification cycles → stop and question architecture**, surface to user.
 
 **CI failures - reproduce the check locally before re-pushing.** A red GH Actions job is not a debugger: pushing a guess to watch CI is a slow, public loop. Pull the failing job (`gh run view <run-id> --log-failed`), then reproduce and fix locally by failure type:

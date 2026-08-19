@@ -51,7 +51,7 @@ Generated help is authoritative for current command paths and flags. Inspect lea
 
 1. Request the smallest page and project only needed fields when `--fields` exists.
 2. Capture exact IDs and versions before a detailed get.
-3. For cursor lists, keep `items`, `pagination_key`, and `has_more`; continue only while `has_more` is true. For a wide date range or a large result set, run the pagination loop in the background or cap the page count — a long foreground loop risks the shell's command timeout.
+3. For cursor lists, keep `items`, `pagination_key`, and `has_more`; continue only while `has_more` is true. For a wide date range or a large result set, run the pagination loop in the background or cap the page count - a long foreground loop risks the shell's command timeout.
 4. Note exceptions: transcript search returns `results`, and help/version are human-readable rather than JSON.
 5. Do not expose recordings, transcripts, access tokens, phone numbers, or personal data beyond what the user needs.
 

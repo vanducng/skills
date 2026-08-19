@@ -379,7 +379,7 @@ def main() -> int:
             failed = True
             print(f"FAIL {path}")
             for error in errors:
-                print(f"  - {error}")
+                print(f" - {error}")
         else:
             print(f"OK {path}")
     return 1 if failed else 0

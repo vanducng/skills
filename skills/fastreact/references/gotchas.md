@@ -25,7 +25,7 @@ A grid lockup that places `<b>` (name) on row 1 and `<span>` (tagline) on row 2 
 ## Local / docker
 
 ### 5. Port conflicts on `docker compose up`
-Other local stacks squat 5173 / 5432–5435 / 8000 / 8080 (`Bind for :::PORT failed: port is already allocated`). Check free ports first, then set the compose host ports + `VITE_API_BASE_URL` + `CORS_ORIGINS` to agree. Backend is reached by the browser on its published port, so CORS must list the actual frontend origin.
+Other local stacks squat 5173 / 5432-5435 / 8000 / 8080 (`Bind for :::PORT failed: port is already allocated`). Check free ports first, then set the compose host ports + `VITE_API_BASE_URL` + `CORS_ORIGINS` to agree. Backend is reached by the browser on its published port, so CORS must list the actual frontend origin.
 
 ### 6. Stale image / stale bundle
 Backend code is baked in - rebuild the image to pick up changes (`docker compose up -d --build backend`). Frontend asset hashes change per build; a cached browser context can run old JS - hard-reload or use a fresh context. Reset the DB to re-seed: `docker compose down -v`.

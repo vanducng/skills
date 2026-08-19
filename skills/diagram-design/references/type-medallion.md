@@ -29,7 +29,7 @@ tiers:                                # 3..6 tier columns, ordered left → righ
                 example: ["unemployment rate", "labour participation"] } }
   - { name: "Archive",    bucket: "archive-bucket",    style: "cold",
       fields: { tool: "MinIO lifecycle",           format: "cold tier · immutable", writer: "Data Administrator",
-                example: ["historical Q1–Q4 sets", "5+ years retained"] } }
+                example: ["historical Q1-Q4 sets", "5+ years retained"] } }
 
 example_label: "Quarterly survey example" # bottom field label (varies per domain)
 
@@ -54,7 +54,7 @@ dark: false
 - `tiers[i].fields` - `{tool, format, writer, example}`. `example` is a 1- or 2-item list; the section heading uses `example_label`.
 - `tiers[i].color` - optional `"#hex"` per-tier color override. See §4.
 - `promotions[].style` - `normal` | `focal` | `lifecycle`. The connector rule (§3) binds each style to fixed stroke / dash / marker.
-- `paths` - 0–2 entries. When 0 entries, the bottom row is omitted and `viewBox_h` shrinks accordingly.
+- `paths` - 0-2 entries. When 0 entries, the bottom row is omitted and `viewBox_h` shrinks accordingly.
 
 ---
 

@@ -5,9 +5,9 @@
 ## Layout conventions
 
 - **Plot area margins:** left 80px, bottom 60px, top 40px, right 40px - inside `0 0 1000 500` viewBox.
-- **Points:** 4–12 data points. Fewer → consider a summary stat; more → aggregate into periods.
+- **Points:** 4-12 data points. Fewer → consider a summary stat; more → aggregate into periods.
 - **X-axis:** evenly spaced time/index labels below the plot. Use Geist Mono 8px, centered on each point x.
-- **Y-axis gridlines:** 4–6 horizontals at regular intervals. Same faint treatment as bar chart.
+- **Y-axis gridlines:** 4-6 horizontals at regular intervals. Same faint treatment as bar chart.
 - **Lines:** `<polyline>` with `fill="none"`. Focal series `stroke-width="1.8"`, others `"1.2"`.
 - **Vertex dots:** only on the focal series (`r=4`, filled). Other series: line only.
 - **Area fill (optional):** `<polygon>` closing back to `y=420` (x-axis baseline) at 0.08 opacity. Use for the focal series only when the area meaning is important.

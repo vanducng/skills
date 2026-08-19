@@ -20,7 +20,7 @@ Use one primary pattern per figure. A second pattern may supply at most one supp
 
 **Selection triggers:** Several producers converge on one reviewer, service, gate, or constrained resource; the story depends on arrival rate, queue depth, wait, capacity, or backpressure.
 
-**Required primitives:** Distinct sources; fanned ingress; an ordered queue with visible slots and count; a capacity/service-rate label; one constrained service point; admitted and deferred/rejected outcomes. Label units (`8/hour`, `3 slots`), not just “high.”
+**Required primitives:** Distinct sources; fanned ingress; an ordered queue with visible slots and count; a capacity/service-rate label; one constrained service point; admitted and deferred/rejected outcomes. Label units (`8/hour`, `3 slots`), not just "high."
 
 **Complexity budget:** ≤5 sources, ≤5 queue slots, one bottleneck, two outcomes, and ≤9 primary nodes. Aggregate excess sources as a named cohort.
 
@@ -36,7 +36,7 @@ Use one primary pattern per figure. A second pattern may supply at most one supp
 
 **Required primitives:** Ordered stage headers; a consistent slot grid; explicit empty/not-applicable slots; stage-to-stage handoff; stable slot labels; one primary output per stage. Preserve slot order in every stage.
 
-**Complexity budget:** 3–6 stages, 3–4 slot kinds, ≤20 populated cells, ≤2 lines per cell. Split detail when a cell needs prose.
+**Complexity budget:** 3-6 stages, 3-4 slot kinds, ≤20 populated cells, ≤2 lines per cell. Split detail when a cell needs prose.
 
 **Anti-patterns:** Each stage invents a different internal layout; slot meaning encoded by position with no labels; fake precision from dozens of cells; confusing stage order with ownership lanes; shrinking text to keep one canvas.
 
@@ -52,7 +52,7 @@ Use one primary pattern per figure. A second pattern may supply at most one supp
 
 **Complexity budget:** ≤4 exchanges, ≤6 artifact fields, one transformation, and ≤3 provenance links. Show representative content, not a transcript.
 
-**Anti-patterns:** “AI magic” sparkle between two boxes; artifact shown as another chat bubble; fields appearing without sources; inventing certainty for missing facts; typing animation as the only readable copy.
+**Anti-patterns:** "AI magic" sparkle between two boxes; artifact shown as another chat bubble; fields appearing without sources; inventing certainty for missing facts; typing animation as the only readable copy.
 
 **Static fallback:** Show a short source excerpt beside the completed labeled artifact, with at least one provenance mapping and any unknown fields visible.
 
@@ -64,7 +64,7 @@ Use one primary pattern per figure. A second pattern may supply at most one supp
 
 **Required primitives:** The same ordered rules on both traces; explicit status text plus symbol/shape; inputs that differ; final outcomes; a labeled first-divergence marker; a distinction between `SKIPPED` (applicable flow intentionally bypassed) and `NOT REACHED` (evaluation stopped earlier).
 
-**Complexity budget:** Exactly 2 traces, 3–6 rules, one first divergence, ≤12 status cells, and one outcome per trace. Move rule prose to notes if labels exceed one line.
+**Complexity budget:** Exactly 2 traces, 3-6 rules, one first divergence, ≤12 status cells, and one outcome per trace. Move rule prose to notes if labels exceed one line.
 
 **Anti-patterns:** Comparing two independently ordered flows; green/red dots without words; treating skipped and not-reached as synonyms; highlighting every difference; continuing a denied trace as if downstream rules ran.
 
@@ -80,7 +80,7 @@ Use one primary pattern per figure. A second pattern may supply at most one supp
 
 **Complexity budget:** ≤3 trust zones, ≤8 components, ≤10 paths, ≤2 forbidden paths, and one privileged gate. Split control detail into a catalog figure.
 
-**Anti-patterns:** Dashed box called “security” with no route semantics; forbidden arrow crossing into the protected zone; secrets or identity implied but unlabeled; every component styled as trusted; a bypass path that visually rejoins the approved route.
+**Anti-patterns:** Dashed box called "security" with no route semantics; forbidden arrow crossing into the protected zone; secrets or identity implied but unlabeled; every component styled as trusted; a bypass path that visually rejoins the approved route.
 
 **Static fallback:** Render every boundary and both permitted/forbidden routes. Blocked paths must visibly stop before entry or deployment.
 
@@ -92,7 +92,7 @@ Use one primary pattern per figure. A second pattern may supply at most one supp
 
 **Required primitives:** Enforcement-surface groups; named controls; enforcement actor (`code`, `platform`, `human`); timing (`write`, `merge`, `deploy`, `run`); bypassability or exception route; coverage/gap notation.
 
-**Complexity budget:** 3–5 surfaces, 3–7 controls per surface, ≤24 controls total, and ≤3 attributes per control. Summarize counts only when the item list exists elsewhere.
+**Complexity budget:** 3-5 surfaces, 3-7 controls per surface, ≤24 controls total, and ≤3 attributes per control. Summarize counts only when the item list exists elsewhere.
 
 **Anti-patterns:** 35 tiny pills; grouping by vague themes instead of enforcement point; mixing aspirations with enforced controls; icons without control names; claiming defense-in-depth without showing surface coverage.
 
@@ -106,7 +106,7 @@ Use one primary pattern per figure. A second pattern may supply at most one supp
 
 **Required primitives:** Ordered threat/risk input; named defensive layers; each layer's mitigation; explicit limitation or escape; residual-risk carrier between layers; final residual risk and consequence/response. Use labels or decreasing measures, never area alone.
 
-**Complexity budget:** 3–5 layers, one primary risk thread, ≤2 mitigations per layer, and one final residual-risk statement. Split multiple unrelated threats into separate figures.
+**Complexity budget:** 3-5 layers, one primary risk thread, ≤2 mitigations per layer, and one final residual-risk statement. Split multiple unrelated threats into separate figures.
 
 **Anti-patterns:** Implying the final layer makes risk zero; equal opaque slabs with no propagation; treating audit as prevention; shrinking shapes without numeric or verbal meaning; reversing prevention/detection/recovery order without explanation.
 

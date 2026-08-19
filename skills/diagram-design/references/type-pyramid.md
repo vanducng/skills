@@ -9,12 +9,12 @@
 Don't mix orientations on one diagram.
 
 ## Layout conventions
-- 4–6 layers. Each layer is a trapezoid built from an SVG `<polygon>` with 4 points.
-- Consistent layer height (56–72px).
+- 4-6 layers. Each layer is a trapezoid built from an SVG `<polygon>` with 4 points.
+- Consistent layer height (56-72px).
 - Widths decrease linearly from base to apex (pyramid) or top to bottom (funnel). When showing real funnel data, widths must be honest (proportional to count/percentage).
 - Each layer has:
-  - **Name label** centered inside the trapezoid - Geist 12–14px 600.
-  - **Sublabel** below or beside the name - Geist Mono 9–10px.
+  - **Name label** centered inside the trapezoid - Geist 12-14px 600.
+  - **Sublabel** below or beside the name - Geist Mono 9-10px.
   - **Side annotation** (right or left) - optional. For funnels: drop-off percentage here (`−40%`).
 - Fill: subtle graded tints OR all paper-2 with hairline dividers (cleaner). Pick one.
 - Stroke: 1px hairline between layers; outer silhouette 1px muted or ink.

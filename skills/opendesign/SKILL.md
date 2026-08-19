@@ -127,7 +127,7 @@ Never hand off only `artifact.html`; users need a path or URI they can open dire
 
 ### Step 7 - Iterate to a quality bar (optional, high-stakes artifacts)
 
-A single composition rarely clears a "hatchet.dev/Linear-grade" or ">9/10" bar - first drafts land ~8.5–8.8. When the user sets a bar, loop: render to PNG (headless Chrome / `browse screenshot --full-page`) → score it against concrete lenses (visual craft, information design, brand distinctiveness, implementability) → apply **every** defect including nits (at this band the nits *are* the gap) without breaking the Path-B contract → re-render → re-score. Independent scorers (a judge panel) beat self-review; budget 2–3 rounds. Treat remaining minors that belong to the eventual React build (responsive recipes, aria-live, drill-ins) as carry-forward notes, not blockers on the static mock.
+A single composition rarely clears a "hatchet.dev/Linear-grade" or ">9/10" bar - first drafts land ~8.5-8.8. When the user sets a bar, loop: render to PNG (headless Chrome / `browse screenshot --full-page`) → score it against concrete lenses (visual craft, information design, brand distinctiveness, implementability) → apply **every** defect including nits (at this band the nits *are* the gap) without breaking the Path-B contract → re-render → re-score. Independent scorers (a judge panel) beat self-review; budget 2-3 rounds. Treat remaining minors that belong to the eventual React build (responsive recipes, aria-live, drill-ins) as carry-forward notes, not blockers on the static mock.
 
 ## Examples
 
