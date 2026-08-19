@@ -1,6 +1,6 @@
 ---
 name: agent-readiness
-description: "Scores how ready a repository is for AI coding agents to work in it effectively, then remediates the gaps - grades agent instruction files, verifiable feedback loops, onboarding reproducibility, and codebase navigability against a fixed 30-signal rubric, stack-agnostic across TypeScript, Python, Go, Rust, Ruby, Java, C#, and PHP/Laravel. Activates when the user says 'is this repo agent-ready', 'readiness report', 'readiness score', 'agent readiness', 'audit this repo for AI agents', 'why do agents struggle in this codebase', 'make this repo agent-friendly', 'audit our agent instruction files', or 'score our agent readiness'. Owns the scoring and the remediation plan; defers the writing of ./docs content to vd:docs, locating code to vd:scout, public documentation sites to vd:tech-docs, refactoring a change toward its intended architecture to vd:zero-tech-debt, and authoring instruction files and skills to vd:skill-creator."
+description: "Scores how ready a repository is for AI coding agents to work in it effectively, then remediates the gaps - grades agent instruction files, verifiable feedback loops, onboarding reproducibility, and codebase navigability against a fixed 30-signal rubric, stack-agnostic across TypeScript, Python, Go, Rust, Ruby, Java, C#, and PHP/Laravel. Activates when the user says 'is this repo agent-ready', 'readiness report', 'readiness score', 'agent readiness', 'audit this repo for AI agents', 'why do agents struggle in this codebase', 'make this repo agent-friendly', 'audit our agent instruction files', or 'score our agent readiness'. Owns the scoring and the remediation plan; defers the writing of ./docs content to vd:docs, locating code to vd:scout, public documentation sites to vd:docs site, refactoring a change toward its intended architecture to vd:zero-tech-debt, and authoring instruction files and skills to vd:skill-creator."
 license: MIT
 argument-hint: "[path] [--report | --fix] [--group <1-4|name>]"
 metadata:
@@ -17,9 +17,8 @@ metadata:
 | Skill | Question it answers | Output |
 |---|---|---|
 | **`vd:agent-readiness`** (this) | "How well can an AI agent work in this repo, and what is missing?" | A scored report; optionally safe additive fixes plus a proposal list |
-| `vd:docs` | "Are the shared `./docs/` files true and current?" | Written docs content |
+| `vd:docs` | "Are the shared `./docs/` files true and current?" (`site` subcommand: "How do we publish a public docs site?") | Written docs content / a Starlight site |
 | `vd:scout` | "Where does X live in this repo?" | A file map, no writes |
-| `vd:tech-docs` | "How do we publish a public docs site?" | A Starlight site |
 | `vd:zero-tech-debt` | "What would this change look like if the architecture existed from day one?" | A refactored diff |
 | `vd:skill-creator` | "How do I author a skill an agent reliably loads?" | A `SKILL.md` |
 

@@ -1,11 +1,11 @@
 ---
 name: docs
-description: "Manage project documentation in ./docs/ - initialize, update, check, or record an ADR (architecture decision record). Canonical set is intentionally small: development guidelines, system architecture, tech stack, deployment; plus append-only decision history under docs/decisions/. Scouts the codebase, delegates writing to the docs-manager subagent (or stays inline with --inline)."
+description: "Manage project documentation - internal ./docs (init, update, check, ADR) and, via the site subcommand, the rendered public docs website (Astro Starlight): create, modernize, validate, and ship it. Canonical internal set stays small: development guidelines, system architecture, tech stack, deployment, plus append-only ADRs. Use when the user asks to update docs, record an ADR, build a docs website, add Starlight, reproduce the shared centered docs style, fix responsive docs layout, migrate a docs site, or verify and deploy developer documentation. Scouts the codebase and delegates writing to the docs-manager subagent (or stays inline with --inline)."
 license: MIT
-argument-hint: "init|update|check|adr [topic] [--inline] [--dry-run]"
+argument-hint: "init|update|check|adr|site [topic] [--inline] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Docs
@@ -22,6 +22,8 @@ Keep `./docs/` honest. Scout the code, diff it against what the docs claim, writ
 
 `./docs/` is **team-facing** truth. Journals are personal. Plans/reports live under `./plans/`. Changelog, roadmap, and PR-style narrative are intentionally **not** in this skill's scope - those rot fastest and `vd:ship` / `vd:journal` already cover them.
 
+Two surfaces, one skill: `init`/`update`/`check`/`adr` own internal Markdown; `site` owns the rendered public website (formerly the separate tech-docs skill). Internal-content hard rules 1-5 below apply to the Markdown surface; the site surface carries its own rules in `references/site-workflow.md`. Rules 6-7 (unslop + prose standard) apply to both.
+
 ## Subcommands
 
 | Subcommand | Reference | When |
@@ -30,6 +32,7 @@ Keep `./docs/` honest. Scout the code, diff it against what the docs claim, writ
 | `update` | `references/update-workflow.md` | Code drifted from docs after a feature, refactor, or migration |
 | `check` | `references/check-workflow.md` | Validate-only: required files, size, freshness, broken refs. No writes. |
 | `adr` | `references/adr-workflow.md` | Record an architecture decision (the *why* behind an irreversible choice) under `docs/decisions/` |
+| `site` | `references/site-workflow.md` | The rendered public docs website (Astro Starlight): create, modernize, validate, ship. Owns `assets/theme.css` (centered profile) and `references/site-blueprint.md` |
 
 Parse `$ARGUMENTS` first word (in runtimes without `$ARGUMENTS` substitution, use the text following the skill name in the user's message):
 - `init` / `update` / `check` / `adr` → load the matching reference
