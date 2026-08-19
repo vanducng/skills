@@ -116,6 +116,16 @@ health tells you *which exact error recurs and where*.
   clusters that name them.
 - **"What did that session cost?"** - `vd obs sessions --since 24h` or
   `vd obs usage --daily` for the per-model breakdown.
+- **"Catch me up / where did I leave off?"** - recall from transcripts:
+  pin the window and topic first (default `--since 7d`, active project;
+  never silently shrink "all" to "recent"). `vd obs sessions --since 7d
+  --project <p> --json` → pick matching sessions → `vd obs show <id>
+  --json` for their tail turns. History is not current truth: verify every
+  branch/PR/ticket it surfaces with `git`/`gh` before reporting. Hand back
+  a tight brief: **Capsule** (≤5 bullets, where things stand) · **Threads**
+  (one line each, tagged `[merged #N]` `[open PR #N]` `[in flight <branch>]`
+  `[planned]`) · **Problems** (≤5, recurring) · **Next move** (one concrete
+  action). Adapted from cursor/plugins pstack recall (MIT).
 - **"Did my skill fix work?"** - same signature, tight window:
   `vd obs health --since 24h --json | jq '.clusters[] | select(.signature | startswith("<prefix>")) | .count'`.
 - **Price a new model** - add rates to `~/.vd/obs/prices.json`; unpriced
