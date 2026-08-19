@@ -2,6 +2,21 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.56.0](https://github.com/vanducng/skills/compare/v1.55.0...v1.56.0) (2026-08-19)
+
+
+### Features
+
+* add unslop skill to cut AI tells from prose ([1fe340c](https://github.com/vanducng/skills/commit/1fe340c9ffd94660fcbc576385f1aab1597a8d06))
+* **hooks:** inject unslop rule into every prompt ([8bc5e65](https://github.com/vanducng/skills/commit/8bc5e65848cf4751ca117b32ddf0a9e1c17d1828))
+* **scripts:** enforce slop-free catalog prose ([9083455](https://github.com/vanducng/skills/commit/9083455493f4aeabae4dad78edf7112a8ba83d1f))
+* **skills:** require unslop final pass in prose producers ([b560183](https://github.com/vanducng/skills/commit/b5601836aec844a3dff3d1bc0ac9e8ec0361fbfd))
+
+
+### Bug Fixes
+
+* **scripts:** make slop gate bash-3.2-safe and prune node_modules ([1cbcf28](https://github.com/vanducng/skills/commit/1cbcf2810c1ecf68fea9d7f643770eb705ef0a4f))
+
 ## [1.55.0](https://github.com/vanducng/skills/compare/v1.54.1...v1.55.0) (2026-08-18)
 
 
