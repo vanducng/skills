@@ -41,6 +41,7 @@ Flags:
 - `--no-inline` - skip inline comments, post only the top-level summary
 - `--auto` - non-interactive, default answers, no prompts
 - `--ultra` - adversarial review via a dynamic workflow: every finding is independently refuted before it ships (see [Ultra mode](#ultra-mode--adversarial-workflow)). Higher token cost; use for high-stakes diffs.
+- `--cross-model` - add reviewers from other model families and weigh findings by agreement (see [Cross-model mode](#cross-model-mode)). Combine with `--ultra` only for release-critical diffs.
 
 ## Hard rules
 
@@ -213,6 +214,19 @@ It composes two patterns:
 **Then post as normal.** The workflow returns `{ confirmed, dropped }`. Map `confirmed` into the same review payload (§3) and post the **one** review (§4) with the usual severity prefixes and voice. Mention the filter in the summary: *"Adversarial pass: N findings confirmed, M refuted and dropped."* `--dry-run` still prints instead of posting.
 
 **Portability & cost.** The `Workflow` tool is Claude Code-only - in another runtime, fall back to the standard pass and say so. Ultra spends materially more tokens (≈ dimensions × findings × votes agents); the default non-ultra path remains correct for everyday reviews.
+
+## Cross-model mode
+
+`--ultra` removes self-preferential bias; `--cross-model` removes *family* bias - models share blind spots with their own outputs and priors, so a second family catches what the first cannot. Adapted from cursor/plugins pstack interrogate (MIT).
+
+**How it runs.**
+
+1. State the change's intent in one paragraph (from the PR body, commits, or the user). Reviewers challenge whether the work achieves the intent, not whether the intent is right.
+2. Run the standard pass here, then send the *same* diff + intent + the [Checklist](#checklist-apply-to-every-diff) to one or two reviewers on different model families - `codex exec` / `gemini` / `opencode run`, whichever is on PATH. No personas: the adversarial signal comes from model diversity. A family that is unavailable is reported as skipped, never simulated.
+3. Synthesize with lead judgment - you are a pragmatic senior engineer with the full context, not a neutral aggregator. Dedupe, then bucket every finding: **act on** (correctness/security given the actual goals), **consider** (legitimate, cost unclear), **noted** (valid, not actionable now), **dismissed** (wrong or missing context - say why). Tag each with the families that raised it: 2+ families = high signal; a lone-family finding is read and weighed, never auto-promoted.
+4. Post the **one** review as normal (§4). Summary names the panel: *"Cross-model pass: A+B agreed on N, lone-family M, dismissed K."*
+
+**Cost.** One extra full-diff pass per family. Use for security-sensitive, migration, or release diffs - not routine PRs.
 
 ## Non-PR modes (quick reference)
 
