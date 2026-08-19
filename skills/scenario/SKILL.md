@@ -19,9 +19,9 @@ metadata:
 |---|---|
 | `vd:cook --tdd` | **Runs** the tests (tests-first), reports pass/fail |
 | `vd:brainstorm` | Explores *solution* options |
-| **`scenario`** | **Enumerates** edge cases & failure modes to test - does not run or fix them |
+| **`scenario`** | **Enumerates** edge cases & failure modes (default), or **proves** a change's safety fact by running code (`--diff`) - never fixes |
 
-Output is an input to test-writing / QA / `vd:plan` risk sections - not executable tests.
+Default-mode output is an input to test-writing / QA / `vd:plan` risk sections - not executable tests. `--diff` is the exception: it writes and runs a small proof script, because a blast-radius verdict without executed evidence is just a persuasive paragraph.
 
 ## Modes
 
@@ -78,10 +78,12 @@ A fact stuck below 4 is reported as **unproven**, never rounded up to settled.
 
 **Output shape (`--diff`):** What it does (incl. the non-obvious part) · The one safety fact + its ladder level + proof output · Risks (each: how it breaks, `file:line`, likelihood, cost, how to check) · Cleared · Before you merge (the cheapest test that catches the real bug).
 
+**Save it like the default mode:** write the report to the injected `Reports:` path as `scenario-diff-{date}-{slug}.md` and hand back an openable location (`file:///absolute/path`), not just the basename.
+
 **Boundaries:** landing verdicts stay with `vd:code-review`; codebase-fit stays with `vd:code-refactor-review`; this mode owns beyond-the-diff breakage with runnable proof.
 
 ## Limitations (honest)
 
 - Enumeration quality depends on understanding the target - read it, don't guess.
-- Not a fuzzer or property tester - it proposes cases, it doesn't execute them.
+- Not a fuzzer or property tester - default mode proposes cases without executing them; only `--diff` runs code, and only to prove the named safety fact.
 - `--saturation` is bounded - it will stop at the iteration cap even if more cases theoretically exist (logs that it stopped).
