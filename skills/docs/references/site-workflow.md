@@ -1,27 +1,16 @@
----
-name: tech-docs
-description: "Create, modernize, validate, and ship a public technical documentation site for any CLI, library, service, or developer tool using Astro Starlight. Use when the user asks to build a docs website, add Starlight, reproduce the shared centered docs style, organize technical docs navigation, migrate an existing docs site, fix responsive docs layout, or verify and deploy developer documentation."
-license: MIT
-metadata:
-  author: vanducng
-  version: "0.1.0"
----
+# site - build and ship the rendered docs website
 
-# Tech Docs
+Build a public developer documentation site from repository evidence using Astro Starlight. Keep the site self-contained, readable, responsive, and reproducible. This subcommand owns the rendered website; every other `vd:docs` subcommand owns internal Markdown.
 
-Build a public developer documentation site from repository evidence. Keep the site self-contained, readable, responsive, and reproducible.
+## Site sub-verbs
 
-This skill owns the rendered docs website. Use `vd:docs` for canonical internal Markdown, architecture records, and README accuracy when no public site is requested.
-
-## Modes
-
-| Mode | Use |
+| Verb | Use |
 | --- | --- |
-| `init` | Add a new Starlight site without replacing an existing docs tree. |
-| `update` | Refresh content, navigation, dependencies, or theme in an existing site. |
-| `check` | Run build, content, link, layout, and deployment checks without writing. |
+| `site init` | Add a new Starlight site without replacing an existing docs tree. |
+| `site update` | Refresh content, navigation, dependencies, or theme in an existing site. |
+| `site check` | Run build, content, link, layout, and deployment checks without writing. |
 
-Infer the mode from the request. If `docs/` already contains a site, use `update`. If `docs/` contains unrelated internal Markdown, do not overwrite it. Ask where the rendered site should live.
+Infer the verb from the request. If `docs/` already contains a site, use `update`. If `docs/` contains unrelated internal Markdown, do not overwrite it - ask where the rendered site should live.
 
 ## Profiles
 
@@ -30,7 +19,7 @@ Infer the mode from the request. If `docs/` already contains a site, use `update
 | `centered` | Reference-heavy CLI, library, service, or multi-repo docs need the shared centered navigation shell. |
 | `native` | A product-style splash page or existing site should retain Starlight's native layout. |
 
-Preserve an existing profile unless the user asks for a redesign. For a new reference-heavy site, default to `centered` and copy `assets/theme.css` into the site's styles directory.
+Preserve an existing profile unless the user asks for a redesign. For a new reference-heavy site, default to `centered` and copy `assets/theme.css` (this skill's copy) into the site's styles directory.
 
 ## Workflow
 
@@ -50,7 +39,7 @@ For a fresh site, use the official Starlight scaffold and keep it under one proj
 
 For an existing site, preserve its working content collection. Do not migrate between `src/content/docs/` and a custom loader solely for consistency.
 
-Read `references/blueprint.md` when initializing a site, configuring GitHub Pages, selecting navigation, or applying the centered profile.
+Read [site-blueprint.md](site-blueprint.md) when initializing a site, configuring GitHub Pages, selecting navigation, or applying the centered profile.
 
 Add integrations only when required:
 
@@ -74,6 +63,8 @@ Start with the smallest useful information architecture:
 Delete empty sections. Every page needs `title` frontmatter. Prefer runnable commands, expected output, and recovery steps over prose. Keep secrets, internal hosts, customer data, and private identifiers out of public docs.
 
 When a stack or product name changes, update all visible surfaces in the same pass: README, overview copy, navigation, cards, quick reference, troubleshooting, related links, metadata, and generated indexes.
+
+Page structure and sentences follow [technical-writing.md](technical-writing.md); `vd:unslop` is the final pass (SKILL.md hard rules 6-7 apply to site pages too).
 
 ### 4. Apply the visual contract
 
@@ -113,18 +104,16 @@ Use `vd:ego-browser` when available for rendered DOM measurements and screenshot
 
 ### 6. Ship only to the authorized endpoint
 
-For GitHub Pages, prefer the official Astro Pages action from `references/blueprint.md`. A pull request should build but not deploy. A push to the release branch may deploy.
+For GitHub Pages, prefer the official Astro Pages action from [site-blueprint.md](site-blueprint.md). A pull request should build but not deploy. A push to the release branch may deploy.
 
 Before merge, refresh the current head, checks, approvals, and unresolved review threads. After merge, wait for the latest docs deployment and verify the live URL with a cache-busting query. If a release workflow creates another main commit, confirm the deployed docs tree still matches current main.
 
 Do not configure DNS, change Pages settings, merge, or deploy unless the user authorized that endpoint.
 
-## Hard rules
+## Site hard rules
 
 1. Never overwrite a populated non-site `docs/` directory.
 2. Never copy another project's name, domain, logo, analytics ID, or repository URL into a reusable site.
 3. Never replace working content architecture just to match a template.
 4. Never publish unverified commands or configuration.
 5. Never declare success from a local build alone when live deployment was requested.
-6. Run a `vd:unslop` pass on page prose before shipping - no AI tells, no em dashes.
-7. Page structure and sentences follow the shared prose standard in `../docs/references/technical-writing.md` (sibling docs skill): Diataxis routing, one instruction per sentence, sentence-case headings.

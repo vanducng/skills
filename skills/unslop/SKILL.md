@@ -1,6 +1,6 @@
 ---
 name: unslop
-description: "Cut AI tells from prose and add a human voice - PR bodies, docs, READMEs, blog/devlog posts, release notes, review summaries, commit messages, any text a person will read. Use when the user says 'unslop', 'de-AI this', 'remove AI tells', 'humanize this', 'this sounds like AI', or as the final pass whenever another skill produces prose. Do not use for conversion copy structure (vd:copywriting), doc-site structure (vd:tech-docs), or code slop (vd:code-refactor-review)."
+description: "Cut AI tells from prose and add a human voice - PR bodies, docs, READMEs, blog/devlog posts, release notes, review summaries, commit messages, any text a person will read. Use when the user says 'unslop', 'de-AI this', 'remove AI tells', 'humanize this', 'this sounds like AI', or as the final pass whenever another skill produces prose. Do not use for conversion copy structure (vd:copywriting), doc structure (vd:docs, incl. its site mode), or code slop (vd:code-refactor-review)."
 license: MIT
 argument-hint: "[file, text, or 'last message']"
 metadata:
@@ -19,7 +19,7 @@ metadata:
 |---|---|---|
 | **`vd:unslop`** | **"Does this read like a human wrote it?"** | **Rewritten prose, meaning preserved** |
 | `vd:copywriting` | "Does this convert?" | Formula-driven marketing copy |
-| `vd:docs` / `vd:tech-docs` | "Is this documented correctly?" | Structured docs |
+| `vd:docs` (incl. `site`) | "Is this documented correctly?" | Structured docs / docs site |
 | `vd:code-refactor-review` | "Is this *code* slop?" | Diff review report |
 | `vd:simplify` | "Is this code hard to read?" | Behavior-preserving refactor |
 
@@ -106,7 +106,7 @@ Removing patterns is half the job. Sterile, voiceless text is just as obvious.
 
 ## Workflow position
 
-**Typically follows:** any prose-producing skill - `vd:devlog`, `vd:ship` (PR bodies), `vd:docs` / `vd:tech-docs`, `vd:journal`, `vd:show-off`, `vd:copywriting`, `vd:code-review` summaries
+**Typically follows:** any prose-producing skill - `vd:devlog`, `vd:ship` (PR bodies), `vd:docs` (incl. `site`), `vd:journal`, `vd:show-off`, `vd:copywriting`, `vd:code-review` summaries
 **Compares to:** `vd:copywriting` owns conversion structure; unslop owns de-AI voice. Run copywriting first, unslop last.
 
 ## Rationalizations to catch
