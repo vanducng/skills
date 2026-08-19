@@ -26,7 +26,7 @@ Journal **records**. It does not redesign, retest, or roll back. If writing the 
 |---|---|---|
 | _(default)_ **retro** | Calm, structured. What shipped, what was tricky, what's next. | After `vd:ship`, `vd:cook`, end of session. |
 | `--incident` | Brutal-honest, 2am-developer voice. Root cause without euphemism. | A failure happened - outage, data loss, broken migration, repeated test failure, security finding. |
-| `--quick` | 3–5 lines, no formal structure. | Drive-by note - small fix, minor decision, surprising bit of context. Pairs with either voice. |
+| `--quick` | 3-5 lines, no formal structure. | Drive-by note - small fix, minor decision, surprising bit of context. Pairs with either voice. |
 
 ## Hard rules
 
@@ -35,7 +35,8 @@ Journal **records**. It does not redesign, retest, or roll back. If writing the 
 3. **Brutal in `--incident`, not performative.** Honesty about root cause is the point - not theatrics. "We shipped without testing the migration" beats both "an oversight occurred" *and* "this is a fucking disaster".
 4. **No new design decisions.** Journal records what already happened. New decisions belong in `vd:brainstorm` or `vd:plan`.
 5. **One file per event.** Don't append to yesterday's entry. New event → new file. Cross-link if related.
-6. **Stop at one page.** Retro: 200–400 words. Incident: 300–600 words. If it's longer, it's a post-mortem doc - link to the journal entry from there, don't bloat the journal.
+6. **Stop at one page.** Retro: 200-400 words. Incident: 300-600 words. If it's longer, it's a post-mortem doc - link to the journal entry from there, don't bloat the journal.
+7. **Unslop the entry.** Final `vd:unslop` pass before saving - no AI tells, no em dashes, no chatbot sign-offs.
 
 ## Arguments
 
@@ -43,7 +44,7 @@ Journal **records**. It does not redesign, retest, or roll back. If writing the 
 |------|--------|
 | `[topic]` | Free-text title hint. If omitted, derived from branch + recent commits. |
 | `--incident` | Switch to incident voice + structure. Default is retro. |
-| `--quick` | Skip the full structure - write a 3–5 line note instead. |
+| `--quick` | Skip the full structure - write a 3-5 line note instead. |
 | `--since <ref>` | Scope change analysis to commits since `<ref>` (default: last journal entry or branch divergence point). |
 | `--no-subagent` | Force inline writing in main context. Default: delegate to `journal-writer` subagent if available. |
 
@@ -171,7 +172,7 @@ mode: quick
 
 # {Title}
 
-{3–5 lines. One concrete artifact. Move on.}
+{3-5 lines. One concrete artifact. Move on.}
 ```
 
 ## Token efficiency

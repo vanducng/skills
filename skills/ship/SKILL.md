@@ -92,7 +92,8 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
    and the canonical `../git/references/pr-template.md` (sibling git skill) before any
    `gh pr create` or `gh pr edit`. If the repo has a PR template, fill that
    template only. Otherwise use the canonical fallback body. Do not invent
-   `Summary` / `Validation` / ad hoc PR bodies.
+   `Summary` / `Validation` / ad hoc PR bodies. Run a `vd:unslop` pass over
+   title and body before posting - no AI tells, no em dashes.
 11. **CI green is a merge precondition.** Step 15 watches CI in every mode. Never
    merge - or report the ship as done - while checks are **failing or still
    pending**. The only ways past a non-green state are an explicit user
@@ -173,8 +174,8 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 
 ## Token efficiency
 
-- Steps 4–5 (tests, review): delegate to subagents - don't inline output in main context.
-- Steps 8–9 (journal, docs): run in background - don't block the pipeline on them.
+- Steps 4-5 (tests, review): delegate to subagents - don't inline output in main context.
+- Steps 8-9 (journal, docs): run in background - don't block the pipeline on them.
 - Step 2 (issues): one `gh issue list` call, parse locally - don't loop API calls.
 - Skip steps via flags when work already done in this session.
 - Staging mode auto-skips journal (Step 8) and docs (Step 9).

@@ -263,6 +263,8 @@ post.
 
 ## Output
 
+Every draft gets a `vd:unslop` pass before it is returned - no AI tells, no em dashes, no chatbot phrases.
+
 For text-only `draft`, return:
 
 ```text
