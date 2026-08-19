@@ -2,6 +2,18 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.58.0](https://github.com/vanducng/skills/compare/v1.57.0...v1.58.0) (2026-08-19)
+
+
+### Features
+
+* **docs:** absorb tech-docs as the site subcommand ([61d5343](https://github.com/vanducng/skills/commit/61d5343fd6fd9e612afcf24fd83f6cd173c9facd))
+
+
+### Bug Fixes
+
+* **docs:** route site in dispatch and exempt it from internal pre-flight ([ae29b66](https://github.com/vanducng/skills/commit/ae29b66a9406225dae9dfebe170f965ed739d16c))
+
 ## [1.57.0](https://github.com/vanducng/skills/compare/v1.56.0...v1.57.0) (2026-08-19)
 
 
