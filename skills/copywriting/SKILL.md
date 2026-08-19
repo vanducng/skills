@@ -107,3 +107,6 @@ Use `vd:devlog` for build-in-public engineering posts.
 Write copy into the current project's natural artifact location. If no convention
 exists, use `artifacts/copywriting/<slug>.md` and include the brief, selected
 formula, final copy, and optional variants.
+
+Every deliverable gets a `vd:unslop` pass before it is returned: formulas shape the
+structure, unslop removes the AI tells the formulas tend to produce.

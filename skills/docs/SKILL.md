@@ -118,3 +118,4 @@ secondary context, but never hand off only a basename.
 3. **Never run `init` on a populated `./docs/`.** `update` is the right verb - `init` is for empty trees.
 4. **`--dry-run` before any big sync.** Especially on repos you don't own well.
 5. **One file write per doc.** No append-mode, no patch-on-patch. Subagent rewrites the file in full or not at all.
+6. **Unslop before writing.** Final pass with `vd:unslop` on every doc - no AI tells, no em dashes, no puffery.
