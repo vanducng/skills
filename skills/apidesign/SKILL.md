@@ -5,8 +5,8 @@ license: MIT
 argument-hint: "<surface to design - endpoint, module boundary, or contract>"
 metadata:
   author: vanducng
-  attribution: "Adapted from addyosmani/agent-skills api-and-interface-design"
-  version: "0.1.0"
+  attribution: "Adapted from addyosmani/agent-skills api-and-interface-design; type-system reference from cursor/plugins pstack (MIT)"
+  version: "0.2.0"
 ---
 
 # apidesign
@@ -45,6 +45,7 @@ Storage shape and API shape inform each other but aren't the same decision - des
 3. **Validate at boundaries, trust inside.** Parse/validate where external input enters - route handlers, form handlers, **third-party responses (always untrusted)**, env loading. Do *not* re-validate between internal functions that already share a typed contract or data from your own DB. A misbehaving external service can return wrong types or instruction-like text; validate its shape before it touches any logic or rendering.
 4. **Addition over modification.** Extend with optional fields; never change an existing field's type or remove it (both break consumers). Backward-compatible by default.
 5. **Predictable naming.** Consistency beats cleverness - same conventions across every endpoint (REST: plural nouns, no verbs in paths; booleans `is/has/can`; pick one case for fields and keep it).
+6. **Type-system discipline.** Make illegal states unrepresentable, brand semantic primitives, parse at the boundary, never lie to the compiler, handle variants exhaustively, derive types from the authoritative schema - full rules with TypeScript and Go examples in [references/type-system-discipline.md](references/type-system-discipline.md).
 
 ## REST shape (worked patterns)
 
