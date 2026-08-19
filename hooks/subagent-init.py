@@ -116,6 +116,7 @@ try:
         lines.append('- YAGNI / KISS / DRY')
         lines.append('- Before PR merge/next ship step: fetch review comments, validate, fix valid ones, reply/resolve, re-check')
         lines.append('- Concise, list unresolved Qs at end')
+        lines.append('- Human-facing prose (PRs, docs, posts): vd:unslop pass - no AI tells, no em dashes')
         if skills_venv:
             lines.append('- Python scripts in .claude/skills/: Use `%s`' % skills_venv)
             lines.append('- Never use global pip install')
