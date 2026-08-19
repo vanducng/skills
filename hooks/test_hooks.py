@@ -156,6 +156,7 @@ SUBAGENT_CONTEXT_GOLDEN = '\n'.join([
     '- YAGNI / KISS / DRY',
     '- Before PR merge/next ship step: fetch review comments, validate, fix valid ones, reply/resolve, re-check',
     '- Concise, list unresolved Qs at end',
+    '- Human-facing prose (PRs, docs, posts): vd:unslop pass - no AI tells, no em dashes',
     '- Python scripts in .claude/skills/: Use `~/.claude/skills/.venv/bin/python3`',
     '- Never use global pip install',
     '',
