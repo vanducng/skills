@@ -119,3 +119,4 @@ secondary context, but never hand off only a basename.
 4. **`--dry-run` before any big sync.** Especially on repos you don't own well.
 5. **One file write per doc.** No append-mode, no patch-on-patch. Subagent rewrites the file in full or not at all.
 6. **Unslop every doc.** Final pass with `vd:unslop` before the file is written - no AI tells, no em dashes, no puffery.
+7. **Structure and style follow the prose standard.** Route each page by Diataxis (tutorial / how-to / reference / explanation) and apply the sentence rules in [references/technical-writing.md](references/technical-writing.md). That file owns structure and style; `vd:unslop` owns the de-AI final pass.

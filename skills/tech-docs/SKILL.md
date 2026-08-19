@@ -127,3 +127,4 @@ Do not configure DNS, change Pages settings, merge, or deploy unless the user au
 4. Never publish unverified commands or configuration.
 5. Never declare success from a local build alone when live deployment was requested.
 6. Run a `vd:unslop` pass on page prose before shipping - no AI tells, no em dashes.
+7. Page structure and sentences follow the shared prose standard in `../docs/references/technical-writing.md` (sibling docs skill): Diataxis routing, one instruction per sentence, sentence-case headings.
