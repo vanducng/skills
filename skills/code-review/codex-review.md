@@ -35,7 +35,7 @@ For each finding, anchor it to `path:line` and use a severity prefix:
 Finding shape:
 ```
 <path:line> Critical: <one-sentence problem>.
-<1–3 sentences of evidence: what breaks, when, why. Name the failure mode explicitly -
+<1-3 sentences of evidence: what breaks, when, why. Name the failure mode explicitly -
 "alert silently won't fire", "PII leaks to logs on retry" - not "may cause issues".>
 <optional concrete fix in a fenced block>
 ```

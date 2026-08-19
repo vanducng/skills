@@ -55,7 +55,7 @@ func NewUserService(db UserStore, mailer Mailer, logger *slog.Logger) *UserServi
 // main.go wires it explicitly
 ```
 
-Adopt a library only past ~10–20 services or when you need lifecycle management (health checks, graceful shutdown, lazy init). Options: `google/wire` (compile-time codegen), `uber-go/fx`/`dig` (reflection, built-in lifecycle), `samber/do` v2 (generics, no codegen - see **gostack**). Mock at the interface boundary in tests.
+Adopt a library only past ~10-20 services or when you need lifecycle management (health checks, graceful shutdown, lazy init). Options: `google/wire` (compile-time codegen), `uber-go/fx`/`dig` (reflection, built-in lifecycle), `samber/do` v2 (generics, no codegen - see **gostack**). Mock at the interface boundary in tests.
 
 ## CLI applications
 
@@ -75,7 +75,7 @@ Use `database/sql` with `sqlx` or `pgx` for ergonomics - **never an ORM** (unpre
 | Library | Best for |
 | --- | --- |
 | `sqlx` | Multi-database, `StructScan` |
-| `pgx` | PostgreSQL (30–50% faster, COPY/LISTEN/arrays) |
+| `pgx` | PostgreSQL (30-50% faster, COPY/LISTEN/arrays) |
 
 1. **Parameterized queries always** - never concat user input; allowlist dynamic column names; `sqlx.In` + `Rebind` for `IN (?)`.
 2. Pass context to every operation (`QueryContext`, `ExecContext`, `GetContext`).

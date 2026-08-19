@@ -266,7 +266,7 @@ func newLogger() (*slog.Logger, func() error, error) {
 | `Router` with no catch-all | Unmatched records dropped silently | Add a handler with no predicate |
 | `AttrFromContext` without HTTP middleware | Context has no request attrs | Install `slog-gin/echo/fiber/chi` first |
 | Using `Pipe` with zero middleware | No-op wrapper, per-record overhead | Remove the `Pipe()` call |
-| Many formatters in `Pipe` | Each adds per-record allocation | Keep formatter chains short (2–4); or implement `slog.LogValuer` on your types |
+| Many formatters in `Pipe` | Each adds per-record allocation | Keep formatter chains short (2-4); or implement `slog.LogValuer` on your types |
 | Treating `slog-echo v2` like v1 | Breaking API changes | Read the v2 release notes before upgrading |
 
 ## When to skip these packages

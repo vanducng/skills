@@ -23,7 +23,7 @@ Every token is referred to by **semantic role**, not by its hex value. Type refe
 | `soft` | Sublabels, boundary labels | `#7a8399` | `#8e98ac` |
 | `rule` | Hairline borders | `rgba(45,49,66,0.12)` | `rgba(245,245,245,0.12)` |
 | `rule-solid` | Stronger borders, baselines | `#bfc0c0` (silver) | `rgba(191,192,192,0.25)` |
-| `accent` | Focal / 1–2 max per diagram | `#eb6c36` (atomic-tangerine) | `#f08a59` |
+| `accent` | Focal / 1-2 max per diagram | `#eb6c36` (atomic-tangerine) | `#f08a59` |
 | `accent-tint` | Fill for accent-bordered boxes | `rgba(235,108,54,0.08)` | `rgba(240,138,89,0.10)` |
 | `link` | HTTP/API calls, external arrows | `#2e5aa8` | `#6a95d8` |
 
@@ -76,7 +76,7 @@ A self-contained palette for the terminal-window primitive (see [primitive-termi
 | `title` | Instrument Serif | 1.75rem | 400 | Page H1 |
 | `node-name` | Geist (sans) | 12px | 600 | Human-readable labels |
 | `sublabel` | Geist Mono | 9px | 400 | Port, protocol, URL, field type |
-| `eyebrow` | Geist Mono | 7–8px | 500, tracked 0.18em, uppercase | Type tags, axis labels |
+| `eyebrow` | Geist Mono | 7-8px | 500, tracked 0.18em, uppercase | Type tags, axis labels |
 | `arrow-label` | Geist Mono | 8px | 400, tracked 0.06em | Arrow annotations |
 | `callout` | Instrument Serif *italic* | 14px | 400 | Editorial asides only |
 
@@ -110,7 +110,7 @@ Semantic role combinations - reference these by name in type specs.
 
 | Type | Fill | Stroke |
 |---|---|---|
-| `focal` (1–2 max) | `accent-tint` | `accent` |
+| `focal` (1-2 max) | `accent-tint` | `accent` |
 | `backend` | `#ffffff` (white) | `ink` |
 | `store` | `ink @ 0.05` | `muted` |
 | `external` | `ink @ 0.03` | `ink @ 0.30` |

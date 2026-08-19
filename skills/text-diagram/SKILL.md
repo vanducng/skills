@@ -66,7 +66,7 @@ Cross:    ╬
 ### Style E: Dashed borders (secondary containers)
 ```
 Vert:     ¦  or  :  or  ╎
-Horiz:    - - -  (dash-space-dash)
+Horiz: - - -  (dash-space-dash)
 ```
 
 ## Width Constraints
@@ -74,7 +74,7 @@ Horiz:    - - -  (dash-space-dash)
 - **Default max width: 80 characters** (standard terminal). Use 120 for wide diagrams.
 - If a diagram exceeds the limit, reduce padding, abbreviate labels, or split into multiple diagrams.
 - **Never use tab characters.** Always spaces.
-- All Unicode box-drawing chars (U+2500–U+257F) are exactly 1 column wide. Safe to use.
+- All Unicode box-drawing chars (U+2500-U+257F) are exactly 1 column wide. Safe to use.
 - **Avoid:** CJK chars (2-wide), emoji (variable width), heavy/dashed variants if cross-platform rendering matters.
 
 ## Drawing Algorithm

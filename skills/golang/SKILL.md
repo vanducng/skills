@@ -36,7 +36,7 @@ Load-bearing enough to enforce on every Go change:
 6. **`ctx context.Context` is the first parameter**; propagate the same ctx through the whole call chain; never store it in a struct; never pass `nil`.
 7. **Comma-ok every type assertion** (`v, ok := x.(T)`) and initialize maps before writing (`make(map[K]V)`) - bare forms panic.
 8. **Every goroutine needs a defined exit** (context, done channel, or WaitGroup) and every `select` includes `ctx.Done()`. Only the sender closes a channel.
-9. **Accept interfaces, return concrete types.** Keep interfaces 1–3 methods and define them where consumed, not where implemented. Don't create an interface until a second implementation or a test mock needs it.
+9. **Accept interfaces, return concrete types.** Keep interfaces 1-3 methods and define them where consumed, not where implemented. Don't create an interface until a second implementation or a test mock needs it.
 10. **Prefer generics over `any`** when the type set is known; prefer stdlib `slices`/`maps` over reaching for a dependency.
 11. **`defer Close()` immediately after acquiring a resource** - but never `defer` inside a loop (extract the body to a function).
 12. **Doc-comment every exported symbol**, starting with its name; say *why/when*, not what the signature already shows. Package comment (`// Package foo …`) is mandatory.

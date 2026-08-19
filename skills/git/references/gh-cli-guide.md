@@ -162,7 +162,7 @@ checks are still **pending**. That is retry, not failure.
 | 1 | A check failed, or `gh` errored | Read the table; fix or stop. Do not retry HTTP 503s |
 
 ```bash
-# WRONG — exit 8 aborts the chain, so merge never runs
+# WRONG - exit 8 aborts the chain, so merge never runs
 gh pr checks 123 && gh pr merge 123 --squash
 
 # Wait until terminal, then merge (immediate). Pending = retry.
@@ -179,12 +179,12 @@ gh pr merge 123 --auto --squash
 ```
 
 `wait-for-checks.sh` only retries exit 8. Auth errors, usage errors, and
-upstream HTTP failures (including 503) are terminal — surface them.
+upstream HTTP failures (including 503) are terminal - surface them.
 
 `--watch` exits 0 when *required* checks pass even if optional checks failed.
 Read the named check list (`bucket`/`state`) before an immediate merge; a
 path-filtered `skipping` is fine, a `fail` is not. Full-pipeline CI watch is
-`vd:ship` Step 15 — use that when landing via ship, not a second watcher.
+`vd:ship` Step 15 - use that when landing via ship, not a second watcher.
 
 ### Merge
 
@@ -198,7 +198,7 @@ gh pr merge 123 --delete-branch  # Cleanup after merge
 ```
 
 `--auto` is the queue path. An immediate `gh pr merge` without `--auto` does
-not wait for pending checks — wait first (`wait-for-checks.sh`) or pass
+not wait for pending checks - wait first (`wait-for-checks.sh`) or pass
 `--auto`. `hooks/pr-merge-guard.py` still refuses merge while review threads
 are unresolved; do not bypass it.
 
@@ -241,7 +241,7 @@ gh workflow run <workflow.yml>      # Manually trigger
 
 JSON fields for `gh run list` / `gh run view` include `attempt`, `databaseId`,
 `conclusion`, `status`, `workflowName`. The field is **`attempt`**, not
-`runAttempt` — `--json runAttempt` fails.
+`runAttempt` - `--json runAttempt` fails.
 
 ```bash
 # WRONG
@@ -261,19 +261,19 @@ short name.
 `$RUN=$(gh run list …)` plus `gh run view $RUN` dumps usage, not a run.
 
 ```bash
-# WRONG — empty RUN still calls `gh run view` (or the assignment is skipped
+# WRONG - empty RUN still calls `gh run view` (or the assignment is skipped
 # in a failed && chain and RUN is unset)
 gh run list --limit 1 --json databaseId --jq '.[0].databaseId' \
   | xargs gh run view
 RUN=$(gh run list --workflow=review --json databaseId --jq '.[0].databaseId') \
   && gh run view "$RUN"
 
-# RIGHT — assign, test, then use. Prefer filename + current branch.
+# RIGHT - assign, test, then use. Prefer filename + current branch.
 RUN=$(gh run list --workflow=ci.yml \
   --branch "$(git branch --show-current)" \
   --limit 1 --json databaseId --jq '.[0].databaseId // empty')
 if [[ -z "$RUN" ]]; then
-  echo "no run id yet — checks may still be queued" >&2
+  echo "no run id yet - checks may still be queued" >&2
   exit 1
 fi
 gh run view "$RUN" --json attempt,conclusion,status
@@ -310,7 +310,7 @@ gh pr create --fill && gh pr merge --auto --squash
 # Wait for this PR's checks, then merge immediately (pending = retry)
 scripts/wait-for-checks.sh && gh pr merge --squash
 
-# Last failed run, view log (guard the id — empty $RUN dumps usage)
+# Last failed run, view log (guard the id - empty $RUN dumps usage)
 id=$(gh run list --json databaseId,conclusion \
   --jq '.[] | select(.conclusion=="failure") | .databaseId' | head -1)
 [[ -n "$id" ]] && gh run view "$id" --log-failed

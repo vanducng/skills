@@ -463,6 +463,6 @@ dark: false
 - Entering a **BOTTOM edge going DOWN** (box above) → body inside box, **only 1 px visible. Avoid this.**
 - Entering a **BOTTOM edge going UP** (box above) → body below box, ~7 px visible. ✓
 
-When the source row matches the destination row's y range (e.g., Survey at y=108 with Shared Drive at y=80–148), prefer **side-edge** entry - a single horizontal path with a fully visible arrow. When the source row is offset, detour through the destination's nearest zone background to enter a side edge rather than approaching a top/bottom edge from the wrong side.
+When the source row matches the destination row's y range (e.g., Survey at y=108 with Shared Drive at y=80-148), prefer **side-edge** entry - a single horizontal path with a fully visible arrow. When the source row is offset, detour through the destination's nearest zone background to enter a side edge rather than approaching a top/bottom edge from the wrong side.
 
 The footer-bar variant demonstrates custom color overrides and proves `viewBox_h` grows correctly when `N_footer > 0`.

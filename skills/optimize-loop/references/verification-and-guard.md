@@ -41,7 +41,7 @@ Noisy metrics produce false positives - "improvements" that are really measureme
 |---|---|---|
 | **low** | LOC, type errors, lint count | 1 run, trust it |
 | **medium** | build time, unit-test timing (±5%) | 2 runs, take the **worse** result |
-| **high** | API latency, benchmarks, ML accuracy | 3–5 runs, take the **median** (not mean) |
+| **high** | API latency, benchmarks, ML accuracy | 3-5 runs, take the **median** (not mean) |
 
 Use median for high noise - it resists single outlier spikes.
 
@@ -54,7 +54,7 @@ improvement = (Direction=higher) ? new - prev : prev - new
 if improvement < Min-Delta:  status = no-op   # not a failure, just insufficient
 ```
 
-Defaults by noise: low = 0 · medium = 1–2% of baseline · high = 3–5% of baseline.
+Defaults by noise: low = 0 · medium = 1-2% of baseline · high = 3-5% of baseline.
 
 ## Confirmation run
 

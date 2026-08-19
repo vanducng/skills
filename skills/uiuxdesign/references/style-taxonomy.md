@@ -15,12 +15,12 @@ Native-integration overrides all of this: inside an existing app, match its desi
 
 | Style | Best for | Avoid for | Signature tokens |
 |---|---|---|---|
-| Minimalism / Swiss | Enterprise, dashboards, docs, SaaS, pro tools | Playful/entertainment brands, artistic portfolios | radius 0, no shadow, 12–16 col grid, single accent, WCAG AAA |
+| Minimalism / Swiss | Enterprise, dashboards, docs, SaaS, pro tools | Playful/entertainment brands, artistic portfolios | radius 0, no shadow, 12-16 col grid, single accent, WCAG AAA |
 | Flat design | Web/mobile apps, MVPs, cross-platform, user-friendly SaaS | Luxury/premium, immersive 3D, artistic | solid fills, no gradients/shadows, bold color blocks |
-| Glassmorphism | Modern SaaS, financial dashboards, lifestyle, modal overlays | Low-contrast backgrounds, perf-limited, a11y-critical | `backdrop-filter: blur(10–20px)`, translucent white 15–30%, 1px light border |
-| Neumorphism | Health/wellness, meditation, minimal-interaction UIs | Data-heavy dashboards, a11y-critical (low contrast) | dual soft shadows, radius 12–16px, monochrome pastel |
+| Glassmorphism | Modern SaaS, financial dashboards, lifestyle, modal overlays | Low-contrast backgrounds, perf-limited, a11y-critical | `backdrop-filter: blur(10-20px)`, translucent white 15-30%, 1px light border |
+| Neumorphism | Health/wellness, meditation, minimal-interaction UIs | Data-heavy dashboards, a11y-critical (low contrast) | dual soft shadows, radius 12-16px, monochrome pastel |
 | Claymorphism | Education, kids, creative tools, fun SaaS | Formal corporate, data-critical | puffy 3D, large radius, soft double shadow, playful color |
-| Brutalism / Neubrutalism | Design portfolios, Gen-Z brands, editorial, counter-culture | Corporate, healthcare, finance, a11y-critical | radius 0, no transitions, visible 2–4px borders, bold 700+ type, primary colors |
+| Brutalism / Neubrutalism | Design portfolios, Gen-Z brands, editorial, counter-culture | Corporate, healthcare, finance, a11y-critical | radius 0, no transitions, visible 2-4px borders, bold 700+ type, primary colors |
 | Bento grid | Product/feature pages, dashboards, Apple-style marketing | Dense tables, long-form text, real-time monitoring | modular card grid, varied tile sizes, generous gaps |
 | Dark mode (OLED) | Night apps, coding platforms, entertainment | Print-first, high-brightness outdoor | true-black bg, desaturated accents, elevated surfaces |
 | Aurora / gradient mesh | Modern SaaS, creative, music, branding | Data-heavy, a11y-critical, content-first | animated mesh gradients, vibrant hues, soft blur |

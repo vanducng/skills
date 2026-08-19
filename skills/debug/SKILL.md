@@ -79,7 +79,7 @@ If any link is unverified, label it a hypothesis and run the smallest check that
 ## Quick reference
 
 ```
-Code bug                 → systematic-debugging.md (Phase 1–4)
+Code bug                 → systematic-debugging.md (Phase 1-4)
   Deep in call stack     → root-cause-tracing.md
   Cause found            → defense-in-depth.md
   About to claim done    → verification.md

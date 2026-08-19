@@ -110,7 +110,7 @@ For codebase orientation:
 
 | Surface | Continue to |
 |---|---|
-| Code-level fix | `systematic-debugging.md` (Phases 1–4) |
+| Code-level fix | `systematic-debugging.md` (Phases 1-4) |
 | Deep call stack | `root-cause-tracing.md` |
 | After fix, harden | `defense-in-depth.md` |
 | Claiming done | `verification.md` |

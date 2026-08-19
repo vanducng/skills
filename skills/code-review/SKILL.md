@@ -69,7 +69,7 @@ These are the conventions for **every** comment this skill writes. Reference exa
 ```
 **<Severity prefix>**: <one-sentence problem statement>.
 
-<1–3 sentences of evidence: what breaks, when, why it matters. Include the
+<1-3 sentences of evidence: what breaks, when, why it matters. Include the
 actual symptom - not just "may cause issues">.
 
 <Optional: suggested change, in fenced block or inline code>.
@@ -140,7 +140,7 @@ Capture `headRefOid` - every inline comment's `commit_id` MUST equal this so com
 | Diff size | Approach |
 |---|---|
 | < 300 lines | Read every changed file in full (file, not hunk). Manual pass. |
-| 300–1500 lines | Read full files for security-sensitive or core-logic changes; spot-check the rest. |
+| 300-1500 lines | Read full files for security-sensitive or core-logic changes; spot-check the rest. |
 | > 1500 lines | Batch via parallel `Task(Explore)` subagents grouped by directory; synthesize findings. Don't pour the whole diff into your context. No subagents (Codex) → review directory-by-directory sequentially, or use `codex-review.md`. |
 
 ### 3. Build the review payload
@@ -301,12 +301,12 @@ Approval body - keep it short:
 ```
 Approved. <one sentence on what shipped well>.
 
-<Optional: 1–2 suggestion comments inline>.
+<Optional: 1-2 suggestion comments inline>.
 ```
 
 ## Anti-patterns (don't do these)
 
-- **Comment dump.** 40 comments on a 200-line diff. Pick the worst 5–10.
+- **Comment dump.** 40 comments on a 200-line diff. Pick the worst 5-10.
 - **"LGTM 🚀".** Empty approvals teach nothing and erode trust in your reviews. Either approve with a specific reason, or don't approve.
 - **Ghost suggestions.** "Consider refactoring this." → useless. Either propose the refactor with code, or drop the comment.
 - **Re-reviewing on every push.** If the author pushed a 3-line fix to address your Critical, look at those 3 lines - don't re-review the whole PR.

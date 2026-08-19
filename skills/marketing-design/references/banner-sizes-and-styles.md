@@ -33,7 +33,7 @@
 ### Website
 | Type | Size (px) |
 |------|-----------|
-| Full-width hero | 1920 × 600–1080 |
+| Full-width hero | 1920 × 600-1080 |
 | Section banner | 1200 × 400 |
 | Blog header | 1200 × 628 |
 | Email header | 600 × 200 |

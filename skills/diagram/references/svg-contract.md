@@ -141,18 +141,18 @@ Mentally divide the canvas into an **8-column × 6-row grid of 200×150px cells*
 
 ### 2. Boundary regions are NON-OVERLAPPING
 
-If you draw a `.boundary` rect at `(x1,y1)–(x2,y2)`, no other `.boundary` rect may share any pixel with it. Boundaries tile the canvas like floor tiles - never stack. Lay them out as a strict **N×1 row grid**, **1×N column grid**, or **2×2 quadrant grid**. Never freehand.
+If you draw a `.boundary` rect at `(x1,y1)-(x2,y2)`, no other `.boundary` rect may share any pixel with it. Boundaries tile the canvas like floor tiles - never stack. Lay them out as a strict **N×1 row grid**, **1×N column grid**, or **2×2 quadrant grid**. Never freehand.
 
 For a 4-section layout (e.g. "Upstream / Core / State / Pipeline"), the safe split is a 2×2 grid:
 
 ```
-+----- Upstream (x:40–800, y:40–420) -----+ +----- State (x:840–1560, y:40–420) -----+
++----- Upstream (x:40-800, y:40-420) -----+ +----- State (x:840-1560, y:40-420) -----+
 |                                          | |                                          |
 +------------------------------------------+ +------------------------------------------+
-+----- Core (x:40–1560, y:460–820) ----------------------------------------------------+
++----- Core (x:40-1560, y:460-820) ----------------------------------------------------+
 |                                                                                        |
 +----------------------------------------------------------------------------------------+
-+----- Pipeline (x:40–1560, y:860–1160) -----------------------------------------------+
++----- Pipeline (x:40-1560, y:860-1160) -----------------------------------------------+
 |                                                                                        |
 +----------------------------------------------------------------------------------------+
 ```
@@ -166,11 +166,11 @@ If a "right column" boundary would clip a "center" boundary, you have **picked t
 <text class="muted" x="60" y="68">Upstream: GitHub repos</text>   <!-- y = boundary.y + 28, INSIDE -->
 ```
 
-Never `y < boundary.y` - the caption above-the-box pattern collides with whatever sits above. Always 24–32px below the boundary's top edge.
+Never `y < boundary.y` - the caption above-the-box pattern collides with whatever sits above. Always 24-32px below the boundary's top edge.
 
 ### 4. Boxes have ≥40px breathing room from boundary edges + ≥40px from each other
 
-Inside a boundary at `(40,40,800,420)` (i.e. width 760, height 380, with a 28px caption band), the usable interior is `(60,80)–(780,400)`. Every child box stays inside that interior.
+Inside a boundary at `(40,40,800,420)` (i.e. width 760, height 380, with a 28px caption band), the usable interior is `(60,80)-(780,400)`. Every child box stays inside that interior.
 
 ### 5. Labels sit INSIDE their parent box, padded ≥12px from edges
 

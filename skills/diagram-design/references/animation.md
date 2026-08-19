@@ -23,7 +23,7 @@ Only `loop` repeats. Queue state, typing, field values, policy outcomes, contain
 2. **Stable capture.** Initial `data-frame="static"`, `?motion=static`, print, no-JS, and standalone SVG export expose the complete frame and hide controls/decorative tokens. Do not capture after an arbitrary delay.
 3. **CSS owns presentation.** Use CSS transitions/keyframes for appearance and travel. Minimal inline JavaScript is allowed only to bind explicit controls, update step/state attributes, schedule deterministic steps, and update the dedicated live-status region. No fetches, markup injection, path measurement, or mutation of semantic diagram labels or values.
 4. **One clock.** Use `--motion-fast: 160ms`, `--motion-step: 480ms`, `--motion-hold: 720ms`, and `--motion-total` ≤ `8000ms`; derive delays from integer steps. No randomness, springs, or transition-event timing.
-5. **Explicit order.** Mark items `data-motion-item data-step="N"` for integer steps 1–8. DOM order follows narrative order. At most two items enter per step.
+5. **Explicit order.** Mark items `data-motion-item data-step="N"` for integer steps 1-8. DOM order follows narrative order. At most two items enter per step.
 6. **Stable end.** Completion exposes all items and sets `data-frame="end"`. Replay resets to step 0 first. Pause clears the pending timer and resume continues from the same step.
 7. **Scoped state.** Controls operate on their nearest `[data-motion-root]`; IDs, timers, live regions, and step state never cross figure boundaries.
 8. **Failure-safe startup.** JavaScript adds `.motion-ready` only after controls are bound and the initial render succeeds. A script error before that point leaves the complete source visible.
@@ -38,7 +38,7 @@ Every primitive has text, count, symbol, pattern, or outline in addition to colo
 | **Staggered reveal** (stage reveal) | `data-motion-item` + opacity/translate ≤8px | All stages visible | ≤8 steps, 12 items |
 | **Queue counter** (queue accumulation) | Stable slots; item reveal plus visible numeric count | Final queue and count visible | ≤5 items; no reorder |
 | **Typing / field population** | Full accessible string; clipped decorative overlay or labeled row reveal | Complete text/fields visible once | ≤32 typed chars or 6 fields |
-| **Policy evaluation** (rule evaluation) | Ordered rule rows with text statuses and a current-row outline | Every state and outcome visible | 3–6 rules; 2 traces |
+| **Policy evaluation** (rule evaluation) | Ordered rule rows with text statuses and a current-row outline | Every state and outcome visible | 3-6 rules; 2 traces |
 | **Flow token** | `aria-hidden` token on a fixed path | Token hidden; connector remains | One token; loop ≥3s |
 | **Containment** | Reveal children, then persistent labeled boundary | Children and boundary visible | One boundary transition |
 | **Audit append** | Chronological rows revealed; stable timestamp/sequence | Complete ordered log visible | ≤5 appended rows |
@@ -88,7 +88,7 @@ Every interactive `step` figure provides native buttons for **Play, Pause, Repla
 
 When focus is within the motion root: `ArrowRight` advances, `ArrowLeft` goes back, `Home` resets, `End` completes, `Space` toggles play/pause when focus is not already on a native control, and unmodified `R` replays. Never intercept `R` when Control, Command, or Alt is held. Do not capture keys from inputs, links, or unrelated regions. Never move focus as the frame changes.
 
-Provide visible instructions and a scoped `role="status" aria-live="polite" aria-atomic="true"`. Keep that live region inside the motion root but outside `[data-motion-controls]`, so hiding controls for reduced/static states cannot hide announcements. Announce user actions such as “Step 3 of 5: first divergence”; do not announce every autoplay frame. Controls operate only on their nearest `[data-motion-root]`.
+Provide visible instructions and a scoped `role="status" aria-live="polite" aria-atomic="true"`. Keep that live region inside the motion root but outside `[data-motion-controls]`, so hiding controls for reduced/static states cannot hide announcements. Announce user actions such as "Step 3 of 5: first divergence"; do not announce every autoplay frame. Controls operate only on their nearest `[data-motion-root]`.
 
 Use [`assets/template-motion.html`](../assets/template-motion.html) rather than inventing another controller. Its inline controller is the executable implementation contract: copy that script body verbatim. The skin linter rejects modified or additional controllers, even when they carry `data-diagram-controls`. Replace diagram content and slug-prefixed IDs, but preserve the controller and its state/control attributes.
 
@@ -102,7 +102,7 @@ Use [`assets/template-motion.html`](../assets/template-motion.html) rather than 
 
 ## Complexity and deterministic timing
 
-Motion does not raise the static diagram budget: ≤8 semantic steps (target 3–6), ≤12 marked items, ≤2 simultaneous reveals, ≤2 drawn paths, one flow-token loop, 160–600ms transitions, 400–1200ms holds, ≤24px translation, and 3–8s total autoplay.
+Motion does not raise the static diagram budget: ≤8 semantic steps (target 3-6), ≤12 marked items, ≤2 simultaneous reveals, ≤2 drawn paths, one flow-token loop, 160-600ms transitions, 400-1200ms holds, ≤24px translation, and 3-8s total autoplay.
 
 Declare `data-step-count`; do not infer steps from transition events. Set `--motion-total` to step count × `--motion-hold` and keep it within the 8-second budget. Use one `setTimeout` chain per root, derive its hold from `--motion-hold`, clear it on Pause/Replay/page hide and immediately after rendering the final step, and never use `setInterval` for semantic playback. Pause when `document.visibilityState` becomes hidden and do not catch up later. `?motion=step&step=N` may expose an exact zero-duration frame for visual regression only when `N` is a non-negative base-10 integer from 0 through `data-step-count`; missing, fractional, negative, and over-budget values leave normal playback in place.
 

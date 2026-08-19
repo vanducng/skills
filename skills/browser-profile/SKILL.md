@@ -72,7 +72,7 @@ Ports are deterministic from the profile name so `attach` doesn't need a registr
 port = 9300 + (cksum(name) % 100)
 ```
 
-Range 9300–9399 avoids the conventional 9222. If two names hash to the same port, `open` will fail loudly - rename one.
+Range 9300-9399 avoids the conventional 9222. If two names hash to the same port, `open` will fail loudly - rename one.
 
 ## Profile directory layout
 

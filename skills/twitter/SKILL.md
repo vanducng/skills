@@ -55,7 +55,7 @@ All secrets live in gopass under `personal/x-twitter/`:
 
 ## Maintenance
 
-- **twikit pin.** `twikit==2.3.3`. Upstream breaks every 6–12 weeks; pin holds the wire-protocol surface stable.
+- **twikit pin.** `twikit==2.3.3`. Upstream breaks every 6-12 weeks; pin holds the wire-protocol surface stable.
 - **Cookie rotation.** `auth_token` rotates ~quarterly. Rerun `twitter import-from-dia` when `doctor` reports 401.
 - **Browser fallback selectors.** `lib/browser_fallback.py` pins `data-testid='tweet'/'tweetText'/'User-Name'` for fetch and `data-testid='tweetTextarea_0'/'tweetButton'` for post (post is deferred to v2). X's DOM changes monthly; refresh selectors when fallback `BrowserUnavailable` errors mention "selector not found".
 

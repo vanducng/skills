@@ -245,7 +245,7 @@ git push -u origin "$(git branch --show-current)"
    see `../git/references/gh-cli-guide.md`.
 5. Inline issue refs from Step 2 in the template's context/why area (`Closes #N` / `Relates to #M`) - no separate Linked-Issues section.
 6. Re-read the created/updated PR body and verify it matches the selected repo template or canonical fallback before continuing.
-7. **Output the PR URL** - final user-facing line (unless Steps 13–16 run after).
+7. **Output the PR URL** - final user-facing line (unless Steps 13-16 run after).
 
 ## Step 13: PR review comments
 
@@ -377,7 +377,7 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
    [ "$COUNT" -eq 0 ] && echo "no CI checks - skipping" && exit 0
    ```
 2. Wait for checks to settle (cap at 15 min so the skill doesn't block forever).
-   A one-shot `gh pr checks` exits **8** while anything is pending — that is
+   A one-shot `gh pr checks` exits **8** while anything is pending - that is
    retry, not failure. Never `gh pr checks N && gh pr merge N`. This step is
    the pipeline waiter; the granular helper is `../git/scripts/wait-for-checks.sh`.
    ```bash

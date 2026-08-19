@@ -69,7 +69,7 @@ TaskCreate(
 TaskCreate(
   subject:     "Analyze root cause of {incident}",
   activeForm:  "Analyzing root cause",
-  description: "Correlate evidence, trace execution / lineage, identify root cause. See systematic-debugging.md Phase 1–3 + domain-specific reference",
+  description: "Correlate evidence, trace execution / lineage, identify root cause. See systematic-debugging.md Phase 1-3 + domain-specific reference",
   metadata: { debugStage: "analyze",
               incident: "{incident}",
               technique: "systematic|root-cause-tracing|pipeline|infra|analytics",

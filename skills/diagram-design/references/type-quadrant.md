@@ -4,9 +4,9 @@
 
 ## Layout conventions
 - 2×2 grid. Axis lines: 1px ink cross through the center.
-- **Axis labels: Jobs-minimal.** One single word at each arrow tip - no glyphs baked into the label (no `↑` / `→` / `←` / `↓`), no parentheticals, no "HIGH / LOW" modifiers. Geist Mono 9px regular weight, tracked 0.18em, uppercase. Flank the arrow tips - never sit labels on top of the axis line. Shorten the arrow enough (~60–80px inside the viewBox edge) to leave breathing room for the labels beyond the tips.
+- **Axis labels: Jobs-minimal.** One single word at each arrow tip - no glyphs baked into the label (no `↑` / `→` / `←` / `↓`), no parentheticals, no "HIGH / LOW" modifiers. Geist Mono 9px regular weight, tracked 0.18em, uppercase. Flank the arrow tips - never sit labels on top of the axis line. Shorten the arrow enough (~60-80px inside the viewBox edge) to leave breathing room for the labels beyond the tips.
 - Never label at the midpoint.
-- Items: small labeled dots (`r=4`) positioned in the quadrants. Labels 8–10px away; don't let labels cross axis lines.
+- Items: small labeled dots (`r=4`) positioned in the quadrants. Labels 8-10px away; don't let labels cross axis lines.
 - Coral on the "do first" item (typically top-right).
 - Limit to ~12 items; cluster or split beyond that.
 
@@ -36,7 +36,7 @@ A **layout variant** of the standard quadrant - same house skin (warm paper, dot
 | Move | Standard quadrant | Consultant special |
 |---|---|---|
 | Axis arrows | single-ended | **double-ended** - both axes have `marker-start` + `marker-end` |
-| Cell content | small dots with labels | **named scenario + 1–3 line description** |
+| Cell content | small dots with labels | **named scenario + 1-3 line description** |
 | Quadrant corner | short tag (e.g. DO FIRST) | **numbered tag + axis combination** (`01 · DIMENSION-A / DIMENSION-B`) |
 | Focal accent | coral on one *item* | coral on one *quadrant* - tinted bg + coral stroke + coral corner tag |
 | Axes | 1px muted ink | **1.2px ink** (slightly heavier - the axes carry more of the figure) |
@@ -53,7 +53,7 @@ Everything else - paper, dot pattern, typography, legend strip, 4px grid, comple
 - **Focal cell**: `accent-tint` fill, `accent` stroke at 1.2px. Corner tag in `accent`, weight 600.
 - **Non-focal cells**: `store` treatment (`ink @ 0.04` fill, `muted @ 0.28` stroke).
 - **Cell title**: Geist sans, 16px, weight 600, `ink`.
-- **Cell description**: Geist sans, 11px, `muted`, 1–3 lines, left-aligned inside the cell.
+- **Cell description**: Geist sans, 11px, `muted`, 1-3 lines, left-aligned inside the cell.
 - **Corner tag**: Geist Mono, 8px, uppercase, tracked `0.18em`, `muted` (or `accent` on focal). Format: `NN · DIMENSION-A / DIMENSION-B` - the two axis-dimension words must match the axis labels exactly.
 - **Axis labels**: Geist Mono 9px **regular weight** (not bold), tracked `0.18em`, uppercase, `ink`. **One word per tip.** No arrow glyphs in the label, no `HIGH / LOW` parentheticals, no multi-line sublabels. The word itself *is* the label. Position labels *beyond* the arrow tips (not on the axis line):
   - Top tip: `text-anchor="middle"`, ~12px above the arrow tip
@@ -63,9 +63,9 @@ Everything else - paper, dot pattern, typography, legend strip, 4px grid, comple
 
 ### Layout conventions
 
-- Four cells, equal size (240×160 or 280×180 are good defaults), arranged with a 40–60px gap from the axis cross.
+- Four cells, equal size (240×160 or 280×180 are good defaults), arranged with a 40-60px gap from the axis cross.
 - Axis cross passes *between* the cells, not through them.
-- Arrow tips live ~20–40px outside the outermost cell edge; single-word axis labels sit ~12px beyond each tip (see Axis labels above).
+- Arrow tips live ~20-40px outside the outermost cell edge; single-word axis labels sit ~12px beyond each tip (see Axis labels above).
 - Exactly one focal cell. Picking none makes it a placeholder template; picking two erases the signal.
 - Keep the legend strip + horizontal rule at the bottom - same as the standard quadrant. Legend swatches should show both "headline bet" (coral) and "candidate future" (neutral).
 

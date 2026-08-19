@@ -59,7 +59,7 @@ If the ask is already a typo, rename, or a self-contained one-liner and you can 
 
 ### 1. Hypothesize
 
-One sentence + an honest 0–100% number:
+One sentence + an honest 0-100% number:
 
 ```
 HYPOTHESIS: You want a standup answer to "how are we doing?", and "dashboard" was the convention that came to mind.

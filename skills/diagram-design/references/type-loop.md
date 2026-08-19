@@ -35,7 +35,7 @@ margin: 64
 dark: false
 ```
 
-**Budget (hard):** **5–8 stations plus exactly one hub.** Above 8 stations, split the subject into an overview Loop and one or more detail diagrams. Exactly one hub - a loop with two hubs is two diagrams. At most one station may set `focal: true`; zero is allowed when no editorial gate deserves emphasis.
+**Budget (hard):** **5-8 stations plus exactly one hub.** Above 8 stations, split the subject into an overview Loop and one or more detail diagrams. Exactly one hub - a loop with two hubs is two diagrams. At most one station may set `focal: true`; zero is allowed when no editorial gate deserves emphasis.
 
 Station order is semantic. `stations[0]` is the top station, then entries proceed clockwise. The last station always connects back to station 0; if that return would be false, use a Flowchart instead.
 
@@ -119,7 +119,7 @@ spoke_end(k)   = C   + (d_hub + marker_gap) * u_k
 
 Because the arrow travels from the station toward `C`, adding `marker_gap` leaves the endpoint just outside the hub boundary. The lighter arrowhead stops before the hub stroke instead of colliding with it. Radial spokes are the type-specific exception to the general ban on slanted straight connectors; they must remain true radii, must not cross one another, and may touch only their source station and the hub.
 
-Labels are optional when the station sublabel already names the write-back. When used, they follow the `arrow-label` role, stay to one side of the spoke, and receive an opaque `paper` mask with a visible 6–10px gap from the stroke. Label a curated subset rather than forcing six labels into the hub halo.
+Labels are optional when the station sublabel already names the write-back. When used, they follow the `arrow-label` role, stay to one side of the spoke, and receive an opaque `paper` mask with a visible 6-10px gap from the stroke. Label a curated subset rather than forcing six labels into the hub halo.
 
 ### 2.4 ViewBox sizing
 
@@ -148,7 +148,7 @@ Include the full circle extrema `cx +/- R`, `cy +/- R` plus station bounds and m
 | Focal station | At most one: `accent-tint` fill, `accent` stroke; station name may use `accent` |
 | Ring flow | Circular `A R R 0 0 1` arcs on the station circle, solid `muted` stroke, default arrowhead at the destination; clockwise only |
 | Write-back spoke | Dashed `soft` stroke at reduced emphasis, `stroke-dasharray="5,4"`, with a `soft` arrowhead |
-| Spoke label | `arrow-label` role, `soft`, uppercase, paper mask, 6–10px clear of the connector |
+| Spoke label | `arrow-label` role, `soft`, uppercase, paper mask, 6-10px clear of the connector |
 
 Draw in this order: paper or optional dot grid → ring arrows → dashed spokes → spoke-label masks and labels → station boxes → hub → text. The nodes mask microscopic connector overshoot, while every intended endpoint still lands on an edge.
 
@@ -162,7 +162,7 @@ SKILL.md §6 applies in full except for the two Loop-specific connector primitiv
 
 - Ring arrows are same-radius circular arcs, solid, and clockwise. Every path uses `A R R 0 0 1`; destination markers land on station edges and no connector ends at a center point.
 - Spokes are dashed and point inward. A solid spoke destroys the visual distinction between operating flow and write-back.
-- Labels use opaque masks and maintain a visible 6–10px connector gap. Never place text on the stroke.
+- Labels use opaque masks and maintain a visible 6-10px connector gap. Never place text on the stroke.
 - No ring connector or spoke may overlap another connector. Ring paths remain outside the hub; spokes occupy distinct radial routes.
 - When two spokes must leave the same station edge, fan their attach points by the §6 formula with at least 12px separation. The normal Loop has one spoke per station; use a second only when the semantics cannot be merged.
 - If a ring route would cross the hub, increase `R` or split the diagram. Do not thread flow through shared state or substitute an orthogonal route.
@@ -189,14 +189,14 @@ The semantic relationship stays unchanged in dark mode: one `ink`-filled hub, on
 
 ## 6. Reproducibility checklist
 
-1. Station count is 5–8 and hub count is exactly one.
+1. Station count is 5-8 and hub count is exactly one.
 2. Station 0 is at `-90deg`; all others use equal `360/N` steps clockwise.
 3. Every solid ring arrow connects adjacent stations with `A R R 0 0 1`, using the same `R`; the last returns to the first.
 4. Every ring marker lands on a station edge, not its center.
 5. Every dashed spoke begins on a station's inner edge and stops `marker_gap` before the hub stroke.
 6. Ring connectors stay outside the hub; spokes do not cross or overlap.
 7. At most one station uses `accent-tint` + `accent`; the hub alone uses the dark `ink` fill.
-8. Spoke labels, if present, use `arrow-label`, an opaque mask, and a 6–10px gap.
+8. Spoke labels, if present, use `arrow-label`, an opaque mask, and a 6-10px gap.
 9. The viewBox includes station boxes, strokes, curves, markers, and margins without clipping.
 
 ---

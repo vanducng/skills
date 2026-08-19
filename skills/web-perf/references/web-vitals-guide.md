@@ -4,11 +4,11 @@
 
 | Metric | Good | Needs improvement | Poor | Measures |
 |---|---|---|---|---|
-| LCP | ≤ 2.5s | 2.5–4s | > 4s | Loading - largest text/image render |
-| INP | ≤ 200ms | 200–500ms | > 500ms | Interactivity - worst interaction latency (replaced FID in 2024) |
-| CLS | ≤ 0.1 | 0.1–0.25 | > 0.25 | Visual stability - unexpected layout shifts |
-| FCP | ≤ 1.8s | 1.8–3s | > 3s | First paint of any content |
-| TTFB | ≤ 800ms | 0.8–1.8s | > 1.8s | Server/network - first response byte |
+| LCP | ≤ 2.5s | 2.5-4s | > 4s | Loading - largest text/image render |
+| INP | ≤ 200ms | 200-500ms | > 500ms | Interactivity - worst interaction latency (replaced FID in 2024) |
+| CLS | ≤ 0.1 | 0.1-0.25 | > 0.25 | Visual stability - unexpected layout shifts |
+| FCP | ≤ 1.8s | 1.8-3s | > 3s | First paint of any content |
+| TTFB | ≤ 800ms | 0.8-1.8s | > 1.8s | Server/network - first response byte |
 
 Lab numbers from `vitals.cjs` are single-sample and environment-dependent - useful for regressions and diagnosis, not for claiming field (CrUX) performance.
 

@@ -55,7 +55,7 @@ Before writing any plan file, in your reply, capture:
 - **Goal** - one sentence. What ships at the end.
 - **Approach** - one paragraph. The chosen design (from brainstorm brief, or stated by user).
 - **Success criteria** - observable signals that the goal is met (not "code works" - "endpoint X returns 200 with shape Y", "page loads in <500ms on 3G").
-- **Definition of Done** - the goal's *machine-checkable* form: 1–5 typed verifiers (`test_suite_passes`, `cmd_exits_zero`, `shell`, `http_status`, `manual_confirm`), one per line as `- <type>: <arg>`. Plain commands + expected results only, **no tool-specific constructs**, so the goal runs identically under Claude Code and Codex. `vd:cook` runs them as a final goal gate via the shared runner `cook/scripts/eval-dod.sh` (resolved across the `$HOME/.claude/skills`, `$HOME/.agents/skills`, `$HOME/skills/skills` install roots - see `vd:cook` Phase 3); validate the block as you write it with `eval-dod.sh --lint <plan.md>`. (Vocab aligns with `vd:ultracook`'s `verifier-vocab.md`.)
+- **Definition of Done** - the goal's *machine-checkable* form: 1-5 typed verifiers (`test_suite_passes`, `cmd_exits_zero`, `shell`, `http_status`, `manual_confirm`), one per line as `- <type>: <arg>`. Plain commands + expected results only, **no tool-specific constructs**, so the goal runs identically under Claude Code and Codex. `vd:cook` runs them as a final goal gate via the shared runner `cook/scripts/eval-dod.sh` (resolved across the `$HOME/.claude/skills`, `$HOME/.agents/skills`, `$HOME/skills/skills` install roots - see `vd:cook` Phase 3); validate the block as you write it with `eval-dod.sh --lint <plan.md>`. (Vocab aligns with `vd:ultracook`'s `verifier-vocab.md`.)
 - **Scope boundary** - what's *out* of scope. Out-of-scope items get listed but not planned.
 - **Constraints** - language, runtime, team size, existing systems that can't change.
 
@@ -82,14 +82,14 @@ A plan with 12+ phases is almost always two plans pretending to be one. And if t
 Before designing phases, gather what exists:
 
 - **Codebase scan** - read entry points, existing patterns, conventions in `docs/`. Delegate to a subagent (`Explore` or `general-purpose` via the `Agent` tool) if the codebase is large; do not bloat the planning session with file dumps.
-- **Research** - for unfamiliar libraries/APIs, use `WebSearch` or `vd:research`. In `--deep` mode, dispatch 1–2 researcher subagents for parallel topics (e.g. "X library auth flow", "Y rate-limit patterns").
+- **Research** - for unfamiliar libraries/APIs, use `WebSearch` or `vd:research`. In `--deep` mode, dispatch 1-2 researcher subagents for parallel topics (e.g. "X library auth flow", "Y rate-limit patterns").
 - **Risks** - note version mismatches, deprecated APIs, breaking changes, hidden state (caches, feature flags, migrations) that affect sequencing.
 
 Skip this phase if the user provided scout/research reports already. Don't repeat work.
 
 ## Phase 3 - Design phases
 
-Decompose the approach into 3–7 phases. Rules:
+Decompose the approach into 3-7 phases. Rules:
 
 - **Order by dependency, not by domain.** "Backend then frontend" is a domain split. The right split is "what unblocks the next thing." If frontend can be stubbed and backend phases can ship independently, do that.
 - **First phase ships something small and real.** Setup-only phases ("configure tooling") are fine but should be ≤1 phase. Don't spend 3 phases on scaffolding.
@@ -216,7 +216,7 @@ depends_on: [{phase ids}]
 # Phase {N}: {Title}
 
 ## Overview
-{1–2 sentences: what this phase delivers, why it's a phase.}
+{1-2 sentences: what this phase delivers, why it's a phase.}
 
 ## Files
 - **Create:** `path/...`

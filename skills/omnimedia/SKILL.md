@@ -91,8 +91,8 @@ Do not hand off only `out.png`, `results.json`, or another basename. For multi-f
 - **Image gen**: routed through `$imagegen` inside `codex exec`. Image-model selection is opaque (informally `gpt-image-2` family); not directly choosable.
 - **`--model` semantics**: forwards to `codex exec -m` as the **Codex base model** (e.g. `gpt-5.6-sol`, `o3`). NOT an image-model selector - see `references/codex-imagegen.md` for details.
 - **Auth**: ChatGPT subscription via `codex login`; no `OPENAI_API_KEY` used.
-- **Throughput**: one image per turn, **5–30s latency**; no batch mode. For batch generation, use `--provider minimax` (image-01 supports 1–9 batch).
-- **Quota**: image-gen turns burn ~3–5× per-turn budget; on rate limit the auto cascade falls through to Google.
+- **Throughput**: one image per turn, **5-30s latency**; no batch mode. For batch generation, use `--provider minimax` (image-01 supports 1-9 batch).
+- **Quota**: image-gen turns burn ~3-5× per-turn budget; on rate limit the auto cascade falls through to Google.
 
 ## Scripts
 

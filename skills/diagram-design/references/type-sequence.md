@@ -19,7 +19,7 @@
 | Call (sync) | solid muted or link-blue | filled | Request that expects a reply |
 | Return | **dashed** muted (or match call color) | filled | Reply to a sync call - never solid |
 | Async / fire-and-forget | dashed muted | **open** arrowhead | Beacons, events, one-way notify |
-| Headline success | solid accent (≤1–2 messages) | accent filled | Primary happy-path response only |
+| Headline success | solid accent (≤1-2 messages) | accent filled | Primary happy-path response only |
 
 ### Open arrowhead (async)
 

@@ -254,8 +254,8 @@ Repo-relative paths are fine as secondary context, but the final handoff must in
 | --- | --- | --- |
 | Visual richness | High | Medium |
 | Text-label crispness | Variable | Excellent |
-| Approx cost / diagram | $0.04–0.19 | $0.005–0.02 |
-| Latency | 30–90s | 10–20s |
+| Approx cost / diagram | $0.04-0.19 | $0.005-0.02 |
+| Latency | 30-90s | 10-20s |
 | Editable | No | Yes (any vector tool) |
 | Best for | Pitch decks, design docs | Engineering docs, PR-diffable diagrams |
 

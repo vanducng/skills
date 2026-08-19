@@ -12,7 +12,7 @@ All identifiers use **MixedCaps** / **mixedCaps** - never underscores (except te
 | Exported / unexported | UpperCamelCase / lowerCamelCase | `ReadAll`, `parseToken` |
 | Interface | method + `-er` | `Reader`, `Closer`, `Stringer` |
 | Constant | MixedCaps, **not** ALL_CAPS | `MaxRetries`, `defaultTimeout` |
-| Receiver | 1–2 letter abbrev, consistent across methods | `func (s *Server)` - never `this`/`self` |
+| Receiver | 1-2 letter abbrev, consistent across methods | `func (s *Server)` - never `this`/`self` |
 | Sentinel error | `Err` prefix | `ErrNotFound` |
 | Error type | `Error` suffix | `PathError` |
 | Constructor | `New` (single type) / `NewTypeName` (multi) | `user.New()`, `http.NewRequest` |
@@ -40,13 +40,13 @@ All identifiers use **MixedCaps** / **mixedCaps** - never underscores (except te
 ## Function design
 
 - Short, one job, **≤4 params** (else options struct). Parameter order: `ctx` first, then inputs, then output destinations.
-- Name returns for docs/clarity in longer funcs; naked returns only in 1–3 line functions.
+- Name returns for docs/clarity in longer funcs; naked returns only in 1-3 line functions.
 - Prefer generics over `any` when a concrete type will do: `func Contains[T comparable](s []T, target T) bool`.
 - Philosophy: *a little copying beats a little dependency*; avoid `reflect`; minimize public surface (every exported name is a commitment); don't abstract until the pattern is stable.
 
 ## Structs & interfaces
 
-- **Keep interfaces 1–3 methods**; compose larger ones (`io.ReadWriteCloser`). "The bigger the interface, the weaker the abstraction."
+- **Keep interfaces 1-3 methods**; compose larger ones (`io.ReadWriteCloser`). "The bigger the interface, the weaker the abstraction."
 - **Define interfaces where consumed, not where implemented.** The consumer owns the contract; the implementor exports a concrete struct.
 - **Accept interfaces, return structs.** Never return an interface from a constructor.
 - **Discover interfaces, don't design them** - start concrete, extract when a 2nd implementation or a test mock demands it.

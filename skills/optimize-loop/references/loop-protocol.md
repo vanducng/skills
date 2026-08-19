@@ -1,6 +1,6 @@
 # Loop Protocol
 
-Phases 0–8 per iteration (plus a 5.5 guard step). Run in order - no skipping.
+Phases 0-8 per iteration (plus a 5.5 guard step). Run in order - no skipping.
 
 ## Phase 0 - Precondition checks (first iteration only)
 

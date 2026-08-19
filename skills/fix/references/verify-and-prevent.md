@@ -35,7 +35,7 @@ The original symptom is gone but the blast-radius sweep, contract check, or an a
 Surface it and let the user decide. Present:
 - **What broke** - the file / test / workflow / contract.
 - **Why the fix caused it** - one-line cause linking the change to the breakage.
-- **2–4 concrete options**, e.g.:
+- **2-4 concrete options**, e.g.:
   - Revert the fix and try a different root-cause angle.
   - Keep the fix and update the dependent code at `<files>` to match the new contract.
   - Narrow the fix scope to `<subset>` so the regression goes away.

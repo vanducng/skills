@@ -66,11 +66,11 @@ If `--model` is omitted (or auto-detected to a non-Codex model like `gemini-3.1-
 
 ## Quota math
 
-OpenAI doesn't publish per-image token math. The only public guidance is that image-generation turns burn **3–5× the per-turn budget** of text-only turns. Recent ChatGPT Plus/Pro changes raised the rate-limit ceiling, but exhaustion still happens on heavy days; on quota the wrapper raises `CodexQuotaExceeded`, which the `auto` cascade catches and falls through.
+OpenAI doesn't publish per-image token math. The only public guidance is that image-generation turns burn **3-5× the per-turn budget** of text-only turns. Recent ChatGPT Plus/Pro changes raised the rate-limit ceiling, but exhaustion still happens on heavy days; on quota the wrapper raises `CodexQuotaExceeded`, which the `auto` cascade catches and falls through.
 
 ## Latency
 
-Expect **5–30 seconds per image**. Codex runs the full agent loop, not a thin API call. For tight inner loops (batch generation, design iteration) prefer `--provider gemini` (Imagen 4 Flash) or `--provider minimax` (image-01 batch).
+Expect **5-30 seconds per image**. Codex runs the full agent loop, not a thin API call. For tight inner loops (batch generation, design iteration) prefer `--provider gemini` (Imagen 4 Flash) or `--provider minimax` (image-01 batch).
 
 Codex is **one image per turn** - no batch mode.
 
@@ -97,8 +97,8 @@ This avoids brittleness when Codex output formats drift between minor versions.
 ## Limits and known issues
 
 - **Image-to-image / reference images** are supported via `--image/-i` (forwards to `codex exec -i`), requiring codex-cli ≥ 0.137. `$imagegen` treats attachments as reference/source; fidelity of the composite is model-dependent - verify on first real run.
-- **No batch mode**. One image per `codex exec` turn. Cascading to MiniMax (`image-01`, 1–9 batch) is the path for batch generation.
-- **No streaming progress**. The wrapper blocks until Codex finishes (typical 5–30s).
+- **No batch mode**. One image per `codex exec` turn. Cascading to MiniMax (`image-01`, 1-9 batch) is the path for batch generation.
+- **No streaming progress**. The wrapper blocks until Codex finishes (typical 5-30s).
 - **Sandbox**: runs with `--sandbox workspace-write` inside a tmpdir; no host filesystem writes outside the wrapper's `--out` target.
 
 ## Testing

@@ -97,9 +97,9 @@
 | `strokeWidth` | 1 (thin), 2 (default), 3 (bold), 4+ | use 3 for streaming/critical paths |
 | `strokeStyle` | solid, dashed, dotted | dashed = async/external; dotted = mount/lineage |
 | `roughness` | 0 (clean), 1 (sketch), 2 (rough) | always 0 for technical diagrams |
-| `opacity` | 0–100 | 30 for translucent zone backgrounds |
-| `fontFamily` | 1–8 (Virgil/Helvetica/Cascadia/...) | 5 = Excalifont (default), 2 = Helvetica for cleanest reads |
-| `fontSize` | 16–28 | 16-20 shapes, 24-28 titles |
+| `opacity` | 0-100 | 30 for translucent zone backgrounds |
+| `fontFamily` | 1-8 (Virgil/Helvetica/Cascadia/...) | 5 = Excalifont (default), 2 = Helvetica for cleanest reads |
+| `fontSize` | 16-28 | 16-20 shapes, 24-28 titles |
 | `roundness` | `{type: 2}` | curved arrows or rounded rectangles |
 | `elbowed` | true | elbowed arrows |
 | `points` | `[[x,y]...]` or `[{x,y}...]` | both forms accepted |

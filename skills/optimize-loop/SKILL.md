@@ -70,7 +70,7 @@ AskUserQuestion(questions:[
 
 ## Core protocol
 
-Full spec: [`references/loop-protocol.md`](references/loop-protocol.md) - per-iteration Phases 0–8 plus a 5.5 guard step: Precondition → Review → Ideate → Modify → Commit → Verify → Guard → Decide → Log → Repeat.
+Full spec: [`references/loop-protocol.md`](references/loop-protocol.md) - per-iteration Phases 0-8 plus a 5.5 guard step: Precondition → Review → Ideate → Modify → Commit → Verify → Guard → Decide → Log → Repeat.
 
 **Invariants:**
 - ONE atomic change per iteration - atomicity test: describe it in one sentence without "and".

@@ -177,7 +177,7 @@ Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` 
 ## Herd Pro notes
 
 - **Shared services:** Pro's MySQL/Postgres/Redis are shared across all sites - DB isolation (step 4) is the main safeguard; Redis/queue can collide too (use a per-worktree `REDIS_PREFIX` / `DB_REDIS` if the branch hits queues).
-- **HTTPS is the Pro default** for team projects - mirror it (steps 2–3), don't force HTTP.
+- **HTTPS is the Pro default** for team projects - mirror it (steps 2-3), don't force HTTP.
 - **Per-site PHP:** `herd isolate <php-version>` inside the worktree if it needs a different PHP than the global default.
 
 ## Common issues

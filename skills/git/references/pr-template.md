@@ -18,8 +18,8 @@ PR readers have the diff one click away. Body explains *why* and *what's risky*,
 
 | Section | Length |
 |---|---|
-| **Why / Context** | 1–2 sentences. Motivation + ticket. No RCA, no scout reports, no narrative. |
-| **Main Changes / What** | 3–5 bullets max. Each bullet = a behavior or surface change, not a file list. Stop describing once a curious reader could open the diff and see the rest. |
+| **Why / Context** | 1-2 sentences. Motivation + ticket. No RCA, no scout reports, no narrative. |
+| **Main Changes / What** | 3-5 bullets max. Each bullet = a behavior or surface change, not a file list. Stop describing once a curious reader could open the diff and see the rest. |
 | **Notes / Additional Notes** | Optional. Only add a note if a reviewer genuinely needs it (sequencing, breaking change, manual deploy step, follow-up flagged). If nothing surprising, omit or write `none`. |
 | **Checklist** | Tick honestly. Don't pad with explanations. |
 
@@ -148,9 +148,9 @@ Three labelled bullets + a verification block (one field per line). No section h
 - **What:** <semicolon-separated behavior shifts for ≤3 items, OR nested bullets for >3 (cap 7)>
 - **Risks:** <breaking changes / migration notes - or `none`>
 
-**Tests:** <✓ what ran / counts - or ✗ N failing, – skipped>
-**Docs:** <✓ updated | – N/A>
-**Breaking:** <– none | ⚠ see CHANGELOG>
+**Tests:** <✓ what ran / counts - or ✗ N failing, - skipped>
+**Docs:** <✓ updated | - N/A>
+**Breaking:** <- none | ⚠ see CHANGELOG>
 ```
 
 > **One field per line** (blank line before the block). GitHub PR bodies render single newlines as breaks, so each field gets its own row - a descriptive `Tests:` value stays readable and never wraps `Docs:`/`Breaking:` onto a stray line. `Tests:` may name what ran (counts + suites); `Docs:`/`Breaking:` stay short. **Don't** collapse the three onto one `·`-joined line - that's the row that wrapped and pushed `Breaking:` onto its own line.
@@ -174,8 +174,8 @@ Three labelled bullets + a verification block (one field per line). No section h
 - **Risks:** none.
 
 **Tests:** ✓ 127
-**Docs:** – N/A
-**Breaking:** –
+**Docs:** - N/A
+**Breaking:** -
 ```
 
 **Mid-sized PR (≤3 behavior shifts):**

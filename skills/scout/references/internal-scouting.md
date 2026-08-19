@@ -48,7 +48,7 @@ See SKILL.md for per-discipline segment templates (software / data / devops / an
 
 - One Task tool message containing **all** Explore agent calls
 - Each agent gets a distinct, non-overlapping scope
-- Total agent count: usually 3–8. Above 8, return diminishes; under 3, do it inline.
+- Total agent count: usually 3-8. Above 8, return diminishes; under 3, do it inline.
 
 ## Example - auth scout
 
@@ -105,7 +105,7 @@ wc -l path/to/*.ext
 
 ### Step 2 - chunk plan
 - Target ≤ 500 lines per chunk
-- ≤ 3–5 small files per agent, OR 1 large file split across agents
+- ≤ 3-5 small files per agent, OR 1 large file split across agents
 
 ```
 chunks = ceil(total_lines / 500)
@@ -131,7 +131,7 @@ All in one message → parallel.
 
 ```
 < 500 lines        → read whole file
-500–1500 lines     → 2–3 chunks
+500-1500 lines     → 2-3 chunks
 > 1500 lines       → ceil(lines / 500) chunks
 ```
 

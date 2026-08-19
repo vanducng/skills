@@ -733,7 +733,7 @@ def digest(path: Path, pages: list[Page], selected: list[Page], max_rows: int) -
             out.append("- collapsible groups (simplify here first):")
             for group in info["collapsible_groups"]:
                 kids = ", ".join(group["child_labels"])
-                out.append(f"  - {group['label']} - {group['children']} children: {kids}")
+                out.append(f" - {group['label']} - {group['children']} children: {kids}")
 
         out.append("")
         out.append("### Nodes")

@@ -12,7 +12,7 @@ metadata:
 
 Close the loop between *using* skills and *improving* them. After a session where you leaned on the catalog, the friction you hit (a wrong command, a missing recipe, a stale doc) is the highest-signal feedback there is - it's real, it just happened, and it will happen to the next session. This skill captures that signal **selectively** and ships it back into `~/skills`.
 
-The discipline is restraint. Most sessions produce **0–2** real skill improvements. A long list is a smell.
+The discipline is restraint. Most sessions produce **0-2** real skill improvements. A long list is a smell.
 
 ## What this skill is - and isn't
 
@@ -55,7 +55,7 @@ Reject everything else and **log what you rejected and why** - visible restraint
 5. **Find the real file and make the smallest correct edit.** Edit `~/skills/skills/<skill>/...`. Note `~/.claude/skills/*` are per-skill **symlinks** into `~/skills/skills/*` - edit the symlink target. Fix the wrong line; add a tight recipe or troubleshooting row. Do not rewrite a skill you don't own or change its voice.
 6. **Ship** via `vd:ship --auto`, scoped to the `~/skills` repo (`git -C ~/skills` / `gh -R vanducng/skills` per ship Rule 12). Split into conventional commits by type/scope - `fix(<skill>):` for corrections, `docs(<skill>):` / `feat(skills):` as fits; **no AI references**. release-please owns versioning: never hand-edit CHANGELOG/version, and **do not auto-merge the release PR** it opens.
 
-`--dry-run`: do steps 1–5 and present the proposed edits + rejects, but stop before ship.
+`--dry-run`: do steps 1-5 and present the proposed edits + rejects, but stop before ship.
 
 ## Hard rules
 

@@ -21,7 +21,7 @@ Cluster strongly-related entities. **Core entities** (most connections) sit cent
 
 ## Level of detail
 Include: entity name, primary key, foreign keys, cardinality, relationship verb.
-Exclude: full column lists unless prompt explicitly asks. Show 3–6 illustrative columns max per entity.
+Exclude: full column lists unless prompt explicitly asks. Show 3-6 illustrative columns max per entity.
 
 ## Image-prompt template
 ```
@@ -69,5 +69,5 @@ viewBox="0 0 1600 900". Each entity: 220px wide, header band fill #f1ede5, body 
 ## Common mistakes to avoid
 - Do NOT skip cardinality on relationships.
 - Do NOT cross relationship lines when re-arranging entities fixes it.
-- Do NOT list every column - pick the 3–6 most relevant.
+- Do NOT list every column - pick the 3-6 most relevant.
 - Do NOT use the success/error colors here.

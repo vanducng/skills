@@ -81,7 +81,7 @@ When unsure between two paths, pick the one a reviewer can delete or rewrite in 
 ### If input is a free-text task (`--quick`)
 
 - Restate the task in one sentence
-- Sketch the change in 3–5 lines (files touched, behavior change)
+- Sketch the change in 3-5 lines (files touched, behavior change)
 - If who / why / success / out of scope are not confirmed and the task is not a typo/rename, **stop and run `vd:interview`** before editing
 - **Ask for confirmation** before editing if the change touches >1 file or >50 LOC
 - **Feature-first repos - claim a feature first.** If the hook context shows `Feature: none` (paths under `_global/scratch/`), run `workbench new <slug>` before writing artifacts so they land in `features/<slug>/` instead of scratch. Idempotent; skip when a feature is already active. (The plan-loading path inherits its plan's feature - nothing to do.)

@@ -59,7 +59,7 @@ Before spawning: how will it exit? can I signal stop? can I wait? who owns/close
 | --- | --- |
 | High `alloc_objects` in heap profile | Reduce allocations; `sync.Pool`; preallocate |
 | Function dominates CPU profile | Inlining, cache locality, avoid `reflect` |
-| High GC% / OOM in a container | `GOMEMLIMIT` at 80–90% of the limit; `GOGC` tuning |
+| High GC% / OOM in a container | `GOMEMLIMIT` at 80-90% of the limit; `GOGC` tuning |
 | Goroutines blocked on I/O | Tune `http.Transport` (`MaxIdleConnsPerHost` defaults to 2), stream, batch |
 | Same work repeated | Cache, `singleflight` |
 | Mutex/block profile hot | Shorten critical sections, reduce contention |

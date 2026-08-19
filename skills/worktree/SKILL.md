@@ -180,7 +180,7 @@ Unless `--no-enter` was passed, **move the working session into the new worktree
 
 - **Claude Code** - call the `EnterWorktree` tool with the worktree path:
   ```javascript
-  EnterWorktree({ path: "<worktreePath>" })   // seamless in-session cwd switch
+  EnterWorktree({ path: "<worktreePath>" })   // switches cwd in-session, no restart
   ```
   Later, leave with `ExitWorktree({ action: "keep" })` (keeps the branch + files) or `{ action: "remove" }` (deletes both). The path is already registered in `git worktree list`, so `EnterWorktree` accepts it even though it lives under `.worktrees/`, not `.claude/worktrees/`.
 - **Codex** - there is **no in-session cwd switch**. Either relaunch rooted at the worktree (`codex --cd "<worktreePath>"`) or run subsequent commands from it. The `sessionSwitch.action` field gives the exact `codex --cd` command.
@@ -205,7 +205,7 @@ PORT=23450
 COMPOSE_PROJECT_NAME=app-login-fix # docker compose isolation for free
 ```
 
-Port blocks are a deterministic hash of the worktree name into 20000–39990, collision-checked against sibling worktrees - stable across recreations, no registry. Main checkout keeps default ports (3000/8000/5173); only worktrees get offsets.
+Port blocks are a deterministic hash of the worktree name into 20000-39990, collision-checked against sibling worktrees - stable across recreations, no registry. Main checkout keeps default ports (3000/8000/5173); only worktrees get offsets.
 
 **Using the ports:**
 

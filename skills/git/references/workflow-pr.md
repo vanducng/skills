@@ -89,18 +89,18 @@ gh pr create --base "$TO" --head "$FROM" \
 - **Risks:** none.
 
 **Tests:** ✓ N
-**Docs:** – N/A
-**Breaking:** –
+**Docs:** - N/A
+**Breaking:** -
 EOF
 ```
 
 **Existing PR for this branch:** `gh pr edit --body-file`, don't re-create.
 **Draft mode** when WIP: add `--draft`.
-**Landing:** only on explicit user request. Never `gh pr checks N && gh pr merge N`
-— `gh pr checks` exits **8** while a check is pending, so the merge never runs.
+**Landing:** only on explicit user request. Never `gh pr checks N && gh pr merge N` -
+`gh pr checks` exits **8** while a check is pending, so the merge never runs.
 Wait with `scripts/wait-for-checks.sh` then merge, or queue `gh pr merge --auto`.
 Unresolved review threads stay blocked by `hooks/pr-merge-guard.py`. Full CI
-watch + comment gates: `vd:ship` Steps 15–16.
+watch + comment gates: `vd:ship` Steps 15-16.
 
 ## Tool 4 - PR feedback pass
 

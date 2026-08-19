@@ -20,7 +20,7 @@ twitter doctor          # always run this first
 - Repeated identical tweets.
 
 **Fix.**
-1. Wait 10–15 minutes and retry the same single call.
+1. Wait 10-15 minutes and retry the same single call.
 2. If it persists: rerun under the browser fallback - `twitter --use-browser fetch ...`. (Browser-side `post` is deferred to v2; for writes during a 226 incident, post via Dia manually.)
 3. If 226 persists across the whole session: cool the account for a few hours; X's heuristic decays.
 

@@ -306,7 +306,7 @@ The subtitle stays muted because it's parenthetical metadata - only the primary 
 
 - **Never on the focal node.** The focal node is already colored with the accent (§2.7). A `color` on the focal node is ignored - accent wins.
 - **Never on source nodes.** Sources live outside the cluster and stay neutral.
-- **Cap at 2 custom-colored components** per diagram (in addition to the focal). Three or more colored things erases the signal - the same reason §1 limits accent to 1–2 elements.
+- **Cap at 2 custom-colored components** per diagram (in addition to the focal). Three or more colored things erases the signal - the same reason §1 limits accent to 1-2 elements.
 - **No color on connectors.** If you find yourself wanting a colored edge, the right move is to pick a different `style` from §3, not to override.
 
 **Semantic uses** (recommended):

@@ -51,7 +51,7 @@ One worker per CSV row; each calls `report_agent_job_result` exactly once. Param
 Pairs with `vd:worktree`. One worktree + background `codex exec` per task; `wait`. Each agent writes in isolation, no merge collisions mid-flight.
 
 ### Natural-language spawn
-"Spawn one agent per review point, wait for all, summarize each." Codex orchestrates spawn/route/wait/close. Lowest ceremony, lowest determinism - keep fan-out at **3–5** (token cost is linear; human review is the real ceiling).
+"Spawn one agent per review point, wait for all, summarize each." Codex orchestrates spawn/route/wait/close. Lowest ceremony, lowest determinism - keep fan-out at **3-5** (token cost is linear; human review is the real ceiling).
 
 ## Patterns (translated from Claude's Workflow)
 - **Loop-until-dry:** repeat a finder step until K rounds return nothing new (script with repeated `run_workflow` calls).

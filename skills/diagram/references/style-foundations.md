@@ -41,7 +41,7 @@ These are the ONLY shapes. Reuse across every diagram type so the visual grammar
 
 ## Color Density
 
-- **Maximum 3–5 colors per diagram.** More than 5 = visual noise.
+- **Maximum 3-5 colors per diagram.** More than 5 = visual noise.
 - **The accent color highlights AT MOST one "subject" per diagram.** More than one and the highlight loses meaning.
 - Success / error colors are reserved for **explicit ok / error semantics** - never decorative.
 

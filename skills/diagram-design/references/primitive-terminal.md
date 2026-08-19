@@ -51,7 +51,7 @@ Inside the SVG, swap the default light/dark tokens 1:1 for their `terminal-*` eq
 
 **Everything is monospace** - this is the one variant where that's correct. Drop Instrument Serif and Geist sans entirely; set the page title in mono, bold, prefixed with `# ` (reads as a comment line). The eyebrow becomes a shell prompt: `$ ` in `terminal-accent`, the command in `terminal-muted`.
 
-Run every text role about **1–2px above** the default type scale in `style-guide.md` (e.g. `node-name` 12px → 14px, `sublabel`/`arrow-label` 8–9px → 9–10px, hub label 16px → 18px). Monospace at the default sizes reads small next to the sans/serif mix it's replacing, and these cards are usually viewed at social-feed scale, not full-bleed.
+Run every text role about **1-2px above** the default type scale in `style-guide.md` (e.g. `node-name` 12px → 14px, `sublabel`/`arrow-label` 8-9px → 9-10px, hub label 16px → 18px). Monospace at the default sizes reads small next to the sans/serif mix it's replacing, and these cards are usually viewed at social-feed scale, not full-bleed.
 
 ## Titlebar dots
 
@@ -61,7 +61,7 @@ Three 10px circles, macOS-style. The **1-accent rule caps the color use here too
 
 - No pure black (`#000000`) - use `terminal-page` (`#0a0a0a`) / `terminal-paper` (`#141414`). Same rule as the default skin, same reason: true black clips on OLED and in print.
 - One accent only. If a diagram needs a second focal element, use `terminal-ink` (white) for emphasis via weight/size, not a second color.
-- Background dot-grid pattern (if used) stays `rgba(255,255,255,0.06–0.08)` - barely visible texture, not a visual competitor to the titlebar chrome.
+- Background dot-grid pattern (if used) stays `rgba(255,255,255,0.06-0.08)` - barely visible texture, not a visual competitor to the titlebar chrome.
 
 ## When to use
 

@@ -1,12 +1,12 @@
 # External Scouting - Gemini / OpenCode CLI
 
-Use external CLIs for **large-context** scouts (1M+ token windows). Faster than Explore subagents when SCALE is small (1–5) and the target dirs are large.
+Use external CLIs for **large-context** scouts (1M+ token windows). Faster than Explore subagents when SCALE is small (1-5) and the target dirs are large.
 
 ## Tool selection
 
 ```
-SCALE 1–3   → gemini CLI
-SCALE 4–5   → opencode CLI
+SCALE 1-3   → gemini CLI
+SCALE 4-5   → opencode CLI
 SCALE ≥ 6   → fall back to internal scouting (references/internal-scouting.md)
 ```
 
@@ -30,7 +30,7 @@ If missing:
 1. Ask the user whether to install (manual auth may be needed for gemini), OR
 2. Fall back to **internal scouting** without asking when the user clearly wants results now
 
-## Gemini (SCALE 1–3)
+## Gemini (SCALE 1-3)
 
 ```bash
 timeout 120 gemini -y -m "${GEMINI_MODEL:-gemini-3-flash-preview}" \
@@ -44,7 +44,7 @@ timeout 120 gemini -y -m gemini-3-flash-preview --prompt \
   "Search src/ for authentication-related files. List paths with one-line descriptions." 2>&1
 ```
 
-## OpenCode (SCALE 4–5)
+## OpenCode (SCALE 4-5)
 
 ```bash
 opencode run "[scout-prompt]" --model "${OPENCODE_MODEL:-opencode/grok-code}"
