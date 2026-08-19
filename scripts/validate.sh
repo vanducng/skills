@@ -150,4 +150,10 @@ if ! bash "${REPO}/scripts/check-skill-paths.sh" --enforce; then
   failed=$((failed + 1))
 fi
 
+echo
+# Enforced: no em dashes or curly quotes in catalog prose (vd:unslop floor).
+if ! bash "${REPO}/scripts/check-slop.sh" --enforce; then
+  failed=$((failed + 1))
+fi
+
 [[ $failed -eq 0 ]]
