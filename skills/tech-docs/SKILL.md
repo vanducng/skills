@@ -126,3 +126,4 @@ Do not configure DNS, change Pages settings, merge, or deploy unless the user au
 3. Never replace working content architecture just to match a template.
 4. Never publish unverified commands or configuration.
 5. Never declare success from a local build alone when live deployment was requested.
+6. Run a `vd:unslop` pass on page prose before shipping - no AI tells, no em dashes.

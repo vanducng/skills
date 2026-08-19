@@ -104,3 +104,4 @@ Never pass `RWEB_API_KEY` on the command line.
 - HTML does not contain API keys, credentials, private data, or unpublished
   customer information.
 - Citations appear in both `content.md` and the HTML when external facts are used.
+- All visible page prose passes `vd:unslop` - no AI tells, no em dashes, no puffery.
