@@ -2,6 +2,25 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.57.0](https://github.com/vanducng/skills/compare/v1.56.0...v1.57.0) (2026-08-19)
+
+
+### Features
+
+* **apidesign:** type-system discipline reference ([34c22dc](https://github.com/vanducng/skills/commit/34c22dc5c7126425bc75148bea189a3c968c7f80))
+* **cook,code-review:** cross-model adversarial escalation ([b5808b2](https://github.com/vanducng/skills/commit/b5808b2187afc580c09c10ad31a526329f198d42))
+* **devops:** idempotent operations reference ([28944e7](https://github.com/vanducng/skills/commit/28944e7d0522761b2db1333f8dc570b3f070b7b9))
+* **docs,tech-docs:** shared technical-writing prose standard ([e0251ec](https://github.com/vanducng/skills/commit/e0251ec5a8a526e5b9aedab6c8235668248d6e72))
+* **scenario:** add --diff blast-radius mode ([b660b6f](https://github.com/vanducng/skills/commit/b660b6f4ded62cb389761c0295f5ca15cd287751))
+* **ultracook:** arena packets and decision log ([14bb8f3](https://github.com/vanducng/skills/commit/14bb8f3a0f38de243dae1dcbe53b930bf0953fd9))
+* **vd-cli:** recall recipe ([88bcd8a](https://github.com/vanducng/skills/commit/88bcd8a910c1e5e3f6809b33793d3e735de87490))
+* **web-e2e:** bootstrap flows by discovery ([3c36c8c](https://github.com/vanducng/skills/commit/3c36c8c80bc393cc6473f8cb6ae445010d537412))
+
+
+### Bug Fixes
+
+* **skills:** address pstack-adoption review findings ([f60c7be](https://github.com/vanducng/skills/commit/f60c7bec86a9808b7e02b113907c5f745b2e9ecc))
+
 ## [1.56.0](https://github.com/vanducng/skills/compare/v1.55.0...v1.56.0) (2026-08-19)
 
 
