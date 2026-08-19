@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 79 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 80 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -29,7 +29,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Web and frontend | `vd:uiuxdesign`, `vd:opendesign`, `vd:fastreact` |
 | CLI engineering and operations | `vd:braze`, `vd:cli-ts`, `vd:smartsheet`, `vd:voice-agent` |
 | Docs and diagrams | `vd:docs`, `vd:tech-docs`, `vd:diagram`, `vd:diagram-design`, `vd:text-diagram`, `vd:excalidraw` |
-| Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
+| Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:unslop`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
 | Data and workspace | `vd:miudb`, `vd:vd-cli`, `vd:superwhisper`, `vd:aws`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:issue-invoice` |
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:cktovd`, `vd:workbench` |
