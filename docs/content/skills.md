@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 80 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 79 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -28,7 +28,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Browser automation and e2e | `vd:ego-browser`, `vd:browser`, `vd:browser-profile`, `vd:browser-trace`, `vd:agent-browser`, `vd:web-e2e`, `vd:web-perf` |
 | Web and frontend | `vd:uiuxdesign`, `vd:opendesign`, `vd:fastreact` |
 | CLI engineering and operations | `vd:braze`, `vd:cli-ts`, `vd:smartsheet`, `vd:voice-agent` |
-| Docs and diagrams | `vd:docs`, `vd:tech-docs`, `vd:diagram`, `vd:diagram-design`, `vd:text-diagram`, `vd:excalidraw` |
+| Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:diagram-design`, `vd:text-diagram`, `vd:excalidraw` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:unslop`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
 | Data and workspace | `vd:miudb`, `vd:vd-cli`, `vd:superwhisper`, `vd:aws`, `vd:cnpg`, `vd:astro-airflow`, `vd:gws`, `vd:jira`, `vd:issue-invoice` |
@@ -68,7 +68,7 @@ Use `vd:interview` when the ask is underspecified (who / why / success / out of 
 
 Within review, the four passes answer different questions: `vd:code-review` asks whether a change is ready to land and posts inline PR comments, `vd:code-refactor-review` stays local and asks whether the change fits the codebase or reads as slop, `vd:simplify` reduces reading complexity with behavior frozen, and `vd:zero-tech-debt` reshapes a working feature into the form it should have had from day one, deleting compatibility paths only after proving them dead. `vd:miucr` is the deterministic owned reviewer CLI (`miu-cr`) for when the review itself must be reproducible and gated by severity thresholds rather than agent judgment.
 
-Use `vd:docs` for canonical internal project docs and ADRs. Use `vd:tech-docs` to create, modernize, validate, and ship a rendered public developer documentation site.
+Use `vd:docs` for canonical internal project docs and ADRs, and its `site` subcommand to create, modernize, validate, and ship a rendered public developer documentation site (formerly the separate tech-docs skill).
 
 Use `vd:diagram-design` for polished, accessible, self-contained HTML/SVG diagrams with editorial layout guidance, Mermaid and draw.io redraw workflows, optional brand tokens, and packaged geometry, accessibility, motion, and skin checks. Use `vd:text-diagram` for ASCII sketches, `vd:diagram` for general SVG or raster output, and `vd:excalidraw` for editable whiteboard canvases.
 

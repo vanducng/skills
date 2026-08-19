@@ -34,7 +34,7 @@ agent_ctx = text("docs/content/agent-context.md")
 dev_guidelines = text("docs/content/development-guidelines.md")
 readme = text("README.md")
 theme = text("docs/src/styles/theme.css")
-shared_theme = text("skills/tech-docs/assets/theme.css")
+shared_theme = text("skills/docs/assets/theme.css")
 
 skill_dirs = sorted(
     p.name for p in (repo / "skills").iterdir()

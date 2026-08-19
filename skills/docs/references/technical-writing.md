@@ -1,6 +1,6 @@
 # Technical writing
 
-Shared prose standard for `vd:docs` (internal `./docs`) and `vd:tech-docs` (public Starlight sites). Goal: a tired engineer understands the page on the first read.
+Shared prose standard for `vd:docs` - both the internal `./docs` subcommands and the `site` subcommand (public Starlight sites). Goal: a tired engineer understands the page on the first read.
 
 This file owns structure and style. `vd:unslop` owns removing AI tells and is the final pass.
 
@@ -34,9 +34,9 @@ Do not mix modes. Split and link instead. No reference tables inside a tutorial.
 | `docs/tech-stack.md` | `vd:docs` | Reference | Languages, versions, libraries. Facts only. Cite lockfiles. |
 | `docs/deployment.md` | `vd:docs` | How-to | Environments, deploy, rollback. Numbered sequences. |
 | `docs/decisions/` ADRs | `vd:docs` | Explanation | Why we chose this. Status can change; the record stays. |
-| Getting started | `vd:tech-docs` | Tutorial | First success path. Visible output after each step. |
-| Guides | `vd:tech-docs` | How-to | Named by the task the reader already has. |
-| Reference pages | `vd:tech-docs` | Reference | Commands, flags, config keys, errors. |
+| Getting started | `docs site` | Tutorial | First success path. Visible output after each step. |
+| Guides | `docs site` | How-to | Named by the task the reader already has. |
+| Reference pages | `docs site` | Reference | Commands, flags, config keys, errors. |
 
 README is a hub, not a fifth mode. Point at the right page. Do not teach, list every flag, and argue architecture on one page.
 
@@ -100,7 +100,7 @@ Run this before you ship a page:
 8. No idioms, stacked noun strings, or ambiguous "this" / "it".
 9. No em dashes, en dashes, or curly quotes. Idle words are gone.
 10. Counts, trees, and command output are true at this commit.
-11. Public pages (`vd:tech-docs`) have no private hosts, customers, or secrets.
+11. Public pages (`docs site`) have no private hosts, customers, or secrets.
 12. `vd:unslop` has not run yet: run it last, then re-check items 9 and 10.
 
 Adapted from cursor/plugins pstack technical-writing (MIT).
