@@ -15,8 +15,10 @@ ENFORCE=0
 # Vendored skills are upstream-owned; do not fail CI on their prose.
 VENDORED_RE='^(browser|browser-trace|ego-browser)$'
 
-# em dash U+2014, en dash U+2013, curly doubles U+201C/201D, curly singles U+2018/2019
-PATTERN=$'\u2014|\u2013|\u201c|\u201d|\u2018|\u2019'
+# em dash U+2014, en dash U+2013, curly doubles U+201C/201D, curly singles U+2018/2019.
+# Literal characters, not $'\u...' escapes: bash 3.2 (stock macOS) leaves those
+# escapes unexpanded and the gate would silently match nothing.
+PATTERN='—|–|“|”|‘|’'
 
 violations=0
 
@@ -34,7 +36,7 @@ while IFS= read -r f; do
   skill="${f#"$REPO"/skills/}"; skill="${skill%%/*}"
   [[ "$skill" =~ $VENDORED_RE ]] && continue
   scan "$f"
-done < <(find "$REPO/skills" -name '*.md' -type f 2>/dev/null | sort)
+done < <(find "$REPO/skills" -name '*.md' -type f -not -path '*/node_modules/*' 2>/dev/null | sort)
 
 for f in "$REPO"/docs/content/*.md "$REPO"/docs/content/*.mdx "$REPO"/README.md; do
   [[ -f "$f" ]] && scan "$f"
