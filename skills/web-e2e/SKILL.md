@@ -64,7 +64,7 @@ Remember-me cookies live in the profile dir; with session-refresh on visit, week
 
 ## Make it repeatable - `.e2e/config.json`
 
-The per-project layer encodes what cannot be detected: how the app boots, what "healthy" means, which auth strategy applies, where the login lives. Copy the closest example and edit (~15 lines):
+The per-project layer encodes what cannot be detected: how the app boots, what "healthy" means, which auth strategy applies, where the login lives. No `.e2e/` yet and the feature surface unknown? Bootstrap it by discovery - walk the running app, confirm a feature map with the human, generate config + flows, prove one live: [references/generate-flows.md](references/generate-flows.md). Otherwise copy the closest example and edit (~15 lines):
 
 - `references/examples/laravel-herd.config.json` - Herd-served, OAuth-only login, queue-worker check
 - `references/examples/compose-spa.config.json` - docker compose boot, readyz gate, form login
