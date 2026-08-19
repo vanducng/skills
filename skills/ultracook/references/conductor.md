@@ -56,7 +56,10 @@ or auto-accepts it (`auto`).
 Many *independent* work items: repo-wide audit, migration over many call sites,
 N-finder review, broad refactor with disjoint file ownership. Use the host's native
 parallelism (Claude Code `Workflow` tool / `Task` subagents; Codex subagents). See
-[Fan-out packets](#fan-out-packets). The parent session always owns integration.
+[Fan-out packets](#fan-out-packets). Two packet shapes: **split** (divide the work)
+and **arena** (N candidates compete on the same artifact, then graft - see
+[Arena packets](#arena-packets-compete-then-graft)). The parent session always owns
+integration.
 
 ## Step 3 - Choose the workflow shape
 
@@ -137,6 +140,34 @@ Host primitive per runtime: `runtimes/claude-code.md` (Workflow / Task) ·
 `runtimes/codex.md` (subagents). Integration is never delegated - the parent reads
 each result, checks claimed edits against source/tests, rejects unevidenced output,
 then verifies.
+
+### Arena packets (compete, then graft)
+
+Split packets divide work; **arena packets compete on the same artifact**. Use when
+one attempt at a single non-trivial artifact would lock in the wrong shape - a design
+doc, a gnarly core function, a schema, a prompt - and the work is not divisible.
+
+1. **Frame before spawning.** Write the artifact spec and a 3-6 criterion gradeable
+   rubric first. Candidates see the task, never the rubric; the rubric is the
+   picker's tool. Vague criteria ("code is correct") void the arena.
+2. **Fan out 2-4 candidates** in one message, each to its own output dir (worktree or
+   tmp dir - shared paths are shared mutable state). Vary the model family when the
+   host allows; same model N times only for generation-bound work. Each candidate
+   must return the artifact **plus a short rationale** naming alternatives it
+   rejected - without it the parent cannot tell principled structure from accident.
+3. **Judge against the rubric**, criterion by criterion, after reading every
+   candidate end to end. Skimming surfaces the most familiar-looking surface, not
+   the best one. Optionally spawn one read-only cross-judge on a different model
+   family; disagreement with your pick means bias or an ambiguous rubric - read both
+   rationales before deciding.
+4. **Pick a base, graft the rest.** Port the one or two strongest ideas from each
+   loser by hand so the result stays coherent under one mental model. Record picks,
+   grafts, and rejections in `decisions.tsv` (SKILL.md hard rule 10) - the rejection
+   notes are the highest-signal rows.
+5. **Convergence is signal.** N candidates landing on the same shape → ship the
+   consensus, no graft. Wild divergence → the frame was under-specified; reframe and
+   re-run rather than averaging.
+6. **Verify like any other output.** The arena does not earn a verification pass.
 
 ## Anti-patterns
 

@@ -84,6 +84,7 @@ The sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) short-circuit the r
 7. **Composes existing `vd:*` skills** - never reimplements.
 8. **Feature-first repos - claim a feature at intake.** If the hook context shows `Feature: none` (paths under `_global/scratch/`), run `workbench new <slug>` once at intake so the whole run (pipeline slices + any direct artifacts) lands in `features/<slug>/` instead of the shared scratch bin. Idempotent; skip when a feature is already active (`feat/*` branch, active plan, or prior `workbench new`).
 9. **Observability stays in scope.** While routing direct, pipeline, or fan-out work, keep log/debug visibility in the acceptance bar: behavior-changing code should expose stable structured fields, reason codes, decision inputs, timing/counts when useful, and short human reasons, without leaking secrets or large prompt/diff payloads.
+10. **Decision log for autonomous stretches.** Once a gate clears and the run goes autonomous, append one row per decision (not per action) to `{goal-dir}/decisions.tsv`: `ts	phase	decision	why	evidence	result`. Log forks taken, pivots/reverts with their trigger, gate outcomes, and one row per auto-loop iteration verdict. Cells stay single-line; evidence is a pointer (commit SHA, `file:line`, log path), never prose; append-only - a wrong call gets a superseding row, history is never edited. `iterations/` records what ran; `decisions.tsv` records what was *chosen* and why, so a human can audit an unattended run without replaying it.
 
 ## Architecture
 
