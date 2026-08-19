@@ -36,6 +36,7 @@ Two surfaces, one skill: `init`/`update`/`check`/`adr` own internal Markdown; `s
 
 Parse `$ARGUMENTS` first word (in runtimes without `$ARGUMENTS` substitution, use the text following the skill name in the user's message):
 - `init` / `update` / `check` / `adr` → load the matching reference
+- `site` → load `references/site-workflow.md`
 - empty / unclear → `AskUserQuestion` with the options (AskUserQuestion in Claude Code; plain-text question elsewhere). Don't auto-run `init` - it writes files.
 
 ## Flags
@@ -69,7 +70,7 @@ If a project has good reasons to maintain those, add them outside `vd:docs`'s au
 
 ## Pre-flight: missing `./docs/`
 
-Before any subcommand except `init`:
+Before any subcommand except `init` and `site` (`site` runs its own inspection in `references/site-workflow.md` and asks where the rendered site should live):
 
 1. If `./docs/` does not exist → ask the user: run `init` now, or abort?
 2. If `./docs/` exists but is empty → same question.
