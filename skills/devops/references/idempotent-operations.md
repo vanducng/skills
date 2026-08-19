@@ -64,9 +64,18 @@ ON CONFLICT (version) DO NOTHING;
 ```
 
 ```bash
-# Tag-once: content-addressed tag, refuse to overwrite a different digest
-digest=$(docker buildx build --push -q -t ghcr.io/org/app:${GIT_SHA} .)
-# If the tag already points at this digest, the registry push is a no-op.
+# Tag-once: build first, compare digests, push only when the tag is absent
+# or already points at this digest. A bare `buildx build --push` silently
+# retags on rebuild-with-drifted-base unless the registry enforces
+# immutable tags.
+built=$(docker buildx build -q -t ghcr.io/org/app:${GIT_SHA} .)
+existing=$(docker buildx imagetools inspect ghcr.io/org/app:${GIT_SHA} \
+  --format '{{json .Manifest.Digest}}' 2>/dev/null || true)
+if [ -z "$existing" ]; then
+  docker push ghcr.io/org/app:${GIT_SHA}
+elif [ "$existing" != "\"$built\"" ]; then
+  echo "tag ${GIT_SHA} already exists with a different digest" >&2; exit 1
+fi
 ```
 
 ```bash

@@ -162,8 +162,10 @@ doc, a gnarly core function, a schema, a prompt - and the work is not divisible.
    rationales before deciding.
 4. **Pick a base, graft the rest.** Port the one or two strongest ideas from each
    loser by hand so the result stays coherent under one mental model. Record picks,
-   grafts, and rejections in `decisions.tsv` (SKILL.md hard rule 10) - the rejection
-   notes are the highest-signal rows.
+   grafts, and rejections in `decisions.tsv` when a goal-dir exists (SKILL.md hard
+   rule 10 makes arena runs log regardless of gating); in a goal-less arena, record
+   them in the synthesis note beside the artifact. The rejection notes are the
+   highest-signal rows.
 5. **Convergence is signal.** N candidates landing on the same shape → ship the
    consensus, no graft. Wild divergence → the frame was under-specified; reframe and
    re-run rather than averaging.
