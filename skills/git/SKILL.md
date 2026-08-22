@@ -30,6 +30,7 @@ Use `vd:git` when you're mid-work and want to checkpoint, hand off a PR, or merg
 | `cp` | `references/workflow-commit.md` + `references/workflow-push.md` | Same as `cm`, then push |
 | `pr` | `references/workflow-pr.md` | Create a Pull Request from remote diff |
 | `merge` | `references/workflow-merge.md` | Merge `<from>` into `<to>` using `origin/<from>` |
+| (conflicts) | `references/conflict-resolution.md` | Load when rebase/merge stops on conflict markers |
 
 Parse `$ARGUMENTS` first word (runtimes without argument substitution: use the text following the skill name in the user's message):
 - `cm` / `cp` / `pr` / `merge` → load the matching reference
