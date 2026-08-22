@@ -14,6 +14,7 @@ Common entries:
 
 | Goal | Skill |
 | --- | --- |
+| Which skill should I run? | `vd:guide` |
 | Align on what to build | `vd:interview` |
 | Stress-test a plan or idea | `vd:interview --grill` |
 | Scout a codebase | `vd:scout` |
