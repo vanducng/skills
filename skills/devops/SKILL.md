@@ -22,6 +22,7 @@ Deployment and infrastructure operations across containers, orchestration, IaC, 
 | GKE/EKS/AKS clusters, Cloud Run, App Engine, `gcloud`, `eksctl`, Cloudflare Workers/Pages/R2/D1 | [references/cloud-platforms.md](references/cloud-platforms.md) |
 | GitHub Actions workflows, GitOps (Argo CD, Flux), deployment strategies, multi-region | [references/cicd-gitops.md](references/cicd-gitops.md) |
 | Retry-safe operations: converge-to-state, idempotency keys, guarded migrations, partial-failure recovery, run-twice tests | [references/idempotent-operations.md](references/idempotent-operations.md) |
+| Prove a deploy landed: running image matches the build, rollout became available, CI green | [references/deploy-verify.md](references/deploy-verify.md) |
 
 ## Operating principles (apply everywhere)
 

@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
-# status.sh - print a one-screen status summary for a ultracook goal.
+# status.sh - print ultracook goal status (schema v2).
 #
 # Usage:
-#   status.sh [--goal-dir <dir>]
+#   status.sh [--goal-dir <dir>] [--all]
 #
-# If --goal-dir omitted, auto-detects by scanning the configured state base,
-# user-level default state, and legacy repo-local plans/goals/*/. If none found,
-# prints "no in-progress goal" and exits 4.
+# With no --goal-dir:
+#   0 in-progress  -> "no in-progress goal" (exit 4)
+#   1 in-progress  -> print that goal
+#   N in-progress  -> list them and exit 6 (caller must pick; no silent newest-wins)
 #
-# Exit codes (scriptable):
-#   0 = terminal=done
-#   1 = terminal=blocked
-#   2 = terminal=abandoned
-#   3 = in-progress (terminal=null)
-#   4 = no goal found
-#   5 = error reading state
+# --all lists every known goal-dir (in-progress and terminal).
+#
+# Exit:
+#   0 done · 1 blocked · 2 abandoned · 3 in-progress · 4 none · 5 error · 6 pick required
+set -euo pipefail
 
-set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+. "${SCRIPT_DIR}/lib.sh"
 
 GOAL_DIR=""
 ALL=0
@@ -29,163 +30,155 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-PYBIN="${HOME}/.claude/skills/.venv/bin/python3"; [ -x "$PYBIN" ] || PYBIN="$(command -v python3)"
+PYBIN="$(_uc_python)"
 
-# Resolve state bases: $VD_STATE_PATH → <git-root>/.workbench/state (or legacy
-# .work) → XDG user state. Legacy plans/goals is still included for read-only resume.
-# Returns newline-separated list of glob patterns (may include both new + legacy).
-_hash12() {
-  if command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 | awk '{print substr($1, 1, 12)}'
-  elif command -v sha256sum >/dev/null 2>&1; then
-    sha256sum | awk '{print substr($1, 1, 12)}'
-  else
-    cksum | awk '{print $1}'
-  fi
+_collect_state_files() {
+  _uc_state_globs | while IFS= read -r pat; do
+    [ -n "$pat" ] || continue
+    # shellcheck disable=SC2086
+    for sj in $pat; do
+      [ -f "$sj" ] || continue
+      printf '%s\n' "$sj"
+    done
+  done | sort -u
 }
 
-_state_repo_id() {
-  local root="$1"
-  local source name hash
-  source="$(git -C "$root" remote get-url origin 2>/dev/null || printf '%s' "$root")"
-  name="$(printf '%s' "$source" | sed -E 's#\\#/#g; s#^.*[:/]##; s#[.]git$##')"
-  if [ -z "$name" ]; then
-    name="$(basename "$root")"
-  fi
-  name="$(printf '%s' "$name" \
-    | tr '[:upper:]' '[:lower:]' \
-    | LC_ALL=C sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
-  if [ -z "$name" ]; then
-    name="repo"
-  fi
-  hash="$(printf '%s' "$source" | _hash12)"
-  echo "${name}-${hash}"
-}
+_print_list() {
+  local filter_inprog="$1"
+  FILES="${2:-}" FILTER="$filter_inprog" "$PYBIN" - <<'PY'
+import json, os, sys, time
 
-_state_globs() {
-  if [ -n "${VD_STATE_PATH:-}" ]; then
-    echo "${VD_STATE_PATH}/*/state.json"
-  fi
-  REPO_ROOT_S="$(git rev-parse --show-toplevel 2>/dev/null || echo '')"
-  if [ -n "$REPO_ROOT_S" ] && [ -d "${REPO_ROOT_S}/.workbench" ]; then
-    echo "${REPO_ROOT_S}/.workbench/state/*/state.json"
-  elif [ -n "$REPO_ROOT_S" ] && [ -d "${REPO_ROOT_S}/.work" ]; then
-    echo "${REPO_ROOT_S}/.work/state/*/state.json"
-  fi
-  if [ -n "$REPO_ROOT_S" ]; then
-    echo "${XDG_STATE_HOME:-${HOME}/.local/state}/vd/ultracook/$(_state_repo_id "$REPO_ROOT_S")/goals/*/state.json"
-    # Always include legacy so read-either works without writing new state there.
-    echo "${REPO_ROOT_S}/plans/goals/*/state.json"
-  else
-    echo "plans/goals/*/state.json"
-  fi
-}
+filter_inprog = os.environ.get("FILTER") == "inprog"
+paths = [l.strip() for l in os.environ.get("FILES", "").splitlines() if l.strip()]
+seen, rows = set(), []
+inprog = 0
+for sj in paths:
+    gd = os.path.dirname(sj)
+    if gd in seen:
+        continue
+    seen.add(gd)
+    try:
+        s = json.load(open(sj))
+    except Exception:
+        continue
+    term = s.get("terminal")
+    if term is None:
+        inprog += 1
+        term_label = "in-progress"
+    else:
+        term_label = str(term)
+    if filter_inprog and term is not None:
+        continue
+    stages = s.get("stages") or []
+    nxt = next((st["id"] for st in stages if st.get("status") not in ("done", "skipped")), "-")
+    age_d = (time.time() - os.path.getmtime(sj)) / 86400
+    rows.append((os.path.basename(gd), s.get("goal", "?"), term_label,
+                 f"{age_d:.1f}d", s.get("iteration_count", 0), nxt, gd))
 
-# --all / --list: enumerate every goal-dir (#66 multi-goal disambiguation).
-# Exit 0 if any in-progress goal exists, else 4.
-if [ "$ALL" -eq 1 ]; then
-  mapfile -t _GLOBS < <(_state_globs)
-  _UC_GLOBS="$(printf '%s\n' "${_GLOBS[@]}")" "$PYBIN" - <<'PY'
-import os, json, glob, time
-
-patterns = [l for l in os.environ.get("_UC_GLOBS", "").splitlines() if l.strip()]
-seen, rows, inprog = set(), [], 0
-for pat in patterns:
-    for sj in sorted(glob.glob(pat)):
-        gd = os.path.dirname(sj)
-        if gd in seen:
-            continue
-        seen.add(gd)
-        try: s = json.load(open(sj))
-        except Exception: continue
-        g = {}
-        gy = os.path.join(gd, "goal.yaml")
-        if os.path.exists(gy):
-            try:
-                import yaml; g = yaml.safe_load(open(gy)) or {}
-            except Exception: g = {}
-        term = s.get("terminal") or "in-progress"
-        if term == "in-progress": inprog += 1
-        last = (s.get("last_action_result") or {}).get("action", "-")
-        age_d = (time.time() - os.path.getmtime(sj)) / 86400
-        rows.append((os.path.basename(gd), g.get("slug", "?"), term,
-                     f"{age_d:.1f}d", s.get("iteration_count", 0), last))
 if not rows:
-    print("no goals found"); raise SystemExit(4)
-print(f"{'goal-dir':<46} {'state':<11} {'age':>6} {'iter':>4} last-action")
-print("-" * 86)
-for gd, slug, term, age, it, last in rows:
-    print(f"{gd:<46} {term:<11} {age:>6} {it:>4} {last}")
+    print("no goals found")
+    sys.exit(4)
+
+print(f"{'goal-dir':<40} {'state':<11} {'age':>6} {'iter':>4} next")
+print("-" * 80)
+for slug, goal, term, age, it, nxt, _gd in rows:
+    print(f"{slug:<40} {term:<11} {age:>6} {it:>4} {nxt}")
 print(f"\n{len(rows)} goal(s), {inprog} in-progress")
-raise SystemExit(0 if inprog else 4)
+for _slug, _goal, _term, _age, _it, _nxt, gd in rows:
+    print(f"  {gd}")
+sys.exit(0 if (inprog or not filter_inprog) else 4)
 PY
+}
+
+_print_one() {
+  local gd="$1"
+  [ -f "${gd}/state.json" ] || { echo "status.sh: ${gd}/state.json not found" >&2; exit 5; }
+  GOAL_DIR="$gd" "$PYBIN" - <<'PY'
+import json, os, sys
+gd = os.environ["GOAL_DIR"]
+s = json.load(open(os.path.join(gd, "state.json")))
+term = s.get("terminal")
+label = {None: "in-progress", "done": "DONE", "blocked": "BLOCKED", "abandoned": "ABANDONED"}.get(term, str(term))
+print(f"Goal:        {s.get('goal', '')}")
+print(f"Dir:         {gd}")
+print(f"Mode:        {s.get('mode', '-')}/{s.get('autonomy', 'semi')}")
+print(f"Status:      {label}")
+print(f"Iterations:  {s.get('iteration_count', 0)}")
+if s.get("terminal_reason"):
+    print(f"Reason:      {s.get('terminal_reason')}")
+print("Stages:")
+resume = None
+for st in s.get("stages") or []:
+    mark = {"done": "x", "skipped": "-", "in_progress": ">", "pending": " "}.get(st.get("status"), "?")
+    print(f"  [{mark}] {st.get('id')}  {st.get('skill')}  ({st.get('status')})")
+    print(f"      done_when: {st.get('done_when')}")
+    if st.get("evidence"):
+        print(f"      evidence:  {st.get('evidence')}")
+    if resume is None and st.get("status") not in ("done", "skipped"):
+        resume = st.get("id")
+if term is None:
+    print(f"Resume:      {resume or '(all stages done - mark terminal)'}")
+PY
+  local t
+  t="$("$PYBIN" -c "import json; print(json.load(open('${gd}/state.json')).get('terminal') or 'null')")"
+  case "$t" in
+    done)      exit 0 ;;
+    blocked)   exit 1 ;;
+    abandoned) exit 2 ;;
+    null)      exit 3 ;;
+    *)         exit 5 ;;
+  esac
+}
+
+if [ "$ALL" -eq 1 ]; then
+  files="$(_collect_state_files || true)"
+  if [ -z "$files" ]; then
+    echo "no goals found"
+    exit 4
+  fi
+  _print_list all "$files"
   exit $?
 fi
 
-# Auto-detect: most recent state.json with terminal=null, scanning both bases.
-if [ -z "$GOAL_DIR" ]; then
-  candidates=()
-  mapfile -t _GLOBS < <(_state_globs)
-  for pat in "${_GLOBS[@]}"; do
-    # Expand glob manually (avoids issues when no match).
-    for sj in $pat; do
-      d="$(dirname "$sj")"
-      [ -d "$d" ] || continue
-      [ -f "$d/state.json" ] || continue
-      candidates+=("$d")
-    done
-  done
-  # Deduplicate (in case legacy and new-base resolve to same path).
-  IFS=$'\n' candidates=($(printf '%s\n' "${candidates[@]}" | sort -u))
-  if [ "${#candidates[@]}" -eq 0 ]; then
-    echo "status.sh: no goal-dir found (checked: ${_GLOBS[*]})" >&2
-    exit 4
-  fi
-  # Sort by name (timestamp-prefix → most recent last).
-  IFS=$'\n' SORTED=($(sort <<< "${candidates[*]}"))
-  GOAL_DIR="${SORTED[-1]}"
+if [ -n "$GOAL_DIR" ]; then
+  _print_one "$GOAL_DIR"
 fi
 
-[ -f "${GOAL_DIR}/state.json" ] || { echo "status.sh: ${GOAL_DIR}/state.json not found" >&2; exit 5; }
-[ -f "${GOAL_DIR}/goal.yaml" ]   || { echo "status.sh: ${GOAL_DIR}/goal.yaml not found"   >&2; exit 5; }
+files="$(_collect_state_files || true)"
+if [ -z "$files" ]; then
+  echo "no in-progress goal"
+  exit 4
+fi
 
-PYBIN="${HOME}/.claude/skills/.venv/bin/python3"; [ -x "$PYBIN" ] || PYBIN="$(command -v python3)"
-
-GOAL_DIR="$GOAL_DIR" "$PYBIN" - <<'PY'
-import os, json, yaml
-gd = os.environ["GOAL_DIR"]
-s = json.load(open(os.path.join(gd, "state.json")))
-g = yaml.safe_load(open(os.path.join(gd, "goal.yaml")))
-
-terminal = s.get("terminal")
-mode_label = {"done":"DONE","blocked":"BLOCKED","abandoned":"ABANDONED",None:"in-progress"}.get(terminal,"unknown")
-last = s.get("last_action_result") or {}
-
-print(f"Goal:        {g.get('short_goal','')}")
-print(f"Slug:        {g.get('slug','')}")
-print(f"Mode:        {g.get('autonomy','semi')}")
-print(f"Status:      {mode_label}{' at ' + (s.get('current_action') or '(intake-complete)') if not terminal else ''}")
-b  = g.get('budgets') or {}
-bc = s.get('budgets_consumed') or {}
-print(f"Iterations:  {s.get('iteration_count',0)} / {b.get('max_iterations','?')}")
-print(f"Budget used: rebases {bc.get('rebases',0)}/{b.get('max_rebases','?')}, "
-      f"ci-reruns {bc.get('ci_reruns',0)}/{b.get('max_ci_reruns','?')}, "
-      f"tokens ~{bc.get('token_pct',0)}%")
-if last:
-    print(f"Last action: {last.get('action','?')} → "
-          f"{'verifier_pass' if last.get('verifier_pass') else 'verifier_fail'} "
-          f"({last.get('verifier_evidence','')[:80]})")
-    print(f"Last journal: {last.get('journal_entry','')}")
-if s.get('terminal_reason'):
-    print(f"Terminal reason: {s.get('terminal_reason')}")
+inprog="$(FILES="$files" "$PYBIN" - <<'PY'
+import json, os
+for sj in os.environ.get("FILES", "").splitlines():
+    sj = sj.strip()
+    if not sj:
+        continue
+    try:
+        s = json.load(open(sj))
+    except Exception:
+        continue
+    if s.get("terminal") is None:
+        print(sj)
 PY
+)"
 
-# Exit code per terminal state.
-T="$("$PYBIN" -c "import json; print(json.load(open('${GOAL_DIR}/state.json')).get('terminal') or 'null')")"
-case "$T" in
-  done)      exit 0 ;;
-  blocked)   exit 1 ;;
-  abandoned) exit 2 ;;
-  null)      exit 3 ;;
-  *)         exit 5 ;;
-esac
+count=0
+if [ -n "$inprog" ]; then
+  count="$(printf '%s\n' "$inprog" | grep -c . || true)"
+fi
+
+if [ "$count" -eq 0 ]; then
+  echo "no in-progress goal"
+  exit 4
+fi
+
+if [ "$count" -gt 1 ]; then
+  echo "multiple in-progress goals - pick one with --goal-dir:"
+  _print_list inprog "$inprog"
+  exit 6
+fi
+
+_print_one "$(dirname "$inprog")"
