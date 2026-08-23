@@ -1,10 +1,10 @@
 ---
 name: astro-airflow
-description: "Inspect and debug Airflow on Astronomer (Astro) deployments - DAG runs, task logs, container logs, env vars, and deployment state. Use when the user mentions Astro/Astronomer, asks about DAG runs or task logs on staging/prod, says 'check the deployment', references `astro deployment`, `make airflow`, an Astro deployment ID, or a *.astronomer.run URL. Prefers the `af` CLI for DAG-level data and `astro` CLI for platform ops; curl is the fallback. For 'use Otto' / 'ask Otto' / Airflow 2→3 upgrade planning, use vd:delegating-to-otto."
+description: "Inspect and debug Airflow on Astronomer (Astro) deployments - DAG runs, task logs, container logs, env vars, and deployment state. Use when the user mentions Astro/Astronomer, asks about DAG runs or task logs on staging/prod, says 'check the deployment', references `astro deployment`, an Astro deployment ID, or a *.astronomer.run URL. Prefers the `af` CLI for DAG-level data and `astro` CLI for platform ops; curl is the fallback. Local astro dev -> vd:managing-astro-local-env. YAML DAG authoring -> vd:dag-factory. 'use Otto' / Airflow 2→3 upgrades -> vd:delegating-to-otto."
 license: MIT
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.2.0"
   upstream: "https://github.com/astronomer/agents/tree/main/skills/airflow"
 ---
 
@@ -16,10 +16,13 @@ Read-only debugging surface for Airflow on Astro. Pair three tools:
 |---|---|
 | DAG runs, task logs, import errors, health, connections, variables, pools | `af` (Airflow REST wrapper) |
 | Container logs, deployment inspect, env vars, hibernate/wake | `astro deployment ...` |
+| Local `astro dev start` / parse / scheduler restart | `vd:managing-astro-local-env` |
+| Create or edit YAML DAGs | `vd:dag-factory` |
 | User says "use Otto", long audit, Airflow 2→3 upgrade | `vd:delegating-to-otto` |
+| Deep RCA after logs are in hand | `vd:debug` then `vd:fix` |
 | `af` not installed or no remote instance configured | curl against `/api/v2/` (Airflow 3) or `/api/v1/` (Airflow 2) |
 
-**When NOT to use:** local-only Airflow where `make airflow CMD=...` or `astro dev start` is enough. This skill is for *remote* (staging/prod) inspection, plus wiring `af` at those URLs.
+**When NOT to use:** local-only Airflow (`astro dev start`, parse, pytest) - that is `vd:managing-astro-local-env`. YAML authoring is `vd:dag-factory`. This skill is remote (staging/prod) inspection, plus wiring `af` at those URLs.
 
 ## Prerequisites
 

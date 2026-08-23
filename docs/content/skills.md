@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 80 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 82 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -31,7 +31,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Docs and diagrams | `vd:docs`, `vd:diagram`, `vd:diagram-design`, `vd:text-diagram`, `vd:excalidraw` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:unslop`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 | Design | `vd:apidesign`, `vd:dbdesign` |
-| Data and workspace | `vd:miudb`, `vd:vd-cli`, `vd:superwhisper`, `vd:aws`, `vd:cnpg`, `vd:astro-airflow`, `vd:delegating-to-otto`, `vd:gws`, `vd:jira`, `vd:issue-invoice` |
+| Data and workspace | `vd:miudb`, `vd:vd-cli`, `vd:superwhisper`, `vd:aws`, `vd:cnpg`, `vd:astro-airflow`, `vd:dag-factory`, `vd:managing-astro-local-env`, `vd:delegating-to-otto`, `vd:gws`, `vd:jira`, `vd:issue-invoice` |
 | Local operations | `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:cktovd`, `vd:workbench` |
 | Language and migration | `vd:golang`, `vd:gostack`, `vd:py2go` |
 | Infrastructure and deployment | `vd:devops` |
