@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 76 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 79 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -94,7 +94,10 @@ Escalation ladder (start local; `vd:browser` is the cloud fallback):
 | `vd:devops` | Docker, Kubernetes, Terraform/OpenTofu, cloud platforms, GitHub Actions, GitOps; deploy-verify checks for image/rollout/CI |
 | `vd:aws` | Official AWS CLI, identity-first scoping, incident tracing |
 | `vd:cnpg` | CloudNativePG operations |
-| `vd:astro-airflow` | Astro / Airflow operations |
+| `vd:astro-airflow` | Remote Astro / Airflow inspection (`af`, deployment logs) |
+| `vd:dag-factory` | YAML DAG authoring (map vs list dialect) |
+| `vd:managing-astro-local-env` | Local `astro dev` lifecycle |
+| `vd:delegating-to-otto` | Headless `astro otto` |
 
 ## Product CLIs
 
