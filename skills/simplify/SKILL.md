@@ -1,12 +1,12 @@
 ---
 name: simplify
-description: "Reduce the complexity of existing code without changing behavior - deep nesting, long functions, dead code, unclear names, the wrong abstraction. Use after a feature works but reads heavier than it should, or to clean up code written under time pressure. Triggers: 'simplify this', 'clean up this code', 'reduce complexity', 'refactor for clarity', 'this is hard to read', 'untangle this'."
+description: "Reduce the complexity of existing code without changing behavior - deep nesting, long functions, dead code, unclear names, the wrong abstraction. Use after a feature works but reads heavier than it should, or to clean up code written under time pressure. Pass `--aggressive` to reshape a working feature into the form it should have had from day one (delete proven-dead compatibility paths). `--scan` lists aggressive candidates only. Triggers: 'simplify this', 'clean up this code', 'reduce complexity', 'zero tech debt', 'remove the compat layer', 'rebuild this as if from scratch'."
 license: MIT
-argument-hint: "[path or scope] (defaults to recently changed code)"
+argument-hint: "[path or scope] [--aggressive | --scan] (defaults to recently changed code)"
 metadata:
   author: vanducng
   attribution: "Adapted from addyosmani/agent-skills code-simplification and the Claude code-simplifier plugin"
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # simplify
@@ -20,11 +20,18 @@ The goal is **not fewer lines** - it's code a new teammate understands faster. E
 | Skill | When | Output |
 |---|---|---|
 | **`vd:simplify`** (this) | Existing code works but reads heavy - reduce complexity, behavior unchanged | Refactor commits, tests still green |
+| `vd:simplify --aggressive` | Feature works but its *shape* is historical | May delete proven-dead paths and collapse flags; intended flow frozen |
 | `vd:cook` | Writing new code | Simplicity is built in at write-time (Pragmatism rules), not a later pass |
 | `vd:code-review` | Judging someone's diff | Reports findings; never edits |
 | `vd:fix` | Code is broken | Changes behavior to fix a bug |
 
-Use this when the code is *correct but cluttered*. If it's buggy, that's `vd:fix`. If you're still writing it, that's `vd:cook`.
+Use this when the code is *correct but cluttered*. `--aggressive` when the clutter is leftover architecture, not reading complexity. If it's buggy, that's `vd:fix`. If you're still writing it, that's `vd:cook`.
+
+| Mode | When | Behavior |
+|---|---|---|
+| **default** | Reads heavy, shape is right | Behavior frozen; readability only |
+| `--aggressive` | Shape is historical (compat flags, dead aliases) | Follow [`references/aggressive.md`](references/aggressive.md) |
+| `--scan` | Want the candidate list first | Same as aggressive, no edits |
 
 ## When to use
 

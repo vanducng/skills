@@ -20,6 +20,8 @@ NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
 
 Random fixes waste time and create new bugs. Find root cause → trace the mechanism to its source → validate at every layer → verify with fresh evidence before claiming done, then hand the fix to `vd:fix`.
 
+**No red-capable command, no hypothesizing.** Before you name a cause, you must have a command (or browser step) that is currently red and that you can re-run. Until that exists, you are gathering a repro, not debugging. Do not stack theories to fill the gap.
+
 ## Proof gate
 
 Before calling a cause confirmed:

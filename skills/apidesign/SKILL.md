@@ -46,6 +46,7 @@ Storage shape and API shape inform each other but aren't the same decision - des
 4. **Addition over modification.** Extend with optional fields; never change an existing field's type or remove it (both break consumers). Backward-compatible by default.
 5. **Predictable naming.** Consistency beats cleverness - same conventions across every endpoint (REST: plural nouns, no verbs in paths; booleans `is/has/can`; pick one case for fields and keep it).
 6. **Type-system discipline.** Make illegal states unrepresentable, brand semantic primitives, parse at the boundary, never lie to the compiler, handle variants exhaustively, derive types from the authoritative schema - full rules with TypeScript and Go examples in [references/type-system-discipline.md](references/type-system-discipline.md).
+7. **Deep modules.** Small interface, large responsibility. Push complexity down; do not split for file-size. Vocabulary and banned praise-words: [references/deep-modules.md](references/deep-modules.md).
 
 ## REST shape (worked patterns)
 

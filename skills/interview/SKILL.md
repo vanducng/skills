@@ -42,7 +42,7 @@ Default and `--grill` (want / walk-an-idea). `--wayfinder` uses the map rules in
 | Mode | When | Behavior |
 |---|---|---|
 | **default** | Ask is a want ("build X", "make it faster") | Extract outcome until confirmed |
-| `--grill` | User has a plan/idea to stress-test | Walk decisions one at a time with a recommended answer; same yes gate |
+| `--grill` | User has a plan/idea to stress-test | Walk decisions one at a time with a recommended answer; same yes gate. Other skills compose this via [`references/grilling.md`](references/grilling.md) |
 | `--wayfinder` | Deciding will not fit one session | Chart and work a shared map of decision tickets - [`references/wayfinder.md`](references/wayfinder.md) |
 
 Detect `--grill` from the flag or "grill this", "stress-test my plan". Detect `--wayfinder` from the flag or "chart this", "wayfinder", "work the map", "this is huge", "we'll be at this for a while". If both could apply, `--wayfinder` wins (it will call `--grill` on individual tickets). Announce the mode in the first reply.

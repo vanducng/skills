@@ -1,85 +1,133 @@
 #!/usr/bin/env bash
-# update-state.sh - atomic merge-patch on {goal-dir}/state.json.
+# update-state.sh - create or atomically patch a v2 ultracook state.json.
 #
 # Usage:
-#   update-state.sh --goal-dir <dir>  (reads JSON merge patch from stdin)
+#   update-state.sh --init --goal-dir <dir>   # stdin is a full state object
+#   update-state.sh --goal-dir <dir>          # stdin is a JSON merge patch
 #
-# Stdin: a JSON object with the keys to overwrite. e.g.
-#   {"current_action": "cook", "iteration_count": 4}
-# Setting a key to null clears it (JSON Merge Patch semantics - RFC 7396).
+# --init creates <dir>/state.json (dir is created if missing).
+# Merge patch uses RFC 7396 at the top level; nested dicts merge one level;
+# a JSON null clears a key (set to null). The stages array is replaced when
+# present in the patch (not merged by index).
 #
-# `updated_at` is auto-set to now() on every write.
-# Atomic: writes state.json.tmp in the same dir then mv.
-# Validates: version=1, terminal in {null,done,blocked,abandoned}.
-
+# updated_at is always set to now (UTC).
+# Validates version=2, terminal, and stage statuses.
+#
+# Exit: 0 ok · 2 usage · 3 crashed prior write (state.json.tmp) · 4 invalid state
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+. "${SCRIPT_DIR}/lib.sh"
+
 GOAL_DIR=""
+INIT=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --goal-dir) GOAL_DIR="${2:?--goal-dir requires arg}"; shift 2 ;;
-    --help|-h)  echo "usage: update-state.sh --goal-dir <dir>  (patch on stdin)"; exit 0 ;;
-    *)          echo "update-state.sh: unknown arg: $1" >&2; exit 2 ;;
+    --init)     INIT=1; shift ;;
+    --help|-h)
+      echo "usage: update-state.sh [--init] --goal-dir <dir>  (JSON on stdin)"
+      exit 0
+      ;;
+    *) echo "update-state.sh: unknown arg: $1" >&2; exit 2 ;;
   esac
 done
-[ -z "$GOAL_DIR" ] && { echo "update-state.sh: --goal-dir required" >&2; exit 2; }
-[ -f "${GOAL_DIR}/state.json" ] || { echo "update-state.sh: ${GOAL_DIR}/state.json not found" >&2; exit 2; }
+[ -n "$GOAL_DIR" ] || { echo "update-state.sh: --goal-dir required" >&2; exit 2; }
 
-# Crash-recovery guard: if state.json.tmp exists, a previous write crashed.
+if [ "$INIT" -eq 1 ]; then
+  mkdir -p "$GOAL_DIR"
+else
+  [ -f "${GOAL_DIR}/state.json" ] || { echo "update-state.sh: ${GOAL_DIR}/state.json not found" >&2; exit 2; }
+fi
+
 if [ -f "${GOAL_DIR}/state.json.tmp" ]; then
   echo "update-state.sh: ${GOAL_DIR}/state.json.tmp exists - previous write crashed." >&2
-  echo "  manual recovery: rm '${GOAL_DIR}/state.json.tmp' (re-derive state from goal.yaml + iterations/ if needed)." >&2
+  echo "  recover: rm '${GOAL_DIR}/state.json.tmp' and re-derive from the last good state.json." >&2
   exit 3
 fi
 
-PYBIN="${HOME}/.claude/skills/.venv/bin/python3"
-if [ ! -x "$PYBIN" ]; then PYBIN="$(command -v python3)"; fi
-
-# Read the patch from stdin BEFORE invoking python (the heredoc consumes
-# python's stdin for the program source, so we relay via env var).
+PYBIN="$(_uc_python)"
 PATCH_JSON="$(cat)"
+export GOAL_DIR PATCH_JSON INIT
 
-GOAL_DIR="$GOAL_DIR" PATCH_JSON="$PATCH_JSON" "$PYBIN" - <<'PY'
+"$PYBIN" - <<'PY'
 import os, sys, json, datetime
 
 goal_dir = os.environ["GOAL_DIR"]
 state_path = os.path.join(goal_dir, "state.json")
-tmp_path   = state_path + ".tmp"
-
-with open(state_path) as f:
-    state = json.load(f)
-
+tmp_path = state_path + ".tmp"
+init = os.environ.get("INIT") == "1"
 patch = json.loads(os.environ["PATCH_JSON"])
 
-# RFC 7396 JSON Merge Patch (simplified - top-level only for v0.1):
-# - patch[k] = null  → remove key (set to null in our schema)
-# - patch[k] = value → set
-# - nested dicts: recursive merge (only one level - budgets_consumed,
-#   last_action_result).
-def merge(target, patch):
-    if not isinstance(patch, dict):
-        return patch
-    for k, v in patch.items():
-        if isinstance(v, dict) and isinstance(target.get(k), dict):
-            merge(target[k], v)
-        else:
-            target[k] = v
-    return target
+if not isinstance(patch, dict):
+    print("update-state.sh: stdin must be a JSON object", file=sys.stderr)
+    sys.exit(4)
 
-merge(state, patch)
+if init:
+    state = dict(patch)
+else:
+    with open(state_path) as f:
+        state = json.load(f)
+
+    def merge(target, src):
+        if not isinstance(src, dict):
+            return src
+        for k, v in src.items():
+            if k == "stages":
+                target[k] = v
+            elif isinstance(v, dict) and isinstance(target.get(k), dict):
+                merge(target[k], v)
+            else:
+                target[k] = v
+        return target
+
+    merge(state, patch)
+
 state["updated_at"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+if init and "created_at" not in state:
+    state["created_at"] = state["updated_at"]
 
-# Validate.
-if state.get("version") != 1:
+ALLOWED_TERMINAL = (None, "done", "blocked", "abandoned")
+ALLOWED_STATUS = ("pending", "in_progress", "done", "skipped")
+
+if state.get("version") != 2:
     print(f"update-state.sh: invalid version: {state.get('version')}", file=sys.stderr)
     sys.exit(4)
-if state.get("terminal") not in (None, "done", "blocked", "abandoned"):
+if state.get("terminal") not in ALLOWED_TERMINAL:
     print(f"update-state.sh: invalid terminal: {state.get('terminal')}", file=sys.stderr)
     sys.exit(4)
 
-# Atomic write.
+stages = state.get("stages")
+if stages is None:
+    stages = []
+    state["stages"] = stages
+if not isinstance(stages, list):
+    print("update-state.sh: stages must be a list", file=sys.stderr)
+    sys.exit(4)
+
+ids = []
+for i, st in enumerate(stages):
+    if not isinstance(st, dict):
+        print(f"update-state.sh: stages[{i}] must be an object", file=sys.stderr)
+        sys.exit(4)
+    for req in ("id", "skill", "done_when", "status"):
+        if not st.get(req):
+            print(f"update-state.sh: stages[{i}] missing {req}", file=sys.stderr)
+            sys.exit(4)
+    if st["status"] not in ALLOWED_STATUS:
+        print(f"update-state.sh: stages[{i}] invalid status: {st['status']}", file=sys.stderr)
+        sys.exit(4)
+    ids.append(st["id"])
+
+current = state.get("current_stage")
+if current not in (None, "") and current not in ids:
+    print(f"update-state.sh: current_stage {current!r} is not a stage id", file=sys.stderr)
+    sys.exit(4)
+
 with open(tmp_path, "w") as f:
-    json.dump(state, f, indent=2)
+    json.dump(state, f, indent=2, sort_keys=False)
     f.write("\n")
 os.replace(tmp_path, state_path)
+print(state_path)
 PY
