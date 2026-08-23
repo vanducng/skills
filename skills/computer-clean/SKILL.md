@@ -66,6 +66,8 @@ for root in "$HOME/git" "$HOME/code" "$HOME/src" "$HOME/projects" \
 done
 ```
 
+For the canonical registration per repo (including worktrees not co-located under a directory named `worktrees`), use `git -C "$repo" worktree list --porcelain`. Do not grep or `find` for a literal `.git/worktrees` path - the `scout-block` hook denies any Bash command matching `(^|/)\.git(/|$)` to protect the context window.
+
 Run `node "$HOME/skills/skills/worktree/scripts/worktree.cjs" clean` from each repository root. It is a dry run unless `--yes` is supplied, reports branch state and reclaimable size, and skips dirty worktrees unless `--force` is supplied.
 
 ## Phase 2 - Classify
