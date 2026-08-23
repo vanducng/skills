@@ -55,12 +55,23 @@ uvx --from astro-airflow-mcp af instance discover --dry-run
 uvx --from astro-airflow-mcp af instance use <name>
 ```
 
-Add by hand (token from gopass, never echo it):
+Add by hand without persisting the secret. `af instance add --token` writes the value into `~/.astro/config.yaml`. Prefer a `${VAR}` reference or a one-shot env:
 
 ```bash
-uvx --from astro-airflow-mcp af instance add staging \
-  --url "https://<org>.astronomer.run/<short-id>" \
-  --token "$ASTRO_TOKEN"
+export AIRFLOW_AUTH_TOKEN="$(gopass show -o <path/to/deployment-token>)"
+export AIRFLOW_API_URL="https://<org>.astronomer.run/<short-id>"
+uvx --from astro-airflow-mcp af dags list
+```
+
+Persistent instance (token stays in the environment, not the file):
+
+```yaml
+# ~/.astro/config.yaml  (or project .astro/config.yaml)
+instances:
+- name: staging
+  url: https://<org>.astronomer.run/<short-id>
+  auth:
+    token: ${AIRFLOW_AUTH_TOKEN}
 ```
 
 If `af` prints `reading from the legacy ~/.af/config.yaml`, tell the user `af migrate` exists; do not run it unasked.

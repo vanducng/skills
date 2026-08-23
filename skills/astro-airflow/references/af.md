@@ -11,9 +11,10 @@ Default file is `~/.astro/config.yaml` (`AF_CONFIG` overrides). Legacy `~/.af/co
 ```bash
 af instance list
 af instance use staging
-af instance add prod --url https://airflow.example.com --token "$API_TOKEN"
 AIRFLOW_API_URL=https://staging.example.com AIRFLOW_AUTH_TOKEN=$STG af dags list
 ```
+
+Do not `af instance add --token "$TOKEN"` - that persists the secret in `~/.astro/config.yaml`. Use `${AIRFLOW_AUTH_TOKEN}` in YAML instead.
 
 `af instance discover` creates Astro API tokens. Always `--dry-run` and get approval first.
 
