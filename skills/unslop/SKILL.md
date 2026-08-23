@@ -1,6 +1,6 @@
 ---
 name: unslop
-description: "Cut AI tells from prose and add a human voice - PR bodies, docs, READMEs, blog/devlog posts, release notes, review summaries, commit messages, any text a person will read. Use when the user says 'unslop', 'de-AI this', 'remove AI tells', 'humanize this', 'this sounds like AI', or as the final pass whenever another skill produces prose. Do not use for conversion copy structure (vd:copywriting), doc structure (vd:docs, incl. its site mode), or code slop (vd:code-refactor-review)."
+description: "Cut AI tells from prose and add a human voice - PR bodies, docs, READMEs, blog/devlog posts, release notes, review summaries, commit messages, any text a person will read. Use when the user says 'unslop', 'de-AI this', 'remove AI tells', 'humanize this', 'this sounds like AI', or as the final pass whenever another skill produces prose. Do not use for conversion copy structure (vd:copywriting), doc structure (vd:docs, incl. its site mode), or code slop (vd:code-review --refactor)."
 license: MIT
 argument-hint: "[file, text, or 'last message']"
 metadata:
@@ -20,7 +20,7 @@ metadata:
 | **`vd:unslop`** | **"Does this read like a human wrote it?"** | **Rewritten prose, meaning preserved** |
 | `vd:copywriting` | "Does this convert?" | Formula-driven marketing copy |
 | `vd:docs` (incl. `site`) | "Is this documented correctly?" | Structured docs / docs site |
-| `vd:code-refactor-review` | "Is this *code* slop?" | Diff review report |
+| `vd:code-review --refactor` | "Is this *code* slop?" | Diff review report |
 | `vd:simplify` | "Is this code hard to read?" | Behavior-preserving refactor |
 
 Unslop edits **prose**. It changes wording and rhythm, never facts, claims, links, or code blocks.

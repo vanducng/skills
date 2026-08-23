@@ -1,123 +1,85 @@
-# Conductor - dynamic workflow selection
+# Conductor - classify, then compose
 
-The conductor is the brain that runs **before** intake. It reads the task, classifies
-it, and picks the smallest workflow that can prove the result. No ceremony for small
-tasks; full machinery only when the task earns it.
+Read the task, pick the smallest workflow that can prove the result. No ceremony for small tasks; a goal-dir only when the task earns it.
 
 Two orthogonal axes:
 
 - **Mode** (how much workflow): `direct` · `pipeline` · `fan-out`
 - **Autonomy** (how often to gate): `manual` · `semi` · `auto` - see `autonomy-modes.md`
 
-Mode decides the *shape*; autonomy decides the *gating*. A `pipeline` can run `semi`;
-a `fan-out` can run `auto`. Pick both.
-
 ## Step 1 - Classify
-
-Read the goal text + repo signals. Score these axes (cheap heuristics, not a model call):
 
 | Axis | Signal | Pull toward |
 |---|---|---|
-| **Want-clarity** | missing who / why / success / constraint / out of scope; "build me X"; convention words | interview-first (interactive only) |
-| **How-clarity** | "maybe", "could", "or", contradictory or open-ended *approach* after want is known | brainstorm-first |
+| **Want-clarity** | missing who / why / success / constraint / out of scope | interview-first (interactive only) |
+| **How-clarity** | "maybe", "could", "or", open-ended approach after want is known | brainstorm-first |
 | **Session-span** | "this is huge", "we'll be at this for a while", 3+ interdependent decisions still in fog | `vd:interview --wayfinder` (do not open a pipeline) |
 | **Reversibility** | delete / drop / force-push / deploy / migrate / revoke | approval gate |
-| **Scope / blast** | "all", "every", "bulk", repo-wide, many files, external system | plan + fan-out |
+| **Scope / blast** | "all", "every", "bulk", repo-wide | plan + fan-out |
 | **Complexity** | multi-file, new subsystem, cross-cutting, >~50 LOC | pipeline |
-| **Verification** | none / command / tests / build / browser / manual checklist | sets gate depth |
+| **Verification** | none / command / tests / browser / checklist | sets `done_when` depth |
 
-A task can score on several axes - take the strongest pull.
+Take the strongest pull.
 
 ## Step 2 - Pick a mode
 
 ```
-want unclear (who/why/success missing)   → pipeline, shape = interview-first (semi/manual only)
-how unclear, want known                  → pipeline, shape = brainstorm-first
-deciding will not fit one session        → vd:interview --wayfinder; do not open a pipeline
-irreversible AND high blast radius       → pipeline + hard gate (always ask)
-repo-wide / migration / N-finder audit   → fan-out
-multi-file / real feature / has verifier → pipeline
-small, clear, single-surface, reversible → direct
-want unclear AND autonomy=auto / exec    → block; do not invent intent
+want unclear                         → pipeline, interview-first (semi/manual only)
+how unclear, want known              → pipeline, brainstorm-first
+deciding will not fit one session    → vd:interview --wayfinder; no pipeline
+irreversible AND high blast          → pipeline + hard gate
+repo-wide / migration / N-finder     → fan-out
+multi-file / real feature            → pipeline
+small, clear, single-surface         → direct
+want unclear AND autonomy=auto       → block; do not invent intent
 ```
 
-### `direct` - just do it
-Trivial, clear, low-blast: a typo, one function, a narrow question, one command, a
-config tweak. **Do not** create a goal-dir or `state.json`. Do the task, run the
-narrowest useful check, report. Mention the full pipeline wasn't needed only if useful.
+### `direct`
 
-### `pipeline` - the goal loop (interview → brainstorm → plan → cook → ship)
-A real feature/fix with phases, uncertainty, or blast radius. This is the executor
-core: intake → `resolve-workflow.sh` → executor → `vd:auto-loop` for iteration → terminal.
-The conductor proposes the **action shape** (see Step 3); intake confirms it (`semi`)
-or auto-accepts it (`auto`).
+Typo, one function, a narrow question, one command. Do **not** create `state.json`. Do the task with `vd:cook --quick` or `vd:fix`, run the narrowest useful check, report.
 
-### `fan-out` - parallel packets
-Many *independent* work items: repo-wide audit, migration over many call sites,
-N-finder review, broad refactor with disjoint file ownership. Use the host's native
-parallelism (Claude Code `Workflow` tool / `Task` subagents; Codex subagents). See
-[Fan-out packets](#fan-out-packets). Two packet shapes: **split** (divide the work)
-and **arena** (N candidates compete on the same artifact, then graft - see
-[Arena packets](#arena-packets-compete-then-graft)). The parent session always owns
-integration.
+### `pipeline`
 
-## Step 3 - Choose the workflow shape
+A real feature/fix. Write `state.json` with the stages the task earns (skill name + `done_when`). Invoke each skill; the skill owns its discipline. Use `vd:auto-loop` when a stage must iterate (usually cook/verify).
 
-The one-session spine is **interview → brainstorm → plan → cook → ship**. Run the smallest
-slice; skip stages the task doesn't need. If session-span fires, run `vd:interview --wayfinder`
-instead of proposing a shape. This maps onto the intake `action_shape`:
+### `fan-out`
 
-| Proposed shape | Spine slice | Pick when |
+Many independent items. Use the host's native parallelism. Two packet shapes: **split** (divide the work) and **arena** (N candidates compete, then graft). The parent always owns integration.
+
+## Step 3 - Choose the slice
+
+The spine is **interview → brainstorm → plan → cook → ship**. Skip stages the task does not need.
+
+| Shape | Stages | Pick when |
 |---|---|---|
-| `interview-first` | interview → (brainstorm\|plan) → cook → ship | want is unconfirmed (who/why/success/out of scope) |
+| `interview-first` | interview → (brainstorm or plan) → cook → ship | want unconfirmed |
 | `brainstorm-first` | brainstorm → plan → cook → ship | want known, approach not decided |
-| `plan-only` | plan (stop) | user wants a plan, not execution |
-| `fix-and-ship` | (scout) → cook → ship | clear fix, design already obvious |
-| `refactor` | plan → cook → verify | cross-cutting change, no new behavior |
+| `plan-only` | plan | user wants a plan, not execution |
+| `fix-and-ship` | cook or fix → ship | clear fix, design obvious |
+| `refactor` | plan → cook → code-review --refactor | cross-cutting change, no new behavior |
 
-In `semi`/`manual` the conductor *proposes*; the user can override at intake. In `auto`
-the conductor's proposal stands.
+In `semi`/`manual` the conductor proposes; the user can override. In `auto` the proposal stands.
 
-## Step 4 - Progressive autonomy (interactive → autonomous)
+A mid-pipeline hole is `vd:interview --grill` on that decision, not a new conductor verb.
 
-Stay human-in-the-loop until a gate clears, then run autonomously to a terminal
-condition. Default `semi` already encodes this; the gate map:
+## Always ask (every mode, including `auto`)
 
-| Gate | When it fires | After it clears |
-|---|---|---|
-| **Plan approval** | first `plan` action (semi) | run autonomously through cook |
-| **Risk gate** | irreversible OR high-blast action | proceed once approved/compensated |
-| **Ship** | `ship` action (semi) | land, then watch CI |
-| **Final verify** | `verify_*` actions (semi) | mark terminal |
+Stop for a clear yes/no before:
 
-Once a gate clears, **do not re-gate** - escalate back to the user only on an
-*exception*: a test failure in an unrelated area, a merge conflict, a structural
-type/lint error (not auto-fixable), a tool/service down after retries, or a
-never-seen error. This is what prevents approval fatigue. Mechanics live in
-`should-gate.sh` + `autonomy-modes.md`; nothing else makes gate decisions.
+- Delete / overwrite / mass-rename; force-push, history rewrite, remote changes
+- Publish, deploy, email, post, or any external side effect
+- Migrations or broad codemods
+- Credentials, secrets, production data, billing, or user accounts
+- Expensive/long-running fan-outs
+- Global installs or machine-level config; real customer data in prompts
 
-## Always ask (hard gates - every mode, including `auto`)
+If approval is missing, continue only with safe read-only or local-draft work. For ambiguous risk: state the action, state the side effect, offer a dry-run, ask one question.
 
-Stop and ask one clear yes/no before:
-
-- Delete / overwrite / mass-rename; force-push, history rewrite, remote changes.
-- Publish, deploy, email, post, or any external side effect.
-- Migrations or broad codemods.
-- Credentials, secrets, production data, billing, or user accounts.
-- Expensive/long-running fan-outs (large `Workflow`, many subagents).
-- Global installs or machine-level config; real customer data in prompts.
-
-If approval is missing, continue only with safe read-only / local-draft work. For
-ambiguous risk: state the action, state the side effect, offer a safe fallback (e.g.
-a dry-run + diff), ask one question. Report any skipped risky action in the final answer.
+Deploy and rollout checks (image tag, `kubectl rollout status`) live in `vd:devops` references, not in this conductor.
 
 ## Fan-out packets
 
-When mode = `fan-out`, decompose into narrow, bounded, evidence-based packets with
-**disjoint write scope**. Good: "find entry points for X", "migrate adapter Y",
-"add tests for module Z". Bad: "fix the whole thing", "edit any files you need".
-
-Agent prompt shapes:
+Narrow, bounded, evidence-based, **disjoint write scope**.
 
 ```text
 Read-only packet:
@@ -136,60 +98,35 @@ Write-capable packet:
   Output: files changed, summary, verification run, risks/blockers.
 ```
 
-Host primitive per runtime: `runtimes/claude-code.md` (Workflow / Task) ·
-`runtimes/codex.md` (subagents). Integration is never delegated - the parent reads
-each result, checks claimed edits against source/tests, rejects unevidenced output,
-then verifies.
+Integration is never delegated. The parent reads each result, checks claimed edits against source/tests, rejects unevidenced output, then verifies.
 
 ### Arena packets (compete, then graft)
 
-Split packets divide work; **arena packets compete on the same artifact**. Use when
-one attempt at a single non-trivial artifact would lock in the wrong shape - a design
-doc, a gnarly core function, a schema, a prompt - and the work is not divisible.
+Use when one attempt at a single non-trivial artifact would lock in the wrong shape.
 
-1. **Frame before spawning.** Write the artifact spec and a 3-6 criterion gradeable
-   rubric first. Candidates see the task, never the rubric; the rubric is the
-   picker's tool. Vague criteria ("code is correct") void the arena.
-2. **Fan out 2-4 candidates** in one message, each to its own output dir (worktree or
-   tmp dir - shared paths are shared mutable state). Vary the model family when the
-   host allows; same model N times only for generation-bound work. Each candidate
-   must return the artifact **plus a short rationale** naming alternatives it
-   rejected - without it the parent cannot tell principled structure from accident.
-3. **Judge against the rubric**, criterion by criterion, after reading every
-   candidate end to end. Skimming surfaces the most familiar-looking surface, not
-   the best one. Optionally spawn one read-only cross-judge on a different model
-   family; disagreement with your pick means bias or an ambiguous rubric - read both
-   rationales before deciding.
-4. **Pick a base, graft the rest.** Port the one or two strongest ideas from each
-   loser by hand so the result stays coherent under one mental model. Record picks,
-   grafts, and rejections in `decisions.tsv` when a goal-dir exists (SKILL.md hard
-   rule 10 makes arena runs log regardless of gating); in a goal-less arena, record
-   them in the synthesis note beside the artifact. The rejection notes are the
-   highest-signal rows.
-5. **Convergence is signal.** N candidates landing on the same shape → ship the
-   consensus, no graft. Wild divergence → the frame was under-specified; reframe and
-   re-run rather than averaging.
+1. **Frame before spawning.** Write the spec and a 3-6 criterion rubric first. Candidates see the task, never the rubric.
+2. **Fan out 2-4 candidates** to their own output dirs. Each returns the artifact plus a short rationale naming rejected alternatives.
+3. **Judge against the rubric**, criterion by criterion, after reading every candidate.
+4. **Pick a base, graft the rest.** Port one or two strongest ideas from each loser by hand. Record picks in `decisions.tsv` when a goal-dir exists.
+5. **Convergence is signal.** Same shape from N candidates → ship the consensus. Wild divergence → reframe, do not average.
 6. **Verify like any other output.** The arena does not earn a verification pass.
 
 ## Anti-patterns
 
-- **Ceremony > signal.** If the task fits in ~30 lines of doing, it's `direct`. Don't
-  spin up a goal-dir, packets, or a supervisor for a rename.
-- **Unbounded autonomy.** Every `auto`/fan-out run keeps the hard guardrails: iter
-  cap, retry caps, same-signature recognizer, token-cap prompt-back.
-- **Gating trivia.** Don't gate variable renames. Gate irreversible OR high-blast only.
-- **Vague gates.** Gate conditions must be checkable ("all tests pass", "plan lists
-  rollback"), never "proceed if confident".
+- **Ceremony > signal.** A rename is `direct`. No goal-dir.
+- **Closed vocab.** Do not invent conductor actions or verifier types. Name the skill and the `done_when`.
+- **Vague gates.** "Proceed if confident" is not a gate.
+- **Unbounded autonomy.** Keep the iter / rebase / CI / same-signature caps from SKILL.md.
 
 ## Worked examples
 
-| Prompt | Classify | Mode / shape / autonomy |
-|---|---|---|
-| "fix this typo in the README" | clear, tiny, reversible | `direct` |
-| "build me a dashboard" | want unconfirmed | `pipeline` / interview-first / semi |
-| "should we use SSE or WebSockets for notifications?" | want known, ambiguous design | `pipeline` / brainstorm-first / semi |
-| "rebuild billing, auth, and admin - we'll be at this for weeks" | deciding will not fit one session | `vd:interview --wayfinder` (no pipeline) |
-| "implement settings export, ship to staging, verify" | real feature, clear-ish | `pipeline` / fix-and-ship / semi |
-| "migrate all API clients to the new SDK" | repo-wide, many sites | `fan-out` + hard gate (broad codemod) |
-| "get lint errors to zero" | mechanical, measurable | `pipeline` / fix-and-ship / auto (delegates to `vd:optimize-loop`) |
-| "audit the repo for slow startup paths" | broad, read-heavy | `fan-out`, read-only packets |
+| Prompt | Mode / shape |
+|---|---|
+| "fix this typo in the README" | `direct` |
+| "build me a dashboard" | `pipeline` / interview-first / semi |
+| "should we use SSE or WebSockets?" | `pipeline` / brainstorm-first / semi |
+| "rebuild billing, auth, and admin - weeks of work" | `vd:interview --wayfinder` (no pipeline) |
+| "implement settings export and ship" | `pipeline` / fix-and-ship / semi |
+| "migrate all API clients to the new SDK" | `fan-out` + hard gate |
+| "get lint errors to zero" | `pipeline` / fix-and-ship / auto (may compose `vd:optimize-loop`) |
+| "audit the repo for slow startup paths" | `fan-out`, read-only packets |

@@ -80,7 +80,7 @@ A fact stuck below 4 is reported as **unproven**, never rounded up to settled.
 
 **Save it like the default mode:** write the report to the injected `Reports:` path as `scenario-diff-{date}-{slug}.md` and hand back an openable location (`file:///absolute/path`), not just the basename.
 
-**Boundaries:** landing verdicts stay with `vd:code-review`; codebase-fit stays with `vd:code-refactor-review`; this mode owns beyond-the-diff breakage with runnable proof.
+**Boundaries:** landing verdicts stay with `vd:code-review`; codebase-fit stays with `vd:code-review --refactor`; this mode owns beyond-the-diff breakage with runnable proof.
 
 ## Limitations (honest)
 

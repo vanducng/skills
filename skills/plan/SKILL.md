@@ -1,11 +1,11 @@
 ---
 name: plan
-description: "Turn a chosen approach into a phased implementation plan with concrete steps, file changes, and success criteria. Use after `vd:interview` and `vd:brainstorm` (or a cleared `vd:interview --wayfinder` chunk, or any decided design) when you need to sequence the work before building. Default produces plan.md + phase files; pass `--quick` for a single-file plan, `--deep` for research dispatch + red-team review. Do not use while the approach is still foggy across multiple fronts - that's vd:interview --wayfinder."
+description: "Turn a chosen approach into a phased implementation plan with concrete steps, file changes, and success criteria. Use after `vd:interview` and `vd:brainstorm` (or a cleared `vd:interview --wayfinder` chunk, or any decided design) when you need to sequence the work before building. Default produces plan.md + phase files; pass `--quick` for a single-file plan, `--deep` for research dispatch + red-team review, `--audit` to independently check an existing plan. Do not use while the approach is still foggy across multiple fronts - that's vd:interview --wayfinder."
 license: MIT
-argument-hint: "[task or path to brainstorm brief] [--quick | --deep] [--tdd]"
+argument-hint: "[task or path to brainstorm brief | plan-dir --audit] [--quick | --deep] [--tdd] [--audit [--fix [--apply-all]]]"
 metadata:
   author: vanducng
-  version: "1.2.1"
+  version: "1.3.0"
 ---
 
 # Plan
@@ -39,6 +39,7 @@ Plan converts a *decided* approach into a *sequenced* implementation. If the app
 | `--quick` | Single-file change, bug fix, tight scope (<3 phases) | One file: `{plans-path}/{date}-{slug}/plan.md` with inline steps |
 | **default** | Standard feature, 3-7 phases | `plan.md` overview + `phase-XX-{name}.md` per phase |
 | `--deep` | High-risk, multi-system, irreversible | Default output + research dispatch (Phase 2) + red-team review (Phase 6) + independent audit (Phase 7) |
+| `--audit` | Existing plan needs a clean-context second look | Severity-tagged report; optional `--fix` / `--fix --apply-all`. See [`references/audit.md`](references/audit.md) |
 
 Composable flag:
 
@@ -46,7 +47,7 @@ Composable flag:
 |---|---|
 | `--tdd` | Each phase opens with a "Tests first" step + a failing-test checklist before implementation |
 
-Detect mode from the argument or task shape. Announce mode in your first reply.
+Detect mode from the argument or task shape. A path to an existing plan dir plus `--audit` (or "audit this plan") is audit-only: skip Phases 1-6 and follow [`references/audit.md`](references/audit.md). Announce mode in your first reply.
 
 ## Phase 1 - Frame
 
@@ -55,7 +56,7 @@ Before writing any plan file, in your reply, capture:
 - **Goal** - one sentence. What ships at the end.
 - **Approach** - one paragraph. The chosen design (from brainstorm brief, or stated by user).
 - **Success criteria** - observable signals that the goal is met (not "code works" - "endpoint X returns 200 with shape Y", "page loads in <500ms on 3G").
-- **Definition of Done** - the goal's *machine-checkable* form: 1-5 typed verifiers (`test_suite_passes`, `cmd_exits_zero`, `shell`, `http_status`, `manual_confirm`), one per line as `- <type>: <arg>`. Plain commands + expected results only, **no tool-specific constructs**, so the goal runs identically under Claude Code and Codex. `vd:cook` runs them as a final goal gate via the shared runner `cook/scripts/eval-dod.sh` (resolved across the `$HOME/.claude/skills`, `$HOME/.agents/skills`, `$HOME/skills/skills` install roots - see `vd:cook` Phase 3); validate the block as you write it with `eval-dod.sh --lint <plan.md>`. (Vocab aligns with `vd:ultracook`'s `verifier-vocab.md`.)
+- **Definition of Done** - the goal's *machine-checkable* form: 1-5 typed verifiers (`test_suite_passes`, `cmd_exits_zero`, `shell`, `http_status`, `manual_confirm`), one per line as `- <type>: <arg>`. Plain commands + expected results only, **no tool-specific constructs**, so the goal runs identically under Claude Code and Codex. `vd:cook` runs them as a final goal gate via the shared runner `cook/scripts/eval-dod.sh` (resolved across the `$HOME/.claude/skills`, `$HOME/.agents/skills`, `$HOME/skills/skills` install roots - see `vd:cook` Phase 3); validate the block as you write it with `eval-dod.sh --lint <plan.md>`.
 - **Scope boundary** - what's *out* of scope. Out-of-scope items get listed but not planned.
 - **Constraints** - language, runtime, team size, existing systems that can't change.
 
@@ -67,7 +68,7 @@ If only a sequencing detail is fuzzy after a confirmed intent, **ask before writ
 
 During framing, note any explicit non-goals or trade-offs the user states ("skip auth", "no migration needed", "use library X over Y", "defer i18n"). These belong in `{plan-dir}/decisions.md` - written alongside `plan.md` in Phase 4. Ask "any explicit non-goals to record?" if none have surfaced and the task feels likely to omit common scaffolding.
 
-**Tip:** if a brainstorm brief exists, copy its "Avoid" / "Out of scope" / "Open questions" sections into `decisions.md` as starting non-goals. The audit subagent (`vd:plan-audit`) reads `decisions.md` and respects listed exclusions, so capturing them here prevents false-positive findings later.
+**Tip:** if a brainstorm brief exists, copy its "Avoid" / "Out of scope" / "Open questions" sections into `decisions.md` as starting non-goals. The `--audit` subagent reads `decisions.md` and respects listed exclusions, so capturing them here prevents false-positive findings later.
 
 ### Scope check (mandatory)
 
@@ -96,7 +97,7 @@ Decompose the approach into 3-7 phases. Rules:
 - **Last phase = integration + validation.** The plan ends with the system working end-to-end against success criteria.
 - **Each phase has a single owner concern.** "Add migration + endpoint + UI" is three phases. "Add migration" is one.
 - **Name phases with the verb.** `phase-03-add-rate-limit-middleware.md`, not `phase-03-rate-limit.md`.
-- **Phase-sizing ceiling.** A phase touches ≤5 files and ships in one focused session. Tripwires that mean *split it*: an `and` in the title, spanning two independent subsystems, or a Success-Criteria list past ~4 items.
+- **Phase-sizing ceiling (tracer bullet).** A phase touches ≤5 files and ships in one focused session. Prefer a thin slice that proves the riskiest unknown over a wide scaffold. Tripwires that mean *split it*: an `and` in the title, spanning two independent subsystems, or a Success-Criteria list past ~4 items.
 
 **Slicing strategy** - pick one per plan (they compose with dependency ordering):
 
@@ -141,7 +142,7 @@ _Captured during vd:plan on {YYYY-MM-DD}_
 - **{constraint}** - {context}
 
 ## Agent boundaries
-_Optional. Write only if the build has dangerous edges. cook and plan-audit honor these as guardrails._
+_Optional. Write only if the build has dangerous edges. cook and `vd:plan --audit` honor these as guardrails._
 - **Always:** {things the implementer may do without asking - e.g. add tests, refactor within a touched file}
 - **Ask first:** {things needing a checkpoint - e.g. schema migrations, new dependencies, touching auth}
 - **Never:** {hard lines - e.g. delete prod data, edit generated files, commit secrets, change the public API}
@@ -256,7 +257,7 @@ After writing files, in your reply:
 3. **Recommend the next action:**
    - For implementation: `vd:cook {plan-dir}` or "I can implement Phase 1 - say go."
    - For more rigor: "Run `--deep` mode with red-team review + independent audit?"
-   - For default mode: "Run `vd:plan-audit` for independent verification before execution (recommended)."
+   - For default mode: "Run `vd:plan --audit` for independent verification before execution (recommended)."
 4. **For `--deep` runs:** mention the audit step - "Audit ran automatically. Findings: {summary}. See report: {path}. Address CRITICAL findings before `vd:cook`."
 5. **Ask if anything's missing.** Don't claim done until the user confirms the shape is right.
 
@@ -274,13 +275,12 @@ If any answer reveals a real problem → revise the plan and note the change in 
 
 ## Phase 7 - Independent audit (`--deep` only)
 
-After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as the final step. The audit skill spawns a clean-context subagent that re-reads the plan with no author bias and emits a severity-tagged report.
+After the red-team round (Phase 6), run `--audit` on this plan dir (see [`references/audit.md`](references/audit.md)). Same-context red-team is not a substitute.
 
-- Trigger: only when `--deep` is set. Default and `--quick` skip this.
+- Trigger: only when `--deep` is set. Default and `--quick` skip this. Standalone `--audit` is the same pass without writing a new plan.
 - Surface result inline: top-3 findings + path to the audit report.
 - Audit findings are **advisory** - never block plan completion. The author owns the call.
 - If the audit returns CRITICAL findings, recommend revising the plan before handoff to `vd:cook`.
-- The skill itself handles subagent dispatch, JSON parsing, and report writing. Do not re-implement here.
 
 ## Anti-rationalization
 
@@ -293,6 +293,25 @@ After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as th
 | "I'll skip the success criteria - they're obvious" | They're never obvious. Future-you, on review, will not remember. Write them. |
 | "This phase has 15 steps but it's one concern" | 15 steps = unreviewable PR = not one phase. Split. |
 | "They said build X, I know what they mean" | If Outcome / Success / Out of scope aren't confirmed, `vd:interview` first. Don't plan a guess. |
+
+## Anti-staleness
+
+Plans outlive the session that wrote them. Do not cache a file inventory that will rot.
+
+- Point at the live environment: "the handlers next to `src/http/`", not a pasted 20-file list copied from today's tree.
+- Name **Create** / **Modify** / **Delete** paths that this phase will actually touch. Those are commitments, not a repo dump.
+- If a path may move, write the discovery command (`rg -l 'type Handler'`) instead of a guess.
+- `--audit` is how a later session checks the plan against the tree as it is now.
+
+## Test seams
+
+Every default/`--deep` plan gets a `## Test Seams` section on `plan.md` (and a `## Tests` / `## Verify` pair on each phase):
+
+- The command cook will run (`npm test -- settings-csv`, `go test ./internal/export`)
+- What a failing test looks like before the phase lands
+- Any fixture, env var, or service the command needs
+
+`--tdd` makes that section the first step of every phase. A plan with no seams is a plan cook cannot gate.
 
 ## Quality bar
 
@@ -314,7 +333,7 @@ After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as th
 
 ## Output rules
 
-1. Announce mode (`--quick` / default / `--deep`) and `--tdd` if set in your first reply.
+1. Announce mode (`--quick` / default / `--deep` / `--audit`) and `--tdd` if set in your first reply.
 2. Phase 1 (frame + scope check) happens *before* writing any files - visible to the user.
 3. If decomposition triggers, stop and ask - do not write a 12-phase mega-plan.
 4. Default and `--deep` write `plan.md` + phase files. `--quick` writes only `plan.md` with inline phases.
@@ -326,5 +345,5 @@ After the red-team round (Phase 6), invoke `vd:plan-audit {this-plan-dir}` as th
 
 **Typically follows:** `vd:interview` (confirmed want) then `vd:brainstorm` (after deciding the approach), `vd:interview --wayfinder` (after a multi-session map is cleared for this chunk), `vd:research` (after picking a known option), `vd:scout` or `vd:debug` (after discovery)
 **Typically precedes:** `vd:cook` (execute the plan), or manual implementation phase-by-phase
-**Often followed by:** `vd:plan-audit` (auto on `--deep`, recommended after default mode) for independent verification
+**Often followed by:** `vd:plan --audit` (auto on `--deep`, recommended after default mode) for independent verification
 **Compares to:** `vd:interview` (want, no steps), `vd:brainstorm` (pre-decision exploration), and `vd:interview --wayfinder` (multi-session deciding) - if you find yourself debating approaches inside a plan, kick back to brainstorm or `vd:interview --wayfinder`

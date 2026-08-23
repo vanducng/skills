@@ -21,7 +21,7 @@ metadata:
 | `vd:interview --wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
 | `vd:plan` | "Given the chosen approach, what are the steps?" | Phased implementation plan |
 
-Brainstorm is **solution-space exploration**. You may end up recommending a known pattern, but the job is to surface paths the user hasn't considered, then converge. It does not own grilling - that is `vd:interview --grill`.
+Brainstorm is **solution-space exploration**. You may end up recommending a known pattern, but the job is to surface paths the user hasn't considered, then converge. It does not own grilling - that is `vd:interview --grill`. After the user picks an option, grill remaining load-bearing decisions through that skill rather than inventing a second interview loop here.
 
 ## Hard rules
 

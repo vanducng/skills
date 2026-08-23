@@ -1,111 +1,117 @@
 ---
 name: ultracook
-description: "Dynamic workflow conductor. Classifies a coding task, picks the smallest viable workflow - direct, pipeline (interview → brainstorm → plan → cook → ship), or parallel fan-out - stays interactive until a gate clears, then runs autonomously to verified done. Dual-runtime (Claude Code + Codex) with on-disk resumable state and hard guardrails. Use when the user types ultracook / $ultracook, asks to orchestrate, run the whole pipeline, drive a feature/fix/migration end-to-end, or split work across agents."
+description: "Open workflow conductor. Classifies a coding task and runs the smallest viable path - direct, a pipeline of named skills with checkable done-when gates, or parallel fan-out - then resumes from on-disk state. Use when the user types ultracook, asks to orchestrate, run the whole pipeline, drive a feature or fix end-to-end, or split work across agents. Composes vd: skills by name; does not reimplement them."
 license: MIT
-argument-hint: "[<short goal> | resume | status | kill --reason <text> | resolve <goal-dir>] [--reuse] [--manual | --semi | --auto]"
+argument-hint: "[<short goal> | resume | status | kill --reason <text>] [--manual | --semi | --auto]"
 metadata:
   author: vanducng
-  version: "0.4.0"
+  version: "1.0.0"
 ---
 
-# Ultracook - dynamic workflow conductor
+# Ultracook - open conductor
 
-`vd:ultracook` is the conductor over the `vd:` skill stack. Given a task it does two
-things, in order: **classify** it and pick the smallest viable workflow (the
-*conductor*), then run it through the right runtime primitives (the *router*). It
-composes existing skills - it never reimplements `vd:plan`, `vd:cook`, `vd:ship`, etc.
+`vd:ultracook` classifies a task and runs the smallest workflow that can prove the result. It composes existing skills **by name**. Planning rigor lives in `vd:plan`, execution in `vd:cook`, landing in `vd:ship`. This skill is a map, not a cage.
 
-The one-session spine is **interview → brainstorm → plan → cook → ship**. If the deciding
-will not fit one session, stop and run `vd:interview --wayfinder` before opening a pipeline. Ultracook
-runs only the slice a task earns: a typo goes `direct` (no machinery); a feature goes `pipeline`
-(intake → executor, gating at high-blast transitions, then autonomous); a repo-wide
-migration goes `fan-out` (parallel packets). It stays human-in-the-loop until a gate
-clears, then drives autonomously to a terminal state, with state on disk so it
-resumes across context compaction.
+The one-session spine is **interview → brainstorm → plan → cook → ship**. Run only the slice the task earns. If the deciding will not fit one session, stop and run `vd:interview --wayfinder` before opening a pipeline.
 
-This file is the entry point. It runs triage, detects the runtime (Claude Code or
-Codex), and dispatches to the adapter under `runtimes/`.
+## What this skill is - and isn't
+
+| Skill | Question it answers | Horizon |
+|---|---|---|
+| `vd:interview` | "What do you actually want?" | One session |
+| `vd:brainstorm` | "How should I approach this?" | One session |
+| `vd:plan` | "What are the build steps?" | One plan, phases sized to one session |
+| `vd:cook` | "Execute the plan." | One plan |
+| **`vd:ultracook`** | **"Drive a decided goal through the smallest skill path that proves it."** | **One goal, one pipeline** |
+| `vd:auto-loop` | "Keep iterating this one command until the gate." | One loop |
 
 ## Quick reference
 
 | Form | Action |
 |---|---|
-| `vd:ultracook "<goal>"` | New goal - intake → goal.yaml + state.json → executor loop |
-| `vd:ultracook` (no args) | Resume - auto-detect most recent in-progress goal-dir, skip intake, jump to executor |
-| `vd:ultracook status [--all]` | One-screen status; `--all`/`--list` enumerates every goal-dir (scripts/status.sh) |
-| `vd:ultracook kill --reason "<text>"` | Write terminal=abandoned + cancel.sentinel (scripts/kill.sh - runtime-agnostic) |
-| `vd:ultracook resolve <goal-dir>` | Dry-run the resolved workflow (scripts/resolve-workflow.sh - runtime-agnostic) |
-| `vd:ultracook install-hooks [--apply\|--uninstall]` | Register Codex hooks in `~/.codex/config.toml` (scripts/install-hooks.sh) |
+| `vd:ultracook "<goal>"` | Classify, write `state.json`, run stages |
+| `vd:ultracook` (no args) | Resume: list-and-pick if several in-progress; else first unfinished stage |
+| `vd:ultracook status [--all]` | `scripts/status.sh` |
+| `vd:ultracook kill --reason "<text>"` | `scripts/kill.sh` - refuses to overwrite a terminal state |
 
-Flags: `--reuse` (no worktree), `--manual` / `--semi` (default) / `--auto` (autonomy). CI/exec: `--target-kind` `--action-shape` `--autonomy` (+`--branch` `--reuse-worktree`) with `ULTRACOOK_EXEC=1` skip intake.
+Flags: `--manual` / `--semi` (default) / `--auto`. `--reuse` skips a fresh worktree.
 
-## Conductor - classify first
+## Hard rules
 
-Before any dispatch, classify the task and pick a **mode** (how much workflow) and an
-**autonomy** (how often to gate). Full heuristics + gate map in
-[`references/conductor.md`](references/conductor.md); the short form:
+1. **Compose by name.** Each stage is a skill id plus a checkable `done_when`. Never reimplement `vd:plan`, `vd:cook`, `vd:ship`, `vd:interview`, or `vd:brainstorm` here.
+2. **State on disk is source of truth.** One `state.json` (schema v2 - [`references/state.md`](references/state.md)) per goal. Resume is the first stage that is neither `done` nor `skipped`.
+3. **List-and-pick.** Several in-progress goals: print them and ask. Do not silently take the newest.
+4. **Loop primitive = `vd:auto-loop`.** Use it for cook/verify iteration. Not a home-grown retry loop.
+5. **No auto-merge on this skills repo.** `vd:ship official` without `--auto`.
+6. **Hard caps.** Global 30 iterations; 3 rebases; 2 CI reruns; same-signature failure 3 times → `blocked`. Prompt back at ~80% context.
+7. **Hard gates always ask** (even in `auto`): delete, deploy, migration, secrets, broad codemod, expensive fan-out. See [`references/conductor.md`](references/conductor.md).
+8. **Feature-first repos - claim a feature at intake.** If the hook context shows `Feature: none`, run `workbench new <slug>` once so artifacts land in `features/<slug>/`.
+9. **Observability stays in scope.** Behavior-changing code should expose stable structured fields, reason codes, and short human reasons. No secrets or large prompt/diff payloads in logs.
+10. **Decision log on autonomous stretches.** Append one row per decision to `{goal-dir}/decisions.tsv`: `ts	phase	decision	why	evidence	result`. Evidence is a pointer (commit SHA, `file:line`), never prose.
+
+## Classify, then run
+
+Full heuristics: [`references/conductor.md`](references/conductor.md). Short form:
 
 | Mode | Pick when | What runs |
 |---|---|---|
-| `direct` | trivial, clear, single-surface, reversible | do it inline - **no goal-dir** - narrowest check, report |
-| `pipeline` | real feature/fix, phases, uncertainty, blast radius | intake → executor (interview/brainstorm/plan/cook/ship slice) → `vd:auto-loop` → verify |
-| `fan-out` | repo-wide / migration / N-finder audit, independent packets | parallel packets via the runtime's native primitive; parent owns integration |
+| `direct` | trivial, clear, single-surface, reversible | Do it inline. **No goal-dir.** Narrowest check, report. Prefer `vd:cook --quick` or `vd:fix`. |
+| `pipeline` | real feature/fix, phases, uncertainty, blast radius | `state.json` stages → invoke each skill → `vd:auto-loop` when a stage must iterate → verify `done_when` |
+| `fan-out` | repo-wide / migration / N-finder, independent packets | Parallel packets via the host's native primitive; parent owns integration |
 
-Sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) and bare resume skip triage -
-they go straight to their scripts. `direct` mode finishes here without touching the
-executor. `pipeline` and `fan-out` continue to runtime dispatch below.
+Want unclear + `--auto` / non-interactive: **block**. Do not invent intent.
 
-**Progressive autonomy:** `semi` (default) gates the first `plan`, `ship`, and final
-`verify_*`, then runs autonomously; re-gate only on exceptions (unrelated test
-failure, merge conflict, non-auto-fixable error). Hard gates (delete, deploy,
-migration, secrets, broad codemod, expensive fan-out) always ask, even in `auto`.
+Autonomy (`manual` / `semi` / `auto`): [`references/autonomy-modes.md`](references/autonomy-modes.md). `semi` gates the first `vd:plan`, `vd:ship`, and the final `done_when`. After a gate clears, do not re-gate except on exceptions (unrelated test failure, merge conflict, non-auto-fixable error).
 
-## Runtime dispatch
+## Pipeline stages
 
-1. Run `bash scripts/detect-runtime.sh`. Output is `claude-code`, `codex`, or `codex-exec`.
-2. If exit 3 (unknown - no env signals + no CLI on PATH): print "Cannot detect runtime. Set `ULTRACOOK_RUNTIME` env var explicitly."
-3. Else follow the runtime body:
-   - `claude-code` → see `runtimes/claude-code.md`
-   - `codex` → see `runtimes/codex.md` (interactive TUI - intake via `ask_user_question`)
-   - `codex-exec` → `runtimes/codex.md` in **CI / non-interactive mode**: skip interactive intake. Read default-answer flags (`--target-kind`, `--action-shape`, `--autonomy`; optional `--branch`, `--reuse-worktree`) into `ULTRACOOK_*` env, then `bash scripts/intake-complete.sh`. If it prints `ready` → call `init-goal.sh` directly. If `missing:`/`invalid:` → refuse with that exact line; never silently fall back to interactive intake.
+A pipeline is an open list. Write the stages the task earns - skip the rest.
 
-`codex-exec` is an explicit exec contract: set `ULTRACOOK_EXEC=1` (or `ULTRACOOK_RUNTIME=codex-exec`). detect-runtime.sh never infers exec from TTY/process state - no env var distinguishes `codex exec` from `codex` TUI in codex-cli. When both Claude and Codex env signals are present, detection assumes `claude-code` (CODEX_SESSION_ID leaks via `inherit=all`); override with `ULTRACOOK_RUNTIME=codex`.
-
-The sub-verbs (`status`, `kill`, `resolve`, `install-hooks`) short-circuit the runtime dispatch - they invoke `scripts/<sub-verb>.sh` directly because those scripts are runtime-agnostic.
-
-## Hard rules (apply across both runtimes)
-
-1. **State on disk is source of truth.** `<state-base>/{slug}/goal.yaml` + `state.json` survive context compaction. State base resolves to `$VD_STATE_PATH` → `<git-root>/.workbench/state` when `.workbench/` exists → `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals` (`~/.local/state/...` by default). Legacy `plans/goals` is read for old runs only; do not write new ultracook state into the project tree.
-2. **Loop primitive = `vd:auto-loop` (Stop hook on Claude / `--codex` → native `/goal` on Codex).** Not `ScheduleWakeup`. Monitor is only for event-driven async waits.
-3. **No auto-merge on the skills repo.** `vd:ship official` (no `--auto`).
-4. **Closed-set verifier vocabulary + `shell` escape.** Six built-ins + `shell`.
-5. **Two verifier layers.** Per-action verifiers (cook iteration) vs workflow-level `target.verifiers` (verify_* phases). Never mix.
-6. **Hard guardrails.** Global iter cap (30), per-phase retry caps (3 rebases, 2 CI reruns), same-signature failure recognizer, token-cap prompt-back at 80%.
-7. **Composes existing `vd:*` skills** - never reimplements.
-8. **Feature-first repos - claim a feature at intake.** If the hook context shows `Feature: none` (paths under `_global/scratch/`), run `workbench new <slug>` once at intake so the whole run (pipeline slices + any direct artifacts) lands in `features/<slug>/` instead of the shared scratch bin. Idempotent; skip when a feature is already active (`feat/*` branch, active plan, or prior `workbench new`).
-9. **Observability stays in scope.** While routing direct, pipeline, or fan-out work, keep log/debug visibility in the acceptance bar: behavior-changing code should expose stable structured fields, reason codes, decision inputs, timing/counts when useful, and short human reasons, without leaking secrets or large prompt/diff payloads.
-10. **Decision log for autonomous stretches.** Once a gate clears and the run goes autonomous - and during any fan-out or arena packet, gated or not - append one row per decision (not per action) to `{goal-dir}/decisions.tsv`: `ts	phase	decision	why	evidence	result`. Log forks taken, pivots/reverts with their trigger, gate outcomes, and one row per auto-loop iteration verdict. Cells stay single-line; evidence is a pointer (commit SHA, `file:line`, log path), never prose; append-only - a wrong call gets a superseding row, history is never edited. `iterations/` records what ran; `decisions.tsv` records what was *chosen* and why, so a human can audit an unattended run without replaying it.
-
-## Architecture
-
-```
-SKILL.md (this file) - conductor (classify) + router (detect + dispatch)
-references/
-  conductor.md - triage: mode/autonomy selection, gate map, fan-out packets
-  autonomy-modes.md - manual/semi/auto gate semantics
-  architecture.md - two-layer SKILL.md ↔ bash-script invariant
-  action-vocab.{md,yaml} - 22 actions · verifier-vocab.{md,yaml} - 7 verifier types
-  codex-runtime.md - Codex specifics · codex-gap-workarounds.md - Monitor/Skill bridges
-runtimes/
-  claude-code.md - Claude Code adapter (tools: Skill, Task, Workflow, Monitor, hooks)
-  codex.md - Codex adapter (codex exec, subagents, --ask-for-approval/--sandbox)
-  detect.md - runtime detection spec
-scripts/ - runtime-agnostic bash (filesystem/git/parse); never call runtime tools
-projects/ - 4 TOML profiles, picked by git remote
+```json
+{
+  "id": "plan",
+  "skill": "vd:plan",
+  "done_when": "plan.md exists with phases and a Definition of Done block",
+  "status": "pending"
+}
 ```
 
-## See also
+Typical slices (propose in `semi`, stand in `auto`):
 
-- `references/conductor.md` - how a task is classified and routed
-- `runtimes/detect.md` - detection precedence + ambiguity rules
-- `README.md` - install + quick-start for both runtimes
+| Shape | Stages |
+|---|---|
+| interview-first | `vd:interview` → (`vd:brainstorm` or `vd:plan`) → `vd:cook` → `vd:ship` |
+| brainstorm-first | `vd:brainstorm` → `vd:plan` → `vd:cook` → `vd:ship` |
+| plan-only | `vd:plan` |
+| fix-and-ship | `vd:cook` (or `vd:fix`) → `vd:ship` |
+| refactor | `vd:plan` → `vd:cook` → `vd:code-review --refactor` |
+
+`done_when` must be checkable ("tests pass via `npm test`", "PR url recorded"). Never "proceed if confident".
+
+When a stage is underspecified, invoke `vd:interview --grill` on that decision, record the answer, continue. Do not grow a closed action vocabulary to cover the case.
+
+Cook already owns verify and test. There is no `vd:test` skill.
+
+## Resume and kill
+
+1. Load `state.json`.
+2. If `terminal` is set, print status and stop.
+3. Resume the first stage whose status is not `done` or `skipped`.
+4. After a stage's `done_when` holds, patch that stage to `done` with evidence via `scripts/update-state.sh`.
+5. When every stage is `done` or `skipped`, set `terminal=done`.
+
+`kill --reason` calls `scripts/kill.sh`. It refuses to clobber `done` / `blocked` / `abandoned`. It does not write a cancel sentinel; if the goal was handed to `vd:auto-loop`, cancel that loop with `vd:auto-loop --cancel`.
+
+## Fan-out
+
+Decompose into narrow packets with **disjoint write scope**. Parent reads each result, checks claimed edits against source and tests, then verifies. Packet shapes and the compete-then-graft arena live in [`references/conductor.md`](references/conductor.md).
+
+## State location
+
+`$VD_STATE_PATH` (exclusive when set) → `<git-root>/.workbench/state` when `.workbench/` exists → `$XDG_STATE_HOME/vd/ultracook/<repo-id>/goals`. Legacy `plans/goals` is read-only for old runs. Do not write new state into the project tree unless the repo opted into `.workbench`.
+
+## Workflow position
+
+**Typically follows:** a goal the user wants driven, not one skill at a time
+**Composes:** `vd:interview` (want / `--grill` / `--wayfinder`), `vd:brainstorm`, `vd:plan`, `vd:cook`, `vd:fix`, `vd:code-review`, `vd:ship`, `vd:auto-loop`, `vd:worktree`, `vd:workbench`
+**Typically precedes:** nothing - it is the wrapper. After a cleared wayfinder chunk, it may drive that chunk's plan → cook → ship.

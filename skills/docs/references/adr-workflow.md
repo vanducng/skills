@@ -2,6 +2,16 @@
 
 An ADR (Architecture Decision Record) captures the **why** behind a consequential, hard-to-reverse choice - the context, the alternatives weighed, and what it commits you to. It's the artifact that stops "why is it built this way?" from becoming archaeology six months later. The decision itself comes from `vd:brainstorm`/`vd:research`; this is where it lands permanently.
 
+## Three-part gate
+
+Do not write the file until all three are load-bearing:
+
+1. **Context** - the forces that make a decision necessary (not a restatement of the ask)
+2. **Decision** - one sentence, active voice, "We will…"
+3. **Consequences** - what becomes easier, harder, and now a contract (including reversal cost)
+
+Missing any one → you are still deciding. Stay in `vd:brainstorm` / `vd:interview --grill`. An ADR with only Context and Decision is a blog post.
+
 ## When to write one
 
 - A low-reversibility choice: framework, datastore, auth model, public API shape, a boundary between services.

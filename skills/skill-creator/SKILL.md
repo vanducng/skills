@@ -48,7 +48,7 @@ Fail any → say so and stop. **Not writing a skill is a valid, common outcome.*
 2. **Verify before claiming done.** Run the repo's validator and confirm the skill actually loads. "Wrote the file" is not "shipped."
 3. **Prescribe, don't describe.** "Run X, then verify Y" beats "this skill is about X." Every section should change what the agent *does*.
 4. **Portable by default.** No personal absolute paths, usernames, machine-specific locations, or assumed OS. Use `$HOME`, repo-relative paths, env vars, or documented overrides. A skill that only works on the author's laptop is broken.
-5. **Earn every line.** Long skills get skimmed and their rules get dropped. Cut anything the base model already does correctly.
+5. **Earn every line.** Long skills get skimmed and their rules get dropped. Cut anything the base model already does correctly. The bar lives in [`references/writing-principles.md`](references/writing-principles.md) (two loads, no-op test, completion criteria, anti-staleness, length tracks failure risk).
 6. **Name the runtime seams.** If a step depends on tooling that isn't universal (a specific CLI, an editor API, a subagent mechanism), say so and give the fallback.
 
 ## Workflow
