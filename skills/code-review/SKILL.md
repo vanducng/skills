@@ -1,11 +1,11 @@
 ---
 name: code-review
-description: "Review code with a sharp, encouraging voice - inline GitHub PR comments + a tight summary. Supports PR (default), pending changes, commit hash, and codebase modes. Encodes an opinionated review style: severity-prefixed, concise, actionable, no fluff. For the owned deterministic `miucr` CLI (gated reviews, webhooks, MCP), use vd:miucr."
+description: "Review code with a sharp, encouraging voice - inline GitHub PR comments + a tight summary. Supports PR (default), pending changes, commit hash, and codebase modes. Encodes an opinionated review style: severity-prefixed, concise, actionable, no fluff. Pass `--refactor` for the local reuse/slop lens (never posts). For the owned deterministic `miucr` CLI (gated reviews, webhooks, MCP), use vd:miucr."
 license: MIT
-argument-hint: "[#PR | URL | COMMIT | --pending | codebase] [--dry-run] [--post] [--no-inline]"
+argument-hint: "[#PR | URL | COMMIT | --pending | codebase | --refactor] [--dry-run] [--post] [--no-inline] [--refactor [--fix] [--save]]"
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Code Review
@@ -17,6 +17,7 @@ metadata:
 | `vd:scout` | "Where does this code live?" | Pointers |
 | `vd:debug` | "Why is this broken?" | Root cause |
 | **`vd:code-review`** | **"Is this change ready to land, and what should the author fix?"** | **Inline PR comments + summary verdict** |
+| `vd:code-review --refactor` | "Does this fit the codebase, or is it slop?" | Local report; edits only with `--fix` |
 | `vd:ship` | "Land the branch." | Merged + tagged + PR |
 
 This skill **reviews and reports**. It does not implement fixes. If a fix is obvious and one-line, mention it in the comment as a suggestion - but don't apply it. Hand back to `vd:cook` / `vd:fix` for the actual work.
@@ -42,6 +43,9 @@ Flags:
 - `--auto` - non-interactive, default answers, no prompts
 - `--ultra` - adversarial review via a dynamic workflow: every finding is independently refuted before it ships (see [Ultra mode](#ultra-mode--adversarial-workflow)). Higher token cost; use for high-stakes diffs.
 - `--cross-model` - add reviewers from other model families and weigh findings by agreement (see [Cross-model mode](#cross-model-mode)). Combine with `--ultra` only for release-critical diffs.
+- `--refactor` - local reuse / composition / slop lens. Never posts. See [`references/refactor.md`](references/refactor.md). Combine with `--fix` / `--save`. Detect from "refactor review", "is this slop", "does this fit the codebase".
+
+`--refactor` is a two-axis pass when paired with a landing review: run the reuse/slop lens locally first, then the default PR pass. Do not mix the two outputs in one GitHub review.
 
 ## Hard rules
 
