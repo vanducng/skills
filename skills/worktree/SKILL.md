@@ -182,7 +182,9 @@ Unless `--no-enter` was passed, **move the working session into the new worktree
   ```javascript
   EnterWorktree({ path: "<worktreePath>" })   // switches cwd in-session, no restart
   ```
-  Later, leave with `ExitWorktree({ action: "keep" })` (keeps the branch + files) or `{ action: "remove" }` (deletes both). The path is already registered in `git worktree list`, so `EnterWorktree` accepts it even though it lives under `.worktrees/`, not `.claude/worktrees/`.
+  Later, leave with `ExitWorktree({ action: "keep" })` (keeps the branch + files) or `{ action: "remove" }` (deletes both). This acceptance of a `.worktrees/`-rooted path (instead of `.claude/worktrees/`) applies only to the **first** `EnterWorktree` call from the session's original launch directory, because the path is already registered in `git worktree list`.
+
+  **Do not call `EnterWorktree` a second time for the same worktree.** If the session appears to have drifted back to the original checkout (long idle gap, context compaction, a fresh sub-turn), that is a cwd-tracking artifact, not a reason to re-enter - a second `EnterWorktree({ path })` while already inside a worktree is restricted to paths under `.claude/worktrees/` and will fail on a `vd:worktree`-created path with `Cannot enter worktree: <repo>/.claude/worktrees does not exist`. Recover by prefixing the next command with `cd "<worktreePath>" && ...` instead of retrying the tool call.
 - **Codex** - there is **no in-session cwd switch**. Either relaunch rooted at the worktree (`codex --cd "<worktreePath>"`) or run subsequent commands from it. The `sessionSwitch.action` field gives the exact `codex --cd` command.
 - **Plain shell / unknown** - `cd "<worktreePath>"`.
 
