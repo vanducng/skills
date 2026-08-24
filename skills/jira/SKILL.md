@@ -256,5 +256,5 @@ Never put the numeric attachment ID in an ADF `media` node; it causes `ATTACHMEN
 - Auth errors → run `jira init` to reconfigure
 - "transition not available" → check available transitions with `jira issue view`
 - Field validation → check project issue types with `jira project list`
-- `ATTACHMENT_VALIDATION_ERROR` → use v2 filename markup or resolve the Media Services UUID per `references/inline-images.md`
+- `ATTACHMENT_VALIDATION_ERROR` → use the compact CLI thumbnail fallback or resolve the Media Services UUID per `references/inline-images.md`
 - `jira project list` shell errors → use REST API or skip, project is ELT by default
