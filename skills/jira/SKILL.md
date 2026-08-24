@@ -207,22 +207,20 @@ Load `references/inline-images.md` for:
 
 ### Inline local image
 
-The fork uploads each image as an issue attachment, uses Jira's returned filename in the comment, and reports attachment IDs if comment creation fails after upload:
+For screenshots or diagrams that users must read inline, use a REST v3 ADF `mediaSingle` node by default. Set `layout` to `align-start`, `width` to `100`, and `widthType` to `percentage`, while keeping the source dimensions on the media node. Media dimensions alone still render at Jira's default 50% comment width. The CLI `--image` path renders a centered 200 px thumbnail, so reserve it for quick attachment evidence where inline readability is not important.
 
 ```bash
-jira issue comment add ISSUE-KEY "Implementation flow" --image /path/to/flow.png
-jira issue comment add ISSUE-KEY "Before and after" -i before.png -i after.png
+jira issue comment add ISSUE-KEY "Quick evidence" --image /path/to/flow.png
 ```
 
 ### Inline images in comments
 
-Use the CLI for public URLs or local files:
-
 - **Public URL:** Pass Markdown image syntax in the comment body.
-- **Local file:** Pass one or more `--image` paths. This is the default.
-- **Structured ADF:** Resolve the Media Services UUID from the attachment content redirect, then add a REST v3 `mediaSingle` node. The redirect-to-UUID mapping works on Jira Cloud but is not documented as a stable identifier contract.
+- **Readable local image:** Upload the attachment, resolve its Media Services UUID, then create a REST v3 ADF comment with left-aligned media at 100% comment width. This is the default.
+- **Quick local thumbnail:** Pass one or more `--image` paths when a small preview is acceptable.
+- **Existing small image:** Update the comment ADF in place instead of uploading a duplicate attachment.
 
-Never put the numeric attachment ID in an ADF `media` node; it causes `ATTACHMENT_VALIDATION_ERROR`. Never call Jira's private Media API. See [`references/inline-images.md`](references/inline-images.md) for commands and verification.
+Never put the numeric attachment ID in an ADF `media` node; it causes `ATTACHMENT_VALIDATION_ERROR`. Never call Jira's private Media API. See [`references/inline-images.md`](references/inline-images.md) for creation, repair, and verification commands.
 
 ## REST API Version Notes
 
@@ -247,6 +245,7 @@ Never put the numeric attachment ID in an ADF `media` node; it causes `ATTACHMEN
 ## Known CLI Issues
 
 - Upstream/Homebrew `jira-cli` 1.7.0 does not support `--image`; confirm PATH resolves the `vanducng/jira-cli` build
+- The fork's `--image` output is a centered 200 px ADF thumbnail; use the structured ADF workflow for readable screenshots and diagrams
 - `jira project list` may fail with shell escaping errors - use `jira issue list` or REST API instead
 - `jira me` and `jira issue create/view` work reliably
 - `jira issue create` can still hang despite `--no-input` when combining a large `-b"$(cat file)"` body with `-a`/`-P` flags in one call (observed: hung the full 10min timeout). Wrap in `timeout 60 jira issue create ...`; if it times out, create the issue via REST API (`POST /rest/api/3/issue`) instead
