@@ -187,8 +187,8 @@ Load `references/follow-up.md` for:
 
 Load `references/inline-images.md` for:
 - Rendering remote or locally uploaded images inside comments
-- Choosing filename markup or ADF `mediaSingle`
-- Verifying that the stored comment contains the image
+- Choosing readable ADF media or compact CLI thumbnails
+- Verifying stored layout, dimensions, and media identity
 
 **Skip references** for simple view/list/assign operations - use quick reference above.
 
