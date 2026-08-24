@@ -2,6 +2,20 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.59.0](https://github.com/vanducng/skills/compare/v1.58.0...v1.59.0) (2026-08-24)
+
+
+### Features
+
+* open composition over closed pipeline ([#447](https://github.com/vanducng/skills/issues/447)) ([87cd06b](https://github.com/vanducng/skills/commit/87cd06b4e4121fb1bca49d70828627634e95700d))
+* **skills:** astro-airflow af CLI, Otto, dag-factory, local env ([4b424dc](https://github.com/vanducng/skills/commit/4b424dccd86b2a2fbc58cf4a803b2cc336ac9a99))
+
+
+### Bug Fixes
+
+* **computer-clean:** avoid tripping scout-block hook on worktree discovery ([#446](https://github.com/vanducng/skills/issues/446)) ([38eb538](https://github.com/vanducng/skills/commit/38eb53882cd0622e9ee445deda1b1e30fa42ba6a))
+* **worktree:** clarify EnterWorktree re-entry limits ([#450](https://github.com/vanducng/skills/issues/450)) ([ebd2ef6](https://github.com/vanducng/skills/commit/ebd2ef6ead060f68a848a0a539c1db8ef22818fe))
+
 ## [1.58.0](https://github.com/vanducng/skills/compare/v1.57.0...v1.58.0) (2026-08-19)
 
 
