@@ -5,8 +5,9 @@ Use this workflow only after loading the instance rules, exporting authenticatio
 | Need | Method |
 | --- | --- |
 | Public image URL | `jira issue comment add` with Markdown image syntax |
-| Local image and simple comment | `jira issue comment add --image` |
-| Local image inside structured ADF | Upload attachment, resolve media UUID, then REST v3 `mediaSingle` |
+| Readable local screenshot or diagram | REST v3 ADF `mediaSingle`, left aligned and sized from the source image |
+| Quick local thumbnail | `jira issue comment add --image` |
+| Repair an existing small or centered image | Update the existing comment ADF in place |
 
 ## Public Image URL
 
@@ -18,29 +19,13 @@ jira issue comment add PROJ-123 '![Architecture](https://example.com/architectur
 
 Do not use this for private or short-lived URLs.
 
-## Local Image
+## Local Image: Readable ADF
 
-This is the default local-file workflow. Repeat `--image` for multiple images. The fork uploads each file and renders Jira's returned attachment filename inline.
+This is the default local-file workflow for screenshots, diagrams, and other evidence users must read without opening the attachment preview. Jira's attachment content endpoint redirects to a Media Services URL whose path contains the UUID required by an ADF `media` node. This works on Jira Cloud, but Atlassian does not document the redirect path as a stable identifier contract.
 
-```bash
-issue_key='PROJ-123'
-image_path='/path/to/architecture.png'
-jira issue comment add "$issue_key" "Implementation flow:" --image "$image_path"
+Use the source image aspect ratio. Cap the display width at 1200 px, do not upscale images narrower than that, and calculate the display height as `round(source_height * display_width / source_width)`. Set `mediaSingle.attrs.layout` to `align-start`; Jira otherwise commonly centers inline media.
 
-attachment_name="$(basename "$image_path")"
-curl -fsS "$JIRA_BASE_URL/rest/api/2/issue/$issue_key/comment?orderBy=-created&maxResults=1" \
-  -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
-  -H 'Accept: application/json' | \
-  jq -e --arg name "$attachment_name" '.comments[0].body | contains("!" + $name + "|thumbnail!")'
-```
-
-If the CLI reports a comment failure after upload, preserve the listed attachment IDs for review or cleanup.
-
-## Local Image: Structured ADF
-
-Use this only when the same comment needs ADF-only features such as native mentions or structured nodes. Jira's attachment content endpoint redirects to a Media Services URL whose path contains the UUID required by an ADF `media` node. This works on Jira Cloud, but Atlassian does not document the redirect path as a stable identifier contract.
-
-Upload the attachment manually, then provide its dimensions and resolve the UUID without printing the signed redirect URL:
+Upload the attachment manually, provide the calculated display dimensions, and resolve the UUID without printing the signed redirect URL:
 
 ```bash
 issue_key='PROJ-123'
@@ -96,4 +81,64 @@ curl -fsS "$JIRA_BASE_URL/rest/api/3/issue/$issue_key/comment/$comment_id" \
   jq -e --arg id "$media_id" 'any(..; .type? == "media" and .attrs.id == $id)'
 ```
 
-If UUID resolution or ADF validation fails, use the CLI `--image` flow. Do not fall back to private Media API endpoints or place the numeric attachment ID in `attrs.id`.
+Verify the stored layout and dimensions, not only that the media ID exists:
+
+```bash
+curl -fsS "$JIRA_BASE_URL/rest/api/3/issue/$issue_key/comment/$comment_id" \
+  -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+  -H 'Accept: application/json' | \
+  jq -e --arg id "$media_id" --argjson width "$image_width" --argjson height "$image_height" '
+    .body.content[]
+    | select(.type == "mediaSingle")
+    | .attrs.layout == "align-start"
+      and .content[0].attrs.id == $id
+      and .content[0].attrs.width == $width
+      and .content[0].attrs.height == $height
+  '
+```
+
+## Repair an Existing Small or Centered Image
+
+Do not upload a duplicate attachment. Read the comment, retain its existing Media Services ID and text content, then update every `mediaSingle` node in the comment with REST v3. Inspect the stored ADF first when the comment contains multiple images that need different dimensions.
+
+```bash
+issue_key='PROJ-123'
+comment_id='12345'
+image_width=1200
+image_height=675
+
+comment="$(curl -fsS "$JIRA_BASE_URL/rest/api/3/issue/$issue_key/comment/$comment_id" \
+  -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+  -H 'Accept: application/json')"
+media_id="$(jq -er '.body.content[] | select(.type == "mediaSingle") | .content[0].attrs.id' <<< "$comment")"
+
+jq --argjson width "$image_width" --argjson height "$image_height" '
+  .body.content |= map(
+    if .type == "mediaSingle" then
+      .attrs.layout = "align-start"
+      | .content[0].attrs.width = $width
+      | .content[0].attrs.height = $height
+    else . end
+  )
+  | {body: .body}
+' <<< "$comment" | curl -fsS -X PUT \
+  "$JIRA_BASE_URL/rest/api/3/issue/$issue_key/comment/$comment_id" \
+  -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  --data @-
+```
+
+Re-read the comment and apply the same layout, media-ID, width, and height verification used for a new ADF comment.
+
+## Local Image: Compact Thumbnail
+
+Use this only when a small preview is acceptable. The fork uploads the file and creates a centered 200 px ADF thumbnail.
+
+```bash
+issue_key='PROJ-123'
+image_path='/path/to/architecture.png'
+jira issue comment add "$issue_key" "Quick evidence:" --image "$image_path"
+```
+
+If the CLI reports a comment failure after upload, preserve the listed attachment IDs for review or cleanup. If UUID resolution or ADF validation fails for the readable workflow, this thumbnail path is the safe fallback. Do not call private Media API endpoints or place the numeric attachment ID in `attrs.id`.
