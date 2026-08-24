@@ -207,7 +207,7 @@ Load `references/inline-images.md` for:
 
 ### Inline local image
 
-For screenshots or diagrams that users must read inline, use a REST v3 ADF `mediaSingle` node by default. Set `layout` to `align-start`, cap the display width at 1200 px, and preserve the source aspect ratio. The CLI `--image` path renders a centered 200 px thumbnail, so reserve it for quick attachment evidence where inline readability is not important.
+For screenshots or diagrams that users must read inline, use a REST v3 ADF `mediaSingle` node by default. Set `layout` to `align-start`, `width` to `100`, and `widthType` to `percentage`, while keeping the source dimensions on the media node. Media dimensions alone still render at Jira's default 50% comment width. The CLI `--image` path renders a centered 200 px thumbnail, so reserve it for quick attachment evidence where inline readability is not important.
 
 ```bash
 jira issue comment add ISSUE-KEY "Quick evidence" --image /path/to/flow.png
@@ -216,7 +216,7 @@ jira issue comment add ISSUE-KEY "Quick evidence" --image /path/to/flow.png
 ### Inline images in comments
 
 - **Public URL:** Pass Markdown image syntax in the comment body.
-- **Readable local image:** Upload the attachment, resolve its Media Services UUID, then create a REST v3 ADF comment with left-aligned media sized from the source image. This is the default.
+- **Readable local image:** Upload the attachment, resolve its Media Services UUID, then create a REST v3 ADF comment with left-aligned media at 100% comment width. This is the default.
 - **Quick local thumbnail:** Pass one or more `--image` paths when a small preview is acceptable.
 - **Existing small image:** Update the comment ADF in place instead of uploading a duplicate attachment.
 

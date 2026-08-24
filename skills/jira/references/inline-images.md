@@ -5,7 +5,7 @@ Use this workflow only after loading the instance rules, exporting authenticatio
 | Need | Method |
 | --- | --- |
 | Public image URL | `jira issue comment add` with Markdown image syntax |
-| Readable local screenshot or diagram | REST v3 ADF `mediaSingle`, left aligned and sized from the source image |
+| Readable local screenshot or diagram | REST v3 ADF `mediaSingle`, left aligned at 100% comment width |
 | Quick local thumbnail | `jira issue comment add --image` |
 | Repair an existing small or centered image | Update the existing comment ADF in place |
 
@@ -23,9 +23,9 @@ Do not use this for private or short-lived URLs.
 
 This is the default local-file workflow for screenshots, diagrams, and other evidence users must read without opening the attachment preview. Jira's attachment content endpoint redirects to a Media Services URL whose path contains the UUID required by an ADF `media` node. This works on Jira Cloud, but Atlassian does not document the redirect path as a stable identifier contract.
 
-Use the source image aspect ratio. Cap the display width at 1200 px, do not upscale images narrower than that, and calculate the display height as `round(source_height * display_width / source_width)`. Set `mediaSingle.attrs.layout` to `align-start`; Jira otherwise commonly centers inline media.
+Keep the source pixel dimensions on the media node. Set `mediaSingle.attrs.layout` to `align-start`, `width` to `100`, and `widthType` to `percentage`. Jira otherwise centers media and defaults it to 50% of the comment width, even when the media node contains larger pixel dimensions.
 
-Upload the attachment manually, provide the calculated display dimensions, and resolve the UUID without printing the signed redirect URL:
+Upload the attachment manually, provide its source dimensions, and resolve the UUID without printing the signed redirect URL:
 
 ```bash
 issue_key='PROJ-123'
@@ -61,7 +61,7 @@ comment_response="$(jq -n \
   --argjson height "$image_height" \
   '{body:{type:"doc",version:1,content:[
     {type:"paragraph",content:[{type:"text",text:"Implementation flow:"}]},
-    {type:"mediaSingle",attrs:{layout:"align-start"},content:[
+    {type:"mediaSingle",attrs:{layout:"align-start",width:100,widthType:"percentage"},content:[
       {type:"media",attrs:{
         type:"file",id:$mediaId,collection:"",alt:$filename,
         width:$width,height:$height
@@ -91,6 +91,8 @@ curl -fsS "$JIRA_BASE_URL/rest/api/3/issue/$issue_key/comment/$comment_id" \
     .body.content[]
     | select(.type == "mediaSingle")
     | .attrs.layout == "align-start"
+      and .attrs.width == 100
+      and .attrs.widthType == "percentage"
       and .content[0].attrs.id == $id
       and .content[0].attrs.width == $width
       and .content[0].attrs.height == $height
@@ -116,6 +118,8 @@ jq --argjson width "$image_width" --argjson height "$image_height" '
   .body.content |= map(
     if .type == "mediaSingle" then
       .attrs.layout = "align-start"
+      | .attrs.width = 100
+      | .attrs.widthType = "percentage"
       | .content[0].attrs.width = $width
       | .content[0].attrs.height = $height
     else . end
@@ -129,7 +133,7 @@ jq --argjson width "$image_width" --argjson height "$image_height" '
   --data @-
 ```
 
-Re-read the comment and apply the same layout, media-ID, width, and height verification used for a new ADF comment.
+Re-read the comment and apply the same layout, 100% width, media-ID, source-width, and source-height verification used for a new ADF comment.
 
 ## Local Image: Compact Thumbnail
 
