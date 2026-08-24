@@ -187,8 +187,8 @@ Load `references/follow-up.md` for:
 
 Load `references/inline-images.md` for:
 - Rendering remote or locally uploaded images inside comments
-- Choosing filename markup or ADF `mediaSingle`
-- Verifying that the stored comment contains the image
+- Choosing readable ADF media or compact CLI thumbnails
+- Verifying stored layout, dimensions, and media identity
 
 **Skip references** for simple view/list/assign operations - use quick reference above.
 
@@ -256,5 +256,5 @@ Never put the numeric attachment ID in an ADF `media` node; it causes `ATTACHMEN
 - Auth errors → run `jira init` to reconfigure
 - "transition not available" → check available transitions with `jira issue view`
 - Field validation → check project issue types with `jira project list`
-- `ATTACHMENT_VALIDATION_ERROR` → use v2 filename markup or resolve the Media Services UUID per `references/inline-images.md`
+- `ATTACHMENT_VALIDATION_ERROR` → use the compact CLI thumbnail fallback or resolve the Media Services UUID per `references/inline-images.md`
 - `jira project list` shell errors → use REST API or skip, project is ELT by default
