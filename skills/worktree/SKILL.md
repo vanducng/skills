@@ -192,6 +192,8 @@ Installs (Step 6) run with explicit `<worktreePath>/<dir>` paths, so entering be
 
 **Skip entering when:** the user said "stay" / "don't switch", you're scripting multiple creates in a loop, or you need to keep operating in the main checkout. Pass `--no-enter` (or set `WORKTREE_NO_ENTER=1`); the `sessionSwitch` block then reports `enter: false`.
 
+**After entering, keep Bash commands single-purpose.** Once inside a worktree, the harness's isolation guard rejects any command it cannot statically verify stays inside the worktree path - heredocs, `for`/`until` loops, multi-step `&&`/`;` chains, and `Monitor`/watch loops all trip it with "too complex to verify that it stays in bounds." Run one simple command per invocation; for anything more complex, write the script to a temp file and execute that file instead of inlining it.
+
 ## Per-worktree isolation kit
 
 ### `.env.worktree` - identity + ports
