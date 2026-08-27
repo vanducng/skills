@@ -43,8 +43,8 @@ If no flag is given, ask the user which lifecycle stage they want
 
 - Local skills live in `skills/<name>/SKILL.md`. Names: kebab-case.
 - Frontmatter required keys: `name`, `description`, `license`. The
-  `name` MUST equal the directory basename - `scripts/validate.sh`
-  enforces this.
+  `name` MUST equal the directory basename, and `description` must be
+  ≤ 1024 characters - `scripts/validate.sh` enforces both.
 - `vd` is the standalone CLI at [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli)
   (`brew install vanducng/tap/vd` or `go install github.com/vanducng/vd-cli/v2/cmd/vd@latest`).
   This repo no longer contains its source.
