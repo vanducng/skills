@@ -2,6 +2,14 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.59.1](https://github.com/vanducng/skills/compare/v1.59.0...v1.59.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **git:** document external jq variables for gh output ([6fbd637](https://github.com/vanducng/skills/commit/6fbd637fba03f17b904ba63b0864a0934bd997a9))
+* **jira:** made inline images readable ([#451](https://github.com/vanducng/skills/issues/451)) ([6a9cbc1](https://github.com/vanducng/skills/commit/6a9cbc179d263baa71dd09b7edf2008df3d592b2))
+
 ## [1.59.0](https://github.com/vanducng/skills/compare/v1.58.0...v1.59.0) (2026-08-24)
 
 
