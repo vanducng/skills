@@ -110,6 +110,7 @@ Rules:
 - Include the **stack or domain** so it doesn't collide with sibling skills.
 - Include **negative scope** when a neighbour is easily confused: `"Do not use for <X> - that's <other-skill>."`
 - Quote trigger phrases verbatim as users type them, not as you'd phrase them.
+- Keep `description` at or under 1024 characters. Pi and Claude Code reject longer frontmatter and skip the skill.
 
 ### 4. Write the body
 
@@ -149,7 +150,7 @@ if [ -f scripts/validate.sh ]; then bash scripts/validate.sh; fi   # non-zero ex
 Then check by hand, since validators typically lint frontmatter and nothing else:
 
 - [ ] Frontmatter parses; `name` is kebab-case and **equals the directory name** (a mismatch silently disables the skill in most loaders).
-- [ ] `description` names both the capability and the trigger phrases.
+- [ ] `description` names both the capability and the trigger phrases, and is ≤ 1024 characters.
 - [ ] No personal paths anywhere in the skill, not just `SKILL.md`:
       `grep -rnE '/Users/[a-z]|/home/[a-z]|C:\\Users' <skill-dir>/`
 - [ ] Every referenced file actually **resolves** - extracting the names is not enough, test each one:

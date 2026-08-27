@@ -59,6 +59,10 @@ if name != expected_name:
     print(f"'name' ({name!r}) does not match directory ({expected_name!r})"); sys.exit(1)
 if not desc:
     print("missing or empty 'description' in frontmatter"); sys.exit(1)
+if desc[0] in "'\"" and desc[-1] == desc[0] and len(desc) > 1:
+    desc = desc[1:-1]
+if len(desc) > 1024:
+    print(f"'description' exceeds 1024 characters ({len(desc)})"); sys.exit(1)
 
 print("ok")
 PY
