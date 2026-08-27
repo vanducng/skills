@@ -1,0 +1,20 @@
+{
+  "name": "vd-skills",
+  "install": "npm --prefix skills/file-browser ci && npm --prefix docs ci",
+  "terminals": [
+    {
+      "name": "docs-dev-server",
+      "command": "npm --prefix docs run dev -- --host 0.0.0.0 --port 4321",
+      "description": "Astro Starlight documentation site (skills catalog). Serves on http://localhost:4321"
+    },
+    {
+      "name": "file-browser",
+      "command": "node skills/file-browser/scripts/server.cjs --dir . --port 3556 --host 0.0.0.0 --no-open --foreground",
+      "description": "file-browser skill HTTP server browsing the repo root. Serves on http://localhost:3556"
+    }
+  ],
+  "ports": [
+    { "name": "docs", "port": 4321 },
+    { "name": "file-browser", "port": 3556 }
+  ]
+}
