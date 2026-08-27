@@ -282,6 +282,20 @@ gh run view "$RUN" --json attempt,conclusion,status
 Do not hide these lookups in long `&&` one-liners. One assignment, one
 guard, one use.
 
+**`gh --jq` accepts only an expression.** It does not pass external `jq` flags
+such as `--arg` through to jq; `gh` parses them as its own arguments. Pipe JSON
+to `jq` when the filter needs shell values.
+
+```bash
+# WRONG - gh has no --arg formatting flag
+gh run list --json databaseId,headSha --jq --arg sha "$SHA" \
+  '.[] | select(.headSha == $sha) | .databaseId'
+
+# RIGHT - external jq receives --arg
+gh run list --json databaseId,headSha | \
+  jq -r --arg sha "$SHA" '.[] | select(.headSha == $sha) | .databaseId'
+```
+
 ## Releases
 
 ```bash
