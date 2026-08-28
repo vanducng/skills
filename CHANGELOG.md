@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.59.2](https://github.com/vanducng/skills/compare/v1.59.1...v1.59.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* **ego-browser:** keep skill description under 1024 characters ([#457](https://github.com/vanducng/skills/issues/457)) ([0cd6ea2](https://github.com/vanducng/skills/commit/0cd6ea26d4dae0883c64ee4cb78c2b767b18c1a9))
+
 ## [1.59.1](https://github.com/vanducng/skills/compare/v1.59.0...v1.59.1) (2026-08-27)
 
 
