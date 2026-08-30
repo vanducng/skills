@@ -141,7 +141,7 @@ After every successful non-dry-run create that returns `worktreePath`, if `HERDR
 3. Copies `.worktreeinclude` entries (see below).
 4. Assigns a deterministic 10-port block and writes `.env.worktree`.
 5. Verifies the checkout landed on the requested branch (auto-rescues via `git switch` if git silently attached elsewhere) and warns when the base branch is behind its fetched remote.
-6. If a mise config is present (`mise.toml`, `.mise.toml`, `.config/mise.toml`, `mise/config.toml`, `.mise/config.toml`), runs `mise trust` on the new path then `mise install -y` (mise trusts by path, so a new worktree is untrusted until this). Missing `mise` binary → same command in `suggestedInstalls`.
+6. If a mise config is present (`mise.toml`, `.mise.toml`, `.config/mise.toml`, `mise/config.toml`, `.mise/config.toml`) at the worktree root or one directory down, runs `mise trust` on each new path then `mise install -y` (10-minute timeout; mise trusts by path, so a new worktree is untrusted until this). Missing `mise` binary → same command in `suggestedInstalls`.
 7. Detects lockfiles and returns `suggestedInstalls`.
 
 **Flags:**

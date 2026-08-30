@@ -868,7 +868,23 @@ const MISE_CONFIG_NAMES = [
 ];
 
 function findMiseConfigs(dir) {
-  return MISE_CONFIG_NAMES.filter(rel => fs.existsSync(path.join(dir, rel)));
+  const dirsToCheck = ['.'];
+  try {
+    fs.readdirSync(dir, { withFileTypes: true }).forEach(e => {
+      if (e.isDirectory() && !e.name.startsWith('.') && !ENV_SCAN_SKIP.has(e.name) && dirsToCheck.length < 30) {
+        dirsToCheck.push(e.name);
+      }
+    });
+  } catch { /* unreadable dir - root-only check */ }
+
+  const found = [];
+  dirsToCheck.forEach(sub => {
+    MISE_CONFIG_NAMES.forEach(name => {
+      const rel = sub === '.' ? name : path.join(sub, name);
+      if (fs.existsSync(path.join(dir, rel))) found.push(rel.split(path.sep).join('/'));
+    });
+  });
+  return found;
 }
 
 function miseErr(err) {
@@ -891,7 +907,12 @@ function runMiseSetup(worktreePath) {
     };
   }
 
-  const miseExec = { encoding: 'utf-8', stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: 10 * 1024 * 1024 };
+  const miseExec = {
+    encoding: 'utf-8',
+    stdio: ['ignore', 'ignore', 'pipe'],
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: 10 * 60 * 1000
+  };
   try {
     configs.forEach(rel => {
       execFileSync('mise', ['trust', '-y', path.join(worktreePath, rel)], miseExec);
@@ -905,8 +926,11 @@ function runMiseSetup(worktreePath) {
     };
   }
 
+  const installDirs = [...new Set(configs.map(rel => path.dirname(path.join(worktreePath, rel))))];
   try {
-    execFileSync('mise', ['install', '-y', '-C', worktreePath], miseExec);
+    installDirs.forEach(d => {
+      execFileSync('mise', ['install', '-y', '-C', d], miseExec);
+    });
     return { ran: true, configs, trusted: true, installed: true };
   } catch (err) {
     return {
@@ -1688,7 +1712,7 @@ function cmdCreate() {
   // Deterministic port block, collision-checked against sibling worktrees
   const assignedBases = collectAssignedPortBases(getWorktreeRecords(gitRoot, workDir));
   const portBase = assignPortBase(worktreeName, assignedBases);
-  const miseConfigs = findMiseConfigs(sourceDir);
+  const miseConfigs = findMiseConfigs(gitRoot);
   const plannedMise = miseConfigs.length
     ? { configs: miseConfigs, command: 'mise trust && mise install -y' }
     : { ran: false };
