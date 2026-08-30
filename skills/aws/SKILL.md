@@ -14,6 +14,7 @@ Use the installed `aws` CLI for AWS inspection, diagnosis, and explicitly author
 ## Route the request
 
 - For `reset-password` or `--reset-password`, read [references/reset-password.md](references/reset-password.md) completely and use the `vd:gopass` skill.
+- For Secrets Manager value changes, application credential rotation, one-off ECS provisioning, or ECS Exec that may touch a secret, read [references/credential-operations.md](references/credential-operations.md) completely.
 - For public endpoint tracing, incidents, cleanup, or cross-service verification, read [references/daily-operations.md](references/daily-operations.md), then load the service references it selects.
 - For Lambda, API Gateway, Function URLs, SQS, DLQs, serverless promotion, or retirement, read [references/serverless.md](references/serverless.md).
 - For Route 53, ALB/ELBv2, target groups, EC2, EBS, or SSM, read [references/compute-networking.md](references/compute-networking.md).
