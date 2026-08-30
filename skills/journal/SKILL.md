@@ -88,12 +88,11 @@ Path: write to the injected `Journals:` path. Filename: `journal-{YYYYMMDD-HHMM}
 If the hook context has no `Journals:` path, do not search `$HOME`, inspect sibling features, or guess the artifact folder. Load `vd:workbench`, resolve from the current git root, and use its `journals` field exactly:
 
 ```bash
-session_id="${VD_SESSION_ID:-${PI_SESSION_ID:-}}"
 workbench_script='<loaded-workbench-skill-dir>/scripts/workbench.py'
-VD_SESSION_ID="$session_id" python3 "$workbench_script" resolve --json
+VD_SESSION_ID="${VD_SESSION_ID:-}" python3 "$workbench_script" resolve --json
 ```
 
-Resolve `<loaded-workbench-skill-dir>` from the `vd:workbench` skill location already loaded in this runtime. Do not assume the source checkout lives at `$HOME/skills`; installed locations differ across Claude Code, Codex, and Pi. The `PI_SESSION_ID` fallback preserves Pi's session-scoped feature selection when the hook did not export `VD_SESSION_ID`. If the resolver is unavailable or returns no journal path, stop and ask for the destination instead of constructing one.
+Resolve `<loaded-workbench-skill-dir>` from the `vd:workbench` skill location already loaded in this runtime. Do not assume the source checkout lives at `$HOME/skills`; installed locations differ across Claude Code, Codex, and Pi. Use only the hook-exported `VD_SESSION_ID` for session-scoped resolution. Do not substitute a runtime-specific session ID unless that runtime's hook integration documents the same state key. When `VD_SESSION_ID` is absent, accept branch-based resolution only if the returned feature matches the active branch or plan; otherwise stop and ask for the destination instead of constructing one.
 
 > Journals are a personal dev log - what *I* learned, decided, or broke - not project documentation. `./docs/` is for artifacts shared with the team (architecture, code standards, changelog).
 
