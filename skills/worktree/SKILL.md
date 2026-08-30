@@ -1,6 +1,6 @@
 ---
 name: worktree
-description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under a top-level .worktrees/ dir, auto-copies .env files (nested included), assigns each worktree a deterministic port block, trusts and installs mise tools when a mise config is present, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Hands Laravel Herd projects to herd-worktree for site/env/database setup. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
+description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under a top-level .worktrees/ dir, auto-copies .env files (nested included), assigns each worktree a deterministic port block, trusts mise configs in the new worktree when present, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Hands Laravel Herd projects to herd-worktree for site/env/database setup. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
 license: MIT
 argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | repair | remove <name>"
 metadata:
@@ -164,7 +164,7 @@ After every successful non-dry-run create that returns `worktreePath`, if `HERDR
 
 ### Step 6 - Install deps
 
-Mise tool versions are already trusted and installed when create reports `mise.ran: true`. Run the remaining `suggestedInstalls` from the create output in the new worktree (background bash, don't block):
+Mise configs are already trusted when create reports `mise.ran: true`; the tool install still arrives via `suggestedInstalls` (`mise install -y`). Run the `suggestedInstalls` from the create output in the new worktree (background bash, don't block):
 
 ```json
 "suggestedInstalls": [

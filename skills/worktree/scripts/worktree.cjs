@@ -1714,7 +1714,7 @@ function cmdCreate() {
   const portBase = assignPortBase(worktreeName, assignedBases);
   const miseConfigs = findMiseConfigs(gitRoot);
   const plannedMise = miseConfigs.length
-    ? { configs: miseConfigs, command: 'mise trust && mise install -y' }
+    ? { configs: miseConfigs, command: 'mise trust' }
     : { ran: false };
 
   // Dry-run mode: show what would be done
