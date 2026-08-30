@@ -29,7 +29,7 @@ For each finding, anchor it to `path:line` and use a severity prefix:
 | `Critical:` | Blocks merge - bug, security, data loss, CI red. Only with a concrete failure mode. |
 | `Important - <topic>:` | Should fix before merge - correctness, design, perf. |
 | `Suggestion:` | Nice-to-have - style, minor refactor, doc nit. |
-| `Question:` | You genuinely don't know if it's a bug - ask the author. |
+| `Question:` | You genuinely don't know, or the finding challenges a product/intent choice the author may have made on purpose. Asks; never blocks merge by itself. |
 | `Nit:` | Pure preference, must be ignorable. |
 
 Finding shape:
@@ -42,6 +42,8 @@ Finding shape:
 
 Rules:
 - No "Critical" without a named failure mode. Can't name it → downgrade to Important.
+- Review whether the change achieves the stated intent, not whether the intent is right. A product/intent challenge is `Question:`, never Critical/Important, and must not flip the verdict to Request changes.
+- Stay in the diff. Adjacent cleanup is out of scope unless this change introduces a merge-blocking defect there.
 - Open with the problem, not praise. Don't restate the diff. Don't moralize - state the consequence.
 - Worst 2 issues per file are usually enough; don't comment every line.
 - No emojis/badges. No "as an AI…". The author is a peer.
@@ -59,7 +61,7 @@ Tests (do they cover the new failure modes?) · CI (if red, that's Critical - na
 Inline findings cover the <correctness/design/perf> concerns.
 Verdict: <Approve | Request changes | Comment>
 ```
-Verdict = `Approve` (no Critical/Important) · `Request changes` (≥1 Critical/Important; list topics) · `Comment` (only Suggestions/Questions/Nits).
+Verdict = `Approve` (no Critical/Important) · `Request changes` (≥1 Critical/Important; list topics) · `Comment` (only Suggestions/Questions/Nits). Questions alone never Request changes.
 
 ## If `--post` (PR mode only)
 Build ONE review payload and submit a single `gh api -X POST /repos/{owner}/{repo}/pulls/<n>/reviews`
