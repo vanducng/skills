@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # validate.sh — lint frontmatter for every skills/*/SKILL.md and repo skill-call conventions.
-# Asserts: file exists, frontmatter parses, name is kebab-case, name == basename(dir), description non-empty.
+# Asserts: file exists, frontmatter parses, name is kebab-case, name == basename(dir), description non-empty and <=1024 chars.
 # Exit 0 if all pass, 1 if any fail.
 set -euo pipefail
 
@@ -59,10 +59,10 @@ if name != expected_name:
     print(f"'name' ({name!r}) does not match directory ({expected_name!r})"); sys.exit(1)
 if not desc:
     print("missing or empty 'description' in frontmatter"); sys.exit(1)
-if desc[0] in "'\"" and desc[-1] == desc[0] and len(desc) > 1:
+if (desc.startswith('"') and desc.endswith('"')) or (desc.startswith("'") and desc.endswith("'")):
     desc = desc[1:-1]
 if len(desc) > 1024:
-    print(f"'description' exceeds 1024 characters ({len(desc)})"); sys.exit(1)
+    print(f"description exceeds 1024 characters ({len(desc)})"); sys.exit(1)
 
 print("ok")
 PY

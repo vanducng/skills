@@ -91,10 +91,10 @@ The day-1 provider/auth/timeout failures classify into a **stable taxonomy** (sa
 | `review.canceled` | ctx canceled (Ctrl-C / SIGINT), exit `130` | `false` | - |
 | `config.invalid` | malformed `config.toml` / bad enum or `auth` value / an `openai`-kind gateway profile with a key but no `base_url` (exit `2`; same code across review/history/serve) | `false` | fix the named field / set `base_url` for the gateway profile |
 | `quota.exceeded` | the resolved provider's `[providers.<name>.quota]` is exhausted for the current window; exit `2`. On the serve host the PR is skipped+logged, not failed (a later push re-checks). A quota counter that can't be read/opened fails closed as the retryable `store.unavailable` instead (serve retries, not skips) | `false` | raise the provider quota `limit` or wait for the window to reset |
-| `github.auth` | PR fetch hit `401`/`403` (bad/missing `GITHUB_TOKEN` or insufficient scope) | `false` | check `GITHUB_TOKEN` / its repo scope |
-| `github.pr_not_found` | PR fetch hit `404` (no such PR, or the token can't see it) | `false` | check the PR exists and the token has access |
-| `github.rate_limited` | PR fetch hit `429` (REST rate limit or abuse-detection) | `true` | GitHub rate limit: wait for the reset and retry |
-| `github.unavailable` | PR fetch hit `5xx` / a network error (DNS / refused / timeout) | `true` | GitHub unavailable / unreachable, retry shortly |
+| `github.auth` | GitHub API hit `401`/`403` on fetch or publish (bad/missing `GITHUB_TOKEN` or insufficient scope) | `false` | check `GITHUB_TOKEN` / its repo scope |
+| `github.pr_not_found` | PR fetch hit `404` (no such PR, or the token can't see it). Write-path 404s (deleted comment/reaction) keep the stage code (`github.upsert_summary_failed`, etc.) | `false` | check the PR exists and the token has access |
+| `github.rate_limited` | GitHub API hit `429` (REST rate limit or abuse-detection). Envelope may include `error.details.retry_after_seconds` | `true` | wait for the reset window; the host requeues, in-process blip retries skip this code |
+| `github.unavailable` | GitHub API hit `5xx` / a network error (DNS / refused / timeout / unexpected EOF from an idle HTTP/2 drop) | `true` | GitHub unavailable / unreachable, retry shortly |
 | `github.pr_fetch_failed` | any other unclassified PR-fetch failure | `false` | - |
 | `internal.error` | any unclassified failure (default; bare-wrapped) | `false` | - |
 
