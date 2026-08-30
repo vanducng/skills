@@ -141,7 +141,7 @@ After every successful non-dry-run create that returns `worktreePath`, if `HERDR
 3. Copies `.worktreeinclude` entries (see below).
 4. Assigns a deterministic 10-port block and writes `.env.worktree`.
 5. Verifies the checkout landed on the requested branch (auto-rescues via `git switch` if git silently attached elsewhere) and warns when the base branch is behind its fetched remote.
-6. If a mise config is present (`mise.toml`, `.mise.toml`, `.config/mise.toml`, `mise/config.toml`, `.mise/config.toml`) at the worktree root or one directory down, runs `mise trust` on each new path then `mise install -y` (10-minute timeout; mise trusts by path, so a new worktree is untrusted until this). Missing `mise` binary → same command in `suggestedInstalls`.
+6. If a mise config is present (`mise.toml`, `.mise.toml`, `.config/mise.toml`, `mise/config.toml`, `.mise/config.toml`) at the worktree root or one directory down, runs `mise trust` on each new path (mise trusts by path, so a new worktree is untrusted until this). `mise install -y` is returned in `suggestedInstalls` so it runs in the background like other package managers. Missing `mise` binary → `mise trust && mise install -y` in `suggestedInstalls`.
 7. Detects lockfiles and returns `suggestedInstalls`.
 
 **Flags:**
@@ -368,7 +368,7 @@ git branch --track <branch> origin/<branch>
 | `portBase` | First port of this worktree's 10-port block |
 | `worktreeId` | DB-name-safe identifier |
 | `suggestedInstalls` | `[{dir, command}]` - run these in the worktree |
-| `mise` | `{ran, configs, trusted, installed}` or `{ran:false, skipped?}` - auto `mise trust` + `mise install -y` when a mise config is present |
+| `mise` | `{ran, configs, trusted}` or `{ran:false, skipped?}` - auto `mise trust` when a mise config is present; install stays in `suggestedInstalls` |
 | `sessionSwitch` | `{enter, path, runtime, action, exit?, note?}` - how to move the session into the worktree (`enter:false` if `--no-enter`) |
 | `envFilesCopied` | Untracked `.env*` files copied (incl. nested paths) |
 | `envTemplatesCopied` | `.env*.example` → `.env*` mappings (gap-fill only) |

@@ -892,6 +892,15 @@ function miseErr(err) {
   return raw.slice(0, 200);
 }
 
+function miseInstallSuggestions(configs, withTrust) {
+  const dirs = [...new Set(configs.map(rel => {
+    const d = path.dirname(rel);
+    return d === '.' ? '.' : d;
+  }))];
+  const command = withTrust ? 'mise trust && mise install -y' : 'mise install -y';
+  return dirs.map(dir => ({ dir, command }));
+}
+
 function runMiseSetup(worktreePath) {
   const configs = findMiseConfigs(worktreePath);
   if (configs.length === 0) return { ran: false };
@@ -903,7 +912,7 @@ function runMiseSetup(worktreePath) {
       ran: false,
       configs,
       skipped: 'mise not on PATH',
-      suggested: { dir: '.', command: 'mise trust && mise install -y' }
+      suggested: miseInstallSuggestions(configs, true)
     };
   }
 
@@ -922,26 +931,17 @@ function runMiseSetup(worktreePath) {
       ran: false,
       configs,
       skipped: `mise trust failed: ${miseErr(err)}`,
-      suggested: { dir: '.', command: 'mise trust && mise install -y' }
+      suggested: miseInstallSuggestions(configs, true)
     };
   }
 
-  const installDirs = [...new Set(configs.map(rel => path.dirname(path.join(worktreePath, rel))))];
-  try {
-    installDirs.forEach(d => {
-      execFileSync('mise', ['install', '-y', '-C', d], miseExec);
-    });
-    return { ran: true, configs, trusted: true, installed: true };
-  } catch (err) {
-    return {
-      ran: true,
-      configs,
-      trusted: true,
-      installed: false,
-      skipped: `mise install failed: ${miseErr(err)}`,
-      suggested: { dir: '.', command: 'mise install -y' }
-    };
-  }
+  return {
+    ran: true,
+    configs,
+    trusted: true,
+    installed: false,
+    suggested: miseInstallSuggestions(configs, false)
+  };
 }
 
 // .worktreeinclude - same convention Claude Code's native worktrees use:
@@ -1882,7 +1882,7 @@ function cmdCreate() {
   const mise = runMiseSetup(worktreePath);
   if (mise.skipped) warnings.push(mise.skipped);
   const suggestedInstalls = detectInstallCommands(worktreePath);
-  if (mise.suggested) suggestedInstalls.unshift(mise.suggested);
+  [].concat(mise.suggested || []).reverse().forEach(s => suggestedInstalls.unshift(s));
 
   // Resolve & run post-create hook (explicit flag wins; otherwise auto-detect).
   let hookResult = null;

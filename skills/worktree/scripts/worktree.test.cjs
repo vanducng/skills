@@ -1168,7 +1168,7 @@ function setupMiseRepo(name) {
   return repo;
 }
 
-test('integration: mise.toml is trusted and tools installed on create', () => {
+test('integration: mise.toml is trusted on create', () => {
   const repo = setupMiseRepo('mise-repo');
   const bin = path.join(TMP_BASE, 'mise-bin');
   const log = path.join(TMP_BASE, 'mise-calls.log');
@@ -1184,21 +1184,26 @@ test('integration: mise.toml is trusted and tools installed on create', () => {
   const json = assertJSON(result.output);
   assert(json.mise && json.mise.ran === true, 'mise setup ran');
   assert(json.mise.trusted === true, 'mise config trusted');
-  assert(json.mise.installed === true, 'mise tools installed');
+  assert(json.mise.installed !== true, 'install is suggested, not run');
   assert((json.mise.configs || []).includes('mise.toml'), 'reports mise.toml');
+  assert((json.suggestedInstalls || []).some(s => s.dir === '.' && s.command === 'mise install -y'),
+    'suggests mise install');
   const calls = fs.readFileSync(log, 'utf-8');
-  assert(/trust/.test(calls), `expected trust, got: ${calls}`);
-  assert(/install/.test(calls), `expected install, got: ${calls}`);
+  const trustLine = calls.split('\n').find(l => l.startsWith('trust '));
+  assert(trustLine && trustLine.includes('-y') && trustLine.includes(`${json.worktreePath}/mise.toml`),
+    `expected trust -y <worktree>/mise.toml, got: ${calls}`);
+  assert(!calls.split('\n').some(l => l.startsWith('install ')), `install should not run, got: ${calls}`);
 });
 
 test('integration: mise.toml without mise on PATH suggests trust+install', () => {
   const repo = setupMiseRepo('mise-nopath');
-  const pathNoMise = (process.env.PATH || '').split(path.delimiter)
-    .filter(dir => dir && !fs.existsSync(path.join(dir, 'mise')))
-    .join(path.delimiter);
+  const extraBin = path.join(TMP_BASE, 'nopath-bin');
+  fs.mkdirSync(extraBin, { recursive: true });
+  const gitPath = execSync('command -v git', { encoding: 'utf-8' }).trim();
+  fs.symlinkSync(gitPath, path.join(extraBin, 'git'));
   const result = run('create "mise nopath" --json', {
     cwd: repo,
-    env: { ...process.env, PATH: pathNoMise }
+    env: { ...process.env, PATH: extraBin }
   });
   assert(result.success, `create failed: ${result.output} ${result.stderr}`);
   const json = assertJSON(result.output);
@@ -1226,8 +1231,10 @@ test('integration: nested mise.toml is trusted on create', () => {
   assert(result.success, `create failed: ${result.output} ${result.stderr}`);
   const json = assertJSON(result.output);
   assert((json.mise.configs || []).includes('backend/mise.toml'), 'finds nested mise.toml');
+  assert((json.suggestedInstalls || []).some(s => s.dir === 'backend' && s.command === 'mise install -y'),
+    'suggests nested mise install');
   const calls = fs.readFileSync(log, 'utf-8');
-  assert(/backend\/mise\.toml/.test(calls), `expected trust of nested file, got: ${calls}`);
+  assert(calls.includes(`${json.worktreePath}/backend/mise.toml`), `expected trust of nested file, got: ${calls}`);
 });
 
 try {
