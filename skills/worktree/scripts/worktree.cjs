@@ -293,6 +293,12 @@ function output(data) {
       if (data.portBase) {
         console.log(`\n🔌 Ports: ${data.portBase}-${data.portBase + 9} (PORT=${data.portBase}, in ${data.envWorktreeFile})`);
       }
+      if (data.mise && data.mise.ran) {
+        const miseBits = [];
+        if (data.mise.trusted) miseBits.push(`trusted ${(data.mise.configs || []).join(', ') || 'mise.toml'}`);
+        if (data.mise.installed) miseBits.push('installed tools');
+        if (miseBits.length) console.log(`\n🔧 mise: ${miseBits.join(', ')}`);
+      }
       if (data.suggestedInstalls && data.suggestedInstalls.length > 0) {
         console.log(`\n📦 Install dependencies:`);
         data.suggestedInstalls.forEach(s => console.log(`   ${s.dir === '.' ? '' : `cd ${s.dir} && `}${s.command}`));
@@ -850,6 +856,68 @@ function detectInstallCommands(dir) {
     });
   });
   return found;
+}
+
+// mise trusts configs by path; a new worktree is untrusted even with identical mise.toml.
+const MISE_CONFIG_NAMES = [
+  'mise.toml',
+  '.mise.toml',
+  path.join('.config', 'mise.toml'),
+  path.join('mise', 'config.toml'),
+  path.join('.mise', 'config.toml'),
+];
+
+function findMiseConfigs(dir) {
+  return MISE_CONFIG_NAMES.filter(rel => fs.existsSync(path.join(dir, rel)));
+}
+
+function miseErr(err) {
+  const raw = (err.stderr && String(err.stderr).trim()) || err.message;
+  return raw.slice(0, 200);
+}
+
+function runMiseSetup(worktreePath) {
+  const configs = findMiseConfigs(worktreePath);
+  if (configs.length === 0) return { ran: false };
+
+  try {
+    execFileSync('mise', ['--version'], { stdio: 'ignore' });
+  } catch {
+    return {
+      ran: false,
+      configs,
+      skipped: 'mise not on PATH',
+      suggested: { dir: '.', command: 'mise trust && mise install -y' }
+    };
+  }
+
+  const miseExec = { encoding: 'utf-8', stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: 10 * 1024 * 1024 };
+  try {
+    configs.forEach(rel => {
+      execFileSync('mise', ['trust', '-y', path.join(worktreePath, rel)], miseExec);
+    });
+  } catch (err) {
+    return {
+      ran: false,
+      configs,
+      skipped: `mise trust failed: ${miseErr(err)}`,
+      suggested: { dir: '.', command: 'mise trust && mise install -y' }
+    };
+  }
+
+  try {
+    execFileSync('mise', ['install', '-y', '-C', worktreePath], miseExec);
+    return { ran: true, configs, trusted: true, installed: true };
+  } catch (err) {
+    return {
+      ran: true,
+      configs,
+      trusted: true,
+      installed: false,
+      skipped: `mise install failed: ${miseErr(err)}`,
+      suggested: { dir: '.', command: 'mise install -y' }
+    };
+  }
 }
 
 // .worktreeinclude - same convention Claude Code's native worktrees use:
@@ -1620,6 +1688,10 @@ function cmdCreate() {
   // Deterministic port block, collision-checked against sibling worktrees
   const assignedBases = collectAssignedPortBases(getWorktreeRecords(gitRoot, workDir));
   const portBase = assignPortBase(worktreeName, assignedBases);
+  const miseConfigs = findMiseConfigs(sourceDir);
+  const plannedMise = miseConfigs.length
+    ? { configs: miseConfigs, command: 'mise trust && mise install -y' }
+    : { ran: false };
 
   // Dry-run mode: show what would be done
   if (dryRun) {
@@ -1639,7 +1711,8 @@ function cmdCreate() {
         portBase,
         envFilesToCopy: safeEnvFilesToCopy.length > 0 ? safeEnvFilesToCopy : undefined,
         worktreeInclude: readWorktreeInclude(sourceDir),
-        postCreateHook: plannedHook ? plannedHook.display : null
+        postCreateHook: plannedHook ? plannedHook.display : null,
+        mise: plannedMise
       },
       warnings: warnings.length > 0 ? warnings : undefined
     });
@@ -1782,6 +1855,11 @@ function cmdCreate() {
     }
   }
 
+  const mise = runMiseSetup(worktreePath);
+  if (mise.skipped) warnings.push(mise.skipped);
+  const suggestedInstalls = detectInstallCommands(worktreePath);
+  if (mise.suggested) suggestedInstalls.unshift(mise.suggested);
+
   // Resolve & run post-create hook (explicit flag wins; otherwise auto-detect).
   let hookResult = null;
   if (!noPostCreateHook) {
@@ -1816,7 +1894,8 @@ function cmdCreate() {
     envFilesCopied,
     envTemplatesCopied: envResult.copied,
     includeCopied: includeResult.copied,
-    suggestedInstalls: detectInstallCommands(worktreePath),
+    suggestedInstalls,
+    mise,
     sessionSwitch: buildSessionSwitch(worktreePath, !noEnter),
     postCreateHook: hookResult ? { ran: true, hook: hookResult.display } : { ran: false },
     warnings: warnings.length > 0 ? warnings : undefined

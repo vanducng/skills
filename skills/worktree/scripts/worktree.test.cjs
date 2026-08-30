@@ -33,6 +33,7 @@ function run(args, options = {}) {
     const output = execSync(`node "${SCRIPT_PATH}" ${args}`, {
       encoding: 'utf-8',
       cwd,
+      env: options.env,
       stdio: ['pipe', 'pipe', 'pipe']
     });
     return { success: true, output: output.trim(), exitCode: 0 };
@@ -1006,6 +1007,7 @@ test('integration: create copies nested env files, assigns ports, suggests insta
   assert(integration.suggestedInstalls.some(s => s.command === 'npm install' && s.dir === '.'), 'suggests npm install at root');
   assert(integration.suggestedInstalls.some(s => s.dir === 'backend'), 'suggests install in backend');
   assert((integration.warnings || []).some(w => w.includes('unsafe .worktreeinclude')), 'warns on unsafe include entry');
+  assert(integration.mise && integration.mise.ran === false, 'no mise setup without mise.toml');
 });
 
 test('integration: crafted .env filename does not execute shell commands', () => {
@@ -1153,6 +1155,57 @@ test('integration: status + repair detect and relocate a nested worktree', () =>
 test('integration: status nested is empty for a healthy repo', () => {
   const json = assertJSON(run('status --json', { cwd: TMP_REPO }).output);
   assert(Array.isArray(json.nested) && json.nested.length === 0, 'no nested worktrees in a clean repo');
+});
+
+function setupMiseRepo(name) {
+  const repo = path.join(TMP_BASE, name);
+  fs.mkdirSync(repo, { recursive: true });
+  sh('git init -q -b main', repo);
+  sh('git config user.email t@t.t && git config user.name t', repo);
+  fs.writeFileSync(path.join(repo, 'mise.toml'), '[tools]\n');
+  fs.writeFileSync(path.join(repo, 'README.md'), 'x\n');
+  sh('git add -A && git commit -qm init', repo);
+  return repo;
+}
+
+test('integration: mise.toml is trusted and tools installed on create', () => {
+  const repo = setupMiseRepo('mise-repo');
+  const bin = path.join(TMP_BASE, 'mise-bin');
+  const log = path.join(TMP_BASE, 'mise-calls.log');
+  fs.mkdirSync(bin, { recursive: true });
+  fs.writeFileSync(path.join(bin, 'mise'), `#!/bin/sh\nprintf '%s\n' "$*" >> "${log}"\nexit 0\n`);
+  fs.chmodSync(path.join(bin, 'mise'), 0o755);
+
+  const result = run('create "mise feat" --json', {
+    cwd: repo,
+    env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` }
+  });
+  assert(result.success, `create failed: ${result.output} ${result.stderr}`);
+  const json = assertJSON(result.output);
+  assert(json.mise && json.mise.ran === true, 'mise setup ran');
+  assert(json.mise.trusted === true, 'mise config trusted');
+  assert(json.mise.installed === true, 'mise tools installed');
+  assert((json.mise.configs || []).includes('mise.toml'), 'reports mise.toml');
+  const calls = fs.readFileSync(log, 'utf-8');
+  assert(/trust/.test(calls), `expected trust, got: ${calls}`);
+  assert(/install/.test(calls), `expected install, got: ${calls}`);
+});
+
+test('integration: mise.toml without mise on PATH suggests trust+install', () => {
+  const repo = setupMiseRepo('mise-nopath');
+  const pathNoMise = (process.env.PATH || '').split(path.delimiter)
+    .filter(dir => dir && !fs.existsSync(path.join(dir, 'mise')))
+    .join(path.delimiter);
+  const result = run('create "mise nopath" --json', {
+    cwd: repo,
+    env: { ...process.env, PATH: pathNoMise }
+  });
+  assert(result.success, `create failed: ${result.output} ${result.stderr}`);
+  const json = assertJSON(result.output);
+  assert(json.mise && json.mise.ran === false, 'mise setup skipped');
+  assert(/mise not on PATH/.test(json.mise.skipped || ''), 'explains missing mise');
+  assert((json.suggestedInstalls || []).some(s => s.command === 'mise trust && mise install -y'),
+    'suggests mise trust && install');
 });
 
 try {

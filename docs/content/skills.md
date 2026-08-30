@@ -138,6 +138,6 @@ Use `vd:diagram-design` for polished, accessible, self-contained HTML/SVG diagra
 
 Use `vd:superwhisper` to search local dictation history, prepare standups, and diagnose recognition errors. Use `vd:braze` for Braze CLI reads and explicit opt-in changes. Use `vd:smartsheet` for bounded sheet reads and authorized row updates. Use `vd:voice-agent` to operate Retell through `vac`.
 
-`vd:jira` uses the `vanducng/jira-cli` fork for native inline local-image comments. Inside Herdr, `vd:worktree` delegates current-pane naming to `vd:herdr` after a successful create. `vd:computer-clean` also audits Git worktree storage.
+`vd:jira` uses the `vanducng/jira-cli` fork for native inline local-image comments. Inside Herdr, `vd:worktree` delegates current-pane naming to `vd:herdr` after a successful create. `vd:worktree` also trusts and installs mise tools when a mise config is present. `vd:computer-clean` also audits Git worktree storage.
 
 A lingering `.ck.json` without `.vd.json` is a rename (`mv .ck.json .vd.json`), not a skill.
