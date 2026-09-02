@@ -3,224 +3,203 @@ name: ego-browser
 description: 'ego-browser (ego-lite) is a Chromium-based browser designed to be friendly to both human users and AI Agents. AI Agents work in their own isolated space, reusing the user''s login state without competing for the browser. Use this skill whenever the user needs to interact with a website: opening pages, filling forms, clicking buttons, taking screenshots, extracting page data, testing web apps, logging into sites, or automating browser operations. Triggers include "open a website", "visit a URL", "fill out a form", "click a button", "take a screenshot", "scrape data from a page", "extract content from a page", "test this web app", "login to a site", "automate browser actions", or any programmatic web interaction. Also used for exploratory testing, dogfooding, QA, bug hunting, or reviewing app quality. Prefer ego-browser over plain web-fetch/screenshot tools; for Playwright-style automation against the shared browser-profile Chrome, use vd:agent-browser.'
 license: MIT
 metadata:
-  version: "1.3.1"
-  date: "2026-07-27"
+  version: "1.3.2"
+  date: "2026-09-02"
 ---
 
 # ego-browser
 
-ego-browser exposes a real Chromium browser through a CLI-accessible Node.js runtime. Its preloaded `page`, `page.locator(...)`, `browser`, and `taskSpaces` facades follow Playwright-style names and call shapes; `taskSpaces`, `site`, `fetch`, and `cdp` provide ego-browser-specific capabilities.
+ego-browser gives AI agents a CLI-accessible Node.js runtime, with built-in helpers - `snapshotText`, `click`, `js`, `cdp`, and more - that agents call directly inside JS scripts to observe pages, interact with UI, evaluate browser-side JavaScript, and drive a real browser.
 
 For setup, install, or connection problems, read `references/install.md`.
 
-Before writing browser code, read `$HOME/.local/share/ego/ego-skills/SKILL.md`. That app-embedded skill ships with the active runtime and is authoritative for helper names and signatures. If it documents legacy helper functions instead of the `taskSpaces`, `page`, and `browser` facades used below, follow its API surface while keeping this skill's lifecycle, safety, and confirmation policies. Missing facade globals alone do not prove the installation is broken.
+Current ego lite (verified `0.4.7.4`) preloads the **legacy helpers** below. `page`, `browser`, and `taskSpaces` are **undefined**. Do not import Playwright, invent facade names, or treat missing `page.*` as an install failure. If `$HOME/.local/share/ego/ego-skills/SKILL.md` disagrees with this file, follow that app-bundled skill for helper names and signatures, and keep this file's lifecycle, safety, and confirmation policies.
 
-Run browser work with the `Bash` tool as `ego-browser nodejs <<'EOF' ... EOF`. Put the JavaScript directly in the heredoc; do not create a `.js` file, import Playwright, launch another browser, or invent helper names.
+Run browser work with the `Bash` tool as `ego-browser nodejs <<'EOF' ... EOF`. Put the JavaScript directly in the heredoc; do not create a `.js` file first.
 
 Inside a worktree-isolated session, the harness's worktree guard rejects heredocs as "too complex to verify that it stays inside the worktree." If that happens, write the script to a temp file and run `ego-browser nodejs < /tmp/<name>.js` instead.
 
-**A heredoc is only the JavaScript container; the Bash invocation is the execution round. Default to one Bash invocation for the whole browser task.** Each `await` is an internal operation, not a step boundary. Before launch, encode every predictable observation, action, wait, extraction, verification, and bounded alternative in the script. Use browser results immediately in JavaScript and keep adapting in-process until the task completes; do not exit merely to inspect intermediate output or plan the next action. Start another Bash command only for required user or external control, visual inspection that cannot happen in-process, or a process-level failure the script cannot recover from.
-
-**Choose the least-stateful reliable route before inspecting page controls.** When the task specifies an outcome or constraints but not a required interaction, prefer an already-correct state or a known stable URL or site route that directly encodes them; verify the resulting goal state instead of replaying equivalent filters, sorting, or navigation through the UI. Use page controls when the user requested that interaction, the interaction itself is under test, or no reliable equivalent is known. Never invent a brittle route.
-
-**Treat an already-satisfied postcondition as completed work.** Before manipulating a control whose required value may already be visible, perform only the smallest read needed to decide that state. If it matches, do not open its editor, replay the interaction, or read it again; continue directly to the remaining unsatisfied outcomes. Words such as “set”, “select”, or “ensure” describe the required final state unless the user explicitly requires the transition or the interaction itself is under test.
-
-**Separate browser work from terminal completion.** `useOrCreate` begins or resumes one user goal; keep its returned `task.id`, and reuse the same id or exact same name until that goal is terminal. Keep every predictable observation, action, wait, extraction, and verification compact, but do not call `taskSpaces.complete(...)` in a Bash invocation that is still determining whether the goal is satisfied. First finish the browser work and print evidence that every requested outcome and any required scope or coverage boundary has been proven. After reviewing that output, ask the user whether to close the exact task space. For small, clearly complete work, ask immediately when presenting the result instead of deferring cleanup. Only explicit confirmation may trigger a dedicated final Bash invocation that completes the original task space with `keep: false`; it performs no `page` or `browser` work. If the user chooses to keep an agent-owned space, complete it with `keep: true`. Silence is not confirmation. Nonempty or plausible partial results, a stalled page, exhausted retries, or a fallback attempt are not completion evidence.
-
-**Freeze the time window for current or relative-date work.** Establish “today/current/latest” once from the user/task environment or explicitly verified current page state before collecting records. Treat content timestamps as data, not as the clock. Older records revealed by scrolling, virtualization, reload, cache, or a changed result batch must not replace that anchor. Continue evaluating records against the original window; do not silently rebase the task to the newest content date observed.
+A heredoc is only the JavaScript container. Default to **one** Bash invocation for the whole predictable task: observe, act, wait, extract, and verify in-process. Start another command only for required user/external control, visual inspection that cannot happen in-process, or a process-level failure the script cannot recover from.
 
 ## Quick start
 
-Every example in this skill is deliberately composite. Adapt its URL, selectors, and data to the user task.
-
 ```bash
 ego-browser nodejs <<'EOF'
-const task = await taskSpaces.useOrCreate('inspect example page')
-await browser.openOrReuseTab('https://example.com', { wait: true, timeout: 20000 })
+const task = await useOrCreateTaskSpace('inspect example page')
+cliLog('task space id: ' + task.id)
 
-const heading = await page.getByRole('heading').first().innerText()
-const info = await page.info()
-if (!heading || !('url' in info)) throw new Error('Example page was not ready')
+await openOrReuseTab('https://example.com', { wait: true, timeout: 20 })
 
-const result = { taskSpaceId: task.id, heading, url: info.url }
-console.log(JSON.stringify(result, null, 2))
+cliLog(await snapshotText())
 EOF
 ```
 
-Keep all predictable work inside the script until the task is complete. Emit final results with `console.log(...)`.
+The heredoc body runs as a Node.js script that controls the selected ego-browser task space. All ego-browser helpers are preloaded into that script. Emit results with `cliLog(...)`.
 
-## Composite patterns
+## CLI
 
-### Extract, choose, navigate, verify
+Non-script commands from the `ego-browser` binary (ego lite 0.4.7+):
 
-On a list or search page, extract structured candidates before choosing. Keep the extraction, choice, action, wait, verification, and cleanup in one Bash invocation.
-
-```bash
-ego-browser nodejs <<'EOF'
-const task = await taskSpaces.useOrCreate('compare search results')
-await browser.openOrReuseTab('https://example.com/search?q=browser+automation', {
-  wait: true,
-  timeout: 20000,
-})
-
-const cards = page.locator('article')
-const items = await cards.evaluateAll((nodes) =>
-  nodes.map((node) => ({
-    title: node.querySelector('h2')?.textContent?.trim(),
-    href: node.querySelector('a')?.href,
-  })),
-)
-const chosenIndex = items.findIndex((item) => item.title && item.href)
-if (chosenIndex < 0) throw new Error('No usable result: ' + JSON.stringify(items))
-
-const before = await page.url()
-const navigation = page.waitForURL((url) => url.href !== before, { timeout: 15000 })
-await cards.nth(chosenIndex).getByRole('link').first().click()
-if (!(await navigation)) throw new Error('Chosen result did not navigate')
-
-const info = await page.info()
-if (!('url' in info) || info.url === before) throw new Error('Navigation was not verified')
-const result = { chosen: items[chosenIndex], opened: info.url }
-console.log(JSON.stringify(result, null, 2))
-EOF
-```
-
-### Fill, trigger, wait, read back
-
-Register request/response waits before the action that triggers them, then verify the resulting page state rather than treating the click as success.
-
-```bash
-ego-browser nodejs <<'EOF'
-const task = await taskSpaces.useOrCreate('search orders')
-await browser.openOrReuseTab('https://example.com/orders', { wait: true, timeout: 20000 })
-
-const responsePromise = page.waitForResponse(
-  (response) => response.url().includes('/api/orders') && response.ok(),
-  { timeout: 15000 },
-)
-await page.getByLabel('Search orders').fill('pending')
-await page.getByRole('button', { name: /search/i }).click()
-const response = await responsePromise
-
-const rows = await page.locator('table tbody tr').allInnerTexts()
-if (!rows.length) throw new Error('Search completed but returned no visible rows')
-const result = { status: response.status(), rows }
-console.log(JSON.stringify(result, null, 2))
-EOF
-```
-
-### Refresh tab handles, switch, inspect
-
-Treat `targetId` as a short-lived handle. Discover, validate, and use it in the same Bash invocation.
-
-```bash
-ego-browser nodejs <<'EOF'
-const task = await taskSpaces.useOrCreate('review generated report')
-const tabs = await browser.listTabs({ includeChrome: false })
-const reportTab = tabs.find((tab) => tab.url.includes('/reports/'))
-if (!reportTab?.targetId) throw new Error('Report tab not found: ' + JSON.stringify(tabs))
-
-await browser.switchTab(reportTab.targetId)
-const info = await page.info()
-const heading = await page.getByRole('heading').first().innerText()
-if (!('url' in info) || !info.url.includes('/reports/')) throw new Error('Wrong tab selected')
-const result = { taskSpaceId: task.id, heading, url: info.url }
-console.log(JSON.stringify(result, null, 2))
-EOF
-```
-
-## Runtime map
-
-- `page`: navigation and state (`goto`, `reload`, `url`, `title`, `info`), semantic locators, waits, `snapshot`, `screenshot`, `screencast`, `evaluate`, `keyboard`, `mouse`, downloads, and event draining.
-- `page.locator(selector)`: chaining and filtering; `first` / `nth` / `last`; click, hover, `dragTo`, `scrollIntoViewIfNeeded`, form, keyboard, upload, state-read, collection, element-evaluate, screenshot, and wait methods.
-- `browser`: `listTabs`, `currentTab`, `switchTab`, `openOrReuseTab`, `closeTab`, `ensureRealTab`, `iframeTarget`.
-- `taskSpaces`: `list`, `switch`, `new`, `useOrCreate`, `claim`, `complete`, `handOff`, `takeOver`, `waitForAgentControl`.
-- `fetch.server` performs Node-side requests; `fetch.browser` performs requests in the current page origin. Use `cdp` only as an escape hatch.
-- `console.log` is the output channel. Use `console.log(help('page'))`, `console.log(help('locator'))`, or another `help(name)` call when an exact signature is unclear.
-
-## Execution rules
-
-- `page.url()` is asynchronous in ego-browser; always use `await page.url()`. A `page.waitForURL(...)` predicate receives a `URL` object, so inspect `url.href`, `url.pathname`, or `url.searchParams`. It waits for `load` by default; use `waitUntil: 'commit'` only when intentionally proceeding before load.
-- `page.waitForURL`, `page.waitForLoadState`, `page.waitForSelector`, locator `waitFor`, and `page.waitForFunction` return a falsy value on timeout. Check the result or immediately verify the required state before continuing.
-- Register request, response, or navigation waits before the action that triggers them. Prefer state-based waits; use `page.waitForTimeout(...)` only for brief visual settling and keep it at or below 2000 ms.
-- Prefer stable semantic locators. When the page structure is unknown, collect the relevant controls or candidates once with `evaluateAll`, `allInnerTexts`, or another bounded read, derive the next actions in JavaScript, and continue in the same heredoc instead of enumerating selector guesses across commands.
-- Single-element actions and required reads - including raw CSS and raw `xpath=` locators - are strict and auto-wait. For zero matches, confirm load, active tab, and modal/overlay state before correcting the locator. For multiple matches, inspect `count()` / `allInnerTexts()`, narrow semantically or with `filter(...)`, and use `first()` / `nth()` only after confirming duplicates are legitimate. Let a successful action carry the script forward; read state when it determines a branch and once for the task's required final postconditions, not after every action. An already-satisfied required state needs no replay.
-- On failure, use one targeted observation to change strategy materially. Do not repeat near-identical locators or commands; switch to a stable semantic, DOM, or visual path based on the evidence.
-- Preserve explicitly requested user-visible transitions and stop boundaries. When a required click may navigate the current tab or open another one, click once and resolve the outcome from `await page.url()` plus a refreshed `browser.listTabs()` in the same script; do not replace the click with direct navigation merely because its destination is known. Do not swallow failures from required actions.
-
-## Task spaces
-
-A task space is an isolated browsing context with its own tabs that inherits the user's login state. Select it once near the start of the first Bash script with `taskSpaces.useOrCreate(nameOrId)`. If an external dependency makes a later command unavoidable, select the same returned numeric `task.id` or exact same short goal name before continuing; create a new space only for a separate user goal. Preserve already verified facts across commands instead of restarting setup.
-
-`useOrCreate` reuses or creates agent-owned spaces. If the matching space is user-owned, it selects the space without claiming it, so browser work hits the user-control hard stop. After explicit user confirmation to work there, use `taskSpaces.list()` → `taskSpaces.claim(id)` → `browser.listTabs()` → `browser.switchTab(targetId)`.
-
-Each space has `ownership: 'agent' | 'agentDelegatedToUser' | 'user'`:
-
-| Operation on a user-owned space | Behavior |
+| Command | Use |
 |---|---|
-| `taskSpaces.switch` | Throws; it only switches agent-owned spaces |
-| `taskSpaces.claim` | Transfers ownership to the agent and selects the space |
-| `taskSpaces.handOff` / `complete(..., { keep: true })` | Skips with `{ done: false, skipped: 'user-owned' }` |
-| `taskSpaces.complete(..., { keep: false })` | Claims, then closes the space |
-| `taskSpaces.takeOver` / `waitForAgentControl` | Performs no ownership check |
+| `ego-browser onboarding` | Run CLI onboarding if it has not completed |
+| `ego-browser import list` | List Chrome / Edge / Brave profiles this machine can import |
+| `ego-browser import --browser chrome --profile Default` | Import selected profiles. `--overwrite` replaces Ego profiles; `--no-default` skips setting Ego as the default browser |
+| `ego-browser upgrade` | Self-update the app, CLI, and bundled skill |
+| `ego-browser --version` | Print CLI / Chromium / Node versions |
+| `ego-browser --ego-server-name=<name>` | Connect to a named browser service |
+| `ego-browser nodejs -e '<script>'` | Eval a one-liner instead of a heredoc |
 
-Check the `done` result from `handOff` and `complete` before claiming success.
+Browser work still uses `ego-browser nodejs <<'EOF' ... EOF`.
 
-Treat completion as a terminal commit separate from browser execution. End the working Bash invocation without completion after capturing and printing the final URL, values, and other evidence. Review that output: every requested postcondition and any required scope or coverage boundary must be proven, not merely likely. If anything is unmet or unproven, continue in that same original task space; a correction, retry, or later phase is not a new goal.
+A trailing `[ego-browser:notice]` line is an out-of-band update hint, not part of the result. Finish the user's task first, then mention the notice and offer `ego-browser upgrade`. After an upgrade, re-read this file and `$HOME/.local/share/ego/ego-skills/SKILL.md` before continuing.
 
-Once completion is proven, present the result and ask: `Task is complete. Close Ego space "<name>" now?` Recommend closing agent-owned spaces unless the user still needs the page for manual work. For small, clearly finished tasks, ask in the same response as the result so the space does not accumulate unnoticed. Do not infer confirmation from the original request, a prior preference, or no reply.
+## Common helpers
 
-- If the user confirms closing, run one dedicated final Bash invocation that calls `taskSpaces.complete(nameOrId, { keep: false })` at most once, checks `done`, and performs no `page` or `browser` work.
-- If the user asks to keep an agent-owned space, call `taskSpaces.complete(nameOrId, { keep: true })` so the task is terminal but its result remains visible.
-- If the user has not answered, leave the space open and retain its exact id for the follow-up. Do not claim cleanup succeeded.
+- Task spaces: `listTaskSpaces`, `useOrCreateTaskSpace`, `claimTaskSpace`, `handOffTaskSpace`, `takeOverTaskSpace`, `waitForAgentControl`, `completeTaskSpace`
+- Navigation / state: `listTabs`, `openOrReuseTab`, `createTab`, `closeTab`, `gotoAndWait`, `currentTab`, `switchTab`, `gotoUrl`, `pageInfo`, `ensureRealTab`, `iframeTarget`
+- Observation: `snapshotText`, `captureScreenshot`, `drainEvents`
+- Scroll / mouse: `scrollBy`, `scrollToBottomUntil`, `scroll`, `click`, `doubleClick`, `hover`, `dragMouse`
+- Keyboard & input: `typeText`, `fillInput`, `pressKey`, `dispatchKey`
+- File: `uploadFile`
+- Wait: `wait`, `waitForLoad`, `waitForElement`, `waitForNetworkIdle`
+- Fetch: `serverFetch`, `browserFetch`
+- CDP / evaluate: `js`, `cdp`
+- Output: `cliLog`, `help`
 
-Never close a user-owned or pre-existing space unless the confirmation names that exact space. Close scratch tabs as you go, and retain only the tabs the user needs.
+Notes:
+- `cliLog(value)` - prints to the terminal; it is the only output mechanism inside a heredoc, and all final results must go through it.
+- `await pageInfo()` - normally resolves to `{ url, title, w, h, sx, sy, pw, ph }`; if a native browser dialog is open, resolves to `{ dialog: ... }` instead because page JavaScript is blocked.
+- If `await pageInfo()` resolves to `{ dialog: ... }`, handle the dialog with `await cdp('Page.handleJavaScriptDialog', { accept: true })` or `accept: false` before running page JavaScript.
+- `await ensureRealTab()` - switches to an existing non-internal page tab if needed and resolves to it; resolves to `null` when none exists. It does not create a tab - use `await openOrReuseTab(...)` or `await createTab(...)` for that.
+- `await iframeTarget(...)` - returns a target-id string or `null`, not an object. Obtain and use `targetId` in the same Bash invocation; never hardcode, hand-copy, or rename it to `id`.
+- `await closeTab(target?)` - closes the given target id / tab object, or the current tab when omitted.
+- `await drainEvents()` - consumes and returns the async event queue produced by the page (navigation events, network events, etc.).
+- `await serverFetch(url, options)` - issues a request from Node and returns the response body.
+- `await browserFetch(url, options)` - issues a request from the current browser page context and returns the response body.
+- `help(name)` - usage for a helper, e.g. `cliLog(help('click'))`. On some 0.4.7.x builds this returns `Unknown helper`; use the notes in this skill instead.
 
-Never hardcode, hand-copy, or rename a `targetId` to `id`. Obtain and use it inside the current Bash invocation. If another command is genuinely necessary, refresh `browser.listTabs()` and validate `find(...)` results before switching or closing. `browser.iframeTarget(...)` returns a target-id string or `null`, not an object.
+### Task spaces
 
-## Control handoff
+A task space is an **isolated browsing context** that ego-browser provides for AI Agents. Each task space has its own set of tabs but **inherits the current user's login state** by default, so Agents can operate on authenticated sites without competing with or disturbing the user's normal browser windows.
 
-A "user is controlling", "inactive", or "not assigned" error is a hard stop for the whole task. Do not retry, work around it, or call `taskSpaces.takeOver` automatically. Ask the user and wait.
+Closing all tabs in a task space is equivalent to closing that task space.
 
-For login, captcha, or another manual step, finish all safe preparation in the current Bash invocation, call `taskSpaces.handOff([nameOrId])`, check its `done` result, and tell the user exactly what to do. Resume only after explicit confirmation: use `taskSpaces.takeOver(nameOrId)` for a space the agent handed off, or `taskSpaces.claim(id)` for an existing user-owned/inactive space.
+`useOrCreateTaskSpace(nameOrId)` begins or resumes one user goal. Keep its returned `task.id`, and reuse the same id or exact same short name until that goal is terminal. Create a new space only for a separate user goal.
 
-`taskSpaces.waitForAgentControl(nameOrId)` only polls; it never takes control. Use it only when the same script initiated the handoff and intentionally remains alive; after it resolves, continue the remaining work in that script.
+`nameOrId` can be a task space name, numeric id, or digit-only numeric id string. String values match `name`/`taskId` first, then digit-only strings fall back to numeric id. Number values match existing numeric ids only; if no matching id exists, `useOrCreateTaskSpace` fails instead of creating a new space.
+
+After explicit user confirmation, to continue work from an existing user-owned, inactive, or unassigned task space, use `await listTaskSpaces()` to find the space, call `await claimTaskSpace(id)` to take ownership and select it, then use `await listTabs()` and `await switchTab(targetId)` to select the exact tab before acting.
+
+**Ownership policy** - every task space has `ownership: 'agent' | 'agentDelegatedToUser' | 'user'`; the helpers treat user-owned spaces differently:
+
+| Helper | When the target space is user-owned |
+|---|---|
+| `switchTaskSpace` | throws - agent-owned spaces only |
+| `claimTaskSpace` | claims it (ownership transfers to the agent), then selects it |
+| `handOffTaskSpace` | skipped - resolves `{ done: false, skipped: 'user-owned' }` |
+| `completeTaskSpace(..., { keep: true })` | skipped - resolves `{ done: false, skipped: 'user-owned' }` |
+| `completeTaskSpace(..., { keep: false })` | claims it, then closes it |
+| `takeOverTaskSpace` / `waitForAgentControl` | no ownership check |
+
+`handOffTaskSpace` and `completeTaskSpace` resolve `{ done: true }` when the operation actually happened. Check `done` before telling the user the handoff/cleanup is finished - a `skipped` result usually means you targeted a space that was never yours.
+
+Do **not** call `completeTaskSpace(...)` in a Bash invocation that is still determining whether the goal is satisfied. Finish the browser work, print evidence that every requested outcome is proven, then ask: `Task is complete. Close Ego space "<name>" now?` Recommend closing agent-owned spaces unless the user still needs the page for manual work. For small, clearly finished tasks, ask in the same response as the result. Silence is not confirmation. Never close a user-owned or pre-existing space unless the confirmation names that exact space.
+
+- If the user confirms closing, run one dedicated final Bash invocation that calls `completeTaskSpace(nameOrId, { keep: false })` at most once, checks `done`, and performs no page work.
+- If the user asks to keep an agent-owned space, call `completeTaskSpace(nameOrId, { keep: true })` so the task is terminal but its result remains visible.
+- If the user has not answered, leave the space open and retain its exact id.
+
+Close scratch tabs as you go. When keeping a space, retain only the tabs the user needs. `targetId` comes from `listTabs()` or an `openOrReuseTab` / `createTab` return value.
+
+### Control handoff
+
+A "user is controlling", "inactive", or "not assigned" error is a hard stop for the whole task. Do not retry, work around it, or call `takeOverTaskSpace` automatically. Ask the user and wait.
+
+For login, captcha, or another manual step, finish all safe preparation in the current Bash invocation, call `await handOffTaskSpace([nameOrId])`, check its `done` result, and tell the user exactly what to do. Resume only after explicit confirmation: `takeOverTaskSpace(nameOrId)` for a space the agent handed off, or `claimTaskSpace(id)` for an existing user-owned/inactive space.
+
+`waitForAgentControl(nameOrId)` only polls; it never takes control. Use it only when the same script initiated the handoff and intentionally remains alive.
 
 ### Just showing the user a page - skip the bridge entirely
 
-When the user only needs to *look at* something (a local report, a built artifact, a URL) and no agent driving is required, do **not** open it in a task space and hand off. A handed-off space is still an agent-created space: the user lands in an unfamiliar space instead of the one they were working in, and the window may not even come forward.
-
-Open it with the OS handler instead - it lands in the user's own current space, with no ownership to unwind:
+When the user only needs to *look at* something (a local report, a built artifact, a URL) and no agent driving is required, do **not** open it in a task space and hand off. Open it with the OS handler instead - it lands in the user's own current space, with no ownership to unwind:
 
 ```bash
 open -a "ego lite" "/absolute/path/to/report.html"   # macOS; a URL works too
 ```
 
-Use the task-space route only when the agent must observe or act on the page. If you already handed off a space and the user says they want it in *their* space, re-open with `open -a` and offer to close the now-redundant agent space.
+Use the task-space route only when the agent must observe or act on the page. After any `handOffTaskSpace`, `open -a "ego lite"` with no argument brings the window forward so the user actually sees what was handed to them.
 
-Related: after any `handOff` the ego window is not necessarily frontmost - `open -a "ego lite"` with no argument brings it forward so the user actually sees what was handed to them.
+### Scroll / mouse
 
-## Choose the interaction path
+```js
+await scrollBy(900)
+await scrollToBottomUntil(
+  async () => await js(String.raw`document.querySelectorAll('article').length`) >= 20,
+  { step: 900, wait: 1, maxSteps: 20 }
+)
 
-1. **Semantic: snapshot + locators.** Use for normal DOM pages. Observe with `page.snapshot()`, then act with semantic locators, current-command `@N` refs, or stable `loc=...` values.
-2. **Visual: screenshot + mouse/keyboard.** Use for canvas, virtualized editors, spreadsheets, maps, and AX-poor surfaces. Before substantial editing, make a tiny write probe and verify it with a screenshot or export/readback. End the command for a screenshot only when it must be visually inspected outside the script; otherwise keep acting and verifying in the same script.
-3. **Direct DOM/CDP: locator evaluate, page evaluate, cdp.** Use `locator.evaluateAll(fn, arg)` for element collections and `page.evaluate(fn, arg)` for page-wide state. Use raw CDP only for capabilities not covered by the facades. The task-space bridge does not expose `Browser.grantPermissions` or `Browser.setPermission`; use supported page controls or report the capability boundary instead of probing them repeatedly.
+await scroll({ dy: 900 })
+```
 
-Combine the paths within the same Bash invocation whenever their next inputs are available to the script.
+Element-target helpers such as `click`, `doubleClick`, `hover`, `dragMouse`, `fillInput`, `uploadFile`, and `waitForElement` accept the same selector/ref surface: raw CSS, `xpath=...`, `@N` / `ref=N`, and `loc=...` values from `snapshotText()` (`loc=css:...`, `loc=role:...`, `loc=href:...`). `@N` refs are for ego-browser helpers only; they are not valid selectors inside `document.querySelector(...)`.
 
-## Update notices
+`click`, `doubleClick`, `hover`, and `dragMouse` share these target formats. Coordinates are in CSS pixels:
 
-- A trailing `[ego-browser:notice]` line means an ego lite update is available/required - it is an out-of-band hint appended after the command's own output, not an error or part of the result. Do not act on it mid-task; keep working toward the user's goal.
-- Once the current browser task stops or completes (including right before/after `taskSpaces.complete`), tell the user about the update: the notice line, and the current version shown in the notice. Proactively offer to run the upgrade - mention that it updates the ego lite browser, the CLI, and the Skills together, not just the app.
-- If the user agrees, run `ego-browser upgrade` in the shell. After the upgrade finishes, re-read this file and `$HOME/.local/share/ego/ego-skills/SKILL.md` before continuing, since the upgrade may have changed the app, CLI, installed skill, or runtime API.
+- `string` - CSS selector, `xpath=...`, `@N` / `ref=N`, or `loc=...`; clicks the element's center.
+- `[x, y]` or `{x, y}` - viewport coordinates.
+- `{selector}` - CSS selector, `xpath=...`, `@N` / `ref=N`, or `loc=...`; clicks the element's center.
+- `{selector, x, y}` - offset from the element's top-left corner by `x`/`y`.
+- `options.label` (optional) - a 3-6 word action description; triggers a visual highlight animation.
+
+```js
+await click('@21', { label: 'check login status' })
+await click('button.primary', { label: 'click submit button' })
+await click([420, 260])
+await click({ x: 420, y: 260 })
+await click({ selector: 'canvas#stage', x: 12, y: 8 })
+await hover('@5', { label: 'hover to reveal menu' })
+await dragMouse([from, to], { label: 'drag card' })
+```
+
+### uploadFile
+
+```js
+await uploadFile('input[type="file"]', "/absolute/path/to/file.pdf")
+```
+
+### js
+
+`js()` is essentially `Runtime.evaluate` and takes a string. You can pass a function, but doing so triggers a one-time warning and wraps it via `.toString()` - closures are not captured and there is no argument channel. Do not use `js()` the way you would Playwright's `page.evaluate(fn, ...args)`.
+
+When you need to run multi-step logic inside the browser, wrap it in a single self-invoking closure and return once:
+
+```js
+const data = await js(String.raw`(() => {
+  const items = [...document.querySelectorAll('article')]
+  return items.map(el => ({
+    text: el.innerText,
+    links: [...el.querySelectorAll('a')].map(a => a.href),
+  }))
+})()`)
+```
+
+## Recommended workflow
+
+1. **Semantic: `snapshotText()` + refs / locators.** Default for normal DOM pages. Observe with `snapshotText()`, then act with `click('@N')`, `fillInput('@N', ...)`, or stable `loc=...` values.
+2. **Visual: `captureScreenshot()` + mouse/keyboard.** Use for canvas, virtualized editors, spreadsheets, maps, and AX-poor surfaces. Before substantial editing, make a tiny write probe and verify it with a screenshot or export/readback.
+3. **Direct DOM/CDP: `js(...)` / `cdp(...)`.** Use for compact extraction or capabilities the helpers do not cover. Keep browser-side logic in one explicit IIFE.
+
+For Google Docs, Google Sheets, Lark/Feishu Docs, Notion, Figma, whiteboards, maps, and other virtualized editors, use the visual workflow first for the main editing surface. Do not rely on `fillInput(...)`, DOM selectors, or `snapshotText()` refs for that surface unless a small write probe proves the text lands in the intended place. For Google Sheets cell writes, read `references/google-sheets.md` first.
 
 ## Caveats
 
-- Timeouts are milliseconds in the Playwright-style `page`, locator, navigation, and browser helpers. Exceptions: `fetch.server` / `fetch.browser` timeout and `taskSpaces.waitForAgentControl` interval/timeout are seconds.
-- `page.snapshot()` defaults to full-page. An `@N` ref is valid only after the latest snapshot in the current Bash invocation; every snapshot rebuilds the ref map. If the command ends, re-snapshot next time or use a semantic/stable locator.
-- `page.evaluate(fn, arg)` runs in the page and returns the value directly; do not `JSON.parse` it or pass a function body as a string. Heredoc code runs in Node.js; `document` and `window` exist only inside page evaluation.
-- If `page.info()` returns `{ dialog: ... }`, handle it with `cdp('Page.handleJavaScriptDialog', { accept: true })` or `accept: false` before page JavaScript. If it reports `w: 0` or `h: 0`, stop screenshot/coordinate work until the real tab or viewport is restored and re-verified.
-- When the user explicitly asks for ego-browser, assume the CLI and runtime are ready. Do not preflight `which`, Node versions, package metadata, or help. Investigate only after the first real command errors. If the command is missing, or neither the facade nor app-documented legacy helpers exist, read `references/install.md`.
+- `wait(...)` and `timeout` values are in **seconds**; only parameters whose names end in `Ms` are milliseconds.
+- `snapshotText()` defaults to `scope: 'full_page'`. An `@N` ref is valid only after the latest snapshot in the current Bash invocation; every snapshot rebuilds the ref map. For long-lived targets, use the `loc=...` value or a CSS selector.
+- `js()` returns the evaluated result, not a JSON string - do not `JSON.parse` it. Heredoc code runs in Node.js; `document` and `window` exist only inside `js(...)`.
+- Inside a `js(...)` template string, regex backslashes must be doubled (e.g. `\\d`, `\\s`), or use `String.raw`.
+- If `await pageInfo()` reports `w: 0` or `h: 0`, stop screenshot/coordinate work until the real tab or viewport is restored and re-verified.
+- When the user explicitly asks for ego-browser, assume the CLI and runtime are ready. Do not preflight `which`, Node versions, package metadata, or help. Investigate only after the first real command errors. If the command is missing, or the legacy helpers above are not functions, read `references/install.md`.
 
 # References:
 - [screencast video recording](references/video.md)

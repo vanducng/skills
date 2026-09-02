@@ -1,5 +1,7 @@
 # Video recording
 
+Current ego lite 0.4.7.x does not expose `page` or `page.screencast`. Do not attempt video recording on that runtime. If a later `ego-browser upgrade` adds the facade, the API below applies.
+
 Record the current page viewport with Playwright-style `page.screencast`. Start and stop the recording in the same Bash invocation so FFmpeg can finalize the silent VP8 WebM file.
 
 ```js
