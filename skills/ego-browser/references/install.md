@@ -25,8 +25,8 @@ After installing, the script opens the ego lite app directly. If ego lite is alr
 
 After the script opens the ego lite app, the user completes the first-run onboarding in the app:
 
-- Choose to import data from Chrome or another browser as needed.
-- Onboarding registers the `ego-browser` command on the PATH (usually under `~/.local/bin`).
+- Choose to import data from Chrome or another browser as needed. The CLI equivalent is `ego-browser import list` then `ego-browser import --browser chrome --profile Default`.
+- Onboarding registers the `ego-browser` command on the PATH (usually under `$HOME/.local/bin`). `ego-browser onboarding` runs the CLI onboarding flow if it has not completed yet.
 
 Onboarding is a step the user completes in the GUI. After the script opens ego lite, wait for the user to confirm they've finished onboarding before continuing.
 
@@ -38,7 +38,7 @@ Once the user has finished onboarding, confirm the command is ready:
 command -v ego-browser
 ```
 
-If it reports that the command isn't found, `~/.local/bin` is most likely not on the current PATH. Fix it temporarily and retry:
+If it reports that the command isn't found, `$HOME/.local/bin` is most likely not on the current PATH. Fix it temporarily and retry:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
@@ -49,32 +49,25 @@ Once the command exists, verify the runtime with a minimal heredoc:
 
 ```bash
 ego-browser nodejs <<'EOF'
-const facadeReady =
-  typeof taskSpaces === 'object' &&
-  typeof page === 'object' &&
-  typeof browser === 'object'
-const legacyReady =
+const ready =
   typeof useOrCreateTaskSpace === 'function' &&
   typeof openOrReuseTab === 'function' &&
-  typeof pageInfo === 'function'
-
-if (!facadeReady && !legacyReady) {
-  throw new Error('ego-browser helper runtime is outdated')
-}
-console.log(`ego-browser ready: ${facadeReady ? 'facade' : 'legacy'}`)
+  typeof snapshotText === 'function'
+if (!ready) throw new Error('ego-browser helper runtime is missing')
+cliLog('ego-browser ready')
 EOF
 ```
 
-Printing `ego-browser ready: facade` or `ego-browser ready: legacy` means the environment is ready. Before writing browser code, read `$HOME/.local/share/ego/ego-skills/SKILL.md`; it ships with the active app and defines the matching helper names and signatures.
+Printing `ego-browser ready` means the environment is ready. Current ego lite loads these legacy helpers; missing `page` / `browser` / `taskSpaces` is not an install failure.
 
 ## After that, return to the original task
 
-Once the environment is ready, return to the user's original task and follow the task-space API documented by the app-embedded skill, while preserving the lifecycle and confirmation policies in `SKILL.md`.
+Once the environment is ready, return to the user's original task and follow `SKILL.md` - start from `useOrCreateTaskSpace(name)` and proceed as usual.
 
 ## Troubleshooting
 
 - **Not macOS**: the script supports macOS only (`uname -s` is `Darwin`). On other platforms, have the user download and install from the ego lite website at https://lite.ego.app/.
 - **Download failed**: the script retries 3 times automatically; if it still fails, it's usually a network issue - have the user check their network and retry.
 - **Gatekeeper still blocks it**: the script already tries to strip quarantine; if the first launch is still blocked, have the user allow ego lite manually under System Settings → Privacy & Security.
-- **Command still unavailable after onboarding**: confirm `~/.local/bin` is on the PATH (see above); or have the user reopen ego lite, finish onboarding, and retry.
-- **Facade globals are missing**: if the legacy readiness check passes, the runtime is ready; follow `$HOME/.local/share/ego/ego-skills/SKILL.md` instead of treating the missing facade as an install failure. If neither surface exists, ask the user before running `ego-browser upgrade`. After the upgrade, re-read both skills because the app, CLI, installed skill, and runtime API may all have changed.
+- **Command still unavailable after onboarding**: confirm `$HOME/.local/bin` is on the PATH (see above); or have the user reopen ego lite, finish onboarding, and retry.
+- **Helpers missing after a working command**: ask the user before running `ego-browser upgrade`. After the upgrade, re-read `SKILL.md` and `$HOME/.local/share/ego/ego-skills/SKILL.md`.
