@@ -1,11 +1,11 @@
 ---
 name: worktree
-description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under a top-level .worktrees/ dir, auto-copies .env files (nested included), assigns each worktree a deterministic port block, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Hands Laravel Herd projects to herd-worktree for site/env/database setup. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
+description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under a top-level .worktrees/ dir, auto-copies .env files (nested included), assigns each worktree a deterministic port block, trusts mise configs in the new worktree when present, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Hands Laravel Herd projects to herd-worktree for site/env/database setup. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
 license: MIT
 argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | repair | remove <name>"
 metadata:
   author: vanducng
-  version: "2.4.0"
+  version: "2.5.0"
 ---
 
 # Worktree
@@ -141,7 +141,8 @@ After every successful non-dry-run create that returns `worktreePath`, if `HERDR
 3. Copies `.worktreeinclude` entries (see below).
 4. Assigns a deterministic 10-port block and writes `.env.worktree`.
 5. Verifies the checkout landed on the requested branch (auto-rescues via `git switch` if git silently attached elsewhere) and warns when the base branch is behind its fetched remote.
-6. Detects lockfiles and returns `suggestedInstalls`.
+6. If a mise config is present (`mise.toml`, `.mise.toml`, `.config/mise.toml`, `mise/config.toml`, `.mise/config.toml`) at the worktree root or one directory down, runs `mise trust` on each new path (mise trusts by path, so a new worktree is untrusted until this). `mise install -y` is returned in `suggestedInstalls` so it runs in the background like other package managers. Missing `mise` binary → `mise trust && mise install -y` in `suggestedInstalls`.
+7. Detects lockfiles and returns `suggestedInstalls`.
 
 **Flags:**
 
@@ -163,7 +164,7 @@ After every successful non-dry-run create that returns `worktreePath`, if `HERDR
 
 ### Step 6 - Install deps
 
-Run the `suggestedInstalls` from the create output in the new worktree (background bash, don't block):
+Mise configs are already trusted when create reports `mise.ran: true`; the tool install still arrives via `suggestedInstalls` (`mise install -y`). Run the `suggestedInstalls` from the create output in the new worktree (background bash, don't block):
 
 ```json
 "suggestedInstalls": [
@@ -367,6 +368,7 @@ git branch --track <branch> origin/<branch>
 | `portBase` | First port of this worktree's 10-port block |
 | `worktreeId` | DB-name-safe identifier |
 | `suggestedInstalls` | `[{dir, command}]` - run these in the worktree |
+| `mise` | `{ran, configs, trusted}` or `{ran:false, skipped?}` - auto `mise trust` when a mise config is present; install stays in `suggestedInstalls` |
 | `sessionSwitch` | `{enter, path, runtime, action, exit?, note?}` - how to move the session into the worktree (`enter:false` if `--no-enter`) |
 | `envFilesCopied` | Untracked `.env*` files copied (incl. nested paths) |
 | `envTemplatesCopied` | `.env*.example` → `.env*` mappings (gap-fill only) |
