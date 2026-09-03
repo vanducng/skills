@@ -2,6 +2,21 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.60.0](https://github.com/vanducng/skills/compare/v1.59.2...v1.60.0) (2026-09-03)
+
+
+### Features
+
+* add show-me ([#464](https://github.com/vanducng/skills/issues/464)) ([2cb5ffd](https://github.com/vanducng/skills/commit/2cb5ffd1e1e83cc8ada74d7f78587bdf406e4ff0))
+* **worktree:** trusted mise configs on new worktrees ([#462](https://github.com/vanducng/skills/issues/462)) ([3875748](https://github.com/vanducng/skills/commit/387574871ebb58f6b8bd986db0fba89a0f8c7492))
+
+
+### Bug Fixes
+
+* **cook:** parked product choices for the user ([#459](https://github.com/vanducng/skills/issues/459)) ([1e8582d](https://github.com/vanducng/skills/commit/1e8582ddd6d704063b5c9ac262ee21a9d90dfacd))
+* **ego-browser:** aligned skill with live 0.4.7 helpers ([#463](https://github.com/vanducng/skills/issues/463)) ([ab6eb2b](https://github.com/vanducng/skills/commit/ab6eb2bdad3847ff7c0ea9357eb89980814824a1))
+* **skills:** hardened credential and journal workflows ([#460](https://github.com/vanducng/skills/issues/460)) ([492ef09](https://github.com/vanducng/skills/commit/492ef0900d584156b1eb55554662d859edd852f3))
+
 ## [1.59.2](https://github.com/vanducng/skills/compare/v1.59.1...v1.59.2) (2026-08-27)
 
 
