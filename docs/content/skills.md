@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog currently contains 79 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog currently contains 80 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
 
 Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 
@@ -73,6 +73,7 @@ Escalation ladder (start local; `vd:browser` is the cloud fallback):
 | Need | Skill |
 | --- | --- |
 | Canonical internal docs and ADRs; public site via `site` | `vd:docs` |
+| Cheap in-chat visual for the current topic | `vd:show-me` |
 | ASCII sketch | `vd:text-diagram` |
 | General SVG or raster | `vd:diagram` |
 | Editable whiteboard | `vd:excalidraw` |
@@ -134,7 +135,7 @@ Within review: `vd:code-review` asks whether a change is ready to land and posts
 
 Use `vd:docs` for canonical internal project docs and ADRs, and its `site` subcommand to create, modernize, validate, and ship a rendered public developer documentation site.
 
-Use `vd:diagram-design` for polished, accessible, self-contained HTML/SVG diagrams. Use `vd:text-diagram` for ASCII sketches, `vd:diagram` for general SVG or raster output, and `vd:excalidraw` for editable whiteboard canvases.
+Use `vd:show-me` for the cheapest in-chat visual of the current topic. Use `vd:diagram-design` for polished, accessible, self-contained HTML/SVG diagrams. Use `vd:text-diagram` for ASCII sketches, `vd:diagram` for general SVG or raster output, and `vd:excalidraw` for editable whiteboard canvases.
 
 Use `vd:superwhisper` to search local dictation history, prepare standups, and diagnose recognition errors. Use `vd:braze` for Braze CLI reads and explicit opt-in changes. Use `vd:smartsheet` for bounded sheet reads and authorized row updates. Use `vd:voice-agent` to operate Retell through `vac`.
 
