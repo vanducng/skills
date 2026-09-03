@@ -65,6 +65,7 @@ Start local. Escalate to `vd:browser` only when a local run hits a wall.
 
 | Need | Skill |
 |---|---|
+| Explain the current topic in chat | `vd:show-me` |
 | ASCII sketch | `vd:text-diagram` |
 | General SVG / raster | `vd:diagram` |
 | Editable whiteboard | `vd:excalidraw` |
