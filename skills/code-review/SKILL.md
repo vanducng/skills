@@ -54,6 +54,8 @@ Flags:
 3. **No critical claim without evidence.** "Critical" means "merge would cause incident / data loss / security hole." If you can't point to the failure mode, downgrade to Important.
 4. **Encouraging tone, firm content.** Lead with what works when it's true. Be direct about problems. Never sarcastic. Never "as an AI…". The author is a peer.
 5. **Read the file, not just the hunk.** Diff context lies. Open the file at the changed lines and 30 lines around to understand surrounding state before commenting.
+6. **Intent vs mistake.** Review whether the change achieves the stated intent, not whether the intent is right. A finding that challenges a deliberate product decision, a named tradeoff, or two valid designs is `**Question:**`, never Critical/Important, and must not flip the verdict to Request changes. Relay it; let the author/user answer.
+7. **Stay in the diff.** Comment on paths this change touches. Adjacent cleanup is out of scope unless this diff introduces a merge-blocking defect there.
 
 ## Review voice (the style guide)
 
@@ -66,7 +68,7 @@ These are the conventions for **every** comment this skill writes. Reference exa
 | `**Critical:**` | Blocks merge. Bug, security, data loss, CI red. | High - author must act before next push. |
 | `**Important - <topic>**:` | Should fix before merge. Correctness, design, perf. The `<topic>` makes the comment skimmable. | Medium. |
 | `**Suggestion:**` | Nice-to-have. Style, minor refactor, doc nit. | Low - author can ignore. |
-| `**Question:**` | You genuinely don't know if it's a bug. Asks the author. | Low - invites dialog, not blocking. |
+| `**Question:**` | You genuinely don't know, or the finding challenges a product/intent choice the author may have made on purpose. Asks; never blocks merge by itself. | Low - invites dialog, not blocking. |
 | `**Nit:**` | Pure preference. Optional. | Zero - must be ignorable. |
 
 ### Comment shape
@@ -295,7 +297,7 @@ This is the always-on lens. Repo-specific rules (i18n, SQL store conventions, mo
 
 **Project conventions**
 - Read `CLAUDE.md`, `docs/code-standards.md`, `docs/system-architecture.md` if present. Apply repo-specific rules (i18n keys in 3 locales, h-dvh not h-screen, parameterized SQL, etc.).
-- Calibrate: this is a review, not a rewrite. If the code is correct, safe, and readable, ship it - don't manufacture findings to look thorough. "Different from how I'd write it" is not a finding.
+- Calibrate: this is a review, not a rewrite. If the code is correct, safe, and readable, ship it - don't manufacture findings to look thorough. "Different from how I'd write it" is not a finding. Review the change against its stated intent; do not reject a named tradeoff because you'd have chosen differently.
 
 ## CI handling
 
@@ -329,6 +331,7 @@ Approved. <one sentence on what shipped well>.
 - **Ghost suggestions.** "Consider refactoring this." → useless. Either propose the refactor with code, or drop the comment.
 - **Re-reviewing on every push.** If the author pushed a 3-line fix to address your Critical, look at those 3 lines - don't re-review the whole PR.
 - **Hidden assumptions.** "This should use the foo pattern." → name the file, name the pattern, link the prior art.
+- **Reviewer as designer.** Using extra models or Important findings to pick a product path. That's a Question to the user.
 
 ### Common rationalizations to catch (in the code, and in yourself)
 
