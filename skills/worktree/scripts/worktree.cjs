@@ -293,6 +293,12 @@ function output(data) {
       if (data.portBase) {
         console.log(`\n🔌 Ports: ${data.portBase}-${data.portBase + 9} (PORT=${data.portBase}, in ${data.envWorktreeFile})`);
       }
+      if (data.mise && data.mise.ran) {
+        const miseBits = [];
+        if (data.mise.trusted) miseBits.push(`trusted ${(data.mise.configs || []).join(', ') || 'mise.toml'}`);
+        if (data.mise.installed) miseBits.push('installed tools');
+        if (miseBits.length) console.log(`\n🔧 mise: ${miseBits.join(', ')}`);
+      }
       if (data.suggestedInstalls && data.suggestedInstalls.length > 0) {
         console.log(`\n📦 Install dependencies:`);
         data.suggestedInstalls.forEach(s => console.log(`   ${s.dir === '.' ? '' : `cd ${s.dir} && `}${s.command}`));
@@ -850,6 +856,92 @@ function detectInstallCommands(dir) {
     });
   });
   return found;
+}
+
+// mise trusts configs by path; a new worktree is untrusted even with identical mise.toml.
+const MISE_CONFIG_NAMES = [
+  'mise.toml',
+  '.mise.toml',
+  path.join('.config', 'mise.toml'),
+  path.join('mise', 'config.toml'),
+  path.join('.mise', 'config.toml'),
+];
+
+function findMiseConfigs(dir) {
+  const dirsToCheck = ['.'];
+  try {
+    fs.readdirSync(dir, { withFileTypes: true }).forEach(e => {
+      if (e.isDirectory() && !e.name.startsWith('.') && !ENV_SCAN_SKIP.has(e.name) && dirsToCheck.length < 30) {
+        dirsToCheck.push(e.name);
+      }
+    });
+  } catch { /* unreadable dir - root-only check */ }
+
+  const found = [];
+  dirsToCheck.forEach(sub => {
+    MISE_CONFIG_NAMES.forEach(name => {
+      const rel = sub === '.' ? name : path.join(sub, name);
+      if (fs.existsSync(path.join(dir, rel))) found.push(rel.split(path.sep).join('/'));
+    });
+  });
+  return found;
+}
+
+function miseErr(err) {
+  const raw = (err.stderr && String(err.stderr).trim()) || err.message;
+  return raw.slice(0, 200);
+}
+
+function miseInstallSuggestions(configs, withTrust) {
+  const dirs = [...new Set(configs.map(rel => {
+    const d = path.dirname(rel);
+    return d === '.' ? '.' : d;
+  }))];
+  const command = withTrust ? 'mise trust && mise install -y' : 'mise install -y';
+  return dirs.map(dir => ({ dir, command }));
+}
+
+function runMiseSetup(worktreePath) {
+  const configs = findMiseConfigs(worktreePath);
+  if (configs.length === 0) return { ran: false };
+
+  try {
+    execFileSync('mise', ['--version'], { stdio: 'ignore' });
+  } catch {
+    return {
+      ran: false,
+      configs,
+      skipped: 'mise not on PATH',
+      suggested: miseInstallSuggestions(configs, true)
+    };
+  }
+
+  const miseExec = {
+    encoding: 'utf-8',
+    stdio: ['ignore', 'ignore', 'pipe'],
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: 10 * 60 * 1000
+  };
+  try {
+    configs.forEach(rel => {
+      execFileSync('mise', ['trust', '-y', path.join(worktreePath, rel)], miseExec);
+    });
+  } catch (err) {
+    return {
+      ran: false,
+      configs,
+      skipped: `mise trust failed: ${miseErr(err)}`,
+      suggested: miseInstallSuggestions(configs, true)
+    };
+  }
+
+  return {
+    ran: true,
+    configs,
+    trusted: true,
+    installed: false,
+    suggested: miseInstallSuggestions(configs, false)
+  };
 }
 
 // .worktreeinclude - same convention Claude Code's native worktrees use:
@@ -1620,6 +1712,10 @@ function cmdCreate() {
   // Deterministic port block, collision-checked against sibling worktrees
   const assignedBases = collectAssignedPortBases(getWorktreeRecords(gitRoot, workDir));
   const portBase = assignPortBase(worktreeName, assignedBases);
+  const miseConfigs = findMiseConfigs(gitRoot);
+  const plannedMise = miseConfigs.length
+    ? { configs: miseConfigs, command: 'mise trust' }
+    : { ran: false };
 
   // Dry-run mode: show what would be done
   if (dryRun) {
@@ -1639,7 +1735,8 @@ function cmdCreate() {
         portBase,
         envFilesToCopy: safeEnvFilesToCopy.length > 0 ? safeEnvFilesToCopy : undefined,
         worktreeInclude: readWorktreeInclude(sourceDir),
-        postCreateHook: plannedHook ? plannedHook.display : null
+        postCreateHook: plannedHook ? plannedHook.display : null,
+        mise: plannedMise
       },
       warnings: warnings.length > 0 ? warnings : undefined
     });
@@ -1782,6 +1879,11 @@ function cmdCreate() {
     }
   }
 
+  const mise = runMiseSetup(worktreePath);
+  if (mise.skipped) warnings.push(mise.skipped);
+  const suggestedInstalls = detectInstallCommands(worktreePath);
+  [].concat(mise.suggested || []).reverse().forEach(s => suggestedInstalls.unshift(s));
+
   // Resolve & run post-create hook (explicit flag wins; otherwise auto-detect).
   let hookResult = null;
   if (!noPostCreateHook) {
@@ -1816,7 +1918,8 @@ function cmdCreate() {
     envFilesCopied,
     envTemplatesCopied: envResult.copied,
     includeCopied: includeResult.copied,
-    suggestedInstalls: detectInstallCommands(worktreePath),
+    suggestedInstalls,
+    mise,
     sessionSwitch: buildSessionSwitch(worktreePath, !noEnter),
     postCreateHook: hookResult ? { ran: true, hook: hookResult.display } : { ran: false },
     warnings: warnings.length > 0 ? warnings : undefined
