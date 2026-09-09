@@ -6,7 +6,7 @@ A provided screenshot or diagram is not done until it is inline ADF. An attachme
 
 | Need | Method |
 | --- | --- |
-| Public image URL | Markdown image syntax in the description or comment |
+| Public image URL | Comment: Markdown `![alt](url)`. Description: ADF `media` `type: external` (Markdown is literal text) |
 | Readable local screenshot or diagram | REST v3 ADF `mediaSingle`, left aligned at 100% width, in the description (create) or comment (follow-up) |
 | Reuse an existing attachment | Resolve its Media Services UUID; do not re-upload |
 | Quick local thumbnail | `jira issue comment add --image` (not for ticket evidence) |
@@ -18,9 +18,9 @@ Attachment upload needs an issue key, so create cannot carry the image on the fi
 
 1. `POST /rest/api/3/issue` to create the issue (text description is fine).
 2. Upload the file to `POST /rest/api/2/issue/$issue_key/attachments` and resolve the Media Services UUID (same recipe as comments below).
-3. `PUT /rest/api/3/issue` with `mediaSingle` nodes in `fields.description`.
+3. `PUT /rest/api/3/issue` with the **full** description ADF (step-1 text plus `mediaSingle` nodes) in `fields.description`. The PUT replaces the entire description; media-only content wipes the text.
 
-On edit, reuse the existing attachment UUID. Do not re-upload. Do not leave the description image-free after upload.
+On edit, GET the current description, keep its text nodes, reuse the existing attachment UUID, then PUT the combined ADF. Do not re-upload. Do not leave the description image-free after upload.
 
 If `GET /rest/api/3/issue/KEY` 404s, confirm the key via JQL, then `PUT` anyway (see SKILL.md Known API Issues). Verify from `fields.description.content[]`, not `.body.content[]`:
 
@@ -42,11 +42,13 @@ curl -fsS "$JIRA_BASE_URL/rest/api/3/issue/$issue_key?fields=description" \
 
 ## Public Image URL
 
-`jira-cli` converts Markdown image syntax to Jira markup. The URL must remain reachable by Jira users.
+Comments only: `jira-cli` converts Markdown image syntax to Jira markup. The URL must remain reachable by Jira users.
 
 ```bash
 jira issue comment add PROJ-123 '![Architecture](https://example.com/architecture.png)'
 ```
+
+Descriptions: do not use Markdown. Put an ADF `mediaSingle` with `media.attrs.type = "external"` and `url` set to the public URL (same layout/width rules as local files).
 
 Do not use this for private or short-lived URLs.
 

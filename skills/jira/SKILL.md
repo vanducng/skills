@@ -214,7 +214,7 @@ Use a REST v3 ADF `mediaSingle` node. Set `layout` to `align-start`, `width` to 
 
 ### Inline images in descriptions and comments
 
-- **Public URL:** Pass Markdown image syntax in the body.
+- **Public URL:** Comments: Markdown `![alt](url)` via `jira issue comment add`. Descriptions: ADF `media` with `type: external` (Markdown in a v3 description is literal text).
 - **Readable local image (required default):** Upload the attachment, resolve its Media Services UUID, then put a REST v3 ADF `mediaSingle` in the description or comment. Left-aligned, 100% width.
 - **Existing attachment:** Reuse its Media Services UUID. Do not upload a duplicate.
 - **Quick local thumbnail:** `jira issue comment add ISSUE-KEY "Quick evidence" --image /path/to/flow.png` only when a small preview is acceptable and the user does not need to read the image in-body.
