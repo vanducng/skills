@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.60.1](https://github.com/vanducng/skills/compare/v1.60.0...v1.60.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **jira:** required inline ADF for screenshot evidence ([#465](https://github.com/vanducng/skills/issues/465)) ([6e02a62](https://github.com/vanducng/skills/commit/6e02a62ea41657b19ee8e89ffd2a113e28a109d5))
+
 ## [1.60.0](https://github.com/vanducng/skills/compare/v1.59.2...v1.60.0) (2026-09-03)
 
 
