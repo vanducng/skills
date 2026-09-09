@@ -1,21 +1,56 @@
-# Inline Images in Jira Comments
+# Inline Images in Jira Descriptions and Comments
 
-Use this workflow only after loading the instance rules, exporting authentication, showing the complete comment, and getting approval for the attachment and comment writes.
+Use this workflow after loading the instance rules, exporting authentication, showing the complete body, and getting approval for the write. Applies to **issue descriptions** (create/edit) and **comments**.
+
+A provided screenshot or diagram is not done until it is inline ADF. An attachment with no `mediaSingle` in the description or comment is incomplete.
 
 | Need | Method |
 | --- | --- |
-| Public image URL | `jira issue comment add` with Markdown image syntax |
-| Readable local screenshot or diagram | REST v3 ADF `mediaSingle`, left aligned at 100% comment width |
-| Quick local thumbnail | `jira issue comment add --image` |
-| Repair an existing small or centered image | Update the existing comment ADF in place |
+| Public image URL | Comment: Markdown `![alt](url)`. Description: ADF `media` `type: external` (Markdown is literal text) |
+| Readable local screenshot or diagram | REST v3 ADF `mediaSingle`, left aligned at 100% width, in the description (create) or comment (follow-up) |
+| Reuse an existing attachment | Resolve its Media Services UUID; do not re-upload |
+| Quick local thumbnail | `jira issue comment add --image` (not for ticket evidence) |
+| Repair an existing small or centered image | Update the existing description or comment ADF in place |
+
+## Issue description
+
+Attachment upload needs an issue key, so create cannot carry the image on the first `POST`.
+
+1. `POST /rest/api/3/issue` to create the issue (text description is fine).
+2. Upload the file to `POST /rest/api/2/issue/$issue_key/attachments` and resolve the Media Services UUID (same recipe as comments below).
+3. `PUT /rest/api/3/issue` with the **full** description ADF (step-1 text plus `mediaSingle` nodes) in `fields.description`. The PUT replaces the entire description; media-only content wipes the text.
+
+On edit, GET the current description, keep its text nodes, reuse the existing attachment UUID, then PUT the combined ADF. Do not re-upload. Do not leave the description image-free after upload.
+
+If `GET /rest/api/3/issue/KEY` 404s, confirm the key via JQL, then `PUT` anyway (see SKILL.md Known API Issues). Verify from `fields.description.content[]`, not `.body.content[]`:
+
+```bash
+curl -fsS "$JIRA_BASE_URL/rest/api/3/issue/$issue_key?fields=description" \
+  -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+  -H 'Accept: application/json' | \
+  jq -e --arg id "$media_id" --argjson width "$image_width" --argjson height "$image_height" '
+    .fields.description.content[]
+    | select(.type == "mediaSingle")
+    | .attrs.layout == "align-start"
+      and .attrs.width == 100
+      and .attrs.widthType == "percentage"
+      and .content[0].attrs.id == $id
+      and .content[0].attrs.width == $width
+      and .content[0].attrs.height == $height
+  '
+```
+
+Also assert `.fields.description.content` still has the original text paragraph(s), not only `mediaSingle`.
 
 ## Public Image URL
 
-`jira-cli` converts Markdown image syntax to Jira markup. The URL must remain reachable by Jira users.
+Comments only: `jira-cli` converts Markdown image syntax to Jira markup. The URL must remain reachable by Jira users.
 
 ```bash
 jira issue comment add PROJ-123 '![Architecture](https://example.com/architecture.png)'
 ```
+
+Descriptions: do not use Markdown. Put an ADF `mediaSingle` with `media.attrs.type = "external"` and `url` set to the public URL (same layout/width rules as local files).
 
 Do not use this for private or short-lived URLs.
 
