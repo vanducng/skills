@@ -40,6 +40,8 @@ curl -fsS "$JIRA_BASE_URL/rest/api/3/issue/$issue_key?fields=description" \
   '
 ```
 
+Also assert `.fields.description.content` still has the original text paragraph(s), not only `mediaSingle`.
+
 ## Public Image URL
 
 Comments only: `jira-cli` converts Markdown image syntax to Jira markup. The URL must remain reachable by Jira users.
