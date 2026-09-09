@@ -14,9 +14,31 @@ A provided screenshot or diagram is not done until it is inline ADF. An attachme
 
 ## Issue description
 
-On create or edit, put the same `mediaSingle` nodes in `fields.description` via REST v3 `POST/PUT /rest/api/3/issue`. Do not upload attachments and leave the description image-free. Reuse existing attachment UUIDs when the files are already on the issue.
+Attachment upload needs an issue key, so create cannot carry the image on the first `POST`.
 
-After write, verify the stored description ADF the same way as a comment: `layout=align-start`, `width=100`, `widthType=percentage`, media UUID (not attachment id), source width/height.
+1. `POST /rest/api/3/issue` to create the issue (text description is fine).
+2. Upload the file to `POST /rest/api/2/issue/$issue_key/attachments` and resolve the Media Services UUID (same recipe as comments below).
+3. `PUT /rest/api/3/issue` with `mediaSingle` nodes in `fields.description`.
+
+On edit, reuse the existing attachment UUID. Do not re-upload. Do not leave the description image-free after upload.
+
+If `GET /rest/api/3/issue/KEY` 404s, confirm the key via JQL, then `PUT` anyway (see SKILL.md Known API Issues). Verify from `fields.description.content[]`, not `.body.content[]`:
+
+```bash
+curl -fsS "$JIRA_BASE_URL/rest/api/3/issue/$issue_key?fields=description" \
+  -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+  -H 'Accept: application/json' | \
+  jq -e --arg id "$media_id" --argjson width "$image_width" --argjson height "$image_height" '
+    .fields.description.content[]
+    | select(.type == "mediaSingle")
+    | .attrs.layout == "align-start"
+      and .attrs.width == 100
+      and .attrs.widthType == "percentage"
+      and .content[0].attrs.id == $id
+      and .content[0].attrs.width == $width
+      and .content[0].attrs.height == $height
+  '
+```
 
 ## Public Image URL
 
