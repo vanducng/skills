@@ -1,13 +1,22 @@
-# Inline Images in Jira Comments
+# Inline Images in Jira Descriptions and Comments
 
-Use this workflow only after loading the instance rules, exporting authentication, showing the complete comment, and getting approval for the attachment and comment writes.
+Use this workflow after loading the instance rules, exporting authentication, showing the complete body, and getting approval for the write. Applies to **issue descriptions** (create/edit) and **comments**.
+
+A provided screenshot or diagram is not done until it is inline ADF. An attachment with no `mediaSingle` in the description or comment is incomplete.
 
 | Need | Method |
 | --- | --- |
-| Public image URL | `jira issue comment add` with Markdown image syntax |
-| Readable local screenshot or diagram | REST v3 ADF `mediaSingle`, left aligned at 100% comment width |
-| Quick local thumbnail | `jira issue comment add --image` |
-| Repair an existing small or centered image | Update the existing comment ADF in place |
+| Public image URL | Markdown image syntax in the description or comment |
+| Readable local screenshot or diagram | REST v3 ADF `mediaSingle`, left aligned at 100% width, in the description (create) or comment (follow-up) |
+| Reuse an existing attachment | Resolve its Media Services UUID; do not re-upload |
+| Quick local thumbnail | `jira issue comment add --image` (not for ticket evidence) |
+| Repair an existing small or centered image | Update the existing description or comment ADF in place |
+
+## Issue description
+
+On create or edit, put the same `mediaSingle` nodes in `fields.description` via REST v3 `POST/PUT /rest/api/3/issue`. Do not upload attachments and leave the description image-free. Reuse existing attachment UUIDs when the files are already on the issue.
+
+After write, verify the stored description ADF the same way as a comment: `layout=align-start`, `width=100`, `widthType=percentage`, media UUID (not attachment id), source width/height.
 
 ## Public Image URL
 
