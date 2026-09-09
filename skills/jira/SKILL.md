@@ -50,7 +50,8 @@ For Bug and Task creation, keep the ticket direct:
 
 - State the bare symptom and basic finding.
 - Include one short sample error when available.
-- Attach the provided screenshot or evidence when available.
+- Put provided screenshots and diagrams **inline in the description** (REST v3 ADF `mediaSingle`, left-aligned, 100% width). Upload as an attachment only as the media source. Never leave evidence as attachment-only or as a CLI 200 px thumbnail.
+- Load `references/inline-images.md` before any image write (create, edit, or comment).
 - Omit implementation details, proposed code, and speculative analysis unless requested.
 - Apply assignee, sprint, parent, and initial status from the matching local type rules.
 
@@ -185,8 +186,8 @@ Load `references/follow-up.md` for:
 - Reporter mentions
 - Requests expressed as board columns rather than workflow statuses
 
-Load `references/inline-images.md` for:
-- Rendering remote or locally uploaded images inside comments
+Load `references/inline-images.md` **before any image write** (issue description or comment):
+- Rendering remote or locally uploaded images inline
 - Choosing readable ADF media or compact CLI thumbnails
 - Verifying stored layout, dimensions, and media identity
 
@@ -205,20 +206,18 @@ Load `references/inline-images.md` for:
 
 ## Attachments
 
+**Default for every provided screenshot or diagram:** inline ADF in the issue **description** on create, and in the **comment** on follow-up. Uploading a file and stopping is incomplete.
+
 ### Inline local image
 
-For screenshots or diagrams that users must read inline, use a REST v3 ADF `mediaSingle` node by default. Set `layout` to `align-start`, `width` to `100`, and `widthType` to `percentage`, while keeping the source dimensions on the media node. Media dimensions alone still render at Jira's default 50% comment width. The CLI `--image` path renders a centered 200 px thumbnail, so reserve it for quick attachment evidence where inline readability is not important.
+Use a REST v3 ADF `mediaSingle` node. Set `layout` to `align-start`, `width` to `100`, and `widthType` to `percentage`, while keeping the source dimensions on the media node. Media dimensions alone still render at Jira's default 50% width. The CLI `--image` path renders a centered 200 px thumbnail; do not use it for ticket evidence.
 
-```bash
-jira issue comment add ISSUE-KEY "Quick evidence" --image /path/to/flow.png
-```
+### Inline images in descriptions and comments
 
-### Inline images in comments
-
-- **Public URL:** Pass Markdown image syntax in the comment body.
-- **Readable local image:** Upload the attachment, resolve its Media Services UUID, then create a REST v3 ADF comment with left-aligned media at 100% comment width. This is the default.
-- **Quick local thumbnail:** Pass one or more `--image` paths when a small preview is acceptable.
-- **Existing small image:** Update the comment ADF in place instead of uploading a duplicate attachment.
+- **Public URL:** Comments: Markdown `![alt](url)` via `jira issue comment add`. Descriptions: ADF `media` with `type: external` (Markdown in a v3 description is literal text).
+- **Readable local image (required default):** Upload the attachment, resolve its Media Services UUID, then put a REST v3 ADF `mediaSingle` in the description or comment. Left-aligned, 100% width.
+- **Existing attachment:** Reuse its Media Services UUID. Do not upload a duplicate.
+- **Quick local thumbnail:** `jira issue comment add ISSUE-KEY "Quick evidence" --image /path/to/flow.png` only when a small preview is acceptable and the user does not need to read the image in-body.
 
 Never put the numeric attachment ID in an ADF `media` node; it causes `ATTACHMENT_VALIDATION_ERROR`. Never call Jira's private Media API. See [`references/inline-images.md`](references/inline-images.md) for creation, repair, and verification commands.
 
