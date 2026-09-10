@@ -98,9 +98,9 @@ gog --account "$ACCT" sheets insert "$SID" <tab> ROWS <start> --count N --inheri
 
 gog --account "$ACCT" sheets copy-paste "$SID" '<tab>!A11:F11' '<tab>!A12:F49' --type FORMAT
 
-gog --account "$ACCT" sheets update "$SID" '<tab>!A11:F49' --values-json @/tmp/values.json
+gog --account "$ACCT" sheets update "$SID" '<tab>!A11:F49' --input USER_ENTERED --values-json @/tmp/values.json
 
-gog --account "$ACCT" sheets update "$SID" '<tab>!E50:F50' --values-json '[["=SUM(E11:E49)","=SUM(F11:F49)"]]'
+gog --account "$ACCT" sheets update "$SID" '<tab>!E50:F50' --input USER_ENTERED --values-json '[["=SUM(E11:E49)","=SUM(F11:F49)"]]'
 ```
 
 ### 5. Verify
