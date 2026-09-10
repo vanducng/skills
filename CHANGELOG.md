@@ -2,6 +2,18 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.61.0](https://github.com/vanducng/skills/compare/v1.60.1...v1.61.0) (2026-09-10)
+
+
+### Features
+
+* **gog:** replace gws skill with gogcli ([#467](https://github.com/vanducng/skills/issues/467)) ([7dda8c7](https://github.com/vanducng/skills/commit/7dda8c7a38f80b264c091c591788770eddb9028c))
+
+
+### Bug Fixes
+
+* **gog:** drop leftover gws trigger from the skill description ([#469](https://github.com/vanducng/skills/issues/469)) ([dd8b368](https://github.com/vanducng/skills/commit/dd8b368eb8a5b6adfc334f8823376496d447cfa8))
+
 ## [1.60.1](https://github.com/vanducng/skills/compare/v1.60.0...v1.60.1) (2026-09-09)
 
 
