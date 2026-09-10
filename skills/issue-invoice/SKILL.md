@@ -42,15 +42,14 @@ only, it belongs in that client's rules file.
 ### 1. Read current state first
 
 ```bash
-gwsj(){ gws "$@" 2>&1 | grep -v '^Using keyring backend'; }
+export GOG_HOME="$HOME/.config/vd/gog"
+ACCT=<gog_account from rules, --account org with --user person>
 SID=<spreadsheet from rules frontmatter>
 
-gwsj sheets spreadsheets get --params "{\"spreadsheetId\":\"$SID\",\"fields\":\"sheets.properties\"}" \
-  | jq -r '.sheets[].properties | "\(.index)\t\(.sheetId)\t\(.title)"'
+gog --account "$ACCT" sheets metadata "$SID" --json
 
-# read with FORMULA or you lose the HYPERLINK/SUM formulas and will overwrite them
-gwsj sheets spreadsheets values get \
-  --params "{\"spreadsheetId\":\"$SID\",\"range\":\"<tab>!A1:F60\",\"valueRenderOption\":\"FORMULA\"}"
+# FORMULA or the next write flattens HYPERLINK/SUM
+gog --account "$ACCT" sheets get "$SID" '<tab>!A1:F60' --render FORMULA --json
 ```
 
 Locate the Total row and its exact `SUM` ranges - they drift as rows are inserted.
@@ -93,25 +92,15 @@ rows and the new invoice total for approval before writing** - this is money.
 Rows must fit between the header and the Total row; insert first if not.
 
 ```bash
-# insert N rows before the Total row (0-based startIndex = totalRow-1)
-gwsj sheets spreadsheets batchUpdate --params "{\"spreadsheetId\":\"$SID\"}" --json '{"requests":[
-  {"insertDimension":{"range":{"sheetId":SHEET_ID,"dimension":"ROWS","startIndex":40,"endIndex":49},"inheritFromBefore":true}}]}'
+export GOG_HOME="$HOME/.config/vd/gog"
+# insert N rows before the Total row (start is 0-based, same as startIndex)
+gog --account "$ACCT" sheets insert "$SID" <tab> ROWS <start> --count N --inherit-from-before
 
-# copy formatting onto new rows - blank rows carry no currency/wrap format
-gwsj sheets spreadsheets batchUpdate --params "{\"spreadsheetId\":\"$SID\"}" --json '{"requests":[
-  {"copyPaste":{
-    "source":{"sheetId":SHEET_ID,"startRowIndex":10,"endRowIndex":11,"startColumnIndex":0,"endColumnIndex":6},
-    "destination":{"sheetId":SHEET_ID,"startRowIndex":11,"endRowIndex":49,"startColumnIndex":0,"endColumnIndex":6},
-    "pasteType":"PASTE_FORMAT"}}]}'
+gog --account "$ACCT" sheets copy-paste "$SID" '<tab>!A11:F11' '<tab>!A12:F49' --type FORMAT
 
-gwsj sheets spreadsheets values update \
-  --params "{\"spreadsheetId\":\"$SID\",\"range\":\"<tab>!A11:F49\",\"valueInputOption\":\"USER_ENTERED\"}" \
-  --json "$(cat /tmp/values.json)"
+gog --account "$ACCT" sheets update "$SID" '<tab>!A11:F49' --input USER_ENTERED --values-json @/tmp/values.json
 
-# repoint Total across the whole block
-gwsj sheets spreadsheets values update \
-  --params "{\"spreadsheetId\":\"$SID\",\"range\":\"<tab>!E50:F50\",\"valueInputOption\":\"USER_ENTERED\"}" \
-  --json '{"values":[["=SUM(E11:E49)","=SUM(F11:F49)"]]}'
+gog --account "$ACCT" sheets update "$SID" '<tab>!E50:F50' --input USER_ENTERED --values-json '[["=SUM(E11:E49)","=SUM(F11:F49)"]]'
 ```
 
 ### 5. Verify
@@ -123,8 +112,10 @@ with `ego-browser` for a visual pass.
 ## Monthly rollover
 
 ```bash
-gwsj sheets spreadsheets batchUpdate --params "{\"spreadsheetId\":\"$SID\"}" --json '{"requests":[
-  {"duplicateSheet":{"sourceSheetId":OLD_SHEET_ID,"insertSheetIndex":0,"newSheetName":"202609"}}]}'
+export GOG_HOME="$HOME/.config/vd/gog"
+gog --account "$ACCT" api call sheets v4 spreadsheets.batchUpdate --allow-write \
+  --params "{\"spreadsheetId\":\"$SID\"}" \
+  --body '{"requests":[{"duplicateSheet":{"sourceSheetId":OLD_SHEET_ID,"insertSheetIndex":0,"newSheetName":"202609"}}]}'
 ```
 
 Then: update the invoice number and date cells, `values clear` the old data block
@@ -136,20 +127,21 @@ automatically, and carry over any meeting belonging to the new month.
 
 Each of these cost real time. Do not rediscover them.
 
-- **`gws` prints `Using keyring backend: keyring` on stdout** and breaks every `jq`
-  pipe. Always use the `gwsj` wrapper.
-- **A failing `jq` pipe does not mean the API call failed.** `gws` already sent the
-  request. Re-read state before retrying - a blind `insertDimension` retry
-  double-inserts rows.
+- **Always `export GOG_HOME=$HOME/.config/vd/gog`.** A bare `gog` stores tokens
+  under `~/.config/gogcli` and this skill will not see them.
+- **Person-user alias only** (refresh token). Do not use `*-sa` or `--access-token`
+  for invoice writes. See `vd:gog` person-user auth.
+- **A failing `jq` pipe does not mean the API call failed.** Re-read state before
+  retrying - a blind row insert doubles rows.
 - **`gh pr list` defaults to 30 and truncates silently.** The harvest script guards
   this; if you query by hand, pass `--limit 400`.
 - **PR timestamps are UTC; the working day is the client's timezone.** Off-by-one
   here misfiles work across day and month edges.
-- **`gws auth login` takes no `--account`.** Use `gws auth login -s sheets,drive`.
-  Token death shows as `401 Failed to get token` / `invalid_rapt` and needs
-  interactive browser approval - ask the user, it cannot be done headlessly.
-- **Calendar is a separate scope** (`-s sheets,drive,calendar`), else
-  `403 insufficientPermissions`. Without it, ask for meeting dates.
+- **Token death** (`invalid_grant` / `invalid_rapt`) needs `gog auth add --force-consent`
+  for that person alias. Weekly death means the OAuth app is still in Testing -
+  publish it; do not keep re-authing.
+- **Calendar is a separate scope.** If `gog calendar` 403s, ask for meeting dates
+  or re-add with calendar in `--services`.
 - **The `jira` CLI may point at a different instance.** Use the REST call above with
   the client's env vars; `jira me` can report the wrong user.
 - **Total `SUM` ranges go stale.** One client's read `=SUM(E11:E18)` while data ran

@@ -114,7 +114,7 @@ Owned CLIs documented as manuals (not generic "how to review/code"):
 
 Daily-driver utilities, categorized honestly:
 
-`vd:superwhisper`, `vd:gws`, `vd:jira`, `vd:issue-invoice`, `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:workbench`, `vd:braze`, `vd:smartsheet`, `vd:voice-agent`
+`vd:superwhisper`, `vd:gog`, `vd:jira`, `vd:issue-invoice`, `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:workbench`, `vd:braze`, `vd:smartsheet`, `vd:voice-agent`
 
 ## Skill Lifecycle
 
