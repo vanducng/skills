@@ -1,6 +1,6 @@
 ---
 name: gog
-description: "Manage Google Workspace from the CLI via `gog`: Gmail, Drive, Calendar, Sheets, Docs, Chat, Tasks, and Admin. Invoke with --account cnb|dpl|abs and --user person|sa. Use when the user mentions gmail, drive, calendar, sheets, docs, workspace, gws, gog, email, files, events, or a configured account."
+description: "Manage Google Workspace from the CLI via `gog`: Gmail, Drive, Calendar, Sheets, Docs, Chat, Tasks, and Admin. Invoke with --account cnb|dpl|abs and --user person|sa. Use when the user mentions gmail, drive, calendar, sheets, docs, workspace, gog, email, files, events, or a configured account."
 license: MIT
 argument-hint: "--account cnb|dpl|abs --user person|sa gmail|drive|calendar|sheets|docs|auth"
 metadata:
