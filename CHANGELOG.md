@@ -2,6 +2,18 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.62.0](https://github.com/vanducng/skills/compare/v1.61.1...v1.62.0) (2026-09-11)
+
+
+### Features
+
+* **gog:** add styled Sheet report recipe ([#474](https://github.com/vanducng/skills/issues/474)) ([f71f50a](https://github.com/vanducng/skills/commit/f71f50a8c2982c39085b0704e8c00f260cda39f0))
+
+
+### Bug Fixes
+
+* **gog:** document multi-org OAuth architecture ([#472](https://github.com/vanducng/skills/issues/472)) ([0a38792](https://github.com/vanducng/skills/commit/0a38792d389c33acddca9577c1d6a1c53a5ca9cb))
+
 ## [1.61.1](https://github.com/vanducng/skills/compare/v1.61.0...v1.61.1) (2026-09-11)
 
 
