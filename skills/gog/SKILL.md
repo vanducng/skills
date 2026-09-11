@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "--account <name> --user person|sa gmail|drive|calendar|sheets|docs|auth"
 metadata:
   author: vanducng
-  version: "1.1.1"
+  version: "1.2.0"
   upstream: "https://github.com/openclaw/gogcli"
 ---
 
@@ -50,6 +50,23 @@ If that file is missing, stop and say so. Do not invent an email.
 `--user person` is the Gmail/Calendar/Sheets-as-you path. `--user sa` is only
 for Drive/Sheets already shared with that key. Never send mail as `--user sa`.
 
+## Multi-organization architecture
+
+Keep each organization in an explicit identity boundary:
+
+```text
+account registry -> named gog client -> Google Cloud OAuth project
+                                      -> client secret in keyring
+                                      -> person refresh token -> service APIs
+```
+
+- Use one named `--client` per organization or domain; do not share `default` across organizations.
+- The OAuth project controls audience and enabled APIs. Audience changes affect every client in that project.
+- The registry maps `--account` and `--user`; the named client owns its credentials and token bucket.
+- OAuth client JSON is bootstrap material. Keep it mode `0600` in a gitignored secret store; `auth credentials set` stores the secret in the keyring unless `--insecure` is explicit.
+- Refresh tokens are client-bound. Changing the OAuth project or client does not migrate them; run `auth add --force-consent` again.
+- `--services` grants scopes during authorization. A multi-service task is one skill request that sequences separate service commands.
+
 ## Person-user auth (max lifetime)
 
 `--user person` must use a **refresh token**, not a one-hour access token.
@@ -59,10 +76,10 @@ for Drive/Sheets already shared with that key. Never send mail as `--user sa`.
 |---|---|---|
 | Access token | ~1 hour | Google. `gog` refreshes it automatically. Cannot be extended. |
 | `auth add --timeout` | Login wait only (manual default 5m) | Local. How long the CLI waits for the browser, not how long the token lasts. |
-| Refresh token, OAuth app in **Testing** | 7 days | Google Cloud consent screen. |
-| Refresh token, OAuth app **In production** | No calendar expiry | Google's maximum. Can still die if unused 6 months, revoked, password change, or Workspace session policy. |
+| Refresh token, External OAuth app in **Testing** | 7 days | Google Cloud consent screen. |
+| Refresh token, Internal Workspace app or External app **In production** | No fixed expiration date | Google's maximum. Can still die if unused 6 months, revoked, password change, or Workspace session policy. |
 
-Maximum person-user lifetime is a refresh token from an **In production** OAuth app. Do not use `--access-token` to try to last longer.
+Maximum person-user lifetime is a refresh token from an Internal Workspace app or an External app published **In production**. Do not use `--access-token` to try to last longer.
 
 Hard rules for person users:
 
@@ -83,10 +100,7 @@ gog --client <client> auth add <email> \
 `gog` opens. Do not paste a wrapped URL from the terminal (`response_type` errors).
 `--timeout` only bounds that browser wait.
 
-5. The OAuth app must **not** be in Testing. Testing refresh tokens die in 7 days.
-   Consent screen → **In production** (Internal Workspace app, or External published
-   without verification). If login is demanded weekly, stop and publish; do not
-   keep re-authing.
+5. The OAuth app must **not** be External/Testing. Prefer Internal for one Workspace organization; its audience page has no Testing/Publish control. Cross-domain apps stay External and must be published **In production**. If login is demanded weekly, fix the audience instead of repeatedly re-authing.
 6. `invalid_rapt` is Workspace session control, not a 7-day Testing expiry. Re-auth
    interactively. Unattended jobs should use `--user sa`, not a person refresh token.
 7. Identity must match the registry email (`gog --account <alias> --client <client> me --json`).
