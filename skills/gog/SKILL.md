@@ -98,7 +98,7 @@ Named OAuth clients: a registry entry may pin one (`gog --client <name>`); other
 
 ```bash
 # vd:gog --account acme --user person ...
-gog --account acme me --json --no-input
+gog --account acme --client acme me --json --no-input
 ```
 
 ## Preflight
@@ -153,7 +153,9 @@ Writes: read current state → `gog --account <a> me` → show account + id + mu
 | `access_not_configured` / admin must review | Workspace blocks the OAuth client | Internal app in that org, or admin allowlists the client ID |
 | `response_type` missing | Truncated auth URL | Use the window `gog` opens; do not paste a wrapped URL |
 | Gmail empty on `--user sa` | SA has no mailbox | Use `--user person`; DWD is a separate admin step |
-| `invalid_grant` / `invalid_rapt` | Refresh token revoked or expired | Person-user re-add with `--force-consent` |
+| `invalid_grant` / `invalid_rapt` | Testing expiry, revocation, or Workspace session control | Person-user re-add with `--force-consent`. `invalid_rapt` is org session policy, not a CLI day-count |
+| `No auth for drive <alias>` | Alias missing or token stored under the email | `gog --client <client> auth alias set <alias> <email>` |
+| `people/me` 403 after a Drive-only login | Login used a service subset | Expected. Recheck with `drive ls` or re-add with the full `--services` list |
 
 ## References
 
