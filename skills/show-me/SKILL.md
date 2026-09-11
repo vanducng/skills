@@ -1,6 +1,6 @@
 ---
 name: show-me
-description: Explain the current topic with the cheapest in-chat visual. Skip the preamble and pick the smallest view that makes the point: pseudocode, call tree, component tree, shallow file tree, Mermaid, topic-shaped diffs, or one throwaway HTML file. Use when a visual would clarify the current question, decision, cook phase, or review comment, or when the user says "show me", "visualize this", "draw that", or "make this visual". Keepable diagrams, whiteboards, and showcase pages belong to other skills.
+description: "Explain the current topic with the cheapest in-chat visual. Skip the preamble and pick the smallest view that makes the point: pseudocode, call tree, component tree, shallow file tree, Mermaid, topic-shaped diffs, or one throwaway HTML file. Use when a visual would clarify the current question, decision, cook phase, or review comment, or when the user says 'show me', 'visualize this', 'draw that', or 'make this visual'. Keepable diagrams, whiteboards, and showcase pages belong to other skills."
 license: MIT
 category: visuals
 keywords: [visual, explainer, mermaid, call-tree, component-tree, file-tree, infographic, throwaway]
