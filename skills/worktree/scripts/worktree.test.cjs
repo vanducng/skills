@@ -3,9 +3,8 @@
  * Test suite for worktree.cjs
  * Run: node $HOME/skills/skills/worktree/scripts/worktree.test.cjs
  *
- * NOTE: Integration tests reference fixtures from the upstream author's
- * machine (/home/kai/claudekit/*). They are preserved here as behavioural
- * documentation; rebind MONOREPO_DIR below to a local monorepo to run them.
+ * NOTE: the monorepo and submodule integration tests need a real monorepo.
+ * Point WORKTREE_TEST_MONOREPO at one to run them; they skip when it is unset.
  * Smoke checks against this repo (standalone mode) run without changes.
  */
 
@@ -15,7 +14,7 @@ const fs = require('fs');
 
 const SCRIPT_PATH = path.join(__dirname, 'worktree.cjs');
 const STANDALONE_DIR = path.dirname(path.dirname(__dirname)); // worktree dir
-const MONOREPO_DIR = '/home/kai/claudekit';
+const MONOREPO_DIR = process.env.WORKTREE_TEST_MONOREPO || '';
 const CURRENT_GIT_ROOT = execSync('git rev-parse --show-toplevel', {
   encoding: 'utf-8',
   cwd: STANDALONE_DIR,
@@ -464,7 +463,7 @@ test('create dry-run shows worktreeRootSource', () => {
 
 test('superproject detection in submodule', () => {
   // Test from claudekit-engineer submodule
-  const submodulePath = '/home/kai/claudekit/claudekit-engineer';
+  const submodulePath = MONOREPO_DIR && path.join(MONOREPO_DIR, 'engineer');
   if (!fs.existsSync(submodulePath)) return;
   const result = run('info --json', { cwd: submodulePath });
   const json = assertJSON(result.output);
@@ -633,24 +632,24 @@ test('--no-prefix preserves case with slashes', () => {
 });
 
 test('--no-prefix flattens slashes in worktree directory name', () => {
-  const result = run('create "kai/feat/my-feature" --no-prefix --dry-run --json');
+  const result = run('create "user/feat/my-feature" --no-prefix --dry-run --json');
   assert(result.success, 'Should succeed');
   const json = assertJSON(result.output);
   // Worktree path should NOT contain nested directories from branch slashes
   const worktreeName = json.wouldCreate.worktreePath.split('/').pop();
   assert(!worktreeName.includes('/'), 'Worktree dir name should not contain slashes');
-  assert(worktreeName.includes('kai-feat-my-feature'), `Should flatten slashes to dashes, got: ${worktreeName}`);
+  assert(worktreeName.includes('user-feat-my-feature'), `Should flatten slashes to dashes, got: ${worktreeName}`);
 });
 
 test('--no-prefix collapses consecutive slashes', () => {
-  const result = run('create "kai///feat//my-feature" --no-prefix --dry-run --json');
+  const result = run('create "user///feat//my-feature" --no-prefix --dry-run --json');
   assert(result.success, 'Should succeed');
   const json = assertJSON(result.output);
   assert(!json.wouldCreate.branch.includes('//'), `Should not have consecutive slashes, got: ${json.wouldCreate.branch}`);
 });
 
 test('--no-prefix trims leading/trailing slashes', () => {
-  const result = run('create "/kai/feat/my-feature/" --no-prefix --dry-run --json');
+  const result = run('create "/user/feat/my-feature/" --no-prefix --dry-run --json');
   assert(result.success, 'Should succeed');
   const json = assertJSON(result.output);
   assert(!json.wouldCreate.branch.startsWith('/'), 'Should not start with slash');
@@ -658,7 +657,7 @@ test('--no-prefix trims leading/trailing slashes', () => {
 });
 
 test('--no-prefix rejects path traversal (..)', () => {
-  const result = run('create "kai/../../../etc/passwd" --no-prefix --dry-run --json');
+  const result = run('create "user/../../../etc/passwd" --no-prefix --dry-run --json');
   assert(!result.success, 'Should fail with path traversal');
   const json = assertJSON(result.output);
   assert(json.error.code === 'INVALID_FEATURE_NAME', 'Should report invalid feature name');
@@ -917,7 +916,7 @@ test('scenario: new user creates first worktree', () => {
 });
 
 test('scenario: user fixes bug in submodule', () => {
-  const submodulePath = '/home/kai/claudekit/claudekit-engineer';
+  const submodulePath = MONOREPO_DIR && path.join(MONOREPO_DIR, 'engineer');
   if (!fs.existsSync(submodulePath)) return;
 
   // From submodule, create a fix branch

@@ -43,7 +43,7 @@ agent-browser eval "fetch('/api/v1/auth/login', {
   credentials: 'include',
   headers: {'Content-Type': 'application/json'},
   body: JSON.stringify({email: 'admin@example.com', password: 'dev-seeded-only'})
-}).then(r => r.json()).then(d => { localStorage.setItem('hi-token', d.token); return 'ok'; })"
+}).then(r => r.json()).then(d => { localStorage.setItem('app-token', d.token); return 'ok'; })"
 agent-browser open http://localhost:8082/
 ```
 

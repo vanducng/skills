@@ -24,15 +24,6 @@ host, and use `miudb serve` only for Neovim/custom protocol clients.
 
 Do not use `sqlit` for miudb tasks.
 
-## When to use
-
-- "Run this SQL on `<connection>`"
-- "List schemas/tables/columns for `<connection>`"
-- "Smoke-test my saved database connections"
-- "Check a tunnel-backed connection"
-- "Add a new database connection"
-- Any task naming a connection that appears in `miudb connections list`
-
 ## Install/verify
 
 ```bash
@@ -87,7 +78,7 @@ miudb connections list --output json
 miudb connections list --basic --output json   # scannable: ref/name/group/db_type/host
 ```
 
-Connections are addressed by **`group/name`** (e.g. `cnb/cdljn-prod`); a bare
+Connections are addressed by **`group/name`** (e.g. `analytics/warehouse-prod`); a bare
 `name` works when it is unique across groups. The `ref` column from `--basic` is
 exactly what to pass to `--connection`. The `-c` short flag only exists on
 `erd` subcommands (see below) - other commands like `query run` require the
@@ -96,18 +87,6 @@ named connection is not listed, stop and ask the user. Do not substitute a
 similar connection.
 
 ## Add connections
-
-SQLite:
-
-```bash
-miudb connections add \
-  --name local-app \
-  --db-type sqlite \
-  --path ./app.db \
-  --output json
-```
-
-Postgres/MySQL style TCP connection:
 
 ```bash
 miudb connections add \
@@ -122,36 +101,7 @@ miudb connections add \
   --output json
 ```
 
-Tunnel-backed connection:
-
-```bash
-miudb connections add \
-  --name app-prod \
-  --db-type mysql \
-  --host prod-rds.internal \
-  --port 3306 \
-  --database app \
-  --username app \
-  --password "$APP_DB_PASSWORD" \
-  --tunnel \
-  --ssh-config-alias bastion \
-  --secret-store keyring \
-  --output json
-```
-
-Provider options:
-
-```bash
-miudb connections add \
-  --name warehouse \
-  --db-type snowflake \
-  --host account \
-  --username USER \
-  --option authenticator=snowflake_jwt \
-  --option warehouse=DEV_WH \
-  --extra-option sslmode=require \
-  --output json
-```
+Variations: SQLite uses `--db-type sqlite --path ./app.db` (no host); bastion-reachable servers add `--tunnel --ssh-config-alias bastion`; provider settings are repeatable `--option k=v` pairs (`--option authenticator=snowflake_jwt --option warehouse=DEV_WH`) plus `--extra-option sslmode=require`. Full flag surface: `miudb describe connections add --output json`.
 
 Secret stores for new connections:
 
@@ -274,48 +224,7 @@ miudb schema tree \
   --output json
 ```
 
-Metadata SQL recipes also work through `query run`.
-
-### BigQuery
-
-```bash
-miudb query run \
-  --connection <conn> \
-  --sql 'SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA' \
-  --output json
-```
-
-Use single quotes for BigQuery table references:
-
-```bash
-miudb query run \
-  --connection <conn> \
-  --sql 'SELECT * FROM `dataset`.`table` LIMIT 10' \
-  --limit 10 \
-  --output json
-```
-
-### MySQL
-
-```bash
-miudb query run --connection <conn> --sql 'SHOW DATABASES' --output json
-miudb query run --connection <conn> --sql 'SHOW TABLES' --output json
-miudb query run --connection <conn> --sql 'DESCRIBE `table_name`' --output json
-```
-
-### Postgres and Snowflake
-
-```bash
-miudb query run --connection <conn> --sql 'SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = ''BASE TABLE''' --output json
-miudb query run --connection <conn> --sql 'SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = ''table_name'' ORDER BY ordinal_position' --output json
-```
-
-### SQLite
-
-```bash
-miudb query run --connection <conn> --sql "SELECT name FROM sqlite_master WHERE type = 'table'" --output json
-miudb query run --connection <conn> --sql "PRAGMA table_info('table_name')" --output json
-```
+Metadata SQL also works through `query run`: `information_schema` tables/columns on Postgres/Snowflake, `SHOW DATABASES` / `SHOW TABLES` / `DESCRIBE` on MySQL, `INFORMATION_SCHEMA` on BigQuery (quote `dataset`.`table` with backticks inside single-quoted SQL), `sqlite_master` + `PRAGMA table_info` on SQLite.
 
 ## Generate an ERD (interactive diagram)
 
@@ -347,22 +256,15 @@ Two layers:
    - leave **`framework_tables`** / **`audit_columns`** as detected.
 4. Regenerate: `miudb erd generate --connection <CONN> --meta <dir>/meta.json` (or `erd serve`). Iterate.
 
-Single-pass works: stub -> fill -> generate. Aim to leave 0 tables ungrouped (the renderer buckets ungrouped non-framework tables as "Other").
-
-**Worked example (a ~100-table SaaS schema):** the stub detects the framework tables; the FK hubs (a high-degree `users`/`accounts` table, a few central domain tables) plus name prefixes map cleanly to ~6-8 domains (e.g. Catalog, Orders, Billing, Analytics, Content, Auth) - grouping every non-framework table with colors + hub descriptions in one pass. Use generic examples; never paste real connection/schema names into the diagram metadata you commit.
-
-**Viewer (the rendered `index.html`):** click a table to spotlight its FK chain; **Focus** (View options) hides everything except the selected table + its relations - best for reading a dense schema; **DBML** (toolbar) shows the dbdiagram.io/dbdocs source with Copy; Domain Groups has **all**/**clear**; the header shows live visible/total counts; hover truncated names for the full value. Initial zoom is clamped so columns stay legible - the **Fit** button zooms to the whole graph. State (filters/selection) is encoded in the share URL.
+Single-pass works: stub -> fill -> generate. Aim to leave 0 tables ungrouped (the renderer buckets ungrouped non-framework tables as "Other"). Use generic examples; never paste real connection/schema names into the diagram metadata you commit.
 
 ## Stdio protocol
 
-For Neovim or client integration, use the experimental stdio server:
+For Neovim or custom client integration only (normal agent work uses the direct CLI above):
 
 ```bash
 miudb serve --protocol jsonrpc --output json
 ```
-
-Use this only for client/protocol tasks. For normal agent work, call the direct
-CLI commands above.
 
 ## MCP server
 
@@ -446,13 +348,3 @@ Use `--since` to filter by relative duration (e.g. `24h`, `7d`); omit to read al
 - **BigQuery auth error** -> verify `options.bigquery_credentials_path`.
 - **Snowflake JWT error** -> verify `options.private_key_file`.
 - **query too large** -> lower `--limit` or ask before exporting.
-
-## Anti-patterns
-
-- Do not run Python `miu-db` TUI for agent tasks.
-- Do not use `sqlit`.
-- Do not guess connection names.
-- Do not print credentials, private keys, or service account JSON.
-- Do not run destructive SQL without explicit user approval.
-- Do not omit `--output json` for agent-consumed results.
-- Do not use unbounded queries in conversation context.

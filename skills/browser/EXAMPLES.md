@@ -2,14 +2,15 @@
 
 Common Browserbase remote automation workflows using the `browse` CLI (`@browserbasehq/browse-cli`). Each example demonstrates a distinct pattern using real commands.
 
-All sessions here run in Browserbase's cloud. `BROWSERBASE_API_KEY` must be set; with it set, `browse open` defaults to remote, and `--remote` makes the target explicit. For localhost and other local dev flows, use the `agent-browser` skill instead.
+All sessions here run in Browserbase's cloud. `BROWSERBASE_API_KEY` must be set; with it set, Browserbase is the default environment, and `browse env remote` makes the target explicit. For localhost and other local dev flows, use the `agent-browser` skill instead.
 
 ## Example 1: Extract Data from a Protected Page
 
 **User request**: "Get the product details from example.com/product/123" (a site that blocks datacenter traffic)
 
 ```bash
-browse open https://example.com/product/123 --remote
+browse env remote                         # select Browserbase (redundant if the API key made it default)
+browse open https://example.com/product/123
 browse snapshot                          # read page structure + element refs
 browse get text "body"                   # extract all visible text content
 browse stop
@@ -32,27 +33,27 @@ browse get text ".product-details"       # text from a specific container
 Browserbase solves the CAPTCHA automatically; the flow is plain form driving:
 
 ```bash
-browse open https://example.com/contact --remote
+browse open https://example.com/contact
 browse snapshot                          # find form fields and their refs
 browse click @0-3                        # click the Name input (ref from snapshot)
 browse type "John Doe"
 browse press Tab                         # move to next field
 browse type "john@example.com"
-browse fill "#message" "I would like to inquire about your services"
+browse fill "#message" "I would like to inquire about your services" --no-press-enter
 browse snapshot                          # verify fields are filled
 browse click @0-8                        # click Submit button (ref from snapshot)
 browse snapshot                          # confirm submission result
 browse stop
 ```
 
-**Key pattern**: Use `browse snapshot` before interacting to discover element refs, then `browse click <ref>` and `browse type` to interact.
+**Key pattern**: `fill` presses Enter by default - pass `--no-press-enter` on any field where an implicit submit would fire too early, then click the real Submit control yourself.
 
 ## Example 3: Multi-Step Navigation with Geo-Targeting
 
 **User request**: "Get headlines from the first 3 pages of results on example.com/news" (content varies by country; residential proxies give a clean geo-consistent exit)
 
 ```bash
-browse open https://example.com/news --remote
+browse --proxies --region us-east-1 open https://example.com/news
 browse snapshot                          # read page 1 content
 browse get text ".headline"              # extract headlines
 
@@ -96,7 +97,8 @@ If the user agrees:
 export BROWSERBASE_API_KEY="bb_live_..."
 
 # Retry in a Browserbase session
-browse open https://competitor.com/pricing --remote
+browse env remote
+browse open https://competitor.com/pricing
 browse snapshot                          # full page content now accessible
 browse get text ".pricing-table"
 browse stop
@@ -104,7 +106,7 @@ browse stop
 
 **Key pattern**: Escalate only after the local driver is actually blocked (CAPTCHA, bot wall, 403/429, geo block). Simple sites and localhost stay on `agent-browser`.
 
-## Example 5: Persist Login with Context ID
+## Example 5: Persist Login with a Browserbase Context
 
 **User request**: "Log into my dashboard and save the session so I don't have to log in again next time"
 
@@ -112,11 +114,8 @@ This uses Browserbase contexts to persist cookies and storage across sessions. R
 
 ```bash
 # Session 1: Log in and persist state
-SESSION_JSON="$(browse cloud sessions create --context-id ctx_abc123 --persist --keep-alive)"
-SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
-CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
-
-browse open https://app.example.com/login --cdp "$CONNECT_URL"
+browse env remote
+browse open https://app.example.com/login --context-id ctx_abc123 --persist
 browse snapshot                          # find login form fields
 browse click @0-3                        # click email input
 browse type "user@example.com"
@@ -125,33 +124,27 @@ browse type "my-password"
 browse click @0-7                        # click Sign In button
 browse wait load
 browse snapshot                          # confirm logged-in dashboard
-browse stop
-browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE  # state is saved back to ctx_abc123
+browse stop                              # state is saved back to ctx_abc123 (--persist)
 ```
 
 In a later session, reuse the same context - already authenticated:
 
 ```bash
 # Session 2: Resume with saved state (already logged in)
-SESSION_JSON="$(browse cloud sessions create --context-id ctx_abc123 --keep-alive)"
-SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
-CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
-
-browse open https://app.example.com/dashboard --cdp "$CONNECT_URL"
+browse open https://app.example.com/dashboard --context-id ctx_abc123
 browse snapshot                          # dashboard loads - no login needed
 browse get text ".welcome-message"
 browse stop
-browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE
 ```
 
-**Key pattern**: Use `browse cloud sessions create --context-id <id> --persist` for the first Browserbase session to save auth state, then attach with `browse open ... --cdp "$CONNECT_URL"`. On subsequent sessions, create with the same `--context-id` and omit `--persist` if you don't want changes saved back.
+**Key pattern**: first session opens with `--context-id <id> --persist` so auth state saves back to the context on release; later sessions open with the same `--context-id` and omit `--persist` if you don't want further changes saved back.
 
 ## Tips
 
-- **Snapshot first**: Always run `browse snapshot` before interacting - it gives you the accessibility tree with element refs
+- **Snapshot first**: Always run `browse snapshot` before interacting - it gives the accessibility tree with element refs
 - **Use refs to click**: `browse click @0-5` is more reliable than trying to describe elements
 - **Re-snapshot after actions**: Element refs change when the page updates
 - **`get text` for data extraction**: Use `browse get text [selector]` to pull text content from specific elements
-- **`stop` when done**: Always `browse stop` to clean up, and release explicitly created cloud sessions with `browse cloud sessions update <id> --status REQUEST_RELEASE`
+- **`stop` when done**: Always `browse stop` - it ends the cloud session
 - **Prefer snapshot over screenshot**: Snapshot is fast and structured; screenshot is slow and uses vision tokens. Only screenshot when you need visual context (layout, images, debugging)
-- **Trace evidence**: To capture CDP traces of a Browserbase session, the `browser-trace` skill's `bb-capture` attaches to the session's `connectUrl`
+- **Trace evidence**: `browse cdp "$(browse status --json | jq -r .wsUrl)"` streams the live session's DevTools events (use the wsUrl immediately - the signed URL goes stale)

@@ -1,6 +1,6 @@
 # Browser Trace - Examples
 
-Five end-to-end debug scenarios. Each one shows: setup, running the capture, and the queries you'd run on the resulting tree.
+Four end-to-end debug scenarios. Each one shows: setup, running the capture, and the queries you'd run on the resulting tree.
 
 The recipes below use raw `jq` on the bisected files so you can see exactly what's there. Most everyday drill-down can also be done through `scripts/query.mjs <run-id> <command>` - see SKILL.md.
 
@@ -130,28 +130,21 @@ The pending-requests query is the smoking gun: if a fetch never finishes, the pa
 **User says**: "Production logs say `TypeError: Cannot read properties of undefined (reading 'foo')` on `/dashboard`. I can't reproduce locally."
 
 ```bash
-# Use Browserbase remote so the run uses the same Browserbase Identity / Verified browser setup as prod.
-export BROWSERBASE_API_KEY=...
-SESSION=$(browse cloud sessions create --keep-alive --timeout 600)
-SID=$(echo "$SESSION" | jq -r .id)
-URL=$(echo "$SESSION" | jq -r .connectUrl)
+# Launch debuggable Chrome and start the tracer.
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-o11y about:blank &
+node scripts/start-capture.mjs 9222 prod-repro
 
-BROWSE_NAME=prod-repro-browser
-browse open https://app.example.com/dashboard --cdp "$URL" --session "$BROWSE_NAME"
-# The firehose accepts a full ws:// / wss:// connectUrl, not just a port,
-# so the Browserbase connectUrl goes straight into start-capture.mjs.
-node scripts/start-capture.mjs "$URL" prod-repro
-
-# Drive whatever flow is suspected. The daemon caches the remote target,
-# so subsequent commands only need --session to pick the right daemon.
-browse click @0-5 --session "$BROWSE_NAME"
-browse type 'search query' --session "$BROWSE_NAME"
-browse press Enter --session "$BROWSE_NAME"
+env -u AGENT_BROWSER_PROFILE agent-browser connect 9222
+agent-browser open https://app.example.com/dashboard
+# Drive whatever flow is suspected.
+agent-browser snapshot -i
+agent-browser click @e5
+agent-browser fill '#search' 'search query'
 sleep 5
 
 node scripts/stop-capture.mjs prod-repro
 node scripts/bisect-cdp.mjs prod-repro
-browse cloud sessions update "$SID" --status REQUEST_RELEASE
 ```
 
 Queries:
@@ -179,51 +172,20 @@ jq -c --argjson t "$EVT_MS" '
 
 The stack frame points at the prod JS file + line; the screenshot shows what the user was looking at; the network query shows what XHRs were in flight in the 5 seconds before the throw.
 
-## Example 5: Attach a trace to a Browserbase session that is already running
+## Attaching to a session that is already running
 
-**User says**: "Our staging worker is running a Browserbase session right now and the customer says it's stuck. Can you attach without killing it?"
+The tracer is a second, read-only CDP client - it can attach to a Chrome that is already being driven, without restarting or disrupting it. Skip the launch step, point `start-capture.mjs` at the live target, and let it record:
 
 ```bash
-export BROWSERBASE_API_KEY=...
+# Target already running on a debug port (e.g. the browser-profile Chrome's
+# deterministic port, or any --remote-debugging-port you started earlier).
+node scripts/start-capture.mjs 9222 stuck-debug 2
 
-# Find running sessions (no --status flag, so filter client-side).
-browse cloud sessions list | jq -r '.[] | select(.status == "RUNNING") | "\(.id)\t\(.region)\t\(.startedAt)"'
-
-# Attach the tracer to the session you care about.
-SID=<session-id-from-above>
-node scripts/bb-capture.mjs "$SID" stuck-debug 2
-
-# Open the live debugger URL in your browser to watch interactively.
-open "$(jq -r '.browserbase.debugger_url' .o11y/stuck-debug/manifest.json)"
-
-# Let it record for a minute or two while the worker does whatever it does.
+# Let it record while the existing automation or human does whatever it does.
 sleep 120
 
-# Stop the tracer and pull artifacts. NO --release: the worker still owns this session.
 node scripts/stop-capture.mjs stuck-debug
 node scripts/bisect-cdp.mjs stuck-debug
-node scripts/bb-finalize.mjs stuck-debug
 ```
 
-Then look for the smoking gun:
-
-```bash
-cd .o11y/stuck-debug
-
-# Pending requests that never finished - the most common cause of "stuck"
-jq -s '
-  ([.[0][].params.requestId] - [.[1][].params.requestId] - [.[2][].params.requestId]) as $pending |
-  .[0] | map(select(.params.requestId | IN($pending[])))
-       | map({age_s: (now - .params.timestamp), url: .params.request.url})
-' cdp/network/requests.jsonl cdp/network/finished.jsonl cdp/network/failed.jsonl
-
-# Last DOMContentLoaded / load on the top frame - when did the page actually settle?
-jq -c 'select(.params.frameId == .params.loaderId or .params.frameId != null)
-       | select(.params.name == "DOMContentLoaded" or .params.name == "load")
-       | {name: .params.name, ts: .params.timestamp}' cdp/page/lifecycle.jsonl | tail
-
-# How much has Browserbase billed in proxy bytes so far?
-jq '.proxyBytes' browserbase/session.json
-```
-
-**Key idea**: `bb-capture.mjs <session-id>` (no `--new`) only adds an tracer; it never sends action commands. The production worker keeps running. `bb-finalize.mjs` *without* `--release` leaves the session alive when you're done.
+The pending-requests query from Example 3 is the first thing to run - a fetch that never finishes is the most common cause of "stuck". For a specific tab in a multi-tab Chrome, pass that tab's `webSocketDebuggerUrl` (from `curl http://127.0.0.1:9222/json/list`) instead of the bare port.

@@ -13,22 +13,22 @@ Walk each STRIDE category; for each, inspect the listed sinks and map findings t
 | **D**enial of service | Availability | Unbounded loops/allocations, no rate limit, ReDoS, zip bombs, N+1, missing timeouts. |
 | **E**levation of privilege | Gaining rights | Missing authz checks, role confusion, insecure deserialization, SSRF→metadata, command/SQL injection. |
 
-## OWASP Top-10 (2021) quick map
+## OWASP Top-10 (2025) quick map
 
 | Ref | Category | Common sinks to grep |
 |---|---|---|
-| A01 | Broken access control | route handlers without authz middleware; object access by user-supplied id (IDOR); `../` path use. |
-| A02 | Cryptographic failures | MD5/SHA1 for passwords, hardcoded keys, `http://`, missing TLS, weak random (`Math.random` for tokens). |
-| A03 | Injection | string-concatenated SQL, `exec`/`eval`/`child_process` with user input, unescaped template/HTML. |
-| A04 | Insecure design | missing rate limits, no lockout, trust boundaries crossed without checks. |
-| A05 | Security misconfiguration | debug=true in prod, default creds, permissive CORS (`*` + credentials), open S3/bucket. |
-| A06 | Vulnerable components | pinned-old deps, known-CVE versions (cross-check `npm/pip audit`). |
-| A07 | Auth failures | weak password policy, no MFA path, session fixation, JWT `alg:none`, missing expiry. |
-| A08 | Integrity failures | insecure deserialization, unsigned updates, CI/CD pulling unverified artifacts. |
-| A09 | Logging/monitoring failures | no audit on auth events, secrets in logs, no alerting hook. |
-| A10 | SSRF | server-side fetch of user-supplied URL without allow-list; cloud metadata reachable. |
+| A01 | Broken access control | route handlers without authz middleware; object access by user-supplied id (IDOR); `../` path use; SSRF - server-side fetch of user-supplied URL without allow-list, cloud metadata reachable (see below). |
+| A02 | Security misconfiguration | debug=true in prod, default creds, permissive CORS (`*` + credentials), open S3/bucket. |
+| A03 | Software supply chain failures | pinned-old deps, known-CVE versions (cross-check `npm/pip audit`), CI/CD pulling unverified artifacts, unpinned floating dep versions in manifests. |
+| A04 | Cryptographic failures | MD5/SHA1 for passwords, hardcoded keys, `http://`, missing TLS, weak random (`Math.random` for tokens). |
+| A05 | Injection | string-concatenated SQL, `exec`/`eval`/`child_process` with user input, unescaped template/HTML. |
+| A06 | Insecure design | missing rate limits, no lockout, trust boundaries crossed without checks. |
+| A07 | Authentication failures | weak password policy, no MFA path, session fixation, JWT `alg:none`, missing expiry. |
+| A08 | Software or data integrity failures | insecure deserialization, unsigned updates or code. |
+| A09 | Security logging and alerting failures | no audit on auth events, secrets in logs, no alerting hook. |
+| A10 | Mishandling of exceptional conditions | `catch` blocks that fail open (auth/validation error continues the privileged flow), swallowed exceptions around security decisions, error responses leaking internals. |
 
-### SSRF - beyond a naïve host check
+### SSRF (2025: folded into A01) - beyond a naïve host check
 
 A string allow-list on the URL is not enough. Verify the fetcher: resolves **all** DNS answers and rejects any non-unicast address (loopback, link-local `169.254.0.0/16` incl. cloud metadata `169.254.169.254`, RFC-1918, `::1`, `fc00::/7`); **forbids redirects** (or re-validates each hop - a 302 to the metadata IP defeats a one-time check); and is not vulnerable to **DNS rebinding** (re-resolve at connect time, or pin the validated IP for the actual socket). Flag any user-controlled URL passed to `fetch`/`requests`/`http.get`/`curl`/webhook senders without all four.
 

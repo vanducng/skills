@@ -56,7 +56,7 @@ Reuses the `vd:optimize-loop` discipline (see [`../optimize-loop/references/loop
 ## Output shape
 
 ```markdown
-### [Critical] SQL injection in users query - STRIDE: Tampering · OWASP: A03 Injection
+### [Critical] SQL injection in users query - STRIDE: Tampering · OWASP: A05 Injection
 - Location: src/db/users.ts:42
 - PoC (masked): GET /users?id=1';DROP… (param reaches string-concatenated query)
 - Remediation: use parameterized query / prepared statement.

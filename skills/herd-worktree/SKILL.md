@@ -11,7 +11,7 @@ metadata:
 
 Spin up an isolated, runnable copy of a Laravel project on its own Herd site for feature-branch work - without colliding with your main checkout or, on **Herd Pro**, your shared dev database.
 
-**Announce at start:** "Using laravel-herd-worktree to set up an isolated Laravel + Herd workspace."
+**Announce at start:** "Using herd-worktree to set up an isolated Laravel + Herd workspace."
 
 ## Design: this is a thin Herd layer on top of `vd:worktree`
 
@@ -53,6 +53,7 @@ SITE_NAME="$PROJECT_NAME-$SANITIZED_BRANCH"                    # matches .worktr
 Detect whether the **source** project is secured (don't assume HTTP):
 
 ```bash
+TLD="$(herd tld)"                            # Herd's TLD is configurable (default: test)
 herd links | grep -E "\b$PROJECT_NAME\b"     # SSL column, or:
 grep '^APP_URL=' /path/to/main/.env          # https:// ⇒ secured
 ```
@@ -61,7 +62,7 @@ grep '^APP_URL=' /path/to/main/.env          # https:// ⇒ secured
 cd <worktree-path>
 herd link "$SITE_NAME"
 # If the source is HTTPS (Herd Pro default for team projects):
-herd secure "$SITE_NAME"     # ⇒ https://$SITE_NAME.test
+herd secure "$SITE_NAME"     # ⇒ https://$SITE_NAME.$TLD
 # Only if the source is plain HTTP: skip herd secure (HTTP matches the Vite dev server)
 ```
 
@@ -73,15 +74,15 @@ herd secure "$SITE_NAME"     # ⇒ https://$SITE_NAME.test
 
 ```bash
 ENV=<worktree-path>/.env
-sed -i '' "s|^APP_URL=.*|APP_URL=$SCHEME://$SITE_NAME.test|" "$ENV"
+sed -i '' "s|^APP_URL=.*|APP_URL=$SCHEME://$SITE_NAME.$TLD|" "$ENV"
 
 # SESSION_DOMAIN: only set if the source set a real domain (skip when it's null/empty - single-host).
 grep -qE '^SESSION_DOMAIN=.+' /path/to/main/.env && [ "$(grep '^SESSION_DOMAIN=' /path/to/main/.env)" != "SESSION_DOMAIN=null" ] \
-  && sed -i '' "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=$SITE_NAME.test|" "$ENV"
+  && sed -i '' "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=$SITE_NAME.$TLD|" "$ENV"
 
 # Sanctum: only if present.
 grep -q '^SANCTUM_STATEFUL_DOMAINS=' "$ENV" \
-  && sed -i '' "s|^SANCTUM_STATEFUL_DOMAINS=\(.*\)|SANCTUM_STATEFUL_DOMAINS=\1,$SITE_NAME.test|" "$ENV"
+  && sed -i '' "s|^SANCTUM_STATEFUL_DOMAINS=\(.*\)|SANCTUM_STATEFUL_DOMAINS=\1,$SITE_NAME.$TLD|" "$ENV"
 
 # Secure-cookie flag only matters for HTTP.
 [ "$SCHEME" = "http" ] && echo "SESSION_SECURE_COOKIE=false" >> "$ENV"
@@ -155,7 +156,7 @@ pkill -f "node.*vite" 2>/dev/null; rm -f public/hot   # free a stale Vite/hot fi
 npm run build     # or keep `npm run dev` running while browsing through Herd
 ```
 
-Site: `$SCHEME://$SITE_NAME.test`.
+Site: `$SCHEME://$SITE_NAME.$TLD`.
 
 ## Finishing - delegate, don't reinvent
 
@@ -172,7 +173,7 @@ node "$WT" remove "$SITE_NAME"   # one worktree: hook → branch → metadata
 node "$WT" clean --yes
 ```
 
-Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` tears down the Herd site and isolated DB for **every** swept worktree - no orphaned `.test` sites or leftover databases. (Stop Vite first if it's still running: `pkill -f "node.*vite"`.)
+Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` tears down the Herd site and isolated DB for **every** swept worktree - no orphaned `.$TLD` sites or leftover databases. (Stop Vite first if it's still running: `pkill -f "node.*vite"`.)
 
 ## Herd Pro notes
 
@@ -184,8 +185,8 @@ Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` 
 
 | Symptom | Cause → Fix |
 |---|---|
-| 401 on API routes | Sanctum domain missing → add `$SITE_NAME.test` to `SANCTUM_STATEFUL_DOMAINS`, `php artisan config:clear` |
-| "Cookie rejected for invalid domain" | `SESSION_DOMAIN` mismatch → set to `$SITE_NAME.test` (or leave null for single host), `config:clear`, clear browser cookies |
+| 401 on API routes | Sanctum domain missing → add `$SITE_NAME.$TLD` to `SANCTUM_STATEFUL_DOMAINS`, `php artisan config:clear` |
+| "Cookie rejected for invalid domain" | `SESSION_DOMAIN` mismatch → set to `$SITE_NAME.$TLD` (or leave null for single host), `config:clear`, clear browser cookies |
 | Mixed Content (HTTPS page, HTTP assets) | Vite served HTTP under an HTTPS site → confirm `herd secure` ran and `laravel-vite-plugin` sees the cert; restart `npm run dev` |
 | CORS blocked (HTTP site) | Vite `host: '0.0.0.0'` → set `host: 'localhost'`, `cors: true`, restart |
 | Migrations hit the wrong/shared DB | `.env` still points at main DB → isolate (step 4) and rewrite `DB_DATABASE` |
@@ -204,7 +205,7 @@ Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` 
 - [ ] `.worktree/hooks/pre-remove` written (Herd unlink + isolated-DB drop on `worktree remove`/`clean`)
 - [ ] `vite.config.{ts,js}` correct for the scheme
 - [ ] `composer install` + `npm install` done; `npm run build` done or `npm run dev` running; migrations run if isolated
-- [ ] Site reachable at `$SCHEME://$SITE_NAME.test`
+- [ ] Site reachable at `$SCHEME://$SITE_NAME.$TLD`
 
 ## CRITICAL: working directory after setup
 

@@ -34,8 +34,9 @@ the showcase needs generated brand assets, logos, banners, or poster prompts.
    hero section.
 2. If the request contains time-sensitive claims, launches, stats, news, or
    third-party facts, browse and cite current sources before writing.
-3. Write showcase content to `assets/showoff/<mission-name>/content.md`.
-   Include section outline, English copy, Vietnamese copy, and references.
+3. Write showcase content to the hook-injected `Visuals:` path under
+   `<mission-slug>/content.md`. Include section outline, English copy,
+   Vietnamese copy, and references.
 4. Generate a self-contained HTML page with `vd:opendesign`. The first viewport
    must signal the showcased project/product clearly and hint at the next
    section.
@@ -69,7 +70,7 @@ cd "$SHOW_OFF_DIR/scripts"
 npm install
 node capture-sections.js \
   --url "file:///path/to/index.html" \
-  --output-dir "/path/to/assets/showoff/<mission-name>/images" \
+  --output-dir "<Visuals-path>/<mission-slug>/images" \
   --sections "#hero,#section-2,#section-3" \
   --ratios "horizontal,vertical,square" \
   --settle-delay 1500

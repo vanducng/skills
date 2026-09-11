@@ -22,8 +22,6 @@ Read-only debugging surface for Airflow on Astro. Pair three tools:
 | Deep RCA after logs are in hand | `vd:debug` then `vd:fix` |
 | `af` not installed or no remote instance configured | curl against `/api/v2/` (Airflow 3) or `/api/v1/` (Airflow 2) |
 
-**When NOT to use:** local-only Airflow (`astro dev start`, parse, pytest) - that is `vd:managing-astro-local-env`. YAML authoring is `vd:dag-factory`. This skill is remote (staging/prod) inspection, plus wiring `af` at those URLs.
-
 ## Prerequisites
 
 - `astro` CLI ≥ 1.42, logged in (`astro login`; verify with `astro context list`)
@@ -95,17 +93,11 @@ astro deployment logs <deployment-id> --triggerer --error
 astro deployment logs <deployment-id> --workers --keyword "OOMKilled"
 ```
 
-Use these when:
-
-- DAGs not appearing / parse errors → `--dag-processor --keyword "ImportError"` (and `--scheduler` on older runtimes)
-- Triggerer crashing → `--triggerer --error`
-- Worker OOM → `--workers --keyword "OOMKilled"`
-
 ### Environment variables and deploy state
 
 ```bash
 astro deployment variable list --deployment-id <id>            # values redacted
-astro deployment variable list --deployment-id <id> -s         # secrets (sensitive)
+astro deployment variable list --deployment-id <id> -k <KEY>   # one key; secret VALUES are never retrievable
 astro deployment inspect <id>
 astro deployment pool list --deployment-id <id>
 ```
@@ -198,42 +190,6 @@ afw PATCH "/api/v2/dags/<dag_id>/dagRuns/<run_id>" '{"state":"failed"}'
 
 **`max_active_runs=1`:** unpausing can spawn a scheduled run, so a manual trigger sits queued behind it. Terminate the redundant queued run if the user wants only one.
 
-## Decision tree
-
-```
-User wants...                            → Use
-─────────────────────────────────────────────────────────────────────
-"use Otto" / AF2→3 upgrade / long audit  → vd:delegating-to-otto
-"why did this run fail"                  → af runs diagnose  (else curl dagRuns → failed TIs → logs)
-"any failed DAGs today"                  → af runs list / curl /dagRuns?state=failed
-"scheduler broken / DAGs not parsing"    → astro logs --dag-processor  AND  af dags errors
-"task log for try 2 of X"                → af tasks logs ... --try 2
-"worker OOM"                             → astro logs --workers --keyword OOMKilled
-"what env vars are set"                  → astro deployment variable list
-"pool is starved"                        → af config pools
-"trigger / clear failed"                 → only if user asks; prefer af, else curl. Never with a read-only token.
-```
-
-## Investigate "DAG X failed"
-
-```bash
-# 1. most recent failed run
-af runs list --dag-id <dag_id>
-# fallback:
-RUN_ID=$(afcurl "/api/v2/dags/<dag_id>/dagRuns?state=failed&limit=1&order_by=-start_date" \
-         | jq -r '.dag_runs[0].run_id')
-
-# 2. diagnose (af) or list failed tasks (curl)
-af runs diagnose <dag_id> "$RUN_ID"
-afcurl "/api/v2/dags/<dag_id>/dagRuns/${RUN_ID}/taskInstances?state=failed" \
-  | jq '.task_instances[] | {task_id, try_number}'
-
-# 3. logs - NEVER jq -r '.content' on Airflow 3
-af tasks logs <dag_id> "$RUN_ID" <task_id>
-afcurl "/api/v2/dags/<dag_id>/dagRuns/${RUN_ID}/taskInstances/<task_id>/logs/<try>?full_content=true" \
-  | jq -r '.content[] | select(type=="object") | .event' | grep -v '^::' | tail -n 200
-```
-
 ## Safety rules
 
 - **Read-only by default.** Do not trigger, clear, pause, or update variables unless the user asks.
@@ -261,16 +217,6 @@ afcurl "/api/v2/dags/<dag_id>/dagRuns/${RUN_ID}/taskInstances/<task_id>/logs/<tr
 | `af: command not found` | CLI not installed | `uvx --from astro-airflow-mcp af` |
 | `af` only shows localhost | no remote instance | `instance discover --dry-run` then ask; or `instance add` |
 | `context not found` | wrong org | `astro context list && astro context switch <name>` |
-
-## Discovery
-
-```bash
-astro version
-astro context list
-astro deployment list
-astro deployment inspect <id> --key metadata.airflow_api_url
-uvx --from astro-airflow-mcp af instance list
-```
 
 ## References
 

@@ -122,7 +122,7 @@ None found → fall back to default branch and warn that the requested mode has 
 
 ## Auto-release tooling
 
-Probe for any of these - first match wins, used by Step 13 to decide skip-manual-tag:
+Probe for any of these - first match wins, used by Step 14 to decide skip-manual-tag:
 
 | Marker | Tool |
 |--------|------|

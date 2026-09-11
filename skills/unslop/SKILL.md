@@ -1,6 +1,6 @@
 ---
 name: unslop
-description: "Cut AI tells from prose and add a human voice - PR bodies, docs, READMEs, blog/devlog posts, release notes, review summaries, commit messages, any text a person will read. Use when the user says 'unslop', 'de-AI this', 'remove AI tells', 'humanize this', 'this sounds like AI', or as the final pass whenever another skill produces prose. Do not use for conversion copy structure (vd:copywriting), doc structure (vd:docs, incl. its site mode), or code slop (vd:code-review --refactor)."
+description: "Cut AI tells from prose and add a human voice - PR bodies, docs, READMEs, blog/devlog posts, release notes, review summaries, commit messages; any draft that already exists. Use when the user says 'unslop', 'de-AI this', 'remove AI tells', 'humanize this', 'this sounds like AI', or as the final pass whenever another skill produces prose. Do not use for conversion copy structure (vd:copywriting), doc structure (vd:docs, incl. its site mode), or code slop (vd:code-review --refactor)."
 license: MIT
 argument-hint: "[file, text, or 'last message']"
 metadata:
@@ -15,15 +15,7 @@ metadata:
 
 ## What this skill is - and isn't
 
-| Skill | Question it answers | Output |
-|---|---|---|
-| **`vd:unslop`** | **"Does this read like a human wrote it?"** | **Rewritten prose, meaning preserved** |
-| `vd:copywriting` | "Does this convert?" | Formula-driven marketing copy |
-| `vd:docs` (incl. `site`) | "Is this documented correctly?" | Structured docs / docs site |
-| `vd:code-review --refactor` | "Is this *code* slop?" | Diff review report |
-| `vd:simplify` | "Is this code hard to read?" | Behavior-preserving refactor |
-
-Unslop edits **prose**. It changes wording and rhythm, never facts, claims, links, or code blocks.
+Unslop edits **prose** - wording and rhythm only, never facts, claims, links, or code blocks. `vd:copywriting` owns conversion structure; run copywriting first, unslop last.
 
 ## Hard rules
 
@@ -103,18 +95,3 @@ Removing patterns is half the job. Sterile, voiceless text is just as obvious.
 28. **Active voice.** "queries are validated" → "the compiler validates queries". Passive only when the actor is unknown or truly irrelevant.
 29. **Cut adverbs or use a stronger verb.** "significantly improves" → the measured delta.
 30. **Prefer the plain word.** "utilize" → "use", "leverage" → "use", "facilitate" → "help", "numerous" → "many".
-
-## Workflow position
-
-**Typically follows:** any prose-producing skill - `vd:devlog`, `vd:ship` (PR bodies), `vd:docs` (incl. `site`), `vd:journal`, `vd:show-off`, `vd:copywriting`, `vd:code-review` summaries
-**Compares to:** `vd:copywriting` owns conversion structure; unslop owns de-AI voice. Run copywriting first, unslop last.
-
-## Rationalizations to catch
-
-| Thought | Reality |
-|---|---|
-| "It's just a PR body, skip the pass" | PR bodies are the most-read prose you ship. Two minutes. |
-| "The draft is already concise" | Concise slop is still slop. Check the catalog, especially 7, 13, 19. |
-| "I'll add personality by adding words" | Rule 3. Most fixes are deletions. |
-| "The em dash reads fine here" | Hard rule 5. No exceptions - it is the number-one tell. |
-| "Rewriting might change the meaning slightly" | Then you are drafting, not unslopping. Hard rule 1 - flag, don't drift. |

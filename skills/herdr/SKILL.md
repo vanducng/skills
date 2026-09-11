@@ -42,6 +42,7 @@ The installed binary is the authority for command syntax. Begin with:
 ```bash
 herdr --version
 herdr --help
+herdr --skill
 ```
 
 Then print the relevant command group by running it without a subcommand:
@@ -51,7 +52,6 @@ herdr pane
 herdr workspace
 herdr worktree
 herdr tab
-herdr wait
 herdr agent
 herdr notification
 herdr integration
@@ -109,7 +109,7 @@ When another skill delegates pane naming, label the calling pane `<project>:<int
 - Use a ticket key or two to four short words for the intent, not the full branch name.
 - Keep the full label at 40 characters or fewer. Shorten the intent first.
 
-Examples: `polaris:ELT-3267-calls`, `skills:herdr-pane-name`.
+Examples: `webapp:PROJ-3267-calls`, `skills:herdr-pane-name`.
 
 ```bash
 herdr pane rename "$HERDR_PANE_ID" "<project>:<intent>"
@@ -173,7 +173,7 @@ Inspect the pane after launch. If `agent_status` is not yet `idle`, wait for the
 
 ```bash
 herdr pane get <returned-pane-id>
-herdr wait agent-status <returned-pane-id> --status idle --timeout 30000
+herdr agent wait <returned-pane-id> --until idle --timeout 30000
 herdr pane run <returned-pane-id> "Review the current diff and report only actionable findings."
 ```
 
@@ -184,8 +184,8 @@ Status waits match the current status immediately or wait for a future matching 
 For normal background work, wait for the agent to start working. If the pane remains in a background tab or workspace, wait for `done` before reading its transcript:
 
 ```bash
-herdr wait agent-status <returned-pane-id> --status working --timeout 30000
-herdr wait agent-status <returned-pane-id> --status done --timeout 120000
+herdr agent wait <returned-pane-id> --until working --timeout 30000
+herdr agent wait <returned-pane-id> --until done --timeout 120000
 herdr pane read <returned-pane-id> --source recent-unwrapped --lines 120
 ```
 
@@ -211,7 +211,7 @@ Read the new `pane_id` from the JSON response, then run and inspect the command:
 
 ```bash
 herdr pane run <returned-pane-id> "just test"
-herdr wait output <returned-pane-id> --match "test result" --timeout 120000
+herdr pane wait-output --match "test result" --timeout 120000 <returned-pane-id>
 herdr pane read <returned-pane-id> --source recent-unwrapped --lines 120
 ```
 

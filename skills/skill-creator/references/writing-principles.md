@@ -32,3 +32,14 @@ Do not snapshot inventories that will rot (file lists, version tables copied fro
 ## Length tracks failure risk
 
 Near-empty where the base model already behaves. Heavily gated only where agents predictably fail (debug without a repro, review without evidence, plan without seams). Past ~200 lines, rule-following degrades - split or move depth to references.
+
+## Rationalizations to catch in yourself
+
+| Thought | Reality |
+|---|---|
+| "I'll write the description last" | It's the highest-leverage part; drafting it first clarifies scope |
+| "More detail makes it more reliable" | Past ~200 lines rule-following *degrades*; move depth to `references/` |
+| "It's obviously useful" | If you can't name what breaks without it, it isn't |
+| "Validator passed, so it works" | Validators lint frontmatter; they don't test routing |
+| "I'll make it generic so it covers everything" | Generic skills route to nothing. Specific triggers fire |
+| "The user asked for a skill, so I must write one" | Recommending against one is a valid, useful answer |

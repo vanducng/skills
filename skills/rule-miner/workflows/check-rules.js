@@ -16,7 +16,7 @@ const rulesSource = A.rulesSource || 'project' // global | project
 const target = A.target || 'git diff'
 const ruleHome = rulesSource === 'global'
   ? '~/.claude/CLAUDE.md and ~/.claude/rules/*.md'
-  : 'the project CLAUDE.md and docs/code-standards.md (if present)'
+  : 'the project AGENTS.md (CLAUDE.md is a symlink to it) and docs/code-standards.md (if present)'
 
 const RULES = {
   type: 'object', required: ['rules'],

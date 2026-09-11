@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[search-target] [ext]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Scout
@@ -23,13 +23,7 @@ Internal mode needs the Task/Explore tool (Claude Code). In a runtime without it
 
 ## When to use
 
-- About to change something that **could span multiple folders** - e.g. add a new dbt source that touches `models/`, `schema.yml`, `dashboards/`, and a CI workflow
-- User says **"find / locate / search for"** - code, models, charts, secrets, manifests
-- Starting a debug session and need a file map before invoking `vd:debug`
-- Before a refactor, migration, or deletion that could ripple across services
-- Auditing a repo you don't own well - what's where, and how does it wire together
-
-**Skip scout when** the target file is already known, or one `grep` answers the question. Scout is for breadth, not pinpoint lookups.
+Use when a change could span multiple folders (e.g. a new dbt source touching `models/`, `schema.yml`, `dashboards/`, and a CI workflow), the user says **"find / locate / search for"** anything, a debug session needs a file map before `vd:debug`, or a refactor / migration / deletion could ripple across services. **Skip scout when** the target file is already known, or one `grep` answers the question - scout is for breadth, not pinpoint lookups.
 
 ## Quick start
 
@@ -61,50 +55,18 @@ Both are optional. Unset → defaults above.
 
 ### 2. Divide and conquer
 
-Pick **logical segments**, not arbitrary partitions. Examples per discipline below - every agent gets one segment, no overlap.
-
-#### Software repo segments
+Pick **logical segments**, not arbitrary partitions - every agent gets one segment, no overlap. Example for a data-engineering repo:
 
 ```
-Agent 1: src/<feature>, src/api      → handlers, routes
-Agent 2: src/services, src/lib       → business logic, helpers
-Agent 3: src/types, src/schemas      → contracts
-Agent 4: tests/, e2e/                → test fixtures and specs
-Agent 5: config/, scripts/           → wiring and tooling
+Agent 1: models/staging, models/intermediate   → dbt staging + intermediate
+Agent 2: models/marts, snapshots/, seeds/      → dbt marts and seeds
+Agent 3: macros/, tests/, analyses/            → reusable SQL + tests
+Agent 4: dags/ or workflows/                   → Airflow/Dagster/Prefect DAGs
+Agent 5: schema.yml files (recursive)          → sources, exposures, columns
+Agent 6: lightdash/, lookml/, metabase/        → BI semantic layer
 ```
 
-#### Data engineering repo segments
-
-```
-Agent 1: models/staging,   models/intermediate     → dbt staging + intermediate
-Agent 2: models/marts, snapshots/, seeds/          → dbt marts and seeds
-Agent 3: macros/, tests/, analyses/                → reusable SQL + tests
-Agent 4: dags/ or workflows/                       → Airflow/Dagster/Prefect DAGs
-Agent 5: schema.yml files (recursive)              → sources, exposures, columns
-Agent 6: lightdash/, lookml/, looker/, metabase/   → BI semantic layer
-```
-
-#### DevOps / infra repo segments
-
-```
-Agent 1: terraform/, pulumi/, cdk/                 → IaC modules
-Agent 2: k8s/, helm/, kustomize/, manifests/       → cluster manifests
-Agent 3: .github/workflows/, .gitlab-ci.yml, Jenkinsfile  → CI/CD
-Agent 4: docker/, Dockerfile*, docker-compose*     → container builds
-Agent 5: secrets/, .sops.yaml, .age, vault/        → encrypted config
-Agent 6: env/, environments/, overlays/            → multi-env overrides (dev/staging/prod)
-```
-
-#### Analytics / reporting repo segments
-
-```
-Agent 1: dashboards/, .lightdash/                  → dashboard YAML
-Agent 2: charts/, viz/, exploratory/               → notebook + chart sources
-Agent 3: metrics/, semantic/, dbt models marts     → metric definitions
-Agent 4: reports/, exports/                        → scheduled report code
-```
-
-Pick whichever segmentation matches the repo. Mixed repos → mix the patterns.
+Derive segments from the repo's own layout, one subsystem per agent: software → feature / api / services / contracts / tests / config; infra → IaC / cluster manifests / CI / containers / secrets / env overlays; analytics → dashboards / charts / metrics / reports. Mixed repos → mix the patterns.
 
 ### 3. Register scout tasks (SCALE ≥ 3)
 
@@ -115,7 +77,7 @@ Skip task registration if SCALE ≤ 2 (overhead > benefit) or if Task tools are 
 ### 4. Spawn parallel agents
 
 - **Internal:** load `references/internal-scouting.md` and spawn N `Explore` subagents in one Task tool message.
-- **External:** load `references/external-scouting.md`. Pick `gemini` (SCALE ≤ 3) or `opencode` (SCALE 4-5). Wrap with `timeout 120`.
+- **External:** load `references/external-scouting.md`. Pick `gemini` (SCALE ≤ 3) or `opencode` (SCALE 4-5). Wrap gemini with the resolved timeout wrapper (`gtimeout` on macOS - stock macOS has no `timeout`; the reference resolves it once per session).
 - Each agent gets: explicit dir scope, search targets, **3-minute timeout**, and the report shape it must return.
 - Each agent has <200K tokens - keep prompts terse, hand it the dir list, not the whole repo.
 
@@ -164,15 +126,3 @@ The "Surface map" section is only useful when the change spans disciplines. Drop
 - `references/task-management-scouting.md` - Claude Task patterns for coordinating agents
 - `references/domain-scouting.md` - search-target playbooks per discipline (data eng, devops, analytics)
 
-## Workflow position
-
-**Typically precedes:** `vd:debug` (investigate after locating), `vd:brainstorm` (design after surveying the surface), `vd:plan` (sequence work), `vd:fix` (fix after locating)
-
-**Compares to:** `Glob`/`Grep` direct - use those for one-target lookups; use scout for **multi-target, multi-dir** surveys
-
-## Quality bar
-
-- **No overlapping scopes** between agents - wasted tokens
-- **Names, not vibes** - every report entry includes the file path; "the auth code" is not a finding
-- **Dedup on aggregation** - same file from two agents should appear once
-- **Honest gaps** - list what wasn't covered, not "comprehensive" when it isn't

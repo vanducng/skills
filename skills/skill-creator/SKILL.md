@@ -5,31 +5,14 @@ license: MIT
 argument-hint: "[capability | --audit <name> | --extract] [--dir <skills-root>]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Skill Creator
 
 > A skill is a **conditional prompt fragment**. It costs context every time it loads and earns its place only by making the agent behave better than the base model would.
 
-## What this skill is - and isn't
-
-| Skill | Question it answers | Output |
-|---|---|---|
-| **`vd:skill-creator`** (this) | "How do I author this capability so an agent reliably uses it?" | A validated `SKILL.md` (+ optional `references/`, `scripts/`) |
-| `vd:skill-management` | "How do I scaffold, vendor, validate, and release skills?" | Lifecycle/CLI orchestration (delegates authoring here) |
-| `vd:skill-evolve` | "How should *existing* skills change given this session?" | Edits to skills that already exist |
-| `vd:skill-audit` | "Which skills actually get used?" | Usage report from session history |
-| `vd:docs` | "How do I explain this to humans?" | Prose documentation |
-
-Two boundaries worth holding:
-
-- **New vs existing.** Authoring something that doesn't exist yet is this skill. Improving what already ships is `vd:skill-evolve`.
-- **Content vs mechanics.** What goes *inside* `SKILL.md` is this skill. Moving, vendoring, versioning, and releasing it is `vd:skill-management`.
-
-`vd:skill-management` also answers "create a skill" as the lifecycle entry point and hands authoring here (its `--create` mode). Either routing reaches the same place, so if that skill picked up the request first, continue rather than bouncing it back - then return to it for the scaffold-to-catalog mechanics once the content is written.
-
-Skills instruct an **agent**; docs inform a **human**. If the artifact's reader is a person, write docs instead.
+Boundaries: authoring something new is this skill; improving what already ships is `vd:skill-evolve`; scaffolding, vendoring, and releases are `vd:skill-management`; usage stats are `vd:skill-audit`. `vd:skill-management --create` hands authoring here - if it picked up the request first, continue rather than bouncing it back, then return to it for the catalog mechanics. Skills instruct an **agent**; docs inform a **human** - if the reader is a person, write docs instead.
 
 ## The bar: does this deserve to be a skill?
 
@@ -48,7 +31,7 @@ Fail any → say so and stop. **Not writing a skill is a valid, common outcome.*
 2. **Verify before claiming done.** Run the repo's validator and confirm the skill actually loads. "Wrote the file" is not "shipped."
 3. **Prescribe, don't describe.** "Run X, then verify Y" beats "this skill is about X." Every section should change what the agent *does*.
 4. **Portable by default.** No personal absolute paths, usernames, machine-specific locations, or assumed OS. Use `$HOME`, repo-relative paths, env vars, or documented overrides. A skill that only works on the author's laptop is broken.
-5. **Earn every line.** Long skills get skimmed and their rules get dropped. Cut anything the base model already does correctly. The bar lives in [`references/writing-principles.md`](references/writing-principles.md) (two loads, no-op test, completion criteria, anti-staleness, length tracks failure risk).
+5. **Earn every line.** Long skills get skimmed and their rules get dropped. Cut anything the base model already does correctly. The bar lives in [`references/writing-principles.md`](references/writing-principles.md) (two loads, no-op test, completion criteria, anti-staleness, length tracks failure risk, rationalizations to catch).
 6. **Name the runtime seams.** If a step depends on tooling that isn't universal (a specific CLI, an editor API, a subagent mechanism), say so and give the fallback.
 
 ## Workflow
@@ -73,13 +56,6 @@ Skill roots differ by agent and project. Detect rather than assume, and **resolv
 2. a root declared by the repo (`AGENTS.md`, `CONTRIBUTING.md`, a manifest)
 3. project-local: `./skills`, `./.agents/skills`, `./.claude/skills`
 4. runtime-global fallbacks: `$HOME/.factory/skills`, `$HOME/.claude/skills`, `$HOME/.agents/skills`
-
-```bash
-for d in ./skills ./.agents/skills ./.claude/skills \
-         "$HOME/.factory/skills" "$HOME/.claude/skills" "$HOME/.agents/skills"; do
-  [ -d "$d" ] && echo "candidate: $d"
-done
-```
 
 If several candidates exist at the *same* precedence level, **ask** rather than guess - writing a project skill into a global root (or the reverse) is silently wrong and hard to notice later.
 
@@ -126,7 +102,6 @@ Default skeleton - drop any section that would be filler:
 ## Workflow                            # numbered steps, each with a verification
 ## <Domain reference>                   # tables/rubrics the agent applies
 ## Anti-patterns                        # concrete failure modes to avoid
-## Rationalizations to catch            # two-column: "thought" vs "reality"
 ```
 
 Guidance:
@@ -159,7 +134,7 @@ Then check by hand, since validators typically lint frontmatter and nothing else
         while read -r f; do [ -e "<skill-dir>/$f" ] || echo "MISSING: $f"; done
       ```
 - [ ] Repo-specific gates pass (docs sync, path guards, catalog counts) - see the root's `AGENTS.md`.
-- [ ] **Routing rehearsal**: read the description cold and ask *"would I load this for each trigger phrase, and NOT load it for a neighbour's task?"* Both directions matter - a description that over-triggers is as bad as one that never fires. Where the runtime can list or dry-run skill matching, use it; otherwise state plainly that routing is unverified rather than implying it was tested.
+- [ ] **Routing rehearsal**: read the description cold and ask *"would I load this for each trigger phrase, and NOT load it for a neighbour's task?"* Both directions matter - a description that over-triggers is as bad as one that never fires. Where the runtime can dry-run skill matching, use it; otherwise say routing is unverified rather than implying it was tested.
 
 Ship only when all pass.
 
@@ -188,31 +163,7 @@ When the user says *"we keep doing this"*: reconstruct the actual steps taken (d
 
 ## Anti-patterns
 
-- **Description as marketing.** "The ultimate X skill!" Routing matches situations, not enthusiasm.
-- **Restating the base model.** If the agent already does it correctly, the skill adds context cost and nothing else.
 - **Kitchen-sink scope.** "backend-development" covering HTTP, DB, queues, and deploys can't hold firm rules. Split by decision boundary.
-- **Untested shipping.** Declaring done without loading the skill or running the validator.
 - **Copy-paste cargo cult.** Cloning another skill's headings when half don't apply. Structure serves content.
 - **Silent overwrite.** Creating a skill whose name already exists, clobbering the original. Always check first.
 - **Documentation cosplay.** Explaining a domain instead of directing an agent. Skills change behavior.
-
-## Rationalizations to catch in yourself
-
-| Thought | Reality |
-|---|---|
-| "I'll write the description last" | It's the highest-leverage part; drafting it first clarifies scope |
-| "More detail makes it more reliable" | Past ~200 lines rule-following *degrades*; move depth to `references/` |
-| "It's obviously useful" | If you can't name what breaks without it, it isn't |
-| "Validator passed, so it works" | Validators lint frontmatter; they don't test routing |
-| "I'll make it generic so it covers everything" | Generic skills route to nothing. Specific triggers fire |
-| "The user asked for a skill, so I must write one" | Recommending against one is a valid, useful answer |
-
-## Workflow position
-
-```
-repeated task / vague capability request
-        ↓
-vd:skill-creator  →  validate  →  catalog sync  →  review  →  ship
-        ↑                                                       │
-        └──────────── --audit when it doesn't fire ←─────────────┘
-```

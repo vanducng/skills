@@ -32,7 +32,7 @@ python3 <copywriting-skill-dir>/scripts/extract-writing-styles.py --style <name>
 
 Set `COPYWRITING_STYLES_DIR=/path/to/writing-styles` to override discovery.
 
-**Formats:** `.md` `.txt` `.pdf` `.docx` `.xlsx` `.pptx` `.jpg` `.png` `.mp4` (docs/media need `GEMINI_API_KEY`)
+**Formats:** `.md` `.txt` `.pdf` `.docx` `.xlsx` `.pptx` `.jpg` `.png` `.mp4` (docs/media need `GEMINI_API_KEY` and the `vd:omnimedia` scripts installed)
 
 ## Copy Formulas
 

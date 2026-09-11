@@ -386,7 +386,7 @@ review:
     default_action: include
     include_drafts: false
     comment_trigger_regexes:
-      - '(^|\s)(/miucr review\b|@vanducng\b)'
+      - '(^|\s)(/miucr review\b|@<github-user>\b)'
     rules:
       - action: exclude
         title_regexes: ['^chore\(deps\):']
@@ -399,9 +399,9 @@ repos:
         default_action: exclude
         rules:
           - action: include
-            authors: ["vanducng"]
+            authors: ["<github-user>"]
           - action: include
-            requested_reviewers: ["vanducng"]
+            requested_reviewers: ["<github-user>"]
 ```
 
 ### `rules`: project review context

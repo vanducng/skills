@@ -36,7 +36,7 @@ Installed as the `codex-workflow` MCP extension (`vd mcp install codex-workflow`
 ```
 
 - **v1 shape:** sequential steps + one `parallel_group` + per-step `output_schema`. NOT loops/conditionals (those are a later iteration - script them outside, or use multiple `run_workflow` calls).
-- `agent` (optional) names a `~/.codex/agents/*.toml` role; its `developer_instructions` are injected as a prompt override (see #26363 below).
+- `agent` (optional) names a `~/.codex/agents/*.toml` role; its `developer_instructions` are injected into that step's prompt.
 - Concurrency is capped by `[agents].max_threads` (config).
 - Returns one structured result per step: `{id, status, output}`.
 
@@ -59,18 +59,18 @@ Pairs with `vd:worktree`. One worktree + background `codex exec` per task; `wait
 - **Multi-modal sweep:** parallel steps each searching a different way, blind to each other.
 - **Pipeline:** chain `run_workflow` calls, feeding step outputs forward.
 
-## Caveat - regression #26363 (while open)
-Since Codex v0.137.0, custom `~/.codex/agents/*.toml` are not selectable at in-session spawn (generic fallback). `run_workflow` works around it by injecting the named agent's `developer_instructions` as a prompt override. For raw NL spawns, do the same by hand: paste the role's instructions into the spawn prompt. Drop this workaround when OpenAI restores `agent_type` selection.
-
 ## Install & enable
 
 The `run_workflow` tool ships as the `codex-workflow` vd extension (Python/uv MCP server). Prereqs: `uv` + `codex login` (model work runs through your Codex login - no extra API key).
 
+Every `vd mcp` subcommand needs `VD_EXTENSIONS_DIR` pointing at a vd-cli checkout:
+
 ```bash
-cd ~/vd-cli && go build -o ~/.local/bin/vd ./cmd/vd   # if vd lacks `mcp` (prefix env -u GOROOT if GOROOT is mise-pinned)
+export VD_EXTENSIONS_DIR=<vd-cli-checkout>/extensions
+cd <vd-cli-checkout> && go build -o ~/.local/bin/vd ./cmd/vd   # if vd lacks `mcp` (prefix env -u GOROOT if GOROOT is mise-pinned)
 vd mcp install codex-workflow              # Codex (~/.codex/config.toml) + Claude (project ./.mcp.json)
 vd mcp install codex-workflow --scope user # …or Claude global (~/.claude.json)
-vd mcp list && vd mcp doctor               # verify
+vd mcp list && vd mcp doctor               # verify (same VD_EXTENSIONS_DIR)
 # then RESTART Codex / Claude Code to load the server
 ```
 

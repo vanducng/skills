@@ -42,51 +42,13 @@ If your search target is multi-faceted ("auth + session + token validation"), te
 Bad - "split the file list in half".
 Good - split by **subsystem**: handlers vs services vs schemas vs tests.
 
-See SKILL.md for per-discipline segment templates (software / data / devops / analytics).
+See SKILL.md's "Divide and conquer" for the segment example and per-discipline guidance.
 
 ### Parallel execution
 
 - One Task tool message containing **all** Explore agent calls
 - Each agent gets a distinct, non-overlapping scope
 - Total agent count: usually 3-8. Above 8, return diminishes; under 3, do it inline.
-
-## Example - auth scout
-
-User prompt: "Find authentication-related files"
-
-```
-Agent 1: Scout src/auth/, src/middleware/    → handlers and middleware
-Agent 2: Scout src/api/, src/routes/         → endpoints that gate on auth
-Agent 3: Scout tests/                        → auth tests + fixtures
-Agent 4: Scout lib/, utils/                  → token / hash / session helpers
-Agent 5: Scout config/, env/                 → auth env vars and config
-Agent 6: Scout types/, schemas/              → auth contracts and types
-```
-
-## Example - data pipeline scout
-
-User: "Find everything wired to the `payments_raw` source"
-
-```
-Agent 1: Scout models/staging/, models/intermediate/  → stg_payments*, int_payments*
-Agent 2: Scout models/marts/                          → fct_/dim_ models that depend on payments
-Agent 3: Scout schema.yml files (recursive)           → source + exposures referencing payments_raw
-Agent 4: Scout dags/ or workflows/                    → DAGs that load or trigger payments
-Agent 5: Scout lightdash/, dashboards/                → charts/dashboards referencing payments
-Agent 6: Scout tests/, macros/                        → custom tests touching payments
-```
-
-## Example - infra change scout
-
-User: "Where is the staging env's database URL set?"
-
-```
-Agent 1: Scout terraform/, pulumi/      → IaC outputs and secrets-manager refs
-Agent 2: Scout k8s/, helm/, kustomize/  → manifests, ConfigMaps, Secrets
-Agent 3: Scout env/, environments/      → multi-env overlays (dev/staging/prod)
-Agent 4: Scout .github/workflows/       → CI workflows that inject DB URLs
-Agent 5: Scout .sops.yaml, secrets/     → encrypted-secret tree
-```
 
 ## Timeout handling
 

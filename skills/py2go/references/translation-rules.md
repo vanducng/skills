@@ -282,7 +282,7 @@ Each row is a Python construct on the left and the canonical Go translation on t
 | `Dockerfile` (multi-stage) | `goreleaser/goreleaser` for binaries + `ko-build/ko` for containers (no Dockerfile) | - |
 | Container base | `gcr.io/distroless/static-debian12` | minimal, secure |
 | Lockfile (`poetry.lock`) | `go.mod` + `go.sum` (stdlib) | - |
-| Linting | `golangci-lint` v1.62+ | de facto standard |
+| Linting | `golangci-lint` v2.x | de facto standard; v2 config schema (`version: "2"` in `.golangci.yml`) |
 | Formatting | `gofumpt` + `goimports` | stricter than gofmt |
 
 ## Forbidden defaults

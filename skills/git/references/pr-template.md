@@ -27,7 +27,7 @@ These section *names* are conceptual - they map onto whichever body shape the re
 
 ### Anti-patterns
 
-- ❌ Listing every file touched ("Created `models/observability/cnb_obs_dbt_test_runs.sql`, created `models/observability/cnb_obs_dbt_invocations.sql`, ...") - group instead: "5 dbt views + 1 incremental snapshot under `models/observability/`."
+- ❌ Listing every file touched ("Created `models/observability/obs_dbt_test_runs.sql`, created `models/observability/obs_dbt_invocations.sql`, ...") - group instead: "5 dbt views + 1 incremental snapshot under `models/observability/`."
 - ❌ Re-stating the diff in prose ("This PR builds on top of elementary which already populates run results...")
 - ❌ Multi-paragraph "Context" sections that recap scouting / brainstorming. That belongs in Jira / the plan file.
 - ❌ Marketing language ("Foundation for future tickets", "comprehensive solution").

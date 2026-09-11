@@ -2,7 +2,7 @@
 name: code-review
 description: "Review code with a sharp, encouraging voice - inline GitHub PR comments + a tight summary. Supports PR (default), pending changes, commit hash, and codebase modes. Encodes an opinionated review style: severity-prefixed, concise, actionable, no fluff. Pass `--refactor` for the local reuse/slop lens (never posts). For the owned deterministic `miucr` CLI (gated reviews, webhooks, MCP), use vd:miucr."
 license: MIT
-argument-hint: "[#PR | URL | COMMIT | --pending | codebase | --refactor] [--dry-run] [--post] [--no-inline] [--refactor [--fix] [--save]]"
+argument-hint: "[#PR | URL | COMMIT | --pending | codebase | --refactor] [--dry-run] [--post] [--no-inline] [--auto] [--ultra] [--cross-model] [--refactor [--fix] [--save]]"
 metadata:
   author: vanducng
   version: "1.2.0"
@@ -10,17 +10,7 @@ metadata:
 
 # Code Review
 
-## What this skill is - and isn't
-
-| Skill | Question it answers | Output |
-|---|---|---|
-| `vd:scout` | "Where does this code live?" | Pointers |
-| `vd:debug` | "Why is this broken?" | Root cause |
-| **`vd:code-review`** | **"Is this change ready to land, and what should the author fix?"** | **Inline PR comments + summary verdict** |
-| `vd:code-review --refactor` | "Does this fit the codebase, or is it slop?" | Local report; edits only with `--fix` |
-| `vd:ship` | "Land the branch." | Merged + tagged + PR |
-
-This skill **reviews and reports**. It does not implement fixes. If a fix is obvious and one-line, mention it in the comment as a suggestion - but don't apply it. Hand back to `vd:cook` / `vd:fix` for the actual work.
+This skill **reviews and reports** - it never implements fixes. If a fix is obvious and one-line, mention it in the comment as a suggestion; hand the actual work back to `vd:cook` / `vd:fix`. Landing the branch afterwards is `vd:ship`.
 
 > **Codex runtime:** this file uses Claude-Code tooling (`AskUserQuestion`, `Task(Explore)` subagents). Under `codex exec` use the self-contained `codex-review.md` in this skill dir instead; per-site fallbacks below also apply.
 
@@ -59,7 +49,7 @@ Flags:
 
 ## Review voice (the style guide)
 
-These are the conventions for **every** comment this skill writes. Reference example: `careernowbrands/cnb-data-contract#124`.
+These are the conventions for **every** comment this skill writes. Reference example: `<org>/<repo>#124`.
 
 ### Severity prefix on every finding
 
@@ -119,16 +109,9 @@ exact command to debug>.
 - `Request changes` - at least one Critical or Important. List the topics.
 - `Comment` - Only Suggestions / Questions / Nits. Author decides.
 
-### Tone calibration
-
-- **Encouraging when it's earned.** "Solid coverage on the happy path" / "Nice catch on the parameterized query - easy to get wrong." Don't fake-praise.
-- **Direct on real problems.** "This deadlocks under concurrent writes." Don't soften with "maybe consider perhaps."
-- **Curious on unknowns.** "What's the intended behavior when X is null? The current branch silently drops it."
-- **Never condescending.** Never "obviously" / "clearly" / "any junior dev would know" / "I'm surprised this passed".
+Tone: encouraging when earned (don't fake-praise), direct on real problems (no "maybe consider perhaps"), curious on unknowns, never condescending ("obviously" / "clearly" / "I'm surprised this passed").
 
 ## PR mode - the polished path
-
-This is the path that produces the GitHub artifact. Treat it as the primary mode.
 
 ### 1. Fetch context
 
@@ -159,14 +142,7 @@ Collect findings as you go into this structure (memory only - don't write a file
   "commit_id": "<headRefOid>",
   "event":     "APPROVE | REQUEST_CHANGES | COMMENT",
   "body":      "<top-level summary, per the shape above>",
-  "comments": [
-    {
-      "path":      "contracts/constraints/snowflake/five9_old_lead_recency_alert.yaml",
-      "line":      44,
-      "side":      "RIGHT",
-      "body":      "**Important - CURRENT_DATE timing**: ..."
-    }
-  ]
+  "comments": [ { "path": "<file>", "line": 44, "side": "RIGHT", "body": "**Important - <topic>**: ..." } ]
 }
 ```
 
@@ -194,13 +170,7 @@ If the call returns 422 with `Pull request review thread line must be part of th
 
 ### 5. Confirm
 
-After posting, print:
-```
-Posted review to PR #<n> as <event>:
-  • <count> inline comments
-  • Verdict: <event>
-  • URL: <html_url from API response>
-```
+After posting, print the event, the inline-comment count, and the review `html_url` from the API response.
 
 ## Ultra mode - adversarial workflow
 
@@ -214,8 +184,8 @@ Posted review to PR #<n> as <event>:
 
 It composes two patterns:
 
-1. **Review (fan-out)** - one agent per dimension (`correctness`, `security`, `reliability`, `performance`, `api`, `tests`), each with its own clean context. They map onto the [Checklist](#checklist-apply-to-every-diff) below, so coverage doesn't degrade the way a single long pass does (no "addressed 20 of 50" laziness).
-2. **Verify (adversarial)** - each candidate finding faces `votes` independent refuters prompted to *kill* it. Majority-refute drops the finding. Only survivors come back.
+1. **Review (fan-out)** - one agent per dimension (`correctness`, `security`, `reliability`, `performance`, `api`, `tests`), each with clean context, mapping onto the [Checklist](#checklist-apply-to-every-diff) so coverage doesn't degrade the way a single long pass does.
+2. **Verify (adversarial)** - each candidate finding faces `votes` independent refuters prompted to *kill* it; majority-refute drops it. Only survivors come back.
 
 **Then post as normal.** The workflow returns `{ confirmed, dropped }`. Map `confirmed` into the same review payload (§3) and post the **one** review (§4) with the usual severity prefixes and voice. Mention the filter in the summary: *"Adversarial pass: N findings confirmed, M refuted and dropped."* `--dry-run` still prints instead of posting.
 
@@ -236,17 +206,9 @@ It composes two patterns:
 
 ## Non-PR modes (quick reference)
 
-### `--pending` (local, pre-commit)
-
-`git diff` + `git diff --cached`. Apply the same severity/voice rubric. Output to stdout as a markdown report. The author runs this themselves before pushing.
-
-### Commit hash
-
-`git show <sha>`. Same review, no post target. Useful for reviewing someone else's commit after the fact.
-
-### `codebase` / `codebase parallel`
-
-Out of scope for the polished PR path. Spawn `Task(Explore)` subagents per top-level dir (no subagents → scan each dir inline, sequentially); each returns a findings list with file:line:severity:body. Synthesize into a single markdown report. Write to the injected `Reports:` path. Filename: `code-review-<date>-<slug>.md`.
+- **`--pending`** - `git diff` + `git diff --cached`; same severity/voice rubric, stdout report (the author runs it pre-push).
+- **Commit hash** - `git show <sha>`; same review, no post target (reviewing someone else's commit after the fact).
+- **`codebase`** - not the polished PR path: spawn `Task(Explore)` subagents per top-level dir (no subagents → scan each dir inline, sequentially), each returning findings as file:line:severity:body; synthesize into one report at the injected `Reports:` path as `code-review-<date>-<slug>.md`.
 
 ## Checklist (apply to every diff)
 
@@ -297,57 +259,20 @@ This is the always-on lens. Repo-specific rules (i18n, SQL store conventions, mo
 
 **Project conventions**
 - Read `CLAUDE.md`, `docs/code-standards.md`, `docs/system-architecture.md` if present. Apply repo-specific rules (i18n keys in 3 locales, h-dvh not h-screen, parameterized SQL, etc.).
-- Calibrate: this is a review, not a rewrite. If the code is correct, safe, and readable, ship it - don't manufacture findings to look thorough. "Different from how I'd write it" is not a finding. Review the change against its stated intent; do not reject a named tradeoff because you'd have chosen differently.
+- Calibrate: if the code is correct, safe, and readable, ship it - don't manufacture findings to look thorough. "Different from how I'd write it" is not a finding (intent-vs-mistake is Hard rule 6).
 
 ## CI handling
 
 When `gh pr checks` shows failures:
 
-1. Identify the failing job and its run ID.
-2. The summary's first finding is `**Critical:** CI <job> is red ([run-id](url)).`
-3. Include the exact command for the author to inspect: `gh run view <run-id> --log-failed`.
-4. If the failure cause is obvious from the diff (e.g. lint, type error, missing import), name it in the comment body. Don't make the author hunt.
-5. Verdict is at least `Request changes` while CI is red. No exceptions.
+1. Identify the failing job and its run ID; the summary's first finding is `**Critical:** CI <job> is red ([run-id](url)).`
+2. Include `gh run view <run-id> --log-failed` so the author can inspect; if the cause is obvious from the diff (lint, type error, missing import), name it - don't make the author hunt.
+3. Verdict is at least `Request changes` while CI is red. No exceptions.
 
 ## When the answer is "approve"
 
-It's a real verdict, not a participation trophy. Use it when:
-- No Critical, no Important findings.
-- Suggestions/Nits are fine to include.
-- Tests cover the change.
-- CI is green (or only flakes the repo is known to tolerate).
-
-Approval body - keep it short:
-```
-Approved. <one sentence on what shipped well>.
-
-<Optional: 1-2 suggestion comments inline>.
-```
-
-## Anti-patterns (don't do these)
-
-- **Comment dump.** 40 comments on a 200-line diff. Pick the worst 5-10.
-- **"LGTM 🚀".** Empty approvals teach nothing and erode trust in your reviews. Either approve with a specific reason, or don't approve.
-- **Ghost suggestions.** "Consider refactoring this." → useless. Either propose the refactor with code, or drop the comment.
-- **Re-reviewing on every push.** If the author pushed a 3-line fix to address your Critical, look at those 3 lines - don't re-review the whole PR.
-- **Hidden assumptions.** "This should use the foo pattern." → name the file, name the pattern, link the prior art.
-- **Reviewer as designer.** Using extra models or Important findings to pick a product path. That's a Question to the user.
-
-### Common rationalizations to catch (in the code, and in yourself)
-
-| The author says (or the diff implies) | The reviewer's job |
-|---|---|
-| "It works, ship it" | Working ≠ correct. Check the edge cases the happy path skipped. |
-| "I'll add tests in a follow-up" | The follow-up rarely comes. Untested new logic is a finding now. |
-| "It's just a small change" | Small diffs hide auth/data/migration blast radius. Size ≠ risk. |
-| "TODO / fix later" added in this PR | Either it matters (do it) or it doesn't (delete it). A new TODO on a critical path is a finding. |
-| "Temporary workaround" | Temporary code is permanent code. Demand the real fix or a tracked issue link. |
+A real verdict, not a participation trophy. `Approve` = no Critical, no Important finding, tests cover the change, CI green (or only tolerated flakes). Body: `Approved. <one sentence on what shipped well>` plus at most 1-2 inline suggestions.
 
 ## Workflow position
 
-```
-vd:cook  →  vd:code-review (this skill)  →  vd:ship
-                                             (or vd:fix if changes requested)
-```
-
-Also fires standalone when the user invokes on a teammate's PR or to review the local branch before `vd:ship`.
+`vd:cook` → `vd:code-review` → `vd:ship` (or `vd:fix` if changes requested). Also fires standalone on a teammate's PR or the local branch before `vd:ship`.
