@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.62.1](https://github.com/vanducng/skills/compare/v1.62.0...v1.62.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **show-me:** quote YAML description so pi can load the skill ([#475](https://github.com/vanducng/skills/issues/475)) ([f027cc2](https://github.com/vanducng/skills/commit/f027cc20c5af01978a09c2749cf0b5a9edc1cfe8))
+
 ## [1.62.0](https://github.com/vanducng/skills/compare/v1.61.1...v1.62.0) (2026-09-11)
 
 
