@@ -1,6 +1,6 @@
 # samber/lo - Lodash-style helpers for Go
 
-**Pinned: v1.53.0 (released 2026-03-02) · MIT · 21.2k stars · zero deps · verified 2026-05-23**
+**Pinned: v1.53.0 (released 2026-03-02) · MIT · 21.2k stars · zero deps · verified 2026-09-11**
 
 500+ generics-first, type-safe utility functions for slices, maps, channels, strings, math, tuples, and concurrency. The library people actually keep installing because Go's stdlib `slices`/`maps` only covers ~10 basic ops.
 

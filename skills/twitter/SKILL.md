@@ -12,6 +12,14 @@ metadata:
 
 Personal CLI for reading and writing on X/Twitter. Wraps a patched twikit primary path with an agent-browser fallback router for resilience.
 
+## Invocation
+
+There is no `twitter` binary on PATH - every command runs the bundled dispatcher at `<twitter-skill-dir>/scripts/twitter` (for example `$HOME/.claude/skills/twitter/scripts/twitter`; resolve from wherever this skill is installed). Alias it once per shell and the examples below work verbatim:
+
+```bash
+twitter() { "$HOME/.claude/skills/twitter/scripts/twitter" "$@"; }
+```
+
 ## Quick start
 
 ```bash
@@ -30,8 +38,8 @@ twitter post "hello from twitter skill"
 | `doctor` | `twitter doctor [--offline]` |
 | `fetch` | `twitter fetch https://x.com/<u>/status/<id>` · `twitter fetch @jack --count 10` · `twitter fetch search:claude --count 5` |
 | `timeline` | `twitter timeline latest --count 20` · `twitter timeline home` · `twitter timeline user:@jack` |
-| `post` | `twitter post "text" [--media a.jpg b.jpg] [--long] [--community ID] [--share-with-followers]` |
-| `reply` | `twitter reply <url\|id> "text" [--media path...]` |
+| `post` | `twitter post "text" [--media a.jpg --media b.jpg] [--long] [--community ID] [--share-with-followers]` |
+| `reply` | `twitter reply <url\|id> "text" [--media a.jpg --media b.jpg]` |
 | `thread` | `twitter thread "a" "b" "c"` |
 | `delete` | `twitter delete <url\|id>` |
 
@@ -102,6 +110,6 @@ twitter/
 
 ```bash
 PY="$([ -x "$HOME/.claude/skills/.venv/bin/python3" ] && echo "$HOME/.claude/skills/.venv/bin/python3" || echo python3)"
-"$PY" -m pytest scripts/tests/ -q          # unit (51 tests); fallback python3 needs: pip install --user -r scripts/requirements.txt
+"$PY" -m pytest scripts/tests/ -q          # unit (52 tests); fallback python3 needs: pip install --user -r scripts/requirements.txt
 scripts/tests/integration_smoke.sh          # live (post → fetch → delete)
 ```

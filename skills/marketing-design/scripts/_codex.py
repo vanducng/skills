@@ -8,9 +8,6 @@ gpt-image-2 internally) on the user's ChatGPT subscription - no API key.
 
 Reuses the tested wrapper rather than reimplementing the codex exec / PNG
 capture logic. See omnimedia/references/codex-imagegen.md.
-
-Note: Codex `$imagegen` is text->image only (no input-image conditioning),
-so logo-on-mockup compositing (CIP) must use Gemini instead.
 """
 from __future__ import annotations
 

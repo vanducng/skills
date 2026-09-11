@@ -19,6 +19,16 @@ GEMINI_MODEL=${GEMINI_MODEL:-gemini-3-flash-preview}
 OPENCODE_MODEL=${OPENCODE_MODEL:-opencode/grok-code}
 ```
 
+## Timeout wrapper
+
+Resolve once per session - stock macOS has no `timeout`; Homebrew coreutils ships it as `gtimeout`:
+
+```bash
+TO=$(command -v gtimeout || command -v timeout)   # empty on a box with neither
+```
+
+When `TO` is empty, run the call bare and rely on the agent-level 3-minute timeout.
+
 ## Install check
 
 ```bash
@@ -32,15 +42,17 @@ If missing:
 
 ## Gemini (SCALE 1-3)
 
+The query is positional - `--prompt` is deprecated and will be removed upstream.
+
 ```bash
-timeout 120 gemini -y -m "${GEMINI_MODEL:-gemini-3-flash-preview}" \
-  --prompt "[scout-prompt]" 2>&1
+"$TO" 120 gemini -y -m "${GEMINI_MODEL:-gemini-3-flash-preview}" \
+  "[scout prompt]" 2>&1
 ```
 
 Example:
 
 ```bash
-timeout 120 gemini -y -m gemini-3-flash-preview --prompt \
+"$TO" 120 gemini -y -m gemini-3-flash-preview \
   "Search src/ for authentication-related files. List paths with one-line descriptions." 2>&1
 ```
 
@@ -62,13 +74,13 @@ Use `Task` tool with `subagent_type: "Bash"` - spawn all in **one** message:
 
 ```
 Task 1: subagent_type="Bash",
-  prompt="timeout 120 gemini -y -m ${GEMINI_MODEL:-gemini-3-flash-preview} --prompt 'Scout dags/ for DAGs touching payments_raw' 2>&1"
+  prompt="$TO 120 gemini -y -m ${GEMINI_MODEL:-gemini-3-flash-preview} 'Scout dags/ for DAGs touching payments_raw' 2>&1"
 
 Task 2: subagent_type="Bash",
-  prompt="timeout 120 gemini -y -m ${GEMINI_MODEL:-gemini-3-flash-preview} --prompt 'Scout models/ for dbt sources/exposures referencing payments_raw' 2>&1"
+  prompt="$TO 120 gemini -y -m ${GEMINI_MODEL:-gemini-3-flash-preview} 'Scout models/ for dbt sources/exposures referencing payments_raw' 2>&1"
 
 Task 3: subagent_type="Bash",
-  prompt="timeout 120 gemini -y -m ${GEMINI_MODEL:-gemini-3-flash-preview} --prompt 'Scout lightdash/, dashboards/ for charts using payments' 2>&1"
+  prompt="$TO 120 gemini -y -m ${GEMINI_MODEL:-gemini-3-flash-preview} 'Scout lightdash/, dashboards/ for charts using payments' 2>&1"
 ```
 
 ## Prompt guidelines
@@ -83,14 +95,14 @@ Task 3: subagent_type="Bash",
 ### Data engineering
 
 ```bash
-timeout 120 gemini -y -m gemini-3-flash-preview --prompt \
+"$TO" 120 gemini -y -m gemini-3-flash-preview \
   "Scout dbt project. List: (1) sources defined in schema.yml referencing 'payments', (2) staging/intermediate/marts models that depend on those sources, (3) tests covering them, (4) exposures pointing to BI. Path + one-liner per item." 2>&1
 ```
 
 ### DevOps / multi-env
 
 ```bash
-timeout 120 gemini -y -m gemini-3-flash-preview --prompt \
+"$TO" 120 gemini -y -m gemini-3-flash-preview \
   "Scout infra repo. Find every place 'DATABASE_URL' is set or referenced: terraform/ outputs, k8s/ manifests + ConfigMaps + Secrets, helm/ values per environment, .github/workflows/ env injection, .sops.yaml encrypted entries. Path + line + which env (dev/staging/prod)." 2>&1
 ```
 
@@ -102,7 +114,7 @@ opencode run "Scout this repo for the metric 'monthly_active_users'. List: dbt m
 
 ## Error handling
 
-Wrap every gemini call with `timeout 120 ... 2>&1` and check:
+Wrap every gemini call with the resolved timeout wrapper (`"$TO" 120 ... 2>&1`; bare when `TO` is empty) and check:
 
 - **Exit code ≠ 0** → failure
 - **Output contains** `GaxiosError`, `RESOURCE_EXHAUSTED`, `MODEL_CAPACITY_EXHAUSTED`, `PERMISSION_DENIED`, `UNAUTHENTICATED` → failure

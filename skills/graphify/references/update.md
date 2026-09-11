@@ -1,6 +1,6 @@
 # graphify reference: incremental update and cluster-only
 
-Load this only when the user passed `--update` or `--cluster-only`. A first-time full build never reads this file.
+Load this only when the user passed `--update` or `--cluster-only`. A first-time full build never reads this file. Step numbers below (Steps 2-9, Parts A/B/C) refer to `references/build-pipeline.md`.
 
 ## For --update (incremental re-extraction)
 

@@ -10,18 +10,7 @@ metadata:
 
 # Plan
 
-## What this skill is - and isn't
-
-| Skill | Question it answers | Output |
-|---|---|---|
-| `vd:interview` | "What do you actually want?" | Confirmed intent |
-| `vd:brainstorm` | "How should I approach this - what are the options?" | Decision brief with 3+ approaches |
-| `vd:interview --wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
-| `vd:research` | "Which of these known options should I pick?" | Comparison report with citations |
-| **`vd:plan`** | **"Given the chosen approach, what are the steps to ship it?"** | **Phased plan: `plan.md` + `phase-XX-*.md`** |
-| `vd:cook` (or manual impl) | "Execute the plan." | Code changes |
-
-Plan converts a *decided* approach into a *sequenced* implementation. If the approach isn't decided, stop and run `vd:brainstorm` first. If the *deciding* itself will not fit one session, stop and run `vd:interview --wayfinder`. A plan that opens with "we should consider whether to use X or Y" is a brainstorm in disguise - kick it back.
+Plan converts a *decided* approach into a *sequenced* implementation. If the approach isn't decided, stop and run `vd:brainstorm`. If the *deciding* itself will not fit one session, stop and run `vd:interview --wayfinder`. A plan that opens with "we should consider whether to use X or Y" is a brainstorm in disguise - kick it back.
 
 ## Hard rules
 
@@ -41,13 +30,9 @@ Plan converts a *decided* approach into a *sequenced* implementation. If the app
 | `--deep` | High-risk, multi-system, irreversible | Default output + research dispatch (Phase 2) + red-team review (Phase 6) + independent audit (Phase 7) |
 | `--audit` | Existing plan needs a clean-context second look | Severity-tagged report; optional `--fix` / `--fix --apply-all`. See [`references/audit.md`](references/audit.md) |
 
-Composable flag:
+Composable flag: `--tdd` opens each phase with a "Tests first" step + a failing-test checklist before implementation.
 
-| Flag | Effect |
-|---|---|
-| `--tdd` | Each phase opens with a "Tests first" step + a failing-test checklist before implementation |
-
-Detect mode from the argument or task shape. A path to an existing plan dir plus `--audit` (or "audit this plan") is audit-only: skip Phases 1-6 and follow [`references/audit.md`](references/audit.md). Announce mode in your first reply.
+Detect mode from the argument or task shape. A path to an existing plan dir plus `--audit` (or "audit this plan") is audit-only: skip Phases 1-6 and follow [`references/audit.md`](references/audit.md). Announce mode (and `--tdd`) in your first reply.
 
 ## Phase 1 - Frame
 
@@ -60,13 +45,11 @@ Before writing any plan file, in your reply, capture:
 - **Scope boundary** - what's *out* of scope. Out-of-scope items get listed but not planned.
 - **Constraints** - language, runtime, team size, existing systems that can't change.
 
-If who / why / success / constraint / out of scope are not confirmed (no interview intent file, no brainstorm brief, no explicit user restate), **stop and run `vd:interview`** before writing files. A misaimed plan wastes more than the interview.
-
-If only a sequencing detail is fuzzy after a confirmed intent, **ask before writing files**.
+If who / why / success / constraint / out of scope are not confirmed (no interview intent file, no brainstorm brief, no explicit user restate), **stop and run `vd:interview`** before writing files. A misaimed plan wastes more than the interview. If only a sequencing detail is fuzzy after a confirmed intent, **ask before writing files**.
 
 ### Capture decisions (mandatory if any non-goals stated)
 
-During framing, note any explicit non-goals or trade-offs the user states ("skip auth", "no migration needed", "use library X over Y", "defer i18n"). These belong in `{plan-dir}/decisions.md` - written alongside `plan.md` in Phase 4. Ask "any explicit non-goals to record?" if none have surfaced and the task feels likely to omit common scaffolding.
+Note any explicit non-goals or trade-offs the user states ("skip auth", "no migration needed", "use library X over Y", "defer i18n"). These belong in `{plan-dir}/decisions.md`, written alongside `plan.md` in Phase 4. Ask "any explicit non-goals to record?" if none have surfaced and the task feels likely to omit common scaffolding.
 
 **Tip:** if a brainstorm brief exists, copy its "Avoid" / "Out of scope" / "Open questions" sections into `decisions.md` as starting non-goals. The `--audit` subagent reads `decisions.md` and respects listed exclusions, so capturing them here prevents false-positive findings later.
 
@@ -79,8 +62,6 @@ If the goal spans 3+ independent shippable features → **stop**. Reply:
 A plan with 12+ phases is almost always two plans pretending to be one. And if the *decisions* themselves span more sessions than the phases do - the approach is still foggy across multiple fronts - escalate to `vd:interview --wayfinder` instead: chart the open decisions as a map, then come back here per cleared chunk.
 
 ## Phase 2 - Discover (`--deep` only, optional in default)
-
-Before designing phases, gather what exists:
 
 - **Codebase scan** - read entry points, existing patterns, conventions in `docs/`. Delegate to a subagent (`Explore` or `general-purpose` via the `Agent` tool) if the codebase is large; do not bloat the planning session with file dumps.
 - **Research** - for unfamiliar libraries/APIs, use `WebSearch` or `vd:research`. In `--deep` mode, dispatch 1-2 researcher subagents for parallel topics (e.g. "X library auth flow", "Y rate-limit patterns").
@@ -109,11 +90,9 @@ Sketch the dependency graph in your reply (text or mermaid) before writing files
 
 ## Phase 4 - Write plan files
 
-### Directory layout
-
 **Feature-first repos - claim a feature first.** If the hook context shows `Feature: none` (paths resolve under `_global/scratch/`), run `workbench new <slug>` (kebab summary of the task) before writing, then use the paths it prints - the plan lands in `features/<slug>/plans/` instead of the shared scratch bin. Idempotent: skip when a feature is already active (a `feat/*` branch, an active plan, or a prior `workbench new`).
 
-Write to the injected `Plans:` path.
+Write to the injected `Plans:` path, using the date/slug pattern injected by session hooks (`## Naming` block).
 
 ```
 {plans-path}/{YYYYMMDD-HHMM}-{slug}/
@@ -123,8 +102,6 @@ Write to the injected `Plans:` path.
   phase-02-{verb-noun}.md
   ...
 ```
-
-Use the date/slug pattern injected by session hooks (`## Naming` block).
 
 ### `decisions.md` template (write only if non-goals/trade-offs were stated)
 
@@ -179,6 +156,10 @@ mode: default            # quick | default | deep
 - cmd_exits_zero: {build or lint command}
 # more types: `- shell: <cmd>` · `- http_status: <url> <code>` · `- manual_confirm: <prompt>`
 
+## Test Seams
+<!-- One line per seam: the command cook will run, what a failure looks like before the phase lands, and any fixture / env var / service the command needs. -->
+- `{npm test -- settings-csv}` - fails with {symptom} until Phase {N} lands - needs {fixture/env/service}
+
 ## Out of Scope
 - {explicit non-goal} - {why deferred}
 
@@ -201,6 +182,8 @@ mode: default            # quick | default | deep
 - Brainstorm brief: {path if applicable}
 - Research: {paths}
 ```
+
+Every default/`--deep` plan carries that `## Test Seams` section plus a `## Tests` / `## Verify` pair on each phase. A plan with no seams is a plan cook cannot gate.
 
 ### `phase-XX-{verb-noun}.md` template
 
@@ -252,7 +235,7 @@ depends_on: [{phase ids}]
 
 After writing files, in your reply:
 
-1. **List the files written** (relative paths).
+1. **List the files written** as clickable absolute links (`[plan.md](/absolute/path/to/plan.md)`, plus a `file://` URI when helpful). Never list only basenames.
 2. **Show the phases table** verbatim from `plan.md` so the user sees the shape without opening it.
 3. **Recommend the next action:**
    - For implementation: `vd:cook {plan-dir}` or "I can implement Phase 1 - say go."
@@ -263,7 +246,7 @@ After writing files, in your reply:
 
 ## Phase 6 - Red-team review (`--deep` only)
 
-After writing the plan, before declaring done, run an adversarial pass. In your reply, ask the plan three hostile questions and answer them honestly:
+After writing the plan, before declaring done, ask the plan three hostile questions in your reply and answer them honestly:
 
 | Persona | Question |
 |---|---|
@@ -275,24 +258,12 @@ If any answer reveals a real problem → revise the plan and note the change in 
 
 ## Phase 7 - Independent audit (`--deep` only)
 
-After the red-team round (Phase 6), run `--audit` on this plan dir (see [`references/audit.md`](references/audit.md)). Same-context red-team is not a substitute.
+After the red-team round, run `--audit` on this plan dir (see [`references/audit.md`](references/audit.md)). Same-context red-team is not a substitute. `--deep` is not done until both Phase 6 and Phase 7 have run.
 
 - Trigger: only when `--deep` is set. Default and `--quick` skip this. Standalone `--audit` is the same pass without writing a new plan.
 - Surface result inline: top-3 findings + path to the audit report.
 - Audit findings are **advisory** - never block plan completion. The author owns the call.
 - If the audit returns CRITICAL findings, recommend revising the plan before handoff to `vd:cook`.
-
-## Anti-rationalization
-
-| Excuse | Reality |
-|---|---|
-| "This is too small to need phases" | Then `--quick` mode with inline steps. Still write the file - it's the diff of intent. |
-| "User wants implementation, not planning" | A 5-minute plan saves a 5-hour wrong implementation. Push back briefly, then plan. |
-| "I'll figure out the steps as I go" | The point of a plan is to discover the wrong steps cheaply. Write them. |
-| "The phases overlap a bit" | Then they're one phase. Merge them. |
-| "I'll skip the success criteria - they're obvious" | They're never obvious. Future-you, on review, will not remember. Write them. |
-| "This phase has 15 steps but it's one concern" | 15 steps = unreviewable PR = not one phase. Split. |
-| "They said build X, I know what they mean" | If Outcome / Success / Out of scope aren't confirmed, `vd:interview` first. Don't plan a guess. |
 
 ## Anti-staleness
 
@@ -303,25 +274,6 @@ Plans outlive the session that wrote them. Do not cache a file inventory that wi
 - If a path may move, write the discovery command (`rg -l 'type Handler'`) instead of a guess.
 - `--audit` is how a later session checks the plan against the tree as it is now.
 
-## Test seams
-
-Every default/`--deep` plan gets a `## Test Seams` section on `plan.md` (and a `## Tests` / `## Verify` pair on each phase):
-
-- The command cook will run (`npm test -- settings-csv`, `go test ./internal/export`)
-- What a failing test looks like before the phase lands
-- Any fixture, env var, or service the command needs
-
-`--tdd` makes that section the first step of every phase. A plan with no seams is a plan cook cannot gate.
-
-## Quality bar
-
-- **Concrete files.** Every phase names the files it creates/modifies/deletes. No "implement the thing."
-- **Independent phases.** Each phase ships something reviewable. No "phase 4 of 12 with broken state at the end."
-- **Observable success criteria.** Every phase ends with checks a human or test can run. Not "code works."
-- **Honest scope.** Out-of-scope is listed explicitly. Risks are named, not hand-waved.
-- **Self-contained.** A new contributor can pick up Phase N and ship it from the file alone.
-- **Decided.** No "we should evaluate X vs Y" in the plan body - that's brainstorm. Plan is post-decision.
-
 ## Specials
 
 - **Migrations / schema changes** - phase 1 is always the migration with rollback path; later phases assume the migration applied. Do not interleave migration steps with feature steps.
@@ -330,20 +282,3 @@ Every default/`--deep` plan gets a `## Test Seams` section on `plan.md` (and a `
 - **Refactors** - `--tdd` is mandatory. No tests = no safety net = no refactor plan, just hope.
 - **Bug fixes** - `--quick` mode is usually right. If the fix needs 3+ phases, the bug is a redesign in disguise - escalate to `vd:brainstorm`.
 - **Library upgrades** - every phase ends with "tests pass + manual smoke test of {feature touched}." Don't lump the smoke tests into a final QA phase.
-
-## Output rules
-
-1. Announce mode (`--quick` / default / `--deep` / `--audit`) and `--tdd` if set in your first reply.
-2. Phase 1 (frame + scope check) happens *before* writing any files - visible to the user.
-3. If decomposition triggers, stop and ask - do not write a 12-phase mega-plan.
-4. Default and `--deep` write `plan.md` + phase files. `--quick` writes only `plan.md` with inline phases.
-5. After writing, list files with openable locations, then show the phases table in your reply (don't make the user open files to see the shape). Use clickable absolute file links such as `[plan.md](/absolute/path/to/plan.md)` and include a `file://` URI when helpful; never list only basenames.
-6. End with the handoff recommendation (implement, deepen, revise) - don't leave the user wondering what's next.
-7. `--deep` mode is not done until the red-team round (Phase 6) AND the independent audit (Phase 7) both run.
-
-## Workflow position
-
-**Typically follows:** `vd:interview` (confirmed want) then `vd:brainstorm` (after deciding the approach), `vd:interview --wayfinder` (after a multi-session map is cleared for this chunk), `vd:research` (after picking a known option), `vd:scout` or `vd:debug` (after discovery)
-**Typically precedes:** `vd:cook` (execute the plan), or manual implementation phase-by-phase
-**Often followed by:** `vd:plan --audit` (auto on `--deep`, recommended after default mode) for independent verification
-**Compares to:** `vd:interview` (want, no steps), `vd:brainstorm` (pre-decision exploration), and `vd:interview --wayfinder` (multi-session deciding) - if you find yourself debating approaches inside a plan, kick back to brainstorm or `vd:interview --wayfinder`

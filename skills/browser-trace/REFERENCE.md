@@ -6,7 +6,7 @@ Technical reference for the capture pipeline, the bisect mapping, and the jq rec
 
 ```
                        ┌──────────────────────────────────────┐
-   main automation ──▶ │  Chrome / Browserbase CDP target     │ ◀── tracer (this skill)
+   main automation ──▶ │  Chrome CDP target                   │ ◀── tracer (this skill)
    (agent-browser,     └──────────────────────────────────────┘
     Playwright, …)          │                        │
         │                   ▼                        ▼
@@ -23,7 +23,7 @@ Both pieces open their own `WebSocket` to the target via `cdpConnect` in `lib.mj
 
 ## Scripts
 
-All scripts read `O11Y_ROOT` (default `.o11y`) so runs land under `$O11Y_ROOT/<run-id>/`. They are Node ESM modules (`node` 18+) and the local-capture pipeline depends only on the Node standard library, with no `npm install` step. Only the Browserbase helpers (`bb-capture.mjs`, `bb-finalize.mjs`) shell out to the `browse` CLI. `jq` is referenced throughout the docs for ad-hoc querying but the scripts themselves don't need it.
+All scripts read `O11Y_ROOT` (default `.o11y`) so runs land under `$O11Y_ROOT/<run-id>/`. They are Node ESM modules (`node` 18+) and depend only on the Node standard library, with no `npm install` step. `jq` is referenced throughout the docs for ad-hoc querying but the scripts themselves don't need it.
 
 ### `start-capture.mjs <target> [run-id] [interval-sec]`
 
@@ -73,24 +73,6 @@ Bypassable with raw `jq`/`rg` against `cdp/summary.json` and `cdp/pages/<pid>/` 
 
 Invoked by `start-capture.mjs`; not meant to be called directly. Holds one persistent CDP connection for the whole run and loops at the configured interval, writing PNG (`Page.captureScreenshot`) + HTML (`Runtime.evaluate` of `document.body.outerHTML`) + an entry to `index.jsonl` (`Runtime.evaluate` of `location.href`) per tick. If the socket drops it reconnects on the next tick. DOM dumps go through a `.partial` temp file so a SIGTERM mid-write never leaves a 0-byte HTML behind; `stop-capture.mjs` sweeps any survivors.
 
-### `bb-capture.mjs --new|<session-id> [run-id] [interval-sec]`
-
-Browserbase wrapper around `start-capture.mjs`. With `--new`, runs `browse cloud sessions create --keep-alive` and starts the tracer. With an existing session id, fetches its `connectUrl` via `browse cloud sessions get` and asserts the session is `RUNNING` before attaching.
-
-Stamps the run's `manifest.json` with a `browserbase` object containing `session_id`, `project_id`, `region`, `started_at`, `expires_at`, `keep_alive`, and the `debugger_url` from `browse cloud sessions debug`.
-
-Reads `BROWSERBASE_API_KEY`. `BB_SESSION_TIMEOUT` (default `600`) controls the timeout passed to `--new` sessions.
-
-### `bb-finalize.mjs <run-id> [--release]`
-
-Pulls platform-side artifacts after the tracer has stopped:
-
-- **`browserbase/session.json`** - `browse cloud sessions get` snapshot. Always written; contains the post-run `proxyBytes`, `status`, `endedAt`.
-- **`browserbase/logs.json`** - `browse cloud sessions logs` output. Often `[]`. The CDP firehose is authoritative; this is a side channel for cases where Browserbase happened to record server-side log entries.
-- **`browserbase/downloads.zip`** - only kept when there's real content (size > 22 bytes - an empty Browserbase downloads zip is exactly the EOCD record).
-
-`--release` calls `browse cloud sessions update --status REQUEST_RELEASE` to end the session. Skip it when attaching to a session you don't own (e.g. one a production worker is using).
-
 ## Bisect map
 
 | File                                    | CDP method                       | What's in it                                                 |
@@ -115,7 +97,7 @@ Pulls platform-side artifacts after the tracer has stopped:
 
 ### Note on response bodies
 
-The firehose does not embed response bodies: that would require a synchronous `Network.getResponseBody` round-trip per request, which the passive tracer deliberately avoids. If you need bodies, capture them from the driver side: `agent-browser network requests --json` locally, or `browse network on` (in the `browser` skill) on Browserbase, which writes per-request directories with `request.json` + `response.json` including body. The two compose: driver-side body capture for payloads + `cdp-firehose.mjs` for the timeline.
+The firehose does not embed response bodies: that would require a synchronous `Network.getResponseBody` round-trip per request, which the passive tracer deliberately avoids. If you need bodies, capture them from the driver side: `agent-browser network requests --json`, or `browse network on` (in the `browser` skill), which writes per-request directories with `request.json` + `response.json` including body. The two compose: driver-side body capture for payloads + `cdp-firehose.mjs` for the timeline.
 
 ## jq recipe library
 
@@ -214,51 +196,6 @@ ls ../screenshots | sort | awk -v t="$EVT_ISO" '$0 >= t { print; exit }'
 
 For a quick visual diff, open `../dom/<ts>.html` at the same timestamp.
 
-## Pairing with Browserbase platform data
-
-When a run was captured through `bb-capture.mjs`, its `manifest.json` carries a `browserbase` block and `bb-finalize.mjs` adds a `browserbase/` subdir. A few useful joins:
-
-```bash
-RUN=.o11y/<run-id>
-
-# Pull session metadata into context
-jq '.browserbase' "$RUN/manifest.json"
-
-# How many bytes did Browserbase's proxy bill us?
-jq '.proxyBytes' "$RUN/browserbase/session.json"
-
-# Sum the encoded bytes the tracer saw across responses; compare to proxyBytes.
-jq -s 'map(.params.encodedDataLength // 0) | add' \
-  "$RUN/cdp/network/finished.jsonl"
-
-# Open the live debugger view for an in-flight run
-open "$(jq -r '.browserbase.debugger_url' "$RUN/manifest.json")"
-
-# Find every run that touched a particular Browserbase project
-grep -lr '"project_id": "5a9c3bfb' .o11y/*/manifest.json
-
-# List of session ids by run
-for m in .o11y/*/manifest.json; do
-  jq -r '"\(.run_id)\t\(.browserbase.session_id // "local")"' "$m"
-done
-```
-
-### When to use `browse cloud sessions debug` vs the tracer
-
-They're complementary:
-
-- **tracer (this skill)** captures the firehose to disk - durable, searchable, scriptable. Use for postmortem and automated checks.
-- **`browse cloud sessions debug` URL** is an interactive Chrome DevTools view served by Browserbase, scoped to one running session. Use when you want to *watch* a live run, single-step through requests, or inspect the live DOM by hand.
-
-You can do both simultaneously: `bb-capture.mjs --new` prints the debugger URL when it starts, and stamps it in the manifest for later.
-
-### Notes on Browserbase data sources
-
-- `browse cloud sessions logs` is best-effort; in practice it's frequently empty even with `--log-session` on. Don't build queries on top of it; treat anything that lands there as a bonus.
-- Session replay artifact fetching is deprecated - neither helper fetches it. Use the screenshots + DOM dumps in `screenshots/` and `dom/`.
-- `browse cloud sessions list` doesn't accept a `--status` filter; pipe through jq (`select(.status == "RUNNING")`).
-- The Browserbase proxy charges per byte. `browse cloud sessions get` returns running `proxyBytes`; the tracer's network buckets give you per-host detail to attribute it.
-
 ## Per-page drill-down
 
 The same recipes work scoped to a single page. Replace `cdp/<bucket>.jsonl` with `cdp/pages/<pid>/<bucket>.jsonl`, or use `query.mjs` for the common patterns.
@@ -317,7 +254,6 @@ tail -f .o11y/<run-id>/cdp/raw.ndjson | jq -c '{m:.method, u:.params.request.url
 | ------------------ | -------------------------------------- | ------------------------------------------------------------ |
 | `O11Y_ROOT`        | `.o11y`                                | base directory under which `<run-id>/` is created             |
 | `O11Y_DOMAINS`     | `Network Console Runtime Log Page`     | space-separated CDP domains for the firehose                 |
-| `BROWSERBASE_API_KEY` | - | required for `browse cloud sessions create` / `browse cloud sessions get`         |
 
 The interval-second arg to `start-capture.mjs` controls only the sampler. The firehose is always streamed in real time.
 
@@ -325,9 +261,8 @@ The interval-second arg to `start-capture.mjs` controls only the sampler. The fi
 
 | Symptom                                        | Likely cause                                                  | Fix                                                          |
 | ---------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------ |
-| `cdp-firehose exited immediately`              | unreachable target / completed Browserbase session             | read the echoed `cdp/stderr.log`; verify the port has a debuggable page (`curl http://127.0.0.1:9222/json/version`) or the session is `RUNNING` (`browse cloud sessions get`) |
+| `cdp-firehose exited immediately`              | unreachable target                                            | read the echoed `cdp/stderr.log`; verify the port has a debuggable page (`curl http://127.0.0.1:9222/json/version`) |
 | `cdp-firehose: no debuggable target on port N` | the port is up but has no page target yet                     | open a tab / navigate the driver first, then start the tracer |
-| Browserbase session ends as soon as tracer connects | tracer was the only client; no automation attached          | create with `--keep-alive`, attach automation with `browse open --cdp <connectUrl> --session <name>` first   |
 | `index.jsonl` shows `"url": ""`                 | sampler `Runtime.evaluate('location.href')` returned empty transiently | benign; happens during navigation transitions                 |
 | Screenshots empty / huge / inconsistent sizes  | viewport not set on the target                                | set the viewport from your driver before capture, or push a CDP `Emulation.setDeviceMetricsOverride` on the target |
 | `raw.ndjson` grows but bisect buckets empty    | wrong domains; e.g. you wanted DOM but didn't enable it       | `O11Y_DOMAINS="Network Console Runtime Log Page DOM" node scripts/start-capture.mjs ...` |

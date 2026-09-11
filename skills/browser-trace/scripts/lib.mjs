@@ -119,9 +119,10 @@ export function isTopNav(ev) {
 
 // ---- raw CDP over native WebSocket (Node 18+ global, zero deps) ----
 
-// Accepts a full ws:// or wss:// URL as-is (Browserbase connectUrls), or a
-// port number resolved against 127.0.0.1: prefer the first page target from
-// /json/list, fall back to the browser-level URL from /json/version.
+// Accepts a full ws:// or wss:// URL as-is, or a port number resolved against
+// 127.0.0.1: prefer the first page target from /json/list, fall back to the
+// browser-level URL from /json/version. The URL must be a page-level target -
+// the observation domains (Network etc.) do not exist on browser-level endpoints.
 export async function resolveWsUrl(target) {
   const t = String(target).trim();
   if (t.startsWith('ws://') || t.startsWith('wss://')) return t;

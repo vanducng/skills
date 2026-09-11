@@ -124,12 +124,14 @@ else
   bad "non-8 failure retried (polls=$calls, want 1)"
 fi
 
-# missing gh: PATH with no gh binary (system /bin/gh is real in this image)
+# missing gh: PATH with no gh binary. Resolve bash/sleep from this test's own
+# shell - their absolute paths differ between macOS and Linux images.
+BASH_BIN="${BASH:-/bin/bash}"
 MIN="$TMP/minimal"
 mkdir -p "$MIN"
-ln -s /usr/bin/sleep "$MIN/sleep"
+ln -s "$(command -v sleep)" "$MIN/sleep"
 assert_exit 2 "gh missing → exit 2" \
-  env PATH="$MIN" /usr/bin/bash "$RUNNER" 12
+  env PATH="$MIN" "$BASH_BIN" "$RUNNER" 12
 
 echo
 echo "summary: pass=$pass fail=$fail"

@@ -93,7 +93,7 @@ Rows must fit between the header and the Total row; insert first if not.
 
 ```bash
 export GOG_HOME="$HOME/.config/vd/gog"
-# insert N rows before the Total row (start is 0-based, same as startIndex)
+# insert N rows before the Total row (start is 1-based; the API startIndex is start-1)
 gog --account "$ACCT" sheets insert "$SID" <tab> ROWS <start> --count N --inherit-from-before
 
 gog --account "$ACCT" sheets copy-paste "$SID" '<tab>!A11:F11' '<tab>!A12:F49' --type FORMAT

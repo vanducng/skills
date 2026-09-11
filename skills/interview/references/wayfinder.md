@@ -89,7 +89,7 @@ Write dim upcoming decisions into **Not yet specified**. Sharp-but-blocked → t
 
 ### Hand off (the map is done)
 
-When the frontier is empty and no fog remains, the way is clear. Per buildable chunk: `vd:plan` (link the relevant tickets from `decisions.md`), then `vd:cook` or `vd:ultracook`.
+When the frontier is empty and no fog remains, the way is clear. Per buildable chunk: `vd:plan` (link the relevant tickets from the map's "## Decisions so far" section), then `vd:cook` or `vd:ultracook`.
 
 If `vd:ultracook` is already conducting a goal and the deciding will not fit one session, **stop the pipeline** and switch this skill to `--wayfinder`.
 

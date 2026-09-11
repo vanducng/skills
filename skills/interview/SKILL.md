@@ -5,25 +5,12 @@ license: MIT
 argument-hint: "[topic or ask] [--grill | --wayfinder]"
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Interview
 
-> What people ask for and what they want are different things. Close that gap before it costs a plan or a PR.
-
-## What this skill is - and isn't
-
-| Skill | Question it answers | Output |
-|---|---|---|
-| **`vd:interview`** | **"What do you actually want?"** | **Confirmed intent (outcome / user / success / constraint / out of scope)** |
-| `vd:interview --grill` | "Are these decisions the right ones?" | Same yes gate; each blocking decision walked |
-| `vd:interview --wayfinder` | "The deciding will not fit one session - what must be decided, in what order?" | Shared map of decision tickets |
-| `vd:brainstorm` | "How should we approach this?" | Decision brief with 3+ options |
-| `vd:research` | "Which known option should I pick?" | Cited comparison |
-| `vd:plan` | "What are the steps?" | Phased plan |
-
-Interview extracts **want**. `--grill` walks an existing plan or idea. `--wayfinder` charts a multi-session decision map. Those are modes of this skill, not other skills. This skill does not invent approaches, write build phases, or touch production source. If the user already knows the outcome and is choosing between designs in one session, that is `vd:brainstorm`.
+Interview extracts **want**: outcome / user / success / constraint / out of scope, confirmed with an explicit yes. `--grill` walks an existing plan or idea. `--wayfinder` charts a multi-session decision map. Those are modes of this skill, not other skills - do not look for `vd:wayfinder`. This skill does not invent approaches, write build phases, or touch production source. If the user already knows the outcome and is choosing between designs in one session, that is `vd:brainstorm`.
 
 ## Hard rules
 
@@ -66,22 +53,11 @@ HYPOTHESIS: You want a standup answer to "how are we doing?", and "dashboard" wa
 CONFIDENCE: ~30% - missing: who it's for, which metric, what success looks like
 ```
 
-If you cannot write that sentence, you do not understand the ask yet. Do not skip to questions.
-
-Confidence below ~70% must name what is missing.
+If you cannot write that sentence, you do not understand the ask yet. Do not skip to questions. Confidence below ~70% must name what is missing.
 
 ### 2. Ask one question
 
-Prefer A/B/C when the answer space is bounded. Always attach your recommended answer.
-
-```
-Q: Who is this for on Monday morning?
-A) The person running standup (recommended - matches "how are we doing?")
-B) Leadership reviewing a weekly pack
-C) Individual ICs checking their own numbers
-```
-
-On Claude Code, `AskUserQuestion` with one question. Elsewhere, the same prompt in plain text. Wait.
+Prefer A/B/C when the answer space is bounded. Always attach your recommended answer. On Claude Code, `AskUserQuestion` with one question; elsewhere, the same prompt in plain text. Wait.
 
 Do **not** ask "what would be best practice?". Ask what they actually want.
 
@@ -153,51 +129,4 @@ Then hand off. Do not start the next skill until they pick one, unless they alre
 | How is decided | `vd:plan` with this file |
 | Tiny, mechanical, already specified | they may skip to `vd:cook --quick` - they say so |
 
-## Rationalizations to catch
-
-| Thought | Reality |
-|---|---|
-| "The ask is clear enough" | If you cannot write the six-line restate right now, it isn't. Step 1 first. |
-| "Asking wastes their time" | Four targeted questions are cheap. The wrong PR is not. |
-| "I'll figure it out as I build" | Discovery during implementation is rework. |
-| "They said whatever I think" | Delegation is not a decision. Offer two concrete options. |
-| "I'll give them options so they can pick" | Options widen the search. Asking narrows it. That is `vd:brainstorm`, after this. |
-| "Attaching my guess is leading them" | Leading is the point. The risk is sycophancy, not a visible hypothesis. |
-| "We've talked enough, I get it" | Can you predict their answer to the next three questions? If not, you don't. |
-| "They said yes" | A yes to a vague restate is hollow. Rewrite the six lines. |
-| "Non-interactive, I'll assume" | Hard rule 7. Missing slots are a blocker. |
-| "This needs a separate wayfinder skill" | `--wayfinder` is this skill. Do not look for `vd:wayfinder`. |
-
-## Red flags
-
-- Three or more questions in one message
-- A question with no hypothesis attached
-- Accepting "whatever you think" as terminal
-- A spec, plan, or option list before the yes
-- Skipping Out of scope
-- Confidence below 70% with no reason
-- Saving the intent file before the yes
-- Opening a 12-phase plan instead of switching to `--wayfinder`
-
-## Verification
-
-Default / `--grill`:
-
-- [ ] Hypothesis + confidence in the first turn
-- [ ] One question at a time, each with a recommended answer
-- [ ] Facts looked up, not asked
-- [ ] Convention/sophistication answers probed once
-- [ ] Six-line restate including Out of scope
-- [ ] Explicit yes (not "sounds good")
-- [ ] Intent file written to `Reports:` only after the yes
-- [ ] Handoff named (`vd:brainstorm` / `--wayfinder` / `vd:plan` / user-requested `--quick`)
-
-`--wayfinder`: follow the verification list in [`references/wayfinder.md`](references/wayfinder.md).
-
-## Workflow position
-
-**Typically follows:** a vague ask, `vd:ultracook` when want is unclear, or a user saying "interview me" / "grill me" / "chart this"
-
-**Typically precedes:** `vd:brainstorm` (how) or `vd:plan` (steps). `--wayfinder` precedes `vd:plan` per cleared chunk.
-
-**Compares to:** `vd:brainstorm` Phase 1 asks clarifying questions to frame *options*. Default interview refuses options until want is confirmed. `--grill` walks an existing idea. `--wayfinder` charts many sessions of decisions once the destination is named.
+`--wayfinder` verification: follow the checklist in [`references/wayfinder.md`](references/wayfinder.md).

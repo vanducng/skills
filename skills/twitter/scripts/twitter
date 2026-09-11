@@ -23,7 +23,7 @@ USAGE
 VERBS
   fetch <url|@user|search:...>      Read a tweet, user feed, or search
   timeline [home|latest|user:@h]    Read your timeline
-  post "text" [--media path...]     Post a tweet
+  post "text" [--media p --media q] Post a tweet (repeat --media per file)
   reply <url|id> "text"             Reply to a tweet
   thread "a" "b" "c"                Post a chained thread
   delete <url|id>                   Delete a tweet

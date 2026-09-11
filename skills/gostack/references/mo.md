@@ -1,6 +1,6 @@
 # samber/mo - Monads and FP abstractions for Go
 
-**Pinned: v1.16.0 (released 2025-09-25) · MIT · verified 2026-05-23**
+**Pinned: v1.17.0 (released 2026-06-02) · MIT · verified 2026-09-11**
 
 Generics-first Option, Result, Either, Future, IO, Task, and State types for Go 1.18+. Inspired by Scala, Rust, fp-ts. Zero dependencies.
 
@@ -28,7 +28,7 @@ Skeptical adoption. Go is not an FP language; pretending it is creates code Go r
 ## Install
 
 ```bash
-go get github.com/samber/mo@v1.16.0
+go get github.com/samber/mo@v1.17.0
 ```
 
 ## Core types at a glance

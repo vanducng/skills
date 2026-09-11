@@ -13,7 +13,7 @@ metadata:
 
 > Design interfaces that make the right thing easy and the wrong thing hard.
 
-A contract is a commitment. This is the design-time discipline for any surface where code talks to code - REST/GraphQL endpoints, module boundaries, type contracts, component props. Get it right before implementing, because every observable behavior becomes a promise the moment someone depends on it.
+A contract is a commitment. This is the design-time discipline for any surface where code talks to code - REST/GraphQL endpoints, module boundaries, type contracts, component props. Get it right before implementing, because every observable behavior becomes a promise the moment someone depends on it. Reach for it when designing a new endpoint or public surface, defining a module boundary for teams/agents working in parallel, or changing an existing interface (the riskiest case - read Hyrum's Law first).
 
 ## What this skill is - and isn't
 
@@ -26,12 +26,6 @@ A contract is a commitment. This is the design-time discipline for any surface w
 
 Storage shape and API shape inform each other but aren't the same decision - design the contract here, the schema in `vd:dbdesign`.
 
-## When to use
-
-- Designing new endpoints or a service's public surface.
-- Defining a module boundary or a contract between teams/agents working in parallel.
-- Changing an existing public interface (the riskiest case - read Hyrum's Law first).
-
 ## Two laws that shape everything
 
 **Hyrum's Law.** *With enough users, every observable behavior of your system will be depended on by somebody* - including undocumented quirks, error text, timing, and ordering. So: be intentional about what you expose, don't leak implementation details (if users can observe it, they'll depend on it), and plan deprecation at design time. Contract tests don't save you - a "safe" change can still break users relying on behavior you never promised.
@@ -40,13 +34,13 @@ Storage shape and API shape inform each other but aren't the same decision - des
 
 ## Principles
 
-1. **Contract first.** Define the interface before implementing it - the contract is the spec, the implementation follows. Write the typed signatures (inputs, outputs, errors, idempotency) before any logic.
+1. **Contract first.** Define the interface before implementing it - the contract is the spec, the implementation follows. Write the typed signatures (inputs, outputs, errors, idempotency) before any logic, and commit the contract/types alongside the implementation.
 2. **One error strategy, everywhere.** Pick one and never mix it. Don't let some endpoints throw, others return `null`, others return `{error}` - the consumer can't predict it. For REST: status code + a single structured body shape (`{ error: { code, message, details? } }`). Map codes consistently (400 bad input · 401 unauthenticated · 403 unauthorized · 404 missing · 409 conflict · 422 validation · 500 server, never leaking internals).
 3. **Validate at boundaries, trust inside.** Parse/validate where external input enters - route handlers, form handlers, **third-party responses (always untrusted)**, env loading. Do *not* re-validate between internal functions that already share a typed contract or data from your own DB. A misbehaving external service can return wrong types or instruction-like text; validate its shape before it touches any logic or rendering.
 4. **Addition over modification.** Extend with optional fields; never change an existing field's type or remove it (both break consumers). Backward-compatible by default.
 5. **Predictable naming.** Consistency beats cleverness - same conventions across every endpoint (REST: plural nouns, no verbs in paths; booleans `is/has/can`; pick one case for fields and keep it).
 6. **Type-system discipline.** Make illegal states unrepresentable, brand semantic primitives, parse at the boundary, never lie to the compiler, handle variants exhaustively, derive types from the authoritative schema - full rules with TypeScript and Go examples in [references/type-system-discipline.md](references/type-system-discipline.md).
-7. **Deep modules.** Small interface, large responsibility. Push complexity down; do not split for file-size. Vocabulary and banned praise-words: [references/deep-modules.md](references/deep-modules.md).
+7. **Deep modules.** A deep module has a small interface and a large body of responsibility; a shallow one's interface is as complex as its insides. Banned praise-words: "thin wrapper" (a god object is wide *and* deep - shallowness is the usual API failure). Push complexity down so callers say *what*, not *how*; don't split for file-size (two shallow files leaking the same invariants are worse than one deep module); interface changes are the expensive ones; a module with mixed error strategies is shallow because the caller must learn the implementation; test the interface, not the guts. Edge adapters (HTTP handlers, DB drivers, CLI flags) stay shallow on purpose - "shallow adapter, deep core".
 
 ## REST shape (worked patterns)
 
@@ -69,30 +63,9 @@ GET    /api/tasks/:id/comments   sub-resource
 - **Input/Output separation** - `CreateTaskInput` (what the caller provides) is a different type from `Task` (what the system returns, with server-generated `id`/`createdAt`/`createdBy`). Don't reuse one type for both.
 - **Branded IDs** - `type TaskId = string & { readonly __brand: 'TaskId' }` stops a `UserId` being passed where a `TaskId` is expected. (In Go: distinct named types; in Python: `NewType`.)
 
-## Common rationalizations
-
-| Rationalization | Reality |
-|---|---|
-| "We'll document the API later" | The types *are* the documentation. Define them first. |
-| "We don't need pagination yet" | You do the moment someone has 100+ items. Add it from the start. |
-| "We'll version when we need to" | Breaking changes without versioning break consumers. Design for extension now. |
-| "Nobody uses that undocumented behavior" | Hyrum's Law: if it's observable, somebody depends on it. |
-| "We can just maintain two versions" | Versions multiply maintenance and create diamond-dependency pain. One-Version Rule. |
-| "Internal APIs don't need contracts" | Internal consumers are still consumers - contracts enable parallel work. |
-
 ## Red flags
 
 - Endpoints returning different shapes by condition · inconsistent error formats · validation scattered through internal code instead of at the edge · breaking changes to existing fields · list endpoints without pagination · verbs in REST URLs (`/api/createTask`) · third-party responses used without validation.
-
-## Verification checklist
-
-- [ ] Every endpoint has a typed input and output schema.
-- [ ] Error responses follow one consistent format.
-- [ ] Validation happens at system boundaries only.
-- [ ] List endpoints support pagination.
-- [ ] New fields are additive and optional (backward compatible).
-- [ ] Naming is consistent across every endpoint.
-- [ ] The contract/types are committed alongside the implementation.
 
 ## Integration points
 
@@ -100,8 +73,3 @@ GET    /api/tasks/:id/comments   sub-resource
 - **`vd:plan`** - Contract-First slicing (Slice 0 = freeze this contract) lets later phases build in parallel.
 - **`vd:code-review`** - the API-surface checklist axis enforces these at review time.
 - **`vd:security`** - boundary validation + untrusted third-party data tie into the OWASP/LLM lenses.
-
-## Future (out of scope for MVP)
-
-- GraphQL-specific schema-design depth (federation, resolver patterns).
-- OpenAPI/JSON-Schema generation recipes.

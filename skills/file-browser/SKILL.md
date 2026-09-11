@@ -175,30 +175,13 @@ assets/
 5. Manual smoke: open a real multi-page PDF and exercise every toolbar control (prev/next, page input, zoom, search, download).
 6. Check the changelog for security advisories - pin minimum to ≥4.2.67 (CVE-2024-4367).
 
-## Integration
-
-### Hammerspoon (Hyper+V → smart route to Arc)
-
-`dotfiles/hammerspoon/.hammerspoon/init.lua` already routes the clipboard:
-
-- `.md/.markdown/.mdx` → calls file-browser `/view` (dispatches to markdown reader)
-- image/video/audio extensions → calls file-browser `/view` (dispatches to media viewer)
-- code/config files → opens in nvim
-- everything else → `open`
-
-The Hammerspoon URL always appends `&root=<computed>` (file's parent dir, or the dir itself when launched on a folder) so each fresh launch overrides any `localStorage`-saved root from the previous session. Without this, the persistence layer would keep the sidebar anchored at whatever path the server was first started with.
-
-### nvim
-
-`<leader>mv` (in `polish.lua`) - open current buffer in file-browser. If the file is renderable (markdown / image / video / audio), opens single-view; otherwise opens the parent directory's gallery.
-
 ## Testing
 
 ```bash
 node $HOME/skills/skills/file-browser/scripts/tests/server.test.cjs
 ```
 
-Boots on a free port, hits every dispatch path (welcome, gallery, image view, markdown view, PDF viewer iframe, raw passthrough, file streaming, Range, traversal guard, missing params, 404, tree API, sidebar injection), cleans up. 38 tests.
+Boots on a free port, hits every dispatch path (welcome, gallery, image view, markdown view, PDF viewer iframe, raw passthrough, file streaming, Range, traversal guard, missing params, 404, tree API, sidebar injection), cleans up.
 
 ## Security
 

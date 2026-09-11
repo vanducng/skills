@@ -1,6 +1,6 @@
 # samber/oops - Structured error handling for Go
 
-**Pinned: v1.21.0 (released 2026-01-18) · MIT · verified 2026-05-23**
+**Pinned: v1.23.1 (released 2026-08-23) · MIT · verified 2026-09-11**
 
 A drop-in replacement for Go's standard `error` that adds structured context, stack traces, error codes, public messages, and panic recovery. Variable data goes in `.With("key", value)` attributes, **not** the message string - so APM tools (Datadog, Sentry, Loki) group errors properly.
 
@@ -23,7 +23,7 @@ Highest-leverage library in the samber ecosystem for any service that gets on-ca
 ## Install
 
 ```bash
-go get github.com/samber/oops@v1.21.0
+go get github.com/samber/oops@v1.23.1
 ```
 
 ## The builder chain

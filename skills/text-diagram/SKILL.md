@@ -46,28 +46,7 @@ Arrow:    → ← ↑ ↓
 Triangle: ▼ ▲ ► ◄
 ```
 
-### Style C: Unicode Rounded (friendly look)
-```
-Corners:  ╭ ╮ ╰ ╯
-Horiz:    ─
-Vert:     │
-(rest same as Style B)
-```
-
-### Style D: Double-line (emphasis/outer containers)
-```
-Corners:  ╔ ╗ ╚ ╝
-Horiz:    ═
-Vert:     ║
-T-junc:   ╠ ╣ ╦ ╩
-Cross:    ╬
-```
-
-### Style E: Dashed borders (secondary containers)
-```
-Vert:     ¦  or  :  or  ╎
-Horiz: - - -  (dash-space-dash)
-```
+Style C: Unicode Rounded (`╭ ╮ ╰ ╯`, rest same as B). Style D: Double-line (`╔ ╗ ╚ ╝`, `═`, `║`, T-junc `╠ ╣ ╦ ╩`) for emphasis/outer containers. Style E: Dashed borders (`¦` or `:` or `╎`, horiz `- - -`) for secondary containers.
 
 ## Width Constraints
 
@@ -107,10 +86,7 @@ For container boxes:
 - **Symmetric padding rule:** if you indent a child row with 2 spaces on the LEFT after the container's `│`, you must reserve 2 spaces on the RIGHT before the closing `│`. The most common alignment bug is leaving only 1 space on the right.
 
 ### Step 4: Verify Alignment
-- Check: first border line length == last border line length
-- Check: all content lines length == border line length
-- Check: vertical connector column is consistent across all rows
-- Check: side-by-side boxes have matching heights (pad shorter ones with empty lines)
+Run the Rendering Checklist at the end of this file.
 
 ## Layout Patterns
 
@@ -131,14 +107,14 @@ For container boxes:
 ```
 ┌──────────┐
 │  Box A   │
-└────┬─────┘
-     │
-     ▼
+└─────┬────┘
+      │
+      ▼
 ┌──────────┐
 │  Box B   │
 └──────────┘
 ```
-**Rule:** The `│` and `▼` must be at the same column as `┬`. Calculate: `left_border + (inner_width / 2) + 1`.
+**Rule:** The `│` and `▼` must be at the same column as `┬`: `border_start + 1 + floor(inner_width / 2)` (here: 0 + 1 + 5 = 6).
 
 ### Pattern: Horizontal Flow Inside Container
 ```
@@ -178,13 +154,7 @@ For container boxes:
 
 | Mistake | Fix |
 |---------|-----|
-| Lines in a box have different lengths | Pad ALL lines to `max_content_width + 2*padding` |
-| Right border 1 char short on child rows | Mirror left padding: if left has 2 spaces, right needs 2 spaces too |
 | Vertical connector off by 1 | Calculate center: `border_start + 1 + floor(inner_width / 2)` |
-| Nested box wider than parent | Calculate parent width from children FIRST |
-| Side-by-side boxes different heights | Count lines, pad shorter box with empty `│{spaces}│` lines |
-| Right border not aligned | Use fixed-width strings, never rely on "looks right" |
-| Mixed border styles | Pick ONE style at the start, use it throughout |
 | Arrow not vertically centered on box | Arrow row = top_border_row + 1 + floor(content_lines / 2) |
 | Forgot to account for border chars | outer_width = inner_width + 2 (left `│` + right `│`) |
 

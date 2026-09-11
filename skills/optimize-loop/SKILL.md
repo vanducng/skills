@@ -6,36 +6,18 @@ argument-hint: "[Goal/Metric description] or inline config block (Goal/Scope/Ver
 metadata:
   author: vanducng
   attribution: "Modify→Verify→Keep/Discard pattern from autoresearch by Udit Goenka (MIT)"
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # optimize-loop
 
 > Constraint + mechanical metric + fast verification = autonomous improvement.
 
-## What this skill is - and isn't
-
-| Skill | Question it answers | Output |
-|---|---|---|
-| `/loop` | "Re-run this prompt every N minutes." | Cron-style recurrence |
-| `/ralph-loop` | "Bash while-loop external to Claude." | Subprocess churn |
-| `vd:auto-loop` | "Drive toward a goal until a verifier + audit both vote done." | Goal-pursuit (binary gate, hours-long) |
-| **`vd:optimize-loop`** | **"Improve a measurable metric over N bounded iterations, auto keep/discard."** | **Best metric value + git-committed wins** |
-
-`vd:optimize-loop` **optimizes a number**. It does not pursue subjective goals (`vd:auto-loop` / `vd:cook`) and does not poll on a clock (`/loop`). Each iteration makes one atomic change, commits it, measures, and keeps or reverts on the metric.
-
-## When to Use / When NOT to Use
-
-| Use it for | Use something else |
-|---|---|
-| Coverage, bundle size, lint/type errors, latency, LOC | Subjective "make it cleaner" → `vd:cook` |
-| Autonomous bounded iteration (default 10) | Known-root-cause bug → `vd:fix` / `vd:debug` |
-| Git-tracked experiments with rollback | One-shot task, no repetition → `vd:cook` |
-| A search space with a consistent numeric evaluator | No mechanical metric → `vd:cook --interactive` |
+`vd:optimize-loop` **optimizes a number** over N bounded iterations (default 10), git-committing each attempt. It does not pursue subjective goals (`vd:auto-loop` / `vd:cook`) and does not poll on a clock (`/loop`). Each iteration makes one atomic change, commits it, measures, and keeps or reverts on the metric. Use it for coverage, bundle size, lint/type errors, latency, or LOC - anything with a consistent numeric evaluator; a known-root-cause bug goes to `vd:fix` / `vd:debug` instead.
 
 ## Configuration
 
-Parsed from the user message. Missing required fields trigger a single batched `AskUserQuestion` in Claude Code; ask the same questions in plain text elsewhere.
+Parsed from the user message. Missing required fields trigger a single batched `AskUserQuestion` in Claude Code (Goal, Scope, Verify, plus optional Guard); ask the same questions in plain text elsewhere.
 
 ### Required
 
@@ -55,22 +37,9 @@ Parsed from the user message. Missing required fields trigger a single batched `
 | `Min-Delta` | 0 | Minimum improvement that counts as progress. |
 | `Direction` | higher | `higher` or `lower` is better. |
 
-### Interactive setup
-
-When required fields are missing, ask all at once:
-
-```
-AskUserQuestion(questions:[
-  {question:"What metric to improve? (e.g. 'coverage in src/utils')", header:"Goal"},
-  {question:"Which files may be edited? (glob)", header:"Scope"},
-  {question:"Verify command - must print a single number to stdout", header:"Verify"},
-  {question:"Guard command for regression check? (optional, Enter to skip)", header:"Guard"}
-])
-```
-
 ## Core protocol
 
-Full spec: [`references/loop-protocol.md`](references/loop-protocol.md) - per-iteration Phases 0-8 plus a 5.5 guard step: Precondition → Review → Ideate → Modify → Commit → Verify → Guard → Decide → Log → Repeat.
+Full spec: [`references/loop-protocol.md`](references/loop-protocol.md) - per-iteration Phases 0-8 plus a 5.5 guard step: Precondition → Review → Ideate → Modify → Commit → Verify → Guard → Decide → Log → Repeat. Stop rules live there too (5 consecutive discards → shift strategy; 10 → STOP).
 
 **Invariants:**
 - ONE atomic change per iteration - atomicity test: describe it in one sentence without "and".
@@ -80,21 +49,7 @@ Full spec: [`references/loop-protocol.md`](references/loop-protocol.md) - per-it
 
 ## Results logging
 
-Each iteration appends a row to `loop-results.tsv` in the working dir. Schema + progress/final summaries: [`references/git-memory.md`](references/git-memory.md).
-
-```
-iteration  timestamp            commit   metric  delta  status   description
-0          2026-05-31T12:00:00  a1b2c3d  842 - baseline initial bundle size
-1          2026-05-31T12:01:10  e4f5a6b  810     -32    keep     tree-shake unused lodash imports
-2          2026-05-31T12:02:05  c7d8e9f  812     +2     discard  extract shared helper (regressed)
-```
-
-## Stuck detection
-
-| Consecutive discards | Action |
-|---|---|
-| 5 | Analyze the log → shift strategy (different files / technique). |
-| 10 | STOP - surface findings, recommend manual intervention. |
+Each iteration appends a row to `loop-results.tsv` in the working dir. Schema, pattern recognition, and progress/final summaries: [`references/git-memory.md`](references/git-memory.md).
 
 ## Examples
 
@@ -113,12 +68,6 @@ Verify: npm run build 2>/dev/null && find dist -name '*.js' ! -name '*.map' | xa
 Guard: npx tsc --noEmit
 Direction: lower
 Min-Delta: 512
-
-# Eliminate ESLint errors
-Goal: ESLint errors in src/api → 0
-Scope: src/api/**/*.ts
-Verify: npx eslint src/api -f json 2>/dev/null | node -e "const r=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(r.reduce((a,f)=>a+f.errorCount,0))"
-Direction: lower
 ```
 
 More copy-paste verifiers by domain: [`references/metric-library.md`](references/metric-library.md). Noise/guard tuning: [`references/verification-and-guard.md`](references/verification-and-guard.md).
@@ -153,13 +102,5 @@ Reject output containing a live JWT (`eyJ…`), 32+ char hex, or AWS key prefixe
 
 ## Limitations (honest)
 
-- Cannot optimize subjective / aesthetic goals.
-- Cannot edit files outside `Scope`, or files the `Guard` references.
-- Cannot guarantee improvement - some metrics have hard ceilings.
 - Requires a **git repo with a clean working tree** before starting.
 - `Verify` should complete in **< 30s** or the loop is impractical.
-- Sequential by design - no parallel iterations (each learns from the last).
-
-## Lineage
-
-Adapts the autoresearch pattern (Modify → Verify → Keep/Discard → Repeat) by Udit Goenka (MIT). Sibling: `vd:auto-loop` (goal-pursuit). See `references/` for the canonical loop implementation.

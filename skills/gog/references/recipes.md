@@ -21,7 +21,7 @@ gog --account acme --readonly --gmail-no-send \
 Fan out only when the user asked. Label each block. Skip `--user sa`.
 
 ```bash
-for alias in acme lab; do
+for alias in acme beta; do
   echo "== $alias person =="
   gog --account "$alias" --readonly --gmail-no-send \
     gmail search 'is:unread newer_than:1d' --max 20 --json --wrap-untrusted

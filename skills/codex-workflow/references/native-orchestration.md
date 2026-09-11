@@ -47,16 +47,7 @@ job_max_runtime_seconds = 900
 
 ## Custom agent roles
 
-`~/.codex/agents/<name>.toml` - `name`, `description`, `developer_instructions` (+ optional `model`, `sandbox_mode`, `mcp_servers`). Built-ins: `default`, `worker`, `explorer`. Deployed from `~/skills/agents/` by `vd install codex`.
-
-### #26363 workaround (while open)
-Since v0.137.0 these aren't selectable at spawn. To use a role's behavior, read its `developer_instructions` and inject them as a prompt override on a generic spawn:
-
-```
-Spawn a worker with these instructions: <paste developer_instructions of code-reviewer.toml>. Task: review src/auth.go.
-```
-
-`run_workflow` does this automatically when a step names an `agent`.
+`~/.codex/agents/<name>.toml` - `name`, `description`, `developer_instructions` (+ optional `model`, `sandbox_mode`, `mcp_servers`). Built-ins: `default`, `worker`, `explorer`. Deployed from `~/skills/agents/` by `vd install codex`. `run_workflow` injects the named role's `developer_instructions` automatically when a step names an `agent`.
 
 ## Limits (when it breaks down)
 - Beyond ~5 concurrent agents, unreviewed output accumulates faster than value.

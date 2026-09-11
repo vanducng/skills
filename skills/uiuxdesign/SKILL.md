@@ -4,12 +4,12 @@ description: "UI/UX design quality across interfaces - visual design, UX review,
 license: MIT
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # UI/UX Design
 
-Drive UI/UX design quality across any interface - aesthetic direction, UX review, accessibility, design systems, and adversarial design critique - and implement it in a modern web stack. This skill consolidates design quality, anti-slop aesthetics, a render-score-refactor review loop, frontend framework choices, TanStack patterns, web testing, and optional Three.js work into one workflow. Top identity is design quality; web implementation is how it lands.
+Design quality is the top identity; web implementation is how it lands.
 
 ## Reference Router
 
@@ -27,17 +27,10 @@ Read only what the task needs:
 ## Workflow
 
 1. Inspect the existing app before choosing patterns: package manager, framework, route layout, component library, design tokens, icons, tests, and current visual conventions.
-2. Classify the task:
-   - **Design/review:** load `design-quality.md`.
-   - **Choosing a style, palette, or fonts:** load `style-taxonomy.md` and `palettes-and-fonts.md`.
-   - **Building/theming shadcn + Tailwind components:** load `tailwind-shadcn.md`.
-   - **React/Next/framework architecture:** load `app-frameworks.md`.
-   - **TanStack feature:** load `tanstack.md`.
-   - **Tests, QA, a11y, performance, or release validation:** load `testing.md`.
-   - **3D/WebGL/WebGPU/canvas scene:** load `threejs.md`.
+2. Classify the task, then load only the references the Router above assigns to it.
 3. Build within the app's existing system. Reuse local components, tokens, layout primitives, routing conventions, and icon library before adding dependencies.
-4. Verify behavior in the browser whenever a visual surface changes. Check desktop and mobile widths, keyboard flow, focus visibility, reduced motion, loading/error/empty states, and console errors.
-5. Run the repo's narrowest relevant validation first, then the broader test/build command expected by the project.
+4. Verify behavior in the browser whenever a visual surface changes. Check desktop and mobile widths, keyboard flow, focus visibility, reduced motion, loading/error/empty states, and console errors. For 3D scenes also check a nonblank canvas, camera framing, resize behavior, and resource disposal; assess bundle impact and Core Web Vitals risk (LCP, CLS, INP) when performance is relevant.
+5. Run the repo's narrowest relevant validation first, then the broader test/build command the project expects, and report what you ran and what remains unverified.
 
 ## Design Defaults
 
@@ -62,20 +55,8 @@ Read only what the task needs:
 - For TanStack apps, route structure is the contract. Keep generated route trees generated, model URL state deliberately, and use Query for server state rather than hand-rolled fetch caches.
 - For large tables, pair TanStack Table with virtualization, stable column definitions, keyboard-accessible controls, and clear empty/loading/error states.
 
-## Verification Floor
-
-Before handoff for any frontend change, report what you ran and what remains unverified:
-
-- Static checks: typecheck, lint, unit/component tests, or the repo's closest equivalent.
-- Browser checks: at least one desktop and one mobile viewport for visual changes.
-- Accessibility checks: keyboard path, focus visibility, labels/names, contrast, reduced motion, and no color-only meaning.
-- Runtime checks: no console errors, no layout shift from async content, loading/error/empty states present.
-- Performance checks when relevant: image dimensions, lazy loading, bundle impact, and Core Web Vitals risk (LCP, CLS, INP).
-- 3D checks when relevant: nonblank canvas, correct camera framing, resize behavior, animation loop health, disposal of resources, and fallback/error state for unsupported GPU features.
-
 ## Hard Rules
 
-- Do not preserve old source skill names, runtime prefixes, or Claude-specific paths in new work.
 - Do not paste huge reference dumps into `SKILL.md`; route to references.
 - Do not introduce a new design system when the app already has one unless the task explicitly asks for redesign.
 - Do not skip browser verification after meaningful visual, layout, or 3D changes.

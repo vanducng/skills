@@ -1,6 +1,6 @@
 # samber/do v2 - Dependency injection for Go
 
-**Pinned: v2.0.0 (released 2025-09-21) · MIT · verified 2026-05-23**
+**Pinned: v2.1.0 (released 2026-07-20) · MIT · verified 2026-09-11**
 
 Type-safe DI container for Go 1.18+ using generics. Lazy/eager/transient/value service lifecycles, packages (modules), scopes, graceful shutdown, health checks. v2 broke compatibility with v1 - **never use v1**.
 
@@ -25,7 +25,7 @@ The right answer when the service graph in `main.go` no longer fits on a screen.
 ## Install
 
 ```bash
-go get github.com/samber/do/v2@v2.0.0
+go get github.com/samber/do/v2@v2.1.0
 # the /v2 path is mandatory - `github.com/samber/do` (no /v2) installs the dead v1
 ```
 

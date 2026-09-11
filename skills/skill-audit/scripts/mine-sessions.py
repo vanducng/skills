@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
-"""Mine Claude Code + Codex transcripts into per-invocation skill-usage aggregates."""
+"""Mine Claude Code, Codex, pi and Cursor transcripts into per-invocation skill-usage aggregates."""
 
 from __future__ import annotations
 
 import argparse
 import bisect
+import glob
 import json
 import os
 import re
 import sys
 import time
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 HOME = os.path.expanduser("~")
 CLAUDE_PROJECTS = os.path.join(HOME, ".claude", "projects")
 CODEX_SESSIONS = os.path.join(HOME, ".codex", "sessions")
+PI_SESSIONS = os.path.join(HOME, ".pi", "agent", "sessions")
+CURSOR_PROJECTS = os.path.join(HOME, ".cursor", "projects")
+RUNTIMES = ("claude", "codex", "pi", "cursor")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REGISTRY_DIRS = (
     os.path.join(HOME, ".claude", "skills"),
@@ -29,7 +33,12 @@ ID_MAP_CAP = 20_000
 
 COMMAND_RE = re.compile(r"<command-name>/?([a-z][a-z0-9:_-]{1,40})</command-name>")
 DOLLAR_RE = re.compile(r"(?:^|\s)\$([a-z][a-z0-9:_-]{1,40})")
+SLASH_RE = re.compile(r"(?:^|\s)/([a-z][a-z0-9:_-]{1,40})")
 SKILLMD_RE = re.compile(r"skills/([a-z0-9_-]+)/SKILL\.md")
+CURSOR_TS_RE = re.compile(
+    r"<timestamp>\s*\w+,\s*(\w+ \d+, \d+, \d+:\d+ [AP]M)\s*\(UTC([+-]\d+)(?::(\d\d))?\)"
+)
+CURSOR_QUERY_RE = re.compile(r"<user_query>(.*?)</user_query>", re.S)
 CORRECTION_RE = re.compile(
     r"^(no[,. ]|nope\b|wrong\b|not what|that'?s not|revert\b|undo\b|you broke|"
     r"still (fail|broken|wrong)|didn'?t work|doesn'?t work|try again)",
@@ -217,7 +226,7 @@ def mine_claude_session(path, registry, cutoff_epoch=0):
                 for name in COMMAND_RE.findall(text):
                     invoke(name, ts, included)
 
-    mine_claude_subagents(path, row, marks, cutoff_epoch)
+    roll_up_agents(row, marks, agent_root("claude", path), scan_agent, cutoff_epoch)
     return row
 
 
@@ -228,16 +237,15 @@ def skill_at(marks, ts):
     return marks[idx - 1][1] if idx else NONE
 
 
-def mine_claude_subagents(session_path, row, marks, cutoff_epoch=0):
-    agent_dir = session_path.removesuffix(".jsonl")
+def roll_up_agents(row, marks, agent_dir, scanner, cutoff_epoch=0, only=None):
     if not os.path.isdir(agent_dir):
         return
     for base, _, files in os.walk(agent_dir):
         for fname in files:
-            if not fname.endswith(".jsonl"):
+            if not fname.endswith(".jsonl") or (only and fname != only):
                 continue
             path = os.path.join(base, fname)
-            first_ts, window_first, window_last, calls, errs, tokens, bad = scan_agent(path, cutoff_epoch)
+            first_ts, window_first, window_last, calls, errs, tokens, bad = scanner(path, cutoff_epoch)
             row["malformed_lines"] += bad
             if cutoff_epoch and not window_first:
                 continue
@@ -376,8 +384,249 @@ def mine_codex_session(path, registry, cutoff_epoch=0):
     return row
 
 
+def open_window(row, marks, registry, name, ts, included):
+    """Start a new attribution window on a validated skill ID; return the new current skill."""
+    skill = normalize(name, registry)
+    if not skill:
+        return None
+    marks.append((ts or "", skill))
+    if included:
+        row["skills"][skill] += 1
+        bump(row, skill, "invocations")
+    return skill
+
+
+def mine_pi_session(path, registry, cutoff_epoch=0):
+    row = new_row("pi", path)
+    marks = []
+    cur = NONE
+    id2call = {}
+    corrections_seen = set()
+
+    in_scope = not cutoff_epoch
+    for d in iter_lines(path):
+        if d is None:
+            if in_scope:
+                row["malformed_lines"] += 1
+            continue
+        ts = d.get("timestamp")
+        included = in_window(ts, cutoff_epoch, in_scope)
+        if included:
+            in_scope = True
+            stamp(row, ts)
+        kind = d.get("type")
+        if kind == "session":
+            row["project"] = d.get("cwd") or row["project"]
+            continue
+        if kind != "message":
+            continue
+        msg = d.get("message") or {}
+        role = msg.get("role")
+        if role == "assistant":
+            if included:
+                if msg.get("model"):
+                    row["models"].add(msg["model"])
+                bump(row, cur, "tokens", (msg.get("usage") or {}).get("output") or 0)
+                if msg.get("stopReason") == "aborted":
+                    bump(row, cur, "interrupts")
+            for c in msg.get("content") or []:
+                if not isinstance(c, dict) or c.get("type") != "toolCall":
+                    continue
+                name = c.get("name") or "?"
+                if included:
+                    row["usage_by_tool"][name] += 1
+                    bump(row, cur, "tool_calls")
+                    for hit in SKILLMD_RE.findall(str(c.get("arguments") or "")):
+                        skill = normalize(hit, registry)
+                        if skill:
+                            row["skillmd_reads"][skill] += 1
+                if len(id2call) < ID_MAP_CAP:
+                    id2call[c.get("id")] = (name, cur)
+        elif role == "toolResult":
+            if included and msg.get("isError"):
+                tool, at = id2call.get(msg.get("toolCallId"), (msg.get("toolName") or "?", cur))
+                row["errors_by_tool"][tool] += 1
+                bump(row, at, "tool_errors")
+        elif role == "user":
+            for text in texts_of(msg.get("content")):
+                if not text:
+                    continue
+                if included:
+                    row["user_msgs"] += 1
+                    stripped = text.strip()
+                    if CORRECTION_RE.match(stripped) and stripped[:120] not in corrections_seen:
+                        corrections_seen.add(stripped[:120])
+                        bump(row, cur, "corrections")
+                for name in SLASH_RE.findall(text):
+                    cur = open_window(row, marks, registry, name, ts, included) or cur
+
+    # Sibling subagent runs land in <session>/<run-id>/run-N/session.jsonl; forks/ holds
+    # full sessions of the same shape and would double-count, so match session.jsonl only.
+    roll_up_agents(row, marks, agent_root("pi", path), scan_pi_agent, cutoff_epoch,
+                   only="session.jsonl")
+    return row
+
+
+def scan_pi_agent(path, cutoff_epoch=0):
+    first_ts, window_first, window_last = None, None, None
+    calls, errs, tokens, bad = 0, 0, 0, 0
+    in_scope = not cutoff_epoch
+    try:
+        for d in iter_lines(path):
+            if d is None:
+                if in_scope:
+                    bad += 1
+                continue
+            ts = d.get("timestamp")
+            if first_ts is None and ts:
+                first_ts = ts
+            included = in_window(ts, cutoff_epoch, in_scope)
+            if included:
+                in_scope = True
+                if window_first is None:
+                    window_first = ts
+                window_last = ts
+            if not included or d.get("type") != "message":
+                continue
+            msg = d.get("message") or {}
+            if msg.get("role") == "assistant":
+                tokens += (msg.get("usage") or {}).get("output") or 0
+                calls += sum(1 for c in msg.get("content") or []
+                             if isinstance(c, dict) and c.get("type") == "toolCall")
+            elif msg.get("role") == "toolResult" and msg.get("isError"):
+                errs += 1
+    except OSError:
+        pass
+    return first_ts, window_first, window_last, calls, errs, tokens, bad
+
+
+def cursor_timestamp(text):
+    m = CURSOR_TS_RE.search(text)
+    if not m:
+        return None
+    try:
+        dt = datetime.strptime(m.group(1), "%b %d, %Y, %I:%M %p")
+    except ValueError:
+        return None
+    hours = int(m.group(2))
+    offset = timedelta(hours=abs(hours), minutes=int(m.group(3) or 0))
+    return (dt - offset if hours >= 0 else dt + offset).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def cursor_project(path):
+    parts = path.split(os.sep)
+    return parts[parts.index("agent-transcripts") - 1] if "agent-transcripts" in parts else None
+
+
+def mine_cursor_session(path, registry, cutoff_epoch=0):
+    row = new_row("cursor", path)
+    row["project"] = cursor_project(path)
+    marks = []
+    cur = NONE
+    corrections_seen = set()
+
+    in_scope = not cutoff_epoch
+    for d in iter_lines(path):
+        if d is None:
+            if in_scope:
+                row["malformed_lines"] += 1
+            continue
+        role = d.get("role")
+        content = (d.get("message") or {}).get("content")
+        # Only user turns carry a clock, inside a <timestamp> tag; everything after one
+        # inherits its window.
+        ts = cursor_timestamp(" ".join(texts_of(content))) if role == "user" else None
+        included = in_window(ts, cutoff_epoch, in_scope)
+        if included:
+            in_scope = True
+            stamp(row, ts)
+        if role == "assistant":
+            for c in content or []:
+                if not isinstance(c, dict) or c.get("type") != "tool_use":
+                    continue
+                if included:
+                    row["usage_by_tool"][c.get("name") or "?"] += 1
+                    bump(row, cur, "tool_calls")
+                    for hit in SKILLMD_RE.findall(json.dumps(c.get("input") or {})):
+                        skill = normalize(hit, registry)
+                        if skill:
+                            row["skillmd_reads"][skill] += 1
+        elif role == "user":
+            if included:
+                row["user_msgs"] += 1
+            for text in texts_of(content):
+                for query in CURSOR_QUERY_RE.findall(text):
+                    stripped = query.strip()
+                    if included and CORRECTION_RE.match(stripped) and stripped[:120] not in corrections_seen:
+                        corrections_seen.add(stripped[:120])
+                        bump(row, cur, "corrections")
+                    for name in SLASH_RE.findall(query) + DOLLAR_RE.findall(query):
+                        cur = open_window(row, marks, registry, name, ts, included) or cur
+        elif included and d.get("type") == "turn_ended" and d.get("status") == "aborted":
+            bump(row, cur, "interrupts")
+
+    roll_up_agents(row, marks, agent_root("cursor", path), scan_cursor_agent, cutoff_epoch)
+    return row
+
+
+def scan_cursor_agent(path, cutoff_epoch=0):
+    first_ts, window_first, window_last = None, None, None
+    calls, bad = 0, 0
+    in_scope = not cutoff_epoch
+    try:
+        for d in iter_lines(path):
+            if d is None:
+                if in_scope:
+                    bad += 1
+                continue
+            content = (d.get("message") or {}).get("content")
+            ts = cursor_timestamp(" ".join(texts_of(content))) if d.get("role") == "user" else None
+            if first_ts is None and ts:
+                first_ts = ts
+            included = in_window(ts, cutoff_epoch, in_scope)
+            if included:
+                in_scope = True
+                if window_first is None:
+                    window_first = ts
+                window_last = ts
+            if included and d.get("role") == "assistant":
+                calls += sum(1 for c in content or []
+                             if isinstance(c, dict) and c.get("type") == "tool_use")
+    except OSError:
+        pass
+    # Cursor records no token usage and no tool_result, so tokens and errors stay 0.
+    return first_ts, window_first, window_last, calls, 0, 0, bad
+
+
+def runtime_root(runtime):
+    return {"claude": CLAUDE_PROJECTS, "codex": CODEX_SESSIONS,
+            "pi": PI_SESSIONS, "cursor": CURSOR_PROJECTS}[runtime]
+
+
+def agent_root(runtime, path):
+    """Directory holding the subagent transcripts spawned by this session, if any."""
+    if runtime == "cursor":
+        return os.path.join(os.path.dirname(path), "subagents")
+    return path.removesuffix(".jsonl")
+
+
+def is_session_path(runtime, root, path):
+    """True for a top-level session transcript; subagent and fork files roll up instead."""
+    rel = os.path.relpath(path, root).split(os.sep)
+    if runtime == "claude":
+        # <project>/<uuid>.jsonl - subagents/ sits one level deeper.
+        return len(rel) == 2
+    if runtime == "pi":
+        # <project>/<ts>_<uuid>.jsonl - forks/, run-N/ and subagent-artifacts/ sit deeper.
+        return len(rel) == 2
+    if runtime == "cursor":
+        # <project>/agent-transcripts/<id>/<id>.jsonl - subagents/ sits one level deeper.
+        return len(rel) == 4 and rel[1] == "agent-transcripts"
+    return True
+
+
 def discover(runtime, since_days, root=None, cutoff_epoch=None):
-    root = root or (CLAUDE_PROJECTS if runtime == "claude" else CODEX_SESSIONS)
+    root = root or runtime_root(runtime)
     if not os.path.isdir(root):
         print(f"note: no {runtime} transcripts at {root}", file=sys.stderr)
         return []
@@ -389,10 +638,10 @@ def discover(runtime, since_days, root=None, cutoff_epoch=None):
         except OSError:
             return False
 
-    def fresh_claude(path):
+    def fresh_tree(path):
         if fresh(path):
             return True
-        agent_dir = path.removesuffix(".jsonl")
+        agent_dir = agent_root(runtime, path)
         if not os.path.isdir(agent_dir):
             return False
         return any(fresh(os.path.join(base, name))
@@ -400,17 +649,11 @@ def discover(runtime, since_days, root=None, cutoff_epoch=None):
                    for name in files if name.endswith(".jsonl"))
 
     paths = []
-    if runtime == "claude":
-        for project in os.listdir(root):
-            pdir = os.path.join(root, project)
-            if not os.path.isdir(pdir):
-                continue
-            paths += [os.path.join(pdir, f) for f in os.listdir(pdir)
-                      if f.endswith(".jsonl") and fresh_claude(os.path.join(pdir, f))]
-    else:
-        for base, _, files in os.walk(root):
-            paths += [os.path.join(base, f) for f in files
-                      if f.endswith(".jsonl") and fresh(os.path.join(base, f))]
+    for base, _, files in os.walk(root):
+        for f in files:
+            path = os.path.join(base, f)
+            if f.endswith(".jsonl") and is_session_path(runtime, root, path) and fresh_tree(path):
+                paths.append(path)
     return sorted(paths)
 
 
@@ -490,11 +733,15 @@ def session_json(row):
     return out
 
 
+MINERS = {"claude": mine_claude_session, "codex": mine_codex_session,
+          "pi": mine_pi_session, "cursor": mine_cursor_session}
+
+
 def run(runtime, registry, out_dir, since_days, cutoff_epoch=None):
     if cutoff_epoch is None:
         cutoff_epoch = time.time() - since_days * 86400 if since_days else 0
     paths = discover(runtime, since_days, cutoff_epoch=cutoff_epoch)
-    miner = mine_claude_session if runtime == "claude" else mine_codex_session
+    miner = MINERS[runtime]
     rows = []
     out_path = os.path.join(out_dir, f"sessions-{runtime}.jsonl")
     with open(out_path, "w") as fh:
@@ -526,10 +773,11 @@ def summarize(name, skills, base):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Mine skill usage from Claude Code + Codex transcripts.")
+    ap = argparse.ArgumentParser(description="Mine skill usage from Claude Code, Codex, pi and Cursor transcripts.")
     ap.add_argument("--since", type=int, default=0, metavar="DAYS",
                     help="scan transcripts active in the last N days, then keep events in that window")
-    ap.add_argument("--runtime", choices=("claude", "codex", "both"), default="both")
+    ap.add_argument("--runtime", choices=RUNTIMES + ("all", "both"), default="all",
+                    help="'both' is a legacy alias for claude+codex")
     ap.add_argument("--out", default=".", metavar="DIR", help="output directory for aggregates + session rows")
     args = ap.parse_args(argv)
     if args.since < 0:
@@ -540,7 +788,7 @@ def main(argv=None):
     if not registry:
         print("warn: no installed skills found; skill-ID validation is off and results will contain noise", file=sys.stderr)
 
-    runtimes = ("claude", "codex") if args.runtime == "both" else (args.runtime,)
+    runtimes = {"all": RUNTIMES, "both": ("claude", "codex")}.get(args.runtime, (args.runtime,))
     cutoff_epoch = time.time() - args.since * 86400 if args.since else 0
     cutoff = time.strftime("%Y-%m-%dT%H:%M:%S.000000Z", time.gmtime(cutoff_epoch)) if args.since else ""
     report = {

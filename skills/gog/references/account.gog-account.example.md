@@ -1,7 +1,7 @@
 # gog account: example
 
 Copy to `$HOME/.config/vd/gog-accounts/<account>.<user|sa>.md`.
-`<account>` is `acme`, `lab`, or `globex`. Kind file is `user` (person) or `sa`.
+`<account>` is any name you register. Kind file is `user` (person) or `sa`.
 Keep the local copy outside Git.
 
 ## Identity

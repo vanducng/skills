@@ -39,6 +39,34 @@ def cc_text(ts, text):
     return {"type": "user", "timestamp": ts, "message": {"content": [{"type": "text", "text": text}]}}
 
 
+def pi_user(ts, text):
+    return {"type": "message", "timestamp": ts,
+            "message": {"role": "user", "content": [{"type": "text", "text": text}]}}
+
+
+def pi_assistant(ts, tool, tid, tokens=0, args="{}", stop="toolUse"):
+    return {"type": "message", "timestamp": ts, "message": {
+        "role": "assistant", "model": "pi-1", "stopReason": stop,
+        "usage": {"output": tokens, "totalTokens": tokens},
+        "content": [{"type": "toolCall", "id": tid, "name": tool, "arguments": args}]}}
+
+
+def pi_result(ts, tid, tool, is_error):
+    return {"type": "message", "timestamp": ts, "message": {
+        "role": "toolResult", "toolCallId": tid, "toolName": tool, "isError": is_error,
+        "content": [{"type": "text", "text": "out"}]}}
+
+
+def cur_user(stamp, query):
+    text = f"<timestamp>{stamp}</timestamp>\n<user_query>{query}</user_query>"
+    return {"role": "user", "message": {"content": [{"type": "text", "text": text}]}}
+
+
+def cur_assistant(tool, inp=None):
+    return {"role": "assistant",
+            "message": {"content": [{"type": "tool_use", "name": tool, "input": inp or {}}]}}
+
+
 class Attribution(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -241,6 +269,153 @@ class Attribution(unittest.TestCase):
         self.assertEqual(row["attr"]["cook"]["tool_calls"], 1)
         self.assertEqual(row["attr"]["scout"]["tool_calls"], 0)
         self.assertEqual(row["first_ts"], "2999-01-01T00:00:00Z")
+
+
+class Pi(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        self.addCleanup(self.tmp.cleanup)
+
+    def test_slash_invocation_attributes_errors_tokens_and_skips_non_skills(self):
+        path = write(self.root / "proj" / "2026-01-01T00-00-00-000Z_a.jsonl", [
+            {"type": "session", "timestamp": "t00", "id": "a", "cwd": "/repo"},
+            pi_assistant("t01", "bash", "x0", tokens=3),
+            pi_result("t02", "x0", "bash", True),
+            pi_user("t03", "/scout the repo"),
+            pi_assistant("t04", "bash", "x1", tokens=5),
+            pi_result("t05", "x1", "bash", True),
+            pi_user("t06", "now read /tmp/out.log and /api docs"),
+            pi_assistant("t07", "read", "x2", tokens=7, args='{"path": "skills/ship/SKILL.md"}'),
+            pi_result("t08", "x2", "read", False),
+            pi_user("t09", "/cook it"),
+            pi_assistant("t10", "edit", "x3", tokens=11, stop="aborted"),
+        ])
+        row = m.mine_pi_session(path, REGISTRY)
+        attr = row["attr"]
+
+        self.assertEqual(row["project"], "/repo")
+        self.assertEqual(dict(row["skills"]), {"scout": 1, "cook": 1})
+        self.assertEqual(attr["scout"]["tool_errors"], 1)
+        self.assertEqual(attr["scout"]["tool_calls"], 2)
+        self.assertEqual(attr["scout"]["tokens"], 12)
+        self.assertEqual(attr["cook"]["tool_calls"], 1)
+        self.assertEqual(attr["cook"]["interrupts"], 1)
+        self.assertEqual(attr[m.NONE]["tool_errors"], 1)
+        self.assertEqual(dict(row["skillmd_reads"]), {"ship": 1})
+        self.assertEqual(dict(row["errors_by_tool"]), {"bash": 2})
+
+    def test_subagent_run_rolls_up_but_fork_does_not(self):
+        session = self.root / "proj" / "2026-01-01T00-00-00-000Z_b.jsonl"
+        write(session, [
+            pi_user("t01", "/scout the repo"),
+            pi_assistant("t02", "subagent", "x1"),
+            pi_user("t09", "/cook it"),
+        ])
+        write(self.root / "proj" / "2026-01-01T00-00-00-000Z_b" / "run-id" / "run-0" / "session.jsonl", [
+            pi_assistant("t03", "bash", "s1", tokens=4),
+            pi_result("t04", "s1", "bash", True),
+        ])
+        write(self.root / "proj" / "2026-01-01T00-00-00-000Z_b" / "forks" / "2026-01-02T00-00-00-000Z_c.jsonl", [
+            pi_assistant("t05", "bash", "f1", tokens=99),
+        ])
+        attr = m.mine_pi_session(str(session), REGISTRY)["attr"]
+
+        self.assertEqual(attr["scout"]["agents"], 1)
+        self.assertEqual(attr["scout"]["agent_tool_calls"], 1)
+        self.assertEqual(attr["scout"]["agent_tool_errors"], 1)
+        self.assertEqual(attr["scout"]["agent_tokens"], 4)
+        self.assertEqual(attr["cook"]["agents"], 0)
+
+    def test_since_filters_events_and_discovery_skips_nested_transcripts(self):
+        write(self.root / "pi" / "proj" / "2026-01-01T00-00-00-000Z_d.jsonl", [
+            pi_user("2000-01-01T00:00:00Z", "/scout"),
+            pi_assistant("2000-01-01T00:00:01Z", "bash", "old"),
+            pi_user("2999-01-01T00:00:00Z", "/cook"),
+            pi_assistant("2999-01-01T00:00:01Z", "bash", "new"),
+        ])
+        write(self.root / "pi" / "proj" / "2026-01-01T00-00-00-000Z_d" / "r" / "run-0" / "session.jsonl", [
+            pi_assistant("2999-01-01T00:00:02Z", "bash", "sub"),
+        ])
+        out = self.root / "out"
+        out.mkdir()
+        self.addCleanup(setattr, m, "PI_SESSIONS", m.PI_SESSIONS)
+        m.PI_SESSIONS = str(self.root / "pi")
+
+        rows = m.run("pi", REGISTRY, str(out), 7)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(dict(rows[0]["skills"]), {"cook": 1})
+        self.assertEqual(rows[0]["attr"]["cook"]["tool_calls"], 1)
+        self.assertEqual(rows[0]["attr"]["scout"]["tool_calls"], 0)
+        self.assertEqual(rows[0]["attr"]["cook"]["agent_tool_calls"], 1)
+
+
+class Cursor(unittest.TestCase):
+    OLD = "Saturday, Jan 01, 2000, 12:00 PM (UTC+0)"
+    NEW = "Friday, Jan 01, 2999, 12:00 PM (UTC+0)"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        self.addCleanup(self.tmp.cleanup)
+
+    def transcript(self, name, lines):
+        return write(self.root / "cursor" / "proj" / "agent-transcripts" / name / f"{name}.jsonl", lines)
+
+    def test_user_query_invocation_skips_non_skills_and_reads_skillmd(self):
+        path = self.transcript("t1", [
+            cur_assistant("Shell"),
+            cur_user(self.NEW, "/scout the repo, ignore /tmp and /api"),
+            cur_assistant("Shell"),
+            cur_assistant("Read", {"target_file": "/home/u/.claude/skills/ship/SKILL.md"}),
+            cur_user(self.NEW, "$cook it"),
+            cur_assistant("Shell"),
+            {"type": "turn_ended", "status": "aborted"},
+        ])
+        row = m.mine_cursor_session(path, REGISTRY)
+        attr = row["attr"]
+
+        self.assertEqual(row["project"], "proj")
+        self.assertEqual(dict(row["skills"]), {"scout": 1, "cook": 1})
+        self.assertEqual(attr["scout"]["tool_calls"], 2)
+        self.assertEqual(attr["cook"]["tool_calls"], 1)
+        self.assertEqual(attr["cook"]["interrupts"], 1)
+        self.assertEqual(attr[m.NONE]["tool_calls"], 1)
+        self.assertEqual(dict(row["skillmd_reads"]), {"ship": 1})
+
+    def test_timestamp_parses_out_of_the_tag(self):
+        self.assertEqual(m.cursor_timestamp(f"<timestamp>{self.OLD}</timestamp>"),
+                         "2000-01-01T12:00:00Z")
+        self.assertEqual(
+            m.cursor_timestamp("<timestamp>Tuesday, Jul 14, 2026, 4:42 PM (UTC+7)</timestamp>"),
+            "2026-07-14T09:42:00Z")
+        self.assertIsNone(m.cursor_timestamp("no stamp here"))
+
+    def test_since_filters_events_and_discovery_skips_subagent_files(self):
+        name = "t2"
+        self.transcript(name, [
+            cur_user(self.OLD, "/scout"),
+            cur_assistant("Shell"),
+            cur_user(self.NEW, "/cook"),
+            cur_assistant("Shell"),
+        ])
+        write(self.root / "cursor" / "proj" / "agent-transcripts" / name / "subagents" / "s1.jsonl", [
+            cur_user(self.NEW, "go"),
+            cur_assistant("Shell"),
+        ])
+        out = self.root / "out"
+        out.mkdir()
+        self.addCleanup(setattr, m, "CURSOR_PROJECTS", m.CURSOR_PROJECTS)
+        m.CURSOR_PROJECTS = str(self.root / "cursor")
+
+        rows = m.run("cursor", REGISTRY, str(out), 7)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(dict(rows[0]["skills"]), {"cook": 1})
+        self.assertEqual(rows[0]["attr"]["cook"]["tool_calls"], 1)
+        self.assertEqual(rows[0]["attr"]["scout"]["tool_calls"], 0)
+        self.assertEqual(rows[0]["attr"]["cook"]["agent_tool_calls"], 1)
 
 
 class Normalization(unittest.TestCase):

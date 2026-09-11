@@ -1328,7 +1328,7 @@ function sanitizeFeatureName(name, preserveCase = false) {
   // When preserveCase is true (--no-prefix), keep original casing
   if (!preserveCase) ascii = ascii.toLowerCase();
 
-  // preserveCase (--no-prefix): preserve `/` for multi-segment branch names (e.g. kai/feat/foo)
+  // preserveCase (--no-prefix): preserve `/` for multi-segment branch names (e.g. user/feat/foo)
   // Security: reject `..` path components to prevent directory traversal
   if (preserveCase && ascii.split('/').some(seg => seg === '..')) {
     return '';

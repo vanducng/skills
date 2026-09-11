@@ -1,6 +1,6 @@
 # samber/ro - Reactive streams for Go
 
-**Pinned: v0.3.0 (released 2026-03-02) · Apache-2.0 · ⚠ PRE-1.0 - young library, API churning · verified 2026-05-23**
+**Pinned: v0.4.1 (released 2026-08-23) · Apache-2.0 · ⚠ PRE-1.0 - young library, API churning · verified 2026-09-11**
 
 ReactiveX implementation for Go. 150+ type-safe operators, cold/hot observables, 5 subject types, declarative pipelines via `Pipe`, 40+ plugins (HTTP, cron, fsnotify, JSON, logging), automatic backpressure, error propagation, context integration.
 
@@ -35,7 +35,7 @@ Upstream: [github.com/samber/ro](https://github.com/samber/ro) · [ro.samber.dev
 ## Install
 
 ```bash
-go get github.com/samber/ro@v0.3.0
+go get github.com/samber/ro@v0.4.1
 ```
 
 ```go

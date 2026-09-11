@@ -31,24 +31,3 @@ Deployment and infrastructure operations across containers, orchestration, IaC, 
 3. **Everything is code and versioned.** Dockerfiles, manifests, `.tf`, Helm values, workflows - all in git, reviewed, applied through CI/GitOps rather than by hand.
 4. **Pin versions.** No `latest` image tags, no `@master` actions - pin digests/major versions for reproducibility.
 5. **Right-size resources.** Set CPU/memory requests and limits; unbounded workloads get OOM-killed or evicted.
-6. **Debug top-down.** Overview (`get`/`ps`) → details (`describe`/`inspect`/events) → logs. Read the error before changing anything.
-7. **Scan and observe.** Image scanning (Trivy, `docker scout`), health checks/probes, and metrics/logs are part of "done," not extras.
-
-## Quick start
-
-```bash
-# Docker
-docker build -t myapp:1.0 . && docker run -d -p 8080:3000 myapp:1.0
-
-# Kubernetes
-kubectl apply -f manifests/ --dry-run=client && kubectl apply -f manifests/ && kubectl rollout status deploy/myapp
-
-# Terraform
-terraform init && terraform plan -out=tfplan && terraform apply tfplan
-
-# GCP Cloud Run
-gcloud run deploy my-service --image gcr.io/PROJECT/img:tag --region us-central1
-
-# Cloudflare Worker
-wrangler deploy
-```

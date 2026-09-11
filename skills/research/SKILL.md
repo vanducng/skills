@@ -14,12 +14,12 @@ metadata:
 
 Research is a deliverable, not a code change. The general "ship the smallest thing" rules **do not apply here**. For this skill:
 
-- **Be deep, not shallow.** Surface findings are useless - dig until you understand *why*, not just *what*.
+- **Be deep, not shallow.** Surface findings are useless - dig until you understand *why*, not just *what*. Long is fine if every section earns its place; trim filler, never depth.
 - **Evaluate multiple options.** Never recommend one approach without comparing at least 2-3 viable alternatives on the same criteria. A single-option report is a failure.
-- **Brutal honesty.** Call out tradeoffs, deprecation, weak maintainership, security holes, vendor lock-in, hidden costs. No marketing language. No hedging.
-- **Straight to the demand.** The user asked a specific question - answer *that* question completely before adding context. No filler, no padding, no recap of what they already know.
-- **Cover every angle the user implied.** If they ask "what's the best message queue", they implicitly want: throughput, durability, ops burden, language support, cost, lock-in. Address all of them.
-- **No premature simplification.** Long is fine if every section earns its place. Trim filler, never trim depth.
+- **Cited and current.** Every claim links to its source, and sources are from the last 12 months unless flagged historical.
+- **Brutal honesty.** Call out tradeoffs, deprecation, weak maintainership, security holes, vendor lock-in, hidden costs. No marketing language. No hedging without specifics.
+- **Straight to the demand.** The user asked a specific question - answer *that* question completely, covering every angle it implies ("what's the best message queue" implies throughput, durability, ops burden, language support, cost, lock-in).
+- **Decisive and self-contained.** End with a recommendation, the runner-up, and the conditions under which it wins; the reader makes the decision from the report alone.
 
 ## Modes
 
@@ -64,7 +64,7 @@ Use the `WebSearch` tool. Run multiple queries in parallel.
 ### Validation
 
 - Cross-reference every non-trivial claim across ≥2 independent sources
-- Check publication dates - discard anything >18 months old unless the topic is stable (RFCs, standards) or you flag it as historical
+- Check publication dates - discard anything >12 months old unless the topic is stable (RFCs, standards) or you flag it as historical
 - Note where consensus exists and where the community is split - both are signal
 
 ## Phase 3 - Synthesize
@@ -173,35 +173,19 @@ Independent benchmarks only - not vendor numbers. Note hardware, workload shape,
 How much pain to switch off Option X 12 months in. This is the lock-in cost.
 ```
 
-## Quality bar
-
-- **Multi-option** - single-option reports are a failure
-- **Cited** - every claim links to its source
-- **Current** - last 12 months unless flagged historical
-- **Brutal** - name the weaknesses, the failures, the deprecations
-- **Decisive** - end with a recommendation and the conditions for the runner-up
-- **Self-contained** - reader makes the decision from the report alone
-
 ## Specials
 
 - **Security topics** - pull recent CVEs, check the maintainer's response cadence on past CVEs, note unpatched advisories
 - **Performance topics** - demand independent benchmarks under realistic load; reject vendor-published numbers without a methodology link
 - **New tech** - assess maintainer count, issue backlog, last-commit recency, sponsor/funding status, hiring market signal
-- **APIs** - verify endpoints + auth still match docs by reading the source if needed
-- **Older tech** - note deprecation timelines and concrete migration paths
 
 ## Output rules
 
 1. Save to the path described in "Where to save"; do not write research reports
-   into the repository root unless the user explicitly asks for that path
+   into the repository root unless the user explicitly asks for that path.
    In the final handoff, report the saved report as an openable location:
    `[research-topic.md](/absolute/path/to/research-topic.md)` and, when helpful,
    `file:///absolute/path/to/research-topic.md`. Do not report only the basename.
-2. Open with TL;DR - recommendation, runner-up, avoid - before anything else
-3. Comparison matrix is non-optional in any mode
-4. Code blocks get language tags
-5. Diagrams in Mermaid or ASCII when they clarify
-6. End with open questions - what couldn't be answered, what would close the gap
-7. No marketing language. No hedging without specifics. If you say "it depends", spell out what it depends on.
-
-You are providing strategic technical intelligence for a decision that will outlast the report. Anticipate the follow-up questions and answer them in advance.
+2. Code blocks get language tags
+3. Diagrams in Mermaid or ASCII when they clarify
+4. No marketing language. No hedging without specifics. If you say "it depends", spell out what it depends on.

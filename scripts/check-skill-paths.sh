@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-skill-paths.sh — guard producer skills against hardcoding umbrella paths
+# check-skill-paths.sh - guard producer skills against hardcoding umbrella paths
 # instead of writing to the hook-injected Reports:/Visuals:/Journals: paths.
 #
 # Default: REPORT-ONLY (prints findings, exits 0). Pass --enforce to exit 1 on any
@@ -16,7 +16,9 @@ ENFORCE=0
 [[ -d "$SKILLS_ROOT" ]] || { echo "no skills/ dir"; exit 0; }
 
 # Hardcoded artifact paths + the retired interim mechanism (feature-folder.json).
-FORBIDDEN='(\.workbench/|plans/(reports|visuals|journals)|feature-folder\.json)'
+# assets/(showoff|...) catches hand-built artifact roots under the skill's own assets/
+# (static templates like assets/comparison-template.html stay legal).
+FORBIDDEN='(\.workbench/|plans/(reports|visuals|journals)|feature-folder\.json|assets/(showoff|show-off|artifacts|output|evidence|runs|traces)/)'
 # Allowed to reference umbrella paths: migrator + lifecycle owner + skill-authoring docs,
 # plus consumers that READ the layout (devlog) and skills that DOCUMENT it (worktree, ultracook).
 ALLOWLIST_RE='^(workbench|skill-creator|template-skill|worktree|ultracook|devlog)$'
@@ -37,7 +39,7 @@ while IFS= read -r f; do
 done < <(find "$SKILLS_ROOT" -type f \( -name 'SKILL.md' -o -path '*/references/*.md' \) | sort)
 
 # Second pass: absolute home paths. Skills are publishable, so a machine-specific
-# /Users/<name> or /home/<name> must be $HOME, ~, or a <placeholder>. No allowlist —
+# /Users/<name> or /home/<name> must be $HOME, ~, or a <placeholder>. No allowlist -
 # a real fixed system path (/usr/local, /etc) never matches these prefixes.
 HOME_PATH_RE='(/Users/|/home/)[A-Za-z0-9_.-]+/'
 while IFS= read -r f; do
@@ -57,7 +59,7 @@ if [[ $violations -eq 0 ]]; then
 fi
 
 if [[ $ENFORCE -eq 1 ]]; then
-  echo "check-skill-paths: FAIL — ${violations} violation(s) in ${flagged_files} file(s). Use the injected Reports:/Visuals:/Journals: path."
+  echo "check-skill-paths: FAIL - ${violations} violation(s) in ${flagged_files} file(s). Use the injected Reports:/Visuals:/Journals: path."
   exit 1
 fi
 echo "check-skill-paths: ${violations} finding(s) in ${flagged_files} file(s) [report-only; --enforce flips on in Phase 6]"

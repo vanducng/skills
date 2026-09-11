@@ -12,17 +12,9 @@ metadata:
 
 Keep `./docs/` honest. Scout the code, diff it against what the docs claim, write what's true. Small canonical set - easy to keep current, hard to let rot.
 
-## What this skill is - and isn't
+## Two surfaces, one skill
 
-| Skill | Question it answers | Output |
-|---|---|---|
-| `vd:scout` | "Where does X live in this repo?" | File map, no writes |
-| `vd:journal` | "What did *I* just learn / decide / break?" | Personal entry in the injected Journals path |
-| **`vd:docs`** | **"Are the shared `./docs/` files true and current?"** | **Updated files in `./docs/`** |
-
-`./docs/` is **team-facing** truth. Journals are personal. Plans/reports live under `./plans/`. Changelog, roadmap, and PR-style narrative are intentionally **not** in this skill's scope - those rot fastest and `vd:ship` / `vd:journal` already cover them.
-
-Two surfaces, one skill: `init`/`update`/`check`/`adr` own internal Markdown; `site` owns the rendered public website (formerly the separate tech-docs skill). Internal-content hard rules 1-5 below apply to the Markdown surface; the site surface carries its own rules in `references/site-workflow.md`. Rules 6-7 (unslop + prose standard) apply to both.
+`./docs/` is **team-facing** truth - journals are personal (injected `Journals:` path), plans and reports live at the injected `Plans:` / `Reports:` paths, never in `./docs/`. `init`/`update`/`check`/`adr` own internal Markdown; `site` owns the rendered public website (formerly the separate tech-docs skill). Internal-content hard rules 1-5 below apply to the Markdown surface; the site surface carries its own rules in `references/site-workflow.md`. Rules 6-7 (unslop + prose standard) apply to both.
 
 ## Subcommands
 
@@ -34,10 +26,7 @@ Two surfaces, one skill: `init`/`update`/`check`/`adr` own internal Markdown; `s
 | `adr` | `references/adr-workflow.md` | Record an architecture decision (the *why* behind an irreversible choice) under `docs/decisions/` |
 | `site` | `references/site-workflow.md` | The rendered public docs website (Astro Starlight): create, modernize, validate, ship. Owns `assets/theme.css` (centered profile) and `references/site-blueprint.md` |
 
-Parse `$ARGUMENTS` first word (in runtimes without `$ARGUMENTS` substitution, use the text following the skill name in the user's message):
-- `init` / `update` / `check` / `adr` → load the matching reference
-- `site` → load `references/site-workflow.md`
-- empty / unclear → `AskUserQuestion` with the options (AskUserQuestion in Claude Code; plain-text question elsewhere). Don't auto-run `init` - it writes files.
+Parse `$ARGUMENTS` first word (runtimes without `$ARGUMENTS` substitution: the text following the skill name in the user's message) and load the matching reference per the table above. Empty / unclear → `AskUserQuestion` with the options (plain-text question outside Claude Code). Don't auto-run `init` - it writes files.
 
 ## Flags
 
@@ -58,13 +47,7 @@ Intentionally short. Every file here earns its place - code-derivable, frequentl
 | `docs/tech-stack.md` | Languages, frameworks, runtimes, key libraries, infra services - what powers this | Yes |
 | `docs/deployment.md` | CI/CD pipelines, environments, deploy steps, env vars, rollback procedure | Yes |
 
-**Out of scope** (by design):
-- Changelog → `vd:ship` writes `CHANGELOG.md` directly
-- Project roadmap → lives in plans (`./plans/`) or your issue tracker, not here
-- Codebase summary → `vd:scout` produces this on demand; doesn't need a static file
-- PRD / requirements → product artifact, not a code-derivable doc
-
-If a project has good reasons to maintain those, add them outside `vd:docs`'s automated touch - this skill won't read, write, or validate them.
+**Out of scope** (by design): changelog (`vd:ship` writes it), roadmap (injected `Plans:` path or your issue tracker), codebase summary (`vd:scout` produces it on demand), PRDs. If a project maintains them anyway, they live outside this skill's automated touch - it won't read, write, or validate them.
 
 **`docs/decisions/` (ADRs) is a special case** - append-only decision history written by the `adr` subcommand, not current-state docs. It is **exempt from freshness, size-budget, and citation validation**: an old ADR is *correct* (it records what was decided then), and a superseded one stays in place with its status flipped. `check` must skip `docs/decisions/`.
 
@@ -93,13 +76,6 @@ After `init` or `update` writes files, list every changed doc with an openable l
 `file:///absolute/path/to/docs/deployment.md`. Repo-relative paths are fine as
 secondary context, but never hand off only a basename.
 
-## Token efficiency
-
-- **Scout in parallel, write once.** Don't re-scout per doc file.
-- **Read docs in bulk when many.** If `ls docs/*.md | wc -l` ≥ 4, spawn `Explore` subagents to read in parallel (read sequentially if subagents unavailable) - see `references/update-workflow.md` Phase 1.5.
-- **Don't dump full `git diff` into the subagent prompt** - `git log --oneline` + `git diff --stat` is enough; the subagent pulls scoped diffs only for files it names.
-- **`--dry-run` costs almost nothing** - run it first on unfamiliar repos.
-
 ## Quality bar
 
 - **Every claim has a citation.** Architecture docs name the file path. Tech-stack entries name the version (from lockfile / `package.json` / `go.mod`). No "the system uses XYZ" without `src/...:N`.
@@ -109,11 +85,7 @@ secondary context, but never hand off only a basename.
 
 ## Workflow position
 
-**Typically follows:** `vd:ship` (after the PR lands, sync `./docs/` to the new reality), `vd:cook` (end of plan), major refactor or migration.
-
-**Typically precedes:** Nothing - `vd:docs` is terminal. Next pipeline starts at `vd:scout` or `vd:plan`.
-
-**Do not** run `vd:docs` mid-implementation - docs drift faster than code does. Wait until the code is stable.
+Typically follows `vd:ship` (sync `./docs/` after the PR lands) or the end of `vd:cook`; terminal - the next pipeline starts at `vd:scout` or `vd:plan`. Do not run `vd:docs` mid-implementation: docs drift faster than code.
 
 ## Hard rules
 

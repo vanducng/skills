@@ -170,7 +170,7 @@ jira issue assign ISSUE-KEY x
 
 ```bash
 # Add comment
-jira issue comment add ISSUE-KEY -b"This is my comment"
+jira issue comment add ISSUE-KEY "This is my comment"
 
 # Add comment from file
 jira issue comment add ISSUE-KEY --template /path/to/comment.md

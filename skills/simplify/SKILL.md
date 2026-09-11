@@ -13,33 +13,15 @@ metadata:
 
 > Reduce-time discipline: make existing code easier to read without changing what it does.
 
-The goal is **not fewer lines** - it's code a new teammate understands faster. Every change must pass one test: would someone reading this for the first time grasp it quicker than the original? If not, it's churn, not simplification.
+The goal is **not fewer lines** - it's code a new teammate understands faster. Every change must pass one test: would someone reading this for the first time grasp it quicker than the original? If not, it's churn, not simplification. Not for hot paths where the simpler form is measurably slower, or a module about to be rewritten wholesale.
 
-## What this skill is - and isn't
-
-| Skill | When | Output |
-|---|---|---|
-| **`vd:simplify`** (this) | Existing code works but reads heavy - reduce complexity, behavior unchanged | Refactor commits, tests still green |
-| `vd:simplify --aggressive` | Feature works but its *shape* is historical | May delete proven-dead paths and collapse flags; intended flow frozen |
-| `vd:cook` | Writing new code | Simplicity is built in at write-time (Pragmatism rules), not a later pass |
-| `vd:code-review` | Judging someone's diff | Reports findings; never edits |
-| `vd:fix` | Code is broken | Changes behavior to fix a bug |
-
-Use this when the code is *correct but cluttered*. `--aggressive` when the clutter is leftover architecture, not reading complexity. If it's buggy, that's `vd:fix`. If you're still writing it, that's `vd:cook`.
+Use when the code is *correct but cluttered*. If it's buggy, that's `vd:fix`; if you're still writing it, that's `vd:cook`; judging someone's diff is `vd:code-review` (report-only).
 
 | Mode | When | Behavior |
 |---|---|---|
 | **default** | Reads heavy, shape is right | Behavior frozen; readability only |
 | `--aggressive` | Shape is historical (compat flags, dead aliases) | Follow [`references/aggressive.md`](references/aggressive.md) |
 | `--scan` | Want the candidate list first | Same as aggressive, no edits |
-
-## When to use
-
-- A feature passes tests but the implementation feels heavier than the problem.
-- Code written under deadline accreted nesting, dead branches, or generic names.
-- A review flagged readability and you're acting on it.
-
-**Not for:** code that's already clean (don't simplify for its own sake), code you don't yet understand (comprehend first), hot paths where the simpler form is measurably slower, or a module you're about to rewrite anyway.
 
 ## Hard rules
 
@@ -99,24 +81,8 @@ Step back: is it genuinely easier to understand? Did you introduce a pattern for
 - **Inlining a helper that named a concept** - the call site gets harder, not easier.
 - **Merging unrelated logic** - two simple functions fused into one complex one is not simpler.
 - **Deleting an abstraction that existed for testability/extensibility**, not for complexity.
-- **Optimizing for line count.** Fewer lines ≠ clearer.
-
-## Rationalizations to catch in yourself
-
-| Thought | Reality |
-|---|---|
-| "I'll just clean up this nearby code too" | Scope creep - that's a separate PR |
-| "Fewer lines is better" | Comprehension is the metric, not length |
-| "This abstraction is pointless" | Check why it exists before removing it (Fence) |
-| "Tests fail but my version is clearer" | Then it changed behavior - it's not a simplification |
 
 ## Integration points
 
 - **`vd:cook`** - Step E surfaces complexity during a feature; bank the note and run `vd:simplify` as a *separate* follow-up commit, never tangled into the feature diff.
-- **`vd:code-review`** - review flags complexity (report-only); this skill is how you act on it.
-- **`vd:git`** - refactor commits stay isolated per the `vd:git` skill's `references/commit-standards.md`.
-
-## Future (out of scope for MVP)
-
-- Language-specific codemod recipes beyond the Rule-of-500 pointer.
-- An automatic complexity metric gate (cyclomatic/cognitive) - judgment-first for now.
+- **`vd:code-review`** flags complexity (report-only); this skill is how you act on it, with refactor commits isolated per `vd:git`'s `references/commit-standards.md`.

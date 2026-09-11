@@ -412,10 +412,10 @@ def cmd_gc(args):
 
 
 def cmd_migrate(args):
-    out('workbench migrate: delegates to the native migrator (Phase 4).')
-    out('  vd migrate --dry-run   # classify + report')
-    out('  vd migrate --apply     # snapshot, move, manifest (ask-first on real data)')
-    out('  vd migrate --revert    # replay manifest in reverse')
+    out('workbench migrate: no migrator ships yet - migration is manual.')
+    out('  To adopt feature-first by hand: run `workbench new <slug>` per feature,')
+    out('  move that feature\'s existing plans/reports/visuals/journals/state files')
+    out('  into the new features/<id>/ subfolders, then `workbench reindex`.')
 
 
 def cmd_triage(args):
@@ -428,7 +428,7 @@ def cmd_triage(args):
     if not ids and not files:
         out('triage: _unsorted/ is empty.')
         return
-    out('triage: items needing a home (assign with `workbench new` then move, or wait for `vd migrate`):')
+    out('triage: items needing a home (assign with `workbench new` then move them in):')
     for n in sorted(ids + files):
         out('  _unsorted/%s' % n)
 
@@ -444,7 +444,7 @@ USAGE = """workbench <command>
   reindex                                                  rebuild INDEX.md
   gc [--force]                                             sweep tmp/, *.pid, *.log (dry-run unless --force)
   triage                                                   list _unsorted/ items
-  migrate [...]                                            pointer to `vd migrate` (Phase 4)"""
+  migrate [...]                                            manual-migration instructions (no migrator yet)"""
 
 CMDS = {
     'new': cmd_new, 'resolve': cmd_resolve, 'switch': cmd_switch, 'list': cmd_list,

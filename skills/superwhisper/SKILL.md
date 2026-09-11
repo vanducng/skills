@@ -68,7 +68,7 @@ superwhisper read <recording-id>
 ```
 
 1. Use `history` for recent recordings and `search` for a named topic.
-2. Narrow by `--mode`, `--since`, `--before`, and `--limit`.
+2. Narrow with `--since`, `--before`, and `--limit`; `--mode` filters `history` only, not `search`.
 3. Show candidate dates, modes, IDs, and compact excerpts.
 4. Read full text only for the IDs needed to answer.
 5. Use `read <id> --raw` only to inspect transcription before mode processing.
