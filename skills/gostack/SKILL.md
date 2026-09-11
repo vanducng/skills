@@ -8,17 +8,17 @@ metadata:
   upstream-author: "Sam Berthe (samber)"
   upstreams:
     lo: "https://github.com/samber/lo @ v1.53.0 (2026-03-02) - stable, MIT, 21.2k stars"
-    oops: "https://github.com/samber/oops @ v1.21.0 (2026-01-18) - stable, MIT"
-    do: "https://github.com/samber/do @ v2.0.0 (2025-09-21) - v2 only, MIT"
-    mo: "https://github.com/samber/mo @ v1.16.0 (2025-09-25) - stable, MIT"
+    oops: "https://github.com/samber/oops @ v1.23.1 (2026-08-23) - stable, MIT"
+    do: "https://github.com/samber/do @ v2.1.0 (2026-07-20) - v2 only, MIT"
+    mo: "https://github.com/samber/mo @ v1.17.0 (2026-06-02) - stable, MIT"
     slog-multi: "https://github.com/samber/slog-multi @ v1.8.0 (2026-03-25)"
-    slog-sampling: "https://github.com/samber/slog-sampling @ v1.6.0 (2026-03-25)"
+    slog-sampling: "https://github.com/samber/slog-sampling @ v1.7.0 (2026-08-28)"
     slog-formatter: "https://github.com/samber/slog-formatter @ v1.3.0 (2026-03-25)"
-    slog-echo: "https://github.com/samber/slog-echo @ v2.0.0 (2026-05-04) - v2 breaking change from v1"
+    slog-echo: "https://github.com/samber/slog-echo @ v2.1.0 (2026-08-20) - v2 breaking change from v1"
     slog-loki: "https://github.com/samber/slog-loki @ v3.7.2 (2026-03-25) - on v3"
-    hot: "https://github.com/samber/hot @ v0.13.0 (2026-03-11) - PRE-1.0, API can break"
-    ro: "https://github.com/samber/ro @ v0.3.0 (2026-03-02) - PRE-1.0, young, API churning, Apache-2.0"
-  versions-verified: "2026-05-23"
+    hot: "https://github.com/samber/hot @ v0.13.1 (2026-08-23) - PRE-1.0, API can break"
+    ro: "https://github.com/samber/ro @ v0.4.1 (2026-08-23) - PRE-1.0, young, API churning, Apache-2.0"
+  versions-verified: "2026-09-11"
   acknowledgments: "Libraries by Sam Berthe (samber). API patterns and reference material distilled from samber/cc-skills-golang."
 ---
 
@@ -81,26 +81,6 @@ If a Go service is going to adopt this ecosystem, the order I'd introduce librar
 - `vd:py2go` (Python→Go migration) - defaults to `slog` over zap/zerolog, mentions `samber/oops` for error context, `samber/do` for DI when the graph grows. See py2go's translation rules table for the cross-reference.
 - `vd:cook` / `vd:ship` - the lint and review steps benefit from understanding why a PR pulls in `samber/lo` over stdlib (`lo.Contains` vs `slices.Contains` is a code-review smell I want to catch).
 - `vd:debug` / `vd:fix` - `samber/oops` error chains preserve the context that makes debugging much faster; this skill is the place to confirm best practices.
-
-## Versions snapshot (verified 2026-05-23)
-
-| Library | Pinned | Released | Maintenance |
-|---|---|---|---|
-| samber/lo | v1.53.0 | 2026-03-02 | Active (21.2k stars) |
-| samber/oops | v1.21.0 | 2026-01-18 | Active |
-| samber/do | v2.0.0 | 2025-09-21 | **v2 only - v1 dead** |
-| samber/mo | v1.16.0 | 2025-09-25 | Active |
-| samber/slog-multi | v1.8.0 | 2026-03-25 | Active |
-| samber/slog-sampling | v1.6.0 | 2026-03-25 | Active |
-| samber/slog-formatter | v1.3.0 | 2026-03-25 | Active |
-| samber/slog-echo | **v2.0.0** | 2026-05-04 | **v2 breaking change** |
-| samber/slog-loki | v3.7.2 | 2026-03-25 | On v3 |
-| samber/slog-gin / chi / fiber | v1.x | Apr-May 2026 | Active |
-| samber/slog-datadog / sentry | v2.x | Mar 2026 | Active |
-| samber/hot | **v0.13.0** | 2026-03-11 | **PRE-1.0 - pin exact** |
-| samber/ro | **v0.3.0** | 2026-03-02 | **PRE-1.0, young** |
-
-If a version drifts ahead by a major release, re-verify before recommending - especially for the pre-1.0 libraries.
 
 ## Adding a new library
 

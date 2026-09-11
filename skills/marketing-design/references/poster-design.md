@@ -83,4 +83,4 @@ If you add posters or want to refresh clusters:
 ~/.claude/skills/.venv/bin/python3 scripts/poster/cluster.py
 ```
 
-`analyze.py` is resume-safe - re-running skips already-processed images unless `--force`.
+`analyze.py` is resume-safe - re-running skips already-processed images unless `--force`. The analysis tree (`data/poster/analysis/` - raw extractions plus the `clusters.json` audit trail) is not shipped with the skill; it is regenerated from a user-supplied `--input-dir` whenever you rebuild.

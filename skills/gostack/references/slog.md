@@ -1,18 +1,18 @@
 # samber/slog-* - Structured logging pipeline for Go
 
-**Pinned versions (verified 2026-05-23):**
+**Pinned versions (verified 2026-09-11):**
 
 | Package | Tag | Released |
 |---|---|---|
 | `samber/slog-multi` | **v1.8.0** | 2026-03-25 |
-| `samber/slog-sampling` | **v1.6.0** | 2026-03-25 |
+| `samber/slog-sampling` | **v1.7.0** | 2026-08-28 |
 | `samber/slog-formatter` | **v1.3.0** | 2026-03-25 |
 | `samber/slog-gin` | **v1.21.1** | 2026-04-29 |
 | `samber/slog-chi` | **v1.19.1** | 2026-04-29 |
-| `samber/slog-echo` | **v2.0.0** | 2026-05-04 *(breaking change from v1)* |
+| `samber/slog-echo` | **v2.1.0** | 2026-08-20 *(breaking change from v1)* |
 | `samber/slog-fiber` | **v1.22.2** | 2026-04-29 |
 | `samber/slog-datadog` | **v2.10.4** | 2026-03-25 |
-| `samber/slog-sentry` | **v2.10.3** | 2026-03-25 |
+| `samber/slog-sentry` | **v2.11.0** | 2026-06-02 |
 | `samber/slog-loki` | **v3.7.2** | 2026-03-25 *(on v3)* |
 
 All MIT licensed.
@@ -33,7 +33,7 @@ The load-bearing combination is **`slog-multi` + `slog-sampling`**. Everything e
 
 ```bash
 go get github.com/samber/slog-multi@v1.8.0
-go get github.com/samber/slog-sampling@v1.6.0
+go get github.com/samber/slog-sampling@v1.7.0
 go get github.com/samber/slog-formatter@v1.3.0
 ```
 
@@ -42,7 +42,7 @@ HTTP middlewares (pick what matches your framework):
 ```bash
 go get github.com/samber/slog-gin@v1.21.1
 go get github.com/samber/slog-chi@v1.19.1
-go get github.com/samber/slog-echo@v2.0.0     # NB: v2 breaking changes
+go get github.com/samber/slog-echo@v2.1.0     # NB: v2 breaking changes
 go get github.com/samber/slog-fiber@v1.22.2
 ```
 
@@ -50,7 +50,7 @@ Cloud sinks:
 
 ```bash
 go get github.com/samber/slog-datadog/v2@v2.10.4
-go get github.com/samber/slog-sentry/v2@v2.10.3
+go get github.com/samber/slog-sentry/v2@v2.11.0
 go get github.com/samber/slog-loki/v3@v3.7.2  # v3 path mandatory
 ```
 

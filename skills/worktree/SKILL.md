@@ -12,33 +12,19 @@ metadata:
 
 Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run lives on its own branch and its own filesystem path - without disturbing your main checkout. Each worktree arrives ready to run: env files copied, a private port block assigned, install commands detected. **By default the agent session moves into the new worktree** so subsequent work happens there - pass `--no-enter` to stay put. Pairs naturally with `vd:cook` and `vd:fix` (implement in the worktree) and `vd:ship` (land it).
 
-## What this skill is - and isn't
-
-| Skill | Question it answers | Output |
-|---|---|---|
-| **`vd:worktree`** | Where does this feature/branch live on disk, and how does it run without colliding? | Worktree + branch + env + ports, ready for work |
-| `vd:git` | How do I stage/commit/push *this branch*? | Conventional commits on the current branch |
-| `vd:ship` | Is this branch ready to land? | Tests → review → version → PR |
-| `vd:scout` / `vd:plan` | What am I going to build? | Reports + phase files |
-| `vd:herd-worktree` | How should a Laravel app served by Herd be isolated? | This skill's worktree mechanics + Herd link/secure/env/DB/Vite setup |
-
 ## Standard location: `.worktrees/`
 
-All worktrees live at **`<git-root>/.worktrees/<repo>-<feature>/`** - one rule for every repo type:
+All worktrees live at **`<git-root>/.worktrees/<repo>-<feature>/`** - one rule for every repo type: standalone → `<repo>/.worktrees/`, monorepo → `<monorepo-root>/.worktrees/`, submodule → topmost superproject's `.worktrees/`.
 
-- **Standalone** → `<repo>/.worktrees/`
-- **Monorepo** → `<monorepo-root>/.worktrees/`
-- **Submodule** → topmost superproject's `.worktrees/`
+`.worktrees/` is a **top-level sibling of the `.workbench/` artifact umbrella**, deliberately not nested under it (full checkouts would pollute artifact globs and bloat the umbrella). The script auto-appends `/.worktrees/` and `.env.worktree` to `.git/info/exclude` when not already ignored, so `git status` stays clean.
 
-`.worktrees/` is a **top-level sibling of the `.workbench/` artifact umbrella**, deliberately not nested under it. Worktrees are full checkouts (heavy, contain source), so nesting them inside `.workbench/` would pollute artifact globs (`reports/`, `plans/`) and bloat the umbrella. The script auto-appends `/.worktrees/` and `.env.worktree` to `.git/info/exclude` when the repo doesn't already ignore them, so `git status` stays clean without touching tracked files.
-
-**Worktrees + the umbrella (artifacts survive worktree removal).** Artifact paths anchor to the **main** worktree, so work done from any linked worktree writes back to the *main* checkout's `.workbench/` - surviving `git worktree remove`. Under `paths.layout: feature-first`, each worktree's branch resolves its own feature (e.g. `feat/PROJ-3316-…` → `.workbench/features/proj-3316-…/`), so parallel worktrees on different tickets land in **separate feature folders under the one shared main umbrella** - never colliding, never duplicated. A linked worktree has no local `.workbench/`.
+**Worktrees + the umbrella (artifacts survive worktree removal).** Artifact paths anchor to the **main** worktree, so work done from any linked worktree writes back to the *main* checkout's `.workbench/`. Under `paths.layout: feature-first`, each worktree's branch resolves its own feature (e.g. `feat/PROJ-3316-…` → `.workbench/features/proj-3316-…/`), so parallel worktrees on different tickets land in separate feature folders under the one shared main umbrella. A linked worktree has no local `.workbench/`.
 
 **Hazard:** `git clean -fdx` in the main checkout can delete in-repo worktrees (single `-f` skips dirs containing `.git`, double `-ff` does not). Run `clean` afterward to tidy stale metadata.
 
 **Overrides:** `--worktree-root <path>` flag → `WORKTREE_ROOT` env → `.worktrees` default. Older worktrees in sibling `worktrees/` or legacy `.work/worktrees/` dirs keep working (`list`/`status`/`remove`/`clean` find them via git); new ones land in `.worktrees/`.
 
-**No nested worktrees.** Running `create` from *inside* a linked worktree does **not** nest a new `.worktrees` under it - the script resolves back to the main checkout (first entry of `git worktree list`) and lands the new worktree as a sibling at the main root, emitting a redirect warning. If a repo already has a worktree created the old (nested) way, `status` flags it and `repair` relocates it: `worktree repair` (dry-run) → `worktree repair --yes` runs `git worktree move` to the canonical root + `git worktree repair` to fix admin links (`--force` for a dirty worktree).
+**No nested worktrees.** Running `create` from *inside* a linked worktree resolves back to the main checkout (first entry of `git worktree list`) and lands the new worktree as a sibling at the main root, with a redirect warning. A repo with an old nested worktree: `status` flags it; `repair` (dry-run) → `repair --yes` runs `git worktree move` to the canonical root + `git worktree repair` to fix admin links (`--force` for a dirty worktree).
 
 ## Script path
 
@@ -48,7 +34,7 @@ Canonical: `node $HOME/skills/skills/worktree/scripts/worktree.cjs`. If the repo
 
 Before creating a worktree, check whether the current/source repo is a Laravel app served by Herd. Treat it as Laravel when `artisan` exists and `composer.json` requires `laravel/framework`. Treat it as Herd-served when the user says Herd, the `herd` CLI is available and `herd links` includes the repo/site path, or `.env` has an `APP_URL` ending in `.test`.
 
-If both are true, activate `vd:herd-worktree` and let it compose this skill. Do not hand-roll Herd link/secure, `APP_URL`, session/Sanctum, database isolation, Vite TLS/CORS, or teardown-hook rules here; `vd:herd-worktree` owns that layer. This skill still owns the generic worktree mechanics underneath it.
+If both are true, activate `vd:herd-worktree` and let it compose this skill - it owns the Herd link/secure, `APP_URL`, session/Sanctum, database isolation, Vite TLS/CORS, and teardown-hook layer. This skill still owns the generic worktree mechanics underneath it.
 
 ## Workflow
 
@@ -101,24 +87,11 @@ git branch -m PROJ-3267 && git push -u origin PROJ-3267
 
 ### Step 3 - Slugify
 
-Skip if `--no-prefix`. Otherwise: kebab-case, max 50 chars.
-- `"add authentication system"` → `add-auth`
-- `"fix login bug"` → `login-bug`
+Skip if `--no-prefix`. Otherwise: kebab-case, max 50 chars - `"add authentication system"` → `add-auth`, `"fix login bug"` → `login-bug`.
 
 ### Step 4 - Monorepo selection
 
-If `repoType === "monorepo"` and the project wasn't passed in, ask the user which one (AskUserQuestion in Claude Code; ask in prose in Codex / plain shell):
-
-```javascript
-AskUserQuestion({
-  questions: [{
-    header: "Project",
-    question: "Which project for the worktree?",
-    options: projects.map(p => ({ label: p.name, description: p.path })),
-    multiSelect: false
-  }]
-})
-```
+If `repoType === "monorepo"` and the project wasn't passed in, ask the user which one (AskUserQuestion in Claude Code; prose question in Codex / plain shell) - offer the `projects` entries from the `info` output as the options.
 
 ### Step 5 - Execute
 
@@ -162,6 +135,8 @@ After every successful non-dry-run create that returns `worktreePath`, if `HERDR
 | `--dry-run` | Preview without touching disk (includes `portBase`) |
 | `--env <files>` | Comma-separated root-level `.env` files to copy (legacy; auto-copy covers this) |
 
+Exit codes and the remaining env overrides are printed by `worktree.cjs --help`; `WORKTREE_AGENT_CMD` overrides the "Next steps" CLI hint for runtimes the script can't auto-detect.
+
 ### Step 6 - Install deps
 
 Mise configs are already trusted when create reports `mise.ran: true`; the tool install still arrives via `suggestedInstalls` (`mise install -y`). Run the `suggestedInstalls` from the create output in the new worktree (background bash, don't block):
@@ -189,9 +164,7 @@ Unless `--no-enter` was passed, **move the working session into the new worktree
 - **Codex** - there is **no in-session cwd switch**. Either relaunch rooted at the worktree (`codex --cd "<worktreePath>"`) or run subsequent commands from it. The `sessionSwitch.action` field gives the exact `codex --cd` command.
 - **Plain shell / unknown** - `cd "<worktreePath>"`.
 
-Installs (Step 6) run with explicit `<worktreePath>/<dir>` paths, so entering before or after them is equivalent - kick the installs off in the background and enter immediately.
-
-**Skip entering when:** the user said "stay" / "don't switch", you're scripting multiple creates in a loop, or you need to keep operating in the main checkout. Pass `--no-enter` (or set `WORKTREE_NO_ENTER=1`); the `sessionSwitch` block then reports `enter: false`.
+Installs (Step 6) run with explicit `<worktreePath>/<dir>` paths, so entering before or after them is equivalent - kick the installs off in the background and enter immediately. Skip entering when the user said "stay" / "don't switch", you're scripting multiple creates in a loop, or you must keep operating in the main checkout (`--no-enter` / `WORKTREE_NO_ENTER=1`; `sessionSwitch` then reports `enter: false`).
 
 **After entering, keep Bash commands single-purpose.** Once inside a worktree, the harness's isolation guard rejects any command it cannot statically verify stays inside the worktree path - heredocs, `for`/`until` loops, multi-step `&&`/`;` chains, and `Monitor`/watch loops all trip it with "too complex to verify that it stays in bounds." Run one simple command per invocation; for anything more complex, write the script to a temp file and execute that file instead of inlining it.
 
@@ -272,145 +245,39 @@ docker compose -p "$COMPOSE_PROJECT_NAME" down -v 2>/dev/null || true
 | `create` | `create [project] <feature>` | Create worktree + branch + env + ports |
 | `remove` | `remove <name-or-path>` | Remove **one** worktree: backup env → pre-remove hook → remove + delete branch |
 | `clean` | `clean [--merged\|--stale] [--force] [--yes]` | Sweep **all** dead worktrees + prune metadata to free disk |
-| `repair` | `repair [--yes] [--force]` | Relocate worktrees nested inside another worktree to the main root + fix admin links |
+| `repair` | `repair [--yes] [--force]` | Relocate nested worktrees to the main root + fix admin links |
 | `info` | `info` | Repo type, base branch, projects, worktree location |
 | `list` | `list` | All existing worktrees (normalized paths) |
 | `status` | `status` | Health audit + divergence + disk usage; flags merged/prunable, **nested worktrees**, + reclaimable total |
 | `ports` | `ports` | Port block assignment per worktree |
 
-**`remove` vs `clean`:** `remove` takes a name and removes that one. It force-removes the checkout and deletes the local branch when `git branch -d` accepts it; Git may accept a branch merged to its upstream even when it is not merged to the base branch. If `remove` reports `branchKept`, leave it unless the user explicitly asked to discard it too, then run `git branch -D <branch>`. `clean` takes no target - it finds every worktree whose branch is merged into its base or gone from the remote, shows them with disk sizes (dry-run by default), and removes them on `--yes`. `clean` also prunes stale git metadata (the old `prune` command folded in here). Both rescue untracked `.env*` files to `<trees-root>/.env-backups/<name>/` before deletion.
+**`remove` vs `clean`:** `remove` takes a name and removes that one; it deletes the local branch when `git branch -d` accepts it (Git may accept a branch merged to its upstream even when it is not merged to the base). If `remove` reports `branchKept`, leave it unless the user explicitly asked to discard it too, then `git branch -D <branch>`. `clean` takes no target - it finds every worktree whose branch is merged into its base or gone from the remote, shows disk sizes (dry-run by default), and removes them on `--yes`; it also prunes stale git metadata. Both rescue untracked `.env*` files to `<trees-root>/.env-backups/<name>/` before deletion. Human approval phrases map to: `clean merged` → `clean --merged --yes`; `clean all` → `clean --yes` (merged + stale; dirty worktrees stay skipped). Always run the matching command without `--yes` first, and never add `--force` unless the user explicitly approves a named dirty worktree.
 
-Human approval aliases used by cleanup workflows map to the supported flags:
+**Targeted teardown of one named worktree** (when the user points at a specific path `clean` skips because the branch is still active, pushed, or unmerged):
 
-| Approval phrase | Command | Scope |
-|---|---|---|
-| `clean merged` or `clean merge` | `clean --merged --yes` | Clean worktrees whose branches are merged into base |
-| `clean all` | `clean --yes` | Clean merged and stale/gone-from-remote worktrees; dirty worktrees remain skipped |
-
-Always run the matching command without `--yes` first. Do not add `--force` unless the user explicitly approves a named dirty worktree.
-
-Before removing a candidate, check whether an agent still uses its checkout:
-
-```bash
-WT=<worktree-path>
-ps -axo pid=,command= | rg -F "$WT" || true
-lsof -nP +D "$WT" 2>/dev/null | head -50
-```
-
-If either command finds a process or open file, skip that worktree and ask the user to close the agent. Never kill the process automatically.
-
-After a merge helper such as `gh pr merge --delete-branch`, re-check the linked worktree's current branch before `remove`: the helper may leave it on the base branch. If the worktree is on a branch you must keep (`main`, `staging`, `dev`), detach first so `remove` skips branch deletion:
-
-```bash
-git -C <worktree-path> switch --detach
-node $HOME/skills/skills/worktree/scripts/worktree.cjs remove <worktree-path>
-```
-
-**A worktree left on the base branch blocks the main checkout.** Git allows one checkout per branch, so while a linked worktree holds `staging`, the main checkout cannot switch to it and the *next* `gh pr merge --delete-branch` fails its own post-merge checkout:
-
-```
-fatal: 'staging' is already used by worktree at <path>
-```
-
-The merge still lands - only the local checkout step fails - so confirm with `gh pr view <n> --json state,mergeCommit` before re-running anything. The same squat makes `--delete-branch` report `cannot delete branch '<b>' used by worktree at ...` for a merged feature branch. Free the branch by moving that worktree back to its own:
+1. Check for live users first; if either command finds a process or open file, skip that worktree and ask the user to close the agent - never kill automatically:
+   ```bash
+   WT=<worktree-path>
+   ps -axo pid=,command= | rg -F "$WT" || true
+   lsof -nP +D "$WT" 2>/dev/null | head -50
+   ```
+2. After a merge helper such as `gh pr merge --delete-branch`, re-check the linked worktree's current branch before `remove` - the helper may leave it on the base branch. If it is on a branch you must keep (`main`, `staging`, `dev`), detach first so `remove` skips branch deletion: `git -C <worktree-path> switch --detach`.
+3. **A worktree left on the base branch blocks the main checkout** (one checkout per branch): the *next* `gh pr merge --delete-branch` fails its post-merge checkout with `fatal: '<branch>' is already used by worktree at <path>`, and `--delete-branch` reports `cannot delete branch '<b>' used by worktree`. The merge itself still landed - confirm with `gh pr view <n> --json state,mergeCommit` before re-running anything. Free the branch: `git worktree list` → `git -C <worktree-path> switch <its-own-branch>` (or `switch --detach`).
+4. If the worktree ran Docker Compose, stop its resources before deleting the checkout. Do not trust `.env.worktree` alone - Compose launched from a subdirectory uses that directory name as the project. Match containers by their Compose working-dir label, then `down -v` for that project from the compose directory (or `-f <compose-file>`). `down -v` removes named/anonymous volumes, not bind-mounted local paths; delete bind-mount data only when the user names it:
+   ```bash
+   docker ps -a --format '{{.Names}}\t{{.Label "com.docker.compose.project"}}\t{{.Label "com.docker.compose.project.working_dir"}}' | rg -F "$WT"
+   docker compose -p <project> down -v --remove-orphans
+   ```
+5. Remove and verify no checkout, Compose containers, or named volumes remain:
+   ```bash
+   node $HOME/skills/skills/worktree/scripts/worktree.cjs remove "$WT"
+   test ! -e "$WT" && echo removed
+   git worktree list --porcelain
+   docker volume ls --filter "label=com.docker.compose.project=<project>" --format '{{.Name}}'
+   ```
+6. If `remove` deleted a pushed branch that should keep a local ref, recreate it from the remote: `git branch --track <branch> origin/<branch>`.
 
 ```bash
-git worktree list                                # which worktree holds it
-git -C <worktree-path> switch <its-own-branch>   # or: switch --detach
+node $HOME/skills/skills/worktree/scripts/worktree.cjs clean           # reclaimable overview (read-only)
+node $HOME/skills/skills/worktree/scripts/worktree.cjs clean --yes     # actually free the disk
 ```
-
-```bash
-# See what's reclaimable (safe, read-only)
-node $HOME/skills/skills/worktree/scripts/worktree.cjs clean
-# Actually free the disk
-node $HOME/skills/skills/worktree/scripts/worktree.cjs clean --yes
-# Only merged branches; include dirty ones
-node $HOME/skills/skills/worktree/scripts/worktree.cjs clean --merged --force --yes
-```
-
-**Targeted teardown for one named worktree:** use this when the user points at a specific path and `clean` skips it because the branch is still active, pushed, or unmerged.
-
-```bash
-WT=<worktree-path>
-node $HOME/skills/skills/worktree/scripts/worktree.cjs status --json
-git -C "$WT" status --short --branch
-```
-
-If the worktree ran Docker Compose, stop and remove its resources before deleting the checkout. Do not trust `.env.worktree` alone: Compose launched from a subdirectory may use that directory name as the project. Match containers by their Compose working-dir label, then run `down -v` for that project from the compose directory (or pass `-f <compose-file>`). `down -v` removes named/anonymous volumes, not bind-mounted local paths; delete bind-mount data only when the user names it.
-
-```bash
-docker ps -a --format '{{.Names}}\t{{.Label "com.docker.compose.project"}}\t{{.Label "com.docker.compose.project.working_dir"}}' | rg -F "$WT"
-docker compose -p <project> down -v --remove-orphans
-```
-
-Then remove the worktree and verify no checkout, Compose containers, or named volumes remain:
-
-```bash
-node $HOME/skills/skills/worktree/scripts/worktree.cjs remove "$WT"
-test ! -e "$WT" && echo removed
-git worktree list --porcelain
-docker ps -a --format '{{.Names}}\t{{.Label "com.docker.compose.project"}}\t{{.Label "com.docker.compose.project.working_dir"}}' | rg -F "$WT" || true
-docker volume ls --filter "label=com.docker.compose.project=<project>" --format '{{.Name}}'
-```
-
-If `remove` deleted a pushed branch that should keep a local ref, recreate it from the remote:
-
-```bash
-git branch --track <branch> origin/<branch>
-```
-
-## JSON output fields (high-signal)
-
-| Field | Description |
-|---|---|
-| `baseBranch` / `baseBranchSource` | Base branch and how it was chosen (`explicit` / `auto-detected`) |
-| `worktreePath` / `worktreeRootSource` | New worktree location and root-selection source |
-| `portBase` | First port of this worktree's 10-port block |
-| `worktreeId` | DB-name-safe identifier |
-| `suggestedInstalls` | `[{dir, command}]` - run these in the worktree |
-| `mise` | `{ran, configs, trusted}` or `{ran:false, skipped?}` - auto `mise trust` when a mise config is present; install stays in `suggestedInstalls` |
-| `sessionSwitch` | `{enter, path, runtime, action, exit?, note?}` - how to move the session into the worktree (`enter:false` if `--no-enter`) |
-| `envFilesCopied` | Untracked `.env*` files copied (incl. nested paths) |
-| `envTemplatesCopied` | `.env*.example` → `.env*` mappings (gap-fill only) |
-| `includeCopied` | `.worktreeinclude` entries copied |
-| `envBackup` | (remove) `{dir, files}` of rescued env files |
-| `currentWorktree` / `worktrees` | Health records (from `status --json` / `list --json`) |
-| `assignments` | Port blocks per worktree (from `ports --json`) |
-
-## Exit codes (for shell scripting + Codex tool-use loops)
-
-| Code | Meaning | Retry-able? |
-|---:|---|---|
-| `0` | success | n/a |
-| `2` | bad CLI input, not a git repo, unknown command | no |
-| `10` | git command failed (incl. unrecoverable branch mismatch) | maybe (transient) |
-| `13` | permission denied | no (fix perms) |
-| `17` | worktree or branch already exists | no (use a different name) |
-| `28` | disk / mkdir failed | no (free space) |
-| `68` | network (fetch) failed | yes |
-| `70` | runtime / node version error | no |
-| `75` | post-create hook failed | depends on hook |
-
-JSON output (`--json`) embeds the same `exitCode` inside `error` for parsing without `$?`.
-
-## Environment variables
-
-| Variable | Effect |
-|---|---|
-| `WORKTREE_ROOT` | Override default `.worktrees/` root directory |
-| `WORKTREE_NO_ENTER` | Set to `1` to default to *not* switching the session into new worktrees (same as `--no-enter`) |
-| `WORKTREE_AGENT_CMD` | Override the "Next steps" CLI hint (for runtimes the script can't auto-detect) |
-| `WORKTREE_*` (exported to hooks) | `NAME`, `BRANCH`, `ID`, `PORT_BASE`, `PATH`, `SOURCE` + `PORT`, `COMPOSE_PROJECT_NAME` |
-
-## Notes
-
-- All operations are **idempotent and reversible** except branch deletion via `remove` (which checks for unmerged commits).
-- Secrets never leave the machine: env copying is checkout → worktree on the same filesystem.
-- `status` normalizes the main checkout path in submodule repos before reporting health.
-- `clean` (no `--yes`) is the safe first pass - it lists removable worktrees + reclaimable disk without changing anything.
-- The script has **no machine-specific assumptions** - `git`, Node.js ≥18, standard library only.
-
-## Workflow position
-
-**Typically precedes:** `vd:cook` (implement in worktree), `vd:fix` (debug + fix in worktree), `vd:ship` (land from worktree).
-**Setup primitive** - creates the isolated filesystem + branch + runtime environment before any implementation work begins.

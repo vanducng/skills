@@ -14,24 +14,7 @@ metadata:
 
 The orchestration layer for browser e2e against locally running web apps. Three sibling skills already provide the primitives - `vd:browser-profile` (persistent logged-in Chrome, one deterministic CDP port per profile), `agent-browser` (drive pages over CDP via snapshot + `@e` refs), `vd:browser-trace` (read-only evidence capture on the same port). This skill sequences them per project: is the app up, is the session authenticated, run the flow, judge it with evidence.
 
-Why this composition works: agent-browser joins the stack in **connect mode** - `agent-browser connect <port>` attaches over CDP to the browser-profile Chrome, verified live to coexist with the persistent session, the human-shareable window, and a second read-only trace observer on the same port. Its `--profile` mode is the one to avoid here: that launches a separate Playwright-owned browser with none of those properties. `profile-attach.sh` is the only sanctioned attach path - it strips `AGENT_BROWSER_PROFILE` from the environment (a shell-rc export silently redirects "successful" commands to the wrong browser) and verifies `navigator.userAgent` after connecting, dying on `HeadlessChrome`.
-
-## What this skill is - and isn't
-
-| Skill | Role |
-|---|---|
-| `vd:browser-profile` | The session - named persistent profile, login survives across runs |
-| `agent-browser` | The hands - navigate, snapshot, click, fill over CDP (connect mode) |
-| `vd:browser-trace` | The eyes - network/console/screenshot evidence into `.o11y/` |
-| `vd:web-e2e` (this) | The playbook - per-project config, readiness, auth state, flows, verdicts |
-
-Alternatives: `vd:browser` (Browserbase `browse` CLI) is the remote escalation - cloud sessions with proxies, CAPTCHA solving, and Identity when a local flow hits anti-bot walls. Puppeteer-based chrome-devtools scripts work locally, but their persistence mechanisms don't share a window or port with the human or the tracer.
-
-## When to use
-
-- "Run the smoke flow against local", "e2e test the signup flow", "verify this change in the real app, logged in".
-- Apps where login is expensive or impossible to script - Google-OAuth-only logins make a persistent profile the *only* repeatable path.
-- Before shipping UI changes: drive the real flow with trace evidence instead of trusting unit tests.
+Why this composition works: `agent-browser` joins in **connect mode** (`agent-browser connect <port>`), verified live to coexist with the persistent session, the human-shareable window, and a read-only trace observer on the same port. Its `--profile` mode launches a separate Playwright-owned browser with none of those properties - avoid it. `profile-attach.sh` is the only sanctioned attach path (it strips `AGENT_BROWSER_PROFILE` and verifies the UA - see Workflow step 4 and Troubleshooting).
 
 **Not for:** server-side test suites (Pest/pytest/vitest - run them directly), cloud/anti-bot scraping (`vd:browser --remote`), or one-shot page checks with no auth (plain `agent-browser`).
 
@@ -48,7 +31,7 @@ Pinned at 0.27.2 - the surface validated here (positional screenshot path, `har 
 
 ## Quick start - zero config
 
-The user's core need first: a browser that remembers creds/cookies every time. No config file required.
+No config file required.
 
 ```bash
 BP="$(for d in "$HOME/skills/skills/browser-profile" "$HOME/.claude/skills/browser-profile" "$HOME/.agents/skills/browser-profile"; do [ -d "$d" ] && { echo "$d/scripts"; break; }; done)"
@@ -59,8 +42,6 @@ BP="$(for d in "$HOME/skills/skills/browser-profile" "$HOME/.claude/skills/brows
 agent-browser open https://myapp.test/dashboard
 agent-browser snapshot -i            # still logged in - today, tomorrow, next month
 ```
-
-Remember-me cookies live in the profile dir; with session-refresh on visit, weeks pass between logins.
 
 ## Make it repeatable - `.e2e/config.json`
 
@@ -167,13 +148,6 @@ Chrome ≥136 ignores `--remote-debugging-port` on the *default* profile dir - a
 
 ## Integration points
 
-- **`vd:browser-profile` / `agent-browser` / `vd:browser-trace`** - the substrate; this skill never reimplements them. `vd:browser` is the Browserbase-remote escalation when a flow hits anti-bot walls.
 - **`vd:worktree`** - `.e2e/config.json` with `${PORT}`/`${WORKTREE_NAME}` placeholders resolves against the worktree's `.env.worktree`, so each worktree runs its own e2e instance (own port, own profile) with no per-worktree config edits. See "One config per worktree" above.
 - **`vd:gopass`** - credential source for `form` and `token-inject` strategies.
 - **`vd:cook` / `vd:fix`** - use a flow run as the verification step after implementing or fixing UI-facing work.
-
-## Future (deliberately out of scope for MVP)
-
-- `e2e.cjs run <flow>` verb wrapping boot gate → batch → assertions (see Deterministic replay and CI).
-- Port the deterministic pieces to the `vd` CLI once the workflow proves out.
-- Cross-platform Chrome paths (inherits browser-profile's macOS-first stance).

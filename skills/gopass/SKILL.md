@@ -12,13 +12,6 @@ metadata:
 
 Local password store wrapped around GPG. Secrets live as encrypted files in a git repo and decrypt on demand. The user has it installed and initialized - commands "just work" on this machine.
 
-## When to use
-
-- Task needs an API key / token / password and the user mentions it's "in gopass" or "in the password store"
-- Before asking the user to paste a secret, check if the store has it (`gopass find <keyword>`)
-- Setting up env vars for a script that needs credentials
-- Adding a new secret the user wants stored
-
 ## Core commands
 
 ### Read
@@ -61,9 +54,7 @@ gopass otp -c <path>              # copy TOTP to clipboard
 
 ## Patterns Claude should use
 
-### Capture a secret into a script env var
-
-Always use `-o` (password only) to avoid leaking the key:value metadata, and prefer command substitution over writing to disk:
+Always use `-o` (password only) to capture a secret, and prefer command substitution over writing to disk:
 
 ```bash
 export OPENAI_API_KEY="$(gopass show -o personal/ai/openai)"
@@ -75,23 +66,7 @@ For a one-shot subprocess with multiple secrets, `gopass env` injects them witho
 gopass env personal/ai -- python my_script.py
 ```
 
-### Find before asking
-
-When unsure of the exact path, search first:
-
-```bash
-gopass find openai      # → personal/ai/openai
-gopass find github      # → personal/github/access-token
-```
-
-If nothing matches, then ask the user.
-
-### Extract a structured field
-
-```bash
-gopass show work/some-service username     # just the username field
-gopass show work/some-service               # everything (password + fields)
-```
+Before asking the user to paste or type a secret, `gopass find <keyword>` to discover the exact path; only ask if nothing matches. `gopass show <path> <key>` pulls one structured field (see Read above).
 
 ## Safety rules
 
@@ -109,16 +84,8 @@ gopass show work/some-service               # everything (password + fields)
 | `Decryption failed` | gpg-agent stuck | `gpgconf --kill gpg-agent && gpg-agent --daemon` |
 | `Inappropriate ioctl for device` | no TTY for passphrase | run from an interactive terminal, not a pipe |
 | `no secret key` | gpg key missing on this machine | escalate - only the user can import it |
-| sync conflict | concurrent edits | `cd "$(gopass config path)" && git status` then resolve |
-
-## Discovery
-
-```bash
-gopass ls                         # see what's available
-gopass config                     # store path, recipients, settings
-gopass recipients                 # GPG keys that can decrypt
-gopass doctor                     # health check
-```
+| sync conflict | concurrent edits | `cd "$(gopass config mounts.path)" && git status` then resolve |
+| anything else off | store health / settings drift | `gopass doctor`; `gopass config` prints store settings incl. the path (`mounts.path`) |
 
 ## References
 

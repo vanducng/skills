@@ -16,10 +16,6 @@ Uses the [`vanducng/jira-cli`](https://github.com/vanducng/jira-cli) fork, which
 jira issue comment add --help | rg -- '--image'
 ```
 
-## Scope
-
-Handles Jira issue lookup, creation, updates, transitions, assignment, comments, and sprint operations. Does not manage non-Jira work trackers or expose credentials and private company conventions.
-
 ## Invocation Flags
 
 ```text
@@ -57,27 +53,12 @@ For Bug and Task creation, keep the ticket direct:
 
 ## Instance Rules (MANDATORY - load before writes)
 
-After selecting the Jira instance, read its rules before drafting or executing any write:
-
-```text
-~/.config/vd/jira-rules/<instance>.jira-rules.md
-```
-
-One file per Jira instance, named for that instance (`<instance>.jira-rules.md`). These rules are authoritative for issue-type mapping, assignee, sprint, parent, initial status, and ticket content. Resolve dynamic values such as `me`, the current active sprint, and transition IDs from Jira before showing the proposed payload.
-
-If the requested type is not a native Jira issue type, use the rule's Jira type and labels. Explicit user instructions override the rule file; state the override. If no rule file exists, continue with the base safety protocol and tell the user that no instance defaults were applied.
-
-## Activation Triggers
-
-Activate when user mentions:
-- Issue keys (e.g., PROJ-45, ABC-123)
-- Keywords: jira, ticket, issue, sprint, backlog, board, epic
-- Actions: create ticket, move to done, assign, check status
+One file per Jira instance at `~/.config/vd/jira-rules/<instance>.jira-rules.md`, authoritative for issue-type mapping, assignee, sprint, parent, initial status, and ticket content. Resolve dynamic values (`me`, the current active sprint, transition IDs) from Jira before showing the proposed payload. If the requested type is not a native Jira type, use the rule's Jira type and labels. Explicit user instructions override the rule file - state the override. No rule file → continue with the base safety protocol and tell the user no instance defaults were applied.
 
 ## Safety Protocol (MANDATORY)
 
 1. **Read before write** - always fetch current state before modifications
-2. **Show before execute** - display proposed changes, get approval for writes
+2. **Show before execute** - display proposed changes (every rule-derived field), get approval (`AskUserQuestion` in Claude Code; plain-text question elsewhere)
 3. **Verify after execute** - confirm the operation succeeded
 4. **No bulk changes** without explicit user approval
 5. **Never transition** without checking available transitions first
@@ -101,9 +82,7 @@ jira issue create -tBug -s"Summary" -b"Description" -yHigh
 jira issue create -tTask -s"Summary" -a$(jira me) --no-input
 ```
 
-**Multi-line descriptions:** Write to `/tmp` first, then use `-b"$(cat /tmp/jira_body.md)"`.
-
-**Structured descriptions:** Use REST API with Atlassian Document Format (ADF), not CLI `-b`, when headings/lists need to render cleanly. Paragraphs containing `- item` render as plain text; native `heading` and `bulletList` nodes render correctly.
+**Multi-line descriptions:** Write to `/tmp` first, then use `-b"$(cat /tmp/jira_body.md)"`. When headings/lists must render cleanly, use the REST ADF pattern below instead of CLI `-b`.
 
 **CRITICAL - Underscore escaping bug:** The `jira` CLI escapes `_` to `\_` in descriptions, breaking code blocks. After creating/editing an issue with code snippets or underscored identifiers, ALWAYS update the description via REST API:
 ```bash
@@ -125,37 +104,20 @@ jira issue link ISSUE-1 ISSUE-2 Relates      # Link issues
 
 ### Follow-up Comments and Board Columns
 
-Read [`references/follow-up.md`](references/follow-up.md) before posting an evidence update with JSON/code or native mentions, or when the user names a board column such as review, QA, or staging instead of an exact workflow status.
-
-- Use REST v3 ADF for native bullets, `codeBlock`, and `mention`; plain `@Display Name` does not prove the user was mentioned.
-- Resolve board column to status IDs, then status ID to an available issue transition. Never assume the column label is the status name.
-- Show the resolved comment and column/status/transition mapping before writing, then re-read the stored ADF and resulting issue status.
+Read [`references/follow-up.md`](references/follow-up.md) before posting an evidence update with JSON/code or native mentions, or when the user names a board column (review, QA, staging) instead of an exact workflow status. It carries the REST v3 ADF recipes (plain `@Display Name` does not notify) and the board-column → status-ID → available-transition resolution - never assume the column label is the status name.
 
 ### REST ADF Description Pattern
-Use this for clean Jira descriptions with sections and bullets:
+Use this for clean Jira descriptions with sections and bullets (CLI `-b` paragraphs containing `- item` render as plain text):
 ```bash
-payload=$(jq -n '{
-  fields: {
-    description: {
-      type: "doc",
-      version: 1,
-      content: [
-        {type: "heading", attrs: {level: 3}, content: [{type: "text", text: "Goal"}]},
-        {type: "paragraph", content: [{type: "text", text: "Make staging and production consistent."}]},
-        {type: "heading", attrs: {level: 3}, content: [{type: "text", text: "Scope"}]},
-        {type: "bulletList", content: [
-          {type: "listItem", content: [{type: "paragraph", content: [{type: "text", text: "Add production deploy path."}]}]}
-        ]}
-      ]
-    }
-  }
-}')
+payload=$(jq -n '{fields:{description:{type:"doc",version:1,content:[
+  {type:"heading",attrs:{level:3},content:[{type:"text",text:"Goal"}]},
+  {type:"paragraph",content:[{type:"text",text:"…"}]},
+  {type:"bulletList",content:[{type:"listItem",content:[{type:"paragraph",content:[{type:"text",text:"…"}]}]}]}
+]}}}')
 curl -sS -X PUT "${JIRA_BASE_URL}/rest/api/3/issue/<KEY>" \
   -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
-  -H "Accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d "$payload" \
-  -w "\nHTTP %{http_code}\n"
+  -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d "$payload" -w "\nHTTP %{http_code}\n"
 ```
 
 ### Other
@@ -168,58 +130,15 @@ jira board list                              # List boards
 
 ## When to Load Full References
 
-Load `references/commands.md` for:
-- Multi-line issue creation with templates
-- Advanced filtering (labels, priority, date ranges, pagination)
-- Sprint management (add to sprint, close sprint)
-- Issue linking
-- Complex JQL queries
-
-Load `references/jql.md` for:
-- JQL syntax, operators, functions
-- Relative dates, ordering
-- Complex query examples
-
-Load `references/follow-up.md` for:
-- Evidence-based completion or release updates
-- Structured comments with JSON/code blocks or native mentions
-- Reporter mentions
-- Requests expressed as board columns rather than workflow statuses
-
-Load `references/inline-images.md` **before any image write** (issue description or comment):
-- Rendering remote or locally uploaded images inline
-- Choosing readable ADF media or compact CLI thumbnails
-- Verifying stored layout, dimensions, and media identity
+- `references/commands.md` - multi-line creation templates, advanced filtering (labels, priority, dates, pagination), sprint add/close, issue linking, complex JQL.
+- `references/jql.md` - JQL syntax, operators, functions, relative dates, ordering.
+- `references/follow-up.md` and `references/inline-images.md` are announced at their point of use above.
 
 **Skip references** for simple view/list/assign operations - use quick reference above.
 
-## Workflow: Write Operations
-
-```
-1. Load instance rules    → ~/.config/vd/jira-rules/<instance>.jira-rules.md
-2. Fetch current state    → issue, active sprint, parent, transitions
-3. Show proposed change   → Include every rule-derived field
-4. Get user approval      → AskUserQuestion (Claude Code; plain-text question elsewhere)
-5. Execute command        → Run jira CLI or REST API
-6. Verify result          → Re-read every changed field
-```
-
 ## Attachments
 
-**Default for every provided screenshot or diagram:** inline ADF in the issue **description** on create, and in the **comment** on follow-up. Uploading a file and stopping is incomplete.
-
-### Inline local image
-
-Use a REST v3 ADF `mediaSingle` node. Set `layout` to `align-start`, `width` to `100`, and `widthType` to `percentage`, while keeping the source dimensions on the media node. Media dimensions alone still render at Jira's default 50% width. The CLI `--image` path renders a centered 200 px thumbnail; do not use it for ticket evidence.
-
-### Inline images in descriptions and comments
-
-- **Public URL:** Comments: Markdown `![alt](url)` via `jira issue comment add`. Descriptions: ADF `media` with `type: external` (Markdown in a v3 description is literal text).
-- **Readable local image (required default):** Upload the attachment, resolve its Media Services UUID, then put a REST v3 ADF `mediaSingle` in the description or comment. Left-aligned, 100% width.
-- **Existing attachment:** Reuse its Media Services UUID. Do not upload a duplicate.
-- **Quick local thumbnail:** `jira issue comment add ISSUE-KEY "Quick evidence" --image /path/to/flow.png` only when a small preview is acceptable and the user does not need to read the image in-body.
-
-Never put the numeric attachment ID in an ADF `media` node; it causes `ATTACHMENT_VALIDATION_ERROR`. Never call Jira's private Media API. See [`references/inline-images.md`](references/inline-images.md) for creation, repair, and verification commands.
+**Default for every provided screenshot or diagram:** inline ADF in the issue **description** on create and in the **comment** on follow-up - uploading a file and stopping is incomplete. Method selection (public URL, readable local `mediaSingle`, reuse existing attachment, quick thumbnail, repair) is the decision table in [`references/inline-images.md`](references/inline-images.md); it also carries the layout rules (`align-start`, width `100`, `widthType: percentage` - media dimensions alone still render at Jira's default 50% width) and the never-put-the-numeric-attachment-ID-in-a-`media`-node rule. The CLI `--image` path renders a centered 200 px thumbnail - not for ticket evidence.
 
 ## REST API Version Notes
 
@@ -243,7 +162,7 @@ Never put the numeric attachment ID in an ADF `media` node; it causes `ATTACHMEN
 
 ## Known CLI Issues
 
-- Upstream/Homebrew `jira-cli` 1.7.0 does not support `--image`; confirm PATH resolves the `vanducng/jira-cli` build
+- Upstream/Homebrew `jira-cli` builds do not support `--image`; if the check at the top of this skill prints nothing, reinstall the `vanducng/jira-cli` fork
 - The fork's `--image` output is a centered 200 px ADF thumbnail; use the structured ADF workflow for readable screenshots and diagrams
 - `jira project list` may fail with shell escaping errors - use `jira issue list` or REST API instead
 - `jira me` and `jira issue create/view` work reliably

@@ -6,7 +6,7 @@ category: utilities
 keywords: [disk, cleanup, space, cache, mac, macos, prune, storage]
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Computer Clean - macOS Disk Cleanup
@@ -51,25 +51,6 @@ du -sh ~/.cache/* 2>/dev/null | sort -rh | head -15
 du -sh ~/Library/Developer/Xcode/{DerivedData,Archives,iOS\ DeviceSupport} 2>/dev/null
 ```
 
-### Git worktree audit (developers)
-
-Discover worktree roots read-only under existing development roots, then inspect each repository with `vd:worktree`:
-
-```bash
-for root in "$HOME/git" "$HOME/code" "$HOME/src" "$HOME/projects" \
-           "$HOME/worktrees" "$HOME/Worktrees" "$HOME/repos" "$HOME/dev"; do
-  [ -d "$root" ] || continue
-  find "$root" -maxdepth 8 -type d \
-    \( -name .worktrees -o -name worktrees \
-       -o -path '*/.claude/worktrees' -o -path '*/.dmux/worktrees' \) \
-    -print 2>/dev/null
-done
-```
-
-For the canonical registration per repo (including worktrees not co-located under a directory named `worktrees`), use `git -C "$repo" worktree list --porcelain`. Do not grep or `find` for a literal `.git/worktrees` path - the `scout-block` hook denies any Bash command matching `(^|/)\.git(/|$)` to protect the context window.
-
-Run `node "$HOME/skills/skills/worktree/scripts/worktree.cjs" clean` from each repository root. It is a dry run unless `--yes` is supplied, reports branch state and reclaimable size, and skips dirty worktrees unless `--force` is supplied.
-
 ## Phase 2 - Classify
 
 Bucket discovered items by risk.
@@ -94,13 +75,6 @@ Standard regenerable caches. Apply only if path exists.
 | Old JetBrains caches (>1yr) | `rm -rf ~/Library/Caches/JetBrains/*<old-year>*` |
 | App auto-updaters | `~/Library/Caches/*ShipIt*`, `~/Library/Caches/*.updater` |
 | Xcode `DerivedData` | `rm -rf ~/Library/Developer/Xcode/DerivedData` (rebuilds on next compile) |
-
-### 🟡 Git worktrees (project data) - confirm by cleanup mode
-
-- Merged into the repository base: eligible for `clean merged` after a fresh dry run.
-- Gone from the remote: eligible only for `clean all`; local-only commits may remain.
-- Dirty worktrees: always skip; inspect and approve each path before any forced removal.
-- Prunable Git metadata: report separately; it may reclaim no checkout space.
 
 ### 🟡 Review (user data, easy wins - confirm each)
 
@@ -132,15 +106,6 @@ Present a single summary table (path · size · bucket) and ask:
 2. For 🟡: which to keep / delete?
 3. For each 🔴: is the underlying app still in use? Run dependency checks (Phase 4) before approval.
 
-For worktrees, accept these reusable approval aliases:
-
-| User phrase | Action | Scope |
-|---|---|---|
-| `clean merged` or `clean merge` | `worktree.cjs clean --merged --yes` | Clean worktrees whose branches are merged into base |
-| `clean all` | `worktree.cjs clean --yes` | Clean merged and stale/gone-from-remote worktrees; still skip dirty worktrees |
-
-Always show the dry-run candidates and total size before applying either alias. Never infer approval for dirty paths from `clean all`.
-
 ## Phase 4 - Execute
 
 ### App-quit guard
@@ -149,19 +114,6 @@ Before deleting any app's data dir, quit the app cleanly:
 ```bash
 osascript -e 'quit app "<App Name>"' 2>/dev/null; sleep 1
 ```
-
-### Git worktree cleanup
-
-Use `vd:worktree` commands from each repository root. Do not use `rm -rf` on a worktree. Refresh the dry run immediately before execution, pass `--yes` only after the matching approval alias, and never pass `--force` unless the user explicitly names the dirty worktree.
-
-Before removing each candidate, check for active agent processes and open files:
-
-```bash
-ps -axo pid=,command= | rg -F "$WT" || true
-lsof -nP +D "$WT" 2>/dev/null | head -50
-```
-
-If either command finds a process, stop and ask the user to close it. Do not kill agent processes automatically.
 
 ### Container engine migration (generic)
 
@@ -207,7 +159,7 @@ find ~/Library/Group\ Containers/*.groups.com.apple.podcasts \
 
 ### Files older than N months
 
-Always **preview first** with `find … -print` before adding `-delete`. Show total size before deleting. Skip if <100MB total unless user insists. **Never** blanket-delete `~/Documents`, `~/Pictures`, `~/Movies`, or iCloud-synced paths.
+Always **preview first** with `find … -print` before adding `-delete`. Show total size before deleting. Skip if <100MB total unless user insists. **Never** blanket-delete `~/Documents`, `~/Pictures`, `~/Movies`, or iCloud-synced paths, and never delete anything under `~/git`/`~/code`/`~/src`/`~/projects` without explicit per-path approval.
 
 ## Phase 5 - Verify
 
@@ -222,22 +174,28 @@ Report: GB freed, before/after free space, residual >5GB items the user declined
 
 ---
 
+## Git worktrees (🟡 project data - defer to vd:worktree)
+
+Discover roots read-only:
+
+```bash
+for root in "$HOME/git" "$HOME/code" "$HOME/src" "$HOME/projects" \
+           "$HOME/worktrees" "$HOME/Worktrees" "$HOME/repos" "$HOME/dev"; do
+  [ -d "$root" ] || continue
+  find "$root" -maxdepth 8 -type d \
+    \( -name .worktrees -o -name worktrees \
+       -o -path '*/.claude/worktrees' -o -path '*/.dmux/worktrees' \) -print 2>/dev/null
+done
+```
+
+For per-repo registration (including worktrees not co-located under a directory named `worktrees`), use `git -C "$repo" worktree list --porcelain`. Do not grep or `find` for a literal `.git/worktrees` path - the `scout-block` hook denies any Bash command matching `(^|/)\.git(/|$)`.
+
+All cleanup runs through `vd:worktree` (`node "$HOME/skills/skills/worktree/scripts/worktree.cjs" clean` from each repository root) - never `rm -rf` a worktree. Flags and semantics (dry run by default, `--yes`, `--merged`, `--force` and its dirty-worktree skip) are vd:worktree's to consult; the approval aliases are `clean merged` → `clean --merged --yes` and `clean all` → `clean --yes`. Always show the dry-run candidates and total size before applying either alias, and never infer approval for dirty paths from `clean all`. Before removing each candidate, check for active processes and open files (`ps -axo pid=,command= | rg -F "$WT"`, `lsof -nP +D "$WT"`); if either finds one, stop and ask the user to close it - never kill agent processes.
+
 ## Hard rules
 
-1. **Discover, don't assume.** Inspect the machine first - don't pre-supply paths that may not exist. Skip silently when paths are absent.
-2. **Never** delete `~/Documents`, `~/Pictures`, `~/Movies`, iCloud Drive, or anything under `~/git`/`~/code`/`~/src`/`~/projects` without explicit per-path approval.
+1. **Never** wipe browser profiles. Bookmarks, sessions, history, extensions, saved passwords live there.
+2. **Never** use `sudo` to bypass file locks. If a tool's cache is locked (e.g., `uv`, `pnpm`), kill the stuck process first.
 3. **Never** delete an app's `Application Support` while the app is running - quit it first.
-4. **Never** wipe browser profiles. Bookmarks, sessions, history, extensions, saved passwords live there.
-5. **Never** use `sudo` to bypass file locks. If a tool's cache is locked (e.g., `uv`, `pnpm`), kill the stuck process first.
-6. **Container engines:** before deleting one engine's VM, verify the user has migrated to another via `docker context ls`, `kubectl config get-contexts`, and shell rc grep. State the migration target explicitly to the user.
-7. **Surface skipped items** at the end so user can decide later - don't silently leave reclaimable space on the table.
-8. **Adapt to what's there.** macOS evolves; new caches appear (LLM tool caches, Playwright/Cypress, Hugging Face, Ollama models). Apply the regenerable-cache heuristic: if it's recreated automatically on next use, it's 🟢.
-
-## When to suggest `vd:computer-clean` proactively
-
-End the message with a one-line offer when you notice:
-- `df -h` capacity ≥ 85%
-- Build/test failures with "no space left on device"
-- User mentions "slow Mac", "running out of space", "can't update macOS", "Time Machine full"
-
-Never auto-execute without confirmation.
+4. **Surface skipped items** at the end so user can decide later - don't silently leave reclaimable space on the table.
+5. **Adapt to what's there.** macOS evolves; new caches appear (LLM tool caches, Playwright/Cypress, Hugging Face, Ollama models). Apply the regenerable-cache heuristic: if it's recreated automatically on next use, it's 🟢.

@@ -39,12 +39,22 @@ max_tokens=2000000
 max_wallclock="4h"
 restart_pct=70
 mode="run"
+mode_flag=""
+
+set_mode() {
+  if [[ -n "$mode_flag" ]]; then
+    echo "dispatch: $1 conflicts with earlier $mode_flag (modes are mutually exclusive)" >&2
+    exit 2
+  fi
+  mode="$2"
+  mode_flag="$1"
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --status)        mode="status"; shift ;;
-    --cancel)        mode="cancel"; shift ;;
-    --codex)         mode="codex";  shift ;;
+    --status)        set_mode "$1" status; shift ;;
+    --cancel)        set_mode "$1" cancel; shift ;;
+    --codex)         set_mode "$1" codex;  shift ;;
     --verify)        verify="${2:-}"; shift 2 ;;
     --goal-file)     goal_file="${2:-}"; shift 2 ;;
     --max-iterations) max_iter="${2:-40}"; shift 2 ;;
@@ -63,6 +73,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 # --- Mutually exclusive flag check ---
+if [[ "$mode" != "run" && "$mode" != "codex" && -n "$goal" ]]; then
+  echo "dispatch: positional <goal> cannot combine with --$mode" >&2
+  exit 2
+fi
+
 case "$mode" in
   status) bash "$SCRIPT_DIR/status-reader.sh" "$WS"; exit $? ;;
   cancel) bash "$SCRIPT_DIR/cancel-loop.sh"   "$WS"; exit $? ;;

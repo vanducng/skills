@@ -5,26 +5,14 @@ license: MIT
 argument-hint: "[path] [--report | --fix] [--group <1-4|name>]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Agent Readiness
 
 > An agent's effectiveness in a repo is capped by what the repo lets it verify. Score the affordances, not the code quality.
 
-## What this skill is - and isn't
-
-| Skill | Question it answers | Output |
-|---|---|---|
-| **`vd:agent-readiness`** (this) | "How well can an AI agent work in this repo, and what is missing?" | A scored report; optionally safe additive fixes plus a proposal list |
-| `vd:docs` | "Are the shared `./docs/` files true and current?" (`site` subcommand: "How do we publish a public docs site?") | Written docs content / a Starlight site |
-| `vd:scout` | "Where does X live in this repo?" | A file map, no writes |
-| `vd:simplify --aggressive` | "What would this change look like if the architecture existed from day one?" | A refactored diff |
-| `vd:skill-creator` | "How do I author a skill an agent reliably loads?" | A `SKILL.md` |
-
-This skill **measures and remediates affordances**. It may create a scaffold (an `AGENTS.md`, an
-`ARCHITECTURE.md`) only when the repo's own evidence fills it enough to pass the signal, then hands the prose
-to the owning skill. It never writes the architecture narrative, and never refactors code to raise a score.
+This skill **measures and remediates affordances**. It may create a scaffold (an `AGENTS.md`, an `ARCHITECTURE.md`) only when the repo's own evidence fills it enough to pass the signal, then hands the prose to the owning skill (`vd:docs`, `vd:skill-creator`). It never writes the architecture narrative, and never refactors code to raise a score (`vd:simplify --aggressive`; `vd:scout` for locating code).
 
 ## Hard rules
 
@@ -122,55 +110,11 @@ is no Level 6. Report the raw percentage alongside the level so progress within 
 3. It changes **no runtime behaviour**.
 4. **No build, CI, dependency, or runtime tool acts on the new file.** It fails this condition when an existing local or remote **tool** discovers it by path and then *does something*: executes code, gates a merge, requests reviewers, opens PRs, switches an interpreter, or joins a run. `CODEOWNERS` requests reviewers, a `dependabot.yml` opens scheduled PRs, a `.github/workflows/*.yml` runs on the next push, a `.nvmrc`/`.python-version`/`.tool-versions` switches the interpreter for everyone, and a linter config at a discovered path joins the next lint run.
 
-**Read-only-document carve-out.** A file that only a human or an agent *reads* passes condition 4 even
-though it is auto-discovered: instruction files (`AGENTS.md`, `CLAUDE.md`), PR and issue templates, docs
-stubs. Nothing executes them, nothing gates on them, no build changes. An instruction file does change
-future *agent* behaviour - that is the fix's entire intent, not a side effect to guard against - and the
-stub rule below keeps it honest: evidence-filled, never hollow.
+**Read-only-document carve-out:** a file only a human or agent *reads* passes condition 4 even though auto-discovered - instruction files (`AGENTS.md`, `CLAUDE.md`), PR and issue templates, docs stubs. Nothing executes or gates on them; that they change future *agent* behaviour is the fix's intent, not a side effect. The guard is the **stub rule:** an auto-applied stub must already satisfy its signal (real resolved commands, real top-level directory names, over the 100-character floor); a hollow skeleton (`# Architecture` + `TODO`) fails its own content clause and violates rule 5, so it is propose-only - hand the writing to `vd:docs` or `vd:skill-creator`.
 
-Qualifying categories, all four checked: a dead-code or duplicate-code tool config plus a standalone runner
-script nothing yet calls, a marker scanner script, and the read-only documents above. Categories failing
-condition 4: CI workflow files, review and dependency automation config, runtime-version selectors. Every
-per-signal classification lives on the `Fix:` line in `references/signals.md` (rule 7), never a list here.
+**Propose only (never auto-apply):** editing or reformatting an existing file (a tree-wide reformat buries the next diff), changing runtime behaviour, gating CI or blocking merges, adding a dependency, lowering or disabling an existing check, a `warn` rule in a warnings-as-errors repo, a new file a tool acts on (CI workflows, review and dependency automation, runtime-version selectors), an unfilled stub, and repo metadata or remote changes (branch protection, labels, enabling scanning - outside the working tree, often irreversible without admin). Every per-signal classification lives on the `Fix:` line in `references/signals.md` (rule 7), never a list here. Present proposals as a concrete diff or a checklist the user approves item by item.
 
-**Stub rule.** A generated stub may be auto-applied only when it already satisfies the signal it targets -
-real resolved commands, real top-level directory names, over the 100-character floor. A hollow skeleton
-(`# Architecture` + `TODO`) fails its own signal's content clause and violates rule 5, so it is
-propose-only; hand the writing to `vd:docs` or `vd:skill-creator`.
-
-**Propose only (never auto-apply).** Any one of these disqualifies a fix:
-
-| Category | Why it is not safe |
-|---|---|
-| Editing or reformatting an existing file | Overwrites a maintainer decision; a tree-wide reformat buries the next diff |
-| Changing runtime behaviour | A readiness score is not worth a production incident |
-| Gating CI or blocking merges | Turns a pre-existing gap into a broken build for everyone |
-| Adding a dependency | Supply-chain and maintenance cost the user must weigh |
-| Lowering or disabling an existing check | Reduces real safety to raise a number |
-| A new file a build, CI, dependency, or runtime tool acts on | Takes effect on creation - condition 4. A file only a human or agent reads is carved out |
-| A `warn`-severity rule in a repo that treats warnings as errors | The advisory rule is a build failure there |
-| A stub the repo cannot fill from real evidence | Fails the signal it targets and games it - rule 5 |
-| Repo metadata or remote changes (branch protection, labels, enabling scanning) | Outside the working tree; often irreversible without admin |
-
-Present proposals as a concrete diff or a checklist the user approves item by item.
-
-**After fixing:** run the repo's own commands (test, lint, build) in its declared environment, report
-exactly what was run and the result, then re-score that branch per rule 6. When the commands cannot be run
-(tooling absent or execution not permitted), say so and report which fixes are therefore unverified; never
-claim a green run you did not observe.
-
-## Anti-patterns
-
-- **Running the full test suite to score `test_command_runnable`.** Slow, can mutate state, and conflates "the command works" with "the tests pass". Use a collection-only or dry-run flag.
-- **Hardcoding one stack's evidence.** The original rubric checked `tsconfig.json` strict and `[tool.black]` with no fallback, so Go, Rust, and PHP repos matched no rule and the scoring improvised. Every criterion needs its per-language clauses (`references/stacks/`) plus a catch-all.
-- **Auto-applying a formatter.** Passes `format_check_available` and rewrites blame for the whole tree.
-- **Creating an `AGENTS.md` with a heading and a TODO.** Fails its own 100-character floor and teaches an agent nothing. A stub earns auto-apply only when generated content already passes the signal.
-- **Treating "it is a new file" as "nothing acts on it".** `CODEOWNERS`, `dependabot.yml`, a workflow file, and `.nvmrc` all act the moment they land. Condition 4 exists because of this - and it is about tools acting, not about a document being read.
-- **Scoring a signal on a live API result.** The same commit must score the same with a token and without one. CI durations and status checks are observations in the rationale, never score inputs.
-- **Scoring against the host.** A missing binary is not a repo gap, and a token without API access is not a skippable signal.
-- **Scoring app-scope signals against the root only.** Root-only instructions in a 6-app monorepo are 1/6, not 1/1. Collapsing that hides exactly the gap the user is asking about.
-- **Reporting a projected score.** Only a re-run counts.
-- **Rewriting the rubric mid-run.** Adjusting a criterion because the repo fails it turns the score into an opinion.
+**After fixing:** run the repo's own commands (test, lint, build) in its declared environment, report exactly what was run and the result, then re-score that branch per rule 6. When the commands cannot be run (tooling absent or execution not permitted), say so and report which fixes are therefore unverified; never claim a green run you did not observe.
 
 ## Rationalizations to catch
 
@@ -189,17 +133,3 @@ claim a green run you did not observe.
 | "PHP/Go isn't in the rubric, so I'll approximate" | `references/stacks/` holds a file per stack, eight of them, plus a catch-all clause per criterion. Use it. |
 | "There's no stack file for this language, so skip its signals" | Rule 3. Score them on the catch-all and report the gap; skipping inflates the rate. |
 | "Branch protection would fix three signals at once" | A remote change. Propose it; never apply it. |
-
-## Workflow position
-
-```
-"is this repo agent-ready?"
-        ↓
-vd:agent-readiness --report  →  scored report + ranked gaps
-        ↓ (--fix)
-branch per group → safe fixes applied → proposals for approval
-        ↓
-re-score per branch (real, not projected)  →  vd:code-review  →  vd:ship
-        ↓
-hand off writing: vd:docs (architecture, guidelines) · vd:skill-creator (skills/)
-```

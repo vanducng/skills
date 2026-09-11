@@ -1,6 +1,6 @@
 # Browser Automation CLI Reference
 
-Technical reference for the `browse` CLI tool (`@browserbasehq/browse-cli`), used here for Browserbase remote sessions only. The bare `browse` package on npm is a different CLI.
+Technical reference for the `browse` CLI tool (`@browserbasehq/browse-cli`), validated against 0.6.0 and used here for Browserbase remote sessions. The bare `browse` package on npm is a different CLI.
 
 ## Table of Contents
 
@@ -13,8 +13,9 @@ Technical reference for the `browse` CLI tool (`@browserbasehq/browse-cli`), use
   - [JavaScript Evaluation](#javascript-evaluation)
   - [Viewport](#viewport)
   - [Network Capture](#network-capture)
+  - [CDP Streaming](#cdp-streaming)
 - [Configuration](#configuration)
-  - [Global Flags](#global-flags)
+  - [Remote Session Flags](#remote-session-flags)
   - [Environment Variables](#environment-variables)
 - [Error Messages](#error-messages)
 
@@ -23,7 +24,8 @@ Technical reference for the `browse` CLI tool (`@browserbasehq/browse-cli`), use
 The browse CLI is a **daemon-based** command-line tool:
 
 - **Daemon process**: A background process manages the browser instance. Auto-starts on the first command (e.g., `browse open`), persists across commands, and stops with `browse stop`.
-- **Remote sessions** (Browserbase): `browse open <url> --remote` connects to a Browserbase cloud session; Browserbase is also the default when `BROWSERBASE_API_KEY` is set. Use `browse open <url> --cdp <connectUrl>` to attach to a session created with `browse cloud sessions create`.
+- **Environment selection**: `browse env` shows the current environment; `browse env remote` switches to Browserbase (requires `BROWSERBASE_API_KEY`), `browse env local` to an isolated local browser. With the API key set, remote is the default desired mode. There is no per-command `--remote` flag in 0.6.x.
+- **Attaching to existing targets**: `browse --connect <session-id>` connects the daemon to an existing Browserbase session by ID; `browse --ws <url|port>` points commands at a specific CDP WebSocket URL or port, bypassing the daemon's managed target.
 - **Accessibility-first**: Use `browse snapshot` to get the page's accessibility tree with element refs, then interact using those refs.
 
 Local browser driving is out of scope for this skill - use the `agent-browser` skill for local Chrome.
@@ -40,29 +42,23 @@ Navigate to a URL. Auto-starts the daemon if not running.
 browse open https://example.com
 browse open https://example.com --wait networkidle   # wait for all network requests to finish (useful for SPAs)
 browse open https://example.com --wait domcontentloaded
+browse open https://example.com --timeout 60000      # navigation timeout in ms (default 30000)
 ```
 
 The `--wait` flag controls when navigation is considered complete. Values: `load` (default), `domcontentloaded`, `networkidle`. Use `networkidle` for JavaScript-heavy pages that fetch data after initial load.
 
 ##### Context persistence (remote mode only)
 
-Create a Browserbase session with `browse cloud sessions create --context-id <id>`, then attach to its CDP endpoint with `browse open <url> --cdp <connectUrl>`. Add `--persist` to the cloud session if state changes should save back to the context.
-
 ```bash
-SESSION_JSON="$(browse cloud sessions create --context-id ctx_abc123 --persist --keep-alive)"
-SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
-CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
-
-browse open https://example.com --cdp "$CONNECT_URL"
-# ...interact with the page...
-browse stop
-browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE
+browse open https://app.example.com/login --context-id ctx_abc123 --persist
+# ...log in inside the session...
+browse stop                              # state saves back to ctx_abc123
 ```
 
-- `--context-id <id>` - Browserbase context ID to load when creating the cloud session.
-- `--persist` - Save cookies/storage changes back to the context when the Browserbase session is released. Requires `--context-id`.
-- `--keep-alive` - Keep the Browserbase session alive while the local browse daemon attaches and detaches.
-- After `browse open ... --cdp "$CONNECT_URL"`, follow-up commands in that session do not repeat `--cdp`; the daemon remembers the attached target.
+- `--context-id <id>` - Browserbase context ID whose saved browser state (cookies, storage) the session loads at start.
+- `--persist` - save cookies/storage changes back to the context when the session ends. Requires `--context-id`.
+
+Later sessions with the same `--context-id` start already authenticated; omit `--persist` when you don't want further changes written back.
 
 #### `reload`
 
@@ -91,28 +87,31 @@ Get the accessibility tree with interactive element refs. This is the primary wa
 
 ```bash
 browse snapshot
-browse snapshot --compact                # tree only, no ref maps
+browse snapshot --compact                # tree only, no xpath map
 ```
 
 Returns a text representation of the page with refs like `@0-5` that can be passed to `click`. Use `--compact` for shorter output when you only need the tree.
 
 #### `screenshot [path]`
 
-Take a visual screenshot. Slower than snapshot and uses vision tokens.
+Take a visual screenshot. Slower than snapshot and uses vision tokens. The path is **positional**.
 
 ```bash
-browse screenshot                        # print base64 JSON
-browse screenshot --path ./capture.png   # custom path
-browse screenshot --full-page            # capture entire scrollable page
+browse screenshot ./capture.png          # custom path
+browse screenshot ./page.png --full-page # capture entire scrollable page
+browse screenshot ./img.jpg --type jpeg --quality 80
 ```
+
+Other options: `--clip <json>` (region), `--no-animations`, `--hide-caret`.
 
 #### `get <property> [selector]`
 
-Get page properties. Available properties: `url`, `title`, `text`, `html`, `value`, `box`, `visible`, `checked`.
+Get page properties. Available properties: `url`, `title`, `text`, `html`, `markdown`, `value`, `box`, `visible`, `checked`.
 
 ```bash
 browse get url                           # current URL
 browse get title                         # page title
+browse get markdown                      # page content rendered as markdown
 browse get text "body"                   # all visible text (selector required)
 browse get text ".product-info"          # text within a CSS selector
 browse get html "#main"                  # inner HTML of an element
@@ -138,11 +137,14 @@ browse refs
 
 #### `click <ref>`
 
-Click an element by its ref from `browse snapshot` output.
+Click an element by its ref from `browse snapshot` output, or by CSS/XPath selector.
 
 ```bash
 browse click @0-5                        # click element with ref 0-5
+browse click "#submit"                   # click by CSS selector
 ```
+
+Options: `-b, --button <left|right|middle>`, `-c, --count <n>` (double-click with 2), `-f, --force` (synthetic click when the element has no layout).
 
 #### `click_xy <x> <y>`
 
@@ -172,13 +174,14 @@ browse type "human-like" --mistakes      # simulate human typing with typos
 
 #### `fill <selector> <value>`
 
-Fill an input element matching a CSS selector. Add `--press-enter` when Enter is needed.
+Fill an input element matching a CSS selector. **Presses Enter after filling by default.**
 
 ```bash
-browse fill "#search" "browser automation"
-browse fill "input[name=email]" "user@example.com"
-browse fill "#search" "query" --press-enter   # fill and press Enter
+browse fill "#search" "browser automation"          # fill and press Enter (submits)
+browse fill "input[name=email]" "user@example.com" --no-press-enter   # fill only
 ```
+
+Pass `--no-press-enter` on any field where an implicit submit would be wrong.
 
 #### `select <selector> <values...>`
 
@@ -187,6 +190,14 @@ Select option(s) from a dropdown.
 ```bash
 browse select "#country" "United States"
 browse select "#tags" "javascript" "typescript"    # multi-select
+```
+
+#### `upload <selector> <files...>`
+
+Upload file(s) to an `<input type="file">` element.
+
+```bash
+browse upload "#file-input" ./report.pdf
 ```
 
 #### `press <key>`
@@ -201,25 +212,24 @@ browse press Cmd+A                       # select all (Mac)
 browse press Ctrl+C                      # copy (Linux/Windows)
 ```
 
-#### `mouse scroll <x> <y> <deltaX> <deltaY>`
+#### `scroll <x> <y> <deltaX> <deltaY>`
 
 Scroll at a given position by a given amount.
 
 ```bash
-browse mouse scroll 500 300 0 -300       # scroll up at (500, 300)
-browse mouse scroll 500 300 0 500        # scroll down
+browse scroll 500 300 0 -300             # scroll up at (500, 300)
+browse scroll 500 300 0 500              # scroll down
 ```
 
-#### `mouse drag <fromX> <fromY> <toX> <toY>`
+#### `drag <fromX> <fromY> <toX> <toY>`
 
 Drag from one viewport coordinate to another.
 
 ```bash
-browse mouse drag 80 80 310 100                # drag with default 10 steps
-browse mouse drag 80 80 310 100 --steps 20     # more intermediate steps
-browse mouse drag 80 80 310 100 --delay 50     # 50ms between steps
-browse mouse drag 80 80 310 100 --button right # use right mouse button
-browse mouse drag 80 80 310 100 --return-xpath # return source/target XPaths
+browse drag 80 80 310 100                # drag with default 10 steps
+browse drag 80 80 310 100 --steps 20     # more intermediate steps
+browse drag 80 80 310 100 --delay 50     # 50ms between steps
+browse drag 80 80 310 100 --button right # use right mouse button
 ```
 
 #### `highlight <selector>`
@@ -228,7 +238,7 @@ Highlight an element on the page for visual debugging.
 
 ```bash
 browse highlight "#submit-btn"           # highlight for 2 seconds (default)
-browse highlight ".nav" -d 5000          # highlight for 5 seconds
+browse highlight ".nav" --duration 5000  # highlight for 5 seconds
 ```
 
 #### `is <check> <selector>`
@@ -242,13 +252,15 @@ browse is checked "#agree"               # returns { checked: true/false }
 
 #### `wait <type> [arg]`
 
-Wait for a condition.
+Wait for a condition. Types: `load`, `selector`, `timeout`.
 
 ```bash
 browse wait load                         # wait for page load
-browse wait "selector" ".results"        # wait for element to appear
+browse wait selector ".results"          # wait for element to appear
 browse wait timeout 3000                 # wait 3 seconds
 ```
+
+Options: `-t, --timeout <ms>` (default 30000), `-s, --state <visible|hidden|attached|detached>` for selector waits (default `visible`).
 
 ---
 
@@ -273,57 +285,36 @@ browse stop --force                      # force kill if daemon is unresponsive
 
 #### `status`
 
-Check whether the daemon is running, its connection details, and current environment.
+Check whether the daemon is running, its connection details, and current environment. `browse status --json` includes the live session's `wsUrl` (a signed Browserbase connect URL when in remote mode).
 
 ```bash
 browse status
+browse status --json
 ```
 
-#### Starting sessions with a mode flag
+#### `env [target]`
 
-Choose the browser target on the command that starts the session:
+Show or switch the browser environment.
 
 ```bash
-browse open https://example.com --remote
-browse open https://example.com --cdp "$CONNECT_URL"   # connectUrl from browse cloud sessions create
+browse env                               # show current environment
+browse env remote                        # use Browserbase (requires BROWSERBASE_API_KEY)
+browse env local                         # clean isolated local browser (default)
+browse env local --auto-connect          # auto-discover the user's local Chrome
+browse env local <port|url>              # attach to a specific CDP target
 ```
 
-- `--remote` starts a fresh Browserbase session; `--cdp <connectUrl>` attaches to one created explicitly (needed for contexts).
-- `browse status` shows the resolved mode and active target once the daemon is running.
-- `browse stop` closes the current daemon session; the next `browse open` chooses mode from its flags or environment.
+#### `pages` / `newpage` / `switch` / `close`
 
-#### `tab new [url]`
-
-Create a new tab, optionally navigating to a URL.
+Tab management.
 
 ```bash
-browse tab new                           # open blank tab
-browse tab new https://example.com       # open tab with URL
-```
-
-#### `tab list`
-
-List all open tabs.
-
-```bash
-browse tab list
-```
-
-#### `tab switch <index-or-target-id>`
-
-Switch to a tab by its index or target ID (from `browse tab list`).
-
-```bash
-browse tab switch 1
-```
-
-#### `tab close [index-or-target-id]`
-
-Close a tab. Closes current tab if no index given. The CLI refuses to close the last remaining tab.
-
-```bash
-browse tab close          # close current tab
-browse tab close 2        # close tab at index 2
+browse pages                             # list open tabs (index, url, targetId)
+browse newpage                           # open a blank tab
+browse newpage https://example.com       # open a tab with a URL
+browse switch 1                          # switch to tab by index
+browse close                             # close the last tab
+browse close 2                           # close tab at index 2
 ```
 
 ---
@@ -357,64 +348,63 @@ browse viewport 1920 1080
 
 Capture network requests to the filesystem for inspection.
 
-#### `network on`
-
-Enable network request capture. Creates a temp directory where requests and responses are saved as JSON files.
-
 ```bash
-browse network on
+browse network on                        # enable capture (creates a temp dir of request/response JSON files)
+browse network path                      # show the capture directory path
+browse network clear                     # clear captured requests
+browse network off                       # disable capture
 ```
 
-#### `network off`
+This is the driver-side way to capture response **bodies** - the passive CDP firehose (see below) records request metadata only.
 
-Disable network capture.
+---
 
-```bash
-browse network off
-```
+### CDP Streaming
 
-#### `network path`
+#### `cdp <url|port>`
 
-Show the capture directory path.
+Attach a read-only CDP client and stream DevTools protocol events as NDJSON (or `--pretty` for human-readable lines). Accepts a WebSocket URL or a bare port. Against a Browserbase session, pass the `wsUrl` from `browse status --json` - and use it immediately, the signed URL goes stale.
 
 ```bash
-browse network path
+browse cdp 9222 --pretty                 # watch a local debug port live
+browse cdp "$(browse status --json | jq -r .wsUrl)" --pretty   # watch the remote session
+browse cdp 9222 --domain Network,Page    # limit domains (default: Network,Console,Runtime,Log,Page)
 ```
 
-#### `network clear`
-
-Clear all captured requests.
-
-```bash
-browse network clear
-```
+For full trace capture (screenshots, DOM dumps, per-page bisected buckets) on a local Chrome, use the `browser-trace` skill.
 
 ---
 
 ## Configuration
 
-### Common Flags
+### Remote Session Flags
 
-#### `--session <name>`
-
-Run commands against a named session, enabling multiple concurrent browsers.
+These global flags configure a Browserbase session (remote mode only). They go on the command line around the subcommand:
 
 ```bash
-browse open https://a.com --session work
-browse open https://b.com --session personal
+browse --proxies --region eu-central-1 open https://example.com
 ```
 
-Context flags such as `--context-id` and `--persist` live on `browse cloud sessions create`; attach to the resulting `connectUrl` with `browse open ... --cdp <connectUrl>`.
+| Flag | Effect |
+|------|--------|
+| `--proxies` | enable Browserbase residential proxies |
+| `--region <region>` | session region: `us-west-2`, `us-east-1`, `eu-central-1`, `ap-southeast-1` |
+| `--advanced-stealth` | advanced stealth mode |
+| `--solve-captchas` / `--no-solve-captchas` | toggle automatic CAPTCHA solving |
+| `--block-ads` | ad blocking |
+| `--keep-alive` | keep the session alive after disconnection |
+| `--session-timeout <seconds>` | session timeout |
+| `--connect <session-id>` | connect to an existing Browserbase session by ID |
+
+Also global (not remote-specific): `--session <name>` for named parallel daemon sessions, `--ws <url|port>` to target a specific CDP endpoint directly, `--headless` / `--headed`, `--json`.
 
 ### Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
+| `BROWSERBASE_API_KEY` | For remote mode | API key from https://browserbase.com/settings; makes Browserbase the default desired environment |
 | `BROWSE_SESSION` | No | Default session name (alternative to `--session`) |
-| `BROWSERBASE_API_KEY` | For remote mode | API key from https://browserbase.com/settings; makes Browserbase the default desired mode when no override is set |
 | `BROWSERBASE_PROJECT_ID` | No | Passed through to Browserbase when set |
-
-Setting `BROWSERBASE_API_KEY` makes Browserbase the default desired mode. Use `--remote` or `--cdp <connectUrl>` on `browse open` when you need an explicit target.
 
 ### Setting credentials
 
@@ -422,7 +412,7 @@ Setting `BROWSERBASE_API_KEY` makes Browserbase the default desired mode. Use `-
 export BROWSERBASE_API_KEY="bb_live_..."
 ```
 
-Get these values from https://browserbase.com/settings.
+Get this value from https://browserbase.com/settings.
 
 ---
 
@@ -433,8 +423,8 @@ Get these values from https://browserbase.com/settings.
 - Fix: Run `browse open <url>`. If the issue persists, run `browse stop` and retry. For zombie daemons: `pkill -f "browse.*daemon"`.
 
 **"Chrome not found"** / **"Could not find local Chrome installation"**
-- The daemon tried to launch a local browser, meaning the session did not resolve to Browserbase.
-- Fix: Set `BROWSERBASE_API_KEY` and start with `browse open <url> --remote` (no local browser needed). This skill does not drive local Chrome - for local automation use the `agent-browser` skill.
+- The daemon tried to launch a local browser, meaning the environment did not resolve to Browserbase.
+- Fix: Set `BROWSERBASE_API_KEY`, run `browse env remote`, then `browse open <url>` (no local browser needed). This skill does not drive local Chrome - for local automation use the `agent-browser` skill.
 
 **"Daemon not running"**
 - No daemon process is active. Most commands auto-start the daemon, but `snapshot`, `click`, etc. require an active session.
@@ -446,4 +436,4 @@ Get these values from https://browserbase.com/settings.
 
 **Timeout errors**
 - The page took too long to load or an element didn't appear.
-- Fix: Try `browse wait load` before interacting, or increase wait time.
+- Fix: Try `browse wait load` before interacting, or raise `--timeout` on `open` / `wait`.

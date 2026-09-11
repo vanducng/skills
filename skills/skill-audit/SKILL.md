@@ -2,7 +2,7 @@
 name: skill-audit
 description: "Mine your Claude Code, Codex, pi and Cursor session history for how your skills actually get used - invocations, coverage, tool-error rates, corrections, interrupts, tokens - attributed per invocation rather than per session, then turn the aggregates into a reviewed report. Use when the user says 'audit my skills', 'which skills do I actually use', 'skill usage stats', 'are my skills working', 'mine my session history', or asks which skills to keep, merge, or drop."
 license: MIT
-argument-hint: "[--since DAYS] [--runtime claude|codex|pi|cursor|all] [--deep]"
+argument-hint: "[--since DAYS] [--runtime claude|codex|pi|cursor|all]"
 metadata:
   author: vanducng
   version: "0.1.0"
@@ -14,7 +14,7 @@ Answers "which skills earn their keep, and which are quietly failing?" from tran
 
 ## Workflow
 
-1. **Mine.** `~/.claude/skills/.venv/bin/python3 scripts/mine-sessions.py --since 30 --out <scratch dir>` (stdlib only; `--runtime claude|codex|pi|cursor|all`, default all; `both` stays as a legacy alias for claude+codex). `--since` filters individual events, including subagent events. Writes `skill-aggregates.json` + `sessions-<runtime>.jsonl` and prints a top-15 table. Multi-GB corpora stream fine; a missing runtime dir is a note, not an error.
+1. **Mine.** `python3 scripts/mine-sessions.py --since 30 --out <scratch dir>` (stdlib only, any python3 >= 3.9; fall back to `~/.claude/skills/.venv/bin/python3` if the system python3 is older; `--runtime claude|codex|pi|cursor|all`, default all; `both` stays as a legacy alias for claude+codex). `--since` filters individual events, including subagent events. Writes `skill-aggregates.json` + `sessions-<runtime>.jsonl` and prints a top-15 table. Multi-GB corpora stream fine; a missing runtime dir is a note, not an error.
 2. **Read the aggregates.** Rank by the question asked - usage (`invocations`, `projects`), quality (`err_rate`, `corrections`, `interrupts` on `solo_sessions`), cost (`tokens`), coverage (`coverage.never_used`).
 3. **Verify before concluding.** Counters flag *candidates*. Open `sessions-<runtime>.jsonl`, find the session, read the transcript. No claim of "skill X is broken" ships without a quote.
 4. **Optionally fan out.** For a real audit, dispatch one analysis subagent per runtime (they read different formats and shouldn't share a context) plus one for catalog health. Give each the aggregates path and the traps below.
@@ -62,7 +62,7 @@ IDs normalize by stripping the runtime prefix and validating against `~/.claude/
 
 ## Test
 
-`~/.claude/skills/.venv/bin/python3 scripts/test_mine_sessions.py` - fixture transcripts asserting per-invocation attribution (the whole point) and skill-ID validation.
+`python3 scripts/test_mine_sessions.py` - fixture transcripts asserting per-invocation attribution (the whole point) and skill-ID validation.
 
 ## Workflow position
 

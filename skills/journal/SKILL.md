@@ -10,15 +10,7 @@ metadata:
 
 # Journal
 
-## What this skill is - and isn't
-
-| Skill | Question it answers | Output |
-|---|---|---|
-| `vd:ship` | "Land the branch." | Merged target, PR URL |
-| `vd:cook` | "Execute the plan." | Code, tests, plan status |
-| **`vd:journal`** | **"What just happened, why, and what should future-me know?"** | **One markdown file in the injected `Journals:` path** |
-
-Journal **records**. It does not redesign, retest, or roll back. If writing the entry surfaces a real bug - stop, kick to `vd:fix` or `vd:cook`, then come back to journal once the fact pattern stabilises.
+Journal **records** - one markdown file in the injected `Journals:` path. It does not redesign, retest, or roll back. If writing the entry surfaces a real bug - stop, kick to `vd:fix` or `vd:cook`, then come back to journal once the fact pattern stabilises.
 
 ## Modes
 
@@ -92,7 +84,7 @@ workbench_script='<loaded-workbench-skill-dir>/scripts/workbench.py'
 VD_SESSION_ID="${VD_SESSION_ID:-}" python3 "$workbench_script" resolve --json
 ```
 
-Resolve `<loaded-workbench-skill-dir>` from the `vd:workbench` skill location already loaded in this runtime. Do not assume the source checkout lives at `$HOME/skills`; installed locations differ across Claude Code, Codex, and Pi. Use only the hook-exported `VD_SESSION_ID` for session-scoped resolution. Do not substitute a runtime-specific session ID unless that runtime's hook integration documents the same state key. When `VD_SESSION_ID` is absent, accept branch-based resolution only if the returned feature matches the active branch or plan; otherwise stop and ask for the destination instead of constructing one.
+Resolve `<loaded-workbench-skill-dir>` from the `vd:workbench` skill location in this runtime - never a hardcoded `$HOME/skills`. Use only the hook-exported `VD_SESSION_ID`; no runtime-specific substitute unless that runtime's hooks document the same state key. When it is absent, accept branch-based resolution only if the returned feature matches the active branch or plan - otherwise stop and ask instead of constructing a destination.
 
 > Journals are a personal dev log - what *I* learned, decided, or broke - not project documentation. `./docs/` is for artifacts shared with the team (architecture, code standards, changelog).
 
@@ -184,27 +176,4 @@ mode: quick
 {3-5 lines. One concrete artifact. Move on.}
 ```
 
-## Token efficiency
-
-- **Default to subagent delegation.** A retro entry doesn't need to live in main context - `journal-writer` re-gathers what it needs and writes the file directly.
-- **`--quick` stays inline** - subagent round-trip costs more than the entry.
-- **Never read full git diffs in main** when writing inline - `git log --oneline` and `git diff --stat` are enough; pull the actual diff only for files the entry will name.
-- **One file write, no review loop.** Journal is not code - don't self-review. The next entry corrects yesterday's wrong take if it matters.
-
-## Quality bar
-
-- **Names, not vibes.** Every entry has at least one path, SHA, PR#, error string, or metric.
-- **Decision visible.** A reader six months later can answer: "what did they choose, and what did they reject?"
-- **Lesson is behavioural.** "Be more careful" fails the bar. "Add a `--dry-run` flag to migrate.sh" passes.
-- **No filler.** If a section in the template has nothing concrete to say, delete it.
-- **Honest gaps.** "Root cause unclear - see follow-up issue #N" is allowed and preferred over invented certainty.
-
-## Workflow position
-
-**Typically follows:** `vd:ship` (auto-invokes this skill in Step 8 - manual run is for skipped or out-of-pipeline cases), `vd:cook` (end of phase or end of plan), `vd:fix` (after incident is mitigated).
-
-**Terminal skill** - no typical successor. The next time you want to make a change, start a new pipeline at `vd:scout` or `vd:plan`.
-
-**Compares to:**
-- `vd:ship` Step 8 - same writer, but `vd:ship` calls it as part of the pipeline. `vd:journal` is the manual entry point: out-of-band incidents, mid-session reflections, or when ship was run with `--skip-journal`.
-- A PR description - PR body is for reviewers landing the change; journal is for the dev opening this folder six months later.
+Template discipline: delete any section with nothing concrete to say, and "root cause unclear - see follow-up issue #N" beats invented certainty. One file write, no review loop - the next entry corrects yesterday's wrong take if it matters.

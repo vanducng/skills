@@ -50,33 +50,21 @@ $PY $HOME/skills/skills/diagram/scripts/generate.py \
   --preset cyberpunk \
   "data flow: Kafka → Spark → ClickHouse → Grafana"
 
-# Use a clear draft/screenshot as layout guidance for Codex PNG generation
-$PY $HOME/skills/skills/diagram/scripts/generate.py \
-  --format png --provider codex --reference-image draft.png \
-  "polished cloud architecture diagram; follow the reference layout exactly"
+# Pick a different visual style preset (cyberpunk for talk slides), or attach a
+# draft/screenshot as layout guidance for Codex PNG: --preset cyberpunk / --reference-image draft.png
 ```
 
 ## Interactive HTML ERD (`er_html.py`)
 
 For database ER diagrams that need to be **explored**, not just viewed, use the deterministic
 `er_html.py` generator (no LLM, no API key). It emits **one self-contained HTML file** built on
-Cytoscape.js with a fully interactive graph:
-- **HTML ER cards** (header band in domain-group colour, `◆` PK / `→` FK glyphs, column types) drawn inside the graph via cytoscape-node-html-label
-- **draggable nodes** (edges follow), curved edges, pan/zoom, re-layout
-- **single-click** a table → spotlight it + its relationship chain; the **participating FK columns are highlighted inside the cards** (not as text on the lines)
-- **click a relationship line** → spotlight just its two joined tables, mark the join columns, and open a relationship summary (cardinality + `ON DELETE` + both columns)
-- **selectable highlight depth** (1 / 2 / 3 / All hops; default 1) for the chain
-- **hide/show individual entities** (card `×` to hide; sidebar eye or "show N hidden" to restore)
-- **find-path** between two tables (shortest FK chain, highlighted with join columns)
-- **schema insights** panel (missing PK, FK type mismatch, unindexed FK, orphan tables - click to jump to the table)
-- **shareable URL** (filters/selection encoded in the link) + **saved layout** (dragged positions persist per schema in localStorage)
-- **group hulls** (colored regions behind domain groups) + a **minimap** (click/drag to navigate)
-- **double-click** a table → details drawer (columns, types, PK/FK/audit badges, FK targets + `ON DELETE` rules, incoming references, indexes, row counts)
-- **crow's-foot cardinality** at edge ends (`1` / `N`, `1:1` when the FK is unique); edge **colour encodes `ON DELETE`** (CASCADE/SET NULL/NO ACTION)
-- **per-entity "show all columns"** expander (header `⊕` or the "+N more" row)
-- live search (tables + columns), domain-group filters, show/hide audit columns, show/hide framework tables, columns-on-nodes toggle
-- **collapsible left (filters) + right (details) sidebars**
-- **keyboard shortcuts** + a `?` help overlay (`/` search, `a`/`t`/`c`/`n` toggles, `[`/`]` panels, `f` fit, `g` re-layout, `+`/`-` zoom, `s` clear, `r` reset, `Esc`)
+Cytoscape.js: a draggable, pan/zoom graph of HTML ER cards (domain-group colours, `◆` PK / `→` FK
+glyphs, column types), where single-clicking a table spotlights its relationship chain with the
+participating FK columns highlighted inside the cards, and clicking a relationship line opens a
+join summary (cardinality + `ON DELETE` + both columns). Also includes find-path between tables,
+a schema-insights panel (missing PK, FK type mismatch, unindexed FK, orphan tables), live search,
+domain-group filters, crow's-foot cardinality, a details drawer, saved layouts, and a `?` help
+overlay with keyboard shortcuts.
 
 By default it **inlines** Cytoscape (~450 KB total) so the file works fully offline; pass `--cdn`
 for a ~75 KB file that loads Cytoscape from jsdelivr.
@@ -97,7 +85,7 @@ MYSQL_PWD="$DB_PASS" mysql -N --raw -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -D
 # 3. generate the interactive ERD
 python3 $HOME/skills/skills/diagram/scripts/er_html.py \
   --schema schema.json --meta meta.json -o erd.html        # self-contained (offline)
-  # add --cdn for a ~140 KB file that pulls Mermaid/svg-pan-zoom from jsdelivr
+  # add --cdn for a ~75 KB file that loads Cytoscape from jsdelivr
 ```
 
 ### DBML interop (dbdocs.io / dbdiagram.io)
@@ -124,24 +112,11 @@ shown in the docs drawer, and which tables are hidden as "framework" by default.
 vs the image/SVG `er` type: **HTML** for living schema docs you click through and filter; **SVG**
 (`--type er --format svg --versioned`) for a static, diffable diagram in a PR/RFC.
 
-## Setup
+## Dependencies
 
-```bash
-export OPEN_ROUTER_KEY="sk-or-v1-..."   # or OPENROUTER_API_KEY; required for SVG, auto-type classification, or --provider openrouter
-# one-time: ensure file-browser viewer deps are installed
-cd $HOME/skills/skills/file-browser && npm install
-```
-
-Get an OpenRouter key at <https://openrouter.ai/settings/keys>. Codex PNG generation uses the Codex CLI ChatGPT login instead.
-
-## How it works
-
-1. **Parse args** - description + flags.
-2. **Resolve session dir** - `VD_VISUALS_PATH` when set, else the current repo's resolved workbench visuals path, else `<git-root>/.diagrams/<YYYYMMDD-HHMM>-<slug>/`. Outside a git repo: `~/Documents/llm-diagrams/<cwd>-<slug>/`.
-3. **Classify type** - if `--type` not provided, OpenRouter classifies into one of 8 types.
-4. **Load refs** - preset style tokens, `references/style-foundations.md`, `references/composition-rules.md`, `references/types/<type>.md`, plus `references/svg-contract.md` for SVG runs.
-5. **Prompt OR emit** - PNG: build a Codex prompt locally, or refine through OpenRouter when using `--provider openrouter`. SVG: LLM emits markup directly.
-6. **Save** - scratch mode writes `v1.png` / `v1.svg` + `prompt.md` + `meta.json`; versioned mode also writes `diagram.spec.yaml` + `manifest.json`. Spawn the file-browser gallery.
+- Python: `requests` + `PyYAML` (in the shared `~/.claude/skills/.venv` when present; otherwise `pip install --user requests pyyaml`). PyYAML is required by the default skeleton SVG engine.
+- Node: the `file-browser` skill (`cd $HOME/skills/skills/file-browser && npm install`) for the gallery viewer
+- Env: `OPEN_ROUTER_KEY` or `OPENROUTER_API_KEY` (<https://openrouter.ai/settings/keys>) - required for SVG, auto-type classification, or `--provider openrouter`. Codex PNG generation uses the Codex CLI ChatGPT login instead.
 
 ## Diagram types
 
@@ -164,6 +139,8 @@ Get an OpenRouter key at <https://openrouter.ai/settings/keys>. Codex PNG genera
 | `--type` | auto-classify | One of the 8 types or an alias. |
 | `--preset` | `warm` | Visual style: `warm`, `mono`, `pastel`, `cyberpunk`. See "Style presets" below. |
 | `--format` | `png` | `png` or `svg`. |
+| `--engine` | per type | SVG engine: `free` (pure-LLM) or `skeleton` (two-pass YAML → layout → paint). Defaults by type - see Engines. |
+| `--no-revise` | off | Skip the SVG critique/revise pass (faster, lower quality). |
 | `--provider` | `codex` | PNG image backend. `codex`: `gpt-image-2` via ChatGPT subscription - cost-optimized, OpenRouter fallback. `openrouter`: `gpt-5.4-image-2` via API. |
 | `--quality` | `medium` | `low`, `medium`, `high`. PNG only; OpenRouter passes through. |
 | `--aspect-ratio` | `16:9` | PNG only. |
@@ -173,19 +150,6 @@ Get an OpenRouter key at <https://openrouter.ai/settings/keys>. Codex PNG genera
 | `--no-open` | off | Skip auto-opening the browser tab. |
 | `--slug` | derived | Override the slug in the session dir name. |
 | `--versioned` | off | Write git-trackable artifacts under `docs/diagrams/<slug>/` instead of ignored scratch output. |
-
-## Capability Matrix
-
-| Need | Recommended mode | Why |
-| --- | --- | --- |
-| Architecture or C4 diagrams for PR/RFC review | `--format png --provider codex --reference-image draft.png` | Use a simple draft to lock layout, then let gpt-image-2 render a cleaner cloud diagram. |
-| Diffable architecture specs | `--format svg --versioned --engine skeleton` | Stable coordinates, crisp labels, deterministic spec + manifest. |
-| Workflow/process maps | `--type workflow --format svg --versioned` | Swimlane/stage-friendly layout with decision and handoff conventions. |
-| ERD/database design (static, diffable) | `--type er --format svg --versioned` | Entities and relationships stay hand-editable and diffable. |
-| Explorable/living DB docs (filter, search, per-table docs) | `er_html.py --schema … --meta …` | Self-contained interactive HTML ERD; no LLM/API key. |
-| Explanatory image embedded in docs | scratch output, then copy final asset to `docs/**/assets/` | Keeps specs/manifests out of project docs when only the image matters. |
-| Presentation or executive visuals | `--format png --preset pastel` | Higher visual richness; keep as scratch unless the image belongs in docs. |
-| Fast iteration on a draft | default scratch output or `--regen` | Avoids polluting docs until the shape stabilizes. |
 
 ## Engines
 
@@ -206,9 +170,7 @@ All presets share the same iconography, line weights, density limits, and label-
 | `pastel` | slate-50 `#f8fafc` | slate-800 | sky-600 | PowerPoint, executive presentations, customer-facing docs, marketing |
 | `cyberpunk` | near-black `#0a0e1a` | slate-200 | neon cyan + glow | Conference slides, demo videos, dev-tool launch graphics, OG/social |
 
-**Customizing a preset:** edit `references/presets/<name>/style-tokens.md`. Palette + aesthetic + CSS-vars block live there. Iconography and rules live in shared `style-foundations.md` and `composition-rules.md`.
-
-**Adding a new preset:** create `references/presets/<your-name>/style-tokens.md` following the warm template, then add the name to `SUPPORTED_PRESETS` in `scripts/generate.py`. No other code changes needed - type refs are preset-agnostic.
+**Customizing or adding a preset:** edit `references/presets/<name>/style-tokens.md` (palette + aesthetic + CSS-vars live there; iconography and rules live in shared `style-foundations.md` and `composition-rules.md`). A new preset is a new `references/presets/<your-name>/style-tokens.md` following the warm template plus the name in `SUPPORTED_PRESETS` in `scripts/generate.py` - no other code changes; type refs are preset-agnostic.
 
 ## Output location
 
@@ -241,12 +203,8 @@ Repo-relative paths are fine as secondary context, but the final handoff must in
 
 ## Iteration: `--regen` vs `--new`
 
-- `--regen "<feedback>"` - finds the **most recent** session under the current resolved scratch parent, re-uses its type and format, appends `<feedback>` to the original description, drops `v2.<ext>` (or `v3`, `v4`, …) alongside the original. The positional description is ignored when `--regen` is used.
-- `--versioned --regen "<feedback>"` - same iteration behavior, but searches `docs/diagrams/` and updates `diagram.spec.yaml` / `manifest.json` to point at the newest variant.
+- `--regen "<feedback>"` - finds the **most recent** session under the current resolved scratch parent (or under `docs/diagrams/` with `--versioned`, updating `diagram.spec.yaml` / `manifest.json`), re-uses its type and format from `meta.json`, appends `<feedback>` to the original description, and drops `v2.<ext>` (or `v3`, `v4`, …). The positional description is ignored when `--regen` is used.
 - `--new` - forces a fresh session dir even if a recent one exists. Requires a positional description.
-- Default - creates a new session dir from the current description.
-
-`--regen` reads `meta.json` for type/format/original-description, so SVG sessions regen as SVG and PNG sessions regen as PNG automatically.
 
 ## PNG vs SVG
 
@@ -275,18 +233,13 @@ Edit these once and every future diagram inherits the change. Keep type refs ≤
 - SVG layouts overlap on >20-element diagrams (LLM spatial reasoning weakness). Workaround: split into two diagrams, or use PNG and re-render with a shorter description.
 - `--regen` operates on the **latest** session under the current `.diagrams/` dir. Running it from a different repo won't find the original session.
 
-## Dependencies
-
-- Python: `requests` (in the shared `~/.claude/skills/.venv` when present; otherwise `pip install --user requests`)
-- Node: the `file-browser` skill (`cd $HOME/skills/skills/file-browser && npm install`) for the gallery viewer
-- Env: `OPEN_ROUTER_KEY` or `OPENROUTER_API_KEY`
-
 ## Local Verification
 
 ```bash
-python3 -m py_compile skills/diagram/scripts/generate.py \
+PY="$([ -x "$HOME/.claude/skills/.venv/bin/python3" ] && echo "$HOME/.claude/skills/.venv/bin/python3" || echo python3)"
+$PY -m py_compile skills/diagram/scripts/generate.py \
   skills/diagram/scripts/skeleton_schema.py \
   skills/diagram/scripts/skeleton_layout.py
-PYTHONPATH=skills/diagram/scripts python3 -m unittest discover \
+PYTHONPATH=skills/diagram/scripts $PY -m unittest discover \
   skills/diagram/scripts/tests
 ```

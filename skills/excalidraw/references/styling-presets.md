@@ -64,6 +64,35 @@ Place the legend in unused top-right or bottom-right space. Use fontSize 13-14, 
 | Database | `#f3e5f5` | `#7b1fa2` | cylinder | `DB\n[PostgreSQL]` |
 | External | `#fce4ec` | `#c2185b` | dashed rect | `Stripe\n[External]` |
 
+## UML - Sequence / ER / State / Class
+
+### Sequence
+- Actors: hexagon `#fff3e0` / `#f57c00`
+- Lifeline: vertical dashed line `#999`, strokeWidth 1
+- Service: rectangle on top of lifeline `#e3f2fd` / `#1976d2`
+- Sync message: solid arrow `#1976d2`, label `method()`
+- Async message: dashed arrow `#f57c00`, label `event`
+- Return: dashed arrow `#b0bec5`, label `result`
+
+### ER
+- Entity: rectangle `#e8f5e9` / `#388e3c`, label = TableName
+- Attribute: ellipse `#f3e5f5` / `#7b1fa2`, label = `column\ntype`
+- Primary key: ellipse, **underline label**
+- Relationship: diamond `#fff3e0` / `#f57c00`, label = verb (`has`, `owns`)
+- Cardinality: text on the connection line (`1:N`, `M:N`)
+
+### State
+- State: rounded rectangle `#bbdefb` / `#1976d2`
+- Initial: small filled ellipse `#212121`
+- Final: ellipse with inner dot
+- Transition: solid arrow with `event [guard] / action` label
+
+### Class
+- Class: rectangle, three sections separated by horizontal lines (name / fields / methods)
+- Inheritance: solid arrow with empty triangle head, color `#1976d2`
+- Composition: arrow with filled diamond, color `#d32f2f`
+- Aggregation: arrow with empty diamond, color `#757575`
+
 ## Cloud Architecture (AWS Categories)
 
 | Category | Fill | Stroke | Examples |
@@ -78,6 +107,8 @@ Place the legend in unused top-right or bottom-right space. Use fontSize 13-14, 
 | Monitoring | `#bbdefb` | `#1976d2` | CloudWatch, X-Ray, CloudTrail |
 
 GCP and Azure: keep their primary blue (`#4285F4`, `#0078D4`) for vendor branding when shown alongside, but use the same category colors for consistency across multi-cloud diagrams.
+
+Bound zones (VPC, subnet, account) with a translucent rectangle: `backgroundColor: "#e9ecef"`, `opacity: 30`, label as title above. No icons? Use `[Compute]`, `[Storage]`, etc. in the label and the category color does the visual work.
 
 ## Data Pipeline Components
 

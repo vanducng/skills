@@ -18,25 +18,25 @@
 
 **Step 3 - Render:**
 ```
-┌──────────────┐
-│  Input Data  │
-└──────┬───────┘
+┌────────────┐
+│ Input Data │
+└───────┬────┘
        │
        ▼
-┌──────────────┐
-│   Process    │
-└──────┬───────┘
+┌────────────┐
+│  Process   │
+└───────┬────┘
        │
        ▼
-┌──────────────┐
-│    Output    │
-└──────────────┘
+┌────────────┐
+│   Output   │
+└────────────┘
 ```
 
 **Verification:**
 - All border lines: 14 chars (┌ + 12×─ + ┐) ✓
 - Content lines: 14 chars (│ + content padded to 12 + │) ✓
-- Connector at col 7 on all connector rows ✓
+- Connector at col 7 on all connector rows (border_start + 1 + floor(12/2) = 7) ✓
 
 ---
 
@@ -134,9 +134,9 @@ Tier 3 children (Instance internals): 4 boxes (outer 14, 14, 14, 10) with 2-spac
 │  │ Provider │  │  Agent   │  │ Channel  │  │MCPServer │      │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │
 │                                                              │
-└──────────────────────────────┬───────────────────────────────┘
-                               │
-                               ▼
+└───────────────────────────────┬──────────────────────────────┘
+                                │
+                                ▼
 ┌──────────────────────────────────────────────────────────────┐
 │ Control Plane                                                │
 │                                                              │
@@ -151,9 +151,9 @@ Tier 3 children (Instance internals): 4 boxes (outer 14, 14, 14, 10) with 2-spac
 │  │ camelCase ↔ snake │  │ SHA256 / commit hash skip    │     │
 │  └───────────────────┘  └──────────────────────────────┘     │
 │                                                              │
-└──────────────────────────────┬───────────────────────────────┘
-                               │
-                               ▼
+└───────────────────────────────┬──────────────────────────────┘
+                                │
+                                ▼
 ┌──────────────────────────────────────────────────────────────┐
 │ Agent Runtime                                                │
 │ HTTP REST API (:18790) + WebSocket RPC v3                    │
@@ -199,14 +199,5 @@ Or use simple dashes with colons for vertical:
 ```
 
 ---
-
-## Width Calculation Quick Reference
-
-```
-single_box_outer = max(content_line_lengths) + 2*padding + 2
-side_by_side     = sum(child_outers) + (n-1)*gap
-container_outer  = max(children_total, title_len) + 2*container_padding + 2
-connector_col    = left_edge + 1 + floor(inner_width / 2)
-```
 
 **Symmetric padding invariant:** for every container row, the count of spaces between the opening `│` and the first child must equal the count of spaces between the last child and the closing `│`. Right-side padding being 1 char short of left-side padding is the #1 alignment bug.

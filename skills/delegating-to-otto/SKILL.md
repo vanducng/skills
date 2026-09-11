@@ -20,7 +20,7 @@ Routine staging/prod inspection in *this* catalog stays on `vd:astro-airflow` (`
 
 **Do:**
 
-- Airflow upgrades / runtime / provider compatibility (Otto's compatibility KB)
+- Airflow 2→3 upgrades / runtime / provider compatibility (Otto's compatibility KB; pass `--persona airflow-upgrade` for upgrade work)
 - Live production diagnosis that should run in its own session
 - Long audits, fleet-wide DAG analysis
 - Parallel branches via `--fork`
@@ -32,7 +32,7 @@ Routine staging/prod inspection in *this* catalog stays on `vd:astro-airflow` (`
 - Work that depends on parent conversation or in-flight todos
 - `af` against a connected Airflow when none is running and starting one is wrong
 
-If the user asks about an Airflow 2→3 upgrade without naming Otto, offer to run it through Otto first.
+If the user asks about an Airflow 2→3 upgrade without naming Otto, offer to run it through Otto first (`--persona airflow-upgrade`).
 
 ## Verify Otto
 
@@ -81,6 +81,8 @@ astro otto --mode text --permission-mode plan --allowed-tools af,read,grep \
 `--mode text` still prints JSONL bootstrap lines (`{"level":30,...}`) around the answer when stdout is not a TTY. Read the non-JSON line(s) as the result, or use `--mode json` and parse the final event.
 
 `--mode json` + `--output-schema @schema.json` forces structured output (exits 4 if missing).
+
+**Personas:** `--persona <name>` runs the main agent as a built-in persona (`explorer`, `reviewer`, `airflow-upgrade`) - it sets the system prompt, tool + hosted-skill allowlists, tier/model, permission mode, and output schema in one flag. For Airflow 2→3 upgrades pass `--persona airflow-upgrade` instead of hand-building the prompt. Explicit `--model` / `--allowed-tools` / `--allowed-skills` / `--permission-mode` override the persona's defaults. `--allowed-skills <csv>` restricts hosted skills the same way `--allowed-tools` restricts tools.
 
 ## Session control
 
@@ -148,5 +150,4 @@ astro otto --mode json --output-schema @schema.json \
 - `astro otto --help` - flag source of truth
 - [Otto overview](https://www.astronomer.io/docs/astro/otto-overview)
 - [`astro otto` CLI](https://www.astronomer.io/docs/astro/cli/astro-otto)
-- Upstream skill: https://github.com/astronomer/agents/blob/main/skills/delegating-to-otto/SKILL.md
 - Sibling for direct Astro/Airflow inspection: `vd:astro-airflow`

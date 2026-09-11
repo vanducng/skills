@@ -64,6 +64,6 @@ Position randomization draws from a 9-cell grid (3×3). Density picks from `spar
 
 ## Editing CSVs Manually
 
-The CSVs are the source of truth at runtime. After `cluster.py` produces drafts, you can hand-edit any cell to refine. The audit trail (`data/poster/analysis/clusters.json`) shows which source images map to which cluster - useful when refining style descriptions.
+The CSVs are the source of truth at runtime. After `cluster.py` produces drafts, you can hand-edit any cell to refine. The audit trail it writes (`data/poster/analysis/clusters.json`) shows which source images map to which cluster - useful when refining style descriptions.
 
 Keep cell values comma-safe (CSV-escape if needed). Re-running `cluster.py` overwrites edits unless you guard your edits in a separate branch / commit.

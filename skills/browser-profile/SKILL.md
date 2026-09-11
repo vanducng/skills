@@ -30,7 +30,7 @@ Why not Playwright `launchPersistentContext`? Because that path requires Playwri
 
 - macOS with Google Chrome at `/Applications/Google Chrome.app` (override via `BROWSER_PROFILE_CHROME` env var).
 - `agent-browser` CLI on PATH (`npm install -g agent-browser`, then one-time `agent-browser install`) - used by `attach`.
-- Optional: `jq` for pretty `profile list` output.
+- `npx` / Node 18+ for `profile-export.sh` (it shells out to Playwright's `connectOverCDP` via `npx -y -p '@playwright/test'`).
 
 ## Quick start
 
@@ -57,12 +57,12 @@ Naming convention: `<env>-<role>`. Examples: `acme-staging`, `admin-console`, `w
 
 | Script | Purpose |
 |---|---|
-| `profile-open.sh <name>` | Launch headed Chrome with the profile's user-data-dir and deterministic debug port. Creates the dir on first run. Refuses if already open. |
+| `profile-open.sh <name>` | Launch headed Chrome with the profile's user-data-dir and deterministic debug port. Creates the dir on first run. Refuses if already open, if the port is already serving CDP (hash collision with another profile - rename), and exits non-zero if the CDP endpoint never comes up. |
 | `profile-attach.sh <name>` | Run env-sanitized `agent-browser connect <port>` so the agent-browser daemon drives this profile's Chrome (connect mode, never `--profile`), then verify the attachment via `navigator.userAgent`. Probes the CDP endpoint first; suggests `open` if nothing is listening. |
-| `profile-list.sh` | Show all profiles with status (open / closed), port, dir size. |
+| `profile-list.sh` | Show all profiles with status (`open`, `no-cdp`, `stale`, `closed`), port, dir size. |
 | `profile-close.sh <name>` | Send SIGTERM to the Chrome PID for that profile, clear stale lock files. |
-| `profile-export.sh <name> [<out.json>]` | Dump cookies + localStorage as Playwright-compatible `storageState.json` for CI replay. Requires the profile to be open. |
-| `profile-reset.sh <name>` | **Destructive.** Wipe the profile dir. Asks for confirmation. |
+| `profile-export.sh <name> [<out.json>]` | Dump cookies + localStorage as Playwright-compatible `storageState.json` for CI replay. Requires the profile to be open and `npx` / Node 18+ on PATH. |
+| `profile-reset.sh <name> [--force]` | **Destructive.** Wipe the profile dir. Asks you to type the profile name to confirm; pass `--force` to skip the prompt (use this from non-interactive agents - without it the script blocks on `read`). |
 
 ## How port allocation works
 
@@ -72,12 +72,14 @@ Ports are deterministic from the profile name so `attach` doesn't need a registr
 port = 9300 + (cksum(name) % 100)
 ```
 
-Range 9300-9399 avoids the conventional 9222. If two names hash to the same port, `open` will fail loudly - rename one.
+Range 9300-9399 avoids the conventional 9222. If two names hash to the same port, `open` refuses before launching - rename one (e.g., add a `-2` suffix).
 
 ## Profile directory layout
 
+Profiles live under `$HOME/.claude/browser-profiles/` by default; override the root with the `BROWSER_PROFILE_ROOT` env var (all scripts read it).
+
 ```
-$HOME/.claude/browser-profiles/
+$BROWSER_PROFILE_ROOT/            # default: $HOME/.claude/browser-profiles/
 ├── acme-staging/
 │   ├── Default/                 # Chrome user data (cookies.db, Local Storage/, IndexedDB/, Cache/, …)
 │   ├── DevToolsActivePort       # written by Chrome on launch; contains the actual port + WS path
@@ -108,6 +110,7 @@ $HOME/.claude/browser-profiles/
 | Symptom | Cause | Fix |
 |---|---|---|
 | `open` refuses: "profile already open" | A live Chrome owns this profile | Run `profile-close.sh <name>` first, or use `profile-attach.sh` if you intended to share |
+| `list` shows `stale` | A `SingletonLock` is present but no live Chrome owns it (left by a crash) | Harmless - `profile-open.sh <name>` clears it automatically on next launch |
 | `list` shows `no-cdp` | Chrome is running but not answering on the deterministic port (launched without the debug flag, or another Chrome took over) | `profile-close.sh <name>` then `profile-open.sh <name>` |
 | `attach` says "no CDP endpoint" | Chrome not running on that port | Run `profile-open.sh <name>` first |
 | Cookies disappear after sleep/wake | Service-worker eviction by Chrome | Re-login. Chrome's call, not ours. Open issue if reproducible. |

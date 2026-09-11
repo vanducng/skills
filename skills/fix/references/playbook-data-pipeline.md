@@ -16,7 +16,7 @@ Load this when the failure is in a DAG, dbt model/test, source freshness, schema
 |---|---|---|
 | Task fails immediately on import | Python import error in DAG file | Fix import; verify with `airflow dags list`. Don't push DAG fixes you haven't parsed locally. |
 | Task fails on first op | Bad operator args / templated render error | Check `Rendered Template` in UI. Fix template vars or default_args. |
-| Task succeeds but downstream sees no data | Wrong partition / wrong table / silent return | Add row-count assertion at end of task. Verify in warehouse with `sqlit` / `bq`. |
+| Task succeeds but downstream sees no data | Wrong partition / wrong table / silent return | Add row-count assertion at end of task. Verify in warehouse with `miudb` / `bq`. |
 | Sensor times out | Upstream actually missing OR poke interval too tight | Confirm upstream first via direct query, **before** loosening sensor. |
 | Retries succeed eventually | Real flakiness vs hidden race | Reproduce manually. If flake is real, fix the race; if not, fix the underlying cause. Loosening retries is not a fix. |
 | Backfill produces wrong values | Idempotency broken (delete-insert vs merge) | Fix the operator/SQL to be re-runnable. Re-backfill the affected window after the fix. |
@@ -40,7 +40,7 @@ Load this when the failure is in a DAG, dbt model/test, source freshness, schema
 dbt run --select <model>+1 --vars '{...}'   # or the exact target used in CI
 dbt test --select <model>+
 ```
-Then `sqlit` query (or `bq` / `psql`) for the actual row count / KPI that defined "correct".
+Then a `miudb` query (or `bq` / `psql`) for the actual row count / KPI that defined "correct".
 
 ## Cross-cutting
 

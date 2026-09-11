@@ -27,8 +27,7 @@ Check `.astro/config.yaml` and `airflow_settings.yaml` for the UI port. Default 
 astro dev start                 # UI on the configured port
 astro dev stop                  # keep volumes
 astro dev kill                  # wipe volumes
-astro dev restart
-astro dev restart               # no --scheduler flag exists; this restarts the stack
+astro dev restart               # no --scheduler flag exists; this restarts the whole stack
 astro dev parse                 # import errors without waiting for the scheduler
 astro dev pytest
 astro dev logs --scheduler
@@ -86,4 +85,3 @@ YAML/loader errors show up here, not as a failed task. After parse is clean, unp
 - Remote Astro: `vd:astro-airflow`
 - YAML DAGs: `vd:dag-factory`
 - Otto: `vd:delegating-to-otto`
-- Upstream: https://github.com/astronomer/agents/blob/main/skills/managing-astro-local-env/SKILL.md

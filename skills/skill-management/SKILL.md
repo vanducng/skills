@@ -64,11 +64,11 @@ the user's name/description as args:
 Skill(skill="skill-creator", args="<name-or-description>")
 ```
 
-After the creator finishes its eval-driven loop and produces a skill
-folder under `~/.claude/skills/<name>/`, **move it into this repo**:
+skill-creator resolves the target root itself and a project-local root
+wins, so in this repo it writes directly into `skills/<name>/`. After the
+creator finishes its eval-driven loop:
 
 ```bash
-mv ~/.claude/skills/<name>/ skills/<name>/
 bash scripts/validate.sh
 ```
 

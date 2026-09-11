@@ -24,29 +24,22 @@ concrete identifier below is a placeholder - substitute your own:
 `<db>`, `<owner>`, `<env>`, `<s3-endpoint>`, `<objstore-secret>`, `<app-ns>`.
 
 **Two platforms, one operator.** The Cluster spec, bootstrap, pgvector, PITR,
-clone, and most gotchas are identical everywhere. Only **backup auth** and
-**NetworkPolicy** differ:
-
-- **Managed cloud (GKE + GCS):** backup auth = Workload Identity (no keys).
-  Steps below default to this.
-- **Self-hosted (K3s / bare-metal + S3-compatible store: MinIO, Ceph, R2, B2):**
-  backup auth = an access-key Secret; plus a default-deny cluster needs explicit
-  NetworkPolicies. See **`references/self-hosted-and-networkpolicy.md`** - read it
-  whenever there's no cloud Workload Identity or the cluster enforces default-deny.
+clone, and most gotchas are identical everywhere; only **backup auth** and
+**NetworkPolicy** differ. Managed cloud (GKE + GCS): Workload Identity, no keys -
+steps below default to this. Self-hosted (K3s / bare-metal + S3-compatible store:
+MinIO, Ceph, R2, B2): an access-key Secret, plus explicit NetworkPolicies on a
+default-deny cluster. Read **`references/self-hosted-and-networkpolicy.md`**
+whenever there's no cloud Workload Identity or the cluster enforces default-deny.
 
 ## Mental model - two halves that MUST share one string
 
-A CNPG database on GKE is two halves that have to agree on exactly one string,
-`<ns>/<cluster>`:
-
-1. **GitOps half (k8s YAML):** a CNPG `Cluster` whose `serviceAccountTemplate`
-   annotation points the auto-created **pod KSA** at the GCP backup SA. CNPG
-   names that pod KSA after the **cluster** (`<cluster>`) in `<ns>`. Any
-   standalone `ServiceAccount` named `cnpg-backup-sa` you find in a folder is a
-   **decoy/legacy** resource - CNPG does **not** use it for backup auth.
-2. **GCP half (Terraform):** an IAM `workloadIdentityUser` binding whose member
-   is `serviceAccount:<project>.svc.id.goog[<ns>/<cluster>]`, plus the GCS
-   backups bucket + lifecycle.
+A CNPG database is two halves agreeing on exactly one string, `<ns>/<cluster>`:
+the **GitOps half** - a CNPG `Cluster` whose `serviceAccountTemplate` annotation
+points the auto-created **pod KSA** (named after the **cluster**) at the GCP
+backup SA - and the **GCP half** - an IAM `workloadIdentityUser` binding whose
+member is `serviceAccount:<project>.svc.id.goog[<ns>/<cluster>]` plus the GCS
+backups bucket. Any standalone `ServiceAccount` named `cnpg-backup-sa` is a
+**decoy/legacy** resource; CNPG does not use it for backup auth.
 
 Deploy is pure GitOps: commit YAML → a Flux `Kustomization` (`dependsOn:
 database-operators`) reconciles → the CNPG operator builds the cluster.
@@ -225,13 +218,10 @@ spec:
   suspend: false
 ```
 
-> **Plugin vs inline backup config.** CNPG is moving Barman Cloud support out of
-> core into a **plugin**. Inline `spec.backup.barmanObjectStore` (above) still
-> works but is **deprecated** (slated for removal ~CNPG 1.28). On a fresh cluster
-> prefer the plugin: an `ObjectStore` CRD (`barmancloud.cnpg.io/v1`) + a
-> `spec.plugins: [{ name: barman-cloud.cloudnative-pg.io, isWALArchiver: true,
-> parameters: { barmanObjectName: ... } }]` reference. Full plugin manifests (and
-> the S3 variant) are in `references/self-hosted-and-networkpolicy.md`.
+> **Inline `spec.backup.barmanObjectStore` (above) is deprecated** (removal
+> ~CNPG 1.28). On a fresh cluster prefer the barman-cloud plugin: an `ObjectStore`
+> CRD + a `spec.plugins` reference. Full plugin manifests (and the S3 variant)
+> are in `references/self-hosted-and-networkpolicy.md`.
 
 ## Step 4 - pgvector (belt-and-suspenders, only if needed)
 
@@ -284,20 +274,10 @@ Give a busy DB its **own** Kustomization **and** omit it from any shared
 
 ## NetworkPolicy (default-deny clusters - usually self-hosted)
 
-If the cluster enforces default-deny, CNPG silently breaks without explicit
-allows. Match the resource KIND to the CNI (Cilium → `CiliumNetworkPolicy`;
-Calico/standard → vanilla `NetworkPolicy`). For instance pods
-(`cnpg.io/podRole: instance`) allow, at minimum:
-
-- **Ingress:** kubelet/host probes · same-namespace (replication) · `<app-ns>` →
-  `5432` · monitoring → `9187` · `cnpg-system` operator.
-- **Egress:** object store (`443` or store port) for barman · DNS `kube-system:53`
-  · kube-apiserver · same-namespace · **the service CIDR** (e.g. K3s default
-  `10.43.0.0/16`) when the CNI is Cilium with eBPF kube-proxy replacement -
-  ClusterIP services aren't pods, so this is required or in-cluster lookups fail.
-
-Full Cilium + vanilla manifests, the operator policy, and the host-firewall
-caveat are in `references/self-hosted-and-networkpolicy.md`.
+On a default-deny cluster CNPG silently breaks without explicit allows (see the
+gotcha below). The full instance-pod flow table, Cilium + vanilla manifests, the
+operator policy, and the host-firewall caveat are in
+`references/self-hosted-and-networkpolicy.md`.
 
 ## Gotchas - hard-won, worth noting
 
@@ -367,11 +347,6 @@ caveat are in `references/self-hosted-and-networkpolicy.md`.
   `spec.backup.barmanObjectStore` is slated for removal (~1.28) - a deprecation
   warning fires on every reconcile. A dangling/mistyped `barmanObjectName` (plugin)
   or a missing `ObjectStore` silently blocks the cluster. Pick ONE model per cluster.
-- **`alembic upgrade head` runs at boot** - a migration fault crash-loops the pod,
-  and CI using `create_all` won't catch it. Use unique descriptive revision IDs
-  (≤32 chars; sequential ones collide → "multiple heads"), add a
-  `test_alembic_single_head` guard, and verify
-  `git merge-base --is-ancestor <fix> <tag>` before releasing.
 - **`instances: 1` has no failover.** Any primary pod recreation (node event,
   eviction) is a brief (~7s) connection-refused window → app 5xx. Transient DB
   errors correlated with a fresh DB pod (0 restarts, recent transition) are this,

@@ -23,6 +23,13 @@ if lock_present "$DIR"; then
   rm -f "$DIR/SingletonLock" "$DIR/SingletonCookie" "$DIR/SingletonSocket"
 fi
 
+# Ports are hash-derived, so another profile can already own this port. Chrome
+# silently keeps running without CDP when the port is taken, and a live check
+# would answer from the OTHER profile's Chrome - so refuse before launching.
+if cdp_alive "$PORT"; then
+  die "port :$PORT is already serving CDP - another profile (hash collision) or process owns it. Rename this profile (e.g., add a '-2' suffix)."
+fi
+
 if [[ ! -d "$DIR" ]]; then
   info "creating new profile dir: $DIR"
   mkdir -p "$DIR"
@@ -43,8 +50,8 @@ fi
 PID=$!
 echo "$PID" > "$(pid_file "$NAME")"
 
-# Wait briefly for Chrome to bind the debug port (max 5s).
-for i in 1 2 3 4 5 6 7 8 9 10; do
+# Wait for Chrome to bind the debug port (max 10s - cold starts are slow).
+for _ in $(seq 1 20); do
   if cdp_alive "$PORT"; then
     info "profile '$NAME' open · port=$PORT · pid=$PID · dir=$DIR"
     exit 0
@@ -52,5 +59,5 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
   sleep 0.5
 done
 
-warn "profile launched but CDP endpoint on :$PORT not responding yet - check that Chrome opened correctly"
-exit 0
+die "profile launched (pid $PID) but the CDP endpoint on :$PORT never came up - Chrome may have failed to start or dropped the debug flag. Check the window, then retry or use profile-reset.sh."
+

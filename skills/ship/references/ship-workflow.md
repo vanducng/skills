@@ -150,7 +150,7 @@ git fetch origin <target> && git merge origin/<target> --no-edit
 1. Detect version source (see `auto-detect.md`).
 2. None found → skip silently.
 3. Bump level:
-   - Default (official): patch (`X.Y.Z+1`).
+   - Default (official): patch (`X.Y.Z+1`). Under `--auto`: patch, or minor if the branch starts with `feat/` or commits include `feat:`.
    - Staging mode: rc suffix (`X.Y.Z-rc.N`).
    - Beta mode: prerelease suffix (`X.Y.Z-beta.N`).
    - If diff looks like a major feature or breaking change (new top-level command, removed exported symbol, schema migration) → `AskUserQuestion`: minor or patch.
@@ -175,7 +175,7 @@ git fetch origin <target> && git merge origin/<target> --no-edit
 Spawn `journal-writer` subagent in **background**:
 - Topic: shipped changes (commit summaries + diff stats)
 - Include: what shipped, key decisions, gotchas hit during the ship
-- Output path: `./docs/journals/` (or wherever the project's journal-writer agent puts them)
+- Output path: the hook-injected `Journals:` path
 
 Do not wait - continue immediately.
 
@@ -321,18 +321,7 @@ A pure summary/FYI review that raises no point needs no reply (still counts towa
 9. After any code fix, re-run Step 4 verification before pushing the feedback commit. After all loops, refetch state. If every resolved thread has a prior inline reply, and everything is resolved, replied to, or skipped: continue to Step 14. Output: `PR comments: N addressed, M replied, K skipped`.
 10. If any fixes were committed and pushed in this step, Step 15 (CI watch) will pick up the new commit's checks automatically.
 
-### Reply style for reviewed comments
-
-When replying to a handled thread, write a short reasoned note, not just "fixed". This reply is mandatory before resolving a thread or accepting an already-resolved thread as clear:
-
-```text
-Handled in <short-sha> by <specific change>. <Why this matches the codebase contract / why a different root-cause fix was chosen>.
-```
-
-Good examples:
-- `Handled in <short-sha> by validating <CONFIG_KEY> as non-empty at load time instead of falling back silently. This keeps misconfiguration fail-fast and prevents an invalid runtime value.`
-- `Handled in <short-sha> with a polling helper, replacing a fixed sleep in the async assertion.`
-- `Not applying as suggested: <schema/type/test> already guarantees <condition>. Added <test/comment> to make the contract explicit.`
+**Reply style:** a short reasoned note, never bare "fixed" - `Handled in <short-sha> by <specific change>. <Why this matches the codebase contract / why a different root-cause fix was chosen>.`
 
 ### `--auto` behavior for Step 13
 
@@ -395,13 +384,9 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
 
 ## Step 15b: Re-check PR comments after CI (merge gate)
 
-**Why this exists.** Step 13 runs once at PR creation, but a code-review **bot**
-(`review/code-review`, CodeRabbit, Codex review, etc.) posts on its own schedule,
-typically 1-5 minutes after the PR opens - almost always after Step 13's fetch.
-A green code-review check means "the bot finished", not "its findings are resolved",
-and a red or never-triggered CI run does not mean the bot stayed silent.
-Without this re-fetch, those comments slip straight to merge. (Exact trap: a PR
-merged with 9 unresolved bot comments, real bugs included.)
+**Why this exists:** Step 13's fetch almost always precedes the review bots' posts
+(they run 1-5 min after the PR opens, as a CI job or their own webhook). Rationale
+in full: SKILL.md Hard rule 11.
 
 **Run before Step 16 and before any handoff, whatever CI reported** - green, red,
 pending, or never triggered - in every mode (including `--auto`).
@@ -476,19 +461,4 @@ Do **not** treat green CI + zero comments as permission to merge - that gate mak
 
 ## `--auto` gate behavior
 
-When `--auto` is set, replace each `AskUserQuestion` with the listed default. Critical-issue and ambiguity gates remain blocking.
-
-| Gate | Default under `--auto` | Still blocks? |
-|------|------------------------|---------------|
-| Mode unclear from branch name | - | **Yes**, stop |
-| Issue creation when none found | Skip | No |
-| No test runner detected | Skip tests, warn | No |
-| Critical review issue | - | **Yes**, stop per issue |
-| Unresolved PR review comment | Apply GitHub suggestion blocks; otherwise stop per comment | **Yes** (non-suggestion) |
-| Unresolved comment after CI green (Step 15b) | - | **Yes**, re-fetch + block (safety floor) |
-| Major/minor/patch bump prompt | Patch (or minor if branch starts with `feat/` or commits include `feat:`) | No |
-| Auto-release with manual fallback | Patch bump, tag automatically | No |
-| Push rejected | - | **Yes**, stop |
-| Secret-scan hit | - | **Yes**, stop |
-| CI failure on PR | - | **Yes**, prompt (investigate / merge anyway / abort) |
-| CI still pending after 15min timeout | Queue via `gh pr merge --auto` | No |
+When `--auto` is set, replace each `AskUserQuestion` with the recommended default (issue creation and no-test-runner → skip; version bump → Step 6 defaults; auto-release → patch bump, tag automatically; CI pending after the 15-min timeout → queue via `gh pr merge --auto`). Critical-issue and ambiguity gates remain blocking - the full safety-floor list is SKILL.md Hard rule 8.

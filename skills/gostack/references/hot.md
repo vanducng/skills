@@ -1,6 +1,6 @@
 # samber/hot - In-memory cache for read-heavy Go services
 
-**Pinned: v0.13.0 (released 2026-03-11) · MIT · ⚠ PRE-1.0 - API can break between minors · verified 2026-05-23**
+**Pinned: v0.13.1 (released 2026-08-23) · MIT · ⚠ PRE-1.0 - API can break between minors · verified 2026-09-11**
 
 Generic, type-safe in-memory cache for Go 1.22+. Nine eviction algorithms (LRU, LFU, TinyLFU, W-TinyLFU, S3FIFO, ARC, TwoQueue, SIEVE, FIFO), TTL, loaders with singleflight, sharding, stale-while-revalidate, Prometheus metrics.
 
@@ -14,7 +14,7 @@ The library's headline feature isn't the eviction algorithm zoo - it's the **loa
 
 - Don't shop algorithms. **Use `hot.WTinyLFU`** until profiling proves otherwise. The algorithm zoo is impressive but the W-TinyLFU default is right for >90% of workloads - switching is a profiling-driven decision, not a vibes-driven one.
 - The Prometheus metrics integration (`WithPrometheusMetrics`) is **mandatory** in production. A cache without hit-rate monitoring is a cache you don't know is working. Hit rate <80% usually means undersized.
-- **Pre-1.0 means pin exact.** No `~0.13.0`, no `^0.x`. Set `github.com/samber/hot v0.13.0` and gate updates through a manual review of the release notes.
+- **Pre-1.0 means pin exact.** No `~0.13.0`, no `^0.x`. Set `github.com/samber/hot v0.13.1` and gate updates through a manual review of the release notes.
 - The library shines at **read-through with bounded memory**. For write-heavy caches, look at `bigcache` or Redis instead - `hot`'s value-by-value tracking has overhead that bigcache's chunk-allocator avoids.
 
 **When I'd reach for it:**
@@ -33,7 +33,7 @@ The library's headline feature isn't the eviction algorithm zoo - it's the **loa
 ## Install
 
 ```bash
-go get github.com/samber/hot@v0.13.0
+go get github.com/samber/hot@v0.13.1
 ```
 
 ```go

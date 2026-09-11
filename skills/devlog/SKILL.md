@@ -112,13 +112,8 @@ when available. Do not block if GitHub CLI is unavailable.
 
 ### 3. Load taste
 
-Read `references/voice.md` before drafting. If the current repo has a populated
-devlog style guide, prefer that too:
-
-```bash
-references/style-guide.md
-```
-
+Read `references/voice.md` before drafting. Check the current repo for a devlog
+style guide (for example `docs/devlog-style.md`) and prefer it when populated.
 Treat empty/stub style guides as no-op.
 
 When working inside the devlog vault and the style guide is empty/stubbed, read
@@ -244,7 +239,8 @@ to post/start it on X now. Do not treat "write a post", "draft a post", or
 "make a post about this" as publishing permission. Otherwise return or save the
 draft only.
 
-Use `vd:twitter` CLI:
+Use `vd:twitter` CLI (`twitter` below is its dispatcher alias - see the
+Invocation block in that skill):
 
 ```bash
 twitter doctor --offline
