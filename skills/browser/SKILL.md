@@ -9,11 +9,11 @@ metadata:
     requires:
       bins:
         - browse
-      install:
-        - kind: node
-          package: "@browserbasehq/browse-cli"
-          bins: [browse]
-      homepage: https://github.com/browserbase/skills
+    install:
+      - kind: node
+        package: "@browserbasehq/browse-cli"
+        bins: [browse]
+    homepage: https://github.com/browserbase/skills
 ---
 
 # Browser Automation (Browserbase Remote)
