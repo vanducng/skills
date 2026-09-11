@@ -46,7 +46,12 @@ for line in fm.splitlines():
     if ":" not in line:
         continue
     k, _, v = line.partition(":")
-    fields[k.strip()] = v.strip()
+    raw = v.strip()
+    # YAML plain scalars treat ": " as a nested mapping; pi's parser rejects them.
+    if raw and not raw.startswith(('"', "'", ">", "|")) and ": " in raw:
+        print(f"unquoted '{k.strip()}' contains ': '; quote the value (YAML nested mapping)")
+        sys.exit(1)
+    fields[k.strip()] = raw
 
 name = fields.get("name", "")
 desc = fields.get("description", "")
