@@ -107,7 +107,7 @@ gog --account acme --client acme me --json --no-input
 export GOG_HOME="$HOME/.config/vd/gog"
 command -v gog && gog --version    # expect >= 0.39.1
 ls "$HOME/.config/vd/gog-accounts/"*.md
-gog --account <resolved> auth list --check --json --no-input
+gog --account <resolved> --client <client> auth list --check --json --no-input
 ```
 
 Missing binary: `brew tap openclaw/tap && brew install gogcli`.
