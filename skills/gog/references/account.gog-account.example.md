@@ -24,4 +24,4 @@ Keep the local copy outside Git.
 ## Defaults
 
 - Use for: which requests route here
-- Notes: consent-screen status (must be In production for person users), org app-access policy
+- Notes: audience (Internal Workspace app, or External and In production), org app-access policy

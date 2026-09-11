@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "--account <name> --user person|sa gmail|drive|calendar|sheets|docs|auth"
 metadata:
   author: vanducng
-  version: "1.2.0"
+  version: "1.3.0"
   upstream: "https://github.com/openclaw/gogcli"
 ---
 
@@ -147,8 +147,9 @@ gog api call sheets v4 spreadsheets.batchUpdate --help
 
 Long tail: `gog api call <api> <version> <method>` and `gog <service> raw`.
 Worked examples (inbox triage, agenda, send, sheet append, archive):
-`references/recipes.md`. Admin Directory: `gog admin` needs a Workspace SA
-with domain-wide delegation, not person-user OAuth.
+`references/recipes.md`. Styled multi-tab report architecture:
+`references/sheets-formatting.md`. Admin Directory: `gog admin` needs a
+Workspace SA with domain-wide delegation, not person-user OAuth.
 
 ## Workflow
 
@@ -174,5 +175,6 @@ Writes: read current state → `gog --account <a> me` → show account + id + mu
 ## References
 
 - `references/recipes.md`
+- `references/sheets-formatting.md`
 - `references/account.gog-account.example.md`
 - CLI: https://github.com/openclaw/gogcli
