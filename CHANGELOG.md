@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.61.1](https://github.com/vanducng/skills/compare/v1.61.0...v1.61.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **skills:** catalog review - privacy sweep, CLI-drift repairs, 35% simplification ([#470](https://github.com/vanducng/skills/issues/470)) ([9e58ef3](https://github.com/vanducng/skills/commit/9e58ef30fb69938d0747610e696c9aa9c00c01df))
+
 ## [1.61.0](https://github.com/vanducng/skills/compare/v1.60.1...v1.61.0) (2026-09-10)
 
 
