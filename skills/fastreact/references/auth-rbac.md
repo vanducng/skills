@@ -26,14 +26,14 @@ Helpers: `is_internal(role)` (prefix check), `is_admin`, `can_view_audit` (inter
 When clients sign in with their OWN Google accounts you can't domain-allowlist. Pattern:
 - Google callback = JIT: do NOT hard-reject by domain (leave `GOOGLE_ALLOWED_DOMAIN` empty). New user → create with role `pending`, `company_id=null`, `is_active=true`, capture `picture` → `avatar_url`. Existing user keeps role/company.
 - Add a `pending` role with no permissions. A pending user authenticates (`/auth/me` works) but has no resource access; the frontend `_protected` `beforeLoad` redirects `role === 'pending'` to a `/pending` page ("access being set up").
-- A CNB admin/AE then grants access on the Users screen: `PATCH /users/{id}` with `role` + `company_id`. Show pending users with a Pending badge; the edit dialog sets BOTH role and company.
+- A staff admin then grants access on the Users screen: `PATCH /users/{id}` with `role` + `company_id`. Show pending users with a Pending badge; the edit dialog sets BOTH role and company.
 - Register the local callback (`http://localhost:<fe-port>/api/v1/auth/google/callback`) + the prod URL in the Google client; nginx proxies `/api/` to the backend so the frontend-origin callback reaches it.
 
 ## S3 (boto3)
 - `clients/s3.py`: client built from `AWS_ACCESS_KEY_ID/SECRET/REGION`. Methods: `build_key`, `upload_fileobj(fileobj,key,content_type)`, `presigned_get_url(key, expires)`, `delete_object(key)`. Singleton `get_s3()`.
-- **Key scheme:** keep bucket slash-free; put the path in the prefix. A good tenant scheme: `<prefix>/<tenant_id>/<filename>` (e.g. `hire-intelligence/<universal_company_id>/<raw-filename>`). Same filename overwrites = natural "reupload".
+- **Key scheme:** keep bucket slash-free; put the path in the prefix. A good tenant scheme: `<prefix>/<tenant_id>/<filename>` (e.g. `<app-slug>/<tenant_id>/<raw-filename>`). Same filename overwrites = natural "reupload".
 - **Download:** return a presigned GET url (don't stream through the API). **Delete:** delete the S3 object AND the DB row (guard: admin or uploader). **Reupload:** `PUT /files/{id}` overwrites the object + updates metadata.
 - Mock `get_s3` (bound where it's used, i.e. `app.services.files.get_s3`) in tests; do real S3 only for live verification.
 
 ## Audit log
-A single `audit_logs` table (actor_id/email, action, resource_type/id/label, ip, created_at). A `record_audit(...)` helper called from services on login/upload/download/delete/reupload. Expose a CNB-only `GET /audit` (filters) and `GET /files/{id}/audit` (AuditViewer dep → clients 403).
+A single `audit_logs` table (actor_id/email, action, resource_type/id/label, ip, created_at). A `record_audit(...)` helper called from services on login/upload/download/delete/reupload. Expose a staff-only `GET /audit` (filters) and `GET /files/{id}/audit` (AuditViewer dep → clients 403).

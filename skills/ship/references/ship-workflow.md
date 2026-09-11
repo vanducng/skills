@@ -396,13 +396,15 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
 ## Step 15b: Re-check PR comments after CI (merge gate)
 
 **Why this exists.** Step 13 runs once at PR creation, but a code-review **bot**
-(`review/code-review`, CodeRabbit, Codex review, etc.) runs *as a CI job* - so its
-inline comments only land *after* Step 15 turns green, never in time for Step 13.
-A green code-review check means "the bot finished", not "its findings are resolved".
-Without this re-fetch, those comments slip straight to merge. (Exact trap: goclaw
-#304 merged with 9 unresolved bot comments, real bugs included.)
+(`review/code-review`, CodeRabbit, Codex review, etc.) posts on its own schedule,
+typically 1-5 minutes after the PR opens - almost always after Step 13's fetch.
+A green code-review check means "the bot finished", not "its findings are resolved",
+and a red or never-triggered CI run does not mean the bot stayed silent.
+Without this re-fetch, those comments slip straight to merge. (Exact trap: a PR
+merged with 9 unresolved bot comments, real bugs included.)
 
-**Run after Step 15 is green, before Step 16, in every mode** (including `--auto`).
+**Run before Step 16 and before any handoff, whatever CI reported** - green, red,
+pending, or never triggered - in every mode (including `--auto`).
 Skip only when `--skip-pr-comments` was passed.
 
 1. Re-fetch review threads and top-level comments in one call:

@@ -38,20 +38,20 @@ Why not Playwright `launchPersistentContext`? Because that path requires Playwri
 SKILL="${CLAUDE_SKILL_DIR:-$(for d in "$HOME/skills/skills/browser-profile" "$HOME/.claude/skills/browser-profile" "$HOME/.agents/skills/browser-profile"; do [ -d "$d" ] && { echo "$d"; break; }; done)}/scripts"
 
 # 1. Open a fresh profile manually (you'll log in once)
-"$SKILL/profile-open.sh" retell-staging
+"$SKILL/profile-open.sh" acme-staging
 
 # 2. In another shell - let Claude attach to that same window
-"$SKILL/profile-attach.sh" retell-staging
-# → env-sanitized `agent-browser connect <port-for-retell-staging>` + UA verification
+"$SKILL/profile-attach.sh" acme-staging
+# → env-sanitized `agent-browser connect <port-for-acme-staging>` + UA verification
 
 # 3. List profiles and their status
 "$SKILL/profile-list.sh"
 
 # 4. When done
-"$SKILL/profile-close.sh" retell-staging
+"$SKILL/profile-close.sh" acme-staging
 ```
 
-Naming convention: `<env>-<role>`. Examples: `retell-staging`, `goclaw-admin`, `cnb-snowflake-ui`.
+Naming convention: `<env>-<role>`. Examples: `acme-staging`, `admin-console`, `warehouse-ui`.
 
 ## Command reference
 
@@ -78,12 +78,12 @@ Range 9300-9399 avoids the conventional 9222. If two names hash to the same port
 
 ```
 $HOME/.claude/browser-profiles/
-├── retell-staging/
+├── acme-staging/
 │   ├── Default/                 # Chrome user data (cookies.db, Local Storage/, IndexedDB/, Cache/, …)
 │   ├── DevToolsActivePort       # written by Chrome on launch; contains the actual port + WS path
 │   ├── SingletonLock            # dangling symlink to "<hostname>-<pid>"; may be stale after a crash
 │   └── .browser-profile.pid     # PID of the Chrome process we launched (for `close`)
-└── goclaw-admin/
+└── admin-console/
     └── ...
 ```
 

@@ -59,7 +59,7 @@ Flags:
 
 ## Review voice (the style guide)
 
-These are the conventions for **every** comment this skill writes. Reference example: `careernowbrands/cnb-data-contract#124`.
+These are the conventions for **every** comment this skill writes. Reference example: `<org>/<repo>#124`.
 
 ### Severity prefix on every finding
 
@@ -161,7 +161,7 @@ Collect findings as you go into this structure (memory only - don't write a file
   "body":      "<top-level summary, per the shape above>",
   "comments": [
     {
-      "path":      "contracts/constraints/snowflake/five9_old_lead_recency_alert.yaml",
+      "path":      "contracts/constraints/warehouse/lead_recency_alert.yaml",
       "line":      44,
       "side":      "RIGHT",
       "body":      "**Important - CURRENT_DATE timing**: ..."

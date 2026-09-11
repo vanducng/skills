@@ -44,7 +44,7 @@ Keep a bucket-1 candidate **only if all three hold**:
 - **(b) Evidence-backed** - something actually went wrong, or you confirmed a fact against a tool/source, *this session*. Not a guess, not "might be nice."
 - **(c) Novel** - the target skill doesn't already say it.
 
-Reject everything else and **log what you rejected and why** - visible restraint is the point. (This session, "Polaris brand" and "single-column layout" were correctly rejected → memory, not the skill.)
+Reject everything else and **log what you rejected and why** - visible restraint is the point. (In one session, a product brand name and a single-column layout decision were correctly rejected → memory, not the skill.)
 
 ## Workflow
 
@@ -53,7 +53,7 @@ Reject everything else and **log what you rejected and why** - visible restraint
 3. **Apply the selectivity gate** to the bucket-1 set. Keep only (a)∧(b)∧(c). Record the rejects.
 4. **Verify against the source of truth before editing.** Re-run the CLI's `--help`, re-read the real code/file, confirm the version. Never capture from memory. *(This session: `agent-browser --help` showed browser-settings live under `set <setting>`, proving the documented bare `viewport` was wrong.)*
 5. **Find the real file and make the smallest correct edit.** Edit `~/skills/skills/<skill>/...`. Note `~/.claude/skills/*` are per-skill **symlinks** into `~/skills/skills/*` - edit the symlink target. Fix the wrong line; add a tight recipe or troubleshooting row. Do not rewrite a skill you don't own or change its voice.
-6. **Ship** via `vd:ship --auto`, scoped to the `~/skills` repo (`git -C ~/skills` / `gh -R vanducng/skills` per ship Rule 12). Split into conventional commits by type/scope - `fix(<skill>):` for corrections, `docs(<skill>):` / `feat(skills):` as fits; **no AI references**. release-please owns versioning: never hand-edit CHANGELOG/version, and **do not auto-merge the release PR** it opens.
+6. **Ship** via `vd:ship --auto`, scoped to the skills repo (`git -C "$SKILLS_REPO"`, and pass the matching `gh -R <owner>/<repo>` per ship Rule 12). Split into conventional commits by type/scope - `fix(<skill>):` for corrections, `docs(<skill>):` / `feat(skills):` as fits; **no AI references**. release-please owns versioning: never hand-edit CHANGELOG/version, and **do not auto-merge the release PR** it opens.
 
 `--dry-run`: do steps 1-5 and present the proposed edits + rejects, but stop before ship.
 
@@ -68,7 +68,7 @@ Reject everything else and **log what you rejected and why** - visible restraint
 
 ## Scope & security
 
-This skill **handles**: distilling general, evidence-backed improvements to existing skills in `vanducng/skills` from the current session, and shipping them. It does **NOT** handle: mining historical sessions / git / PR history (`vd:rule-miner`), skill lifecycle/vendoring/release mechanics (`vd:skill-management`), authoring new skills (`vd:skill-creator`), editing CLAUDE.md/AGENTS.md or rule files (`vd:rule-miner`), or storing project/task/user facts (memory).
+This skill **handles**: distilling general, evidence-backed improvements to existing skills in the skills repo from the current session, and shipping them. It does **NOT** handle: mining historical sessions / git / PR history (`vd:rule-miner`), skill lifecycle/vendoring/release mechanics (`vd:skill-management`), authoring new skills (`vd:skill-creator`), editing CLAUDE.md/AGENTS.md or rule files (`vd:rule-miner`), or storing project/task/user facts (memory).
 
 Security policy:
 - Only write under `~/skills`. Never write secrets, API keys, tokens, or session-specific PII into a skill - skills are **shared/public** artifacts. Scrub any captured command of credentials and host-specific paths before saving.
@@ -81,7 +81,7 @@ Security policy:
 - **Evidence:** `agent-browser set viewport 1440 1024` worked; bare `agent-browser viewport 1440 1024` returned `{"error":"Unknown command: viewport"}` on 0.27.x. The skill documented the bare form.
 - **Classify → bucket 1** (the command reference is wrong).
 - **Gate:** general (any browser-render session) ∧ evidence-backed (confirmed via `agent-browser --help` → `set <setting>`) ∧ novel (skill was wrong) → **keep**.
-- **Rejected (correctly):** "Polaris brand name", "single-column layout decision" - task-specific → went to **memory**, not the skill.
+- **Rejected (correctly):** a product brand name, a single-column layout decision - task-specific → went to **memory**, not the skill.
 - **Apply:** fixed the command line in `skills/agent-browser/SKILL.md`, added a static-HTML render + page-overflow-check recipe and a troubleshooting row.
 - **Ship:** feature branch → conventional commits (`fix(agent-browser): …`) → PR → rebase-merge; release-please opened the release PR, left for the user.
 

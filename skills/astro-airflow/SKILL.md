@@ -105,7 +105,7 @@ Use these when:
 
 ```bash
 astro deployment variable list --deployment-id <id>            # values redacted
-astro deployment variable list --deployment-id <id> -s         # secrets (sensitive)
+astro deployment variable list --deployment-id <id> -k <KEY>   # one key; secret VALUES are never retrievable
 astro deployment inspect <id>
 astro deployment pool list --deployment-id <id>
 ```

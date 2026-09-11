@@ -87,7 +87,7 @@ miudb connections list --output json
 miudb connections list --basic --output json   # scannable: ref/name/group/db_type/host
 ```
 
-Connections are addressed by **`group/name`** (e.g. `cnb/cdljn-prod`); a bare
+Connections are addressed by **`group/name`** (e.g. `analytics/warehouse-prod`); a bare
 `name` works when it is unique across groups. The `ref` column from `--basic` is
 exactly what to pass to `--connection`. The `-c` short flag only exists on
 `erd` subcommands (see below) - other commands like `query run` require the

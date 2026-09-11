@@ -109,7 +109,7 @@ When another skill delegates pane naming, label the calling pane `<project>:<int
 - Use a ticket key or two to four short words for the intent, not the full branch name.
 - Keep the full label at 40 characters or fewer. Shorten the intent first.
 
-Examples: `polaris:ELT-3267-calls`, `skills:herdr-pane-name`.
+Examples: `webapp:PROJ-3267-calls`, `skills:herdr-pane-name`.
 
 ```bash
 herdr pane rename "$HERDR_PANE_ID" "<project>:<intent>"

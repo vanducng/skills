@@ -110,15 +110,15 @@ def meta(d, feature_id):
 
 
 print('new - branch-derived:')
-d = repo('feat/ELT-3316-manual-upload')
+d = repo('feat/PROJ-3316-manual-upload')
 wb(d, 'new')
-m = meta(d, 'elt-3316-manual-upload')
+m = meta(d, 'proj-3316-manual-upload')
 ok('creates feature from branch', bool(m))
-ok('feature.json ticket = ELT-3316', bool(m) and m.get('ticket') == 'ELT-3316')
+ok('feature.json ticket = PROJ-3316', bool(m) and m.get('ticket') == 'PROJ-3316')
 ok('stored slug matches hooks slugFromBranch (parity)',
-   bool(m) and m.get('slug') == P.slug_from_branch('feat/ELT-3316-manual-upload'))
+   bool(m) and m.get('slug') == P.slug_from_branch('feat/PROJ-3316-manual-upload'))
 ok('5 type subdirs created',
-   all(os.path.exists(os.path.join(d, '.workbench', 'features', 'elt-3316-manual-upload', t))
+   all(os.path.exists(os.path.join(d, '.workbench', 'features', 'proj-3316-manual-upload', t))
        for t in ['plans', 'reports', 'visuals', 'journals', 'state']))
 
 print('new - user slug (H2: cleaned/lowercased + parity):')
@@ -141,11 +141,11 @@ ok('slug not swallowed by --from-scratch',
    os.path.exists(os.path.join(d, '.workbench', 'features', 'other-feature')))
 
 print('list / archive / restore:')
-d = repo('feat/ELT-1-alpha')
+d = repo('feat/PROJ-1-alpha')
 wb(d, 'new')
 wb(d, 'new', 'beta')
 ok('list --status all shows both',
-   (lambda o: bool(re.search(r'elt-1-alpha', o)) and bool(re.search(r'beta', o)))(wb(d, 'list', '--status', 'all')))
+   (lambda o: bool(re.search(r'proj-1-alpha', o)) and bool(re.search(r'beta', o)))(wb(d, 'list', '--status', 'all')))
 wb(d, 'archive', 'beta')
 ok('archived appears under archived', bool(re.search(r'beta', wb(d, 'list', '--status', 'archived'))))
 ok('beta moved to _archive', os.path.exists(os.path.join(d, '.workbench', '_archive', 'beta')))
@@ -154,11 +154,11 @@ wb(d, 'restore', 'beta')
 ok('restored back to features', os.path.exists(os.path.join(d, '.workbench', 'features', 'beta')))
 
 print('resolve / reindex / gc:')
-d = repo('feat/ELT-9-gamma')
+d = repo('feat/PROJ-9-gamma')
 wb(d, 'new')
 r = json.loads(wb(d, 'resolve', '--json'))
-ok('resolve --json feature', r['feature'] == 'elt-9-gamma')
-ok('resolve reports path', r['reports'].endswith(os.path.join('features', 'elt-9-gamma', 'reports')))
+ok('resolve --json feature', r['feature'] == 'proj-9-gamma')
+ok('resolve reports path', r['reports'].endswith(os.path.join('features', 'proj-9-gamma', 'reports')))
 wb(d, 'new', 'session-feature')
 sid = 'wbt-%s-%s' % (os.getpid(), int(time.time() * 1000))
 ok('session state write succeeds', bool(S.update_session_state(sid, {'featureId': 'session-feature'})))

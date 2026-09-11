@@ -101,7 +101,7 @@ Multi-step investigation → task-management-debugging.md
 
 ## Tool integration
 
-- **Database** - `psql` for Postgres, `bq` for BigQuery, sqlit CLI for any saved connection
+- **Database** - `psql` for Postgres, `bq` for BigQuery, `miudb query run --connection <conn>` for any saved connection (see vd:miudb)
 - **CI/CD** - `gh` CLI for GitHub Actions logs (`gh run view --log-failed`)
 - **K8s** - `kubectl logs`, `kubectl describe`, `kubectl events`, `kubectl get pods -o wide`
 - **dbt** - `dbt run --select`, `dbt test`, `target/run_results.json`, `target/manifest.json`, `dbt-deps`

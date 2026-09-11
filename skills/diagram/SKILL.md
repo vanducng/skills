@@ -273,7 +273,6 @@ Edit these once and every future diagram inherits the change. Keep type refs ≤
 
 - PNG text labels can render garbled when there are >12 elements with long names. Workarounds: shorten labels, switch to `--format svg`.
 - SVG layouts overlap on >20-element diagrams (LLM spatial reasoning weakness). Workaround: split into two diagrams, or use PNG and re-render with a shorter description.
-- `--provider codex` is not fully keyless in the current CLI: startup still fails without `OPEN_ROUTER_KEY` / `OPENROUTER_API_KEY` before the Codex provider branch runs.
 - `--regen` operates on the **latest** session under the current `.diagrams/` dir. Running it from a different repo won't find the original session.
 
 ## Dependencies

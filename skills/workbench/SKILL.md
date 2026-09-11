@@ -39,11 +39,10 @@ If the repo isn't at `$HOME/skills`, use the installed symlink (`$HOME/.claude/s
 | `reindex` | Rebuild `.workbench/INDEX.md` from a `feature.json` scan (recovery / human overview). |
 | `gc [--force]` | Sweep `tmp/`, `*.pid`, `*.log`. Dry-run by default; `--force` deletes. |
 | `triage` | List `_unsorted/` items awaiting a home. |
-| `migrate [...]` | Pointer to the native `vd migrate` migrator. |
 
 ## Identity
 
-A feature's id is `{ticket}-{slug}` (or `{slug}` when ticketless), **frozen at creation, no date** - the immutable cross-reference for commits/journals/PRs. The human-facing `label` in `feature.json` is renameable; the dir name is not. Resolution is branch-first and deterministic; on a `feat/ELT-3316-...` branch the hooks and this CLI both resolve `elt-3316-...`.
+A feature's id is `{ticket}-{slug}` (or `{slug}` when ticketless), **frozen at creation, no date** - the immutable cross-reference for commits/journals/PRs. The human-facing `label` in `feature.json` is renameable; the dir name is not. Resolution is branch-first and deterministic; on a `feat/PROJ-3316-...` branch the hooks and this CLI both resolve `proj-3316-...`.
 
 ## Notes
 
@@ -53,6 +52,6 @@ A feature's id is `{ticket}-{slug}` (or `{slug}` when ticketless), **frozen at c
 
 ## Workflow position
 
-**Pairs with:** the producer skills (`vd:scout`, `vd:plan`, `vd:debug`, `vd:journal`, …) which write into the injected paths this resolves. **Follows:** `vd migrate` (one-time migration of an existing umbrella to feature-first).
+**Pairs with:** the producer skills (`vd:scout`, `vd:plan`, `vd:debug`, `vd:journal`, …) which write into the injected paths this resolves.
 
 **Auto-claim handshake:** in a feature-first repo with no active feature, the hook context shows `Feature: none` and paths resolve under `_global/scratch/`. The entry-point producer skills (`vd:brainstorm`, `vd:plan`, `vd:cook --quick`, `vd:ultracook`) call `new <slug>` at the start of a unit of work to claim `features/<slug>/`, then write there - so a brand-new project's artifacts get a named home instead of pooling in scratch. `new` is idempotent, so a later skill in the same flow resolves the existing feature rather than duplicating it.

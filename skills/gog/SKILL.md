@@ -1,8 +1,8 @@
 ---
 name: gog
-description: "Manage Google Workspace from the CLI via `gog`: Gmail, Drive, Calendar, Sheets, Docs, Chat, Tasks, and Admin. Invoke with --account cnb|dpl|abs and --user person|sa. Use when the user mentions gmail, drive, calendar, sheets, docs, workspace, gog, email, files, events, or a configured account."
+description: "Manage Google Workspace from the CLI via `gog`: Gmail, Drive, Calendar, Sheets, Docs, Chat, Tasks, and Admin. Invoke with --account <name> (any account in the local registry) and --user person|sa. Use when the user mentions gmail, drive, calendar, sheets, docs, workspace, gog, email, files, events, or a configured account."
 license: MIT
-argument-hint: "--account cnb|dpl|abs --user person|sa gmail|drive|calendar|sheets|docs|auth"
+argument-hint: "--account <name> --user person|sa gmail|drive|calendar|sheets|docs|auth"
 metadata:
   author: vanducng
   version: "1.1.0"
@@ -27,24 +27,22 @@ and this skill cannot see them.
 ## Flags (prompt / skill args)
 
 ```
-vd:gog --account <cnb|dpl|abs> --user <person|sa> <gmail|drive|calendar|sheets|docs|auth> ...
+vd:gog --account <name> --user <person|sa> <gmail|drive|calendar|sheets|docs|auth> ...
 ```
 
 | Flag | Values | Default |
 |---|---|---|
-| `--account` | `cnb`, `dpl`, `abs` | none; required on writes, ask if missing |
+| `--account` | any name in `$HOME/.config/vd/gog-accounts/` | none; required on writes, ask if missing |
 | `--user` | `person` (human mailbox, refresh token), `sa` (service account key) | `person` |
 
-Resolve to a `gog` CLI identity:
+Discover the configured accounts, never assume them:
 
-| --account | --user | Registry file | `gog --account` |
-|---|---|---|---|
-| `cnb` | `person` | `cnb.user.md` | `cnb` |
-| `cnb` | `sa` | `cnb.sa.md` | `cnb-sa` |
-| `dpl` | `person` | `dpl.user.md` | `dpl` |
-| `dpl` | `sa` | `dpl.sa.md` | `dpl-sa` |
-| `abs` | `person` | `abs.user.md` | `abs` |
-| `abs` | `sa` | `abs.sa.md` | `abs-sa` |
+```bash
+ls "$HOME/.config/vd/gog-accounts/"*.md   # <account>.user.md / <account>.sa.md
+```
+
+Resolve to a `gog` CLI identity: `--user person` → `gog --account <account>`,
+`--user sa` → `gog --account <account>-sa`.
 
 Read `$HOME/.config/vd/gog-accounts/<account>.<user|sa>.md` before the first call.
 If that file is missing, stop and say so. Do not invent an email.
@@ -84,11 +82,11 @@ gog --client <client> auth add <email> \
 `--user sa` does not use this path. The key does not expire on a 7-day clock;
 do not impersonate a person unless Domain-Wide Delegation is on.
 
-Named OAuth clients: `cnb` + `person` → `gog --client cnb`; `dpl` + `person` → default.
+Named OAuth clients: a registry entry may pin one (`gog --client <name>`); otherwise the default client applies.
 
 ```bash
-# vd:gog --account cnb --user person ...
-gog --account cnb me --json --no-input
+# vd:gog --account acme --user person ...
+gog --account acme me --json --no-input
 ```
 
 ## Preflight

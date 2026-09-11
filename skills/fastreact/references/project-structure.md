@@ -57,4 +57,5 @@ Two apps in one repo, composed by `docker-compose.yml` at the root.
 - One Alembic migration per schema change; hand-write `0001_init.py` to match models (don't rely on autogenerate for the first one).
 
 ## Reference implementation
-The CNB Hire Intelligence build (github.com/careernowbrands/cnb-hire-intelligence) is the canonical example of this structure: file-upload portal, RBAC (cnb_admin/cnb_data/cnb_ae/client_admin), S3, audit log, profile, admin tables.
+The canonical shape of this structure is a tenanted file-upload portal: role-based access
+(`staff_admin`/`staff_data`/`staff_sales`/`client_admin`), S3 storage, audit log, profile, admin tables.

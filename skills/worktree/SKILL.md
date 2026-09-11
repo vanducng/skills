@@ -32,7 +32,7 @@ All worktrees live at **`<git-root>/.worktrees/<repo>-<feature>/`** - one rule f
 
 `.worktrees/` is a **top-level sibling of the `.workbench/` artifact umbrella**, deliberately not nested under it. Worktrees are full checkouts (heavy, contain source), so nesting them inside `.workbench/` would pollute artifact globs (`reports/`, `plans/`) and bloat the umbrella. The script auto-appends `/.worktrees/` and `.env.worktree` to `.git/info/exclude` when the repo doesn't already ignore them, so `git status` stays clean without touching tracked files.
 
-**Worktrees + the umbrella (artifacts survive worktree removal).** Artifact paths anchor to the **main** worktree, so work done from any linked worktree writes back to the *main* checkout's `.workbench/` - surviving `git worktree remove`. Under `paths.layout: feature-first`, each worktree's branch resolves its own feature (e.g. `feat/ELT-3316-…` → `.workbench/features/elt-3316-…/`), so parallel worktrees on different tickets land in **separate feature folders under the one shared main umbrella** - never colliding, never duplicated. A linked worktree has no local `.workbench/`.
+**Worktrees + the umbrella (artifacts survive worktree removal).** Artifact paths anchor to the **main** worktree, so work done from any linked worktree writes back to the *main* checkout's `.workbench/` - surviving `git worktree remove`. Under `paths.layout: feature-first`, each worktree's branch resolves its own feature (e.g. `feat/PROJ-3316-…` → `.workbench/features/proj-3316-…/`), so parallel worktrees on different tickets land in **separate feature folders under the one shared main umbrella** - never colliding, never duplicated. A linked worktree has no local `.workbench/`.
 
 **Hazard:** `git clean -fdx` in the main checkout can delete in-repo worktrees (single `-f` skips dirs containing `.git`, double `-ff` does not). Run `clean` afterward to tidy stale metadata.
 
@@ -65,26 +65,26 @@ If the base branch must be fresh (release work, long-running repos), run `git fe
 ### Step 2 - Decide branch name
 
 **Ticket-driven work is authoritative.** If the task is tied to a Jira, Linear, Shortcut, GitHub issue, or similar ticket, extract the issue key first and use it as the branch name before any slug/prefix logic:
-- Jira URL `https://teamcnb.atlassian.net/browse/ELT-3267` → branch `ELT-3267`
-- Text `fix ELT-3267 transfer phones` → branch `ELT-3267`
-- Bare key `ELT-3267` → branch `ELT-3267`
+- Jira URL `https://<your-org>.atlassian.net/browse/PROJ-3267` → branch `PROJ-3267`
+- Text `fix PROJ-3267 transfer phones` → branch `PROJ-3267`
+- Bare key `PROJ-3267` → branch `PROJ-3267`
 
 Run the create command with `--no-prefix` for ticket branches:
 
 ```bash
-node $HOME/skills/skills/worktree/scripts/worktree.cjs create "ELT-3267" --no-prefix
+node $HOME/skills/skills/worktree/scripts/worktree.cjs create "PROJ-3267" --no-prefix
 ```
 
 **Use `--no-prefix` (skip Step 3) when the caller supplies an exact branch name** - uppercase letters, an issue-tracker key, or slashes used as a convention:
-- `ND-1377-cleanup-docs` → `--no-prefix` → branch `ND-1377-cleanup-docs`
-- `kai/feat/604-startup-option` → `--no-prefix` → branch `kai/feat/604-startup-option`
+- `ABC-1377-cleanup-docs` → `--no-prefix` → branch `ABC-1377-cleanup-docs`
+- `user/feat/604-startup-option` → `--no-prefix` → branch `user/feat/604-startup-option`
 
 **Attaching to an existing branch:** pass the existing branch name (usually with `--no-prefix`). If the branch exists locally or on origin, `create` attaches the worktree to it instead of creating a new branch - no need to drop to raw `git worktree add`.
 
 **If a ticket is discovered after a non-ticket worktree already exists**, rename the branch before shipping:
 
 ```bash
-git branch -m ELT-3267 && git push -u origin ELT-3267
+git branch -m PROJ-3267 && git push -u origin PROJ-3267
 ```
 
 **Otherwise detect prefix from the description:**

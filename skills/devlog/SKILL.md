@@ -215,7 +215,7 @@ uv run pub doctor
 Vault artifact rules:
 
 - Infer `<project>` from `--project`, then from the central artifact/repo named
-  in the post (`dataplanelabs/workflows` -> `workflows`), then current repo
+  in the post (`<org>/workflows` -> `workflows`), then current repo
   basename. Use kebab-case.
 - Use a concise title derived from the post angle; let `pub new` generate the
   dated id and capture it from command output.

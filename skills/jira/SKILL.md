@@ -63,14 +63,14 @@ After selecting the Jira instance, read its rules before drafting or executing a
 ~/.config/vd/jira-rules/<instance>.jira-rules.md
 ```
 
-Use `cnb.jira-rules.md` for CNB and `abs.jira-rules.md` for ABS. These rules are authoritative for issue-type mapping, assignee, sprint, parent, initial status, and ticket content. Resolve dynamic values such as `me`, the current active sprint, and transition IDs from Jira before showing the proposed payload.
+One file per Jira instance, named for that instance (`<instance>.jira-rules.md`). These rules are authoritative for issue-type mapping, assignee, sprint, parent, initial status, and ticket content. Resolve dynamic values such as `me`, the current active sprint, and transition IDs from Jira before showing the proposed payload.
 
 If the requested type is not a native Jira issue type, use the rule's Jira type and labels. Explicit user instructions override the rule file; state the override. If no rule file exists, continue with the base safety protocol and tell the user that no instance defaults were applied.
 
 ## Activation Triggers
 
 Activate when user mentions:
-- Issue keys (e.g., ELT-123, PROJ-45)
+- Issue keys (e.g., PROJ-45, ABC-123)
 - Keywords: jira, ticket, issue, sprint, backlog, board, epic
 - Actions: create ticket, move to done, assign, check status
 
@@ -256,4 +256,4 @@ Never put the numeric attachment ID in an ADF `media` node; it causes `ATTACHMEN
 - "transition not available" → check available transitions with `jira issue view`
 - Field validation → check project issue types with `jira project list`
 - `ATTACHMENT_VALIDATION_ERROR` → use the compact CLI thumbnail fallback or resolve the Media Services UUID per `references/inline-images.md`
-- `jira project list` shell errors → use REST API or skip, project is ELT by default
+- `jira project list` shell errors → use the REST API, or fall back to the project key from the loaded rules file

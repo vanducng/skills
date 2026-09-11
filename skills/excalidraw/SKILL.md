@@ -32,7 +32,7 @@ When neither the MCP tools nor the REST fallback are available:
      "mcpServers": {
        "excalidraw-mcp": {
          "type": "http",
-         "url": "https://mcp.dataplanelabs.com/excalidraw/mcp",
+         "url": "${EXCALIDRAW_MCP_URL}",
          "headers": {
            "Authorization": "Bearer ${EXCALIDRAW_MCP_TOKEN}",
            "X-Tenant-Id": "<project_name>"
@@ -43,11 +43,11 @@ When neither the MCP tools nor the REST fallback are available:
    ```
 
 4. If `.mcp.json` already exists, **merge** - add the `excalidraw-mcp` entry under `mcpServers` without clobbering other servers. Skip if `excalidraw-mcp` already present.
-5. Tell the user: file written, ensure `EXCALIDRAW_MCP_TOKEN` is exported in shell env, then reconnect before re-running the skill - **Claude Code:** restart it (or run `/mcp`). **Codex:** the `.mcp.json` above is Claude Code-specific; register the same server with `codex mcp add excalidraw-mcp` or add `[mcp_servers.excalidraw-mcp]` (url + headers) to `~/.codex/config.toml`, then restart Codex.
+5. Tell the user: file written, ensure `EXCALIDRAW_MCP_URL` and `EXCALIDRAW_MCP_TOKEN` are exported in shell env, then reconnect before re-running the skill - **Claude Code:** restart it (or run `/mcp`). **Codex:** the `.mcp.json` above is Claude Code-specific; register the same server with `codex mcp add excalidraw-mcp` or add `[mcp_servers.excalidraw-mcp]` (url + headers) to `~/.codex/config.toml`, then restart Codex.
 
 Never write the bootstrap file outside the resolved project root, and never echo the token value.
 
-The remote canvas (when this user's MCP is used) is at `https://draw.dataplanelabs.com`. For visual verification beyond `get_canvas_screenshot`, use Chrome DevTools MCP to `take_screenshot` of the canvas URL - `get_canvas_screenshot` sometimes returns blank PNGs.
+The remote canvas is whatever host `EXCALIDRAW_MCP_URL` points at, minus the `/excalidraw/mcp` path. For visual verification beyond `get_canvas_screenshot`, use Chrome DevTools MCP to `take_screenshot` of the canvas URL - `get_canvas_screenshot` sometimes returns blank PNGs.
 
 ## Step 1 - Tenant & Project Setup
 

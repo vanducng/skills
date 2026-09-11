@@ -162,7 +162,7 @@ test('runCheck passes on exit 0 and fails otherwise', () => {
 
 test('profilePort matches browser-profile _lib.sh and stays in range', () => {
   const { execFileSync } = require('node:child_process');
-  for (const name of ['retell-staging', 'cnb-polaris', 'hire-intelligence']) {
+  for (const name of ['acme-staging', 'admin-console', 'warehouse-ui']) {
     const sum = parseInt(
       execFileSync('/bin/sh', ['-c', 'printf %s "$1" | cksum', 'sh', name], { encoding: 'utf8' }).split(/\s+/)[0],
       10

@@ -122,7 +122,7 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
      `isResolved==false && isOutdated==false` and actionable (human or bot). Triage,
      fix the valid ones (re-run Step 4 after fixes), reply inline with rationale, resolve each, repair any already-resolved thread that lacks an explanatory inline reply, then merge.
      **0 unresolved actionable threads is a merge precondition, alongside green CI** - a
-     safety floor `--auto` does not suppress. (This exact trap merged goclaw #304 with 9
+     safety floor `--auto` does not suppress. (This exact trap merged a PR with 9
      unresolved bot comments, real bugs included.)
 12. **Ship acts on the *current* repo (cwd).** Before any `git`/`gh` step, confirm
    the branch you mean to land lives in the cwd repo. When landing a sibling repo's
@@ -191,10 +191,10 @@ If an auto-release tool is detected (`goreleaser`, `release-please`, `semantic-r
 Bare ship (no `--auto`/`--merge`) - ends at a green PR, unmerged:
 
 ```
-✓ Pre-flight: ELT-3358-heartland, 1 commit, +50/-3 (mode: official, target: main)
+✓ Pre-flight: PROJ-123-example-feature, 1 commit, +50/-3 (mode: official, target: main)
 ✓ Tests: 419 passed, 0 failed
 ✓ Review: 0 critical
-✓ Pushed: origin/ELT-3358-heartland
+✓ Pushed: origin/PROJ-123-example-feature
 ✓ PR: https://github.com/org/repo/pull/117 → main
 ✓ CI: green
 ✓ PR comments: 0 actionable

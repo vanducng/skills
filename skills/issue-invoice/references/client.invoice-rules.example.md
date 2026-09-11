@@ -36,7 +36,7 @@ prose for the agent.
 | `timezone` | IANA zone defining the working day. PR timestamps are UTC and must be converted before grouping |
 | `github_author` | PR author login to filter on |
 | `spreadsheet` | Google Sheets file id |
-| `gog_account` | Org flag: `cnb`, `dpl`, or `abs` |
+| `gog_account` | Org flag: any account name in your `gog` registry |
 | `gog_user` | Always `person` for invoices. Never `sa` |
 | `rate` | Hourly rate, written to column D |
 | `invoice_prefix` | Invoice number becomes `<prefix>-<YYYYMM>` |

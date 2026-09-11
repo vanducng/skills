@@ -108,7 +108,7 @@
 
 ## Example 4: Multi-Level Architecture
 
-**Goal:** 3-tier diagram: YAML Manifest → GCPlane Engine → GoClaw Instance
+**Goal:** 3-tier diagram: YAML Manifest → Control Plane → Agent Runtime
 
 **Step 2 - Dimensions (bottom-up):**
 
@@ -138,7 +138,7 @@ Tier 3 children (Instance internals): 4 boxes (outer 14, 14, 14, 10) with 2-spac
                                │
                                ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ GCPlane Engine                                               │
+│ Control Plane                                                │
 │                                                              │
 │  ┌──────────────┐    ┌──────────────┐    ┌────────────────┐  │
 │  │  Validate    │    │  Reconcile   │    │ Apply (Create/ │  │
@@ -155,7 +155,7 @@ Tier 3 children (Instance internals): 4 boxes (outer 14, 14, 14, 10) with 2-spac
                                │
                                ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ GoClaw Instance                                              │
+│ Agent Runtime                                                │
 │ HTTP REST API (:18790) + WebSocket RPC v3                    │
 │                                                              │
 │  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────┐  │
