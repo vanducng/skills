@@ -47,6 +47,9 @@ du -sh ~/.npm ~/.yarn ~/.pnpm-store ~/Library/pnpm \
 # Drill ~/.cache children (uv, pip, puppeteer, pre-commit, etc.)
 du -sh ~/.cache/* 2>/dev/null | sort -rh | head -15
 
+# Unused images/volumes/build cache inside the active engine (skip if docker is down)
+docker system df 2>/dev/null
+
 # Xcode (developers only)
 du -sh ~/Library/Developer/Xcode/{DerivedData,Archives,iOS\ DeviceSupport} 2>/dev/null
 ```
@@ -64,12 +67,12 @@ Standard regenerable caches. Apply only if path exists.
 | `~/.Trash/*` | `rm -rf ~/.Trash/* ~/.Trash/.[!.]*` |
 | Homebrew | `brew cleanup -s --prune=all` |
 | Go | `go clean -cache && go clean -modcache` (or `rm -rf ~/Library/Caches/go-build ~/go/pkg`) |
-| npm | `npm cache clean --force` |
+| npm | `npm cache clean --force && rm -rf ~/.npm/_npx` (`npm cache clean` does not clear the npx cache) |
 | pnpm | `pnpm store prune` |
 | yarn | `yarn cache clean` |
 | Cargo | `cargo cache --autoclean` (if `cargo-cache` installed) |
 | Gradle | `rm -rf ~/.gradle/caches` |
-| uv (Python) | `uv cache clean` (kill stuck `uv` first if locked, then `rm -rf ~/.cache/uv`) |
+| uv (Python) | `uv cache clean --force` (lock is often a live `uvx` MCP; `--force` is the documented override. Kill `uv` only if it is hung, not serving) |
 | pip | `pip cache purge` |
 | Generic `~/.cache/<tool>` | `rm -rf` after confirming tool is regenerable (puppeteer, pre-commit, packer, etc.) |
 | Old JetBrains caches (>1yr) | `rm -rf ~/Library/Caches/JetBrains/*<old-year>*` |
@@ -83,6 +86,9 @@ Standard regenerable caches. Apply only if path exists.
 - **Downloads**: stray data dumps (large CSVs, sample videos), abandoned project folders, leftover venvs
 - **Apple Podcasts** episodes (auto-downloaded media, not subscriptions)
 - **Mail attachments**: `~/Library/Mail/V*/MailData/Attachments` (re-downloadable from server)
+- **LLM model weights**: `~/.cache/huggingface`, `~/.ollama` - regenerable but slow/expensive to redownload
+- **Cursor snapshots**: `~/Library/Application Support/Cursor/snapshots` - local codebase snapshots, rebuilds
+- **Claude Desktop VM**: `~/Library/Application Support/Claude/vm_bundles` - VM image, redownloads
 
 ### 🔴 Big-ticket (explicit per-item auth required)
 
@@ -114,6 +120,17 @@ Before deleting any app's data dir, quit the app cleanly:
 ```bash
 osascript -e 'quit app "<App Name>"' 2>/dev/null; sleep 1
 ```
+
+### Container engine prune (engine still in use)
+
+Do not delete the VM. Reclaim unused images, volumes, and build cache:
+
+```bash
+docker system df
+docker system prune -af --volumes
+```
+
+Then verify host free space (`df -h /` and `df -h /System/Volumes/Data`). Sparse VM disks (OrbStack, Docker Desktop) often return that space to the host.
 
 ### Container engine migration (generic)
 
@@ -195,7 +212,7 @@ All cleanup runs through `vd:worktree` (`node "$HOME/skills/skills/worktree/scri
 ## Hard rules
 
 1. **Never** wipe browser profiles. Bookmarks, sessions, history, extensions, saved passwords live there.
-2. **Never** use `sudo` to bypass file locks. If a tool's cache is locked (e.g., `uv`, `pnpm`), kill the stuck process first.
+2. **Never** use `sudo` to bypass file locks. If a tool's cache is locked (`uv`, `pnpm`), prefer the tool's `--force` (or wait). Kill only if the process is actually hung, not a live `uvx` / MCP / package-manager.
 3. **Never** delete an app's `Application Support` while the app is running - quit it first.
 4. **Surface skipped items** at the end so user can decide later - don't silently leave reclaimable space on the table.
-5. **Adapt to what's there.** macOS evolves; new caches appear (LLM tool caches, Playwright/Cypress, Hugging Face, Ollama models). Apply the regenerable-cache heuristic: if it's recreated automatically on next use, it's 🟢.
+5. **Adapt to what's there.** macOS evolves; new caches appear (LLM tool caches, Playwright/Cypress, Hugging Face, Ollama models). Small regenerable caches are 🟢. Multi-GB model weights (Hugging Face, Ollama) are 🟡 even though they regenerate.
