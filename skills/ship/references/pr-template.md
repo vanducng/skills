@@ -8,7 +8,7 @@ Used by Step 12 (`gh pr create` / `gh pr edit`) and refreshed by Step 15 once CI
 
 > `../git/references/pr-template.md` (sibling git skill, resolved from the skill root)
 
-Load that file for: past-tense (v-ed) titles, ticket-prefix detection, repo-template detection, fallback Why / What / Risks + verification block, examples.
+Load that file for: past-tense (v-ed) titles, confirmed-ticket selection, repo-template detection, fallback Why / What / Risks + verification block, examples.
 
 ## Ship-specific integration
 
