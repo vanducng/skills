@@ -2,31 +2,7 @@
 
 ## Step 1: Pre-flight
 
-1. Resolve the repository's deployment policy and any source/target branches explicitly named by the user before inferring mode. Distinguish an individual promotion from an aggregate release. A `release/*` branch may itself be a deployment target, not a feature branch. Run `git branch --show-current`; if on the resolved target branch, trigger **on-target recovery**.
-
-   **On-target recovery flow** (Hard Rule 1):
-   - **`--auto`:** auto-create a feature branch and continue silently. No prompt.
-     ```bash
-     # Infer slug - staged-diff filenames first, then latest commit subject, else timestamp
-     SLUG=$(
-       git diff --cached --name-only | head -1 | sed 's|.*/||; s|\.[^.]*$||; s|[^a-zA-Z0-9]|-|g; s|--*|-|g; s|^-||; s|-$||' \
-       || git log -1 --pretty=%s | sed 's/^[a-z]*[(:][^)]*)*: *//; s|[^a-zA-Z0-9]|-|g; s|--*|-|g; s|^-||; s|-$||' | cut -c1-50 \
-       || date +"auto-%Y%m%d-%H%M"
-     )
-     # Pick prefix by mode: official → feat/, staging → release/, beta → dev/
-     case "$MODE" in
-       official) PREFIX="feat" ;;
-       staging)  PREFIX="release" ;;
-       beta)     PREFIX="dev" ;;
-     esac
-     git checkout -b "$PREFIX/$SLUG"
-     ```
-     Print one line: `↪ Auto-created branch: <PREFIX>/<SLUG> (from <target>) - continuing.`
-   - **Interactive:** `AskUserQuestion` with three options:
-     - *Create feature branch, then ship* (Recommended) - same auto-branch logic
-     - *Direct push to target* - skip Steps 5/12/13/15/16 (no review/PR/CI), commit + push straight to target. Requires explicit pick.
-     - *Abort* - stop the pipeline.
-   - **Never** offer direct-push in `--auto`. The flow is binary: branch + continue, or stop on safety violation.
+1. Resolve the repository's deployment policy and any source/target branches explicitly named by the user before inferring mode. Distinguish an individual promotion from an aggregate release. A `release/*` branch may itself be a deployment target, not a feature branch.
 2. Resolve ship mode:
    - `official` → target = default branch (main/master)
    - `staging` → target = staging/uat/release branch
@@ -37,7 +13,25 @@
      - `dev/* develop/* beta/* experiment/* exp/*` → beta
      - Unclear → `AskUserQuestion`: "Official (main)" / "Staging (release)" / "Beta (dev)"
 3. Detect target branch - see `auto-detect.md`.
-4. `git status` (no `-uall`). Uncommitted changes are always included in the ship.
+4. Run `git status` (no `-uall`) and `git branch --show-current`. Uncommitted changes are included in the ship. Trigger **on-target recovery** when on the resolved target or when shipping changes from `main` / `master` / `dev` / `staging` / `uat` / a repository-defined deployment branch, even if the requested destination differs. An explicitly authorized aggregate release may retain its clean source branch; it must not collect uncommitted work.
+
+   **On-target recovery flow** (Hard Rule 1):
+   - **`--auto`:** auto-create a feature branch and continue silently. No prompt.
+     ```bash
+     # Infer slug - staged-diff filenames first, then latest commit subject, else timestamp
+     SLUG=$(
+       git diff --cached --name-only | head -1 | sed 's|.*/||; s|\.[^.]*$||; s|[^a-zA-Z0-9]|-|g; s|--*|-|g; s|^-||; s|-$||' \
+       || git log -1 --pretty=%s | sed 's/^[a-z]*[(:][^)]*)*: *//; s|[^a-zA-Z0-9]|-|g; s|--*|-|g; s|^-||; s|-$||' | cut -c1-50 \
+       || date +"auto-%Y%m%d-%H%M"
+     )
+     git checkout -b "feat/$SLUG"
+     ```
+     Use the repository's feature-branch convention when it differs; never create a deployment branch as recovery. Print one line: `↪ Auto-created feature branch from current HEAD - continuing.`
+   - **Interactive:** `AskUserQuestion` with three options:
+     - *Create feature branch, then ship* (Recommended) - same auto-branch logic
+     - *Direct push to target* - skip Steps 5/12/13/15/16 (no review/PR/CI), commit + push straight to target. Requires explicit pick.
+     - *Abort* - stop the pipeline.
+   - **Never** offer direct-push in `--auto`. The flow is binary: branch + continue, or stop on safety violation.
 5. Fetch the target, then inspect `git diff origin/<target>...HEAD --stat` and `git log origin/<target>..HEAD --oneline`. For an individual promotion, exclude unrelated staging commits. If the named branch carries them, stop and propose a clean target-based branch with only the intended commits; do not silently switch heads, rebase a shared branch, or merge the aggregate release branch into it.
 6. If `--dry-run`: print every step's intent, change nothing, stop here.
 

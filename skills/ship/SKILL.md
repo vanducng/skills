@@ -38,7 +38,7 @@ Repository deployment policy and an explicitly named source/target branch take p
 
 0. **Merge is opt-in - a bare ship never merges.** A plain `vd:ship` / "ship to main as pr" **stops after the PR is green and comments are clear**; it does **not** merge. Merge only when `--auto` is set, `--merge` is set, or the user explicitly says "merge" / "land it" / "merge anyway" in *this* request. "Ship to main as a PR" is a request to *open and green* the PR, not to merge it. Do not treat CI-green + zero comments as license to merge - that gate makes merge *safe*, not *requested*.
 
-1. **Never ship from the target branch without a feature branch.** If on `main` / `master` / `dev` / `staging` / `uat` with changes to ship:
+1. **Never commit or push feature work directly to a deployment branch.** Resolve mode and target first. Recover onto a feature branch when on the resolved target, or when shipping changes from `main` / `master` / `dev` / `staging` / `uat` / a repository-defined deployment branch even if the destination differs. An explicitly authorized aggregate release may retain its clean source branch, but must not collect uncommitted work:
    - **`--auto`:** auto-create `feat/<slug>` from current HEAD silently, move pending changes there, continue the pipeline. No prompt (slug inference in Step 1). The resulting branch still goes through review/PR/CI like any other.
    - **Interactive:** prompt the user with three choices - *create feature branch* (recommended), *direct push to target* (skips review/PR/CI; requires explicit confirm), *abort*.
    - **Never** do a direct push to the target branch in `--auto`. Direct push is interactive-only and requires the user to pick it themselves.
