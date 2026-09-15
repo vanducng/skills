@@ -61,7 +61,7 @@ See `references/commit-standards.md` for the full table + good/bad examples.
 
 ## PR title format
 
-PR titles are **past tense (v-ed)**, and the ticket key is authoritative: if the work references a ticket key, the branch must start with it before the PR is created. `references/pr-template.md` (shared with `vd:ship`) is canonical for the full title rules, ticket invariant, and examples.
+PR titles are **past tense (v-ed)** and include the confirmed ticket key. Repository naming conventions and an explicitly named existing branch take precedence over generic ticket-prefix defaults. `references/pr-template.md` (shared with `vd:ship`) is canonical for title rules, branch preservation, and examples.
 
 ## Split decision (commit)
 

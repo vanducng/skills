@@ -12,6 +12,8 @@ metadata:
 
 Ship **prepares** a branch to land: merge target, test, review, version, PR, then drives CI to green and clears review comments - and by default **hands the PR back to you unmerged**. It does not implement features or redesign on the fly; failures kick back to `vd:cook`.
 
+Repository deployment policy and an explicitly named source/target branch take precedence over mode inference and branch renaming. Promoting one fix is not a release cadence: inspect its target diff before selecting the PR head; never substitute an aggregate release branch just because it already contains the fix.
+
 ## Arguments
 
 | Flag | Effect |
@@ -36,7 +38,7 @@ Ship **prepares** a branch to land: merge target, test, review, version, PR, the
 
 0. **Merge is opt-in - a bare ship never merges.** A plain `vd:ship` / "ship to main as pr" **stops after the PR is green and comments are clear**; it does **not** merge. Merge only when `--auto` is set, `--merge` is set, or the user explicitly says "merge" / "land it" / "merge anyway" in *this* request. "Ship to main as a PR" is a request to *open and green* the PR, not to merge it. Do not treat CI-green + zero comments as license to merge - that gate makes merge *safe*, not *requested*.
 
-1. **Never ship from the target branch without a feature branch.** If on `main` / `master` / `dev` / `staging` / `uat` with changes to ship:
+1. **Never commit or push feature work directly to a deployment branch.** Resolve mode and target first. Recover onto a feature branch when on the resolved target, or when shipping changes from `main` / `master` / `dev` / `staging` / `uat` / a repository-defined deployment branch even if the destination differs. An explicitly authorized aggregate release may retain its clean source branch, but must not collect uncommitted work:
    - **`--auto`:** auto-create `feat/<slug>` from current HEAD silently, move pending changes there, continue the pipeline. No prompt (slug inference in Step 1). The resulting branch still goes through review/PR/CI like any other.
    - **Interactive:** prompt the user with three choices - *create feature branch* (recommended), *direct push to target* (skips review/PR/CI; requires explicit confirm), *abort*.
    - **Never** do a direct push to the target branch in `--auto`. Direct push is interactive-only and requires the user to pick it themselves.
@@ -57,12 +59,11 @@ Ship **prepares** a branch to land: merge target, test, review, version, PR, the
    - **Stale model ids** - model names pinned in prose/examples that no longer match what the tool actually uses. Verify against the source of truth (`~/.codex/config.toml`, the CLI binary's own default, provider docs) before changing one; a doc that correctly records an older default the tool still writes is **not** stale.
    Findings block the commit the same way Rule 7 does. Fix, or state out loud why the literal is required.
 8. **`--auto` has a safety floor.** Even in auto mode, stop on: critical review issues, **unresolved PR review comments**, secret-scan hits, test failures, merge conflicts, push rejections, ambiguous mode (no branch-name match). Auto suppresses *judgement-call* prompts (issue creation, version bump level, no-test-runner, journal/docs skip) **and recoverable preflight conditions** (on-target-branch → auto-create feature branch per Rule 1). Auto NEVER suppresses safety violations or direct-push-to-target.
-9. **Ticket branch/title invariant.** If the work is tied to Jira, Linear,
-   Shortcut, GitHub issue, or another tracker key, the branch must start with
-   the ticket key before Step 12 creates/updates the PR, and the PR title must
-   be `KEY-123: <past-tense description>`. If the current branch is a generic
-   slug (`feat/foo`, `2ndphone`, etc.), rename it before push/PR; do not open a
-   PR and fix the name later.
+9. **Ticket branch/title invariant.** Use the repository's ticket naming convention
+   and title `KEY-123: <past-tense description>`. With no repository convention,
+   start new branches with the ticket key. Preserve an existing branch explicitly
+   named by the user or already backing a PR; do not rename or delete it merely
+   to satisfy a generic naming default. Confirm ambiguous ticket matches.
 10. **PR template invariant.** Step 12 must load `references/pr-template.md`
    and the canonical `../git/references/pr-template.md` (sibling git skill) before any
    `gh pr create` or `gh pr edit`. If the repo has a PR template, fill that

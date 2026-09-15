@@ -50,7 +50,7 @@ If the base branch must be fresh (release work, long-running repos), run `git fe
 
 ### Step 2 - Decide branch name
 
-**Ticket-driven work is authoritative.** If the task is tied to a Jira, Linear, Shortcut, GitHub issue, or similar ticket, extract the issue key first and use it as the branch name before any slug/prefix logic:
+**Follow repository conventions and explicit branch names first.** For a new ticket-driven branch with no naming convention, confirm the issue key and use it before generic slug/prefix logic:
 - Jira URL `https://<your-org>.atlassian.net/browse/PROJ-3267` → branch `PROJ-3267`
 - Text `fix PROJ-3267 transfer phones` → branch `PROJ-3267`
 - Bare key `PROJ-3267` → branch `PROJ-3267`
@@ -67,11 +67,7 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs create "PROJ-3267" --no-p
 
 **Attaching to an existing branch:** pass the existing branch name (usually with `--no-prefix`). If the branch exists locally or on origin, `create` attaches the worktree to it instead of creating a new branch - no need to drop to raw `git worktree add`.
 
-**If a ticket is discovered after a non-ticket worktree already exists**, rename the branch before shipping:
-
-```bash
-git branch -m PROJ-3267 && git push -u origin PROJ-3267
-```
+**If a ticket is discovered later**, confirm that it belongs to this work. Preserve explicitly named or published branches. Only rename a generic unpublished branch when required by the naming convention, before its first push. Keep the confirmed key in the PR title regardless of the branch name; see `vd:git`'s canonical PR rules.
 
 **Otherwise detect prefix from the description:**
 

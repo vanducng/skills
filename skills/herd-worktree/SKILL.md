@@ -33,7 +33,7 @@ Do **not** reinvent worktree mechanics. `vd:worktree` already creates the worktr
 
 ### 1. Create the worktree via `vd:worktree`
 
-Detect the branch (ticket key is authoritative), then:
+Resolve the branch using `vd:worktree`'s naming policy: repository conventions and explicitly named or published branches take precedence; use a confirmed ticket key as the default for a new ticket-driven branch. Then:
 
 ```bash
 WT="$(for d in "$HOME/skills/skills/worktree" "$HOME/.claude/skills/worktree" "$HOME/.agents/skills/worktree"; do [ -d "$d" ] && { echo "$d/scripts/worktree.cjs"; break; }; done)"
