@@ -96,19 +96,16 @@ git rev-parse --verify origin/main 2>/dev/null && echo main || echo master
 
 ## Staging / UAT branch
 
-First read the repository's version/configuration source for the current staging branch. Do not select an old release because a backport recently changed its commit timestamp. Only when no target is declared, use these candidates and confirm ambiguity:
+First read the repository's version/configuration source for the current staging branch. Only when no target is declared, list all candidates:
 
 ```bash
-# 1. plain names
-for b in staging uat pre-prod preprod; do
-  git rev-parse --verify "origin/$b" 2>/dev/null && { echo "$b"; break; }
-done
-# 2. release/* - pick the newest (most-recent commit)
-git for-each-ref --sort=-committerdate --format='%(refname:short)' \
-  'refs/remotes/origin/release/*' | head -1 | sed 's@^origin/@@'
+git for-each-ref --format='%(refname:short)' \
+  refs/remotes/origin/staging refs/remotes/origin/uat \
+  refs/remotes/origin/pre-prod refs/remotes/origin/preprod \
+  'refs/remotes/origin/release/*' | sed 's@^origin/@@'
 ```
 
-None found → fall back to dev branch.
+One candidate → select it. Multiple candidates → confirm the target; never pick by commit recency. None found → fall back to dev branch.
 
 ## Dev / beta branch
 
