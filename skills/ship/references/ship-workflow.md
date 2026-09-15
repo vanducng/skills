@@ -2,7 +2,7 @@
 
 ## Step 1: Pre-flight
 
-1. `git branch --show-current`. If on a bare target branch (`main` / `master` / `staging` / `uat` / `dev` / `develop` / `development` / `beta`): trigger **on-target recovery** (do NOT abort). Note: `release/x.y.z` is a *valid feature branch for staging mode*, no recovery needed there.
+1. Resolve the repository's deployment policy and any source/target branches explicitly named by the user before inferring mode. Distinguish an individual promotion from an aggregate release. A `release/*` branch may itself be a deployment target, not a feature branch. Run `git branch --show-current`; if on the resolved target branch, trigger **on-target recovery**.
 
    **On-target recovery flow** (Hard Rule 1):
    - **`--auto`:** auto-create a feature branch and continue silently. No prompt.
@@ -38,7 +38,7 @@
      - Unclear → `AskUserQuestion`: "Official (main)" / "Staging (release)" / "Beta (dev)"
 3. Detect target branch - see `auto-detect.md`.
 4. `git status` (no `-uall`). Uncommitted changes are always included in the ship.
-5. `git diff <target>...HEAD --stat` and `git log <target>..HEAD --oneline` to summarize what's shipping.
+5. Fetch the target, then inspect `git diff origin/<target>...HEAD --stat` and `git log origin/<target>..HEAD --oneline`. For an individual promotion, exclude unrelated staging commits. If the named branch carries them, stop and propose a clean target-based branch with only the intended commits; do not silently switch heads, rebase a shared branch, or merge the aggregate release branch into it.
 6. If `--dry-run`: print every step's intent, change nothing, stop here.
 
 ### Step 1b: Ticket branch guard
@@ -58,23 +58,18 @@ TICKET=$(
 )
 ```
 
-If `TICKET` is non-empty and `CURRENT_BRANCH` does not start with it, rename the
-branch before Step 11/12:
+Treat the first matching key as a candidate; confirm it belongs to this change,
+not an unrelated recent commit. Follow repository naming conventions. Preserve
+an existing branch explicitly named by the user or already backing a PR.
+Otherwise, if `TICKET` is confirmed and the generic unpublished branch needs
+renaming, do so before Step 11/12:
 
 ```bash
 git branch -m "$TICKET"
 ```
 
-If the old branch was already pushed, push the ticket branch and delete the old
-remote only after the replacement PR exists:
-
-```bash
-git push -u origin "$TICKET"
-git push origin --delete "$CURRENT_BRANCH"
-```
-
-Do not create a PR from a generic branch when a ticket is known. The PR title in
-Step 12 must use the same ticket key: `TICKET: <past-tense summary>`.
+Do not delete a remote branch as naming cleanup. The PR title in Step 12 must
+use the confirmed ticket key: `TICKET: <past-tense summary>`.
 
 ## Step 2: Link issues
 
@@ -228,7 +223,7 @@ git push -u origin "$(git branch --show-current)"
    - Ship integration: `references/pr-template.md`
    - Canonical template: `../git/references/pr-template.md`
 3. Resolve title and body from those loaded rules:
-   - Title: branch contains `[A-Z]+-[0-9]+` → `TICKET: <past-tense summary>`. Otherwise → `type(scope): <past-tense summary>`.
+   - Title: confirmed ticket from Step 1b → `TICKET: <past-tense summary>`, regardless of branch name. Only when no ticket is confirmed → `type(scope): <past-tense summary>`.
    - Body: prefer `.github/pull_request_template.md` if present and fill it without adding, removing, or renaming sections. Otherwise fill the canonical fallback (3 labelled bullets - Why / What / Risks - plus a multi-line verification block, one field per line). Never use ad hoc `Summary`, `Changes`, `Validation`, or mixed template bodies.
 4. Create / update PR:
    ```bash

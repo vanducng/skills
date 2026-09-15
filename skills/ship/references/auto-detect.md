@@ -1,6 +1,6 @@
 # Auto-Detection Logic
 
-Detect test runner, version file, changelog format, and target branch from project files.
+Detect test runner, version file, changelog format, and target branch from project files. Explicit user targets and repository deployment policy override every fallback below.
 
 ## Test runner
 
@@ -96,7 +96,8 @@ git rev-parse --verify origin/main 2>/dev/null && echo main || echo master
 
 ## Staging / UAT branch
 
-First existing wins:
+First read the repository's version/configuration source for the current staging branch. Do not select an old release because a backport recently changed its commit timestamp. Only when no target is declared, use these candidates and confirm ambiguity:
+
 ```bash
 # 1. plain names
 for b in staging uat pre-prod preprod; do

@@ -44,24 +44,17 @@ TICKET=$(printf '%s\n' "$USER_REQUEST" "$FROM" "$(git log origin/$TO...origin/$F
   | grep -Eio '[A-Z][A-Z0-9]+-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]')
 ```
 
-If `TICKET` is non-empty and `FROM` does not start with that key, **rename the
-branch before PR creation**:
+Confirm the candidate key belongs to this change. Follow repository naming
+conventions and preserve an existing branch explicitly named by the user or
+already backing a PR. Only rename a generic unpublished branch when needed:
 
 ```bash
 git branch -m "$TICKET"
 git push -u origin "$TICKET"
 ```
 
-If the old branch was already pushed and has no open PR that should remain,
-delete it after the replacement PR exists:
-
-```bash
-git push origin --delete "$FROM"
-```
-
-Do not open a PR from a non-ticket branch when the work is clearly tied to a
-ticket. This avoids later PR replacement churn and keeps branch naming, PR title,
-and Jira/Linear traceability aligned.
+Do not delete a remote branch as naming cleanup. Keep the confirmed ticket key
+in the PR title even when preserving a differently named existing branch.
 
 ## Tool 2 - Generate content
 
