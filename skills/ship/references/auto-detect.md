@@ -1,6 +1,6 @@
 # Auto-Detection Logic
 
-Detect test runner, version file, changelog format, and target branch from project files.
+Detect test runner, version file, changelog format, and target branch from project files. Explicit user targets and repository deployment policy override every fallback below.
 
 ## Test runner
 
@@ -96,18 +96,16 @@ git rev-parse --verify origin/main 2>/dev/null && echo main || echo master
 
 ## Staging / UAT branch
 
-First existing wins:
+First read the repository's version/configuration source for the current staging branch. Only when no target is declared, list all candidates:
+
 ```bash
-# 1. plain names
-for b in staging uat pre-prod preprod; do
-  git rev-parse --verify "origin/$b" 2>/dev/null && { echo "$b"; break; }
-done
-# 2. release/* - pick the newest (most-recent commit)
-git for-each-ref --sort=-committerdate --format='%(refname:short)' \
-  'refs/remotes/origin/release/*' | head -1 | sed 's@^origin/@@'
+git for-each-ref --format='%(refname:short)' \
+  refs/remotes/origin/staging refs/remotes/origin/uat \
+  refs/remotes/origin/pre-prod refs/remotes/origin/preprod \
+  'refs/remotes/origin/release/*' | sed 's@^origin/@@'
 ```
 
-None found → fall back to dev branch.
+One candidate → select it. Multiple candidates → stop and ask for the target, including under `--auto`; never pick by commit recency. None found → fall back to dev branch.
 
 ## Dev / beta branch
 

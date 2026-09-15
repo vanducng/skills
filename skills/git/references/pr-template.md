@@ -94,9 +94,9 @@ The right version is ~25% the length and reviewers learn the same thing. The eig
 PR titles flip to **past tense (v-ed)** - they narrate what the branch did, not what to do. Commit messages stay imperative; only the PR title flips.
 
 - **Length:** ≤ 70 chars
-- **Ticket prefix in branch name** (regex `^([A-Z][A-Z0-9]+-[0-9]+)`):
-  - Match → `<TICKET>: <v-ed description>` (e.g. `PRJ-123: added OAuth2 login`)
-  - No match → `type(scope): <v-ed description>` (conventional-commit shape)
+- **Confirmed ticket key**, whether from the request, ticket URL, branch, or commits:
+  - Confirmed → `<TICKET>: <v-ed description>` (e.g. `PRJ-123: added OAuth2 login`)
+  - No confirmed ticket → `type(scope): <v-ed description>` (conventional-commit shape)
 - **Repo/user convention wins.** If the repo validates semantic PR titles, keep
   the type prefix and put the ticket key in brackets after it:
   `chore: [PRJ-123] <description>`.
@@ -110,14 +110,14 @@ tracker key:
 
 1. Extract the key from the request, ticket URL, branch, or commits
    (`[A-Z][A-Z0-9]+-[0-9]+` for Jira-style keys).
-2. Ensure the PR branch starts with that key before opening/updating the PR.
-   Prefer the exact key (`PRJ-123`) unless the user explicitly gave a longer
-   convention (`PRJ-123-short-slug`).
+2. Follow the repository's branch convention; otherwise prefix new branches
+   with the confirmed key. Preserve an existing branch explicitly named by
+   the user or already backing a PR instead of renaming it for this default.
 3. Use the same key in the PR title. Default: `PRJ-123: <past-tense description>`.
    If semantic PR titles are required: `chore: [PRJ-123] <description>`.
 
-If the branch lacks the key, fix the branch first; do not compensate with only a
-ticket-prefixed title.
+Confirm the key belongs to this change before using it. Do not rename or delete
+an existing remote branch merely to make its name match the title.
 
 ### Verb form
 
@@ -130,13 +130,14 @@ ticket-prefixed title.
 
 ### Title examples
 
-| Branch | Title |
+| Branch and confirmed context | Title |
 |---|---|
 | `PRJ-123-add-oauth` | `PRJ-123: added OAuth2 login flow` |
 | `PRJ-123-add-oauth` + semantic PR check | `feat: [PRJ-123] added OAuth2 login flow` |
-| `feature/oauth-cleanup` | `refactor(auth): consolidated OAuth helpers` |
-| `fix/session-leak` | `fix(auth): closed session on logout` |
-| `chore/bump-react` | `chore(deps): bumped react to 19.0` |
+| `feature/oauth-cleanup` + no confirmed ticket | `refactor(auth): consolidated OAuth helpers` |
+| `fix/session-leak` + confirmed `PRJ-123` | `PRJ-123: closed session on logout` |
+| `fix/session-leak` + no confirmed ticket | `fix(auth): closed session on logout` |
+| `chore/bump-react` + no confirmed ticket | `chore(deps): bumped react to 19.0` |
 
 ## Fallback body
 

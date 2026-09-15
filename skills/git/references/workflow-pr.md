@@ -15,24 +15,15 @@ PRs are based on remote branches. Local diff includes unpushed WIP and produces 
 - ❌ `git diff $TO...HEAD`
 - ❌ `git diff --cached`
 
-## Tool 1 - Sync + analyze
+## Tool 1 - Fetch and resolve branches
 
 ```bash
-git fetch origin && \
-git push -u origin HEAD 2>/dev/null || true && \
-TO=${TO_BRANCH:-main} && \
-FROM=$(git rev-parse --abbrev-ref HEAD) && \
-echo "=== PR: $FROM → $TO ===" && \
-echo "=== COMMITS ===" && \
-git log origin/$TO...origin/$FROM --oneline && \
-echo "=== STAT ===" && \
-git diff origin/$TO...origin/$FROM --stat && \
-echo "=== FILES ===" && \
-git diff origin/$TO...origin/$FROM --name-only
+git fetch origin
+TO=${TO_BRANCH:-main}
+FROM=${FROM_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}
 ```
 
-**If "branch not on remote":** push first (`git push -u origin HEAD`), retry.
-**If empty diff:** warn "no changes between $FROM and $TO - nothing to PR" and abort.
+Validate both refs before continuing. Do not push until the ticket guard has chosen the final source branch.
 
 ## Tool 1b - Ticket branch guard
 
@@ -40,33 +31,37 @@ Before creating or editing a PR, detect issue keys from the user request,
 branch name, commit subjects, and PR body context:
 
 ```bash
-TICKET=$(printf '%s\n' "$USER_REQUEST" "$FROM" "$(git log origin/$TO...origin/$FROM --format=%s)" \
+TICKET=$(printf '%s\n' "$USER_REQUEST" "$FROM" "$(git log "origin/$TO..$FROM" --format=%s)" \
   | grep -Eio '[A-Z][A-Z0-9]+-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]')
 ```
 
-If `TICKET` is non-empty and `FROM` does not start with that key, **rename the
-branch before PR creation**:
+Confirm the candidate key belongs to this change. Follow repository naming
+conventions and preserve an existing branch explicitly named by the user or
+already published. Only rename a generic unpublished branch when needed:
 
 ```bash
-git branch -m "$TICKET"
-git push -u origin "$TICKET"
+git branch -m "$FROM" "$TICKET"
+FROM="$TICKET"
 ```
 
-If the old branch was already pushed and has no open PR that should remain,
-delete it after the replacement PR exists:
+Do not delete a remote branch as naming cleanup. Keep the confirmed ticket key
+in the PR title even when preserving a differently named existing branch.
+
+## Tool 1c - Publish and compare
 
 ```bash
-git push origin --delete "$FROM"
+git push -u origin "$FROM"
+git log "origin/$TO..origin/$FROM" --oneline
+git diff "origin/$TO...origin/$FROM" --stat
+git diff "origin/$TO...origin/$FROM" --name-only
 ```
 
-Do not open a PR from a non-ticket branch when the work is clearly tied to a
-ticket. This avoids later PR replacement churn and keeps branch naming, PR title,
-and Jira/Linear traceability aligned.
+Stop on a push failure; never compare a stale remote head. If the diff is empty, report that there is nothing to PR and stop.
 
 ## Tool 2 - Generate content
 
 **Title + body rules** live in `pr-template.md` - the canonical PR convention shared with `vd:ship`. Load it for:
-- Past-tense (v-ed) title rules + ticket-prefix detection
+- Past-tense (v-ed) title rules + confirmed-ticket selection
 - Repo-template-wins detection (`.github/pull_request_template.md`)
 - Fallback Why / What / Risks + verification block body shape
 - Per-bullet fill rules and worked examples
