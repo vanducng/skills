@@ -130,14 +130,14 @@ an existing remote branch merely to make its name match the title.
 
 ### Title examples
 
-| Branch | Title |
+| Branch and confirmed context | Title |
 |---|---|
 | `PRJ-123-add-oauth` | `PRJ-123: added OAuth2 login flow` |
 | `PRJ-123-add-oauth` + semantic PR check | `feat: [PRJ-123] added OAuth2 login flow` |
-| `feature/oauth-cleanup` | `refactor(auth): consolidated OAuth helpers` |
+| `feature/oauth-cleanup` + no confirmed ticket | `refactor(auth): consolidated OAuth helpers` |
 | `fix/session-leak` + confirmed `PRJ-123` | `PRJ-123: closed session on logout` |
 | `fix/session-leak` + no confirmed ticket | `fix(auth): closed session on logout` |
-| `chore/bump-react` | `chore(deps): bumped react to 19.0` |
+| `chore/bump-react` + no confirmed ticket | `chore(deps): bumped react to 19.0` |
 
 ## Fallback body
 

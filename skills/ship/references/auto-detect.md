@@ -105,7 +105,7 @@ git for-each-ref --format='%(refname:short)' \
   'refs/remotes/origin/release/*' | sed 's@^origin/@@'
 ```
 
-One candidate → select it. Multiple candidates → confirm the target; never pick by commit recency. None found → fall back to dev branch.
+One candidate → select it. Multiple candidates → stop and ask for the target, including under `--auto`; never pick by commit recency. None found → fall back to dev branch.
 
 ## Dev / beta branch
 
