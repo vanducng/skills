@@ -5,7 +5,7 @@ title: "Install"
 This page covers two layers:
 
 - Install the standalone `vd` CLI, which manages skills across agent hosts.
-- Install this skill catalog into Claude Code or Codex.
+- Install this skill catalog into Claude Code, Codex, or Pi.
 
 Current verified CLI release: `vd-cli` `v3.13.7`, published from `vanducng/vd-cli` on 2026-08-10.
 
@@ -118,10 +118,28 @@ vd install codex --scope repo
 Use repo scope when a project should carry the same skill set for every Codex session opened from that checkout.
 :::
 
+### Pi: User Scope
+
+User-scope Pi install links every local skill into `$HOME/.pi/agent/skills`:
+
+```sh
+vd install pi --dry-run
+vd install pi
+```
+
+### Pi: Repo Scope
+
+Repo-scope Pi install links into `.pi/skills` inside this repo:
+
+```sh
+vd install pi --scope repo --dry-run
+vd install pi --scope repo
+```
+
 ## Invocation Names
 
 :::note
-Documentation uses canonical IDs such as `vd:research`, `vd:plan`, and `vd:ship`. Claude Code and Codex expose different invocation prefixes in their UIs, but the skill identity is the same catalog namespace: Claude Code invokes `/vd:research`, Codex invokes `$vd:research` (or activates the skill implicitly when your prompt matches its description).
+Documentation uses canonical IDs such as `vd:research`, `vd:plan`, and `vd:ship`. Claude Code invokes `/vd:research`, Codex invokes `$vd:research`, and Pi invokes `/skill:research`. All three can also activate a skill when a prompt matches its description.
 :::
 
 ## Verify The Install

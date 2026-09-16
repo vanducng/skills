@@ -104,6 +104,21 @@ astro deployment pool list --deployment-id <id>
 
 Create/update/copy variables only when the user explicitly asks. Confirm the deployment ID first; Astronomer has no undo.
 
+### Airflow API through `astro`
+
+`astro api airflow` accepts exactly one endpoint or operation ID argument. Pass
+the deployment ID with `--deployment-id`, not as a second positional argument.
+URL-encode every path value, especially DAG run IDs containing `+` or `:`.
+
+```bash
+RUN_ID_ENCODED="$(jq -rn --arg value "$RUN_ID" '$value|@uri')"
+astro api airflow --deployment-id <deployment-id> \
+  "/dags/<dag-id>/dagRuns/${RUN_ID_ENCODED}/taskInstances"
+```
+
+Use this wrapper when `af` is unavailable but the logged-in Astro CLI can reach
+the deployment. Keep writes opt-in.
+
 ## DAG-level: prefer `af`
 
 Once an instance points at the target deployment:
@@ -143,12 +158,14 @@ Any Astro API token works as `Authorization: Bearer` (Deployment preferred, then
 **URL-encode `run_id`** - scheduled IDs contain `+` / `:`.
 
 ```bash
+RUN_ID_ENCODED="$(jq -rn --arg value "$RUN_ID" '$value|@uri')"
+
 afcurl "/api/v2/dags/~/dagRuns?limit=20&order_by=-start_date" \
   | jq '.dag_runs[] | {dag_id, run_id, state, start_date}'
 
 afcurl "/api/v2/dags/<dag_id>/dagRuns?limit=10&order_by=-start_date" | jq
 afcurl "/api/v2/dags/<dag_id>/dagRuns?state=failed&start_date_gte=2026-05-01T00:00:00Z" | jq
-afcurl "/api/v2/dags/<dag_id>/dagRuns/${RUN_ID}/taskInstances?state=failed" | jq
+afcurl "/api/v2/dags/<dag_id>/dagRuns/${RUN_ID_ENCODED}/taskInstances?state=failed" | jq
 ```
 
 ### Task logs (Airflow 3.x: `content` is events, not a string)
@@ -158,7 +175,7 @@ Verified on Airflow 3.1-3.3: the log endpoint returns
 `jq -r '.content'` prints nothing useful. Iterate `.content[] | .event`.
 
 ```bash
-afcurl "/api/v2/dags/<dag_id>/dagRuns/<run_id>/taskInstances/<task_id>/logs/<try_number>?full_content=true" \
+afcurl "/api/v2/dags/<dag_id>/dagRuns/${RUN_ID_ENCODED}/taskInstances/<task_id>/logs/<try_number>?full_content=true" \
   | jq -r '.content[] | select(type=="object") | .event' | grep -v '^::' | tail -n 200
 ```
 
@@ -211,6 +228,7 @@ afw PATCH "/api/v2/dags/<dag_id>/dagRuns/<run_id>" '{"state":"failed"}'
 | `unknown flag: --component` | Astro CLI < 1.45 | Upgrade, or use `--scheduler` / `--dag-processor` / `--apiserver` |
 | `--error` returns `[info]` lines | text contains "error" (DAG id, message) | Use `--keyword` on `--dag-processor` instead |
 | `No matching logs` with `foo\|bar` | `--keyword` is exact phrase, not regex | Search one literal at a time |
+| `astro api airflow` rejects extra args | deployment ID or path values were passed positionally | Pass one endpoint; use `--deployment-id` and URL-encode path values |
 | Empty `dag_runs` | never ran, or date filter too tight | Drop the filter; check `is_paused` |
 | Log body looks empty | `jq -r '.content'` on Airflow 3 events | Use `.content[] \| .event` |
 | Truncated logs | `continuation_token` | Loop `?token=` until unchanged |

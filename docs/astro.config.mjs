@@ -17,7 +17,7 @@ export default defineConfig({
       // Apply Starlight's markdown pipeline (asides, heading links) to the custom-loader content/ dir.
       markdown: { processedDirs: ['./content'] },
       description:
-        'A portable skill catalog for Claude Code, Codex, and repository-local agent workflows.',
+        'A portable skill catalog for Claude Code, Codex, Pi, and repository-local agent workflows.',
       customCss: ['./src/styles/theme.css'],
       expressiveCode: {
         themes: ['catppuccin-mocha', 'catppuccin-latte'],
@@ -32,7 +32,7 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'vd skills',
           description:
-            'A portable skill catalog for Claude Code, Codex, and repository-local agent workflows.',
+            'A portable skill catalog for Claude Code, Codex, Pi, and repository-local agent workflows.',
         }),
       ],
       lastUpdated: true,

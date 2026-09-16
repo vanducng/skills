@@ -90,7 +90,8 @@ EOF
 ```
 
 **Existing PR for this branch:** `gh pr edit --body-file`, don't re-create.
-**Draft mode** when WIP: add `--draft`.
+**CNB (`careernowbrands/*`):** create with `--draft`. Once CI is green, run `gh pr ready` without pinging reviewers for approval. Merge only if CLEAN+APPROVED and already authorized.
+**Draft mode** otherwise when WIP: add `--draft`.
 **Landing:** only on explicit user request. Never `gh pr checks N && gh pr merge N` -
 `gh pr checks` exits **8** while a check is pending, so the merge never runs.
 Wait with `scripts/wait-for-checks.sh` then merge, or queue `gh pr merge --auto`.
