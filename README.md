@@ -6,7 +6,7 @@
 [![docs](https://img.shields.io/badge/docs-skills.vanducng.dev-7c3aed)](https://skills.vanducng.dev)
 [![license](https://img.shields.io/badge/license-MIT-3b82f6)](LICENSE)
 
-**A daily-driver collection of skills for agentic coding** - portable across agents, managed with the **`vd`** CLI.
+**A daily-driver collection of skills for agentic coding** - installs in Claude Code, Codex, and Pi with the **`vd`** CLI.
 
 [**Skill catalog**](https://skills.vanducng.dev/skills/) · [**Install guide**](https://skills.vanducng.dev/install/)
 
@@ -37,6 +37,13 @@ go install github.com/vanducng/vd-cli/v2/cmd/vd@latest         # any platform
 ```sh
 vd install codex                # user scope
 vd install codex --scope repo   # repo scope
+```
+
+### Pi
+
+```sh
+vd install pi                   # user scope
+vd install pi --scope repo      # repo scope
 ```
 
 For Claude Code development symlinks instead of the marketplace plugin: `vd install claude --dev`.

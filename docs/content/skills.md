@@ -2,13 +2,13 @@
 title: "Skills"
 ---
 
-The catalog currently contains 80 skills under `skills/`. Each skill is self-contained and starts with a `SKILL.md` file. Optional scripts, references, and assets live inside the same skill directory.
+The catalog contains 81 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
 
-Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
+Count source: `find skills -mindepth 1 -maxdepth 1 -type d`. Validation: `scripts/validate.sh`.
 
-`vd:guide` is the catalog front door when several skills could apply. The ask-to-ship path is on [Getting Started](/getting-started/#from-ask-to-ship).
+Use `vd:guide` when several skills fit. The full delivery path is on [Getting started](/getting-started/#from-ask-to-ship).
 
-## Core Delivery Flow
+## Core delivery flow
 
 | Stage | Skills |
 | --- | --- |
@@ -22,9 +22,9 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | Iterate | `vd:auto-loop`, `vd:optimize-loop` |
 | Orchestrate | `vd:ultracook` |
 
-`vd:interview` is the alignment skill: default extracts want, `--grill` walks an existing plan or idea (the grilling primitive other skills compose), `--wayfinder` charts a multi-session map of decision tickets. One-session deciding after want is confirmed is `vd:brainstorm`. `vd:plan --audit` is the clean-context second look (auto on `--deep`). `vd:ultracook` composes these skills by name with checkable done-when gates; it does not own their discipline.
+`vd:interview` confirms the outcome and constraints. `--grill` tests an existing plan or idea. `--wayfinder` maps decisions that will take more than one session. After the outcome is clear, use `vd:brainstorm` to choose an approach. Use `vd:plan --audit` for an independent plan check; `--deep` runs it automatically. `vd:ultracook` chains these skills with explicit completion checks.
 
-## Interview And Decision
+## Interview and decision
 
 | Skill | Question |
 | --- | --- |
@@ -35,7 +35,7 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | `vd:research` | Which known option should I pick? |
 | `vd:scenario` | What could break? |
 
-## Review Lenses
+## Review lenses
 
 | Skill | Question |
 | --- | --- |
@@ -47,9 +47,9 @@ Source: `find skills -mindepth 1 -maxdepth 1 -type d`, `scripts/validate.sh`.
 | `vd:plan --audit` | Does this plan hold up against the codebase? |
 | `vd:miucr` | Deterministic owned reviewer CLI (`miu-cr`) |
 
-## Browser And Web
+## Browser and web
 
-Escalation ladder (start local; `vd:browser` is the cloud fallback):
+Start with a local browser. Use `vd:browser` only when the site blocks local automation:
 
 | Rung | Skill |
 | --- | --- |
@@ -60,7 +60,7 @@ Escalation ladder (start local; `vd:browser` is the cloud fallback):
 | Logged-in end-to-end | `vd:web-e2e` |
 | Performance | `vd:web-perf` |
 
-## Design And Media
+## Design and media
 
 | Area | Skills |
 | --- | --- |
@@ -68,7 +68,7 @@ Escalation ladder (start local; `vd:browser` is the cloud fallback):
 | Interface and storage design | `vd:apidesign`, `vd:dbdesign` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:unslop`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 
-## Docs And Diagrams
+## Docs and diagrams
 
 | Need | Skill |
 | --- | --- |
@@ -79,7 +79,7 @@ Escalation ladder (start local; `vd:browser` is the cloud fallback):
 | Editable whiteboard | `vd:excalidraw` |
 | Polished, accessible HTML/SVG | `vd:diagram-design` |
 
-## Languages And Migration
+## Languages and migration
 
 | Skill | Covers |
 | --- | --- |
@@ -88,7 +88,7 @@ Escalation ladder (start local; `vd:browser` is the cloud fallback):
 | `vd:py2go` | Python-to-Go migrations with six project-type playbooks |
 | `vd:cli-ts` | Production TypeScript CLI architecture and packaging |
 
-## Infra And Ops
+## Infra and ops
 
 | Skill | Covers |
 | --- | --- |
@@ -102,7 +102,7 @@ Escalation ladder (start local; `vd:browser` is the cloud fallback):
 
 ## Product CLIs
 
-Owned CLIs documented as manuals (not generic "how to review/code"):
+These skills document CLIs owned alongside this catalog:
 
 | Skill | Product |
 | --- | --- |
@@ -110,13 +110,13 @@ Owned CLIs documented as manuals (not generic "how to review/code"):
 | `vd:miudb` | `miudb` |
 | `vd:vd-cli` | `vd` catalog/install CLI |
 
-## Personal Ops
+## Personal ops
 
-Daily-driver utilities, categorized honestly:
+Utilities for recurring work:
 
-`vd:superwhisper`, `vd:gog`, `vd:jira`, `vd:issue-invoice`, `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:workbench`, `vd:braze`, `vd:smartsheet`, `vd:voice-agent`
+`vd:superwhisper`, `vd:gog`, `vd:jira`, `vd:kaneo`, `vd:issue-invoice`, `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:workbench`, `vd:braze`, `vd:smartsheet`, `vd:voice-agent`
 
-## Skill Lifecycle
+## Skill lifecycle
 
 | Skill | Owns |
 | --- | --- |
@@ -127,18 +127,18 @@ Daily-driver utilities, categorized honestly:
 | `vd:rule-miner` | Distil repeated corrections into `CLAUDE.md` rules |
 | `vd:agent-readiness` | Score a repo against a 30-signal rubric and remediate |
 
-## Choosing The Right Skill
+## Choosing the right skill
 
-Use `vd:guide` when the next skill is unclear. Use `vd:interview` when the ask is underspecified, `vd:interview --grill` when a plan or idea needs its decisions walked, `vd:interview --wayfinder` when the deciding itself will not fit one session, `vd:scout` when you need a map of the repo, `vd:debug` when behavior is failing, `vd:brainstorm` when the outcome is known but the one-session approach is not, `vd:plan` when the implementation path is not yet concrete, `vd:cook` when a plan is ready to execute, `vd:git` for a single commit/push/PR/merge (`gh pr checks` exit 8 is pending, not failure), and `vd:ship` when the work is tested and ready for remote.
+Use `vd:guide` when the next step is unclear. Use `vd:interview` for an underspecified request, `--grill` to test an existing idea, and `--wayfinder` to map decisions across sessions. Use `vd:scout` to map the repository and `vd:debug` to trace a failure. Once the outcome is clear, use `vd:brainstorm`, then `vd:plan` and `vd:cook` as needed. `vd:git` handles one commit, push, PR, or merge; exit 8 from `gh pr checks` means checks are pending. Use `vd:ship` when tested work is ready for a remote branch and PR.
 
-Within review: `vd:code-review` asks whether a change is ready to land and posts inline PR comments; `vd:code-review --refactor` stays local and asks whether the change fits the codebase; `vd:simplify` reduces reading complexity with behavior frozen; `vd:simplify --aggressive` reshapes a working feature into the form it should have had from day one, deleting compatibility paths only after proving them dead. `vd:miucr` is the deterministic owned reviewer CLI for when the review itself must be reproducible.
+For reviews, `vd:code-review` posts PR findings and `vd:code-review --refactor` stays local. `vd:simplify` reduces complexity without changing behavior. `--aggressive` may remove compatibility paths after proving they are dead. Use `vd:miucr` when the review must be reproducible.
 
-Use `vd:docs` for canonical internal project docs and ADRs, and its `site` subcommand to create, modernize, validate, and ship a rendered public developer documentation site.
+Use `vd:docs` for internal project docs and ADRs. Its `site` subcommand manages a public documentation site.
 
-Use `vd:show-me` for the cheapest in-chat visual of the current topic. Use `vd:diagram-design` for polished, accessible, self-contained HTML/SVG diagrams. Use `vd:text-diagram` for ASCII sketches, `vd:diagram` for general SVG or raster output, and `vd:excalidraw` for editable whiteboard canvases.
+Use `vd:show-me` for a quick in-chat visual. Use `vd:diagram-design` for accessible HTML/SVG, `vd:text-diagram` for ASCII, `vd:diagram` for SVG or raster output, and `vd:excalidraw` for editable whiteboards.
 
 Use `vd:superwhisper` to search local dictation history, prepare standups, and diagnose recognition errors. Use `vd:braze` for Braze CLI reads and explicit opt-in changes. Use `vd:smartsheet` for bounded sheet reads and authorized row updates. Use `vd:voice-agent` to operate Retell through `vac`.
 
-`vd:jira` uses the `vanducng/jira-cli` fork for native inline local-image comments. Inside Herdr, `vd:worktree` delegates current-pane naming to `vd:herdr` after a successful create. `vd:worktree` also trusts mise configs in new worktrees so `cd` works; `mise install` stays in `suggestedInstalls`. `vd:computer-clean` also audits Git worktree storage.
+`vd:kaneo` manages Kaneo tickets through REST or MCP; instance values live in `$HOME/.config/vd/kaneo-rules/`. `vd:jira` uses the `vanducng/jira-cli` fork for inline local-image comments. Inside Herdr, `vd:worktree` asks `vd:herdr` to name the current pane after creating a worktree. It also trusts mise configs so `cd` works, while `mise install` stays in `suggestedInstalls`. `vd:computer-clean` checks Git worktree storage.
 
 A lingering `.ck.json` without `.vd.json` is a rename (`mv .ck.json .vd.json`), not a skill.

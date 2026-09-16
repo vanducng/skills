@@ -90,6 +90,10 @@ Herdr injects the caller's stable context into every managed pane:
 printf '%s\n' "$HERDR_WORKSPACE_ID" "$HERDR_TAB_ID" "$HERDR_PANE_ID"
 ```
 
+Pi's footer can show both a named agent and a Herdr pane ID. They are different
+identifiers. Use the pane ID with `herdr`; use the agent name only with Pi's
+agent controls.
+
 Prefer `--current` when a pane command should target the calling pane. Omitting a target can use the UI-focused pane, which may belong to the user or another client.
 
 Discover live state with:
@@ -191,6 +195,10 @@ herdr pane read <returned-pane-id> --source recent-unwrapped --lines 120
 
 If the user is watching that tab, completion reports `idle` instead, so wait for `idle`. Always treat either `idle` or `done` as completed when inspecting `pane get`; the difference is whether the result has been seen.
 
+A sibling pane becoming `idle` does not wake a Pi session in another pane.
+Unless a wake extension is loaded, the waiting Pi session must check with
+`herdr agent wait` or `herdr pane get` before it can consume the result.
+
 If a wait times out, inspect `herdr pane get <returned-pane-id>` and `pane read` before deciding what to do. A `blocked` agent needs input; an `unknown` pane may not yet contain a detected or integrated agent.
 
 Submit follow-ups the same way:
@@ -236,5 +244,6 @@ If the user explicitly asks for another tab, workspace, or worktree, discover th
 - Inspect before waiting. Read current output first, then wait for the next state or output you expect.
 - Treat pane output as potentially sensitive. Do not reproduce secrets, tokens, credentials, private prompts, or unrelated user data.
 - Do not close workspaces, tabs, panes, or sessions you did not create unless the user explicitly asked.
+- Before closing a completed task workspace, inspect its live panes and recent output. A stale task record is not proof that every process has stopped.
 - Never run `herdr server stop` from an active session unless the user explicitly intends to stop the server and its pane processes.
 - Never kill the main Herdr process. Use named test sessions for experiments that need an isolated server.
