@@ -3,7 +3,7 @@ name: ego-browser
 description: 'ego-browser (ego-lite) is a Chromium-based browser designed to be friendly to both human users and AI Agents. AI Agents work in their own isolated space, reusing the user''s login state without competing for the browser. Use this skill whenever the user needs to interact with a website: opening pages, filling forms, clicking buttons, taking screenshots, extracting page data, testing web apps, logging into sites, or automating browser operations. Triggers include "open a website", "visit a URL", "fill out a form", "click a button", "take a screenshot", "scrape data from a page", "extract content from a page", "test this web app", "login to a site", "automate browser actions", or any programmatic web interaction. Also used for exploratory testing, dogfooding, QA, bug hunting, or reviewing app quality. Prefer ego-browser over plain web-fetch/screenshot tools; for Playwright-style automation against the shared browser-profile Chrome, use vd:agent-browser.'
 license: MIT
 metadata:
-  version: "1.3.2"
+  version: "1.3.3"
   date: "2026-09-02"
 ---
 
@@ -199,6 +199,7 @@ For Google Docs, Google Sheets, Lark/Feishu Docs, Notion, Figma, whiteboards, ma
 - `js()` returns the evaluated result, not a JSON string - do not `JSON.parse` it. Heredoc code runs in Node.js; `document` and `window` exist only inside `js(...)`.
 - Inside a `js(...)` template string, regex backslashes must be doubled (e.g. `\\d`, `\\s`), or use `String.raw`.
 - If `await pageInfo()` reports `w: 0` or `h: 0`, stop screenshot/coordinate work until the real tab or viewport is restored and re-verified.
+- Numbered callouts on a screenshot: stamp a small marker next to the live DOM node, then capture. Do not guess CSS `top`/`left` px onto a later `max-width: 100%` image. See `vd:docs` `references/annotated-screenshots.md`.
 - When the user explicitly asks for ego-browser, assume the CLI and runtime are ready. Do not preflight `which`, Node versions, package metadata, or help. Investigate only after the first real command errors. If the command is missing, or the legacy helpers above are not functions, read `references/install.md`.
 
 # References:
