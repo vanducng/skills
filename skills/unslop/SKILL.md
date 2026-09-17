@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[file, text, or 'last message']"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.0.1"
   source: "adapted from cursor/plugins pstack/skills/unslop (MIT, Lauren Tan)"
 ---
 
@@ -74,7 +74,8 @@ Removing patterns is half the job. Sterile, voiceless text is just as obvious.
 
 ### Communication artifacts
 
-19. **Chatbot phrases.** "I hope this helps!", "Let me know if...", "Certainly!", "Found the smoking gun!" Remove.
+19. **Chatbot phrases.** "I hope this helps!", "Let me know if...", "Certainly!", "Found the smoking gun!", "No mistake.", "say the word", "which is expected", "If you want me to X". Remove.
+19b. **Coworker-email runbook.** Numbered how-to in a reply when they did not ask how, or restating an attached guide. Cut the list. One or two beats. Procedure lives in the attachment.
 20. **Cutoff disclaimers.** "While specific details are limited..." Find the source or remove.
 21. **Sycophancy.** "Great question! You're absolutely right!" Respond directly.
 

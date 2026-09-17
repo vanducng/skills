@@ -38,6 +38,8 @@ gog --account acme --readonly calendar events --today --json --wrap-untrusted \
 ## Send A Templated Email
 
 Identity check first. Confirm the recipient list. Block >10 recipients.
+Rewrite the body per **Mail voice** in `SKILL.md` before send. Do not ship a
+numbered playbook in a coworker reply.
 
 ```bash
 gog --account acme me --json --no-input
