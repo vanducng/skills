@@ -116,6 +116,26 @@
           "text": "Reports only confirmed issues with exact evidence and concrete fixes"
         }
       ]
+    },
+    {
+      "id": 5,
+      "prompt": "Write a how-to with screenshots and numbered callouts for three UI clicks on a web app.",
+      "expected_output": "Crop + legend, or live-stamped screenshots, or SVG viewBox overlay matched to each PNG. No guessed CSS px on a scaled bitmap. Each number named against a control in the rendered artifact.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "docs-callout-method",
+          "text": "Uses crop+legend, live stamp then capture, or SVG viewBox matched to the image"
+        },
+        {
+          "id": "docs-callout-no-guessed-px",
+          "text": "Does not place overlay markers with CSS left/top px on a max-width image"
+        },
+        {
+          "id": "docs-callout-verify",
+          "text": "Opens the rendered page or PDF and names the control each number marks, or ships legend-only"
+        }
+      ]
     }
   ]
 }
