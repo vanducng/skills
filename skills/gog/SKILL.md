@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "--account <name> --user person|sa gmail|drive|calendar|sheets|docs|auth"
 metadata:
   author: vanducng
-  version: "1.3.1"
+  version: "1.3.2"
   upstream: "https://github.com/openclaw/gogcli"
 ---
 
@@ -138,22 +138,19 @@ Missing binary: `brew tap openclaw/tap && brew install gogcli`.
 
 ## Mail voice
 
-`gmail send` writes as the person user to another person. The body is the product.
-A correct fact in a runbook voice is still a bad email.
+`gmail send` writes as the person user. The body is the product. A correct fact
+in a runbook voice is still a bad email. Applies to new mail and replies.
 
-Before send, rewrite until it sounds like a coworker ping:
+Before send:
 
-- Match their register. They wrote two paragraphs? You write two. They did not
-  ask for a procedure? Do not number steps.
-- Do not restate an attachment or a guide they already have. Point at it once.
-- Cut chatbot closers: "No mistake.", "say the word", "which is expected",
-  "the correct X path", "If you want me to X", "Let me know if...".
-- One or two beats, then stop. Lists belong in the attached guide, not the reply.
+- Match their register and length. Two short paragraphs in, two short out.
+- Procedure belongs in an attachment or doc. The reply does not restate it.
+- One ask, or none. Do not close with "let me know if", "say the word",
+  "no mistake", "which is expected", "the correct X path".
+- Numbered steps only when they asked how to do the thing in the email itself.
 
-Bad: "No mistake. Sending from the app is the correct first-send path. When a
-test form is submitted: 1. Wait... 2. Filter Pending..."
-Good: "You're fine, the app is the right place to send from. Admin is just for
-tracking and reminders. I can see the six invites. Once a couple are in, try a
+Bad: a four-step playbook plus "if you want me to click it, say the word."
+Good: "You're fine. I can see the six invites. Once a couple land, try a
 reminder on whoever is still pending."
 
 ## Commands
