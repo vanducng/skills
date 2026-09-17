@@ -119,21 +119,21 @@
     },
     {
       "id": 5,
-      "prompt": "Make an operator PDF how-to with numbered callouts on admin screenshots: select rows, pick an action, click Go.",
-      "expected_output": "A how-to that either uses a legend only, or stamps small markers on the live controls then screenshots. No guessed CSS pixel overlays. PDF opened and each number named against a control.",
+      "prompt": "Write a how-to with screenshots and numbered callouts for three UI clicks on a web app.",
+      "expected_output": "Crop + legend, or live-stamped screenshots, or SVG viewBox overlay matched to each PNG. No guessed CSS px on a scaled bitmap. Each number named against a control in the rendered artifact.",
       "files": [],
       "assertions": [
         {
-          "id": "docs-callout-no-guessed-px",
-          "text": "Does not place screenshot badges with guessed left/top px on a max-width image"
+          "id": "docs-callout-method",
+          "text": "Uses crop+legend, live stamp then capture, or SVG viewBox matched to the image"
         },
         {
-          "id": "docs-callout-size",
-          "text": "Overlay discs are at most 18px if used"
+          "id": "docs-callout-no-guessed-px",
+          "text": "Does not place overlay markers with CSS left/top px on a max-width image"
         },
         {
           "id": "docs-callout-verify",
-          "text": "Opens the PDF or live-stamp PNG and names the control each number marks, or ships legend-only"
+          "text": "Opens the rendered page or PDF and names the control each number marks, or ships legend-only"
         }
       ]
     }

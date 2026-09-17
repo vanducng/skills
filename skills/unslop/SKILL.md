@@ -75,7 +75,7 @@ Removing patterns is half the job. Sterile, voiceless text is just as obvious.
 ### Communication artifacts
 
 19. **Chatbot phrases.** "I hope this helps!", "Let me know if...", "Certainly!", "Found the smoking gun!", "No mistake.", "say the word", "which is expected", "If you want me to X". Remove.
-19b. **Coworker-email runbook.** Numbered how-to in a reply when they did not ask how, or restating an attached guide. Cut the list. One or two beats. Procedure lives in the attachment.
+19b. **Procedure in a social reply.** Numbered how-to when they did not ask how, or restating an attached guide. Cut the list. One or two beats. Procedure lives in the attachment or the doc.
 20. **Cutoff disclaimers.** "While specific details are limited..." Find the source or remove.
 21. **Sycophancy.** "Great question! You're absolutely right!" Respond directly.
 
