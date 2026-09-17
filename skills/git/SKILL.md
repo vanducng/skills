@@ -39,6 +39,7 @@ Default for all verbs except `cm` (single-commit case) is subagent delegation - 
 1. **Block on secrets.** Every staged diff scanned before commit. Match → STOP, show files, suggest `.gitignore`. See `references/safety-protocols.md`.
 2. **No `--no-verify`, no `--no-gpg-sign`** unless user asks explicitly. Hooks failing means investigate, not bypass.
 3. **No force-push to protected branches.** `main`, `master`, `production`, `prod`, `release/*` - never. Feature branches require explicit user request.
+3b. **Never `gh pr merge --admin`.** Do not bypass required reviews or branch protection. If merge is blocked on review, stop and ask. Admin merge only when the user says "admin merge" or "bypass review".
 4. **Remote-first for compare ops.** `git diff origin/main...origin/feature` - never `git diff main...HEAD` (includes local WIP).
 5. **No AI attribution in commit messages, PR bodies, or PR comments.** No "Generated with Claude", no `Co-Authored-By: Claude`, no `https://claude.ai/code/session_...` session links, no emojis unless asked.
 6. **Never amend a published commit.** New commit on top instead.

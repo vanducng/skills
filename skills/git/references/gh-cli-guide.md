@@ -202,6 +202,9 @@ not wait for pending checks - wait first (`wait-for-checks.sh`) or pass
 `--auto`. `hooks/pr-merge-guard.py` still refuses merge while review threads
 are unresolved; do not bypass it.
 
+Never `gh pr merge --admin`. That bypasses required reviews. Stop and ask
+unless the user said "admin merge" or "bypass review".
+
 ## Issues
 
 ```bash
