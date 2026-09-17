@@ -80,9 +80,11 @@ plist alone. **Ask the user what an action does rather than going to look.**
 
 ## Audit hotkeys
 
-`scripts/hotkey-audit.py` reads named hotkey keys from Alter and other common
+`scripts/hotkey-audit.py` reads hotkey-shaped keys from Alter and other common
 macOS hotkey owners, decodes them, and reports collisions. It never prints
-non-hotkey keys.
+non-hotkey keys. Alter `appLocal` bindings appear in the inventory so they can
+be avoided when choosing a replacement, but only `systemGlobal` bindings enter
+cross-owner collision groups.
 
 ```sh
 python3 scripts/hotkey-audit.py               # all owners, human readable
@@ -147,10 +149,11 @@ supports the read-verify-write guard.
 ## Resolving a collision
 
 1. Run the audit. Confirm the collision is real and both sides are
-   `systemGlobal`.
+   `systemGlobal`. `--strict` checks only those cross-owner collisions.
 2. Ask which app should own the chord. Do not guess, and do not go read
    Alter's database to work out what its action does.
-3. Move the loser to a free chord. Check the audit output for what is taken.
+3. Move the loser to a free chord. Check the full audit output for what is
+   taken, including Alter's `appLocal` chords.
 4. Prefer a replacement that avoids Alter's own `appLocal` chords too, so the
    new binding does not collide inside Alter.
 5. Re-run the audit and confirm zero collisions.

@@ -17,8 +17,12 @@ KEY_NAMES = {
     16: "y", 17: "t", 18: "1", 19: "2", 20: "3", 21: "4", 22: "6",
     23: "5", 25: "9", 26: "7", 28: "8", 29: "0", 31: "o", 32: "u",
     34: "i", 35: "p", 37: "l", 38: "j", 40: "k", 45: "n", 46: "m",
-    49: "space", 51: "delete", 115: "home", 119: "end", 123: "left",
-    124: "right", 125: "down", 126: "up",
+    24: "=", 27: "-", 30: "]", 33: "[", 36: "return", 39: "'", 41: ";",
+    42: "\\", 43: ",", 44: "/", 47: ".", 48: "tab", 49: "space", 50: "`",
+    51: "delete", 53: "escape", 96: "f5", 97: "f6", 98: "f7", 99: "f3",
+    100: "f8", 101: "f9", 103: "f11", 109: "f10", 111: "f12", 115: "home",
+    116: "pageup", 117: "forwarddelete", 118: "f4", 119: "end", 120: "f2",
+    121: "pagedown", 122: "f1", 123: "left", 124: "right", 125: "down", 126: "up",
 }
 MODIFIER_BITS = ((256, "cmd"), (512, "shift"), (2048, "opt"), (4096, "ctrl"))
 SKHD_MODIFIERS = {
@@ -100,7 +104,7 @@ def parse_alter(records: list[dict[str, Any]]) -> None:
             continue
         scope = data.get("access", "unknown")
         value = from_carbon(data)
-        if value and scope == "systemGlobal":
+        if value and scope in {"systemGlobal", "appLocal"}:
             add_record(records, "Alter", key, value, scope)
 
 
@@ -111,7 +115,7 @@ def parse_tinycast(records: list[dict[str, Any]]) -> None:
         data = decode_json(raw)
         if not data:
             continue
-        combo_data = data.get("combo", {}).get("_0", {})
+        combo_data = (data.get("combo") or {}).get("_0", {})
         value = from_carbon(combo_data) if isinstance(combo_data, dict) else None
         if value:
             add_record(records, "Tinycast", key, value)
@@ -179,6 +183,8 @@ def main() -> int:
 
     if args.self_test:
         assert key_name(15) == "r"
+        assert key_name(36) == "return"
+        assert key_name(53) == "escape"
         assert display_chord(chord({"cmd", "shift"}, 15)) == "cmd+shift+r"
         assert from_carbon({"carbonKeyCode": 2, "carbonModifiers": 768}) == (
             frozenset({"cmd", "shift"}), "d"
@@ -189,9 +195,13 @@ def main() -> int:
     records = audit()
     groups: dict[tuple[tuple[str, ...], str], list[dict[str, Any]]] = {}
     for record in records:
-        identity = (tuple(record.pop("_identity")[0]), record["chord"].split("+")[-1])
+        if record["scope"] != "systemGlobal":
+            continue
+        identity = (tuple(record["_identity"][0]), record["_identity"][1])
         groups.setdefault(identity, []).append(record)
     collisions = [items for items in groups.values() if len(items) > 1]
+    for record in records:
+        record.pop("_identity", None)
 
     if args.json:
         print(json.dumps({"bindings": records, "collisions": collisions}, indent=2))
