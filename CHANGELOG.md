@@ -2,6 +2,21 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.63.0](https://github.com/vanducng/skills/compare/v1.62.2...v1.63.0) (2026-09-17)
+
+
+### Features
+
+* **catalog:** added Kaneo skill and refreshed agent docs ([#480](https://github.com/vanducng/skills/issues/480)) ([e61526e](https://github.com/vanducng/skills/commit/e61526eebeca0bd7e2a924e6bc7bd3df85998783))
+
+
+### Bug Fixes
+
+* **docs:** generalized illustrated how-to callouts ([#485](https://github.com/vanducng/skills/issues/485)) ([dbe572a](https://github.com/vanducng/skills/commit/dbe572a18b44085e952f961974afd03990ba700c))
+* **docs:** stop guessing screenshot callout coordinates ([#484](https://github.com/vanducng/skills/issues/484)) ([57239bc](https://github.com/vanducng/skills/commit/57239bc809c2a0de18fb21a7f27e9e8a0a7e157b))
+* **git:** block gh pr merge --admin unless explicitly asked ([#482](https://github.com/vanducng/skills/issues/482)) ([530e031](https://github.com/vanducng/skills/commit/530e0316f840b876eb39a3257638691a856c1341))
+* **gog:** write outbound mail like a coworker ([#483](https://github.com/vanducng/skills/issues/483)) ([9a27694](https://github.com/vanducng/skills/commit/9a2769456dcc04d9dac35c12df947f877b26db99))
+
 ## [1.62.2](https://github.com/vanducng/skills/compare/v1.62.1...v1.62.2) (2026-09-13)
 
 
