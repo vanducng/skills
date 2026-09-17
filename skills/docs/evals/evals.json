@@ -116,6 +116,26 @@
           "text": "Reports only confirmed issues with exact evidence and concrete fixes"
         }
       ]
+    },
+    {
+      "id": 5,
+      "prompt": "Make an operator PDF how-to with numbered callouts on admin screenshots: select rows, pick an action, click Go.",
+      "expected_output": "A how-to that either uses a legend only, or stamps small markers on the live controls then screenshots. No guessed CSS pixel overlays. PDF opened and each number named against a control.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "docs-callout-no-guessed-px",
+          "text": "Does not place screenshot badges with guessed left/top px on a max-width image"
+        },
+        {
+          "id": "docs-callout-size",
+          "text": "Overlay discs are at most 18px if used"
+        },
+        {
+          "id": "docs-callout-verify",
+          "text": "Opens the PDF or live-stamp PNG and names the control each number marks, or ships legend-only"
+        }
+      ]
     }
   ]
 }

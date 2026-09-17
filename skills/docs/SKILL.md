@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "init|update|check|adr|site [topic] [--inline] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.1.1"
+  version: "1.1.2"
 ---
 
 # Docs

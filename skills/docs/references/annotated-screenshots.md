@@ -35,6 +35,25 @@ PDF.
    If it is off by more than a few millimeters, delete the overlays and keep
    the legend.
 
+## Mechanical checks (must pass before ship)
+
+Run these on the HTML (or the HTML that printed the PDF). Fail closed.
+
+```bash
+# px overlays on a max-width image will miss in print
+if rg -n 'class="badge"[^>]*(left|top)[[:space:]]*:[[:space:]]*[0-9.]+px' guide.html; then
+  echo 'fail: guessed px badge placement' >&2
+  exit 1
+fi
+```
+
+Evidence to keep with the guide:
+
+- Live-stamp PNG (markers injected next to real DOM nodes, then captured), or
+- Legend-only figures (no discs on the image)
+
+If neither exists, do not overlay. Do not guess.
+
 ## Do not
 
 - Guess `top`/`left` from a scaled screenshot in chat.
