@@ -1,11 +1,11 @@
 ---
 name: docs
-description: "Manage project documentation - internal ./docs (init, update, check, ADR) and, via the site subcommand, the rendered public docs website (Astro Starlight): create, modernize, validate, and ship it. Canonical internal set stays small: development guidelines, system architecture, tech stack, deployment, plus append-only ADRs. Use when the user asks to update docs, record an ADR, build a docs website, add Starlight, reproduce the shared centered docs style, fix responsive docs layout, migrate a docs site, or verify and deploy developer documentation. Scouts the codebase and delegates writing to the docs-manager subagent (or stays inline with --inline)."
+description: "Manage project documentation - internal ./docs (init, update, check, ADR) and, via the site subcommand, the rendered public docs website (Astro Starlight): create, modernize, validate, and ship it. Canonical internal set stays small: development guidelines, system architecture, tech stack, deployment, plus append-only ADRs. Also owns illustrated operator how-tos and PDF guides with screenshots. Use when the user asks to update docs, record an ADR, build a docs website, add Starlight, reproduce the shared centered docs style, fix responsive docs layout, migrate a docs site, verify and deploy developer documentation, or make an annotated screenshot / PDF operator guide. Scouts the codebase and delegates writing to the docs-manager subagent (or stays inline with --inline)."
 license: MIT
 argument-hint: "init|update|check|adr|site [topic] [--inline] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
 # Docs
@@ -96,3 +96,4 @@ Typically follows `vd:ship` (sync `./docs/` after the PR lands) or the end of `v
 5. **One file write per doc.** No append-mode, no patch-on-patch. Subagent rewrites the file in full or not at all.
 6. **Unslop every doc.** Final pass with `vd:unslop` before the file is written - no AI tells, no em dashes, no puffery.
 7. **Structure and style follow the prose standard.** Route each page by Diataxis (tutorial / how-to / reference / explanation) and apply the sentence rules in [references/technical-writing.md](references/technical-writing.md). That file owns structure and style; `vd:unslop` owns the de-AI final pass.
+8. **Annotated screenshots.** Numbered discs on a screenshot must sit on the named control. Default to a legend under the figure. If you overlay, stamp in the live page then capture, or use % of the rendered image box, then open the PDF and check each number. Never guess px from a scaled preview. Full rule: [references/annotated-screenshots.md](references/annotated-screenshots.md).

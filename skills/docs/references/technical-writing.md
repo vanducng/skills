@@ -36,6 +36,7 @@ Do not mix modes. Split and link instead. No reference tables inside a tutorial.
 | `docs/decisions/` ADRs | `vd:docs` | Explanation | Why we chose this. Status can change; the record stays. |
 | Getting started | `docs site` | Tutorial | First success path. Visible output after each step. |
 | Guides | `docs site` | How-to | Named by the task the reader already has. |
+| Illustrated operator PDF / HTML how-to | `vd:docs` | How-to | Same as a guide. Screenshot numbers follow [annotated-screenshots.md](annotated-screenshots.md). |
 | Reference pages | `docs site` | Reference | Commands, flags, config keys, errors. |
 
 README is a hub, not a fifth mode. Point at the right page. Do not teach, list every flag, and argue architecture on one page.
