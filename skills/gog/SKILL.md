@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "--account <name> --user person|sa gmail|drive|calendar|sheets|docs|auth"
 metadata:
   author: vanducng
-  version: "1.3.0"
+  version: "1.3.1"
   upstream: "https://github.com/openclaw/gogcli"
 ---
 
@@ -134,6 +134,27 @@ Missing binary: `brew tap openclaw/tap && brew install gogcli`.
 3. No mass mail (>10 recipients) without a second confirmation.
 4. Archive over delete; reader over writer shares.
 5. Do not print OAuth client secrets, refresh tokens, or SA JSON.
+6. Outbound mail is the person-user's voice. See **Mail voice** before `gmail send`.
+
+## Mail voice
+
+`gmail send` writes as the person user to another person. The body is the product.
+A correct fact in a runbook voice is still a bad email.
+
+Before send, rewrite until it sounds like a coworker ping:
+
+- Match their register. They wrote two paragraphs? You write two. They did not
+  ask for a procedure? Do not number steps.
+- Do not restate an attachment or a guide they already have. Point at it once.
+- Cut chatbot closers: "No mistake.", "say the word", "which is expected",
+  "the correct X path", "If you want me to X", "Let me know if...".
+- One or two beats, then stop. Lists belong in the attached guide, not the reply.
+
+Bad: "No mistake. Sending from the app is the correct first-send path. When a
+test form is submitted: 1. Wait... 2. Filter Pending..."
+Good: "You're fine, the app is the right place to send from. Admin is just for
+tracking and reminders. I can see the six invites. Once a couple are in, try a
+reminder on whoever is still pending."
 
 ## Commands
 
