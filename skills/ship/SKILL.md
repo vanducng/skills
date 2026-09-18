@@ -69,7 +69,9 @@ Repository deployment policy and an explicitly named source/target branch take p
    `gh pr create` or `gh pr edit`. If the repo has a PR template, fill that
    template only. Otherwise use the canonical fallback body. Do not invent
    `Summary` / `Validation` / ad hoc PR bodies. Run a `vd:unslop` pass over
-   title and body before posting - no AI tells, no em dashes.
+   title and body before posting - no AI tells, no em dashes. After create/edit,
+   run `../git/scripts/strip-ai-pr-attribution.sh` so Cursor/Claude footers do
+   not stick on the live PR body.
 11. **CI green is a merge precondition.** Step 15 watches CI in every mode. Never
    merge - or report the ship as done - while checks are **failing or still
    pending**. The only ways past a non-green state are an explicit user

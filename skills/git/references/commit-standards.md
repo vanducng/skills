@@ -51,7 +51,7 @@ Only `feat` (minor), `fix` (patch), and breaking changes (`feat!:` / `BREAKING C
 
 ## Never include
 
-- AI attribution: ❌ "Generated with Claude", ❌ "Co-Authored-By: Claude"
+- AI attribution: ❌ "Generated with Claude/Cursor", ❌ "Co-authored-by: Claude|Cursor", ❌ "Made with Cursor"
 - Emoji unless explicitly requested by user
 - Ticket IDs in the subject - put them in the body (`Refs #123`, `Closes #456`)
 - Branch names in the subject
