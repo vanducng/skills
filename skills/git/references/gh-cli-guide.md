@@ -75,13 +75,14 @@ gh api repos/{owner}/{repo}/issues/123/comments   # issue-style comments
 
 ### Attach screenshots (before/after evidence)
 
-Optional - use when captures already exist and an image is genuinely clearer than a sentence.
-Never hold up a PR to produce one.
+Used by `vd:ship` Step 12b for user-visible UI (expected there; optional everywhere else).
+Full ship policy (when to run, capture CLIs, ticket mirror): `../../ship/references/before-after.md`.
 
 `gh` has no first-party way to attach a local image so it renders inline. **On a private
 repo most workarounds silently produce broken images** - GitHub's camo proxy cannot
-authenticate to private content, so `raw.githubusercontent.com` URLs, release assets, and
-gists all render as broken icons. Only `user-attachments` URLs work.
+authenticate to private content, so `raw.githubusercontent.com` URLs, release assets,
+gists, and public paste hosts (`0x0.st`, etc.) all fail or leak. Only `user-attachments`
+URLs work for private repos.
 
 Upload via the endpoint the browser's drag-drop uses; it accepts a normal bearer token:
 
