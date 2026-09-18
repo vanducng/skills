@@ -20,13 +20,15 @@ Prefer **reusing** pairs already taken during `vd:cook` / `vd:fix` / `vd:web-e2e
 1. **Existing PNGs** - two local files (or two URLs already screenshotted).
 2. **`@vercel/before-and-after`** - two URLs (prod vs preview, or `main` deploy vs PR preview):
    ```bash
-   which before-and-after || npm i -g @vercel/before-and-after agent-browser
+   which before-and-after || npm i -g @vercel/before-and-after
+   # Do NOT npm-install agent-browser here - vd:agent-browser pins 0.27.2; an unpinned
+   # global install would clobber it. Use source 3 below when you need that CLI.
    # Containers where Chrome needs no sandbox:
    # export AGENT_BROWSER_ARGS="--no-sandbox"
    before-and-after "$BEFORE_URL" "$AFTER_URL" -o /tmp/ship-ba
    # Optional: selector, --mobile / --tablet, --full only when asked
    ```
-3. **`vd:agent-browser` / `vd:web-e2e`** - drive the same page + viewport + scroll for both states; `agent-browser screenshot /abs/path.png` (path is positional and absolute).
+3. **`vd:agent-browser` / `vd:web-e2e`** - drive the same page + viewport + scroll for both states; install only via that skill's pin (`agent-browser@0.27.2`), then `agent-browser screenshot /abs/path.png` (path is positional and absolute).
 4. **Non-UI measured pair** - save `before.txt` / `after.txt` (or a one-line table) and paste into the PR body under the verification block. No image upload.
 
 **Same page, viewport, and scroll in both shots.** A mismatched pair is worse than none.
