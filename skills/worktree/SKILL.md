@@ -53,7 +53,8 @@ If the base branch must be fresh (release work, long-running repos), run `git fe
 Before creating, skim overlap with in-flight work so two agents don't edit the same files. **GitHub + `gh` only** - skip this block (continue to Step 2) when `command -v gh` fails or the remote is not GitHub:
 
 ```bash
-if ! command -v gh >/dev/null; then
+remote_url=$(git remote get-url origin 2>/dev/null || true)
+if ! command -v gh >/dev/null || ! printf '%s' "$remote_url" | grep -qiE 'github\.com|github\.'; then
   echo SKIP_SCOPE_CHECK
 else
   gh pr list --state open --limit 20
