@@ -23,9 +23,9 @@ Prefer **reusing** pairs already taken during `vd:cook` / `vd:fix` / `vd:web-e2e
    # Optional capture CLI - intentionally unpinned (unlike agent-browser@0.27.2).
    # Prefer npx so nothing is written to the global agent-browser pin.
    npx -y @vercel/before-and-after "$BEFORE_URL" "$AFTER_URL" -o /tmp/ship-ba
-   # Containers where Chrome needs no sandbox:
-   # export AGENT_BROWSER_ARGS="--no-sandbox"
    # Optional: selector, --mobile / --tablet, --full only when asked
+   # If Chrome fails with "No usable sandbox", check the installed CLI's docs for
+   # the current sandbox workaround - do not invent env vars here.
    ```
 3. **`vd:agent-browser` / `vd:web-e2e`** - drive the same page + viewport + scroll for both states; install only via that skill's pin (`agent-browser@0.27.2`), then `agent-browser screenshot /abs/path.png` (path is positional and absolute).
 4. **Non-UI measured pair** - save `before.txt` / `after.txt` (or a one-line table) and paste into the PR body under the verification block. No image upload.
@@ -62,12 +62,13 @@ If Step 12 already opened the PR without the marker (non-UI guessed wrong), appe
 When Step 1b confirmed a ticket key **and** a before/after pair exists:
 
 1. Activate `vd:jira` (or the repo's tracker skill).
-2. Post a short follow-up comment with the pair **inline** - not attachment-only.
+2. **Show before execute** - display the target key, comment prose, and image paths; get approval (`AskUserQuestion` / plain-text). Required even under ship `--auto` - tracker writes are outside ship's auto floor.
+3. Post a short follow-up comment with the pair **inline** - not attachment-only.
    - Jira: readable ADF `mediaSingle` per [`../../jira/references/inline-images.md`](../../jira/references/inline-images.md) (file-relative from this reference; skill-root form is `../jira/references/inline-images.md`). Label before vs after in the comment text.
    - GitHub issue only: same HTML table as the PR, or markdown images from `user-attachments` URLs.
-3. One line of result prose: what changed + PR URL. No second essay.
+4. One line of result prose: what changed + PR URL. No second essay.
 
-Skip silently when there is no confirmed ticket, the tracker skill is unavailable, or the change is non-visual.
+Skip silently when there is no confirmed ticket, the user declines the draft, the tracker skill is unavailable, or the change is non-visual.
 
 ## Guardrails
 
