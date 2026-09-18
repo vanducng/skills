@@ -1,10 +1,10 @@
 ---
 name: gopass
-description: "Retrieve credentials (API keys, tokens, passwords) from the local gopass password store. Use when a task needs a secret that the user has stored in gopass - instead of asking the user to paste it, search the store and read the value with `gopass find` / `gopass show -o`. Also covers inserting, generating, listing, searching, syncing, and TOTP."
+description: "Manage credentials in a local gopass store: find and retrieve secrets without exposing them, insert or generate values, rotate and remove entries, sync and diagnose the store, handle TOTP, and connect stored credentials to shell environment variables such as ~/.envrc. Use whenever a task needs a secret or asks to add, update, list, copy, export, or troubleshoot gopass credentials."
 license: MIT
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
   upstream: "https://github.com/gopasspw/gopass"
 ---
 
@@ -67,6 +67,57 @@ gopass env personal/ai -- python my_script.py
 ```
 
 Before asking the user to paste or type a secret, `gopass find <keyword>` to discover the exact path; only ask if nothing matches. `gopass show <path> <key>` pulls one structured field (see Read above).
+
+## Common workflows
+
+### Add a credential
+
+Ask for only:
+
+1. Environment variable name if the credential must be loaded by the shell, for example `SERVICE_API_KEY`.
+2. Gopass path, for example `personal/service/api-key`.
+3. The value through the interactive hidden prompt. Never ask the user to paste it into chat or pass it as a command argument.
+
+```bash
+gopass insert personal/service/api-key
+gopass sync
+```
+
+### Rotate an existing credential
+
+Discover the exact path first, then overwrite interactively and sync:
+
+```bash
+gopass find service
+gopass insert -f personal/service/api-key
+gopass sync
+```
+
+### Connect a credential to `~/.envrc`
+
+Prefer a repository helper over editing encrypted bundles manually. If the password-store repository provides `scripts/gopass-env` or matching Make targets, use:
+
+```bash
+make env-put NAME=SERVICE_API_KEY SECRET=personal/service/api-key
+make env-link NAME=SERVICE_API_KEY SECRET=personal/service/api-key
+make env-remove NAME=SERVICE_API_KEY
+make env-list
+```
+
+- `env-put` prompts for a value, stores it, and adds or updates the export.
+- `env-link` exports an existing entry.
+- `env-remove` removes only the export and keeps the secret.
+- `env-list` prints names only, never values.
+
+After changes, tell the user to reload direnv or source `~/.envrc`. If no helper exists, add a direct runtime lookup without embedding the value:
+
+```bash
+export SERVICE_API_KEY="$(gopass --nosync show -o personal/service/api-key)"
+```
+
+### Delete a credential
+
+Confirm whether the user wants to remove only its shell export, only the stored secret, or both. Then use `gopass rm <path>` only for the explicitly requested secret deletion.
 
 ## Safety rules
 
