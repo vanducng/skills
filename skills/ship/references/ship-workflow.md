@@ -233,8 +233,13 @@ git push -u origin "$(git branch --show-current)"
    (`bad substitution: no closing ')'`). `--body-file` is the safe path;
    see `../git/references/gh-cli-guide.md`.
 5. Inline issue refs from Step 2 in the template's context/why area (`Closes #N` / `Relates to #M`) - no separate Linked-Issues section.
-6. Re-read the created/updated PR body and verify it matches the selected repo template or canonical fallback before continuing.
-7. **Output the PR URL** - final user-facing line (unless Steps 13-16 run after).
+6. Strip AI attribution footers Cursor/Claude may inject after create/edit (even when local attribution opt-out is on):
+   ```bash
+   ../git/scripts/strip-ai-pr-attribution.sh <pr-number>
+   ```
+   Removes `Made with Cursor`, `Co-authored-by: Cursor|Claude`, `Generated with …`, and Claude session links from the live PR body. Idempotent.
+7. Re-read the created/updated PR body and verify it matches the selected repo template or canonical fallback before continuing.
+8. **Output the PR URL** - final user-facing line (unless Steps 13-16 run after).
 
 ## Step 13: PR review comments
 
