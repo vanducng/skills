@@ -62,7 +62,7 @@ If Step 12 already opened the PR without the marker (non-UI guessed wrong), appe
 When Step 1b confirmed a ticket key **and** a before/after pair exists:
 
 1. Activate `vd:jira` (or the repo's tracker skill).
-2. **Show before execute** - display the target key, comment prose, and image paths; get approval (`AskUserQuestion` / plain-text). Required even under ship `--auto` - tracker writes are outside ship's auto floor.
+2. **Show before execute** - display the target key, comment prose, and image paths; get approval (`AskUserQuestion` / plain-text). `--auto` does not suppress this prompt; if declined, skip the ticket post and continue the ship.
 3. Post a short follow-up comment with the pair **inline** - not attachment-only.
    - Jira: readable ADF `mediaSingle` per [`../../jira/references/inline-images.md`](../../jira/references/inline-images.md) (file-relative from this reference; skill-root form is `../jira/references/inline-images.md`). Label before vs after in the comment text.
    - GitHub issue only: same HTML table as the PR, or markdown images from `user-attachments` URLs.

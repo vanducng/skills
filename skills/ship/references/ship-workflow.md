@@ -246,7 +246,7 @@ Full recipe: `references/before-after.md`. Upload helper: `../git/references/gh-
 1. **Detect UI-visible** from the Step 1 diff (frontend routes/components, CSS, copy, empty/error states, visible guards). Ambiguous → ask once, or skip with a one-line reason.
 2. **Obtain a pair** - reuse cook/fix/web-e2e captures if present; else capture with `@vercel/before-and-after` (two URLs) or `vd:agent-browser` (same page/viewport/scroll). Non-UI measured pairs go in the verification block as text, not images.
 3. **Embed in the PR** - `gh_upload_image` → replace `<!-- SCREENSHOTS -->` with the HTML before/after table. Verify the rendered images (private-repo 404 unauthenticated / 200 authenticated).
-4. **Ticket** - when Step 1b **confirmed** a key (not a regex guess alone), mirror via `vd:jira` (or a GitHub-issue comment). Follow `vd:jira`'s show-before-execute approval for the comment body + images - **including under `--auto`** (external writes are a safety floor). One-line result + PR URL.
+4. **Ticket** - when Step 1b **confirmed** a key (not a regex guess alone), mirror via `vd:jira` (or a GitHub-issue comment). Follow `vd:jira`'s show-before-execute approval for the comment body + images - **`--auto` does not suppress this prompt**; if declined, skip the ticket post and continue the ship. One-line result + PR URL.
 5. Ship summary line: `✓ Before/after: embedded` or `✓ Before/after: skipped - <reason>`.
 
 Never block the pipeline on capture failure - note why and continue to Step 13.
