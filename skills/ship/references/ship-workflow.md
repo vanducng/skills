@@ -239,7 +239,7 @@ git push -u origin "$(git branch --show-current)"
 
 ## Step 12b: Before / after evidence
 
-**Skip if** `--skip-screenshots`, or the diff has no user-visible surface (API/CLI/data/infra with nothing to screenshot).
+**Skip if** `--skip-screenshots`, the diff has no user-visible surface (API/CLI/data/infra with nothing to screenshot), **or** Step 1 chose direct-push to target (no PR - Steps 12/12b/13/15/16 do not run).
 
 Full recipe: `references/before-after.md`. Upload helper: `../git/references/gh-cli-guide.md` → *Attach screenshots*.
 
@@ -378,7 +378,7 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
    STATE=$(gh pr checks "$PR_NUMBER" --json state -q '[.[].state] | unique | join(",")')
    ```
 3. Branch on `$STATE`:
-   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the selected PR template with the latest verification status. For canonical fallback bodies, update the verification block (`**Tests:** …` / `**Docs:** …` / `**Breaking:** …`, one field per line). For repo-template bodies, update the appropriate checklist or notes field without changing section names. Continue to **Step 15b**, then Step 16.
+   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the selected PR template with the latest verification status. For canonical fallback bodies, update the verification block (`**Tests:** …` / `**Docs:** …` / `**Breaking:** …`, one field per line). For repo-template bodies, update the appropriate checklist or notes field without changing section names. **Preserve any Step 12b before/after HTML table** - edit verification lines in place; never regenerate the whole body from a blank template. Continue to **Step 15b**, then Step 16.
    - **Any `FAILURE` / `CANCELLED` / `TIMED_OUT`** → **STOP**. `AskUserQuestion` (regardless of `--auto`):
      - `Investigate failure` (recommended) - print failing checks via `gh pr checks --json name,state,link -q '.[]|select(.state!="SUCCESS")'`, exit so user can fix
      - `Merge anyway` - proceed to Step 16 noting CI was red
