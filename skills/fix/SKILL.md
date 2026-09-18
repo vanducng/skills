@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[issue description] [--quick | --auto] [--no-prevent]"
 metadata:
   author: vanducng
-  version: "1.2.0"
+  version: "1.2.1"
 ---
 
 # Fix
@@ -58,6 +58,7 @@ Output: `✓ Scouted - N files, M deps, K tests`
 Required outputs from this step:
 
 - **Pre-fix evidence captured**: exact error, failing command, stack trace, log snippet, dbt run-results, kubectl events, `terraform plan` output - whatever applies. This is the baseline for Step 6's rerun.
+- **UI / visible failure:** capture the broken state **now** (screenshot or measured output) before writing the fix - that file is the "before" half `vd:ship` Step 12b embeds. Same page/viewport/scroll as you will use for "after".
 - **Confirmed root cause** with an evidence chain (not just a hypothesis), including why-now and blast radius.
 - **Scope**: which files/models/resources need to change, and which dependent paths must be checked for side effects.
 
@@ -109,13 +110,13 @@ See `references/verify-and-prevent.md`: rerun the exact failing command and comp
 
 Only push once the same check passes on your machine. This closes the loop that would otherwise need a standalone CI skill.
 
-Output: `✓ Verified + prevented - before/after attached, N tests added, M guards added`
+Output: `✓ Verified + prevented - before/after ready for ship, N tests added, M guards added`
 
 ### 7. Finalize
 
 1. Print a compact report: confidence, root cause, files touched, evidence summary, regression-guard summary.
 2. Update `./docs` only if the change affects shared docs (codebase-summary / architecture / standards). Skip otherwise.
-3. Offer to commit/PR via `vd:ship` (full pipeline) or a single conventional commit via `git`/`git-manager`.
+3. Offer to commit/PR via `vd:ship` (full pipeline, including Step 12b before/after when UI-visible) or a single conventional commit via `git`/`git-manager`. Hand ship any before/after paths captured in Steps 2 and 6.
 4. Offer `vd:journal` for a focused post-mortem entry if the fix was non-trivial or the root cause was surprising.
 
 ## Tool integration

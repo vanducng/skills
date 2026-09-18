@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | repair | remove <name>"
 metadata:
   author: vanducng
-  version: "2.5.0"
+  version: "2.5.1"
 ---
 
 # Worktree
@@ -47,6 +47,18 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs info --json
 Parse: `repoType`, `baseBranch`, `projects`, `worktreeRoot`, `worktreeRootSource`, `dirtyState`, `dirtyDetails`.
 
 If the base branch must be fresh (release work, long-running repos), run `git fetch origin <base>` first - `create` warns when the local base is behind an already-fetched `origin/<base>`, but it cannot see commits that were never fetched.
+
+### Step 1b - Scope check (open PRs)
+
+Before creating, skim overlap with in-flight work so two agents don't edit the same files:
+
+```bash
+gh pr list --state open --limit 20
+# For any PR that might touch the same area:
+gh pr diff <n> --name-only
+```
+
+Also check the main checkout (and any listed worktrees via `list`) for uncommitted work on related paths. On clear overlap, **stop and ask** instead of proceeding - do not silently share a branch or overwrite another agent's files.
 
 ### Step 2 - Decide branch name
 

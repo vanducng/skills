@@ -233,8 +233,23 @@ git push -u origin "$(git branch --show-current)"
    (`bad substitution: no closing ')'`). `--body-file` is the safe path;
    see `../git/references/gh-cli-guide.md`.
 5. Inline issue refs from Step 2 in the template's context/why area (`Closes #N` / `Relates to #M`) - no separate Linked-Issues section.
-6. Re-read the created/updated PR body and verify it matches the selected repo template or canonical fallback before continuing.
-7. **Output the PR URL** - final user-facing line (unless Steps 13-16 run after).
+6. **UI-visible changes:** leave a lone `<!-- SCREENSHOTS -->` marker after the verification block so Step 12b has an insertion point. Skip the marker for non-visual diffs or `--skip-screenshots`.
+7. Re-read the created/updated PR body and verify it matches the selected repo template or canonical fallback before continuing.
+8. **Output the PR URL** - final user-facing line (unless Steps 12b-16 run after).
+
+## Step 12b: Before / after evidence
+
+**Skip if** `--skip-screenshots`, or the diff has no user-visible surface (API/CLI/data/infra with nothing to screenshot).
+
+Full recipe: `references/before-after.md`. Upload helper: `../git/references/gh-cli-guide.md` → *Attach screenshots*.
+
+1. **Detect UI-visible** from the Step 1 diff (frontend routes/components, CSS, copy, empty/error states, visible guards). Ambiguous → ask once, or skip with a one-line reason.
+2. **Obtain a pair** - reuse cook/fix/web-e2e captures if present; else capture with `@vercel/before-and-after` (two URLs) or `vd:agent-browser` (same page/viewport/scroll). Non-UI measured pairs go in the verification block as text, not images.
+3. **Embed in the PR** - `gh_upload_image` → replace `<!-- SCREENSHOTS -->` with the HTML before/after table. Verify the rendered images (private-repo 404 unauthenticated / 200 authenticated).
+4. **Ticket** - when Step 1b confirmed a key, post the same pair inline via `vd:jira` (ADF `mediaSingle`) or a GitHub-issue comment. One-line result + PR URL.
+5. Ship summary line: `✓ Before/after: embedded` or `✓ Before/after: skipped - <reason>`.
+
+Never block the pipeline on capture failure - note why and continue to Step 13.
 
 ## Step 13: PR review comments
 

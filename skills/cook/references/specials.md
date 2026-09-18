@@ -20,7 +20,7 @@ Step B's failing tests document **current** behavior. After implementation, all 
 
 ## UI work
 
-Step C must include manual browser verification. Type errors and visual bugs are orthogonal.
+Step C must include manual browser verification. Type errors and visual bugs are orthogonal. Keep a before/after pair (same page, viewport, scroll) when the phase changes what a user sees - `vd:ship` Step 12b embeds it in the PR and on the ticket. Capture the before state while the old UI is still reachable.
 
 ## Library upgrades
 
