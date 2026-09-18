@@ -20,12 +20,11 @@ Prefer **reusing** pairs already taken during `vd:cook` / `vd:fix` / `vd:web-e2e
 1. **Existing PNGs** - two local files (or two URLs already screenshotted).
 2. **`@vercel/before-and-after`** - two URLs (prod vs preview, or `main` deploy vs PR preview):
    ```bash
-   which before-and-after || npm i -g @vercel/before-and-after
-   # Do NOT npm-install agent-browser here - vd:agent-browser pins 0.27.2; an unpinned
-   # global install would clobber it. Use source 3 below when you need that CLI.
+   # Optional capture CLI - intentionally unpinned (unlike agent-browser@0.27.2).
+   # Prefer npx so nothing is written to the global agent-browser pin.
+   npx -y @vercel/before-and-after "$BEFORE_URL" "$AFTER_URL" -o /tmp/ship-ba
    # Containers where Chrome needs no sandbox:
    # export AGENT_BROWSER_ARGS="--no-sandbox"
-   before-and-after "$BEFORE_URL" "$AFTER_URL" -o /tmp/ship-ba
    # Optional: selector, --mobile / --tablet, --full only when asked
    ```
 3. **`vd:agent-browser` / `vd:web-e2e`** - drive the same page + viewport + scroll for both states; install only via that skill's pin (`agent-browser@0.27.2`), then `agent-browser screenshot /abs/path.png` (path is positional and absolute).
@@ -64,7 +63,7 @@ When Step 1b confirmed a ticket key **and** a before/after pair exists:
 
 1. Activate `vd:jira` (or the repo's tracker skill).
 2. Post a short follow-up comment with the pair **inline** - not attachment-only.
-   - Jira: readable ADF `mediaSingle` per [`../../jira/references/inline-images.md`](../../jira/references/inline-images.md). Label before vs after in the comment text.
+   - Jira: readable ADF `mediaSingle` per [`../jira/references/inline-images.md`](../jira/references/inline-images.md). Label before vs after in the comment text.
    - GitHub issue only: same HTML table as the PR, or markdown images from `user-attachments` URLs.
 3. One line of result prose: what changed + PR URL. No second essay.
 
