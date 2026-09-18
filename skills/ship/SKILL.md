@@ -76,8 +76,10 @@ Repository deployment policy and an explicitly named source/target branch take p
    user sees. Prefer pairs already captured during cook/fix; otherwise capture
    via `@vercel/before-and-after` or `vd:agent-browser`. Upload only through
    GitHub `user-attachments` (see `references/before-after.md`) - never public
-   paste hosts for private work. Never blocks ship: if capture is impossible or
-   costly, note why once and continue. Suppressed by `--skip-screenshots`.
+   paste hosts for private work. Capture failure never blocks ship: if capture
+   is impossible or costly, note why once and continue. Ticket mirrors still
+   require `vd:jira` show-before-execute (Hard rule 8) - skip the ticket post
+   if declined. Suppressed by `--skip-screenshots`.
 11. **CI green is a merge precondition.** Step 15 watches CI in every mode. Never
    merge - or report the ship as done - while checks are **failing or still
    pending**. The only ways past a non-green state are an explicit user
