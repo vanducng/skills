@@ -2,6 +2,26 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.64.0](https://github.com/vanducng/skills/compare/v1.63.0...v1.64.0) (2026-09-19)
+
+
+### Features
+
+* **alter:** added privacy-safe hotkey audit skill ([#486](https://github.com/vanducng/skills/issues/486)) ([d56bb70](https://github.com/vanducng/skills/commit/d56bb706df625eaccda0a7e870f71101ffeebbf1))
+* **git:** strip Cursor/Claude PR attribution after create ([#489](https://github.com/vanducng/skills/issues/489)) ([bb41d39](https://github.com/vanducng/skills/commit/bb41d39f5bf6a80a40aad5a7cf2bcf3dd619017a))
+* **gopass:** add environment credential workflows ([db31d90](https://github.com/vanducng/skills/commit/db31d90b4a2dae9fdf660fd0000d1800db6297b0))
+* **herdr:** document server restart after upgrades and DNS loss ([9b3b434](https://github.com/vanducng/skills/commit/9b3b434144ea57cb169412415df2f59cf134deee))
+* **herdr:** restart guidance after upgrades and DNS loss ([3a6180d](https://github.com/vanducng/skills/commit/3a6180d3b899980096fa01e9e1679d24eee7ac18))
+* **onepassword:** add 1Password CLI skill ([92b018d](https://github.com/vanducng/skills/commit/92b018d63a0a3f035809616d4938d6f740eddfab))
+* **onepassword:** add 1Password CLI skill grounded in official docs ([6637368](https://github.com/vanducng/skills/commit/663736822b544378d0fdcc7780e1887e2e49fba5))
+
+
+### Bug Fixes
+
+* **ego-browser:** document reliable Zalo mentions ([baf7168](https://github.com/vanducng/skills/commit/baf7168be3254d6711ede456bf8cbbebb1b75b1b))
+* **ego-browser:** documented reliable Zalo mentions ([10107d5](https://github.com/vanducng/skills/commit/10107d57764f07068146d966ca352aa7dfbbf4ea))
+* **herdr:** address review on restart and portable DNS probes ([9fbe564](https://github.com/vanducng/skills/commit/9fbe564cf5351dfb40ea237c4b95d54e67b8c5ca))
+
 ## [1.63.0](https://github.com/vanducng/skills/compare/v1.62.2...v1.63.0) (2026-09-17)
 
 
