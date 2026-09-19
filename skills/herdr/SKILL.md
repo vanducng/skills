@@ -5,7 +5,7 @@ license: Apache-2.0
 argument-hint: "[inspect | rename <project> <intent> | start agent | run command | wait | read]"
 metadata:
   author: vanducng
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Herdr
@@ -70,6 +70,40 @@ herdr integration status --outdated-only
 ```
 
 Install or update an integration only when the user asks for setup or repair. Use `herdr integration install <agent>` and verify with `herdr integration status`. An integration can improve state or native session reporting; it does not replace the agent's own lifecycle authority.
+
+## Runtime health after upgrades and network changes
+
+A long-lived headless server can outlive the CLI on `PATH` and macOS DNS state. After a Herdr upgrade, or when panes lose internet while the same host works outside Herdr, repair the server before retrying agents.
+
+### After a Herdr CLI upgrade
+
+When the user asks to upgrade Herdr, or `herdr --version` is newer than the running server binary:
+
+1. Confirm the new CLI: `herdr --version` and `command -v herdr`.
+2. With the user's authorization to restart (upgrade / connectivity repair counts), run `herdr server stop`, then reattach or reopen the Herdr client so it starts a fresh server on the new binary.
+3. Re-check `herdr --version` and that panes still respond (`herdr workspace list` or `herdr pane list --workspace "$HERDR_WORKSPACE_ID"`).
+
+Do not leave day-old `herdr server` processes on a prior install path after an upgrade. Client and server major.minor should match.
+
+### Pane cannot reach the Cursor API or resolve hosts
+
+Typical symptoms inside a pane: `Failed to reach the Cursor API`, `curl: (6) Could not resolve host`, or `agent status` → not logged in, while the same commands succeed in a normal terminal on this machine.
+
+Diagnose in the affected pane:
+
+```bash
+scutil --dns 2>&1 | head -8
+python3 -c 'import socket; print(socket.gethostbyname("example.com"))'
+curl -sS -o /dev/null -w "%{http_code}\n" --connect-timeout 5 https://api2.cursor.sh/
+```
+
+| Result | Action |
+| --- | --- |
+| `scutil --dns` prints `No DNS configuration available`, or `gethostbyname` fails while `dig` still works | DNS session for the Herdr process tree is stale. Restart the Herdr server (user-authorized), then verify DNS again in a freshly spawned pane shell. |
+| DNS works, but `netstat -rn -f inet` shows `0/1` and `128.0/1` via a VPN tun | Full-tunnel VPN is owning public IPv4. Fix VPN routes first (split tunnel / ignore `redirect-gateway`), then re-test. Restart Herdr only if DNS stayed broken after routes are fixed. |
+| DNS and routes look fine | Treat it as an agent auth or upstream API issue (`agent status`, login), not a Herdr pane fault. |
+
+Do not restart the server for ordinary pane work. Connectivity repair and post-upgrade rollout are the authorized exceptions to the "never `herdr server stop`" rule below.
 
 ## IDs and current context
 
@@ -245,5 +279,6 @@ If the user explicitly asks for another tab, workspace, or worktree, discover th
 - Treat pane output as potentially sensitive. Do not reproduce secrets, tokens, credentials, private prompts, or unrelated user data.
 - Do not close workspaces, tabs, panes, or sessions you did not create unless the user explicitly asked.
 - Before closing a completed task workspace, inspect its live panes and recent output. A stale task record is not proof that every process has stopped.
-- Never run `herdr server stop` from an active session unless the user explicitly intends to stop the server and its pane processes.
+- Never run `herdr server stop` from an active session unless the user explicitly intends to stop the server and its pane processes, or they asked to upgrade Herdr / repair pane connectivity as in **Runtime health after upgrades and network changes**.
 - Never kill the main Herdr process. Use named test sessions for experiments that need an isolated server.
+- After an authorized server restart, re-read workspace and pane IDs from live CLI output; restored sessions can renumber public IDs.
