@@ -73,15 +73,15 @@ Install or update an integration only when the user asks for setup or repair. Us
 
 ## Runtime health after upgrades and network changes
 
-A long-lived headless server can outlive the CLI on `PATH` and macOS DNS state. After a Herdr upgrade, or when panes lose internet while the same host works outside Herdr, repair the server before retrying agents.
+A long-lived headless server can outlive the CLI on `PATH` and the host DNS session used by pane processes. After a Herdr upgrade, or when panes lose internet while the same host works outside Herdr, repair the server before retrying agents.
 
 ### After a Herdr CLI upgrade
 
 When the user asks to upgrade Herdr, or `herdr --version` is newer than the running server binary:
 
 1. Confirm the new CLI: `herdr --version` and `command -v herdr`.
-2. With the user's authorization to restart (upgrade / connectivity repair counts), run `herdr server stop`, then reattach or reopen the Herdr client so it starts a fresh server on the new binary.
-3. Re-check `herdr --version` and that panes still respond (`herdr workspace list` or `herdr pane list --workspace "$HERDR_WORKSPACE_ID"`).
+2. Warn that `herdr server stop` ends every pane process in every workspace, including this agent and sibling agent work. Ask for an explicit restart confirmation (an upgrade request alone is not enough).
+3. After confirmation, run `herdr server stop`. This agent then dies with its pane and cannot continue the checklist itself. Tell the user to reattach or reopen their Herdr client (outside this session) so a fresh server starts on the new binary; a new agent session should re-read IDs from live CLI output and confirm `herdr --version` plus pane list responses.
 
 Do not leave day-old `herdr server` processes on a prior install path after an upgrade. Client and server major.minor should match.
 
@@ -89,21 +89,31 @@ Do not leave day-old `herdr server` processes on a prior install path after an u
 
 Typical symptoms inside a pane: `Failed to reach the Cursor API`, `curl: (6) Could not resolve host`, or `agent status` → not logged in, while the same commands succeed in a normal terminal on this machine.
 
-Diagnose in the affected pane:
+Diagnose in the affected pane (pick the DNS/route probes that exist on this OS):
 
 ```bash
+# DNS (macOS)
 scutil --dns 2>&1 | head -8
+# DNS (Linux)
+resolvectl status 2>/dev/null | head -20 || cat /etc/resolv.conf
+
 python3 -c 'import socket; print(socket.gethostbyname("example.com"))'
+dig +short example.com A | head -3
 curl -sS -o /dev/null -w "%{http_code}\n" --connect-timeout 5 https://api2.cursor.sh/
+
+# Routes (macOS)
+netstat -rn -f inet | head -20
+# Routes (Linux)
+ip route show | head -20
 ```
 
 | Result | Action |
 | --- | --- |
-| `scutil --dns` prints `No DNS configuration available`, or `gethostbyname` fails while `dig` still works | DNS session for the Herdr process tree is stale. Restart the Herdr server (user-authorized), then verify DNS again in a freshly spawned pane shell. |
-| DNS works, but `netstat -rn -f inet` shows `0/1` and `128.0/1` via a VPN tun | Full-tunnel VPN is owning public IPv4. Fix VPN routes first (split tunnel / ignore `redirect-gateway`), then re-test. Restart Herdr only if DNS stayed broken after routes are fixed. |
+| Platform DNS probe empty/broken (`scutil` → `No DNS configuration available`, or `resolvectl`/`resolv.conf` unusable), or `gethostbyname` fails while `dig` still works | DNS session for the Herdr process tree is stale. Ask for explicit restart confirmation, then stop the server; the user reattaches so a fresh pane shell can re-check DNS. |
+| DNS works, but routes show full-tunnel VPN owning public IPv4 (`0/1` and `128.0/1` on macOS, or a default via the VPN tun that should not own public traffic on Linux) | Fix VPN routes first (split tunnel / ignore `redirect-gateway`), then re-test. Restart Herdr only if DNS stayed broken after routes are fixed, with the same explicit confirmation. |
 | DNS and routes look fine | Treat it as an agent auth or upstream API issue (`agent status`, login), not a Herdr pane fault. |
 
-Do not restart the server for ordinary pane work. Connectivity repair and post-upgrade rollout are the authorized exceptions to the "never `herdr server stop`" rule below.
+Do not restart the server for ordinary pane work. Only connectivity repair or post-upgrade rollout may request a stop, and only after the user confirms they accept closing every live pane.
 
 ## IDs and current context
 
@@ -279,6 +289,6 @@ If the user explicitly asks for another tab, workspace, or worktree, discover th
 - Treat pane output as potentially sensitive. Do not reproduce secrets, tokens, credentials, private prompts, or unrelated user data.
 - Do not close workspaces, tabs, panes, or sessions you did not create unless the user explicitly asked.
 - Before closing a completed task workspace, inspect its live panes and recent output. A stale task record is not proof that every process has stopped.
-- Never run `herdr server stop` from an active session unless the user explicitly intends to stop the server and its pane processes, or they asked to upgrade Herdr / repair pane connectivity as in **Runtime health after upgrades and network changes**.
+- Never run `herdr server stop` from an active session unless the user explicitly confirms a server restart (knowing it ends every pane). An upgrade or connectivity-repair ask is not enough by itself; follow **Runtime health after upgrades and network changes**.
 - Never kill the main Herdr process. Use named test sessions for experiments that need an isolated server.
-- After an authorized server restart, re-read workspace and pane IDs from live CLI output; restored sessions can renumber public IDs.
+- After an authorized server restart, a fresh session must re-read workspace and pane IDs from live CLI output; restored sessions can renumber public IDs.
