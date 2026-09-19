@@ -1,6 +1,6 @@
 ---
 name: gopass
-description: "Manage credentials in a local gopass store: find and retrieve secrets without exposing them, insert or generate values, rotate and remove entries, sync and diagnose the store, handle TOTP, and connect stored credentials to shell environment variables such as ~/.envrc. Use whenever a task needs a secret or asks to add, update, list, copy, export, or troubleshoot gopass credentials."
+description: "Manage credentials in a local gopass store: find and retrieve secrets without exposing them, insert or generate values, rotate and remove entries, sync and diagnose the store, handle TOTP, and connect stored credentials to shell environment variables such as ~/.envrc. Use whenever a task needs a secret from gopass or asks to add, update, list, copy, export, or troubleshoot gopass credentials. Prefer vd:onepassword when the user names 1Password or op:// references."
 license: MIT
 metadata:
   author: vanducng
