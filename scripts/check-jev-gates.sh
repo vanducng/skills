@@ -15,7 +15,8 @@
 #   {"id":"...","skill":"...","gate":"...","state":"...",
 #    "question":{"type":"noul","instructions":"...","criteria":{"true":"...","false":"..."}},
 #    "expect":{"noul":[min,max]}}
-# Choice cases use "criteria":{"<option>":"<rubric>",...} and "expect":{"choice":"<option>"}.
+# Choice cases use "criteria":{"<option>":"<rubric>",...} and "expect":{"choice":"<option>","pmin":0.6}
+# (pmin optional: minimum winning probability, e.g. guide's 0.6 route).
 # Exit: 0 all pass (or skip) - 1 calibration or API failure - 2 usage error.
 set -uo pipefail
 
@@ -42,7 +43,7 @@ fi
 
 while IFS= read -r line; do
   [ -n "$line" ] || continue
-  jq -e 'has("id") and has("skill") and has("gate") and has("state") and has("question") and (.expect | type == "object" and (has("noul") or has("choice")))' \
+  jq -e 'has("id") and has("skill") and has("gate") and has("state") and has("question") and ((.expect.noul? | type == "array" and length == 2) or (.expect.choice? | type == "string"))' \
     <<<"$line" >/dev/null 2>&1 || { echo "FAIL: malformed case line: ${line:0:60}" >&2; exit 2; }
 done < "$CASES"
 
@@ -89,7 +90,8 @@ while IFS= read -r line; do
     want="$(jq -r '.expect.choice' <<<"$line")"
     got="$(jq -r '.answers.gate.choice // empty' "$TMP")"
     prob="$(jq -r --arg w "$want" '.answers.gate.probabilities[$w] // 0' "$TMP")"
-    if [ -n "$got" ] && [ "$got" = "$want" ]; then
+    pmin="$(jq -r '.expect.pmin // 0' <<<"$line")"
+    if [ -n "$got" ] && [ "$got" = "$want" ] && awk -v p="$prob" -v m="$pmin" 'BEGIN{exit !(p>=m)}'; then
       echo "PASS  $label  choice=$got p=$prob"
       pass=$((pass + 1))
     else
