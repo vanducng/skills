@@ -5,7 +5,7 @@ license: Apache-2.0
 argument-hint: "[inspect | rename <project> <intent> | start agent | run command | wait | read]"
 metadata:
   author: vanducng
-  version: "1.3.0"
+  version: "1.3.1"
 ---
 
 # Herdr
@@ -279,6 +279,40 @@ Use the read source that matches the task:
 Use `--format ansi` when colors and terminal styling are evidence. Otherwise use text.
 
 If the user explicitly asks for another tab, workspace, or worktree, discover that command group and use returned IDs. Do not infer a larger topology from a request to start an agent or command.
+
+## Mobile web previews on the phone
+
+Herdr's documented phone workflow is a terminal workflow: SSH from the phone, then run or attach to Herdr. Herdr does not forward arbitrary HTTP ports or render a pane's web server inside the TUI. A URL printed in pane output may be tappable, but it opens in the phone's browser.
+
+For a web artifact or development preview:
+
+1. Run the server in a Herdr pane and print the exact URL before the long-running command. Include the scheme so mobile clients do not guess HTTPS for a plain HTTP port.
+2. Keep the backend bound to loopback when using Tailscale Serve:
+
+```bash
+PORT=8765
+ROOT=<artifact-directory>
+FILE=<artifact.html>
+
+sudo tailscale set --operator="$USER"  # one-time per host
+TS_DNS=$(tailscale status --json | jq -r '.Self.DNSName | sub("\\.$"; "")')
+tailscale serve --bg --yes "$PORT"
+printf 'Open on the tailnet: https://%s/%s\n' "$TS_DNS" "$FILE"
+exec python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$ROOT"
+```
+
+Tailscale Serve must also be enabled for the tailnet. If `tailscale serve` prints an authorization URL, the user must approve it first. `sudo tailscale set --operator="$USER"` grants the local user Serve control so later commands do not need sudo.
+
+3. Verify from another tailnet device, not only from the server:
+
+```bash
+tailscale serve status
+curl -fsS -o /dev/null -w '%{http_code}\n' "https://$TS_DNS/$FILE"
+```
+
+Use `tailscale status --json` for the node's exact MagicDNS name. Do not infer it from an SSH alias or the operating-system hostname. If a plain HTTP server logs binary request data and `Bad request version`, the client sent TLS to the HTTP port. Use the Tailscale Serve HTTPS URL or explicitly use `http://` for direct-port access.
+
+A server/process list on the phone may omit a Tailscale Serve endpoint because Serve is a tailnet proxy, not an SSH-forwarded process. Open the printed HTTPS URL in the phone browser. Use Tailscale Funnel only when the user explicitly requests public internet access. Serve is tailnet-only.
 
 ## Safety and coordination rules
 
