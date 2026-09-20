@@ -30,6 +30,10 @@ while dry < 2 and round < Iterations:     # Iterations default 5
 - **Termination is always bounded:** stop on 2 consecutive zero-new rounds (converged) or at `Iterations` (log truncation).
 - Dedupe so the same finding under two personas counts once; note multi-persona findings (reachable from several angles) as higher confidence.
 
+## With `--verify`
+
+After the persona loop, run the adversarial verify pass from SKILL.md on every High+ `confirmed` candidate before severity sticks. Personas discover; verify tries to refute.
+
 ## Safety
 
-All findings go through the credential-masking rules (SKILL.md → Scope & posture). PoCs are templates, never live exploits. Defensive intent only.
+All findings go through the credential-masking rules (SKILL.md → Scope & posture). PoCs are templates, never live exploits. Defensive intent only. Apply the evidence bar: checklist gaps and defense-in-depth notes are not persona "wins."

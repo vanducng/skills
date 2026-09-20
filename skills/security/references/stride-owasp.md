@@ -38,11 +38,13 @@ A committed secret is **compromised the instant it reaches a remote** (push, PR,
 
 ## Severity rubric
 
+Severity applies only to `confirmed` findings (see SKILL.md evidence bar). `needs_validation` and hardening notes get none.
+
 | Severity | Bar |
 |---|---|
-| Critical | Remote unauth code exec / data breach / privilege escalation, trivially reachable. |
-| High | Exploitable with auth or some friction; significant data/integrity impact. |
-| Medium | Requires unlikely preconditions, or limited impact. |
-| Low | Defense-in-depth / hardening; no direct exploit path. |
+| Critical | Unauthenticated actor gains code exec, full data-store access, or arbitrary account takeover. |
+| High | Actor fully defeats an explicit control with real consequences (auth bypass, cross-tenant R/W, stored XSS affecting others, authenticated RCE, unauth stop of a shared service). |
+| Medium | Real boundary violation with limited blast radius, uncommon preconditions, or narrow resources. |
+| Low | Disclosure of non-secret internals, or sustained effort for minimal gain. |
 
-Findings reachable by combining two categories (e.g. IDOR + missing rate limit) escalate one level - note the chain.
+Overall severity cannot exceed demonstrated impact. High vs medium: does the result *fully defeat* an explicit control, or only weaken it? Chains (e.g. IDOR + missing rate limit) escalate one level - note the chain. Pure defense-in-depth gaps while Layer A blocks the attack are hardening notes, not Low findings.
