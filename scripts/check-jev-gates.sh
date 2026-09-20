@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # check-jev-gates.sh - calibration eval for the jev gates encoded in
-# cook, code-review, guide, and browser-skill. Replays fixture states against
-# the live TypeSafe API and asserts each gate routes as its skill table says.
+# cook, code-review, and guide, plus the shared browser success-check pattern
+# that browser-skill encodes (that skill lands via its own PR). Replays fixture
+# states against the live TypeSafe API and asserts each gate routes as its
+# skill table says.
 #
 # Usage:
 #   bash scripts/check-jev-gates.sh [--cases <file>]
@@ -23,7 +25,9 @@ API="https://api.typesafe.ai/v1/systemone"
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --cases) CASES="${2:-}"; shift 2 ;;
+    --cases)
+      [ $# -ge 2 ] || { echo "usage: $0 [--cases <file>]" >&2; exit 2; }
+      CASES="$2"; shift 2 ;;
     *) echo "usage: $0 [--cases <file>]" >&2; exit 2 ;;
   esac
 done
@@ -38,7 +42,7 @@ fi
 
 while IFS= read -r line; do
   [ -n "$line" ] || continue
-  jq -e 'has("id") and has("skill") and has("gate") and has("state") and has("question") and (has("expect") or has("choice"))' \
+  jq -e 'has("id") and has("skill") and has("gate") and has("state") and has("question") and (.expect | type == "object" and (has("noul") or has("choice")))' \
     <<<"$line" >/dev/null 2>&1 || { echo "FAIL: malformed case line: ${line:0:60}" >&2; exit 2; }
 done < "$CASES"
 
