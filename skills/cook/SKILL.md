@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[plan-dir | plan.md | task] [--auto | --quick] [--tdd] [--no-test] [--skip-preflight]"
 metadata:
   author: vanducng
-  version: "1.6.0"
+  version: "1.6.1"
 ---
 
 # Cook

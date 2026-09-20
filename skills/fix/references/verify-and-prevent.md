@@ -16,7 +16,7 @@ Memory of "I think it should work now" is not evidence. Re-execute. Capture outp
    - dbt: same `dbt run --select X` / `dbt test --select X` invocation.
    - Airflow: clear the failed task instance and rerun; check the new task log.
    - Backend: re-issue the failing request (curl/HTTP client), or rerun the failing test (`go test -run`, `pytest -k`, `npm test -- -t`).
-   - Frontend: reproduce in the same browser/viewport; reload from scratch; ideally screenshot.
+   - Frontend: reproduce in the same browser/viewport; reload from scratch; capture the **after** screenshot (same page/viewport/scroll as the Step 2 before). Keep both paths for `vd:ship` Step 12b.
    - CI: `gh run rerun --failed`, watch logs; or trigger the affected workflow.
    - Terraform: `terraform plan` → expect "No changes" (or precisely the expected change set); then `apply` in lower env first.
    - K8s: `kubectl rollout restart` (if config-driven); `kubectl get pods -w` for stability; `kubectl logs --previous` to confirm no new crash loop.

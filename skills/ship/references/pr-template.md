@@ -16,20 +16,22 @@ Load that file for: past-tense (v-ed) titles, confirmed-ticket selection, repo-t
 |---|---|
 | **Step 12 - Create PR** | Resolve title + body via the canonical rules. Existing PR for this branch → `gh pr edit`. |
 | **Step 12 - Inline issue refs** | `Closes #N` / `Relates to #M` from Step 2 go inline in the **Why** bullet - no separate Linked-Issues section. |
-| **Step 15 - Verification block refresh** | After CI watch reports green, regenerate the three-line verification block (`**Tests:** …` / `**Docs:** …` / `**Breaking:** …`, one field per line) so reviewers see live status, not commit-time snapshot. |
+| **Step 15 - Verification block refresh** | After CI watch reports green, update the three-line verification block (`**Tests:** …` / `**Docs:** …` / `**Breaking:** …`, one field per line) in place so reviewers see live status. **Preserve any Step 12b before/after HTML table** - do not rebuild the body from a blank template. |
 | **Beta channel** | Beta PRs target `dev` / `beta` branch, not `main`. Title and body shape are unchanged. |
-| **No AI attribution** | Never add Cursor/Claude footers or co-authors (`Made with Cursor`, `Co-authored-by: Cursor|Claude`, "Generated with …", Claude session links) to the PR title, body, or any PR comment ship posts. After `gh pr create`/`edit`, run `../git/scripts/strip-ai-pr-attribution.sh` because Cursor may still inject a footer despite opt-out. |
-| **Step 12 - Screenshot evidence** | **Optional.** For user-visible changes, if captures already exist, draft the body with a `<!-- SCREENSHOTS -->` marker and substitute them in. Recipe: `../git/references/gh-cli-guide.md` → *Attach screenshots*. |
+| **No AI attribution** | Never add `Co-Authored-By: Claude`, "Generated with Claude", or a `https://claude.ai/code/session_...` session link to the PR title, body, or any PR comment ship posts. |
+| **Step 12 - Screenshot marker** | For user-visible changes, draft the body with a `<!-- SCREENSHOTS -->` marker after the verification block. Step 12b substitutes the HTML table. |
+| **Step 12b - Before/after** | **Expected for UI-visible diffs** (not a merge gate). Capture or reuse a before/after pair, upload via `gh_upload_image`, embed in the PR, and mirror onto the confirmed ticket. Full recipe: `before-after.md`. Upload mechanics: `../git/references/gh-cli-guide.md` → *Attach screenshots*. Skip with `--skip-screenshots` or when capture is impossible - say why once. |
 
-## Screenshot evidence (optional, UI-visible changes)
+## Before/after evidence (user-visible changes)
 
-**Never blocks the ship.** Skip it for non-visual changes, when no captures exist, or when driving
-the UI would cost more than the evidence is worth - say so in the verification block and move on.
-Do not stall a PR hunting for a screenshot.
+**Expected when the diff changes what a user sees. Never blocks the ship.** Skip for
+non-visual changes, `--skip-screenshots`, unknown URLs, or when driving the UI would
+cost more than the evidence is worth - say so once and move on.
 
-When it is cheap - captures already taken during verification - a before/after pair beats a
-paragraph. Capture **the same page, viewport, and scroll position** in both shots so only the change
-differs; a mismatched pair is worse than none, because the reviewer cannot tell what is signal.
+When it is cheap - captures already taken during cook/fix, or two reachable URLs - a
+before/after pair beats a paragraph. Capture **the same page, viewport, and scroll
+position** in both shots so only the change differs; a mismatched pair is worse than
+none.
 
 What to capture, by change type:
 
@@ -39,9 +41,9 @@ What to capture, by change type:
 | New guard or validation | Action attempted, no guard | Guard firing, plus the success path once satisfied |
 | Bug fix | The broken state reproduced | Same steps, correct behaviour |
 
-Pair each shot with the observed value (row count, error text, ID) in the surrounding table - the
-image shows it happened, the number makes it checkable.
+Pair each shot with the observed value (row count, error text, ID) in the surrounding
+table - the image shows it happened, the number makes it checkable.
 
-Upload mechanics, private-repo constraints, and verification are in
-`../git/references/gh-cli-guide.md`. Do **not** commit review screenshots to the repo;
-they are ephemeral evidence, not documentation.
+Procedures (capture CLIs, GitHub upload, Jira inline): `before-after.md`.
+Do **not** commit review screenshots to the repo; they are ephemeral evidence, not
+documentation. Do **not** use public paste hosts (`0x0.st`, etc.) for private work.

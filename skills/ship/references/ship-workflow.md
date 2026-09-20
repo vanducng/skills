@@ -233,13 +233,23 @@ git push -u origin "$(git branch --show-current)"
    (`bad substitution: no closing ')'`). `--body-file` is the safe path;
    see `../git/references/gh-cli-guide.md`.
 5. Inline issue refs from Step 2 in the template's context/why area (`Closes #N` / `Relates to #M`) - no separate Linked-Issues section.
-6. Strip AI attribution footers Cursor/Claude may inject after create/edit (even when local attribution opt-out is on):
-   ```bash
-   ../git/scripts/strip-ai-pr-attribution.sh <pr-number>
-   ```
-   Removes `Made with Cursor`, `Co-authored-by: Cursor|Claude`, `Generated with …`, and Claude session links from the live PR body. Idempotent.
+6. **UI-visible changes:** leave a lone `<!-- SCREENSHOTS -->` marker after the verification block so Step 12b has an insertion point. Skip the marker for non-visual diffs or `--skip-screenshots`.
 7. Re-read the created/updated PR body and verify it matches the selected repo template or canonical fallback before continuing.
-8. **Output the PR URL** - final user-facing line (unless Steps 13-16 run after).
+8. **Output the PR URL** - final user-facing line (unless Steps 12b-16 run after).
+
+## Step 12b: Before / after evidence
+
+**Skip if** `--skip-screenshots`, the diff has no user-visible surface (API/CLI/data/infra with nothing to screenshot), **or** Step 1 chose direct-push to target (no PR - Steps 12/12b/13/15/16 do not run).
+
+Full recipe: `references/before-after.md`. Upload helper: `../git/references/gh-cli-guide.md` → *Attach screenshots*.
+
+1. **Detect UI-visible** from the Step 1 diff (frontend routes/components, CSS, copy, empty/error states, visible guards). Ambiguous → ask once, or skip with a one-line reason.
+2. **Obtain a pair** - reuse cook/fix/web-e2e captures if present; else capture with `@vercel/before-and-after` (two URLs) or `vd:agent-browser` (same page/viewport/scroll). Non-UI measured pairs go in the verification block as text, not images.
+3. **Embed in the PR** - `gh_upload_image` → replace `<!-- SCREENSHOTS -->` with the HTML before/after table. Verify the rendered images (private-repo 404 unauthenticated / 200 authenticated).
+4. **Ticket** - when Step 1b **confirmed** a key (not a regex guess alone), mirror via `vd:jira` (or a GitHub-issue comment). Follow `vd:jira`'s show-before-execute approval for the comment body + images - **`--auto` does not suppress this prompt**; if declined, skip the ticket post and continue the ship. One-line result + PR URL.
+5. Ship summary line: `✓ Before/after: embedded` or `✓ Before/after: skipped - <reason>`.
+
+Never block the pipeline on capture failure - note why and continue to Step 13.
 
 ## Step 13: PR review comments
 
@@ -368,7 +378,7 @@ Runs after PR creation in **every** mode. Distinguishes pass / fail / pending so
    STATE=$(gh pr checks "$PR_NUMBER" --json state -q '[.[].state] | unique | join(",")')
    ```
 3. Branch on `$STATE`:
-   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the selected PR template with the latest verification status. For canonical fallback bodies, update the verification block (`**Tests:** …` / `**Docs:** …` / `**Breaking:** …`, one field per line). For repo-template bodies, update the appropriate checklist or notes field without changing section names. Continue to **Step 15b**, then Step 16.
+   - **All `SUCCESS` / `COMPLETED+SUCCESS`** → output `CI: green`, refresh the selected PR template with the latest verification status. For canonical fallback bodies, update the verification block (`**Tests:** …` / `**Docs:** …` / `**Breaking:** …`, one field per line). For repo-template bodies, update the appropriate checklist or notes field without changing section names. **Preserve any Step 12b before/after HTML table** - edit verification lines in place; never regenerate the whole body from a blank template. Continue to **Step 15b**, then Step 16.
    - **Any `FAILURE` / `CANCELLED` / `TIMED_OUT`** → **STOP**. `AskUserQuestion` (regardless of `--auto`):
      - `Investigate failure` (recommended) - print failing checks via `gh pr checks --json name,state,link -q '.[]|select(.state!="SUCCESS")'`, exit so user can fix
      - `Merge anyway` - proceed to Step 16 noting CI was red
