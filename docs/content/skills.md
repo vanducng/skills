@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog contains 84 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
+The catalog contains 85 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
 
 Count source: `find skills -mindepth 1 -maxdepth 1 -type d`. Validation: `scripts/validate.sh`.
 
@@ -54,6 +54,7 @@ Start with a local browser. Use `vd:browser` only when the site blocks local aut
 | Rung | Skill |
 | --- | --- |
 | Isolated logged-in browsing | `vd:ego-browser` |
+| Logged-in browsing with tab borrow + human help | `vd:browser-skill` |
 | Persistent local Chrome / CDP | `vd:agent-browser`, `vd:browser-profile` |
 | Vendor-free raw-CDP traces | `vd:browser-trace` |
 | CAPTCHA / anti-bot / proxy | `vd:browser` (Browserbase) |
