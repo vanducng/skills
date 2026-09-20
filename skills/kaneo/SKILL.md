@@ -106,6 +106,18 @@ before assigning. Prefer the narrow tools such as `update_task_status`,
 
 Do not use MCP OAuth in headless runs when an API key exists.
 
+## Authenticated browser fallback
+
+If the configured REST/MCP token returns an authentication error, stop retrying that token. When the user already has an authenticated Kaneo browser session and authorized the write, use `vd:ego-browser` as the fallback:
+
+1. Open the project board and target a known task UUID with `?taskId=<task-uuid>`.
+2. Read back the display key, title, description, and current status before editing.
+3. Add evidence through the `Comment editor`. Use its hidden file input with `uploadFile(...)` before submitting when screenshots are required.
+4. Change status through the task's status control using the actual column names shown by the UI.
+5. Read the task again and verify the comment, attachments, and final status.
+
+Do not treat a browser toast as proof of a write. Keep using UUIDs for direct task targeting; display keys remain communication labels only.
+
 ## Invoice / ops log
 
 When logging a sent invoice, put it on the workspace's ops project (rules
