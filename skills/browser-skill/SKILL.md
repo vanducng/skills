@@ -81,6 +81,31 @@ command surface: `bsk --help`; deep dives:
 [screenshots](https://github.com/Tencent/BrowserSkill/blob/main/docs/long-screenshot.md),
 [scroll/wheel](https://github.com/Tencent/BrowserSkill/blob/main/docs/scroll-to.md).
 
+## Multiple browsers and profiles
+
+`bsk browsers --json` lists one instance per running (browser × profile) that
+has the extension enabled. Labels exist only if set in that profile's extension
+popup - they are never auto-populated. When the task names a browser or
+profile:
+
+1. Use a verified label or instance ID on every `session start`. Never infer
+   the mapping from browser process command lines - one process can host
+   several profiles, so upstream treats that as unreliable.
+2. If the mapping is unknown, recover it at runtime from extension storage:
+   the instance ID is stored inside exactly one profile's
+   `Local Extension Settings/<extension-id>/` directory. Grep the browser's
+   user-data dir for the ID, then read `Local State` → `profile.info_cache`
+   in the same dir for the display name:
+
+   ```sh
+   rg -a "<instance-id>" "$HOME/Library/Application Support/<Browser>/User Data"   # macOS
+   rg -a "<instance-id>" "$HOME/.config/<browser>"                                # Linux
+   ```
+
+3. Treat discovered mappings as machine-local: never commit them to any file.
+   Opening or switching profiles never moves a live session; a closed profile
+   is simply offline - reopen it to reconnect.
+
 ## Borrowing user tabs
 
 ```sh
