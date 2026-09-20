@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[plan-dir | plan.md | task] [--auto | --quick] [--tdd] [--no-test] [--skip-preflight]"
 metadata:
   author: vanducng
-  version: "1.6.1"
+  version: "1.6.2"
 ---
 
 # Cook
@@ -138,6 +138,7 @@ After all files for the phase are written:
 - Run the full type-check / lint (not just per-file)
 - Run the phase's `Verify` command if it has one (vd:plan writes a literal command line); else run any smoke command the phase implies (start dev server, hit endpoint, run script)
 - Walk each item in the phase's `Success Criteria` and confirm with evidence, not vibes (`curl /api/foo → 200, body matches`)
+- **jev second opinion (pi only, optional):** if the harness exposes a `jev` tool, batch the phase's criteria into one call - routing table in [Typed verification with jev](#typed-verification-with-jev-optional-pi-only)
 
 If a success criterion fails: fix inside this phase. Don't tick it and move on.
 
@@ -183,7 +184,7 @@ After the last phase passes:
    done
    bash "$DOD" <plan.md>
    ```
-   It evaluates every verifier with evidence and **exits 0 only if all pass** - gate "done" on exit 0. Exit 1 → goal *unmet*: it prints which verifier failed; report that and kick back to the relevant phase, do **not** claim done. A `manual_confirm` verifier surfaces as needs-user → resolve it with `AskUserQuestion` (in Claude Code; ask the user in plain text elsewhere), then re-run. If the runner is unavailable, fall back to executing each verifier by hand (same vocab). No `## Definition of Done` block (runner exits 1 with "fall back") → verify the plan-level `## Success Criteria` instead.
+   It evaluates every verifier with evidence and **exits 0 only if all pass** - gate "done" on exit 0. Exit 1 → goal *unmet*: it prints which verifier failed; report that and kick back to the relevant phase, do **not** claim done. A `manual_confirm` verifier surfaces as needs-user → resolve it with `AskUserQuestion` (in Claude Code; ask the user in plain text elsewhere), then re-run. If the runner is unavailable, fall back to executing each verifier by hand (same vocab). No `## Definition of Done` block (runner exits 1 with "fall back") → verify the plan-level `## Success Criteria` instead. Either way, close with one batched jev call over the plan-level criteria before claiming done (table below).
 2. **Reconcile** - sweep all phase files; tick stale unchecked items that did get done; sync `plan.md` (`pending` → `completed`).
 3. **Docs** - if changes warrant updates (new public APIs, changed behavior, new env vars, new commands) → update `docs/` directly. Otherwise say so: "Docs impact: none."
 4. **Smoke** - one final end-to-end check. Run the most user-facing command this plan changed.
@@ -191,6 +192,17 @@ After the last phase passes:
    - Commit? (suggest a conventional-commit message)
    - Open a PR? (if on a feature branch)
    - Anything missing? Don't claim done unilaterally.
+
+## Typed verification with jev (optional, pi only)
+
+If the harness exposes a `jev` tool (TypeSafe System One via the pi extension), use it as an independent second opinion at two points; if it is unavailable or errors, decide inline - never block or retry a task on jev. One call is ~250ms and a fraction of a cent; batch every criterion of the phase into that one call.
+
+| Decision point | Ask | Route on P(true) |
+|---|---|---|
+| Step C, per success criterion | "Does this evidence satisfy this exact criterion: <criterion verbatim>?" with the evidence excerpt as state | ≥0.85: tick it. 0.5-0.85: gather one more piece of evidence first. <0.5: unmet - fix inside the phase |
+| Phase 3, before claiming done | Same question over the plan-level success criteria | ≥0.85: claim done. 0.5-0.85: re-verify once. <0.5: report what is missing |
+
+Hygiene: quote the criterion verbatim; feed only the relevant evidence excerpt, never the whole log; state computed facts (counts, dates, diff sizes) yourself instead of asking jev to count or compare; treat answers as calibrated advice - cook owns the decision.
 
 ## Specials
 
