@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[what you are trying to do]"
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # Guide
@@ -90,3 +90,7 @@ Start local. Escalate to `vd:browser` only when a local run hits a wall.
 4. The next hand-off after that skill finishes.
 
 Do not load the target skill's body unless the user says to run it.
+
+## Tie-break with jev (optional, pi only)
+
+When exactly two candidates both plausibly fit and the tables above do not settle it, one `jev` call (if the harness exposes the tool) can break the tie: Choice over the tied candidates, criteria = each skill's "pick when" line, state = the ask restated in one line. Route: go with the winning option at probability ≥0.6; below that, prefer the spine default (`vd:fix` for failures, `vd:cook --quick` for small builds) and say the ask was ambiguous. If jev is unavailable or errors, decide inline - never block on it.
