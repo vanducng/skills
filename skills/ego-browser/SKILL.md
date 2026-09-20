@@ -206,3 +206,4 @@ For Google Docs, Google Sheets, Lark/Feishu Docs, Notion, Figma, whiteboards, ma
 - [screencast video recording](references/video.md)
 - [install](references/install.md)
 - [Google Sheets: reliable cell writes](references/google-sheets.md) - read before writing cells in Google Sheets; commits are silently discarded unless written via synthetic paste, and verification must use the export CSV endpoint
+- [Zalo Web: single-session, mentions, and image paste](references/zalo-web.md) - read before automating Zalo Web

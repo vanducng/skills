@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog contains 82 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
+The catalog contains 83 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
 
 Count source: `find skills -mindepth 1 -maxdepth 1 -type d`. Validation: `scripts/validate.sh`.
 
@@ -114,7 +114,7 @@ These skills document CLIs owned alongside this catalog:
 
 Utilities for recurring work:
 
-`vd:superwhisper`, `vd:gog`, `vd:jira`, `vd:kaneo`, `vd:issue-invoice`, `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:journal`, `vd:obsidian-vault`, `vd:workbench`, `vd:braze`, `vd:smartsheet`, `vd:voice-agent`
+`vd:superwhisper`, `vd:gog`, `vd:jira`, `vd:kaneo`, `vd:issue-invoice`, `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:gopass`, `vd:onepassword`, `vd:journal`, `vd:workbench`, `vd:braze`, `vd:smartsheet`, `vd:voice-agent`, `vd:alter`
 
 ## Skill lifecycle
 
@@ -137,7 +137,7 @@ Use `vd:docs` for internal project docs and ADRs. Its `site` subcommand manages 
 
 Use `vd:show-me` for a quick in-chat visual. Use `vd:diagram-design` for accessible HTML/SVG, `vd:text-diagram` for ASCII, `vd:diagram` for SVG or raster output, and `vd:excalidraw` for editable whiteboards.
 
-Use `vd:superwhisper` to search local dictation history, prepare standups, and diagnose recognition errors. Use `vd:braze` for Braze CLI reads and explicit opt-in changes. Use `vd:smartsheet` for bounded sheet reads and authorized row updates. Use `vd:voice-agent` to operate Retell through `vac`.
+Use `vd:superwhisper` to search local dictation history, prepare standups, and diagnose recognition errors. Use `vd:alter` to audit Alter's macOS global hotkeys and change them without reading meeting data. Use `vd:braze` for Braze CLI reads and explicit opt-in changes. Use `vd:smartsheet` for bounded sheet reads and authorized row updates. Use `vd:voice-agent` to operate Retell through `vac`. Use `vd:gopass` for the local GPG password store and `vd:onepassword` for 1Password CLI (`op` / `op://` references).
 
 `vd:kaneo` manages Kaneo tickets through REST or MCP; instance values live in `$HOME/.config/vd/kaneo-rules/`. `vd:jira` uses the `vanducng/jira-cli` fork for inline local-image comments. Inside Herdr, `vd:worktree` asks `vd:herdr` to name the current pane after creating a worktree. It also trusts mise configs so `cd` works, while `mise install` stays in `suggestedInstalls`. `vd:computer-clean` checks Git worktree storage.
 

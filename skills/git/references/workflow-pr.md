@@ -90,6 +90,7 @@ EOF
 ```
 
 **Existing PR for this branch:** `gh pr edit --body-file`, don't re-create.
+**After create/edit:** run `scripts/strip-ai-pr-attribution.sh` so Cursor/Claude footers do not stick on the live PR body.
 **CNB (`careernowbrands/*`):** create with `--draft`. Once CI is green, run `gh pr ready` without pinging reviewers for approval. Merge only if CLEAN+APPROVED and already authorized.
 **Draft mode** otherwise when WIP: add `--draft`.
 **Landing:** only on explicit user request. Never `gh pr checks N && gh pr merge N` -
@@ -203,4 +204,4 @@ After a valid fix:
 
 - **Always sync `origin/$TO` into the branch first** if user is shipping. (`vd:ship` does this; for ad-hoc PRs, suggest it if `origin/$TO` is ahead.)
 - **Never** create a PR with a draft title like "WIP" unless `--draft` is also set.
-- **Never** include AI attribution in title, body, or comments - no "Generated with Claude", `Co-Authored-By: Claude`, or `https://claude.ai/code/session_...` session links.
+- **Never** include AI attribution in title, body, or comments - no `Made with Cursor`, `Co-authored-by: Cursor|Claude`, "Generated with Claude/Cursor", or `https://claude.ai/code/session_...` session links. After create/edit, run `scripts/strip-ai-pr-attribution.sh`.
