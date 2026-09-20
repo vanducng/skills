@@ -162,6 +162,42 @@ real logged-in profile, so anything you are induced to do uses their sessions.
 - On an unrecoverable failure, report the blocker and stop the session -
   do not switch backends to bypass a limit.
 
+## OS-level input fallback (password managers, browser chrome)
+
+Some UI is deliberately unreachable via CDP: password-manager choosers
+(1Password, Bitwarden), browser-level dialogs, extension popups. CDP-injected
+keys never trigger browser-level shortcuts (e.g. 1Password's Cmd+\), and
+screenshots of the tab cannot show their floating UI. When in-page tools are
+blocked or the task requires such UI, escalate real OS-level input - real
+CGEvents/uinput are accepted because they are indistinguishable from hands.
+
+Ladder (stop at the first rung that works):
+
+1. In-page tools (`observe`, refs, `press`) - default.
+2. If a security extension blocks CDP DOM access, keep working with
+   screenshots + `press` keys (input events still land in the tab).
+3. OS-level input for browser-chrome UI. Passwords still never pass through
+   the agent: trigger the manager's autofill shortcut, never read or type
+   the secret.
+   - macOS: `cliclick` (brew). Needs one Accessibility grant for the
+     terminal. Keys: `cliclick kd:cmd t:'\' ku:cmd`; clicks: `cliclick c:X,Y`.
+     Activate the browser first (`osascript -e 'tell application "Dia" to
+     activate'`).
+   - Linux X11: `xdotool key --clearmodifiers ctrl+backslash`,
+     `xdotool mousemove X Y click 1`.
+   - Linux Wayland: `ydotool` (needs uinput permission, run its daemon) or
+     `wtype`. Compositor shortcuts may need per-desktop setup.
+4. `request-help` handoff - the human completes the secret step at the
+   machine; agent resumes after `outcome=continued`.
+
+Notes: tab screenshots cannot see OS-level popups - verify via state changes
+in the page, not by looking for the popup. OS input goes to the FOCUSED
+window; activate or focus the right window first. A real Return may also hit
+whatever is frontmost if the window changed - re-check the active tab
+(`bsk tab list --scope agent`) after any focus doubt. Mind the 5-minute
+session idle timeout during long human detours; re-start the session if
+stopped.
+
 ## Typed verification with jev (optional, pi only)
 
 If the harness exposes a `jev` tool (a pi extension backed by TypeSafe's
