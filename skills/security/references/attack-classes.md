@@ -1,6 +1,6 @@
 # Attack classes
 
-Layer these on top of STRIDE × OWASP. Pick classes that match Phase-1 surfaces; skip the rest. Distilled from Cloudflare `security-audit-skill` attack-class companions (MIT) - keep claims evidence-gated per SKILL.md.
+Layer these on top of STRIDE × OWASP. Pick classes that match the surfaces listed in Scope; skip the rest. Distilled from Cloudflare `security-audit-skill` attack-class companions (MIT) - keep claims evidence-gated per SKILL.md.
 
 ## Injection
 
