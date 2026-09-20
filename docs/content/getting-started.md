@@ -23,7 +23,7 @@ Common entries:
 | Chart a multi-session effort | `vd:interview --wayfinder` |
 | Plan a multi-step change | `vd:plan` |
 | Execute a plan | `vd:cook` |
-| Ship a branch | `vd:ship` |
+| Ship a branch | `vd:ship` (UI-visible PRs get a before/after embed) |
 | Update docs | `vd:docs` |
 
 Source: `skills/<name>/SKILL.md` frontmatter.

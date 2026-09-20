@@ -4,7 +4,7 @@ description: Operate AWS accounts and services with the AWS CLI using identity-f
 license: MIT
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # AWS
@@ -19,6 +19,7 @@ Use the installed `aws` CLI for AWS inspection, diagnosis, and explicitly author
 - For Lambda, API Gateway, Function URLs, SQS, DLQs, serverless promotion, or retirement, read [references/serverless.md](references/serverless.md).
 - For Route 53, ALB/ELBv2, target groups, EC2, EBS, or SSM, read [references/compute-networking.md](references/compute-networking.md).
 - For CloudWatch, CloudTrail, S3, log analysis, audit correlation, or object verification, read [references/observability-storage.md](references/observability-storage.md).
+- For the first seven days after a production ECS promote (read-only health watch), read [references/first-week-monitor.md](references/first-week-monitor.md).
 - For other requests, follow the general workflow below and load current service-specific official documentation when command behavior is unclear or likely to have changed.
 
 ## General workflow

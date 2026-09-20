@@ -1,11 +1,11 @@
 ---
 name: ship
-description: "Ship a feature branch end-to-end: merge target → test → review → version/changelog → commit → push → PR, then drive CI green and hand off the PR. Use after `vd:cook` when the branch is implemented and tested, ready to land on main/master (official), staging/uat (staging), or dev/beta (beta). Merge is opt-in - a bare ship stops at a green PR; it merges only with --auto or --merge. Stops on test failures, critical review issues, or major version bumps."
+description: "Ship a feature branch end-to-end: merge target → test → review → version/changelog → commit → push → PR with before/after evidence for UI → drive CI green and hand off the PR. Use after `vd:cook` when the branch is implemented and tested, ready to land on main/master (official), staging/uat (staging), or dev/beta (beta). Merge is opt-in - a bare ship stops at a green PR; it merges only with --auto or --merge. Stops on test failures, critical review issues, or major version bumps."
 license: MIT
-argument-hint: "[official|staging|beta] [--auto] [--merge] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-journal] [--skip-docs] [--dry-run]"
+argument-hint: "[official|staging|beta] [--auto] [--merge] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-screenshots] [--skip-journal] [--skip-docs] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.4.0"
+  version: "1.5.0"
 ---
 
 # Ship
@@ -28,6 +28,7 @@ Repository deployment policy and an explicitly named source/target branch take p
 | `--skip-tests` | Skip test step (use only when tests already passed in this session) |
 | `--skip-review` | Skip pre-landing review (local AI review only - does NOT skip PR-comment handling) |
 | `--skip-pr-comments` | Skip Step 13 and Step 15b PR-comment gates. Use only when explicitly requested; default ship always fetches PR feedback before merge. |
+| `--skip-screenshots` | Skip Step 12b before/after evidence (PR embed + ticket comment). Default ship still expects a pair for user-visible UI when capture is cheap. |
 | `--skip-journal` | Skip journal entry |
 | `--skip-docs` | Skip docs update |
 | `--dry-run` | Print what would happen at each step, change nothing |
@@ -58,7 +59,7 @@ Repository deployment policy and an explicitly named source/target branch take p
    - **Private identifiers** - employer/org names, internal repo or host names, customer names, connection names, ticket contents, personal emails. Replace with `<org>/<repo>`, `<connection>`, `<internal-host>`. Discover the real values at runtime from the repo/env instead of hardcoding.
    - **Stale model ids** - model names pinned in prose/examples that no longer match what the tool actually uses. Verify against the source of truth (`~/.codex/config.toml`, the CLI binary's own default, provider docs) before changing one; a doc that correctly records an older default the tool still writes is **not** stale.
    Findings block the commit the same way Rule 7 does. Fix, or state out loud why the literal is required.
-8. **`--auto` has a safety floor.** Even in auto mode, stop on: critical review issues, **unresolved PR review comments**, secret-scan hits, test failures, merge conflicts, push rejections, ambiguous mode (no branch-name match). Auto suppresses *judgement-call* prompts (issue creation, version bump level, no-test-runner, journal/docs skip) **and recoverable preflight conditions** (on-target-branch → auto-create feature branch per Rule 1). Auto NEVER suppresses safety violations or direct-push-to-target.
+8. **`--auto` has a safety floor.** Even in auto mode, **abort** on: critical review issues, **unresolved PR review comments**, secret-scan hits, test failures, merge conflicts, push rejections, ambiguous mode (no branch-name match). **Still prompt (do not silent-post)** for tracker writes that need `vd:jira` (or equivalent) show-before-execute (Step 12b ticket mirror) - if declined, skip the ticket post and continue the ship. Auto suppresses *judgement-call* prompts (issue creation, version bump level, no-test-runner, journal/docs skip) **and recoverable preflight conditions** (on-target-branch → auto-create feature branch per Rule 1). Auto NEVER suppresses safety violations or direct-push-to-target.
 9. **Ticket branch/title invariant.** Use the repository's ticket naming convention
    and title `KEY-123: <past-tense description>`. With no repository convention,
    start new branches with the ticket key. Preserve an existing branch explicitly
@@ -69,9 +70,16 @@ Repository deployment policy and an explicitly named source/target branch take p
    `gh pr create` or `gh pr edit`. If the repo has a PR template, fill that
    template only. Otherwise use the canonical fallback body. Do not invent
    `Summary` / `Validation` / ad hoc PR bodies. Run a `vd:unslop` pass over
-   title and body before posting - no AI tells, no em dashes. After create/edit,
-   run `../git/scripts/strip-ai-pr-attribution.sh` so Cursor/Claude footers do
-   not stick on the live PR body.
+   title and body before posting - no AI tells, no em dashes.
+10b. **Before/after for user-visible UI.** Step 12b embeds a before/after pair in
+   the PR (and on a confirmed ticket when linked) when the diff changes what a
+   user sees. Prefer pairs already captured during cook/fix; otherwise capture
+   via `@vercel/before-and-after` or `vd:agent-browser`. Upload only through
+   GitHub `user-attachments` (see `references/before-after.md`) - never public
+   paste hosts for private work. Capture failure never blocks ship: if capture
+   is impossible or costly, note why once and continue. Ticket mirrors still
+   require `vd:jira` show-before-execute (Hard rule 8) - skip the ticket post
+   if declined. Suppressed by `--skip-screenshots`.
 11. **CI green is a merge precondition.** Step 15 watches CI in every mode. Never
    merge - or report the ship as done - while checks are **failing or still
    pending**. The only ways past a non-green state are an explicit user
@@ -130,6 +138,7 @@ Repository deployment policy and an explicitly named source/target branch take p
 10. Commit        → conventional commit, secret scan + portability scan (Rules 7 / 7b)
 11. Push          → git push -u origin <branch>
 12. PR            → gh pr create/edit using repo template or canonical fallback
+12b. Before/after → for user-visible UI: embed before/after in PR (+ ticket comment when linked); skip for non-visual / `--skip-screenshots` - see `references/before-after.md`
 13. PR comments   → fetch review threads + human/bot reviews + top-level comments; triage, fix/reply/resolve (re-run Step 4 after any fix); repair silently-resolved threads; re-trigger bot re-reviews and loop until 0 unresolved - see `references/bot-reviewers.md`
 14. Release       → `--release` only: detect auto-release tool; tag + push if manual
 15. CI watch      → wait for PR checks; on failure prompt user (every mode)
@@ -140,6 +149,7 @@ Repository deployment policy and an explicitly named source/target branch take p
 **Detailed steps:** see `references/ship-workflow.md`
 **Auto-detection logic:** see `references/auto-detect.md`
 **PR body template:** see `references/pr-template.md`
+**Before/after evidence (PR + ticket):** see `references/before-after.md`
 **Bot reviewers (inline reply + per-bot re-review triggers):** see `references/bot-reviewers.md`
 
 ## Token efficiency
@@ -157,6 +167,7 @@ Bare ship (no `--auto`/`--merge`) - ends at a green PR, unmerged:
 ✓ Review: 0 critical
 ✓ Pushed: origin/PROJ-123-example-feature
 ✓ PR: https://github.com/org/repo/pull/117 → main
+✓ Before/after: embedded (or skipped - non-visual / --skip-screenshots / <reason>)
 ✓ CI: green
 ✓ PR comments: 0 actionable
 ▸ Merge: left to you - bare ship does not merge. Re-run with --merge (or `gh pr merge`) to land it.

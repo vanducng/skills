@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "cm|cp|pr|merge [args] [--inline]"
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
 # Git

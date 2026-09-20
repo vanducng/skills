@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[--project ALIAS] [--type bug|task] [ISSUE-KEY|request]"
 metadata:
   author: vanducng
-  version: "1.3.0"
+  version: "1.3.1"
 ---
 
 # Jira Integration (CLI Backend)
@@ -105,6 +105,8 @@ jira issue link ISSUE-1 ISSUE-2 Relates      # Link issues
 ### Follow-up Comments and Board Columns
 
 Read [`references/follow-up.md`](references/follow-up.md) before posting an evidence update with JSON/code or native mentions, or when the user names a board column (review, QA, staging) instead of an exact workflow status. It carries the REST v3 ADF recipes (plain `@Display Name` does not notify) and the board-column → status-ID → available-transition resolution - never assume the column label is the status name.
+
+When `vd:ship` Step 12b hands you a before/after pair for a confirmed ticket, post both images **inline** (ADF `mediaSingle`) with a one-line result + PR URL - see `../ship/references/before-after.md`. Attachment-only is incomplete.
 
 ### REST ADF Description Pattern
 Use this for clean Jira descriptions with sections and bullets (CLI `-b` paragraphs containing `- item` render as plain text):
