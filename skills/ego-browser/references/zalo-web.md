@@ -12,35 +12,51 @@ Zalo Web allows one active web session for the account. Reuse the existing Ego t
 
 A bot or person may stay silent unless the message contains a real Zalo mention token. Plain text such as `@Name` is not enough.
 
-Zalo's rich editor can move a selected mention into later text if `typeText()` appends prose after the mention. The safe order is:
+Zalo's rich editor can move a selected mention into later text if `typeText()` appends prose after the mention. `Enter` is not a reliable selection or send action: depending on focus it may add a newline and leave the draft unsent. Use the visible mention result and send button instead.
 
-1. Type the complete message first, leaving the mention for the end.
-2. Type `@`, then the exact member name.
-3. Press `Enter` once to select the suggestion.
-4. Verify the draft contains `.clnMention` with the intended name.
-5. Do not type anything else. Press `Enter` again to send.
-6. Verify the sent message contains `a.mention-name` in the intended position.
+1. Confirm `#richInput` is empty. Clear only a draft created by the current failed attempt.
+2. Type the complete message first, leaving the mention for the end.
+3. Type `@`, then the exact member name.
+4. Click the exact visible `.mention-popover .tg-name` result.
+5. Verify the draft contains `.clnMention` with the intended name.
+6. Do not type anything else. Click `.send-msg-btn`.
+7. Verify the composer is empty and the sent message contains `a.mention-name`.
 
 Use one mention per message when reliability matters. Send separate short messages for multiple people.
 
 ```js
-await typeText('Please review the plan and reply in the ticket: ')
-await typeText('@')
-await typeText('Member Name')
-await wait(0.5)
-await pressKey('Enter')
+const editor = '#richInput'
+const existing = await js(`document.querySelector('${editor}')?.innerText.trim()`)
+if (existing) throw new Error('composer already contains a draft')
 
-const draft = await js(String.raw`(() => {
-  const el = [...document.querySelectorAll('[contenteditable="true"]')]
-    .find(e => e.offsetParent !== null)
-  return {
-    text: el?.innerText,
-    mentions: [...(el?.querySelectorAll('.clnMention') || [])].map(x => x.textContent),
-  }
+await click(editor)
+await typeText('Please review the plan and reply in the ticket: ')
+await typeText('@Member Name')
+await wait(1)
+
+const selected = await js(String.raw`(() => {
+  const normalize = value => value.replace(/\s+/g, ' ').trim()
+  const item = [...document.querySelectorAll('.mention-popover .tg-name')]
+    .find(el => normalize(el.textContent) === 'Member Name')
+  if (!item) return false
+  item.click()
+  return true
 })()`)
+if (!selected) throw new Error('mention suggestion was not found')
+
+const draft = await js(String.raw`(() => ({
+  text: document.querySelector('#richInput')?.innerText,
+  mentions: [...document.querySelectorAll('#richInput .clnMention')].map(x => x.textContent),
+}))()`)
 if (!draft.mentions.includes('@Member Name')) throw new Error('mention was not selected')
 
-await pressKey('Enter')
+await click('.send-msg-btn')
+await wait(2)
+const sent = await js(String.raw`(() => ({
+  draft: document.querySelector('#richInput')?.innerText.trim(),
+  mention: [...document.querySelectorAll('a.mention-name')].at(-1)?.textContent,
+}))()`)
+if (sent.draft || sent.mention !== '@Member Name') throw new Error('message was not sent with the mention')
 ```
 
 If the sent DOM lacks `a.mention-name`, the mention did not land. Send a corrected message instead of assuming the recipient or bot was notified.
