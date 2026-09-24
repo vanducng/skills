@@ -196,6 +196,7 @@ agent-browser screenshot /abs/path/drawer.png      # positional, ABSOLUTE path
 | Symptom | Cause | Fix |
 |---|---|---|
 | Commands succeed but the real Chrome never moves | `AGENT_BROWSER_PROFILE` exported in the shell - driving a self-launched headless browser | `env -u AGENT_BROWSER_PROFILE` on every call (or `unset`), then `agent-browser close --all`, reconnect, verify `eval 'navigator.userAgent'` has no HeadlessChrome |
+| `command not found: env -u AGENT_BROWSER_PROFILE agent-browser ...` when reused via `$VAR get url` | zsh does not word-split an unquoted variable holding a multi-word command, so the whole string is treated as one command name | `unset AGENT_BROWSER_PROFILE` once per shell instead of prefixing every call, or repeat the full `env -u AGENT_BROWSER_PROFILE agent-browser ...` command each time - do not store it in a variable and invoke via `$VAR args` |
 | `connect` attached but session acts headless | Daemon default session poisoned by a prior profile invocation | `agent-browser close --all`, reconnect with sanitized env, re-verify UA |
 | `wait --url` times out but the app clearly navigated | SPA/Inertia navigation does not always satisfy the URL matcher | Assert with `get url` instead |
 | A surprise tab opened in the shared Chrome after a HAR command | `har start <path>` misparse auto-navigates a remembered URL (and saves to `~/.agent-browser/tmp/har/`) | Only ever `har start` (bare) then `har stop <abs path>` |
