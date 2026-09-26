@@ -148,6 +148,9 @@ Before send:
 - One ask, or none. Do not close with "let me know if", "say the word",
   "no mistake", "which is expected", "the correct X path".
 - Numbered steps only when they asked how to do the thing in the email itself.
+- Ordinary HTML replies must start at the mail reader's left edge. Use `text-align:left; margin:0; padding:0` on the message root; no centered wrapper, `margin:auto`, or fixed/max-width text column unless a designed email was requested. Left-aligned text inside a centered container is still a centered message.
+- Keep inline screenshots left-aligned; constrain image width, not the whole message. Preview in a wide mail-reader viewport before sending to catch unintended gutters.
+- Delivered email cannot be edited. Fix the source for future sends; do not resend a formatting-only correction without approval.
 
 Bad: a four-step playbook plus "if you want me to click it, say the word."
 Good: "You're fine. I can see the six invites. Once a couple land, try a
