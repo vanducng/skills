@@ -75,7 +75,7 @@ $PROJECTS_ROOT/
 
 ## OpenRig gotchas
 
-- Several verbs (`rig launch`, `rig down`) want the rig **id** from `rig ps --json`, not the name.
+- `rig launch` wants the rig **id** from `rig ps --json`, not the name. `rig up` and `rig down` accept either; if a name matches several rigs, `rig down` refuses and lists the ids.
 - To give an existing seat a fresh occupant: `rig seat launch <seat> --fresh --stop --reason "<why>"`.
 - OpenRig launches Codex seats with `-s workspace-write`. They cannot reach the daemon unless `[sandbox_workspace_write] network_access = true`, and they cannot commit in a worktree whose `.git` sits outside the cwd. Prefer Pi seats.
 - In `rig tui`, `graph` is a tab of a selected rig: type `rig <name>`, then `graph`. `:` only jumps between sections.
