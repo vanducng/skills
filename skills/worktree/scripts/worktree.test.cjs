@@ -447,6 +447,31 @@ test('create --worktree-root overrides default location', () => {
   assert(json.wouldCreate.worktreeRootSource === '--worktree-root flag', 'Source should be flag');
 });
 
+test('create --name sets the worktree directory name', () => {
+  const customRoot = '/tmp/test-worktrees';
+  const result = run(`create test-named --prefix feat --dry-run --json --worktree-root "${customRoot}" --name data-platform`);
+  assert(result.success, 'Should succeed with --name');
+  const json = assertJSON(result.output);
+  assert(json.wouldCreate.worktreePath === path.join(customRoot, 'data-platform'), `Path should be <root>/data-platform, got ${json.wouldCreate.worktreePath}`);
+  assert(json.wouldCreate.branch === 'feat/test-named' || String(json.wouldCreate.branch || json.wouldCreate.branchName).includes('test-named'), 'Branch still comes from the feature');
+});
+
+test('create --name rejects path separators and dot segments', () => {
+  for (const bad of ['a/b', '..', '.hidden']) {
+    const result = run(`create test-bad-name --prefix feat --dry-run --json --name "${bad}"`);
+    assert(!result.success, `--name ${bad} should fail`);
+    assert(result.exitCode === 2, `--name ${bad} should exit 2, got ${result.exitCode}`);
+    assert(result.output.includes('INVALID_WORKTREE_NAME'), `--name ${bad} should report INVALID_WORKTREE_NAME`);
+  }
+});
+
+test('create without --name keeps <repo>-<feature>', () => {
+  const result = run('create test-default-name --prefix feat --dry-run --json --worktree-root "/tmp/test-worktrees"');
+  assert(result.success, 'Should succeed');
+  const json = assertJSON(result.output);
+  assert(path.basename(json.wouldCreate.worktreePath).endsWith('-test-default-name'), `Default name should end with -<feature>, got ${json.wouldCreate.worktreePath}`);
+});
+
 test('create --worktree-root with relative path resolves to absolute', () => {
   const result = run('create test-relative --prefix feat --dry-run --json --worktree-root "./custom-worktrees"');
   assert(result.success, 'Should succeed');
