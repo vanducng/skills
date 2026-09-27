@@ -2,6 +2,43 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.64.0](https://github.com/vanducng/skills/compare/v1.63.0...v1.64.0) (2026-09-27)
+
+
+### Features
+
+* add openrig-workspace skill ([0f3afe4](https://github.com/vanducng/skills/commit/0f3afe4d2f545e880f0aea40fce6faccfa374cc5))
+* add openrig-workspace skill; document task-dir worktree root ([ece3d01](https://github.com/vanducng/skills/commit/ece3d0177c8bbc1aa1dde2c7210d036de160f900))
+* **alter:** added privacy-safe hotkey audit skill ([#486](https://github.com/vanducng/skills/issues/486)) ([d56bb70](https://github.com/vanducng/skills/commit/d56bb706df625eaccda0a7e870f71101ffeebbf1))
+* **browser-skill:** add BrowserSkill-driven skill with jev-gated verification ([#495](https://github.com/vanducng/skills/issues/495)) ([ec10faa](https://github.com/vanducng/skills/commit/ec10faa4a8f06b972e5d6347c7acc5a9a10c2a1d))
+* **cook,code-review,guide:** add jev typed gates with calibration evals ([a55aee0](https://github.com/vanducng/skills/commit/a55aee05be3657a272e0ca989897642ceebb48de))
+* **git:** strip Cursor/Claude PR attribution after create ([#489](https://github.com/vanducng/skills/issues/489)) ([bb41d39](https://github.com/vanducng/skills/commit/bb41d39f5bf6a80a40aad5a7cf2bcf3dd619017a))
+* **gopass:** add environment credential workflows ([db31d90](https://github.com/vanducng/skills/commit/db31d90b4a2dae9fdf660fd0000d1800db6297b0))
+* **herdr:** document server restart after upgrades and DNS loss ([9b3b434](https://github.com/vanducng/skills/commit/9b3b434144ea57cb169412415df2f59cf134deee))
+* **herdr:** mobile web previews over Tailscale Serve ([2324d16](https://github.com/vanducng/skills/commit/2324d16f5a22a7ccfb6b6a68967139415fd0c75f))
+* **herdr:** restart guidance after upgrades and DNS loss ([3a6180d](https://github.com/vanducng/skills/commit/3a6180d3b899980096fa01e9e1679d24eee7ac18))
+* **onepassword:** add 1Password CLI skill ([92b018d](https://github.com/vanducng/skills/commit/92b018d63a0a3f035809616d4938d6f740eddfab))
+* **onepassword:** add 1Password CLI skill grounded in official docs ([6637368](https://github.com/vanducng/skills/commit/663736822b544378d0fdcc7780e1887e2e49fba5))
+* **security:** adopt Cloudflare evidence bar and attack companions ([c1f8315](https://github.com/vanducng/skills/commit/c1f8315dcc7a1077af0db01bf884271120ee1f53))
+* **security:** adopted Cloudflare evidence bar and attack companions ([f9392ee](https://github.com/vanducng/skills/commit/f9392ee1e2fd5b8889d8e217c0bac2d12cb0d8b9))
+* **ship:** before/after evidence, obsidian-vault, aws first-week monitor ([#488](https://github.com/vanducng/skills/issues/488)) ([c1d0a4b](https://github.com/vanducng/skills/commit/c1d0a4be7e42b61673b15c98c12ff2afbfa053e0))
+* **skills:** add the Aside browser CLI skill ([352f0fc](https://github.com/vanducng/skills/commit/352f0fc804e3cf50bf2e9a648d0bacd1e70b358a))
+* **skills:** added the Aside browser skill ([c2a9150](https://github.com/vanducng/skills/commit/c2a91500949277d1953b147a69be07e201fe8664))
+* **worktree:** add --name to set the worktree directory name ([75bc835](https://github.com/vanducng/skills/commit/75bc835898b651d773ba26846fc8ff2d9279426a))
+* **worktree:** add --name to set the worktree directory name ([c687ff8](https://github.com/vanducng/skills/commit/c687ff85801b1447aec03258dca811be916c5037))
+
+
+### Bug Fixes
+
+* **ego-browser:** document reliable Zalo mentions ([baf7168](https://github.com/vanducng/skills/commit/baf7168be3254d6711ede456bf8cbbebb1b75b1b))
+* **ego-browser:** documented reliable Zalo mentions ([10107d5](https://github.com/vanducng/skills/commit/10107d57764f07068146d966ca352aa7dfbbf4ea))
+* **herdr:** address review on restart and portable DNS probes ([9fbe564](https://github.com/vanducng/skills/commit/9fbe564cf5351dfb40ea237c4b95d54e67b8c5ca))
+* **openrig-workspace:** rig down accepts a name; only rig launch needs the id ([7087acb](https://github.com/vanducng/skills/commit/7087acb06918e6064e617404dd777a0eabcca3c1))
+* **scripts:** assert choice probability route and tighten fixture shapes ([ce30b20](https://github.com/vanducng/skills/commit/ce30b2089812cb8e07946aadd1ecb1a37b791f31))
+* **scripts:** harden jev eval arg parsing and fixture validation ([3011edd](https://github.com/vanducng/skills/commit/3011eddc7ea4c3af54019f5172000819574bb5c5))
+* **security:** drop dangling Phase-1 wording in attack-classes ([0d6c79e](https://github.com/vanducng/skills/commit/0d6c79e464b5e6c652d5036b0616526a671978a4))
+* **skills:** use a straight apostrophe in the Aside skill ([c3818b5](https://github.com/vanducng/skills/commit/c3818b5e2bf277afe9f99e0d1892387673a844e9))
+
 ## [1.63.0](https://github.com/vanducng/skills/compare/v1.62.2...v1.63.0) (2026-09-17)
 
 
