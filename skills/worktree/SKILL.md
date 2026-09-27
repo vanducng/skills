@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | repair | remove <name>"
 metadata:
   author: vanducng
-  version: "2.6.0"
+  version: "2.7.0"
 ---
 
 # Worktree
@@ -24,7 +24,7 @@ All worktrees live at **`<git-root>/.worktrees/<repo>-<feature>/`** - one rule f
 
 **Overrides:** `--worktree-root <path>` flag → `WORKTREE_ROOT` env → `.worktrees` default. Older worktrees in sibling `worktrees/` or legacy `.work/worktrees/` dirs keep working (`list`/`status`/`remove`/`clean` find them via git); new ones land in `.worktrees/`.
 
-**Task workspaces.** When a ticket runs from a vd:openrig-workspace task dir, pass `--worktree-root <task-dir>`. The worktree lands at `<task-dir>/<repo>-<feature>/`, and env copy, ports, and mise trust behave the same. Artifacts still anchor to the main checkout's `.workbench/`, and `list`/`remove` still find it through git.
+**Task workspaces.** When a ticket runs from a vd:openrig-workspace task dir, pass `--worktree-root <task-dir> --name <repo>`. The worktree lands at `<task-dir>/<repo>/` (without `--name`: `<repo>-<feature>/`), and env copy, ports, and mise trust behave the same. Artifacts still anchor to the main checkout's `.workbench/`, and `list`/`remove` still find it through git.
 
 **No nested worktrees.** Running `create` from *inside* a linked worktree resolves back to the main checkout (first entry of `git worktree list`) and lands the new worktree as a sibling at the main root, with a redirect warning. A repo with an old nested worktree: `status` flags it; `repair` (dry-run) → `repair --yes` runs `git worktree move` to the canonical root + `git worktree repair` to fix admin links (`--force` for a dirty worktree).
 
@@ -146,6 +146,7 @@ After every successful non-dry-run create that returns `worktreePath`, if `HERDR
 | `--no-post-create-hook` | Disable hook auto-detection |
 | `--no-pre-remove-hook` | Skip `.worktree/hooks/pre-remove` teardown on remove |
 | `--worktree-root <path>` | Override default `.worktrees/` location |
+| `--name <dir>` | Worktree directory name instead of `<repo>-<feature>`; one segment of letters, digits, `.`, `-`, `_`. Two worktrees with the same name in different roots must be removed by path or branch |
 | `--json` | Machine-readable output |
 | `--dry-run` | Preview without touching disk (includes `portBase`) |
 | `--env <files>` | Comma-separated root-level `.env` files to copy (legacy; auto-copy covers this) |

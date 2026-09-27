@@ -20,6 +20,7 @@
  *   --base <branch>        Override auto-detected base branch (default: dev→develop→main→master)
  *   --checkout-submodules  Initialize submodules in the new worktree after create
  *   --worktree-root <path> Explicit worktree directory (default: <git-root>/.worktrees)
+ *   --name <dir>           Worktree directory name (default: <repo>-<feature>)
  *   --json                 Output in JSON format for LLM consumption
  *   --env <files>          Comma-separated list of .env files to copy (legacy)
  *   --no-copy-env          Skip auto-copy of untracked .env* files
@@ -144,6 +145,13 @@ let explicitWorktreeRoot = null;
 if (worktreeRootIndex > -1) {
   explicitWorktreeRoot = args[worktreeRootIndex + 1];
   args.splice(worktreeRootIndex, 2);
+}
+
+const nameIndex = args.indexOf('--name');
+let explicitWorktreeName = null;
+if (nameIndex > -1) {
+  explicitWorktreeName = args[nameIndex + 1] || '';
+  args.splice(nameIndex, 2);
 }
 
 // --base: explicit override for base branch (skip auto-detection)
@@ -358,6 +366,7 @@ const ERROR_CODE_MAP = {
   INVALID_FEATURE_NAME: 'FATAL_ARG',
   INVALID_BASE_BRANCH: 'FATAL_ARG',
   INVALID_WORKTREE_ROOT: 'FATAL_ARG',
+  INVALID_WORKTREE_NAME: 'FATAL_ARG',
   BASE_BRANCH_NOT_FOUND: 'FATAL_ARG',
   PROJECT_NOT_FOUND: 'FATAL_ARG',
   PROJECT_DIR_NOT_FOUND: 'FATAL_ARG',
@@ -1683,9 +1692,13 @@ function cmdCreate() {
   // Flatten slashes to dashes for filesystem-safe directory names
   const repoName = path.basename(worktreeRoot.treesRoot || gitRoot);
   const flatFeature = flattenForDirectoryName(sanitizedFeature);
-  const worktreeName = isMonorepo
-    ? `${projectName}-${flatFeature}`
-    : `${repoName}-${flatFeature}`;
+  if (explicitWorktreeName !== null && !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(explicitWorktreeName)) {
+    outputError('INVALID_WORKTREE_NAME', `Invalid --name "${explicitWorktreeName}": use one path segment of letters, digits, dot, dash, underscore`, {
+      suggestion: 'Example: --name data-platform'
+    });
+  }
+  const worktreeName = explicitWorktreeName
+    ?? (isMonorepo ? `${projectName}-${flatFeature}` : `${repoName}-${flatFeature}`);
 
   const worktreePath = path.join(worktreesDir, worktreeName);
 
@@ -2342,6 +2355,7 @@ Options:
   --post-create-hook <x>   Explicit post-create script path or command (e.g. "make worktree-init")
   --no-post-create-hook    Disable auto-detection (.worktree/hooks/post-create, scripts/setup-worktree)
   --worktree-root <path>   Explicit worktree directory (default: <git-root>/.worktrees)
+  --name <dir>             Worktree directory name (default: <repo>-<feature>)
   --json                   Output in JSON format for LLM consumption
   --env <files>            Comma-separated list of .env files to copy (legacy)
   --no-copy-env            Skip auto-copy of untracked .env* files from source checkout

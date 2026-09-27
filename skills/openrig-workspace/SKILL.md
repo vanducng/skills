@@ -4,7 +4,7 @@ description: Work inside an org/project/task workspace that any coding harness (
 license: MIT
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # OpenRig workspace
@@ -20,15 +20,30 @@ $PROJECTS_ROOT/
     AGENTS.md  org.yaml  repos.yaml            # repos.yaml is the only place paths live
     <project>/
       AGENTS.md  SPEC.md  project.yaml  repos.yaml
-      missions/<mission>/slices/<nn>-<ticket>/  # committed record: SPEC, PROGRESS, PROOF
-      tasks/<ticket>/                           # gitignored, machine-local
+      missions/<mission>/slices/<nn>-<task-id>/ # committed record: SPEC, PROGRESS, PROOF
+      tasks/<task-id>/                          # gitignored, machine-local
         AGENTS.md                               # task brief; OpenRig appends seat blocks
         rig.yaml                                # per-task rig
-        <repo>-<ticket>/                        # git worktree
+        <repo>/                                 # git worktree, repo short name
 ```
 
 - **Org** = GitHub owner. **Project** = repos routinely changed in the same ticket. A repo belongs to one org and may appear in several projects. A **task** is one ticket in one project.
 - OpenRig catalog IDs are `<org>.<project>`. `$PROJECTS_ROOT` is OpenRig's `workspace.root`.
+
+## Naming
+
+One task id everywhere, so `rg <ticket>` finds the record, the workdir, the artifacts, and the rig.
+
+| Thing | Form | Example |
+|---|---|---|
+| Task id (same as the vd:workbench feature id) | `<ticket>-<slug>`, lowercase | `abc-123-login-fix` |
+| Task dir | `tasks/<task-id>/` | `tasks/abc-123-login-fix/` |
+| Worktree | `<task dir>/<repo short name>/` | `.../api/`, `.../infra/` |
+| Branch | repo convention first; else `<type>/<TICKET>-<slug>` | `fix/ABC-123-login-fix` |
+| Slice | OpenRig prefixes `<nn>-` | `02-abc-123-login-fix` |
+| Rig name | task id | `abc-123-login-fix` |
+
+vd:workbench derives the feature id only from a `<type>/<TICKET>-<slug>` branch (`feat`, `fix`, `chore`, `docs`, ...; not `feature/`). When the repo convention is a bare ticket branch, claim the id once with `workbench new <slug> --ticket <TICKET>`.
 
 ## Hard rules
 
@@ -47,18 +62,18 @@ $PROJECTS_ROOT/
    rig scope slice create <mission> <ticket-slug> --workspace "$PROJECTS_ROOT/orgs/<org>/<project>"
    ```
    Fill `SPEC.md`: intent, mini-requirements, proof contract, repos. Check with `rig scope audit --workspace … --mission <mission>`.
-3. **Workdir.** `T="$PROJECTS_ROOT/orgs/<org>/<project>/tasks/<ticket>"; mkdir -p "$T"`.
+3. **Workdir.** `T="$PROJECTS_ROOT/orgs/<org>/<project>/tasks/<task-id>"; mkdir -p "$T"`.
 4. **Worktrees.** For each repo, from its main checkout, use vd:worktree with the task dir as root:
    ```bash
-   node "$HOME/skills/skills/worktree/scripts/worktree.cjs" create <ticket> --no-prefix --no-enter --worktree-root "$T"
+   node "$HOME/skills/skills/worktree/scripts/worktree.cjs" create <branch> --no-prefix --no-enter --worktree-root "$T" --name <repo>
    ```
    Env copy, port block, and mise trust work as usual. vd:workbench artifacts still land in the repo's main checkout.
-5. **Brief.** Write `$T/AGENTS.md`: ticket, objective, which `<repo>-<ticket>/` dirs are in scope, branch and base, validation commands, stopping point, and the slice path. Add the line "Before editing in a repo dir, read its AGENTS.md." Cursor does not read parent files, so also point to `../../AGENTS.md` and `../../../AGENTS.md`.
+5. **Brief.** Write `$T/AGENTS.md`: ticket, objective, which `<repo>/` dirs are in scope, branch and base, validation commands, stopping point, and the slice path. Add the line "Before editing in a repo dir, read its AGENTS.md." Cursor does not read parent files, so also point to `../../AGENTS.md` and `../../../AGENTS.md`.
 6. **Run.** `cd "$T"` and start any harness. For an OpenRig rig, continue below.
 
 ## Run it with OpenRig
 
-1. **Rig spec.** Copy `specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`. Set `name: <ticket-lowercase>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../specs/agents/<role>` (the path relative to the task dir). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`).
+1. **Rig spec.** Copy `specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`. Set `name: <task-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../specs/agents/<role>` (the path relative to the task dir). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`).
 2. **Models.** Take them from `fleet/routing.yaml`, as `provider/id:thinking`. Pi accepts the thinking suffix.
 3. **Pi seat auth.** A Pi seat gets a blank agent dir at `$OPENRIG_HOME/state/pi/<pod>-<member>@<rig>/agent`, and custom-provider env vars are not forwarded. Before `rig up`, put a `models.json` there (or a symlink to one shared file). It carries the provider's non-secret fields plus an `apiKey` of the form `"!<secret read command>"`. Never write a literal key.
 4. **Launch.**
