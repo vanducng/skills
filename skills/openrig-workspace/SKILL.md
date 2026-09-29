@@ -73,17 +73,17 @@ vd:workbench derives the feature id only from a `<type>/<TICKET>-<slug>` branch 
 
 ## Run it with OpenRig
 
-1. **Rig spec.** Copy `specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`. Set `name: <task-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../specs/agents/<role>` (the path relative to the task dir). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`).
-2. **Models.** Take them from `fleet/routing.yaml`, as `provider/id:thinking`. Pi accepts the thinking suffix.
-3. **Pi seat auth.** A Pi seat gets a blank agent dir at `$OPENRIG_HOME/state/pi/<pod>-<member>@<rig>/agent`, and custom-provider env vars are not forwarded. Before `rig up`, put a `models.json` there (or a symlink to one shared file). It carries the provider's non-secret fields plus an `apiKey` of the form `"!<secret read command>"`. Never write a literal key.
+1. **Rig spec.** Copy `specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`. Set `name: <task-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../specs/agents/<role>` (the path relative to the task dir). Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`).
+2. **Models.** Take them from `fleet/routing.yaml`. The default seat is Claude Code with a bare model id (`claude-opus-5-5`). A seat that opts into `runtime: pi` uses `routing.pi`, as `provider/id:thinking`.
+3. **Pi seat auth (Pi seats only).** A Pi seat gets a blank agent dir at `$OPENRIG_HOME/state/pi/<pod>-<member>@<rig>/agent`, and custom-provider env vars are not forwarded. Before `rig up`, put a `models.json` there (or a symlink to one shared file). It carries the provider's non-secret fields plus an `apiKey` of the form `"!<secret read command>"`. Never write a literal key.
 4. **Launch.**
    ```bash
    cd "$T" && rig up rig.yaml --plan && rig up rig.yaml
    ```
-   Then check `rig ps --nodes --rig <name>`. If a seat shows `att`, read its pane before retrying.
+   Then check `rig ps --nodes --rig <name>`. If a seat shows `att` or `needs-input`, read its pane before retrying.
 5. **Look at it in Herdr.** `rig terminal open <name> --provider herdr` creates a new workspace each time. To keep one Herdr workspace per org instead, create a tab there and run `tmux attach -t <seat>` in its panes (see vd:herdr). Closing a tile never stops a seat.
 6. **Talk to it.**
-   - Solo rig: type in the tile or use `rig send <seat> "…"`. Pi runner prefixes are `/followup <text>` and `/abort`.
+   - Solo rig: type in the tile or use `rig send <seat> "…"`. Pi runner prefixes are `/followup <text>` and `/abort`; Claude Code seats take plain text.
    - Team rig: talk to the owner, and steer the writer directly only to unblock or abort it.
    - Chat is not recorded. Ask the seat to update `PROGRESS.md` or its queue item.
 7. **Finish.** Update the slice. Run `rig down <name>`, which strips OpenRig blocks from `$T/AGENTS.md`. Remove the worktrees with vd:worktree once they are merged or abandoned, never with unlanded work. Delete `$T`.
@@ -92,7 +92,8 @@ vd:workbench derives the feature id only from a `<type>/<TICKET>-<slug>` branch 
 
 - `rig launch` wants the rig **id** from `rig ps --json`, not the name. `rig up` and `rig down` accept either; if a name matches several rigs, `rig down` refuses and lists the ids.
 - To give an existing seat a fresh occupant: `rig seat launch <seat> --fresh --stop --reason "<why>"`.
-- OpenRig launches Codex seats with `-s workspace-write`. They cannot reach the daemon unless `[sandbox_workspace_write] network_access = true`, and they cannot commit in a worktree whose `.git` sits outside the cwd. Prefer Pi seats.
+- OpenRig launches Codex seats with `-s workspace-write`. They cannot reach the daemon unless `[sandbox_workspace_write] network_access = true`, and they cannot commit in a worktree whose `.git` sits outside the cwd. Prefer Claude Code or Pi seats.
+- OpenRig launches Claude Code seats with `--permission-mode acceptEdits`, so the first Bash call waits for approval in the tile. The operator picks "switch to auto mode" there (or `shift+tab`), or persists it with `rig seat set-permissions <seat> --mode auto` on builds that ship it. Agents cannot raise another seat's permissions for the operator.
 - In `rig tui`, `graph` is a tab of a selected rig: type `rig <name>`, then `graph`. `:` only jumps between sections.
 - The daemon binds the Tailscale address too. Start it with `--host 127.0.0.1` unless you mean to expose it.
 
