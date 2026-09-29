@@ -369,16 +369,16 @@ def mine_codex_session(path, registry, cutoff_epoch=0):
                     seen_tokens = total
         elif kind == "response_item":
             ptype = p.get("type")
-            if ptype == "function_call":
+            if ptype in ("function_call", "custom_tool_call"):
                 name = p.get("name") or "exec"
                 if included:
                     row["usage_by_tool"][name] += 1
                     bump(row, cur, "tool_calls")
-                    for hit in SKILLMD_RE.findall(str(p.get("arguments") or "")):
+                    for hit in SKILLMD_RE.findall(str(p.get("arguments") or p.get("input") or "")):
                         skill = normalize(hit, registry)
                         if skill:
                             row["skillmd_reads"][skill] += 1
-            elif included and ptype == "function_call_output" and exit_failed(p.get("output")):
+            elif included and ptype in ("function_call_output", "custom_tool_call_output") and exit_failed(p.get("output")):
                 bump(row, cur, "tool_errors")
                 row["errors_by_tool"]["exec"] += 1
     return row
