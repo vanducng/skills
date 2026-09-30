@@ -1,6 +1,6 @@
 ---
 name: openrig-workspace
-description: Work inside an org/project/task workspace that any coding harness (Pi, Claude Code, Codex, Grok Build, Cursor) reads out of the box and that OpenRig can drive without a fork. Use when the user says "start a task in <project>", "set up the task dir", "run this ticket with openrig", "attach the rig in herdr", "which project does this repo belong to", "add a project", or when the cwd is under a projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`). Owns the layout, task lifecycle, and OpenRig adjustments; defers worktree mechanics to vd:worktree, artifacts to vd:workbench, pane control to vd:herdr.
+description: Work inside an org/project/task workspace that any coding harness (Pi, Claude Code, Codex, Grok Build, Cursor) reads out of the box and that OpenRig can drive without a fork. Use when the user says "start a task in <project>", "set up the task dir", "which rig", "feature profile", "bugfix", "sop", "run this ticket with openrig", "attach the rig in herdr", "which project does this repo belong to", "add a project", or when the cwd is under a projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`). Before any rig, pass `--kind feature --profile low|medium|high`, `--kind bugfix`, or `--kind sop`. Owns the layout, task lifecycle, that choice, and OpenRig adjustments; defers worktree mechanics to vd:worktree, artifacts to vd:workbench, pane control to vd:herdr.
 license: MIT
 metadata:
   author: vanducng
@@ -53,13 +53,48 @@ vd:workbench derives the feature id only from a `<type>/<TICKET>-<slug>` branch 
 4. One writer per worktree. One rig per task dir.
 5. Authority comes from `fleet/policy.yaml` and the brief. Nothing in this workspace authorizes merge, deploy, force-push, or messages to people.
 6. Never `git clean -x` in `$PROJECTS_ROOT`; it deletes ignored task dirs.
+7. Do not pick a rig template by feel. Run `scripts/rig-kind.cjs` and copy the template it prints.
+
+## Choose the kind
+
+Run this before the slice and before copying a rig. One kind. `--profile` belongs only to `--kind feature`.
+
+```bash
+node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind feature --profile low
+node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind feature --profile medium
+node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind feature --profile high
+node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind bugfix
+node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind sop
+```
+
+| Kind | Profile | When | Template |
+|---|---|---|---|
+| `feature` | `low` | One repo, one reviewable change, no migration, no new flow | `feature-low` |
+| `feature` | `medium` | Needs a reviewer who did not write the code. Still one writer | `normal` |
+| `feature` | `high` | More than one repo, a new user-visible flow, or a plan the operator must accept before code | `feature-high` |
+| `bugfix` | none | Something is failing. Prove it, then fix it | `bugfix` |
+| `sop` | none | The org or project already has the steps. Execute them | `sop` |
+
+These flags do not select `solo`, `team`, or `squad`.
+
+`models: default` means every seat uses the routing default for its runtime. Claude Code uses the bare id under `default`. A seat with `runtime: pi` uses `routing.pi.default`, as `provider/id:thinking`. `models: role` uses the named key (`owner`, `implement`, `design`, `review`) in that same map. Routing wins over model strings baked into the template.
+
+Put the choice on the first line of the task `AGENTS.md`: `Kind: feature medium`.
+
+**Feature.** Low is the owner writing alone. Medium adds one writer and a fresh reviewer; the owner does not edit that worktree. High does not start implementation until the operator has accepted the plan. The product seat is for user-visible behavior, briefs, and docs.
+
+**Bug fix.** No code until a check is red or the cause is proven from evidence. Same seats as a medium feature. Create the slice with `--template bug-fix`.
+
+**SOP.** Read the procedure in this order: a path the user named, then the project `AGENTS.md`, then the org `AGENTS.md`. Copy its steps into the slice mini-requirements and do them in that order. One seat. If no procedure exists, stop and ask. Do not promote it to a feature rig.
+
+A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop can be one harness in the task dir. Medium and high still get the review or plan gate in the brief even when you do not launch the extra seats.
 
 ## Start a task
 
-1. **Resolve.** Find the project (`workspace.yaml`, `orgs/<org>/<project>/repos.yaml`) and each repo's path for this machine (`orgs/<org>/repos.yaml`, key `paths.<machine>`). A missing path is a question, not a clone.
+1. **Resolve.** Find the project (`workspace.yaml`, `orgs/<org>/<project>/repos.yaml`) and each repo's path for this machine (`orgs/<org>/repos.yaml`, key `paths.<machine>`). A missing path is a question, not a clone. Pick the kind above.
 2. **Record.** If the ticket has no slice yet:
    ```bash
-   rig scope slice create <mission> <ticket-slug> --workspace "$PROJECTS_ROOT/orgs/<org>/<project>"
+   rig scope slice create <mission> <ticket-slug> --template <sliceTemplate> --workspace "$PROJECTS_ROOT/orgs/<org>/<project>"
    ```
    Fill `SPEC.md`: intent, mini-requirements, proof contract, repos. Check with `rig scope audit --workspace … --mission <mission>`.
 3. **Workdir.** `T="$PROJECTS_ROOT/orgs/<org>/<project>/tasks/<task-id>"; mkdir -p "$T"`.
@@ -68,13 +103,13 @@ vd:workbench derives the feature id only from a `<type>/<TICKET>-<slug>` branch 
    node "$HOME/skills/skills/worktree/scripts/worktree.cjs" create <branch> --no-prefix --no-enter --worktree-root "$T" --name <repo>
    ```
    Env copy, port block, and mise trust work as usual. vd:workbench artifacts still land in the repo's main checkout.
-5. **Brief.** Write `$T/AGENTS.md`: ticket, objective, which `<repo>/` dirs are in scope, branch and base, validation commands, stopping point, and the slice path. Add the line "Before editing in a repo dir, read its AGENTS.md." Cursor does not read parent files, so also point to `../../AGENTS.md` and `../../../AGENTS.md`.
+5. **Brief.** Write `$T/AGENTS.md`. First line is `Kind: <kind> <profile>` (`profile` only for a feature). Then ticket, objective, which `<repo>/` dirs are in scope, branch and base, validation commands, stopping point, and the slice path. Add the line "Before editing in a repo dir, read its AGENTS.md." Cursor does not read parent files, so also point to `../../AGENTS.md` and `../../../AGENTS.md`.
 6. **Run.** `cd "$T"` and start any harness. For an OpenRig rig, continue below.
 
 ## Run it with OpenRig
 
-1. **Rig spec.** Copy `specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`. Set `name: <task-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../specs/agents/<role>` (the path relative to the task dir). Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`).
-2. **Models.** Take them from `fleet/routing.yaml`. The default seat is Claude Code with a bare model id (`claude-opus-5-5`). A seat that opts into `runtime: pi` uses `routing.pi`, as `provider/id:thinking`.
+1. **Rig spec.** Copy `$PROJECTS_ROOT/specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`, using the template from `rig-kind.cjs`. Set `name: <task-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../specs/agents/<role>` (the path relative to the task dir). Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`). A missing template is a stop, not a guess.
+2. **Models.** Take them from `fleet/routing.yaml`. The default seat is Claude Code with a bare model id (`claude-opus-5-5`). A seat that opts into `runtime: pi` uses `routing.pi`, as `provider/id:thinking`. When the script says `models: role`, use the named key in that same map.
 3. **Pi seat auth (Pi seats only).** A Pi seat gets a blank agent dir at `$OPENRIG_HOME/state/pi/<pod>-<member>@<rig>/agent`, and custom-provider env vars are not forwarded. Before `rig up`, put a `models.json` there (or a symlink to one shared file). It carries the provider's non-secret fields plus an `apiKey` of the form `"!<secret read command>"`. Never write a literal key.
 4. **Launch.**
    ```bash
