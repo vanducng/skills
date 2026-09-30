@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "cm|cp|pr|merge [args] [--inline]"
 metadata:
   author: vanducng
-  version: "1.1.1"
+  version: "1.2.0"
 ---
 
 # Git
@@ -39,7 +39,7 @@ Default for all verbs except `cm` (single-commit case) is subagent delegation - 
 1. **Block on secrets.** Every staged diff scanned before commit. Match → STOP, show files, suggest `.gitignore`. See `references/safety-protocols.md`.
 2. **No `--no-verify`, no `--no-gpg-sign`** unless user asks explicitly. Hooks failing means investigate, not bypass.
 3. **No force-push to protected branches.** `main`, `master`, `production`, `prod`, `release/*` - never. Feature branches require explicit user request.
-3b. **Never `gh pr merge --admin`.** Do not bypass required reviews or branch protection. If merge is blocked on review, stop and ask. Admin merge only when the user says "admin merge" or "bypass review".
+3b. **Never `gh pr merge --admin`.** Do not bypass required reviews or branch protection. If merge is blocked on review and the user has not authorized the merge, stop and ask. If they have, do not end the turn idle: run `scripts/wait-for-merge-ready.sh N` in the background so the session wakes when the PR is ready (exit 0: re-check, then merge), closed (3), or needs attention (4: new thread, changes requested, failing check, conflict). Re-run it on timeout (8). Admin merge only when the user says "admin merge" or "bypass review".
 4. **Remote-first for compare ops.** `git diff origin/main...origin/feature` - never `git diff main...HEAD` (includes local WIP).
 5. **No AI attribution in commit messages, PR bodies, or PR comments.** No `Made with Cursor`, no `Co-authored-by: Cursor|Claude`, no "Generated with Claude/Cursor", no `https://claude.ai/code/session_...` session links, no emojis unless asked. After `gh pr create`/`edit`, run `scripts/strip-ai-pr-attribution.sh` to remove footers Cursor may inject despite opt-out.
 6. **Never amend a published commit.** New commit on top instead.
