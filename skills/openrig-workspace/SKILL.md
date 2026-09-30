@@ -75,7 +75,7 @@ node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind sop
 | `bugfix` | none | Something is failing. Prove it, then fix it | `bugfix` |
 | `sop` | none | The org or project already has the steps. Execute them | `sop` |
 
-These flags do not select `solo`, `team`, or `squad`.
+These flags do not select `solo`, `team`, or `squad`. They also do not select the upstream starters `first-project`, `first-project-claude`, or `first-project-mixed`. Those are two-seat recipes for a repository with no org layout.
 
 `models: default` means every seat uses the routing default for its runtime. Claude Code uses the bare id under `default`. A seat with `runtime: pi` uses `routing.pi.default`, as `provider/id:thinking`. `models: role` uses the named key (`owner`, `implement`, `design`, `review`) in that same map. Routing wins over model strings baked into the template.
 
@@ -96,7 +96,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
    ```bash
    rig scope slice create <mission> <ticket-slug> --template <sliceTemplate> --workspace "$PROJECTS_ROOT/orgs/<org>/<project>"
    ```
-   Fill `SPEC.md`: intent, mini-requirements, proof contract, repos. Check with `rig scope audit --workspace … --mission <mission>`.
+   Fill `SPEC.md`: intent, mini-requirements, proof contract, repos. Check with `rig scope audit --workspace … --mission <mission>`. On OpenRig 0.6.1 or newer, read that project's execution view with `rig view show execution --project <org>.<project> --mission <mission> --json`. Omitting `--project` reads only the default workspace.
 3. **Workdir.** `T="$PROJECTS_ROOT/orgs/<org>/<project>/tasks/<task-id>"; mkdir -p "$T"`.
 4. **Worktrees.** For each repo, from its main checkout, use vd:worktree with the task dir as root:
    ```bash
@@ -116,7 +116,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
    cd "$T" && rig up rig.yaml --plan && rig up rig.yaml
    ```
    Then check `rig ps --nodes --rig <name>`. If a seat shows `att` or `needs-input`, read its pane before retrying.
-5. **Look at it in Herdr.** `rig terminal open <name> --provider herdr` creates a new workspace each time. To keep one Herdr workspace per org instead, create a tab there and run `tmux attach -t <seat>` in its panes (see vd:herdr). Closing a tile never stops a seat.
+5. **Look at it in Herdr.** `rig terminal open <name>` opens every running seat in a new workspace named after the rig, up to 16 seats per tab. Herdr is the default provider. A second open does not reuse that workspace; it suffixes another (`<name> (2)`). The TUI link `term ▸ rig <name>` does the same open. To keep one Herdr workspace per org, create a tab there and run `tmux attach -t <seat>` (see vd:herdr). Closing a tile never stops a seat.
 6. **Talk to it.**
    - Solo rig: type in the tile or use `rig send <seat> "…"`. Pi runner prefixes are `/followup <text>` and `/abort`; Claude Code seats take plain text.
    - Team rig: talk to the owner, and steer the writer directly only to unblock or abort it.
@@ -127,8 +127,10 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 
 - `rig launch` wants the rig **id** from `rig ps --json`, not the name. `rig up` and `rig down` accept either; if a name matches several rigs, `rig down` refuses and lists the ids.
 - To give an existing seat a fresh occupant: `rig seat launch <seat> --fresh --stop --reason "<why>"`.
-- OpenRig launches Codex seats with `-s workspace-write`. They cannot reach the daemon unless `[sandbox_workspace_write] network_access = true`, and they cannot commit in a worktree whose `.git` sits outside the cwd. Prefer Claude Code or Pi seats.
-- OpenRig launches Claude Code seats with `--permission-mode acceptEdits`, so the first Bash call waits for approval in the tile. The operator picks "switch to auto mode" there (or `shift+tab`), or persists it with `rig seat set-permissions <seat> --mode auto` on builds that ship it. Agents cannot raise another seat's permissions for the operator.
+- OpenRig launches Codex seats with `-s workspace-write`, unless a named Codex profile or `full_bypass` replaces it. They cannot reach the daemon unless `[sandbox_workspace_write] network_access = true`. A fresh launch on 0.6.1 or newer resolves a linked worktree's git dir. Prefer Claude Code or Pi seats when the seat must call the daemon.
+- OpenRig launches Claude Code seats with `--permission-mode acceptEdits`, so the first Bash call waits for approval in the tile. The operator can switch that conversation to auto there (`shift+tab`). On 0.6 or newer, a future launch is `rig seat set-permissions <seat> --mode <mode> --reason "<why>"`. Modes are `floor`, `full_bypass`, and `inherit`. `auto` is accepted only when that seat's Claude executable advertises it. The command does not relaunch the seat, and `rig seat status` does not prove the live mode. Agents do not change another seat's permissions. The same boundary applies to `rig seat set-typing-guard`.
+- On 0.6.1 or newer, OpenRig's own help is `rig context get help`. If `rig` cannot run, use [openrig.dev/help/agents](https://www.openrig.dev/help/agents).
+- OpenRig 0.6 runs on Node.js 22 or 24. On macOS arm64, stay on Node.js 22. The CLI is the global npm package `@openrig/cli`, not a checkout of the source tree.
 - In `rig tui`, `graph` is a tab of a selected rig: type `rig <name>`, then `graph`. `:` only jumps between sections.
 - The daemon binds the Tailscale address too. Start it with `--host 127.0.0.1` unless you mean to expose it.
 
