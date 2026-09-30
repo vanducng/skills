@@ -220,6 +220,16 @@ class Attribution(unittest.TestCase):
         self.assertEqual(row["aborts_by_reason"], {"interrupted": 1})
         self.assertEqual(dict(row["skills"]), {"scout": 1, "ship": 1})
 
+    def test_codex_custom_tool_call_counts_like_function_call(self):
+        path = write(self.root / "codex" / "rollout-custom.jsonl", [
+            {"type": "event_msg", "timestamp": "t01", "payload": {"type": "user_message", "message": "$scout the repo"}},
+            {"type": "response_item", "timestamp": "t02", "payload": {"type": "custom_tool_call", "name": "exec", "input": "{}"}},
+            {"type": "response_item", "timestamp": "t03", "payload": {"type": "custom_tool_call_output", "output": '{"exit_code": 1}'}},
+        ])
+        row = m.mine_codex_session(path, REGISTRY)
+        self.assertEqual(row["attr"]["scout"]["tool_calls"], 1)
+        self.assertEqual(row["attr"]["scout"]["tool_errors"], 1)
+
     def test_codex_token_deltas_split_across_windows(self):
         def tok(ts, total):
             return {"type": "event_msg", "timestamp": ts,
