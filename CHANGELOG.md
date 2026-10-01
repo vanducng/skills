@@ -2,6 +2,22 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.65.0](https://github.com/vanducng/skills/compare/v1.64.0...v1.65.0) (2026-09-30)
+
+
+### Features
+
+* **git:** wait in the background for an authorized PR to become mergeable ([6416e37](https://github.com/vanducng/skills/commit/6416e3795548dd0299511068eedabaff3a9b4842))
+* **git:** wait in the background for an authorized PR to become mergeable ([8caf72d](https://github.com/vanducng/skills/commit/8caf72de95a07c92221db3e2afd2b7934ddcdd9f))
+* **openrig-workspace:** added kind flags for feature, bugfix, and sop ([d22eec3](https://github.com/vanducng/skills/commit/d22eec36eef699e28958c751a9f2b64fb5b5c8a6))
+* **openrig-workspace:** choose a rig kind before copying a template ([1d9ed79](https://github.com/vanducng/skills/commit/1d9ed79b0c91ac801b5d8e7e3b04556e99532ae9))
+
+
+### Bug Fixes
+
+* **skill-audit:** recognize custom_tool_call events in codex miner ([8bb5c02](https://github.com/vanducng/skills/commit/8bb5c020731fcfb4d9e1e96aeacd4f0643443dc7))
+* **skill-audit:** recognize custom_tool_call events in codex miner ([c8c7a24](https://github.com/vanducng/skills/commit/c8c7a24dd8d1b0275fc9fcefa85549c2c58902e5))
+
 ## [1.64.0](https://github.com/vanducng/skills/compare/v1.63.0...v1.64.0) (2026-09-27)
 
 
