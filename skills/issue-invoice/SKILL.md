@@ -1,6 +1,6 @@
 ---
 name: issue-invoice
-description: "Fill a monthly hourly invoice on Google Sheets from GitHub PRs and Jira tickets, one tab per month per client. Use when the user mentions an invoice, timesheet, billable hours, logging monthly work, rolling over an invoice month, or reconciling PRs and tickets to hours."
+description: "Fill a monthly hourly invoice on Google Sheets from GitHub PRs, Jira tickets, Gmail, and calendar meetings that have a transcript, one tab per month per client. Use when the user mentions an invoice, timesheet, billable hours, logging monthly work, rolling over an invoice month, meeting transcripts, or reconciling PRs and tickets to hours."
 license: MIT
 argument-hint: "[client] [YYYY-MM] | rollover | --list"
 metadata:
@@ -44,15 +44,23 @@ only, it belongs in that client's rules file.
 ```bash
 export GOG_HOME="$HOME/.config/vd/gog"
 ACCT=<gog_account from rules, --account org with --user person>
+CLIENT=<gog client from the account registry>
+QUOTA=<quota project from the account registry, omit the flag if absent>
 SID=<spreadsheet from rules frontmatter>
 
-gog --account "$ACCT" sheets metadata "$SID" --json
+gog --account "$ACCT" --client "$CLIENT" ${QUOTA:+--quota-project "$QUOTA"} \
+  sheets metadata "$SID" --json
 
 # FORMULA or the next write flattens HYPERLINK/SUM
-gog --account "$ACCT" sheets get "$SID" '<tab>!A1:F60' --render FORMULA --json
+gog --account "$ACCT" --client "$CLIENT" ${QUOTA:+--quota-project "$QUOTA"} \
+  sheets get "$SID" '<tab>!A1:F80' --render FORMULA --json
 ```
 
-Locate the Total row and its exact `SUM` ranges - they drift as rows are inserted.
+Read the account registry before the first call. Pass `--client` from it. Pass `--quota-project` when that file names one, or Sheets returns API-not-enabled.
+
+Tab names are not always `YYYYMM`. Use the tab the user opened.
+
+Locate the Total row and its exact `SUM` ranges. Match the previous month's total block, including a grand total if that tab has one. The Total sits one blank row under the last work row, with the same label, number formats, and borders as the previous month. If the template left that Total far below a short month, move it up and point `SUM` at the new block. Clear the old Total so only one remains. Do not add section subtotal rows unless the previous month has them or the user asks.
 
 ### 2. Harvest PRs
 
@@ -86,6 +94,32 @@ infer from domain and **tell the user which rows were inferred**.
 
 Size hours against the client's calibration table. **Always present the proposed
 rows and the new invoice total for approval before writing** - this is money.
+
+### 3b. Gmail for work the PR list does not show
+
+Some billable work never becomes a PR: a design pass, a data fix, a login or report investigation. Search the client's mailbox for that month before closing the rows.
+
+```bash
+export GOG_HOME="$HOME/.config/vd/gog"
+gog --account "$ACCT" --client "$CLIENT" --readonly --gmail-no-send \
+  gmail search 'after:YYYY/MM/01 before:YYYY/MM+1/01 <requestor or feature words>' \
+  --max 30 --json --no-input
+```
+
+Use the thread for the requestor, the scope, and any hour cap they already agreed. Cite it in the note. Say which rows were inferred from mail.
+
+### 3c. Meetings that actually happened
+
+Event titles and duration live in the client rules. A calendar hold is not billable by itself.
+
+Include the instance only when it has its own transcript:
+
+- a Gemini `Notes:` message for that date, or
+- a notes attachment whose file id belongs to that instance
+
+A recurring series often copies one shared notes doc onto every instance. That shared file is not a transcript. Skip the hold when it is the only attachment, and skip instances with no notes email and no unique notes doc.
+
+Column B stays `Meeting`. Column C is the event title from the rules.
 
 ### 4. Write
 
@@ -142,6 +176,8 @@ Each of these cost real time. Do not rediscover them.
   publish it; do not keep re-authing.
 - **Calendar is a separate scope.** If `gog calendar` 403s, ask for meeting dates
   or re-add with calendar in `--services`.
+- **A shared series notes doc is not attendance.** Count a meeting only from a unique notes doc or a notes email for that date.
+- **`invalid_rapt` after a cloud scope was added.** If the account file forbids scopes such as BigQuery or `cloud-platform`, re-auth with that file's `--services` list and check the new token does not still carry them. Extra cloud scopes put the refresh token under workspace session control.
 - **The `jira` CLI may point at a different instance.** Use the REST call above with
   the client's env vars; `jira me` can report the wrong user.
 - **Total `SUM` ranges go stale.** One client's read `=SUM(E11:E18)` while data ran

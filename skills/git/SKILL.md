@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "cm|cp|pr|merge [args] [--inline]"
 metadata:
   author: vanducng
-  version: "1.2.0"
+  version: "1.2.1"
 ---
 
 # Git
@@ -45,6 +45,7 @@ Default for all verbs except `cm` (single-commit case) is subagent delegation - 
 6. **Never amend a published commit.** New commit on top instead.
 7. **PR feedback is evidence-based.** For `pr`, fetch unresolved review threads and substantive review/top-level comments when a PR already exists or after creating/updating one. Validate comments against codebase contracts, types, config schemas, tests, and repo rules before changing code. If a suggestion is directionally valid but the literal patch is not the best fix, apply the better root-cause fix and explain that in the reply. Never resolve a review thread before posting an inline rationale on that thread.
 8. **Pending checks are retry, not failure.** `gh pr checks` exits **8** while CI is still queued. Do not write `gh pr checks N && gh pr merge N` - the merge never runs. Wait with `scripts/wait-for-checks.sh` (or `gh pr checks --watch`) before an immediate merge, or queue `gh pr merge --auto`. Unresolved review threads stay blocked by `hooks/pr-merge-guard.py`. Full-pipeline CI watch is `vd:ship` Step 15 - do not reimplement it here.
+9. **Name the repo, and keep the PR a draft.** Every `gh` command includes `-R <owner>/<repo>`. Discover the slug from the repo remote, not from cwd. `gh pr create` always passes `--draft`. Update an existing PR for the branch instead of opening a second one. Keep the draft current (push, CI, review replies) so it is merge-ready. Run `gh pr ready` only when the user has asked to ship or merge, and only immediately before that merge.
 
 ## Conventional commit format
 

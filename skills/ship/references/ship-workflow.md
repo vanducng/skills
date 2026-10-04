@@ -200,7 +200,7 @@ Do not wait - continue immediately.
 ## Step 11: Push
 
 ```bash
-git push -u origin "$(git branch --show-current)"
+git -C <path> push -u origin "$(git -C <path> branch --show-current)"
 ```
 
 - Never `--force` / `--force-with-lease` from this skill.
@@ -219,13 +219,18 @@ git push -u origin "$(git branch --show-current)"
 3. Resolve title and body from those loaded rules:
    - Title: confirmed ticket from Step 1b → `TICKET: <past-tense summary>`, regardless of branch name. Only when no ticket is confirmed → `type(scope): <past-tense summary>`.
    - Body: prefer `.github/pull_request_template.md` if present and fill it without adding, removing, or renaming sections. Otherwise fill the canonical fallback (3 labelled bullets - Why / What / Risks - plus a multi-line verification block, one field per line). Never use ad hoc `Summary`, `Changes`, `Validation`, or mixed template bodies.
-4. Create / update PR:
+4. Create / update PR. Resolve `<owner>/<repo>` first. Always pass
+   `-R <owner>/<repo>`. Create as a draft. If this branch already has a PR,
+   edit that PR instead of creating another. When the local gates have passed
+   and the PR needs its review, run `gh pr ready`: a review bot that skips
+   drafts cannot review until then. Ready asks for review; it does not
+   authorize a merge.
    ```bash
-   gh pr create --base <target> --title "<title>" --body-file - <<'EOF'
+   gh -R <owner>/<repo> pr create --draft --base <target> --head <branch> --title "<title>" --body-file - <<'EOF'
    <body>
    EOF
    # PR already exists for this branch:
-   gh pr edit --title "<title>" --body-file - <<'EOF'
+   gh -R <owner>/<repo> pr edit <number> --title "<title>" --body-file - <<'EOF'
    <body>
    EOF
    ```

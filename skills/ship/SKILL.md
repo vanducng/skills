@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[official|staging|beta] [--auto] [--merge] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-screenshots] [--skip-journal] [--skip-docs] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.5.0"
+  version: "1.5.1"
 ---
 
 # Ship
@@ -108,10 +108,17 @@ Repository deployment policy and an explicitly named source/target branch take p
      `isResolved==false && isOutdated==false` and actionable (human or bot). **0 unresolved
      actionable threads is a merge precondition, alongside green CI** - a safety floor
      `--auto` does not suppress.
-12. **Ship acts on the *current* repo (cwd).** The pipeline targets cwd and can
-   push/PR the wrong repo when the branch lives in a sibling repo. Confirm before any
-   `git`/`gh` step, and scope every command with `git -C <repo>` / `gh -R <owner/repo>`
-   or `cd` there first.
+12. **Name the repo on every git and gh command.** Discover
+   `<owner>/<repo>` from `git -C <path> remote get-url origin` before the first
+   write. Scope every command with `git -C <path>` and `gh -R <owner>/<repo>`
+   (or `--repo`). Say that repo in each status line. Cwd is not the repo.
+12b. **PRs open as drafts and go ready when it is time for review.** Create with
+    `--draft`. If a PR for this branch already exists, update it; do not open a
+    second one. Keep the draft merge-ready: push new commits, refresh the body,
+    and follow CI. When the local gates have passed and the PR needs its review,
+    run `gh pr ready`: a review bot that skips drafts cannot review until then.
+    Marking a PR ready asks for review. It does not authorize a merge; merging
+    still needs the user's explicit word.
 13. **Auto-release repos** (release-please / semantic-release / changesets): do **not**
    hand-edit `CHANGELOG.md` or the version file - the conventional-commit message drives
    them and CI cuts the version. Detect the tooling (Step 14) and skip the manual bump.
@@ -137,7 +144,7 @@ Repository deployment policy and an explicitly named source/target branch take p
 9.  Docs          → docs-manager subagent (background, official only)
 10. Commit        → conventional commit, secret scan + portability scan (Rules 7 / 7b)
 11. Push          → git push -u origin <branch>
-12. PR            → gh pr create/edit using repo template or canonical fallback
+12. PR            → gh -R <owner>/<repo> pr create --draft (or edit the existing PR) using repo template or canonical fallback
 12b. Before/after → for user-visible UI: embed before/after in PR (+ ticket comment when linked); skip for non-visual / `--skip-screenshots` - see `references/before-after.md`
 13. PR comments   → fetch review threads + human/bot reviews + top-level comments; triage, fix/reply/resolve (re-run Step 4 after any fix); repair silently-resolved threads; re-trigger bot re-reviews and loop until 0 unresolved - see `references/bot-reviewers.md`
 14. Release       → `--release` only: detect auto-release tool; tag + push if manual
@@ -166,7 +173,7 @@ Bare ship (no `--auto`/`--merge`) - ends at a green PR, unmerged:
 ✓ Tests: 419 passed, 0 failed
 ✓ Review: 0 critical
 ✓ Pushed: origin/PROJ-123-example-feature
-✓ PR: https://github.com/org/repo/pull/117 → main
+✓ PR: https://github.com/<owner>/<repo>/pull/117 → main (draft, <owner>/<repo>)
 ✓ Before/after: embedded (or skipped - non-visual / --skip-screenshots / <reason>)
 ✓ CI: green
 ✓ PR comments: 0 actionable
