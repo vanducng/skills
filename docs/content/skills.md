@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog contains 87 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
+The catalog contains 89 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
 
 Count source: `find skills -mindepth 1 -maxdepth 1 -type d`. Validation: `scripts/validate.sh`.
 
@@ -66,7 +66,7 @@ Start with a local browser. Use `vd:browser` only when the site blocks local aut
 
 | Area | Skills |
 | --- | --- |
-| Web and frontend | `vd:uiuxdesign`, `vd:opendesign`, `vd:fastreact` |
+| Web and frontend | `vd:uiuxdesign`, `vd:better-ui`, `vd:opendesign`, `vd:fastreact` |
 | Interface and storage design | `vd:apidesign`, `vd:dbdesign` |
 | Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:unslop`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 
@@ -116,7 +116,7 @@ These skills document CLIs owned alongside this catalog:
 
 Utilities for recurring work:
 
-`vd:superwhisper`, `vd:gog`, `vd:jira`, `vd:kaneo`, `vd:issue-invoice`, `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:openrig-workspace`, `vd:gopass`, `vd:onepassword`, `vd:obsidian-vault`, `vd:journal`, `vd:workbench`, `vd:braze`, `vd:smartsheet`, `vd:voice-agent`, `vd:alter`
+`vd:superwhisper`, `vd:gog`, `vd:jira`, `vd:custom-mcp-connector`, `vd:kaneo`, `vd:issue-invoice`, `vd:computer-clean`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:openrig-workspace`, `vd:gopass`, `vd:onepassword`, `vd:obsidian-vault`, `vd:journal`, `vd:workbench`, `vd:braze`, `vd:smartsheet`, `vd:voice-agent`, `vd:alter`
 
 ## Skill lifecycle
 
@@ -137,10 +137,10 @@ For reviews, `vd:code-review` posts PR findings and `vd:code-review --refactor` 
 
 Use `vd:docs` for internal project docs and ADRs. Its `site` subcommand manages a public documentation site.
 
-Use `vd:show-me` for a quick in-chat visual. Use `vd:diagram-design` for accessible HTML/SVG, `vd:text-diagram` for ASCII, `vd:diagram` for SVG or raster output, and `vd:excalidraw` for editable whiteboards.
+Use `vd:show-me` for a quick in-chat visual. Use `vd:diagram-design` for accessible HTML/SVG, `vd:text-diagram` for ASCII, `vd:diagram` for SVG or raster output, and `vd:excalidraw` for editable whiteboards. Use `vd:uiuxdesign` to design or build a product UI, and `vd:better-ui` when the work is exact polish values: concentric radius, surface shadows, press scale, and icon motion.
 
 Use `vd:superwhisper` to search local dictation history, prepare standups, and diagnose recognition errors. Use `vd:alter` to audit Alter's macOS global hotkeys and change them without reading meeting data. Use `vd:braze` for Braze CLI reads and explicit opt-in changes. Use `vd:smartsheet` for bounded sheet reads and authorized row updates. Use `vd:voice-agent` to operate Retell through `vac`. Use `vd:gopass` for the local GPG password store and `vd:onepassword` for 1Password CLI (`op` / `op://` references). Use `vd:obsidian-vault` to capture ideas into the personal Obsidian PARA vault.
 
-`vd:kaneo` manages Kaneo tickets through REST or MCP; instance values live in `$HOME/.config/vd/kaneo-rules/`. `vd:jira` uses the `vanducng/jira-cli` fork for inline local-image comments. Inside Herdr, `vd:worktree` asks `vd:herdr` to name the current pane after creating a worktree. It also trusts mise configs so `cd` works, while `mise install` stays in `suggestedInstalls`. `vd:computer-clean` checks Git worktree storage.
+`vd:kaneo` manages Kaneo tickets through REST or MCP; instance values live in `$HOME/.config/vd/kaneo-rules/`. `vd:jira` uses the `vanducng/jira-cli` fork for inline local-image comments. `vd:custom-mcp-connector` files the ITOps request that adds a remote MCP to the team Claude Desktop app. Instance values live in `$HOME/.config/vd/mcp-connector.md`. Inside Herdr, `vd:worktree` asks `vd:herdr` to name the current pane after creating a worktree. It also trusts mise configs so `cd` works, while `mise install` stays in `suggestedInstalls`. `vd:computer-clean` checks Git worktree storage.
 
 A lingering `.ck.json` without `.vd.json` is a rename (`mv .ck.json .vd.json`), not a skill.

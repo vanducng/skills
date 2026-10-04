@@ -76,7 +76,7 @@ wrappers with `bad substitution: no closing ')'`. `--body-file` (or `--body-file
 reading a heredoc on stdin) is the safe path. See `gh-cli-guide.md`.
 
 ```bash
-gh pr create --base "$TO" --head "$FROM" \
+gh -R <owner>/<repo> pr create --draft --base "$TO" --head "$FROM" \
   --title "<v-ed title>" \
   --body-file - <<'EOF'
 - **Why:** ...
@@ -89,10 +89,9 @@ gh pr create --base "$TO" --head "$FROM" \
 EOF
 ```
 
-**Existing PR for this branch:** `gh pr edit --body-file`, don't re-create.
+**Existing PR for this branch:** `gh -R <owner>/<repo> pr edit --body-file`, don't re-create.
 **After create/edit:** run `scripts/strip-ai-pr-attribution.sh` so Cursor/Claude footers do not stick on the live PR body.
-**CNB (`careernowbrands/*`):** create with `--draft`. Once CI is green, run `gh pr ready` without pinging reviewers for approval. Merge only if CLEAN+APPROVED and already authorized.
-**Draft mode** otherwise when WIP: add `--draft`.
+**Draft, every repo:** `gh pr create` always includes `--draft` and `-R <owner>/<repo>`. Keep that draft current until it is merge-ready: push, follow CI, answer review feedback. Do not run `gh pr ready` until the user asks to ship or merge, and only as the step immediately before that merge. Do not ping reviewers just because CI is green.
 **Landing:** only on explicit user request. Never `gh pr checks N && gh pr merge N` -
 `gh pr checks` exits **8** while a check is pending, so the merge never runs.
 Wait with `scripts/wait-for-checks.sh` then merge, or queue `gh pr merge --auto`.

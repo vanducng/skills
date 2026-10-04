@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[what you are trying to do]"
 metadata:
   author: vanducng
-  version: "0.1.1"
+  version: "0.1.2"
 ---
 
 # Guide
@@ -70,6 +70,13 @@ Start local. Escalate to `vd:browser` only when a local run hits a wall.
 | General SVG / raster | `vd:diagram` |
 | Editable whiteboard | `vd:excalidraw` |
 | Polished, accessible HTML/SVG with layout guidance | `vd:diagram-design` |
+
+## Interface
+
+| Need | Skill |
+|---|---|
+| Design, build, or review a product UI | `vd:uiuxdesign` |
+| Exact polish values: radius, shadows, press scale, icon motion | `vd:better-ui` |
 
 ## Discover / decide / iterate
 
