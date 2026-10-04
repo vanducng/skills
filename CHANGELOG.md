@@ -2,6 +2,22 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.66.0](https://github.com/vanducng/skills/compare/v1.65.0...v1.66.0) (2026-10-04)
+
+
+### Features
+
+* add better-ui and custom-mcp-connector ([1faa77f](https://github.com/vanducng/skills/commit/1faa77f54bbd89e251669969a15ae1cd970d497d))
+* **diagram-design:** add chart types, imports, and svg export ([ddb306e](https://github.com/vanducng/skills/commit/ddb306ef0539fde371b9d3f38b3b375d79051ff5))
+* expanded diagram types and added better-ui ([cd835c9](https://github.com/vanducng/skills/commit/cd835c9dbe1b58b1e9b07d9a53415a4efb49e4c3))
+* **git:** open named-repo draft pull requests ([b891050](https://github.com/vanducng/skills/commit/b89105067d7f1fdcb688f5cbaa13fc73ca3debc4))
+* **issue-invoice:** include mailbox work and transcribed meetings ([ad6e3ab](https://github.com/vanducng/skills/commit/ad6e3ab9a132ef2ae930125e60ecb43c873866bb))
+
+
+### Bug Fixes
+
+* **braze:** record real export and bounce permission names ([5687381](https://github.com/vanducng/skills/commit/56873817c10fc93610128e9e2ae717ff547aeacd))
+
 ## [1.65.0](https://github.com/vanducng/skills/compare/v1.64.0...v1.65.0) (2026-09-30)
 
 
