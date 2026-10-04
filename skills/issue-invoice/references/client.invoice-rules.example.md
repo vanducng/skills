@@ -61,7 +61,7 @@ single row.
 
 ## Meetings
 
-Cadence and duration, and whether they come from a calendar or are supplied manually.
+Cadence, duration, and the exact event titles to search. Say whether a row requires a transcript (a notes email or a unique notes doc for that instance) or is supplied manually. A shared series notes doc copied onto every occurrence is not attendance.
 
 ## Client-specific notes
 
