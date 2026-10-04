@@ -6,7 +6,7 @@ allowed-tools:
   - Bash
 metadata:
   author: vanducng
-  version: "1.2.0"
+  version: "1.2.1"
   binary: braze
 ---
 
@@ -46,6 +46,20 @@ XDG_CONFIG_HOME="$TMP" braze workspace list      # confirm it resolved
 # ... run the read commands ...
 rm -rf "$TMP"                                     # never leave the key on disk
 ```
+
+## User spot checks and missing permissions
+
+`braze user export-ids` requires `users.export.ids`, including when checking account-level subscription states. Limit the response with `--fields-to-export` and keep user data out of logs.
+
+The dashboard permission for `email unsubscribes` is `email.unsubscribe`; CLI 0.4.1 help incorrectly names it `email.unsubscribes`. `email hard-bounces` requires `email.hard_bounces`.
+
+```bash
+braze user export-ids --external-ids "<external-id>" --fields-to-export "external_id,email_subscribe,push_subscribe,subscription_groups"
+```
+
+If the saved CLI key returns HTTP 403, report the missing permission. [Braze does not allow editing an existing key's permissions](https://www.braze.com/docs/api/basics#creating-rest-api-keys). With explicit authorization, create a replacement dedicated CLI key with the required read permissions, save it through `braze login`, and repeat the bounded read. A CLI upgrade does not change API-key permissions. Do not overwrite the saved login with a pipeline key unless the user explicitly requests it.
+
+An authorized temporary read with another key must use the scratch config described above. HTTP 403 is a failed check; never report the affected command as validated or substitute another key silently.
 
 ## Discover commands by category
 
@@ -119,6 +133,6 @@ npm run verify
 npm run test:live
 ```
 
-The live matrix executes every read command and emits safe metadata. Supply `BRAZE_LIVE_*` fixtures when validation must fetch a specific resource. `verification: authorized_no_fixture` is acceptable only for an absent resource returning HTTP 400 or 404; authentication, permission, output, and embedded item errors fail the run.
+The live matrix executes all 40 read commands and emits safe metadata. Supply `BRAZE_LIVE_*` fixtures when validation must fetch a specific resource. `verification: authorized_no_fixture` is acceptable only for an absent resource returning HTTP 400 or 404; authentication, permission, output, and embedded item errors fail the run.
 
 Before package delivery, verify CI, the packed artifact, the registry-installed binary, the published npm version, and one bounded live read from the installed package.
