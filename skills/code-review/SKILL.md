@@ -42,7 +42,7 @@ Flags:
 1. **One review = one push to GitHub.** Don't dribble out comments across multiple `gh` calls. Build the full payload, then submit a single `POST /pulls/:n/reviews`. The author gets one notification, not 12.
 2. **Inline beats top-level.** If a finding maps to a specific file:line, it MUST go inline. Top-level summary is for context, verdict, and orphan concerns that don't anchor to a hunk.
 3. **No critical claim without evidence.** "Critical" means "merge would cause incident / data loss / security hole." If you can't point to the failure mode, downgrade to Important.
-4. **Encouraging tone, firm content.** Lead with what works when it's true. Be direct about problems. Never sarcastic. Never "as an AI…". The author is a peer.
+4. **Encouraging tone, firm content.** Lead with what works when it's true. When the user asks you to list the clean angles, name each angle that is clean. Be direct about problems. Never sarcastic. Never "as an AI…". The author is a peer.
 5. **Read the file, not just the hunk.** Diff context lies. Open the file at the changed lines and 30 lines around to understand surrounding state before commenting.
 6. **Intent vs mistake.** Review whether the change achieves the stated intent, not whether the intent is right. A finding that challenges a deliberate product decision, a named tradeoff, or two valid designs is `**Question:**`, never Critical/Important, and must not flip the verdict to Request changes. Relay it; let the author/user answer.
 7. **Stay in the diff.** Comment on paths this change touches. Adjacent cleanup is out of scope unless this diff introduces a merge-blocking defect there.

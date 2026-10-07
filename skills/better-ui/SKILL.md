@@ -4,7 +4,7 @@ description: "Applies exact UI polish values: concentric border radius, optical 
 license: MIT
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.0.1"
   upstream: jakubkrehel/skills@better-ui
 ---
 
@@ -18,7 +18,7 @@ Keep the project's component library, tokens, and density, and match its motion 
 
 Every duration, curve, scale, and blur below is a specific value, not a range to approximate. `cubic-bezier(0.2, 0, 0, 1)` is not `cubic-bezier(0.4, 0, 0.2, 1)`, and `0.96` is not `0.95`. Use what is written.
 
-Text wrapping, font rendering, tabular numbers, spacing, breakpoints, hit areas, focus, keyboard support, ARIA, and reduced motion belong to `vd:uiuxdesign`. Posting review comments on a pull request belongs to `vd:code-review`. This skill owns the polish values and the polish-pass report.
+Text wrapping, font rendering, tabular numbers, spacing, breakpoints, hit areas, focus, keyboard support, ARIA, and reduced motion belong to `vd:uiuxdesign`. Whether a motion should exist, which easing family to use, and how popovers, drawers, and drags behave belong to `vd:design-eng`. Posting review comments on a pull request belongs to `vd:code-review`. This skill owns the polish values and the polish-pass report. When both load, the numbers in this file win.
 
 ## Concentric border radius
 

@@ -15,7 +15,7 @@ metadata:
 
 The goal is **not fewer lines** - it's code a new teammate understands faster. Every change must pass one test: would someone reading this for the first time grasp it quicker than the original? If not, it's churn, not simplification. Not for hot paths where the simpler form is measurably slower, or a module about to be rewritten wholesale.
 
-Use when the code is *correct but cluttered*. If it's buggy, that's `vd:fix`; if you're still writing it, that's `vd:cook`; judging someone's diff is `vd:code-review` (report-only).
+Prefer simplify when the code is correct but cluttered. If the user invokes /simplify by name, run it even while the change is still being designed or still misbehaving. A bug-only task with no simplify request stays vd:fix. Judging someone's diff is `vd:code-review` (report-only).
 
 | Mode | When | Behavior |
 |---|---|---|

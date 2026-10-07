@@ -19,7 +19,7 @@ Run browser work with the `Bash` tool as `ego-browser nodejs <<'EOF' ... EOF`. P
 
 Inside a worktree-isolated session, the harness's worktree guard rejects heredocs as "too complex to verify that it stays inside the worktree." If that happens, write the script to a temp file and run `ego-browser nodejs < /tmp/<name>.js` instead.
 
-A heredoc is only the JavaScript container. Default to **one** Bash invocation for the whole predictable task: observe, act, wait, extract, and verify in-process. Start another command only for required user/external control, visual inspection that cannot happen in-process, or a process-level failure the script cannot recover from.
+A heredoc is only the JavaScript container. Default to one Bash invocation when the page will not navigate. Cap each heredoc at 60 seconds. After a navigation, stop and observe with snapshotText() or pageInfo() in a new heredoc. Start another command only for required user/external control, visual inspection that cannot happen in-process, or a process-level failure the script cannot recover from.
 
 ## Quick start
 
@@ -186,9 +186,11 @@ const data = await js(String.raw`(() => {
 
 ## Recommended workflow
 
-1. **Semantic: `snapshotText()` + refs / locators.** Default for normal DOM pages. Observe with `snapshotText()`, then act with `click('@N')`, `fillInput('@N', ...)`, or stable `loc=...` values.
+1. **Semantic: `snapshotText()` + refs / locators.** Default for normal DOM pages. On the same page, observe with snapshotText() and act with click('@N'), fillInput('@N', ...), or stable loc=... values. If click() hangs because the click navigates, use js(document.querySelector(css).click()) with a CSS selector, then observe in a new heredoc. Do not pass @N to querySelector.
 2. **Visual: `captureScreenshot()` + mouse/keyboard.** Use for canvas, virtualized editors, spreadsheets, maps, and AX-poor surfaces. Before substantial editing, make a tiny write probe and verify it with a screenshot or export/readback.
 3. **Direct DOM/CDP: `js(...)` / `cdp(...)`.** Use for compact extraction or capabilities the helpers do not cover. Keep browser-side logic in one explicit IIFE.
+
+Save a screenshot with captureScreenshot('<absolute png path>') when a file is required. captureScreenshot() with no argument still takes a visual shot. Set the viewport with cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false }). When mobile is asked, use width 390, height 844, and mobile true. If pressKey does not work, use cdp('Input.dispatchKeyEvent', ...) and set macOS metaKey or ctrlKey.
 
 For Google Docs, Google Sheets, Lark/Feishu Docs, Notion, Figma, whiteboards, maps, and other virtualized editors, use the visual workflow first for the main editing surface. Do not rely on `fillInput(...)`, DOM selectors, or `snapshotText()` refs for that surface unless a small write probe proves the text lands in the intended place. For Google Sheets cell writes, read `references/google-sheets.md` first.
 

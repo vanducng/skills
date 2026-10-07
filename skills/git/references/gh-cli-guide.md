@@ -78,11 +78,31 @@ gh api repos/{owner}/{repo}/issues/123/comments   # issue-style comments
 Used by `vd:ship` Step 12b for user-visible UI (expected there; optional everywhere else).
 Full ship policy (when to run, capture CLIs, ticket mirror): `../../ship/references/before-after.md`.
 
-`gh` has no first-party way to attach a local image so it renders inline. **On a private
-repo most workarounds silently produce broken images** - GitHub's camo proxy cannot
-authenticate to private content, so `raw.githubusercontent.com` URLs, release assets,
-gists, and public paste hosts (`0x0.st`, etc.) all fail or leak. Only `user-attachments`
-URLs work for private repos.
+**Preferred: native `--attach`** on `gh pr create`, `gh pr edit` and `gh pr comment`
+([docs](https://docs.github.com/en/enterprise-cloud@latest/github-cli/github-cli/attaching-files-with-github-cli)).
+Check support with `gh pr edit --help | grep -- --attach`. Reference the local files in the
+body and gh uploads them and rewrites each `![alt](./file.png)` to the uploaded asset:
+
+```bash
+gh pr view 123 --json body --jq '.body' > /tmp/body.md
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path("/tmp/body.md"); t = p.read_text()
+table = ("| Before | After |\n|---|---|\n"
+         "| ![Before](./before.png) | ![After](./after.png) |\n")
+assert "<!-- SCREENSHOTS -->" in t, "no marker in PR body"
+p.write_text(t.replace("<!-- SCREENSHOTS -->", table, 1))
+PY
+gh pr edit 123 --body-file /tmp/body.md --attach ./before.png --attach ./after.png
+```
+
+Run it from the directory the `./` paths resolve against. Each file once per call.
+New PR: same body file with `gh pr create --body-file ... --attach ...`.
+
+**Fallback (gh without `--attach`).** **On a private repo most workarounds silently produce
+broken images** - GitHub's camo proxy cannot authenticate to private content, so
+`raw.githubusercontent.com` URLs, release assets, gists, and public paste hosts (`0x0.st`,
+etc.) all fail or leak. Only `user-attachments` URLs work for private repos.
 
 Upload via the endpoint the browser's drag-drop uses; it accepts a normal bearer token:
 

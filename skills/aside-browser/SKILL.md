@@ -6,7 +6,7 @@ description: Read when you need a browser, or have to work across user's logged-
 
 # Aside
 
-This file is only an entry point. You MUST run `aside guide` to read this skill's actual instructions before using Aside, then follow them.
+This file is only an entry point. You MUST run `aside guide` to read this skill’s actual instructions before using Aside, then follow them.
 
 - If `aside` is not installed, ask the user for permission to install Aside CLI. After the user approves, run the macOS/Linux installer `curl -fsSL https://releases.aside.com/install.sh | bash`, then run `aside guide`.
 - If `aside guide` is reported as an unknown command, your CLI is outdated. Run `aside --update`, then run `aside guide` again.
