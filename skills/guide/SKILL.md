@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[what you are trying to do]"
 metadata:
   author: vanducng
-  version: "0.1.2"
+  version: "0.1.3"
 ---
 
 # Guide
@@ -77,6 +77,7 @@ Start local. Escalate to `vd:browser` only when a local run hits a wall.
 |---|---|
 | Design, build, or review a product UI | `vd:uiuxdesign` |
 | Exact polish values: radius, shadows, press scale, icon motion | `vd:better-ui` |
+| Whether motion should exist, easing, springs, popovers, drag | `vd:design-eng` |
 
 ## Discover / decide / iterate
 

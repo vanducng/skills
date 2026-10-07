@@ -42,17 +42,17 @@ Pair each shot with an observed value (row count, error text, ID) in the surroun
 
 ## Upload (PR) - GitHub user-attachments only
 
-Do **not** commit screenshots. Do **not** use public paste hosts for private work.
+Do **not** commit screenshots (no `docs/assets/**` evidence PNGs). Do **not** use public paste hosts for private work.
 
-Recipe (upload helper + HTML table + `<!-- SCREENSHOTS -->` marker):
+Recipe (`gh --attach`, fallback upload helper, `<!-- SCREENSHOTS -->` marker):
 
 > `../git/references/gh-cli-guide.md` → *Attach screenshots (before/after evidence)*
 
 Summary:
 
 1. Draft the PR body in Step 12 with a lone `<!-- SCREENSHOTS -->` line after the verification block (UI-visible only).
-2. `BEFORE=$(gh_upload_image before.png)` / `AFTER=$(gh_upload_image after.png)`.
-3. Replace the marker with the `<table>…</table>` HTML pair (width ~480).
+2. Replace the marker with `| Before | After |` / `| ![Before](./before.png) | ![After](./after.png) |`.
+3. `gh pr edit <n> --body-file body.md --attach ./before.png --attach ./after.png` - gh uploads to `user-attachments` and rewrites the references. Fallback when `--attach` is missing: `gh_upload_image` + the HTML `<table>` pair.
 4. Verify: unauthenticated `curl` of the asset URL → 404 on a private repo; authenticated → 200. Broken embeds look fine in raw markdown - check rendered `naturalWidth`.
 
 If Step 12 already opened the PR without the marker (non-UI guessed wrong), append the table via `gh pr edit` after a blank line under the verification block.

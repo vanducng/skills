@@ -13,6 +13,16 @@ linked=0; skipped=0; conflicts=0
 for src in "$REPO"/skills/*/; do
   [[ -d "$src" ]] || continue
   name="$(basename "$src")"
+  # Claude Code ranks a personal skill above a repo skill of the same name.
+  # These eight stay in this catalog for Pi and Codex (~/.agents/skills) but
+  # must not be linked here, or a repo copy never loads.
+  case "$name" in
+    agent-browser|brainstorm|code-review|cook|dbdesign|debug|plan|ship)
+      echo "skipped  $name (repo skill must win in Claude Code)"
+      skipped=$((skipped + 1))
+      continue
+      ;;
+  esac
   src_abs="${src%/}"
   target="${DEST_DIR}/${name}"
 

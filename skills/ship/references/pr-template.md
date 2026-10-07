@@ -20,7 +20,7 @@ Load that file for: past-tense (v-ed) titles, confirmed-ticket selection, repo-t
 | **Beta channel** | Beta PRs target `dev` / `beta` branch, not `main`. Title and body shape are unchanged. |
 | **No AI attribution** | Never add `Co-Authored-By: Claude`, "Generated with Claude", or a `https://claude.ai/code/session_...` session link to the PR title, body, or any PR comment ship posts. |
 | **Step 12 - Screenshot marker** | For user-visible changes, draft the body with a `<!-- SCREENSHOTS -->` marker after the verification block. Step 12b substitutes the HTML table. |
-| **Step 12b - Before/after** | **Expected for UI-visible diffs** (not a merge gate). Capture or reuse a before/after pair, upload via `gh_upload_image`, embed in the PR, and mirror onto the confirmed ticket. Full recipe: `before-after.md`. Upload mechanics: `../git/references/gh-cli-guide.md` → *Attach screenshots*. Skip with `--skip-screenshots` or when capture is impossible - say why once. |
+| **Step 12b - Before/after** | **Expected for UI-visible diffs** (not a merge gate). Capture or reuse a before/after pair, attach with `gh pr edit --attach` (fallback `gh_upload_image`), embed in the PR, and mirror onto the confirmed ticket. Full recipe: `before-after.md`. Upload mechanics: `../git/references/gh-cli-guide.md` → *Attach screenshots*. Skip with `--skip-screenshots` or when capture is impossible - say why once. |
 
 ## Before/after evidence (user-visible changes)
 
