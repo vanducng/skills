@@ -53,6 +53,16 @@ gog --account acme gmail send --to recipient@example.com \
 gog --account acme sheets append <sid> 'Log!A:C' --values-json "[[\"$(date -Iseconds)\",\"event\",\"detail\"]]"
 ```
 
+## Update cells that contain commas
+
+Positional values on `sheets update` are comma-separated rows and pipe-separated cells (`gog sheets update --help`). A comma or pipe inside the text becomes another cell. Use `--values-json` (inline JSON, `@file`, or `@-`), the same flag `sheets append` takes.
+
+```bash
+gog --account acme sheets update <sid> 'Summary!A3' \
+  --values-json '[["Shipped 12 of 40, pending review."]]' \
+  --json --no-input
+```
+
 ## Search Gmail And Archive Matches
 
 Sample subjects first. Archive only after the user confirms the filter.
