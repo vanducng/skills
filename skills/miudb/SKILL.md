@@ -192,6 +192,8 @@ Rules:
 - Use single quotes around SQL containing BigQuery/MySQL backticks.
 - If SQL contains single-quoted literals and backticks, escape carefully; do
   not assume file input exists unless `miudb describe query run` says it does.
+- Snowflake rejects the alias `rows` (`unexpected 'rows'`). `ROWS` is reserved.
+  Use another alias, such as `row_cnt`.
 
 ## Fetch paged results
 

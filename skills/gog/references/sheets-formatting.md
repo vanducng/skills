@@ -134,6 +134,27 @@ Do not assume every advanced Excel feature survives conversion. Treat charts,
 conditional formatting, formulas, merged cells, and print settings as visual
 features that need verification.
 
+## Edit text after upload
+
+`gog sheets update` positional values split on commas and pipes. Prose, counts
+written as `12 of 40, pending`, and any cell with a comma must go through
+`--values-json`. See `references/recipes.md`.
+
+`insertDimension.range` is a DimensionRange: `startIndex` and `endIndex`.
+`endRowIndex` is a GridRange field, not the end of that range.
+
+## Charts
+
+Conversion keeps the chart. Series value labels often do not. Read `chartId`
+from `sheets metadata`, then send `updateChartSpec` through
+`gog api call sheets v4 spreadsheets.batchUpdate`. The request replaces the
+whole spec, so start from the spec you just read.
+
+On each `spec.basicChart.series[]`, set `dataLabel.type` to `DATA`. Use
+placement `ABOVE` for a line and `OUTSIDE_END` for a column. On the value axis
+(`LEFT_AXIS`), set `viewWindowOptions.viewWindowMode` to `EXPLICIT` and
+`viewWindowMax` above the largest point. A label past the axis max is clipped.
+
 ## Verify and clean up
 
 Use the returned spreadsheet ID rather than searching by title:
