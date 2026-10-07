@@ -167,7 +167,7 @@ gog api call sheets v4 spreadsheets.batchUpdate --help
 ```
 
 Long tail: `gog api call <api> <version> <method>` and `gog <service> raw`.
-Worked examples (inbox triage, agenda, send, sheet append, archive):
+Worked examples (inbox triage, agenda, send, sheet append, sheet update, archive):
 `references/recipes.md`. Styled multi-tab report architecture:
 `references/sheets-formatting.md`. Admin Directory: `gog admin` needs a
 Workspace SA with domain-wide delegation, not person-user OAuth.
