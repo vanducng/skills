@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.66.1](https://github.com/vanducng/skills/compare/v1.66.0...v1.66.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **gog:** keep sheet text and chart labels intact ([#508](https://github.com/vanducng/skills/issues/508)) ([9a624b5](https://github.com/vanducng/skills/commit/9a624b5469d5b2ce17ed4bd54cc0635c4198b5fc))
+
 ## [1.66.0](https://github.com/vanducng/skills/compare/v1.65.0...v1.66.0) (2026-10-04)
 
 
