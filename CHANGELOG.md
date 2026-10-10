@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.66.2](https://github.com/vanducng/skills/compare/v1.66.1...v1.66.2) (2026-10-10)
+
+
+### Bug Fixes
+
+* **skills:** split disk prune from volumes and task worktrees ([#510](https://github.com/vanducng/skills/issues/510)) ([c07a8cb](https://github.com/vanducng/skills/commit/c07a8cbd1c90595670a1fed38e2eeb9c8ed17489))
+
 ## [1.66.1](https://github.com/vanducng/skills/compare/v1.66.0...v1.66.1) (2026-10-07)
 
 
