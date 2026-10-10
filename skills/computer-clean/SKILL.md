@@ -121,16 +121,23 @@ Before deleting any app's data dir, quit the app cleanly:
 osascript -e 'quit app "<App Name>"' 2>/dev/null; sleep 1
 ```
 
+### One path per delete
+
+Each regenerable cache is its own command. Do not pass several roots to one `rm`. A mid-run "leave this one" then stops only that path. List each browser's `~/Library/Caches/<App>` as its own row. That directory is cache. `~/Library/Application Support/<App>` is the profile and stays 🔴.
+
 ### Container engine prune (engine still in use)
 
-Do not delete the VM. Reclaim unused images, volumes, and build cache:
+Do not delete the VM. Do not run `docker system prune -af --volumes`. Unused volumes are often databases that are not attached to a running container, so they are 🔴, not part of an image prune.
+
+Show `docker system df`, then run only the lines the user approved:
 
 ```bash
-docker system df
-docker system prune -af --volumes
+docker builder prune -af    # build cache; regenerable
+docker image prune -af      # images no container uses; running containers keep theirs
+docker volume rm <name>     # one approved volume; volume prune deletes every unused volume
 ```
 
-Then verify host free space (`df -h /` and `df -h /System/Volumes/Data`). Sparse VM disks (OrbStack, Docker Desktop) often return that space to the host.
+After an image prune, `docker ps` must still list the containers that were up before. Then verify host free space (`df -h /` and `df -h /System/Volumes/Data`). Sparse VM disks (OrbStack, Docker Desktop) often return that space to the host.
 
 ### Container engine migration (generic)
 
@@ -207,7 +214,7 @@ done
 
 For per-repo registration (including worktrees not co-located under a directory named `worktrees`), use `git -C "$repo" worktree list --porcelain`. Do not grep or `find` for a literal `.git/worktrees` path - the `scout-block` hook denies any Bash command matching `(^|/)\.git(/|$)`.
 
-All cleanup runs through `vd:worktree` (`node "$HOME/skills/skills/worktree/scripts/worktree.cjs" clean` from each repository root) - never `rm -rf` a worktree. Flags and semantics (dry run by default, `--yes`, `--merged`, `--force` and its dirty-worktree skip) are vd:worktree's to consult; the approval aliases are `clean merged` → `clean --merged --yes` and `clean all` → `clean --yes`. Always show the dry-run candidates and total size before applying either alias, and never infer approval for dirty paths from `clean all`. Before removing each candidate, check for active processes and open files (`ps -axo pid=,command= | rg -F "$WT"`, `lsof -nP +D "$WT"`); if either finds one, stop and ask the user to close it - never kill agent processes.
+All cleanup runs through `vd:worktree` (`node "$HOME/skills/skills/worktree/scripts/worktree.cjs" clean` from each repository root) - never `rm -rf` a worktree. Flags and semantics (dry run by default, `--yes`, `--merged`, `--force` and its dirty-worktree skip) are vd:worktree's to consult; the approval aliases are `clean merged` → `clean --merged --yes` and `clean all` → `clean --yes`. Always show the dry-run candidates and total size before applying either alias, grouped into `.worktrees/`, task-workspace checkouts, and scratch dirs. `clean` from a repo root selects all three. Do not run repo-wide `clean --yes` when a candidate sits outside `.worktrees/` unless that path was named; remove named paths with `remove <path>`. Never infer approval for dirty paths from `clean all`. The dirty skip ignores untracked files, so also skip a candidate whose `git status --porcelain` shows `??` other than `.env*`. Before removing each candidate, check for active processes and open files (`ps -axo pid=,command= | rg -F "$WT"`, then `lsof -a -p <pid> -d cwd` so a command line that merely mentions the path does not count, and `lsof -nP +D "$WT"`); if the cwd or open files are in that worktree, stop and ask the user to close it - never kill agent processes.
 
 ## Hard rules
 
