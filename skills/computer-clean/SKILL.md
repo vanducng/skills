@@ -134,7 +134,7 @@ Show `docker system df`, then run only the lines the user approved:
 ```bash
 docker builder prune -af    # build cache; regenerable
 docker image prune -af      # images no container uses; running containers keep theirs
-docker volume prune -f      # only after a per-volume yes
+docker volume rm <name>     # one approved volume; volume prune deletes every unused volume
 ```
 
 After an image prune, `docker ps` must still list the containers that were up before. Then verify host free space (`df -h /` and `df -h /System/Volumes/Data`). Sparse VM disks (OrbStack, Docker Desktop) often return that space to the host.
