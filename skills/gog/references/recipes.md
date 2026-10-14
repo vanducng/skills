@@ -35,6 +35,25 @@ gog --account acme --readonly calendar events --today --json --wrap-untrusted \
   | jq -r '.events[]? | "- \(.start.dateTime // .start.date) - \(.summary)"'
 ```
 
+## Book A Meeting
+
+The API sets you as `organizer` but does not list you as a guest, so invitees see no host row. Put your own email in `--attendees`. Leave `--event-color` unset: a set color differs from the calendar default the user's other events use.
+
+```bash
+gog --account acme calendar create <calendar-id> --summary "Review" \
+  --from 2026-10-15T14:00:00-04:00 --to 2026-10-15T15:00:00-04:00 \
+  --attendees 'me@acme.com,a@acme.com,b@acme.com;optional' --with-meet --send-updates all
+```
+
+Fix an existing event without emailing guests. `attendees` in a patch replaces the whole list, so send every guest. `calendar update --event-color ""` does not clear a color; patch `colorId: null`.
+
+```bash
+gog --account acme api call calendar v3 events.patch \
+  --params '{"calendarId":"<calendar-id>","eventId":"<event-id>","sendUpdates":"none"}' \
+  --body '{"colorId":null,"attendees":[{"email":"me@acme.com","responseStatus":"accepted"},{"email":"a@acme.com"},{"email":"b@acme.com","optional":true}]}' \
+  --allow-write --force --json
+```
+
 ## Send A Templated Email
 
 Identity check first. Confirm the recipient list. Block >10 recipients.
