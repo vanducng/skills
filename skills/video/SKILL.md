@@ -27,7 +27,7 @@ npx -y hyperframes@latest skills check || npx -y hyperframes@latest skills updat
 `media-use`) into `~/.claude/skills` and `~/.agents/skills`; creation workflows
 install on demand at routing time. A failed install is a visible failure -
 surface it, never continue from remembered upstream content. On a new machine
-run `npx hyperframes doctor` once (FFmpeg required; headless Chrome self-installs).
+run `npx -y hyperframes@latest doctor` once (FFmpeg required; headless Chrome self-installs).
 
 Never name a local skill `hyperframes-*` - the upstream installer claims that prefix.
 
@@ -75,7 +75,9 @@ with these overrides:
 Scaffold under the hook-injected `Visuals:` path: run the workflow's own
 `npx -y hyperframes@latest init <slug> ...` command from that directory, adding
 `--non-interactive`. No `Visuals:` path injected → ask once where to put it.
-Never scaffold inside a repo's tracked tree.
+Never scaffold inside a repo's tracked tree. Run every later command
+(`media-use`, `check`, `preview`, `render`) from the project root, since
+`--project .` and `.hyperframes/` resolve against the current directory.
 
 ## 5. Media without HeyGen
 
