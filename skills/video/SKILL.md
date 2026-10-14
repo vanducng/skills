@@ -73,7 +73,7 @@ with these overrides:
 ## 4. Where the project lives
 
 Scaffold under the hook-injected `Visuals:` path: run the workflow's own
-`hyperframes init <slug> ...` command from that directory, adding
+`npx -y hyperframes@latest init <slug> ...` command from that directory, adding
 `--non-interactive`. No `Visuals:` path injected → ask once where to put it.
 Never scaffold inside a repo's tracked tree.
 
@@ -87,7 +87,7 @@ either. Use:
 |---|---|
 | image | `npx hyperframes media-use resolve --type image --provider codex --intent "<what>" --project .` (ChatGPT sub, ~60s each) |
 | logo | upstream default (theSVG → GitHub avatar → favicon), free |
-| sfx | `resolve --type sfx --intent "<what>"` - bundled offline set |
+| sfx | `npx hyperframes media-use resolve --type sfx --intent "<what>" --project .` - bundled offline set |
 | voiceover | `vd:omnimedia` MiniMax speech (`speech-2.8-hd`) |
 | music bed | `vd:omnimedia` Lyria (instrumental only) - or no music. Not MiniMax music: it sings |
 
