@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[--project ALIAS] [--type bug|task] [ISSUE-KEY|request]"
 metadata:
   author: vanducng
-  version: "1.3.1"
+  version: "1.3.2"
 ---
 
 # Jira Integration (CLI Backend)
@@ -46,7 +46,7 @@ For Bug and Task creation, keep the ticket direct:
 
 - State the bare symptom and basic finding.
 - Include one short sample error when available.
-- Put provided screenshots and diagrams **inline in the description** (REST v3 ADF `mediaSingle`, left-aligned, 100% width). Upload as an attachment only as the media source. Never leave evidence as attachment-only or as a CLI 200 px thumbnail.
+- Put provided screenshots and diagrams **inline in the description** (REST v3 ADF `mediaSingle`, left-aligned). Size them with the rule in `references/inline-images.md` before upload. Upload as an attachment only as the media source. Never leave evidence as attachment-only or as a CLI 200 px thumbnail.
 - Load `references/inline-images.md` before any image write (create, edit, or comment).
 - Omit implementation details, proposed code, and speculative analysis unless requested.
 - Apply assignee, sprint, parent, and initial status from the matching local type rules.
@@ -140,7 +140,7 @@ jira board list                              # List boards
 
 ## Attachments
 
-**Default for every provided screenshot or diagram:** inline ADF in the issue **description** on create and in the **comment** on follow-up - uploading a file and stopping is incomplete. Method selection (public URL, readable local `mediaSingle`, reuse existing attachment, quick thumbnail, repair) is the decision table in [`references/inline-images.md`](references/inline-images.md); it also carries the layout rules (`align-start`, width `100`, `widthType: percentage` - media dimensions alone still render at Jira's default 50% width) and the never-put-the-numeric-attachment-ID-in-a-`media`-node rule. The CLI `--image` path renders a centered 200 px thumbnail - not for ticket evidence.
+**Default for every provided screenshot or diagram:** inline ADF in the issue **description** on create and in the **comment** on follow-up - uploading a file and stopping is incomplete. Method selection (public URL, readable local `mediaSingle`, reuse existing attachment, quick thumbnail, repair) and the size rule are in [`references/inline-images.md`](references/inline-images.md). Layout stays `align-start` and `widthType: percentage`. Width is `100` for landscape and square, `60` for a portrait shot. Media dimensions alone still render at Jira's default 50% width. Never put the numeric attachment ID in a `media` node. The CLI `--image` path renders a centered 200 px thumbnail - not for ticket evidence.
 
 ## REST API Version Notes
 

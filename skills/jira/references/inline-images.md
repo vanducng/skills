@@ -58,7 +58,18 @@ Do not use this for private or short-lived URLs.
 
 This is the default local-file workflow for screenshots, diagrams, and other evidence users must read without opening the attachment preview. Jira's attachment content endpoint redirects to a Media Services URL whose path contains the UUID required by an ADF `media` node. This works on Jira Cloud, but Atlassian does not document the redirect path as a stable identifier contract.
 
-Keep the source pixel dimensions on the media node. Set `mediaSingle.attrs.layout` to `align-start`, `width` to `100`, and `widthType` to `percentage`. Jira otherwise centers media and defaults it to 50% of the comment width, even when the media node contains larger pixel dimensions.
+Set `mediaSingle.attrs.layout` to `align-start` and `widthType` to `percentage`. Jira otherwise centers media and defaults it to 50% of the comment width, even when the media node contains larger pixel dimensions.
+
+## Size
+
+Shrink before upload, then record the file you actually uploaded.
+
+1. If the longer side is over 1400 px, scale it down so that side is 1400. `sips -Z 1400` on macOS. Do not upscale. Put the resized pixels in `media.attrs.width` and `media.attrs.height`, not the original capture size.
+2. Pick `mediaSingle.attrs.width` from the shape of that file:
+   - Landscape or square (`width >= height`): `100`.
+   - Portrait (`height > width`): `60`.
+
+A portrait screenshot at width `100` stays as tall as its aspect ratio, so a phone capture fills the ticket. Width `60` keeps it readable. Verify `.attrs.width` against the value you set.
 
 Upload the attachment manually, provide its source dimensions, and resolve the UUID without printing the signed redirect URL:
 
