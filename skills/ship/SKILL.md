@@ -61,7 +61,9 @@ Repository deployment policy and an explicitly named source/target branch take p
    Findings block the commit the same way Rule 7 does. Fix, or state out loud why the literal is required.
 8. **`--auto` has a safety floor.** Even in auto mode, **abort** on: critical review issues, **unresolved PR review comments**, secret-scan hits, test failures, merge conflicts, push rejections, ambiguous mode (no branch-name match). **Still prompt (do not silent-post)** for tracker writes that need `vd:jira` (or equivalent) show-before-execute (Step 12b ticket mirror) - if declined, skip the ticket post and continue the ship. Auto suppresses *judgement-call* prompts (issue creation, version bump level, no-test-runner, journal/docs skip) **and recoverable preflight conditions** (on-target-branch → auto-create feature branch per Rule 1). Auto NEVER suppresses safety violations or direct-push-to-target.
 9. **Ticket branch/title invariant.** Use the repository's ticket naming convention
-   and title `KEY-123: <past-tense description>`. With no repository convention,
+   and title `KEY-123: <past-tense description>`. In a workspace task with a
+   milestone and slice, title `type(scope): [KEY|M<n>|S<n>] <description>`
+   (see `../git/references/pr-template.md` → *Title*). With no repository convention,
    start new branches with the ticket key. Preserve an existing branch explicitly
    named by the user or already backing a PR; do not rename or delete it merely
    to satisfy a generic naming default. Confirm ambiguous ticket matches.

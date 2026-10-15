@@ -167,6 +167,8 @@ gog api call sheets v4 spreadsheets.batchUpdate --help
 ```
 
 Long tail: `gog api call <api> <version> <method>` and `gog <service> raw`.
+A write through `api call` needs `--allow-write --force` when non-interactive. For
+number formats on existing cells, use `gog sheets format --format-json '{"numberFormat":{...}}' --format-fields numberFormat`.
 Worked examples (inbox triage, agenda, send, sheet append, sheet update, archive):
 `references/recipes.md`. Styled multi-tab report architecture:
 `references/sheets-formatting.md`. Admin Directory: `gog admin` needs a

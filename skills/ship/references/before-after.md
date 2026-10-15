@@ -57,6 +57,32 @@ Summary:
 
 If Step 12 already opened the PR without the marker (non-UI guessed wrong), append the table via `gh pr edit` after a blank line under the verification block.
 
+### Several screens
+
+Every image sits inside a table cell; never list bare images one after another. One row per screen, with a label column, so a reviewer compares across a row:
+
+```markdown
+### Before and after
+
+| Screen | Before (<base sha8>) | After (<head sha8>) |
+|---|---|---|
+| Header, 1440, light | <img src="…" alt="before header 1440" width="100%"> | <img src="…" alt="after header 1440" width="100%"> |
+| Header, 390, light | <img …> | <img …> |
+
+### New screens
+
+| Screen | After (<head sha8>) |
+|---|---|
+| **Rename dialog, 1440, dark**<br>one short line on what to look at | <img …> |
+```
+
+- Label = screen, width, theme. Use the same viewport and data in a row.
+- A screen with no before goes in "New screens": two columns, the label in bold plus one line on what to look at in the first cell, the image in the second, so the image gets the width.
+- Use `<img width="…">`, not `![]()`, inside cells. Desktop shots `width="100%"` (they fill their column and stay readable); phone shots (390 wide) `width="260"`, never 100%, or GitHub blows them up to the full column.
+- Capture a dialog, menu or panel cropped to that component (plus a little context), not the full page: a full-page desktop shot of a small dialog is unreadable in a table cell.
+- Put the prose (what changed, how it was captured, design scores) above the tables, not between images.
+- Before marking the PR ready, render-check the body: every image inside a table, widths as above. If the project ships a layout checker, run it and leave it clean.
+
 ## Ticket system (Jira / tracker)
 
 When Step 1b confirmed a ticket key **and** a before/after pair exists:

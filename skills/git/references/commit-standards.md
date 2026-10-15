@@ -53,7 +53,7 @@ Only `feat` (minor), `fix` (patch), and breaking changes (`feat!:` / `BREAKING C
 
 - AI attribution: ❌ "Generated with Claude/Cursor", ❌ "Co-authored-by: Claude|Cursor", ❌ "Made with Cursor"
 - Emoji unless explicitly requested by user
-- Ticket IDs in the subject - put them in the body (`Refs #123`, `Closes #456`)
+- Ticket IDs in the commit subject - put them in the body (`Refs #123`, `Closes #456`). The PR title is where the ticket, milestone and slice tag goes (`pr-template.md` → *Title*)
 - Branch names in the subject
 
 ## Good examples

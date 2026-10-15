@@ -88,8 +88,8 @@ gh pr view 123 --json body --jq '.body' > /tmp/body.md
 python3 - <<'PY'
 import pathlib
 p = pathlib.Path("/tmp/body.md"); t = p.read_text()
-table = ("| Before | After |\n|---|---|\n"
-         "| ![Before](./before.png) | ![After](./after.png) |\n")
+table = ("| Screen | Before | After |\n|---|---|---|\n"
+         "| Page, 1440, light | ![Before](./before.png) | ![After](./after.png) |\n")
 assert "<!-- SCREENSHOTS -->" in t, "no marker in PR body"
 p.write_text(t.replace("<!-- SCREENSHOTS -->", table, 1))
 PY
@@ -97,6 +97,7 @@ gh pr edit 123 --body-file /tmp/body.md --attach ./before.png --attach ./after.p
 ```
 
 Run it from the directory the `./` paths resolve against. Each file once per call.
+`--attach` rewrites the `![]()` references to uploaded URLs. Then convert cells to sized `<img>` tags (desktop `width="100%"`, phone 390 shots `width="260"`) and check the layout; see `../../ship/references/before-after.md` *Several screens*. If the project ships a screenshot-layout checker, run it before marking the PR ready.
 New PR: same body file with `gh pr create --body-file ... --attach ...`.
 
 **Fallback (gh without `--attach`).** **On a private repo most workarounds silently produce
