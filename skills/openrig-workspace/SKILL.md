@@ -4,7 +4,7 @@ description: Work inside an org/project/task workspace that any coding harness (
 license: MIT
 metadata:
   author: vanducng
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # OpenRig workspace
@@ -89,6 +89,14 @@ Put the choice on the first line of the task `AGENTS.md`: `Kind: feature medium`
 **SOP.** Read the procedure in this order: a path the user named, then the project `AGENTS.md`, then the org `AGENTS.md`. Copy its steps into the slice mini-requirements and do them in that order. One seat. If no procedure exists, stop and ask. Do not promote it to a feature rig.
 
 A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop can be one harness in the task dir. Medium and high still get the review or plan gate in the brief even when you do not launch the extra seats.
+
+## One slice, one worktree, one PR
+
+- A slice is one branch, one worktree and one pull request per repo it touches. A slice that spans two repos gets one of each per repo, merged in the order its SPEC names.
+- Plan slices with disjoint file territories so two slices never edit the same code. One writer per slice.
+- Everything the slice needs goes in its one PR: code, tests, docs and review fixes. If the PR would grow past what a reviewer can read in one pass (roughly 800 changed lines), split the slice, not the PR.
+- The slice SPEC names the smallest local setup that proves the change (for example `Local stack: tests only`, `data`, `backend` or `ui`, as the repo's docs define them). Do not run more than that.
+- Cleanup is part of done: after the merge and the post-merge verification, remove the worktree with the repo's remove command (it must stop the worktree's containers and drop only that worktree's databases, buckets and keys), delete its task-dir link and the branch, and record one `cleaned` line in the slice PROGRESS.
 
 ## Start a task
 
