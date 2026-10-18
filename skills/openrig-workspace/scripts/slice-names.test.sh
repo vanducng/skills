@@ -46,7 +46,7 @@ assert_field "worktree under the workspace root" worktrees "[{\"repo\":\"api\",\
 
 echo "frontmatter"
 S="$(slice q3-billing 07-refunds)"
-spec q3-billing '---\r\nid: X\r\ncode: m7\r\nticket: ABC-123  # main ticket\r\nmilestone: "7"\r\n---\r\n# Mission\r\n'
+spec q3-billing '---\r\nid: X\r\ncode: m7\r\nticket: ABC-123  # main ticket\r\nmilestone: "07"\r\n---\r\n# Mission\r\n'
 assert_field "CRLF frontmatter and a trailing comment parse" prTag "[ABC-123|M7|S7]" "$S"
 assert_field "branch carries type, ticket, slice id and slug" branch "fix/ABC-123-m7-s07-refunds" "$S" --type fix
 assert_field "follow-up branch adds -2" followUpBranch "feat/ABC-123-m7-s07-refunds-2" "$S"
