@@ -1,10 +1,10 @@
 ---
 name: openrig-workspace
-description: Work inside an org/project/task workspace that any coding harness (Pi, Claude Code, Codex, Grok Build, Cursor) reads out of the box and that OpenRig can drive without a fork. Use when the user says "start a task in <project>", "set up the task dir", "which rig", "feature profile", "bugfix", "sop", "run this ticket with openrig", "attach the rig in herdr", "which project does this repo belong to", "add a project", or when the cwd is under a projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`). Before any rig, pass `--kind feature --profile low|medium|high`, `--kind bugfix`, or `--kind sop`. Owns the layout (including where worktrees live), task lifecycle, that choice, and OpenRig adjustments; defers worktree mechanics to the repo's own worktree command or vd:worktree, artifacts to vd:workbench, pane control to vd:herdr.
+description: Work inside an org/project/task workspace that any coding harness (Pi, Claude Code, Codex, Grok Build, Cursor) reads out of the box and that OpenRig can drive without a fork. Use when the user says "start a task in <project>", "set up the task dir", "which rig", "feature profile", "bugfix", "sop", "run this ticket with openrig", "attach the rig in herdr", "which project does this repo belong to", "add a project", "name the worktree or branch", "slice names", or when the cwd is under a projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`). Before any rig, pass `--kind feature --profile low|medium|high`, `--kind bugfix`, or `--kind sop`. Owns the layout (including where worktrees live), the unit of work (slice, worktree, PR) and its names, task lifecycle, that choice, and OpenRig adjustments; defers worktree mechanics to the repo's own worktree command or vd:worktree, artifacts to vd:workbench, pane control to vd:herdr.
 license: MIT
 metadata:
   author: vanducng
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # OpenRig workspace
@@ -16,35 +16,41 @@ One git repo, `$PROJECTS_ROOT` (default `$HOME/projects`), holds org and project
 ```
 $PROJECTS_ROOT/
   AGENTS.md  workspace.yaml  fleet/{machines,routing,policy}.yaml  specs/{agents,rigs}/
-  .worktrees/<repo>-<task-id>/                  # gitignored git worktrees, one per repo per task
+  .worktrees/<repo>-<slice-id>/                 # gitignored git worktrees, one per repo per slice
   orgs/<org>/
     AGENTS.md  org.yaml  repos.yaml            # repos.yaml is the only place paths live
     <project>/
       AGENTS.md  SPEC.md  project.yaml  repos.yaml
-      missions/<mission>/slices/<nn>-<task-id>/ # committed record: SPEC, PROGRESS, PROOF
-      tasks/<task-id>/                          # gitignored, machine-local
-        AGENTS.md                               # task brief; OpenRig appends seat blocks
-        rig.yaml                                # per-task rig
-        <repo> -> ../../../../../.worktrees/<repo>-<task-id>   # relative symlink
+      missions/<mission>/SPEC.md                # frontmatter code:, ticket:, milestone:
+      missions/<mission>/slices/<nn>-<slug>/    # committed record: SPEC, PROGRESS, PROOF
+      tasks/<task>/                             # gitignored, machine-local, one per rig
+        AGENTS.md                               # brief; OpenRig appends seat blocks
+        rig.yaml
+        <repo> -> ../../../../../.worktrees/<repo>-<slice-id>   # per-slice rig only
 ```
 
-- **Org** = GitHub owner. **Project** = repos routinely changed in the same ticket. A repo belongs to one org and may appear in several projects. A **task** is one ticket in one project.
+- **Org** = GitHub owner. **Project** = repos routinely changed in the same ticket. A repo belongs to one org and may appear in several projects.
+- A **mission** is an outcome with an owner and a date. A **slice** is one piece of it and the unit of work (see Unit of work). A **task dir** is where a rig runs: one per slice for a per-slice rig, or one long-lived dir for a team rig that works many slices.
 - OpenRig catalog IDs are `<org>.<project>`. `$PROJECTS_ROOT` is OpenRig's `workspace.root`.
 
 ## Naming
 
-One task id everywhere, so `rg <ticket>` finds the record, the workdir, the artifacts, and the rig.
+One slice id everywhere, so `rg <slice-id>` finds the record, the worktrees, the branches and the artifacts. Print the names instead of typing them:
+
+```bash
+node "$HOME/skills/skills/openrig-workspace/scripts/slice-names.cjs" <slice dir> --repo <repo> [--repo <repo2>] [--type fix]
+```
 
 | Thing | Form | Example |
 |---|---|---|
-| Task id (same as the vd:workbench feature id) | `<ticket>-<slug>`, lowercase | `abc-123-login-fix` |
-| Task dir | `tasks/<task-id>/` | `tasks/abc-123-login-fix/` |
-| Worktree | `$PROJECTS_ROOT/.worktrees/<repo>-<task-id>/`, linked as `<task dir>/<repo>` | `.worktrees/api-abc-123-login-fix/` |
-| Branch | repo convention first; else `<type>/<TICKET>-<slug>` | `fix/ABC-123-login-fix` |
-| Slice | OpenRig prefixes `<nn>-` | `02-abc-123-login-fix` |
-| Rig name | task id | `abc-123-login-fix` |
+| Slice folder | `missions/<mission>/slices/<nn>-<slug>/` (OpenRig adds `<nn>-`) | `missions/m2-checkout/slices/04-login-fix/` |
+| Slice id | `<code>-s<nn>`; `code:` from the mission SPEC frontmatter, else the mission folder's `m<n>-` prefix (`milestone:` falls back to that prefix's number) | `m2-s04` |
+| Worktree | `$PROJECTS_ROOT/.worktrees/<repo>-<slice-id>/`; also the repo's compose project and local host name | `.worktrees/api-m2-s04/` |
+| Branch | repo convention first; else `<type>/<TICKET>-<slice-id>-<slug>`; each follow-up PR adds `-2`, `-3` | `fix/ABC-123-m2-s04-login-fix` |
+| PR tag | `[<TICKET>\|M<milestone>\|S<n>]` from the mission frontmatter `ticket:` and `milestone:`, where the workspace tags PRs | `[ABC-123\|M2\|S4]` |
+| Per-slice task dir and rig | `tasks/<slice-id>/`, rig name the same | `tasks/m2-s04/` |
 
-vd:workbench derives the feature id only from a `<type>/<TICKET>-<slug>` branch (`feat`, `fix`, `chore`, `docs`, ...; not `feature/`). When the repo convention is a bare ticket branch, claim the id once with `workbench new <slug> --ticket <TICKET>`.
+The mission `code` must be unique among projects that share a repo, because their worktrees share one `.worktrees/`. vd:workbench derives the feature id from a `<type>/<TICKET>-<slug>` branch (here `abc-123-m2-s04-login-fix`; not `feature/`). With a bare-ticket branch convention, claim the id once with `workbench new <slug> --ticket <TICKET>`.
 
 ## Hard rules
 
@@ -90,32 +96,37 @@ Put the choice on the first line of the task `AGENTS.md`: `Kind: feature medium`
 
 A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop can be one harness in the task dir. Medium and high still get the review or plan gate in the brief even when you do not launch the extra seats.
 
-## One slice, one worktree, one PR
+## Unit of work
 
-- A slice is one branch, one worktree and one pull request per repo it touches. A slice that spans two repos gets one of each per repo, merged in the order its SPEC names.
-- Plan slices with disjoint file territories so two slices never edit the same code. One writer per slice.
-- Everything the slice needs goes in its one PR: code, tests, docs and review fixes. If the PR would grow past what a reviewer can read in one pass (roughly 800 changed lines), split the slice, not the PR.
-- The slice SPEC names the smallest local setup that proves the change (for example `Local stack: tests only`, `data`, `backend` or `ui`, as the repo's docs define them). Do not run more than that.
-- Cleanup is part of done: after the merge and the post-merge verification, remove the worktree with the repo's remove command (it must stop the worktree's containers and drop only that worktree's databases, buckets and keys), delete its task-dir link and the branch, and record one `cleaned` line in the slice PROGRESS.
+- **Slice** is the unit of work: one outcome, one SPEC, one file territory, one owner seat from dispatch to cleanup. A seat is a role, not a unit. Keeping a slice on one seat reuses the context that built it; a relaunched seat re-reads the slice SPEC and PROGRESS.
+- **Worktree** belongs to the slice, not to a seat or a PR: one per repo the slice touches, created at dispatch, removed by the cleanup gate. One writer at a time; hand it over with the queue line `worktree_path=<real path>`.
+- **PR** is a shipping step of the slice. One by default, carrying code, tests and docs. A follow-up (a finding after merge, a staging defect) is a new branch from the updated base in the same worktree, with the same slice tag. A slice's PRs run one after another; work that needs two writers at once is two slices. Never merge one feature branch into another.
+- A slice that spans repos gets one worktree and PR per repo, merged in the order its SPEC names. Past about 800 changed lines in one PR, split the slice.
+- Every PR belongs to a slice. A defect found during a slice is fixed in it; one with no slice gets its own small slice, so tags stay true.
+- **Waves prevent conflicts.** The lead dispatches the slices that run in parallel with disjoint file territories and keeps the project's hotspot list (files several slices tend to touch, in the project `AGENTS.md`). Only one open slice touches a hotspot; overlap means serialize.
+- Merge the base into an open PR only right before it merges, or when it conflicts.
+- A switch that differs by environment (a test window, a flag) belongs in per-environment config, not in a PR per flip.
+- The slice SPEC names the smallest local setup that proves the change (for example `Local stack: tests only`, `data`, `backend` or `ui`, as the repo's docs define them). Run a stack only while proving something, then stop it.
+- Cleanup is part of done: after the merge and the post-merge verification, remove the worktree with the repo's remove command (it must stop the worktree's containers and drop only that worktree's databases, buckets and keys), delete its task-dir link (if any) and the branch, and record one `cleaned` line in the slice PROGRESS.
 
 ## Start a task
 
 1. **Resolve.** Find the project (`workspace.yaml`, `orgs/<org>/<project>/repos.yaml`) and each repo's path for this machine (`orgs/<org>/repos.yaml`, key `paths.<machine>`). A missing path is a question, not a clone. Pick the kind above.
 2. **Record.** If the ticket has no slice yet:
    ```bash
-   rig scope slice create <mission> <ticket-slug> --template <sliceTemplate> --workspace "$PROJECTS_ROOT/orgs/<org>/<project>"
+   rig scope slice create <mission> <slug> --template <sliceTemplate> --workspace "$PROJECTS_ROOT/orgs/<org>/<project>"
    ```
-   Fill `SPEC.md`: intent, mini-requirements, proof contract, repos. Check with `rig scope audit --workspace … --mission <mission>`. On OpenRig 0.6.1 or newer, read that project's execution view with `rig view show execution --project <org>.<project> --mission <mission> --json`. Omitting `--project` reads only the default workspace.
-3. **Workdir.** `T="$PROJECTS_ROOT/orgs/<org>/<project>/tasks/<task-id>"; mkdir -p "$T"`.
-4. **Worktrees.** One per repo, under `$PROJECTS_ROOT/.worktrees/`, named `<repo>-<task-id>` (also its compose project and local host name, so it must be unique across repos).
+   Fill `SPEC.md`: intent, mini-requirements, proof contract, repos, territory. Print its names with `slice-names.cjs <slice dir> --repo <repo>`. Check with `rig scope audit --workspace … --mission <mission>`. On OpenRig 0.6.1 or newer, read that project's execution view with `rig view show execution --project <org>.<project> --mission <mission> --json`. Omitting `--project` reads only the default workspace.
+3. **Workdir.** A per-slice rig: `T="$PROJECTS_ROOT/orgs/<org>/<project>/tasks/<slice-id>"; mkdir -p "$T"`. A team rig already has its task dir.
+4. **Worktrees.** One per repo, under `$PROJECTS_ROOT/.worktrees/`, named `<repo>-<slice-id>` from the helper.
    - Refresh the main checkout first when it is clean: `git fetch && git switch <default> && git pull --ff-only`.
    - **The repo has its own worktree command** (its `AGENTS.md` or docs name it, for example a `mise run worktree` task): run that from the main checkout, with its root variable pointed at `$PROJECTS_ROOT/.worktrees` and the name above.
    - **Otherwise** use vd:worktree:
      ```bash
      node "$HOME/skills/skills/worktree/scripts/worktree.cjs" create <branch> --no-prefix --no-enter \
-       --worktree-root "$PROJECTS_ROOT/.worktrees" --name <repo>-<task-id>
+       --worktree-root "$PROJECTS_ROOT/.worktrees" --name <repo>-<slice-id>
      ```
-   - Link it into the task dir: `ln -s ../../../../../.worktrees/<repo>-<task-id> "$T/<repo>"`. Rig specs and briefs keep using `<repo>`.
+   - A per-slice rig links it into the task dir: `ln -s ../../../../../.worktrees/<repo>-<slice-id> "$T/<repo>"`, so rig specs and briefs keep using `<repo>`. A team rig's task dir holds no links; the baton names the worktree.
    - `.env`: let the repo's setup build it from `.env.example`. Never copy a checkout's `.env` that holds live provider keys into a worktree.
    - On an external disk with Docker bind mounts, prove the disk once per machine: a container writes a few thousand small files into a bind mount under `.worktrees/` behind a watchdog. If it hangs, restart the container runtime and keep that repo's worktrees on the internal disk until disk access is fixed.
    - Hand a worktree to a seat with the exact queue line `worktree_path=<real path>`. One writer per worktree. vd:workbench artifacts still land in the repo's main checkout.
@@ -124,7 +135,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 
 ## Run it with OpenRig
 
-1. **Rig spec.** Copy `$PROJECTS_ROOT/specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`, using the template from `rig-kind.cjs`. Set `name: <task-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../specs/agents/<role>` (the path relative to the task dir). Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`). A missing template is a stop, not a guess.
+1. **Rig spec.** Copy `$PROJECTS_ROOT/specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`, using the template from `rig-kind.cjs`. Set `name: <slice-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../specs/agents/<role>` (the path relative to the task dir). Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`). A missing template is a stop, not a guess.
 2. **Models.** Take them from `fleet/routing.yaml`. The default seat is Claude Code with a bare model id (`claude-opus-5-5`). A seat that opts into `runtime: pi` uses `routing.pi`, as `provider/id:thinking`. When the script says `models: role`, use the named key in that same map.
 3. **Pi seat auth (Pi seats only).** A Pi seat gets a blank agent dir at `$OPENRIG_HOME/state/pi/<pod>-<member>@<rig>/agent`, and custom-provider env vars are not forwarded. Before `rig up`, put a `models.json` there (or a symlink to one shared file). It carries the provider's non-secret fields plus an `apiKey` of the form `"!<secret read command>"`. Never write a literal key.
 4. **Launch.**
@@ -137,12 +148,12 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
    - Solo rig: type in the tile or use `rig send <seat> "…"`. Pi runner prefixes are `/followup <text>` and `/abort`; Claude Code seats take plain text.
    - Team rig: talk to the owner, and steer the writer directly only to unblock or abort it.
    - Chat is not recorded. Ask the seat to update `PROGRESS.md` or its queue item.
-7. **Finish.** Update the slice. Run `rig down <name>`, which strips OpenRig blocks from `$T/AGENTS.md`. Remove each worktree with the repo's own remove command or vd:worktree once it is merged or abandoned, never with unlanded work, and delete its `$T/<repo>` link. Delete `$T`.
+7. **Finish.** Update the slice, then remove each of its worktrees with the repo's own remove command or vd:worktree once it is merged or abandoned, never with unlanded work. A per-slice rig also runs `rig down <name>` (which strips OpenRig blocks from `$T/AGENTS.md`), deletes each `$T/<repo>` link and deletes `$T`. A team rig keeps running and keeps its task dir; only the slice's worktrees go.
 
 ## After a merge
 
 - Refresh that repo's main checkout: fetch, then fast-forward its default branch only if the checkout is clean. Refresh any read-only reference copies the same way.
-- Active worktrees pick the change up with `git merge origin/<default>` and the repo's setup, which should add new `.env.example` keys without overwriting values.
+- Active worktrees pick the change up when they next merge the base (right before their own merge, or on a conflict) and rerun the repo's setup, which should add new `.env.example` keys without overwriting values.
 - Stop and remove the merged worktree's stack and worktree.
 
 ## OpenRig gotchas
