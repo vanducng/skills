@@ -44,7 +44,7 @@ node "$HOME/skills/skills/openrig-workspace/scripts/slice-names.cjs" <slice dir>
 | Thing | Form | Example |
 |---|---|---|
 | Slice folder | `missions/<mission>/slices/<nn>-<slug>/` (OpenRig adds `<nn>-`) | `missions/m2-checkout/slices/04-login-fix/` |
-| Slice id | `<code>-s<nn>`; `code:` from the mission SPEC frontmatter, else the mission folder's `m<n>-` prefix | `m2-s04` |
+| Slice id | `<code>-s<nn>`; `code:` from the mission SPEC frontmatter, else the mission folder's `m<n>-` prefix (`milestone:` falls back to that prefix's number) | `m2-s04` |
 | Worktree | `$PROJECTS_ROOT/.worktrees/<repo>-<slice-id>/`; also the repo's compose project and local host name | `.worktrees/api-m2-s04/` |
 | Branch | repo convention first; else `<type>/<TICKET>-<slice-id>-<slug>`; each follow-up PR adds `-2`, `-3` | `fix/ABC-123-m2-s04-login-fix` |
 | PR tag | `[<TICKET>\|M<milestone>\|S<n>]` from the mission frontmatter `ticket:` and `milestone:`, where the workspace tags PRs | `[ABC-123\|M2\|S4]` |
@@ -114,7 +114,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 1. **Resolve.** Find the project (`workspace.yaml`, `orgs/<org>/<project>/repos.yaml`) and each repo's path for this machine (`orgs/<org>/repos.yaml`, key `paths.<machine>`). A missing path is a question, not a clone. Pick the kind above.
 2. **Record.** If the ticket has no slice yet:
    ```bash
-   rig scope slice create <mission> <ticket-slug> --template <sliceTemplate> --workspace "$PROJECTS_ROOT/orgs/<org>/<project>"
+   rig scope slice create <mission> <slug> --template <sliceTemplate> --workspace "$PROJECTS_ROOT/orgs/<org>/<project>"
    ```
    Fill `SPEC.md`: intent, mini-requirements, proof contract, repos, territory. Print its names with `slice-names.cjs <slice dir> --repo <repo>`. Check with `rig scope audit --workspace … --mission <mission>`. On OpenRig 0.6.1 or newer, read that project's execution view with `rig view show execution --project <org>.<project> --mission <mission> --json`. Omitting `--project` reads only the default workspace.
 3. **Workdir.** A per-slice rig: `T="$PROJECTS_ROOT/orgs/<org>/<project>/tasks/<slice-id>"; mkdir -p "$T"`. A team rig already has its task dir.
@@ -148,12 +148,12 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
    - Solo rig: type in the tile or use `rig send <seat> "…"`. Pi runner prefixes are `/followup <text>` and `/abort`; Claude Code seats take plain text.
    - Team rig: talk to the owner, and steer the writer directly only to unblock or abort it.
    - Chat is not recorded. Ask the seat to update `PROGRESS.md` or its queue item.
-7. **Finish.** Update the slice. Run `rig down <name>`, which strips OpenRig blocks from `$T/AGENTS.md`. Remove each worktree with the repo's own remove command or vd:worktree once it is merged or abandoned, never with unlanded work, and delete its `$T/<repo>` link. Delete `$T`.
+7. **Finish.** Update the slice. Run `rig down <name>`, which strips OpenRig blocks from `$T/AGENTS.md`. Remove each worktree with the repo's own remove command or vd:worktree once it is merged or abandoned, never with unlanded work, and delete its `$T/<repo>` link. Delete `$T` for a per-slice rig; a team rig keeps its task dir across slices.
 
 ## After a merge
 
 - Refresh that repo's main checkout: fetch, then fast-forward its default branch only if the checkout is clean. Refresh any read-only reference copies the same way.
-- Active worktrees pick the change up with `git merge origin/<default>` and the repo's setup, which should add new `.env.example` keys without overwriting values.
+- Active worktrees pick the change up when they next merge the base (right before their own merge, or on a conflict) and rerun the repo's setup, which should add new `.env.example` keys without overwriting values.
 - Stop and remove the merged worktree's stack and worktree.
 
 ## OpenRig gotchas
