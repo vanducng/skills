@@ -148,7 +148,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
    - Solo rig: type in the tile or use `rig send <seat> "…"`. Pi runner prefixes are `/followup <text>` and `/abort`; Claude Code seats take plain text.
    - Team rig: talk to the owner, and steer the writer directly only to unblock or abort it.
    - Chat is not recorded. Ask the seat to update `PROGRESS.md` or its queue item.
-7. **Finish.** Update the slice. Run `rig down <name>`, which strips OpenRig blocks from `$T/AGENTS.md`. Remove each worktree with the repo's own remove command or vd:worktree once it is merged or abandoned, never with unlanded work, and delete its `$T/<repo>` link. Delete `$T` for a per-slice rig; a team rig keeps its task dir across slices.
+7. **Finish.** Update the slice, then remove each of its worktrees with the repo's own remove command or vd:worktree once it is merged or abandoned, never with unlanded work. A per-slice rig also runs `rig down <name>` (which strips OpenRig blocks from `$T/AGENTS.md`), deletes each `$T/<repo>` link and deletes `$T`. A team rig keeps running and keeps its task dir; only the slice's worktrees go.
 
 ## After a merge
 

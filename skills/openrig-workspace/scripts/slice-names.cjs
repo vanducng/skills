@@ -48,6 +48,8 @@ function workspaceRoot(from) {
   return env && fs.existsSync(path.join(env, "workspace.yaml")) ? env : null;
 }
 
+const unknown = args.filter((arg) => arg.startsWith("--") && !["--repo", "--type", "--json"].includes(arg));
+if (unknown.length) fail(`Unknown option ${unknown[0]}.`);
 const positional = args.filter((arg, i) => !arg.startsWith("--") && !["--repo", "--type"].includes(args[i - 1]));
 if (positional.length !== 1) fail("Usage: slice-names.cjs <slice dir> [--repo <repo>]... [--type feat|fix|chore|docs|test|refactor|perf] [--json]");
 
@@ -77,7 +79,7 @@ if (!/^(feat|fix|chore|docs|test|refactor|perf)$/.test(type)) fail(`Unknown --ty
 
 const root = workspaceRoot(sliceDir);
 const worktrees = flags("--repo").map((repo) => {
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(repo)) fail(`Repo name ${repo} must be lowercase letters, digits or '-', so it works as a host label and compose project.`);
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(repo)) fail(`Repo name ${repo} must be lowercase letters, digits or '-', so it works as a host label and compose project.`);
   const name = `${repo}-${sliceId}`;
   if (name.length > 63) fail(`${name} is longer than a 63-character host label; shorten the mission code.`);
   return { repo, name, path: root ? path.join(root, ".worktrees", name) : null };
