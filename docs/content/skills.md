@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog contains 90 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
+The catalog contains 91 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
 
 Count source: `find skills -mindepth 1 -maxdepth 1 -type d`. Validation: `scripts/validate.sh`.
 
@@ -68,7 +68,7 @@ Start with a local browser. Use `vd:browser` only when the site blocks local aut
 | --- | --- |
 | Web and frontend | `vd:uiuxdesign`, `vd:better-ui`, `vd:design-eng`, `vd:opendesign`, `vd:fastreact` |
 | Interface and storage design | `vd:apidesign`, `vd:dbdesign` |
-| Media, files, and social | `vd:omnimedia`, `vd:marketing-design`, `vd:copywriting`, `vd:unslop`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
+| Media, files, and social | `vd:omnimedia`, `vd:video`, `vd:marketing-design`, `vd:copywriting`, `vd:unslop`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 
 ## Docs and diagrams
 
