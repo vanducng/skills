@@ -17,7 +17,7 @@
  *
  * Options:
  *   --prefix <type>        Branch prefix (feat|fix|refactor|docs|test|chore|perf)
- *   --base <branch>        Override auto-detected base branch (default: dev→develop→main→master)
+ *   --base <branch>        Override auto-detected base branch (default: dev→develop→origin/HEAD→main→master)
  *   --checkout-submodules  Initialize submodules in the new worktree after create
  *   --worktree-root <path> Explicit worktree directory (default: <git-root>/.worktrees)
  *   --name <dir>           Worktree directory name (default: <repo>-<feature>)
@@ -28,6 +28,7 @@
  *   --no-pre-remove-hook   Skip .worktree/hooks/pre-remove on remove
  *   --dry-run              Show what would be done without executing
  *   --no-prefix            Skip branch prefix and preserve original case
+ *   --skip-repo-task       Create even when the repo declares its own worktree task
  */
 
 const { execSync, execFileSync } = require('child_process');
@@ -197,6 +198,11 @@ if (noCopyEnvIndex > -1) args.splice(noCopyEnvIndex, 1);
 const noEnterIndex = args.indexOf('--no-enter');
 const noEnter = noEnterIndex > -1 || process.env.WORKTREE_NO_ENTER === '1';
 if (noEnterIndex > -1) args.splice(noEnterIndex, 1);
+
+// --skip-repo-task: create here even though the repo declares its own worktree task
+const skipRepoTaskIndex = args.indexOf('--skip-repo-task');
+const skipRepoTask = skipRepoTaskIndex > -1;
+if (skipRepoTaskIndex > -1) args.splice(skipRepoTaskIndex, 1);
 
 // --no-pre-remove-hook: skip .worktree/hooks/pre-remove on remove
 const noPreRemoveHookIndex = args.indexOf('--no-pre-remove-hook');
@@ -373,6 +379,7 @@ const ERROR_CODE_MAP = {
   MULTIPLE_PROJECTS_MATCH: 'FATAL_ARG',
   MULTIPLE_WORKTREES_MATCH: 'FATAL_ARG',
   NOT_GIT_REPO: 'FATAL_ARG',
+  REPO_WORKTREE_TASK: 'FATAL_ARG',
   WORKTREE_NOT_FOUND: 'FATAL_ARG',
   NODE_VERSION_ERROR: 'ERROR_RUNTIME',
   GIT_VERSION_ERROR: 'ERROR_RUNTIME',
@@ -478,12 +485,24 @@ function checkGitVersion() {
 
 // Detect base branch
 function detectBaseBranch(cwd) {
-  const branches = ['dev', 'develop', 'main', 'master'];
-  for (const branch of branches) {
+  const found = branch => {
     const local = git(`show-ref --verify --quiet refs/heads/${branch}`, { silent: true, cwd });
     if (local.success) return branch;
     const remote = git(`show-ref --verify --quiet refs/remotes/origin/${branch}`, { silent: true, cwd });
-    if (remote.success) return branch;
+    return remote.success ? branch : null;
+  };
+  for (const branch of ['dev', 'develop']) {
+    if (found(branch)) return branch;
+  }
+  // The remote's default branch is the repo's own choice (e.g. a staging integration branch).
+  const head = git('symbolic-ref -q --short refs/remotes/origin/HEAD', { silent: true, cwd });
+  const remoteDefault = head.success && head.output.startsWith('origin/') ? head.output.slice('origin/'.length) : null;
+  if (remoteDefault && sanitizeBaseBranch(remoteDefault) === remoteDefault) {
+    const hasLocal = gitArgs(['show-ref', '--verify', '--quiet', `refs/heads/${remoteDefault}`], { cwd }).success;
+    return hasLocal ? remoteDefault : `origin/${remoteDefault}`;
+  }
+  for (const branch of ['main', 'master']) {
+    if (found(branch)) return branch;
   }
   return 'main'; // fallback
 }
@@ -811,12 +830,12 @@ function findEnvFilesRecursive(dir, relPrefix = '', depth = 0) {
 
 // Copy real (untracked, gitignored) .env* files from the source checkout,
 // including nested ones. Tracked env files arrive via checkout.
-function copyUntrackedEnvFiles(srcDir, destDir) {
+function copyUntrackedEnvFiles(srcDir, destDir, skip = []) {
   const copied = [];
   const warnings = [];
 
   findEnvFilesRecursive(srcDir).forEach(rel => {
-    if (isTrackedByGit(rel, srcDir)) return;
+    if (skip.includes(rel) || isTrackedByGit(rel, srcDir)) return;
     try {
       const destPath = path.join(destDir, rel);
       fs.mkdirSync(path.dirname(destPath), { recursive: true });
@@ -1389,6 +1408,7 @@ function cmdInfo() {
   const dirtyState = checkDirtyState();
   const dirtyDetails = dirtyState ? getDirtyStateDetails() : null;
   const envFiles = findEnvFiles(gitRoot);
+  const repoWorktreeTask = detectRepoWorktreeTask(gitRoot);
 
   // Get worktree root info (shows where worktrees will be created)
   const worktreeRoot = getWorktreeRoot(gitRoot, isMonorepo);
@@ -1418,7 +1438,8 @@ function cmdInfo() {
     envFiles,
     projectEnvFiles: isMonorepo ? projectEnvFiles : {},
     dirtyState,
-    dirtyDetails
+    dirtyDetails,
+    repoWorktreeTask
   });
 }
 
@@ -1649,6 +1670,14 @@ function cmdCreate() {
     });
   }
 
+  const repoTask = detectRepoWorktreeTask(isMonorepo ? workDir : gitRoot);
+  if (repoTask && !skipRepoTask) {
+    outputError('REPO_WORKTREE_TASK', `This repo declares its own worktree task (${repoTask.source}); create the worktree with it`, {
+      suggestion: `Run ${repoTask.command} (usage: ${repoTask.usage}). Pass --skip-repo-task only when you deliberately want a plain worktree.`,
+      repoWorktreeTask: repoTask
+    });
+  }
+
   // Detect base branch (use explicit --base if provided, otherwise auto-detect)
   const baseBranch = explicitBase || detectBaseBranch(workDir);
   const baseBranchSource = explicitBase ? 'explicit' : 'auto-detected';
@@ -1780,7 +1809,8 @@ function cmdCreate() {
   if (branchStatus) {
     createResult = git(`worktree add "${worktreePath}" ${branchName}`, { cwd: workDir });
   } else {
-    createResult = git(`worktree add -b ${branchName} "${worktreePath}" ${baseBranch}`, { cwd: workDir });
+    const noTrack = baseBranch.startsWith('origin/') ? ' --no-track' : '';
+    createResult = git(`worktree add${noTrack} -b ${branchName} "${worktreePath}" ${baseBranch}`, { cwd: workDir });
   }
 
   if (!createResult.success) {
@@ -1825,8 +1855,9 @@ function cmdCreate() {
   // Env propagation order: real untracked .env* files win, templates fill
   // gaps, explicit --env entries and .worktreeinclude add the rest.
   const envFilesCopied = [];
+  const envFromTemplate = setupCreatesEnvFromTemplate(sourceDir);
   if (!noCopyEnv) {
-    const untracked = copyUntrackedEnvFiles(sourceDir, worktreePath);
+    const untracked = copyUntrackedEnvFiles(sourceDir, worktreePath, envFromTemplate ? ['.env'] : []);
     untracked.copied.forEach(f => envFilesCopied.push(f));
     untracked.warnings.forEach(w => warnings.push(w));
   }
@@ -1894,7 +1925,8 @@ function cmdCreate() {
 
   const mise = runMiseSetup(worktreePath);
   if (mise.skipped) warnings.push(mise.skipped);
-  const suggestedInstalls = detectInstallCommands(worktreePath);
+  const containerTooling = runsToolsInContainers(worktreePath);
+  const suggestedInstalls = containerTooling ? [] : detectInstallCommands(worktreePath);
   [].concat(mise.suggested || []).reverse().forEach(s => suggestedInstalls.unshift(s));
 
   // Resolve & run post-create hook (explicit flag wins; otherwise auto-detect).
@@ -1929,13 +1961,60 @@ function cmdCreate() {
     worktreeId: worktreeEnv.WORKTREE_ID,
     envWorktreeFile: ENV_WORKTREE_FILE,
     envFilesCopied,
+    envFromTemplate,
     envTemplatesCopied: envResult.copied,
     includeCopied: includeResult.copied,
     suggestedInstalls,
+    containerTooling,
     mise,
     sessionSwitch: buildSessionSwitch(worktreePath, !noEnter),
     postCreateHook: hookResult ? { ran: true, hook: hookResult.display } : { ran: false },
     warnings: warnings.length > 0 ? warnings : undefined
+  });
+}
+
+// A repo that ships its own worktree command (its stack, ports and env setup
+// live there) is the one to use; the generic create would bypass it.
+const MISE_FILE_TASK_DIRS = ['mise-tasks', '.mise-tasks', path.join('mise', 'tasks'), path.join('.mise', 'tasks'), path.join('.config', 'mise', 'tasks')];
+
+function detectRepoWorktreeTask(repoRoot) {
+  const miseTask = rel => ({ kind: 'mise', command: 'mise run worktree', source: rel.split(path.sep).join('/'), usage: 'mise tasks info worktree' });
+  for (const name of MISE_CONFIG_NAMES) {
+    let text;
+    try { text = fs.readFileSync(path.join(repoRoot, name), 'utf-8'); } catch { continue; }
+    if (/^\s*\[tasks\.(?:worktree|"worktree"|'worktree')\]\s*$/m.test(text)) return miseTask(name);
+  }
+  for (const dir of MISE_FILE_TASK_DIRS) {
+    const rel = path.join(dir, 'worktree');
+    if (fs.existsSync(path.join(repoRoot, rel))) return miseTask(rel);
+  }
+  const script = path.join('scripts', 'dev', 'worktree.sh');
+  if (fs.existsSync(path.join(repoRoot, script))) {
+    const rel = script.split(path.sep).join('/');
+    return { kind: 'script', command: rel, source: rel, usage: `head -20 ${rel}` };
+  }
+  return null;
+}
+
+// The repo's own setup writes .env from .env.example (e.g. `[ -f .env ] || cp .env.example .env`),
+// so a copied checkout .env would only carry that checkout's keys and stack settings along.
+const SETUP_PATHSPECS = ['scripts', 'bin', 'Makefile', 'justfile', 'Justfile', 'Taskfile.yml', ...MISE_CONFIG_NAMES.map(n => n.split(path.sep).join('/'))];
+
+function setupCreatesEnvFromTemplate(repoRoot) {
+  if (!fs.existsSync(path.join(repoRoot, '.env.example'))) return false;
+  const pattern = `cp[[:space:]]+(-[[:alpha:]]+[[:space:]]+)*["']?\\.env\\.example["']?[[:space:]]+["']?\\.env["']?([[:space:];)&|]|$)`;
+  return gitArgs(['grep', '-q', '-E', pattern, '--', ...SETUP_PATHSPECS], { cwd: repoRoot }).success;
+}
+
+// A compose service that bind-mounts the repo root runs the toolchain in containers,
+// so host lockfile installs would use the wrong runtimes (or tools the host lacks).
+const COMPOSE_FILES = ['compose.yaml', 'compose.yml', 'docker-compose.yaml', 'docker-compose.yml'];
+
+function runsToolsInContainers(repoRoot) {
+  return COMPOSE_FILES.some(name => {
+    let text;
+    try { text = fs.readFileSync(path.join(repoRoot, name), 'utf-8'); } catch { return false; }
+    return /^\s*-\s*["']?\.\/?:\//m.test(text) || /^\s*source:\s*["']?\.\/?["']?\s*$/m.test(text);
   });
 }
 
@@ -2363,6 +2442,7 @@ Options:
   --no-pre-remove-hook     Skip .worktree/hooks/pre-remove teardown on remove
   --dry-run                Show what would be done without executing
   --no-prefix              Skip branch prefix and preserve original case
+  --skip-repo-task         Create even when the repo declares its own worktree task
   --help, -h               Show this help message
 
 Exit codes:
