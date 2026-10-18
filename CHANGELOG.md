@@ -2,6 +2,23 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.68.0](https://github.com/vanducng/skills/compare/v1.67.0...v1.68.0) (2026-10-18)
+
+
+### Features
+
+* **openrig-workspace:** slice as the unit of work, with derived names ([4ef2801](https://github.com/vanducng/skills/commit/4ef2801eeebab67898bb9ebab925bde93dc79255))
+* **openrig-workspace:** slice as the unit of work, with derived names ([43f8e89](https://github.com/vanducng/skills/commit/43f8e8915dfd9dbc0711e35dc79cf9f8670b7bdb))
+
+
+### Bug Fixes
+
+* **openrig-workspace:** a team rig keeps running when a slice finishes ([dfdb305](https://github.com/vanducng/skills/commit/dfdb30542883e95d58e34c5d8854047b4096bb3d))
+* **openrig-workspace:** keep quoted values whole, reject a repeated --type ([c5b15d4](https://github.com/vanducng/skills/commit/c5b15d4a6f858e9f431059f68d68070cabf1e6a1))
+* **openrig-workspace:** normalize the milestone and require a real workspace root ([6c304e5](https://github.com/vanducng/skills/commit/6c304e5f09e96d49664e9ff86dc46e80d290c7e4))
+* **openrig-workspace:** parse a quoted value with a trailing comment ([6468ec1](https://github.com/vanducng/skills/commit/6468ec1c7321e3a387555ca0b906789d606864d0))
+* **openrig-workspace:** validate slice-names inputs and cover it with fixtures ([c540371](https://github.com/vanducng/skills/commit/c540371173a6475321fc180b95913519bd6af8e0))
+
 ## [1.67.0](https://github.com/vanducng/skills/compare/v1.66.1...v1.67.0) (2026-10-18)
 
 
