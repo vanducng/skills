@@ -1261,6 +1261,89 @@ test('integration: nested mise.toml is trusted on create', () => {
   assert(calls.includes(`${json.worktreePath}/backend/mise.toml`), `expected trust of nested file, got: ${calls}`);
 });
 
+function setupPlainRepo(name, files = {}) {
+  const repo = path.join(TMP_BASE, name);
+  fs.mkdirSync(repo, { recursive: true });
+  sh('git init -q -b main', repo);
+  sh('git config user.email t@t.t && git config user.name t', repo);
+  fs.writeFileSync(path.join(repo, 'README.md'), 'x\n');
+  Object.entries(files).forEach(([rel, content]) => {
+    fs.mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
+    fs.writeFileSync(path.join(repo, rel), content);
+  });
+  sh('git add -A && git commit -qm init', repo);
+  return repo;
+}
+
+test('integration: a repo-declared mise worktree task stops create and is reported', () => {
+  const repo = setupPlainRepo('repo-task-mise', {
+    'mise.toml': '[tasks.worktree]\nrun = "scripts/dev/worktree.sh add"\n'
+  });
+  const result = run('create "x" --dry-run --json', { cwd: repo });
+  assert(!result.success && result.exitCode === 2, `expected exit 2, got ${result.exitCode}`);
+  const json = assertJSON(result.output);
+  assert(json.error.code === 'REPO_WORKTREE_TASK', `unexpected error: ${json.error.code}`);
+  assert(json.error.repoWorktreeTask.command === 'mise run worktree', 'names the mise task');
+  const info = assertJSON(run('info --json', { cwd: repo }).output);
+  assert(info.repoWorktreeTask && info.repoWorktreeTask.source === 'mise.toml', 'info reports the task');
+  assert(run('create "x" --dry-run --json --skip-repo-task', { cwd: repo }).success, '--skip-repo-task proceeds');
+});
+
+test('integration: a worktree-remove task alone is not a worktree task', () => {
+  const repo = setupPlainRepo('repo-task-remove-only', { 'mise.toml': '[tasks.worktree-remove]\nrun = "true"\n' });
+  assert(run('create "x" --dry-run --json', { cwd: repo }).success, 'create proceeds');
+});
+
+test('integration: scripts/dev/worktree.sh is a repo-declared worktree task', () => {
+  const repo = setupPlainRepo('repo-task-script', { 'scripts/dev/worktree.sh': '#!/bin/sh\n' });
+  const json = assertJSON(run('create "x" --dry-run --json', { cwd: repo }).output);
+  assert(json.error.repoWorktreeTask.kind === 'script', 'names the script');
+});
+
+test('integration: env starts from .env.example when the repo setup creates .env', () => {
+  const repo = setupPlainRepo('env-from-template', {
+    '.gitignore': '.env\n',
+    '.env.example': 'API_KEY=\n',
+    'scripts/setup.sh': '#!/bin/sh\n[ -f .env ] || cp .env.example .env\n'
+  });
+  fs.writeFileSync(path.join(repo, '.env'), 'API_KEY=checkout-only\n');
+  const result = run('create "env" --json', { cwd: repo });
+  assert(result.success, `create failed: ${result.output} ${result.stderr}`);
+  const json = assertJSON(result.output);
+  assert(json.envFromTemplate === true, 'reports envFromTemplate');
+  assert(fs.readFileSync(path.join(json.worktreePath, '.env'), 'utf-8') === 'API_KEY=\n', '.env comes from the template');
+});
+
+test('integration: host installs are skipped when compose mounts the repo', () => {
+  const repo = setupPlainRepo('container-tooling', {
+    'package-lock.json': '{}',
+    'compose.yaml': "services:\n  app:\n    volumes:\n      - '.:/app'\n"
+  });
+  const result = run('create "ct" --json', { cwd: repo });
+  assert(result.success, `create failed: ${result.output} ${result.stderr}`);
+  const json = assertJSON(result.output);
+  assert(json.containerTooling === true, 'reports containerTooling');
+  assert(!json.suggestedInstalls.some(s => s.command === 'npm install'), 'no host npm install');
+});
+
+test('integration: base follows origin/HEAD, after dev/develop and before main', () => {
+  const repo = setupPlainRepo('base-origin-head');
+  sh('git update-ref refs/remotes/origin/staging HEAD', repo);
+  sh('git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/staging', repo);
+  let json = assertJSON(run('create "b" --dry-run --json', { cwd: repo }).output);
+  assert(json.wouldCreate.baseBranch === 'origin/staging', `got ${json.wouldCreate.baseBranch}`);
+  const created = assertJSON(run('create "b" --json', { cwd: repo }).output);
+  assert(created.success, 'create from origin/staging succeeds');
+  const upstream = execSync('git rev-parse --abbrev-ref @{u} 2>/dev/null || echo none', { encoding: 'utf-8', cwd: created.worktreePath, shell: '/bin/sh' }).trim();
+  assert(upstream === 'none', `new branch must not track the base, got ${upstream}`);
+  sh('git branch staging HEAD', repo);
+  json = assertJSON(run('create "b2" --dry-run --json', { cwd: repo }).output);
+  assert(json.wouldCreate.baseBranch === 'staging', `got ${json.wouldCreate.baseBranch}`);
+  sh('git branch dev HEAD', repo);
+  json = assertJSON(run('create "b3" --dry-run --json', { cwd: repo }).output);
+  assert(json.wouldCreate.baseBranch === 'dev', `got ${json.wouldCreate.baseBranch}`);
+});
+
 try {
   fs.rmSync(TMP_BASE, { recursive: true, force: true });
 } catch { /* temp dir cleanup is best-effort */ }
