@@ -2,6 +2,25 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.67.0](https://github.com/vanducng/skills/compare/v1.66.1...v1.67.0) (2026-10-18)
+
+
+### Features
+
+* **code-review:** verify against live data and re-review before approving ([#513](https://github.com/vanducng/skills/issues/513)) ([02f4383](https://github.com/vanducng/skills/commit/02f4383673377f9ab1b658919b245cf78d3d69d2))
+* **openrig-workspace:** keep worktrees under the workspace .worktrees root ([27583b2](https://github.com/vanducng/skills/commit/27583b28c90b118de007defe887bed267cfb7e74))
+* **openrig-workspace:** keep worktrees under the workspace .worktrees root ([58dc297](https://github.com/vanducng/skills/commit/58dc2972181f212035d033524da4cb7ec82c8f36))
+* **openrig-workspace:** one slice, one worktree, one PR ([332fca2](https://github.com/vanducng/skills/commit/332fca27578e315f370e0afaf11eede60ba3d659))
+* **openrig-workspace:** one slice, one worktree, one PR ([d29b1ed](https://github.com/vanducng/skills/commit/d29b1eda5acbf34bde1d83c67eb5fd6e7a24cab3))
+* **worktree:** hand off to a repo's own worktree task ([e84d25b](https://github.com/vanducng/skills/commit/e84d25bc537bc988d69560ebd17425594ad33ed9))
+* **worktree:** hand off to a repo's own worktree task ([c88dcfd](https://github.com/vanducng/skills/commit/c88dcfd178e6df90af4ae3581961cb03fdac86a8))
+
+
+### Bug Fixes
+
+* **skills:** replace dashes and curly quotes flagged by check-slop ([2314e08](https://github.com/vanducng/skills/commit/2314e08cc3accf5587619af3096ea39dede75d0f))
+* **skills:** split disk prune from volumes and task worktrees ([#510](https://github.com/vanducng/skills/issues/510)) ([c07a8cb](https://github.com/vanducng/skills/commit/c07a8cbd1c90595670a1fed38e2eeb9c8ed17489))
+
 ## [1.66.1](https://github.com/vanducng/skills/compare/v1.66.0...v1.66.1) (2026-10-07)
 
 
