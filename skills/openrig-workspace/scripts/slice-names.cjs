@@ -28,11 +28,11 @@ function flags(name) {
 
 function frontmatter(file) {
   if (!fs.existsSync(file)) return {};
-  const match = fs.readFileSync(file, "utf8").match(/^---\n([\s\S]*?)\n---/);
+  const match = fs.readFileSync(file, "utf8").match(/^---\r?\n([\s\S]*?)\r?\n---/);
   const fields = {};
-  for (const line of match ? match[1].split("\n") : []) {
+  for (const line of match ? match[1].split(/\r?\n/) : []) {
     const pair = line.match(/^([a-z_]+):\s*(.*)$/);
-    if (pair) fields[pair[1]] = pair[2].replace(/^["']|["']$/g, "").trim();
+    if (pair) fields[pair[1]] = pair[2].replace(/\s+#.*$/, "").trim().replace(/^["']|["']$/g, "");
   }
   return fields;
 }
@@ -55,19 +55,23 @@ if (path.basename(path.dirname(sliceDir)) !== "slices") fail(`${sliceDir} is not
 const missionDir = path.dirname(path.dirname(sliceDir));
 const mission = frontmatter(path.join(missionDir, "SPEC.md"));
 const prefix = path.basename(missionDir).match(/^(m\d+)-/);
-const code = (mission.code || (prefix && prefix[1]) || "").toLowerCase();
-if (!/^[a-z][a-z0-9]*$/.test(code)) fail(`Set code: in ${path.join(missionDir, "SPEC.md")} frontmatter (the mission folder has no m<n>- prefix).`);
+const specPath = path.join(missionDir, "SPEC.md");
+if (mission.code && !/^[a-z][a-z0-9]*$/.test(mission.code)) fail(`code: ${mission.code} in ${specPath} must match ^[a-z][a-z0-9]*$ (for example m2).`);
+const code = mission.code || (prefix && prefix[1]);
+if (!code) fail(`Set code: in ${specPath} frontmatter; the mission folder has no m<n>- prefix.`);
 
 const [, nn, slug] = folder;
 const sliceId = `${code}-s${nn}`;
-const milestone = mission.milestone || (code.match(/^m(\d+)$/) || [])[1] || null;
+const milestone = mission.milestone || (prefix ? prefix[1].slice(1) : null);
+if (milestone && !/^\d+$/.test(milestone)) fail(`milestone: ${milestone} in ${specPath} must be a number.`);
 const ticket = mission.ticket || null;
+if (ticket && !/^[A-Za-z][A-Za-z0-9]*-\d+$/.test(ticket)) fail(`ticket: ${ticket} in ${specPath} must look like ABC-123.`);
 const type = flags("--type")[0] || "feat";
 if (!/^(feat|fix|chore|docs|test|refactor|perf)$/.test(type)) fail(`Unknown --type ${type}.`);
 
 const root = workspaceRoot(sliceDir);
 const worktrees = flags("--repo").map((repo) => {
-  if (!/^[a-z0-9][a-z0-9._-]*$/.test(repo)) fail(`Repo name ${repo} must be lowercase letters, digits, '.', '_' or '-'.`);
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(repo)) fail(`Repo name ${repo} must be lowercase letters, digits or '-', so it works as a host label and compose project.`);
   const name = `${repo}-${sliceId}`;
   if (name.length > 63) fail(`${name} is longer than a 63-character host label; shorten the mission code.`);
   return { repo, name, path: root ? path.join(root, ".worktrees", name) : null };
@@ -88,6 +92,6 @@ if (json) {
   const lines = [`slice id: ${sliceId}`];
   for (const w of worktrees) lines.push(`worktree: ${w.name}${w.path ? ` (${w.path})` : ""}`);
   lines.push(`branch: ${result.branch}`, `follow-up branch: ${result.followUpBranch}`);
-  lines.push(`pr tag: ${result.prTag || `none (set ticket: and milestone: in ${path.join(missionDir, "SPEC.md")})`}`);
+  lines.push(`pr tag: ${result.prTag || `none (set ticket: and milestone: in ${specPath})`}`);
   process.stdout.write(`${lines.join("\n")}\n`);
 }
