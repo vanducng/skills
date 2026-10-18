@@ -34,7 +34,8 @@ function frontmatter(file) {
     const pair = line.match(/^([a-z_]+):\s*(.*)$/);
     if (!pair) continue;
     const raw = pair[2].trim();
-    fields[pair[1]] = /^["']/.test(raw) ? raw.replace(/^["']|["']$/g, "") : raw.replace(/\s+#.*$/, "");
+    const quoted = raw.match(/^(["'])(.*?)\1/);
+    fields[pair[1]] = quoted ? quoted[2] : raw.replace(/\s+#.*$/, "");
   }
   return fields;
 }
@@ -43,7 +44,8 @@ function workspaceRoot(from) {
   for (let dir = from; dir !== path.dirname(dir); dir = path.dirname(dir)) {
     if (fs.existsSync(path.join(dir, "workspace.yaml"))) return dir;
   }
-  return process.env.PROJECTS_ROOT || null;
+  const env = process.env.PROJECTS_ROOT;
+  return env && fs.existsSync(env) ? env : null;
 }
 
 const positional = args.filter((arg, i) => !arg.startsWith("--") && !["--repo", "--type"].includes(args[i - 1]));
@@ -95,7 +97,7 @@ if (json) {
 } else {
   const lines = [`slice id: ${sliceId}`];
   for (const w of worktrees) lines.push(`worktree: ${w.name}${w.path ? ` (${w.path})` : ""}`);
-  if (worktrees.length && !root) lines.push("worktree root: unknown (no workspace.yaml above the slice; set PROJECTS_ROOT)");
+  if (worktrees.length && !root) lines.push("worktree root: unknown (no workspace.yaml above the slice, and PROJECTS_ROOT is unset or missing)");
   lines.push(`branch: ${result.branch}`, `follow-up branch: ${result.followUpBranch}`);
   lines.push(`pr tag: ${result.prTag || `none (set ticket: and milestone: in ${specPath})`}`);
   process.stdout.write(`${lines.join("\n")}\n`);
