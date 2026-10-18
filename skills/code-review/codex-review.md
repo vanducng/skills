@@ -53,6 +53,9 @@ Correctness (edge cases, nil/empty, off-by-one, error paths) · Security (inject
 authz/tenant scope, secrets in logs) · Concurrency (races, locks, ordering) · Perf
 (N+1, full scans, unbounded growth) · API/contract (breaking changes, back-compat) ·
 Tests (do they cover the new failure modes?) · CI (if red, that's Critical - name the job).
+Diff changes a query, selection rule, data contract or what a downstream reader receives? Run the
+changed logic against real data: read-only (no DDL, writes or posts), bounded (date window, LIMIT),
+and cite counts and dates, never personal data from the rows.
 
 ## Top-level summary (≤8 lines, last)
 ```

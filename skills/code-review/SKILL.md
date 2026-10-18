@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[#PR | URL | COMMIT | --pending | codebase | --refactor] [--dry-run] [--post] [--no-inline] [--auto] [--ultra] [--cross-model] [--refactor [--fix] [--save]]"
 metadata:
   author: vanducng
-  version: "1.2.1"
+  version: "1.3.0"
 ---
 
 # Code Review
@@ -133,6 +133,12 @@ Capture `headRefOid` - every inline comment's `commit_id` MUST equal this so com
 | 300-1500 lines | Read full files for security-sensitive or core-logic changes; spot-check the rest. |
 | > 1500 lines | Batch via parallel `Task(Explore)` subagents grouped by directory; synthesize findings. Don't pour the whole diff into your context. No subagents (Codex) → review directory-by-directory sequentially, or use `codex-review.md`. |
 
+### 2b. Prove it against the live system
+
+Tests and CI prove the code runs, not that it does the right thing on real data. When the diff changes a query, a selection or ranking rule, a data contract, or what a downstream reader (model prompt, report, alert) receives, run the changed logic read-only against real data before writing findings: grain, coverage, hardcoded values vs upstream, grants, freshness, and whether the consumer actually sees the evidence a label is based on. Probes and safety rules: [`references/live-verification.md`](references/live-verification.md).
+
+Skip it for pure refactors, copy changes, and diffs with no data or runtime surface.
+
 ### 3. Build the review payload
 
 Collect findings as you go into this structure (memory only - don't write a file):
@@ -252,6 +258,7 @@ This is the always-on lens. Repo-specific rules (i18n, SQL store conventions, mo
 - New code paths covered? Edge cases tested, not just happy path?
 - Tests touching real DB or mocks - match the repo's existing convention. Don't mix.
 - Are there tests that would catch the bug if the author re-introduced it tomorrow? If no, ask for one.
+- Tests run on fakes but the change reads real data or feeds a downstream reader? Probe it live (step 2b).
 
 **Change shape**
 - Refactor + new behavior in one PR → ask to split. A reviewer can't tell a behavior change from a move when they're tangled, and a bad refactor hides inside the feature diff.
@@ -268,6 +275,14 @@ When `gh pr checks` shows failures:
 1. Identify the failing job and its run ID; the summary's first finding is `**Critical:** CI <job> is red ([run-id](url)).`
 2. Include `gh run view <run-id> --log-failed` so the author can inspect; if the cause is obvious from the diff (lint, type error, missing import), name it - don't make the author hunt.
 3. Verdict is at least `Request changes` while CI is red. No exceptions.
+
+## Re-review after the author pushes
+
+1. Diff the head you reviewed against the new head. A reply saying "fixed" is not the fix.
+2. Check each finding at the new head. Unless `--dry-run`: fixed → resolve your own thread; not fixed → reply on it and keep it open. Thread state can't ride in the review POST, so this is the one exception to Hard rule 1.
+3. When the change has a runtime path, offer one end-to-end run and reconcile its output with the source of truth ([`references/live-verification.md`](references/live-verification.md#end-to-end-run)). It runs read-only by default; any write or post in it needs the user's go-ahead and never happens under `--auto`.
+4. Read every unresolved thread at the current head, bot reviewers included. Decide blocking or not; name the non-blocking ones in the review body.
+5. Refresh `headRefOid` and checks right before submitting, then submit the review against that SHA with the verdict the rules above give (author-can't-approve fallback included).
 
 ## When the answer is "approve"
 
