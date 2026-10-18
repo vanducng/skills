@@ -61,6 +61,9 @@ spec q3-billing '---\ncode: m7\n---\n'
 assert_fails "repo name with a dot" "lowercase letters, digits or '-'" "$S" --repo api.v2
 assert_fails "worktree name past 63 characters" "63-character" "$S" --repo "$(printf 'r%.0s' {1..60})"
 assert_fails "folder that is not <nn>-<slug>" "not a slice folder" "$(slice m2-checkout login)"
+assert_fails "--type given twice" "Pass --type once" "$S" --type fix --type feat
+spec q3-billing '---\ncode: m7\nticket: "ABC-9"\nmilestone: 7 # q3\n---\n'
+assert_field "quoted value unquoted, unquoted comment dropped" prTag "[ABC-9|M7|S7]" "$S"
 
 echo
 echo "$pass passed, $fail failed"
