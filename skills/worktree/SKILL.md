@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | repair | remove <name>"
 metadata:
   author: vanducng
-  version: "2.7.0"
+  version: "2.8.0"
 ---
 
 # Worktree
@@ -32,9 +32,13 @@ All worktrees live at **`<git-root>/.worktrees/<repo>-<feature>/`** - one rule f
 
 Canonical: `node $HOME/skills/skills/worktree/scripts/worktree.cjs`. If the repo isn't at `$HOME/skills`, use the installed symlink `node $HOME/.claude/skills/worktree/scripts/worktree.cjs`. Pick one at the start of the session and stick with it - don't retry both paths every call.
 
+## Repo-declared worktree task
+
+Some repos ship their own worktree command, because their worktrees need a compose stack, ports or env setup that the generic `create` does not know about. `info` reports one as `repoWorktreeTask` when the repo root has a mise `worktree` task (a `[tasks.worktree]` table or a `mise-tasks/worktree` file task) or `scripts/dev/worktree.sh`. When it is present, use that command instead of `create`: read its usage (`usage` in the output, e.g. `mise tasks info worktree`) and run it. `create` stops with `REPO_WORKTREE_TASK` (exit 2) in that case. Pass `--skip-repo-task` only when the user wants a plain worktree anyway.
+
 ## Laravel Herd auto-handoff
 
-Before creating a worktree, check whether the current/source repo is a Laravel app served by Herd. Treat it as Laravel when `artisan` exists and `composer.json` requires `laravel/framework`. Treat it as Herd-served when the user says Herd, the `herd` CLI is available and `herd links` includes the repo/site path, or `.env` has an `APP_URL` ending in `.test`.
+Before creating a worktree, check whether the current/source repo is a Laravel app served by Herd. Treat it as Laravel when `artisan` exists and `composer.json` requires `laravel/framework`. Treat it as Herd-served only when the `herd` CLI is on PATH and `herd links` lists the repo/site path. An `APP_URL` ending in `.test` is not enough on its own: local proxies and DNS setups serve `.test` hosts without Herd.
 
 If both are true, activate `vd:herd-worktree` and let it compose this skill - it owns the Herd link/secure, `APP_URL`, session/Sanctum, database isolation, Vite TLS/CORS, and teardown-hook layer. This skill still owns the generic worktree mechanics underneath it.
 
@@ -46,7 +50,7 @@ If both are true, activate `vd:herd-worktree` and let it compose this skill - it
 node $HOME/skills/skills/worktree/scripts/worktree.cjs info --json
 ```
 
-Parse: `repoType`, `baseBranch`, `projects`, `worktreeRoot`, `worktreeRootSource`, `dirtyState`, `dirtyDetails`.
+Parse: `repoType`, `baseBranch`, `projects`, `worktreeRoot`, `worktreeRootSource`, `dirtyState`, `dirtyDetails`, `repoWorktreeTask`. A non-null `repoWorktreeTask` means the repo's own command creates worktrees (see above).
 
 If the base branch must be fresh (release work, long-running repos), run `git fetch origin <base>` first - `create` warns when the local base is behind an already-fetched `origin/<base>`, but it cannot see commits that were never fetched.
 
@@ -124,21 +128,22 @@ After every successful non-dry-run create that returns `worktreePath`, if `HERDR
 
 `create` does the session-setup work automatically:
 
-1. Copies untracked `.env*` files from the source checkout - **including nested ones** (`backend/.env`, `frontend/.env.local`, up to 3 levels). Disable with `--no-copy-env`.
+1. Copies untracked `.env*` files from the source checkout - **including nested ones** (`backend/.env`, `frontend/.env.local`, up to 3 levels). Disable with `--no-copy-env`. When the repo's own setup creates `.env` from `.env.example` (a `cp .env.example .env` in `scripts/`, `bin/`, a Makefile, justfile, Taskfile or mise config), the checkout's root `.env` is **not** copied, so its keys and stack settings stay behind; `envFromTemplate: true` reports it.
 2. Copies `.env*.example` templates for any env name not already copied.
 3. Copies `.worktreeinclude` entries (see below).
 4. Assigns a deterministic 10-port block and writes `.env.worktree`.
 5. Verifies the checkout landed on the requested branch (auto-rescues via `git switch` if git silently attached elsewhere) and warns when the base branch is behind its fetched remote.
 6. If a mise config is present (`mise.toml`, `.mise.toml`, `.config/mise.toml`, `mise/config.toml`, `.mise/config.toml`) at the worktree root or one directory down, runs `mise trust` on each new path (mise trusts by path, so a new worktree is untrusted until this). `mise install -y` is returned in `suggestedInstalls` so it runs in the background like other package managers. Missing `mise` binary → `mise trust && mise install -y` in `suggestedInstalls`.
-7. Detects lockfiles and returns `suggestedInstalls`.
+7. Detects lockfiles and returns `suggestedInstalls`. When a root compose file bind-mounts the repo (`- .:/app`), the repo runs its tools in containers, so host lockfile installs are left out (`containerTooling: true`); use the repo's own setup instead.
 
 **Flags:**
 
 | Flag | Purpose |
 |---|---|
 | `--prefix <type>` | Branch type: `feat\|fix\|refactor\|docs\|test\|chore\|perf` |
-| `--base <branch>` | Override auto-detected base (default: `dev → develop → main → master`) |
+| `--base <branch>` | Override auto-detected base (default: `dev → develop → origin/HEAD → main → master`; `origin/HEAD` is the remote's default branch, set it with `git remote set-head origin --auto`) |
 | `--no-prefix` | Preserve original case + slashes (Jira keys, `user/type/feature`); attaches if branch exists |
+| `--skip-repo-task` | Create a plain worktree even though the repo declares its own worktree task |
 | `--no-copy-env` | Skip auto-copy of untracked `.env*` files |
 | `--no-enter` | Stay in the current dir; don't switch the session into the new worktree (default: enter). Also via `WORKTREE_NO_ENTER=1` |
 | `--checkout-submodules` | Run `git submodule update --init --checkout --recursive` after create |
