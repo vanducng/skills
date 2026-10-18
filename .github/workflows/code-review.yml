@@ -9,9 +9,8 @@ on:
   issue_comment:
     types: [created]
 
-concurrency:
-  group: code-review-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: true
+# No concurrency block here: the reusable workflow owns `code-review-<n>`, and a
+# caller group with the same name deadlocks every run before it starts.
 
 permissions:
   contents: read
