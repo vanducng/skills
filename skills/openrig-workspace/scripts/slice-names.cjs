@@ -32,7 +32,9 @@ function frontmatter(file) {
   const fields = {};
   for (const line of match ? match[1].split(/\r?\n/) : []) {
     const pair = line.match(/^([a-z_]+):\s*(.*)$/);
-    if (pair) fields[pair[1]] = pair[2].replace(/\s+#.*$/, "").trim().replace(/^["']|["']$/g, "");
+    if (!pair) continue;
+    const raw = pair[2].trim();
+    fields[pair[1]] = /^["']/.test(raw) ? raw.replace(/^["']|["']$/g, "") : raw.replace(/\s+#.*$/, "");
   }
   return fields;
 }
@@ -66,7 +68,9 @@ const milestone = mission.milestone || (prefix ? prefix[1].slice(1) : null);
 if (milestone && !/^\d+$/.test(milestone)) fail(`milestone: ${milestone} in ${specPath} must be a number.`);
 const ticket = mission.ticket || null;
 if (ticket && !/^[A-Za-z][A-Za-z0-9]*-\d+$/.test(ticket)) fail(`ticket: ${ticket} in ${specPath} must look like ABC-123.`);
-const type = flags("--type")[0] || "feat";
+const types = flags("--type");
+if (types.length > 1) fail("Pass --type once.");
+const type = types[0] || "feat";
 if (!/^(feat|fix|chore|docs|test|refactor|perf)$/.test(type)) fail(`Unknown --type ${type}.`);
 
 const root = workspaceRoot(sliceDir);
@@ -91,6 +95,7 @@ if (json) {
 } else {
   const lines = [`slice id: ${sliceId}`];
   for (const w of worktrees) lines.push(`worktree: ${w.name}${w.path ? ` (${w.path})` : ""}`);
+  if (worktrees.length && !root) lines.push("worktree root: unknown (no workspace.yaml above the slice; set PROJECTS_ROOT)");
   lines.push(`branch: ${result.branch}`, `follow-up branch: ${result.followUpBranch}`);
   lines.push(`pr tag: ${result.prTag || `none (set ticket: and milestone: in ${specPath})`}`);
   process.stdout.write(`${lines.join("\n")}\n`);
