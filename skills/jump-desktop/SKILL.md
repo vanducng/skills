@@ -162,6 +162,21 @@ matching saved entries (Connect hosts by name, imported `.jump` entries by
 `UniqueId` from `$JUMP_SERVERS_DIR`) and marks them user-edited so cloud sync
 keeps the name. Run it on every viewer Mac.
 
+## Linux host gotchas
+
+- Agent log (desktop proxy, capture, portal): `~/.local/state/jump-connect/logs/Agent_*.log`
+  for the logged-in user; service log has auth, encoder, and access decisions.
+- Viewer stuck on "connecting" with `Peer encoders:` empty in the viewer log
+  and `Dropping request to view desktop because client does not have access`
+  in the service log: Fluid never got desktop access. Seen on Ubuntu 22.04
+  GNOME 42 Wayland (its portal also lacks `org.freedesktop.portal.Clipboard`).
+  The access state is in root-only `/var/lib/jump-connect`; diagnose with sudo
+  before changing the session type.
+- Jump RDP to GNOME Remote Desktop 42 cannot work: GRD 42 is NLA-only and its
+  FreeRDP rejects Jump's NTLM negotiate flags
+  (`journalctl --user -u gnome-remote-desktop`: `NegotiateFlags invalid flags`).
+  Disabling NLA in the entry fails with `server supports only NLA Security`.
+
 ## Verify a viewer entry
 
 After `open`, read the viewer log: `Connecting to: <host>:<port>` then
