@@ -45,7 +45,7 @@ EOF
 
 need_host() { [[ -x "$BIN" ]] || { echo "JumpConnect not found at $BIN ($INSTALL_HINT)" >&2; exit 1; }; }
 
-jc() { need_host; "$BIN" "$@" 2>&1 | grep -v -E '^objc\[|^libc\+\+abi: *$' || true; }
+jc() { need_host; "$BIN" "$@" 2>&1 | grep -v -E '^objc\[|^libc\+\+abi: *$|^[0-9-]{10} [0-9:.]+ JumpConnect\[' || true; }
 
 version() {
   if [[ -n "${APP:-}" ]]; then
