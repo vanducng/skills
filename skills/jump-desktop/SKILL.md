@@ -59,7 +59,7 @@ scripts/jump-connect list              # .jump entries in $JUMP_SERVERS_DIR
 scripts/jump-connect open <name>       # launch one in Jump Desktop
 scripts/jump-connect import            # save all entries into Jump Desktop's list
 scripts/jump-connect bundle out.jdz    # just build the .jdz
-scripts/jump-connect names             # rename saved computers (restarts the viewer)
+scripts/jump-connect names             # rename saved computers (Jump Desktop closed)
 ```
 
 `$JUMP_SERVERS_DIR` defaults to `$XDG_CONFIG_HOME/jump-desktop/servers`
@@ -156,10 +156,11 @@ file at `$JUMP_NAMES_FILE` (default `~/.config/jump-desktop/names`):
 <hostname-a>      <short-name-a>
 ```
 
-`names` quits Jump Desktop, rewrites matching saved entries (Connect hosts by
-name, imported `.jump` entries by `UniqueId` from `$JUMP_SERVERS_DIR`), marks
-them user-edited so cloud sync keeps the name, and reopens the viewer. Run it
-on every viewer Mac.
+`names` runs only while Jump Desktop is closed (it rewrites its saved list
+from memory; never kill it for the user, they may be in a session). It renames
+matching saved entries (Connect hosts by name, imported `.jump` entries by
+`UniqueId` from `$JUMP_SERVERS_DIR`) and marks them user-edited so cloud sync
+keeps the name. Run it on every viewer Mac.
 
 ## Verify a viewer entry
 
