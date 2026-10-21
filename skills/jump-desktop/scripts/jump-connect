@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# Jump Desktop - agent-friendly wrapper around the JumpConnect host binary (macOS, Linux) plus .jump viewer entries (macOS).
+set -euo pipefail
+
+if [[ "$(uname -s)" == Darwin ]]; then
+  APP="${JUMP_CONNECT_APP:-/Applications/Jump Desktop Connect.app}"
+  BIN="${APP}/Contents/MacOS/JumpConnect"
+  ACCESS_LOG="/Library/Logs/Jump Desktop/access.log"
+  INSTALL_HINT="brew install --cask jump-desktop-connect"
+else
+  BIN="${JUMP_CONNECT_BIN:-/usr/libexec/jump/jumpconnect}"
+  ACCESS_LOG="/var/log/jump-connect/access.log"
+  INSTALL_HINT="install the jump-connect package from jumpdesktop.com/connect"
+fi
+VIEWER_APP="${JUMP_VIEWER_APP:-Jump Desktop}"
+SERVERS_DIR="${JUMP_SERVERS_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/jump-desktop/servers}"
+SYSTEM_TCC="/Library/Application Support/com.apple.TCC/TCC.db"
+
+usage() {
+  cat <<EOF
+jump-connect - Jump Desktop Connect host (macOS, Linux) + viewer (macOS) helper.
+
+Host (this machine runs Jump Desktop Connect):
+  jump-connect status            version, processes, device id, TCC grants, recent access
+  jump-connect info              installation info JSON (device id, connect-code users)
+  jump-connect perms             macOS TCC grants from the system DB (accurate from a terminal)
+  jump-connect access [n]        last n lines of the connection audit log (default 20)
+  jump-connect url               cloudless jump:// LAN launch URL
+  jump-connect add-user <code>   link this machine to an account by Connect Code
+  jump-connect sessions          active remote sessions (Linux Connect 10.16+, needs sudo)
+  jump-connect perms-ui          open Jump's permission checker window (macOS)
+  jump-connect raw <args...>     pass args to JumpConnect (noise filtered)
+
+Viewer (.jump entries in \$JUMP_SERVERS_DIR, now: $SERVERS_DIR):
+  jump-connect list              show the .jump entries (name, protocol, host:port)
+  jump-connect open <name|file>  launch a connection in Jump Desktop
+  jump-connect bundle [out.jdz]  zip entries into a .jdz
+  jump-connect import            bundle and open in Jump Desktop, which saves them to its list
+EOF
+}
+
+need_host() { [[ -x "$BIN" ]] || { echo "JumpConnect not found at $BIN ($INSTALL_HINT)" >&2; exit 1; }; }
+
+jc() { need_host; "$BIN" "$@" 2>&1 | grep -v -E '^objc\[|^libc\+\+abi: *$' || true; }
+
+version() {
+  if [[ -n "${APP:-}" ]]; then
+    defaults read "${APP}/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo 'not installed'
+  else
+    dpkg-query -W -f='${Version}' jump-connect 2>/dev/null || rpm -q --qf '%{VERSION}' jump-connect 2>/dev/null || echo 'not installed'
+  fi
+}
+
+perms() {
+  [[ -n "${APP:-}" ]] || { echo "n/a (Linux has no TCC)"; return; }
+  if sqlite3 "$SYSTEM_TCC" 'select 1' >/dev/null 2>&1; then
+    sqlite3 -separator '  ' "$SYSTEM_TCC" \
+      "select replace(service,'kTCCService',''), case auth_value when 2 then 'allowed' when 0 then 'denied' else auth_value end
+       from access where client='com.p5sys.jump.connect' order by service;"
+  else
+    # Without Full Disk Access, fall back to JumpConnect's own check (reports the caller's grants, not the service's).
+    jc --dumpmacperm
+  fi
+}
+
+# A denied Local Network grant makes the viewer fail LAN hosts with error 2.50 (ENETDOWN); mesh VPN ranges still work.
+viewer_lan() {
+  [[ -n "${APP:-}" ]] || { echo "n/a"; return; }
+  python3 -I - <<'PY' 2>/dev/null || echo unknown
+import plistlib
+objs = plistlib.load(open("/Library/Preferences/com.apple.networkextension.plist", "rb"))["$objects"]
+v = lambda x: objs[x.data] if isinstance(x, plistlib.UID) else x
+state = "not asked yet"
+for o in objs:
+    if isinstance(o, dict) and "DenyMulticast" in o:
+        s = {k: v(x) for k, x in o.items()}
+        if "com.p5sys.jump.mac.viewer" in s.values() and s.get("MulticastPreferenceSet"):
+            state = "DENIED (System Settings > Privacy & Security > Local Network)" if s["DenyMulticast"] else "allowed"
+print(state)
+PY
+}
+
+proc_state() { pgrep -if "jumpconnect $1" >/dev/null && echo running || echo stopped; }
+
+status() {
+  echo "version:  $(version)"
+  echo "service:  $(proc_state --service)"
+  echo "agent:    $(proc_state --minimized)"
+  echo "info:     $(jc --info | tr -d '\n' | tr -s ' ')"
+  echo "tcc:"
+  perms | sed 's/^/  /'
+  echo "viewer LAN: $(viewer_lan)"
+  echo "recent access:"
+  tail -n 5 "$ACCESS_LOG" 2>/dev/null | sed 's/^/  /'
+}
+
+list() {
+  local f
+  for f in "$SERVERS_DIR"/*.jump; do
+    [[ -e "$f" ]] || { echo "no .jump files in $SERVERS_DIR" >&2; return 1; }
+    python3 -I - "$f" <<'PY'
+import json, os, sys
+d = json.load(open(sys.argv[1]))
+proto = {0: "rdp", 1: "vnc"}.get(d.get("ProtocolTypeCode"), "?")
+print(f'{os.path.basename(sys.argv[1])[:-5]:<20} {proto:<4} {d["TcpHostName"]}:{d.get("TcpPort", "")}  "{d.get("DisplayName", "")}"')
+PY
+  done
+}
+
+resolve() {
+  if [[ -f "$1" ]]; then echo "$1"
+  elif [[ -f "$SERVERS_DIR/$1.jump" ]]; then echo "$SERVERS_DIR/$1.jump"
+  else echo "no entry '$1' (see: jump-connect list)" >&2; exit 1
+  fi
+}
+
+bundle() {
+  local out="${1:-$PWD/jump-servers.jdz}" tmp
+  tmp="$(mktemp -d)"
+  mkdir "$tmp/servers"
+  cp "$SERVERS_DIR"/*.jump "$tmp/servers/"
+  rm -f "$out"
+  (cd "$tmp" && zip -q -r - servers) >"$out"
+  rm -rf "$tmp"
+  echo "$out"
+}
+
+# Jump writes session state back into the file it opens; keep the source clean.
+open_entry() {
+  local src copy
+  src="$(resolve "$1")"
+  copy="${TMPDIR:-/tmp}/jump-open-$(basename "$src")"
+  cp "$src" "$copy"
+  open -a "$VIEWER_APP" "$copy"
+}
+
+case "${1:-status}" in
+  status) need_host; status ;;
+  info) jc --info ;;
+  perms) perms ;;
+  access) tail -n "${2:-20}" "$ACCESS_LOG" ;;
+  url) jc --cloudlessurl ;;
+  add-user) [[ -n "${2:-}" ]] || { usage >&2; exit 2; }; jc --connectcode "${2// /}" ;;
+  sessions) jc --sessions --json ;;
+  perms-ui) jc --showmacperms ;;
+  raw) shift; jc "$@" ;;
+  list) list ;;
+  open) [[ -n "${2:-}" ]] || { usage >&2; exit 2; }; open_entry "$2" ;;
+  bundle) bundle "${2:-}" ;;
+  import) open -a "$VIEWER_APP" "$(bundle "${TMPDIR:-/tmp}/jump-servers.jdz")" ;;
+  -h | --help | help) usage ;;
+  *) usage >&2; exit 2 ;;
+esac
