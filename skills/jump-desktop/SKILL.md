@@ -59,6 +59,7 @@ scripts/jump-connect list              # .jump entries in $JUMP_SERVERS_DIR
 scripts/jump-connect open <name>       # launch one in Jump Desktop
 scripts/jump-connect import            # save all entries into Jump Desktop's list
 scripts/jump-connect bundle out.jdz    # just build the .jdz
+scripts/jump-connect names             # rename saved computers (restarts the viewer)
 ```
 
 `$JUMP_SERVERS_DIR` defaults to `$XDG_CONFIG_HOME/jump-desktop/servers`
@@ -71,7 +72,9 @@ scripts/jump-connect bundle out.jdz    # just build the .jdz
   `perms` reads the system TCC DB instead. It needs Full Disk Access for the
   terminal; without it the command falls back to JumpConnect's own check, which
   is unreliable from a shell.
-  Needed: `ScreenCapture`, `Accessibility`, `ListenEvent`, `RemoteDesktop`. A
+  Needed: `ScreenCapture`, `Accessibility`, `ListenEvent`, `RemoteDesktop`.
+  `SystemPolicyAllFiles` (Full Disk Access) is not needed for remote control;
+  leave it denied unless the user asks for it. A
   missing grant is fixed by the user in System Settings > Privacy & Security
   (`perms-ui` opens Jump's checker); never try to write TCC.db.
 - **Account link:** `info` lists Connect-Code users only. An empty `users`
@@ -140,6 +143,23 @@ come from the account). Keep `UniqueId` stable across edits. Full key list:
   `~/Library/Containers/com.p5sys.jump.mac.viewer/Data/Documents/JumpDesktop/Viewer/Servers/`.
 - Jump keeps usernames and passwords in the keychain and drops `Username` on
   import; the first connection prompts for both.
+
+## Display names
+
+Connect reports a host by its hostname (`ConnectDisplayName`); each viewer
+stores its own `DisplayName`. To show friendlier names without renaming hosts
+(hostnames are usually wired into ssh, mesh VPN, and scripts), keep a names
+file at `$JUMP_NAMES_FILE` (default `~/.config/jump-desktop/names`):
+
+```
+# <connect-name>  <display-name>
+<hostname-a>      <short-name-a>
+```
+
+`names` quits Jump Desktop, rewrites matching saved entries (Connect hosts by
+name, imported `.jump` entries by `UniqueId` from `$JUMP_SERVERS_DIR`), marks
+them user-edited so cloud sync keeps the name, and reopens the viewer. Run it
+on every viewer Mac.
 
 ## Verify a viewer entry
 
