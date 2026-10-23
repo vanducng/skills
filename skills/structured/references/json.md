@@ -31,10 +31,13 @@ Every command prints one object. Field names come from Structured Cloud and pass
 | Field | Meaning |
 | --- | --- |
 | `ref` | Added by the CLI. The value to pass as `REF`. A plain id for one-off tasks, `RECURRING_ID@DAY` for one day of a series. |
+| `day` | The day the task falls on in the zone in use. A recurring day's `ref` keeps the day the server files it under, which can differ by one day in another zone. |
 | `id` | Present on recurring days too. Do not use it to edit a recurring day; use `ref`. |
-| `start_time` | Hours from midnight in the local timezone. `8.5` is 08:30. `null` for all-day and inbox tasks. |
+| `start_time` | Hours from midnight of `day` in the zone in use (`--tz`, else the first configured zone, else the system zone), always 0 to 24. `8.5` is 08:30. `null` for all-day and inbox tasks. |
 | `duration` | Minutes, 0 to 1439. |
 | `is_completed` | Normalised by the CLI from `completed_at`. |
+| `late` | Added by the CLI: still open after its end time, or an open task from an earlier day. |
+| `timezone` | The task's own zone. `null` means it floats: the same clock time in every zone. |
 | `subtasks[].completed_at` | `null` when open. |
 | `external_calendar_id` | Set for calendar-imported events. Deleting one only hides it in Structured. |
 | `energy_level` | -1 rest, 0 neutral, 1 low, 2 medium, 3 high. |

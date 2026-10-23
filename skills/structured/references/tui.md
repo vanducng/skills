@@ -18,7 +18,9 @@
    mode chip    save status (fades after 4s)       keys for what has focus
 ```
 
-- Header: the viewed date, a week strip with the viewed day highlighted, and the inbox count.
+- Header: the viewed date, a week strip, the inbox count, and, when time zones are set, the clock in the zone on screen (`02:39 Saigon`).
+- Today has two views, and `w` switches. The day view (the default) is the calendar day. The 24h view (`view = "now"` in config.toml) shows 12 hours either side of the current time, one heading per day (`YESTERDAY · FRI 23 OCT`, `TODAY · SAT 24 OCT`), so a session that crosses midnight reads as one list, with the window's edges in the header. Unfinished earlier tasks show `late` in yellow and are counted in the list title.
+- `z` switches to the next zone in `timezones` and reloads, so every day and time on screen moves to that zone.
 - Left pane: the day as a timeline. The colored bar is the task's color. `○` open, `✓` done, `↻` recurring, `1/3` subtasks done, `overlap` in yellow, `┆ free` gaps, a red now-line on today. The inbox lists open tasks, then `Done · N`.
 - Right pane: the selected task with a colored title band, date, time, repeat, energy, the subtask checklist, the note, and its `ref`.
 - Footer: a mode chip (`FIND`, `SUBTASKS`, a prompt name, `DELETE`, `HELP`), the save status, and the keys that work right now. `?` shows them all.
@@ -29,6 +31,8 @@
 | --- | --- |
 | `j` `k` `↑` `↓`, `gg` `G`, `ctrl-d` `ctrl-u` | move |
 | `t`, `i`, `tab`, `[` `]` `←` `→` | today, inbox, flip, day before or after |
+| `w` | day or 24h view |
+| `z` | next time zone |
 | `/` or `f` | find in titles, notes, and subtasks. `n` `N` next and previous. `esc` clears |
 | `x` or space | done or not |
 | `a`, `e`, `d` then `y` | add, edit title, delete |
@@ -36,6 +40,7 @@
 | `enter` or `l` | open the subtasks: `j` `k`, `x` tick, `a` add (typed in place, `⏎` keeps adding), `e` rename, `d` delete, `J` `K` reorder, `h` or `esc` back |
 | `A` | add a subtask from the list |
 | `ctrl-g` | edit the note in `$VISUAL` or `$EDITOR` |
+| `J` `K` | scroll the selected task's details |
 | `r`, `?`, `q` or `ctrl-c` | refresh, help, quit |
 
 Prompts edit on one line at the bottom: `←` `→`, `home` `end`, `ctrl-w`, `ctrl-u`. `↑` `↓` step a date by a day and a time or duration by 15 minutes. A rejected value keeps the draft. `esc` cancels. On a recurring task the prompt chip says `every repeat` (title, time, minutes) or `this day only` (date, subtasks). `q` waits for pending saves before it quits. A search that matched through a subtask or note marks the row `↳ subtask` or `↳ note`.
