@@ -22,10 +22,7 @@ Every command prints one object. Field names come from Structured Cloud and pass
   "color": "forest",
   "symbol": "text.badge.checkmark",
   "energy_level": 0,
-  "subtasks": [
-    { "id": "8c40…", "title": "Map the fields", "completed_at": "2026-10-23T02:00:00Z" },
-    { "id": "24ba…", "title": "Write the backfill", "completed_at": null }
-  ],
+  "subtasks": [],
   "external_calendar_id": null,
   "order_index": null
 }
