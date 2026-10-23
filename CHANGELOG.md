@@ -2,6 +2,29 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.69.0](https://github.com/vanducng/skills/compare/v1.68.0...v1.69.0) (2026-10-23)
+
+
+### Features
+
+* **jump-desktop:** add Jump Desktop remote access skill ([f371fd6](https://github.com/vanducng/skills/commit/f371fd6fe6c2b57e82372a6d85ebd9d3803f12e9))
+* **jump-desktop:** add Jump Desktop remote access skill ([59556b2](https://github.com/vanducng/skills/commit/59556b282013351cf4a97c51926323a4653b9031))
+* **jump-desktop:** adopt the official jump-cli and its MCP server ([5e67f92](https://github.com/vanducng/skills/commit/5e67f92f9d823ea1af689aa2525747d74e846eb5))
+* **jump-desktop:** adopt the official jump-cli and its MCP server ([0dba22b](https://github.com/vanducng/skills/commit/0dba22b534a5380be697d74d417c8084833efab3))
+* **jump-desktop:** rename saved computers from a names file ([76e7bef](https://github.com/vanducng/skills/commit/76e7bef691f2d5cf921963e6631fca2ac6110747))
+* **jump-desktop:** rename saved computers from a names file ([8096c81](https://github.com/vanducng/skills/commit/8096c8134a4faebd4ee5f0e47edddea78492303a))
+* **structured:** add the Structured CLI skill ([eb6782c](https://github.com/vanducng/skills/commit/eb6782c45d8f52a18eec2ddf52713b2d86b33437))
+* **structured:** document subtasks, refs, scope, and a text view for review ([c0ba117](https://github.com/vanducng/skills/commit/c0ba1171f8499d1802c7bc820a41b5f35069bc1a))
+* **structured:** documented subtasks, refs, and a text view for review ([8e7889b](https://github.com/vanducng/skills/commit/8e7889bdf03962a2b4c8cc247124b6fa69328ff5))
+
+
+### Bug Fixes
+
+* **jump-desktop:** drop JumpConnect NSLog lines from wrapped output ([60b2e82](https://github.com/vanducng/skills/commit/60b2e828025129c1e337053ce8f2a4e5508871dc))
+* **jump-desktop:** drop JumpConnect NSLog lines from wrapped output ([6ded3ff](https://github.com/vanducng/skills/commit/6ded3fffa978882c8672e906e6ead5b2c6869760))
+* **jump-desktop:** never kill the viewer; validate before renaming ([68707b7](https://github.com/vanducng/skills/commit/68707b7a4d13340fa91db45b743907958ae8c327))
+* **jump-desktop:** write renamed entries atomically ([333ad23](https://github.com/vanducng/skills/commit/333ad237a248d10c169bff7d229a30ba1f568d9a))
+
 ## [1.68.0](https://github.com/vanducng/skills/compare/v1.67.0...v1.68.0) (2026-10-18)
 
 
