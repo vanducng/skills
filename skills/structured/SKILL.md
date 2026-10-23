@@ -27,7 +27,7 @@ command -v structured && structured --version
 structured today --json
 ```
 
-Missing binary: install the latest GitHub release archive for this machine, or `cargo install --git https://github.com/vanducng/structured`.
+Missing binary: `curl -fsSL https://raw.githubusercontent.com/vanducng/structured/main/install.sh | sh`, or `cargo install --git https://github.com/vanducng/structured`. An older binary updates itself with `structured update`; run it only when the user asks.
 
 If stderr has `"code":"AUTH"`, ask the user to run `structured login` in their own terminal. It opens a browser. Never run login from an agent shell. Never read, print, or commit `$XDG_CONFIG_HOME/structured/auth.json` (or `~/.config/structured/auth.json`).
 
