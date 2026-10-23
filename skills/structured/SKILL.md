@@ -27,7 +27,7 @@ command -v structured && structured --version
 structured today --json
 ```
 
-Missing binary: install the latest GitHub release archive for this machine, or `cargo install --git https://github.com/vanducng/structured`.
+Missing binary: tell the user, and suggest they install it with `curl -fsSL https://raw.githubusercontent.com/vanducng/structured/main/install.sh | sh` or `cargo install --git https://github.com/vanducng/structured`. Do not run either without their go-ahead: both download and run code. An older binary updates itself with `structured update`; run it only when the user asks.
 
 If stderr has `"code":"AUTH"`, ask the user to run `structured login` in their own terminal. It opens a browser. Never run login from an agent shell. Never read, print, or commit `$XDG_CONFIG_HOME/structured/auth.json` (or `~/.config/structured/auth.json`).
 
@@ -41,6 +41,7 @@ If stderr has `"code":"AUTH"`, ask the user to run `structured login` in their o
 ## Read
 
 ```bash
+structured now --json                     # 12 hours either side of now, across midnight
 structured today --json
 structured day tomorrow --json            # YYYY-MM-DD, today, tomorrow, yesterday, +N, -N
 structured inbox --json
@@ -48,13 +49,16 @@ structured list --from today --to +7 --open --search standup --json
 structured subtask list REF --json
 ```
 
-Report counts, times, and refs. Keep task titles and notes out of logs unless the user asked to see them.
+Report counts, times, and refs. Keep task titles and notes out of logs unless the user asked to see them. Every task carries `late: true` when it is still open after its end time, or from an earlier day; lead with those when the person asks what is left. For someone whose working hours cross midnight, `now` is the right default: it keeps last night's session and this morning in one list.
+
+Days and times are in one zone per run: `--tz ZONE` (a label from the person's `timezones` setting, like `saigon`, or an IANA name), else the first configured zone, else the system zone. When the person works across zones, say which zone the times are in, and pass `--tz` when they ask about the other one.
 
 ## Show the plan to a person
 
 When the user asks "what's my day" or wants to review a plan, print the text view and paste it unchanged in a fenced `text` block. Do not rebuild it as a table.
 
 ```bash
+structured now --text
 structured today --text
 structured day +1 --text
 structured inbox --text
@@ -74,7 +78,7 @@ Fri 23 Oct 2026 (today) · 4 tasks, 1 done · 4h 45m planned
                          [ ] Dry run on staging
 ```
 
-How to read it: `[x]` is done. `(1/3)` counts finished subtasks. `repeats` is one day of a recurring task. `! overlaps` starts before the previous task ends. `· free` is an open gap of 30 minutes or more. `--- now HH:MM ---` marks the current time on today.
+How to read it: `[x]` is done. `(1/3)` counts finished subtasks. `repeats` is one day of a recurring task. `! late` is still open after its end time. `! overlaps` starts before the previous task ends. `· free` is an open gap of 30 minutes or more. `--- now HH:MM ---` marks the current time on today.
 
 ## Write
 
