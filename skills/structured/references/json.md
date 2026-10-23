@@ -24,7 +24,9 @@ Every command prints one object. Field names come from Structured Cloud and pass
   "energy_level": 0,
   "subtasks": [],
   "external_calendar_id": null,
-  "order_index": null
+  "order_index": null,
+  "timezone": null,
+  "late": false
 }
 ```
 
