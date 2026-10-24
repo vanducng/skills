@@ -47,7 +47,7 @@ cd ~ && for d in .[!.]*; do [ -d "$d" ] && [ ! -L "$d" ] && \
 
 # Project roots - detached; read $TMPDIR/project-sizes.txt when the job finishes
 ( for r in "$HOME"/{git,code,src,projects,repos,dev}; do [ -d "$r" ] && find "$r" -mindepth 1 -maxdepth 1 -type d; done |
-  while read -r d; do tmo 1800 du -sh "$d" 2>/dev/null; done | sort -rh > "$TMPDIR/project-sizes.txt" ) &
+  while read -r d; do tmo 1800 du -sh "$d" 2>/dev/null; done | sort -rh > "$TMPDIR/project-sizes.txt" ) >/dev/null 2>&1 &
 
 # Drill the heavy ones - top 15 each
 du -sh ~/Library/Application\ Support/* 2>/dev/null | sort -rh | head -15
@@ -106,7 +106,7 @@ Standard regenerable caches. Apply only if path exists.
 
 ### 🟡 Review (user data, easy wins - confirm each)
 
-Move user-owned files (Downloads, logs, app snapshots) to the Trash with `/usr/bin/trash <path>` (macOS 15+) instead of `rm` or `find -delete`. They stay recoverable until the user empties the Trash. Regenerable items have their own commands below: re-downloadable media, `mise prune`, container volumes and dependency dirs.
+Move user-owned files (Downloads, logs, app snapshots) to the Trash with `/usr/bin/trash <path>` (macOS 15+) instead of `rm` or `find -delete`. If `/usr/bin/trash` is missing (macOS 14 or older), stop and ask the user before falling back to `mv -n <path> ~/.Trash/`. Never fall back to `rm`. Files moved to the Trash stay recoverable until the user empties the Trash. Regenerable items have their own commands below: re-downloadable media, `mise prune`, container volumes and dependency dirs.
 
 - **Downloads**: `*.dmg`/`*.pkg`/`*.zip`/`*.rar`/`*.tar.gz` older than 30 days
 - **Downloads**: duplicate installers matching `* (1).*`, `* (2).*`
@@ -207,12 +207,12 @@ After confirmation, the removal pattern is:
 
 ```bash
 # Duplicates created by re-downloads
-find ~/Downloads -maxdepth 1 -type f \( -name '* (1).*' -o -name '* (2).*' -o -name '* (3).*' \) -print -exec trash {} +
+find ~/Downloads -maxdepth 1 -type f \( -name '* (1).*' -o -name '* (2).*' -o -name '* (3).*' \) -print -exec /usr/bin/trash {} +
 
 # Old installer payloads (>30d)
 find ~/Downloads -maxdepth 3 -type f \
   \( -name '*.dmg' -o -name '*.pkg' -o -name '*.zip' -o -name '*.rar' -o -name '*.tar.gz' -o -name '*.tgz' \) \
-  -mtime +30 -print -exec trash {} +
+  -mtime +30 -print -exec /usr/bin/trash {} +
 ```
 
 ### Apple Podcasts media purge
@@ -274,9 +274,9 @@ Dry-run handling:
 `node_modules` and `.venv` in idle repos are often the biggest regenerable item under project roots. Discover them, measure each repo's idle time, and present tiers. Hundreds of `du` calls take minutes, so the scan runs detached. Read `$TMPDIR/deps.tsv` when the job finishes:
 
 ```bash
-( now=$(date +%s); : > "$TMPDIR/deps-nogit.txt"; roots=()
+( now=$(date +%s); : > "$TMPDIR/deps-nogit.txt"; : > "$TMPDIR/deps.tsv"; roots=()
 for r in "$HOME"/{git,code,src,projects,repos,dev}; do [ -d "$r" ] && roots+=("$r"); done
-find "${roots[@]}" -type d \( -name node_modules -o -name .venv \) -prune -print 2>/dev/null |
+[ ${#roots[@]} -gt 0 ] && find "${roots[@]}" -type d \( -name node_modules -o -name .venv \) -prune -print 2>/dev/null |
 while read -r d; do
   p=$(dirname "$d")
   ct=$(git -C "$p" log -1 --format=%ct HEAD 2>/dev/null || echo 0)
@@ -285,7 +285,7 @@ while read -r d; do
   last=$(( ct > it ? ct : it ))
   [ "$last" -eq 0 ] && { echo "$d" >> "$TMPDIR/deps-nogit.txt"; continue; }
   printf '%s\t%s\t%s\n' "$(du -sk "$d" | cut -f1)" "$(( (now - last) / 86400 ))" "$d"
-done | sort -rn > "$TMPDIR/deps.tsv" ) &   # KB, idle days, path
+done | sort -rn > "$TMPDIR/deps.tsv" ) >/dev/null 2>&1 &   # KB, idle days, path
 ```
 
 - Idle time is the later of the HEAD commit time and the index mtime. The index changes on checkout, add and status refresh, so it catches recent work.
