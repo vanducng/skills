@@ -30,6 +30,15 @@ def short_home(path: str) -> str:
     return "~" + path[len(HOME):] if path == HOME or path.startswith(HOME + os.sep) else path
 
 
+def run_zsh(flags: str, env: dict, timeout: int = 120) -> subprocess.CompletedProcess:
+    # No stdin and a timeout: an update or passphrase prompt in a startup file would otherwise hang.
+    try:
+        return subprocess.run(["zsh", flags, "exit 0"], cwd=HOME, env=env, stdin=subprocess.DEVNULL,
+                              capture_output=True, text=True, errors="replace", timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise SystemExit(f"zsh {flags} did not finish in {timeout}s; a startup file is probably waiting for input")
+
+
 def tail(text: str, lines: int = 5) -> str:
     return "\n  ".join(text.strip().splitlines()[-lines:])
 
@@ -48,17 +57,17 @@ def main():
     for _ in range(args.runs):
         start = time.perf_counter()
         # `exit 0`, not bare `exit`: bare exit returns the last startup command's status.
-        proc = subprocess.run(["zsh", "-lic", "exit 0"], cwd=HOME, env=env, capture_output=True, text=True,
-                              errors="replace")
+        proc = run_zsh("-lic", env)
         times.append(time.perf_counter() - start)
         if proc.returncode != 0:
             raise SystemExit(f"zsh startup exited {proc.returncode}; timings would be meaningless:\n  {tail(proc.stderr)}")
     print(f"startup ({args.env}): best {min(times):.2f}s  runs {' '.join(f'{t:.2f}' for t in times)}")
 
     env["PS4"] = "+%D{%s.%.} %x:%I> "
-    trace = subprocess.run(["zsh", "-lixc", "exit 0"], cwd=HOME, env=env, capture_output=True, text=True,
-                           errors="replace")
+    trace = run_zsh("-lixc", env)
     stderr = trace.stderr
+    if trace.returncode != 0:
+        print(f"warning: traced zsh exited {trace.returncode}; the trace may be incomplete")
     recs = [(float(m[1]), m[2], int(m[3]), m[4]) for m in map(TRACE.match, stderr.splitlines()) if m]
     if len(recs) < 2:
         print(f"no trace captured (zsh rc={trace.returncode}; expected PS4 lines like '+<epoch.ms> <file>:<line>> ')")
