@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Read-only snapshot of a macOS workstation: load vs cores, memory pressure, swap, CPU split,
-# consumers grouped by app bundle, the run queue, agent footprint, and container stats.
+# consumers grouped by app bundle, the run queue, process counts, and container stats.
 # Usage: resource-snapshot.sh [top_n]
 set -euo pipefail
 
@@ -14,7 +14,8 @@ echo "== host $(scutil --get LocalHostName 2>/dev/null || hostname)  cores=${cor
 uptime
 echo "swap: $(sysctl -n vm.swapusage)"
 memory_pressure 2>/dev/null | tail -1 || true
-top -l 2 -n 0 -s 2 | grep -E '^(Processes|CPU usage|PhysMem)' | tail -3
+# The first top sample has no CPU delta; print only the second.
+top -l 2 -n 0 -s 2 | awk '/^Processes:/ { n++ } n == 2 && /^(Processes|CPU usage|PhysMem)/'
 
 # Browsers and Electron apps run dozens of helpers; group them under their .app bundle.
 ps_rows="$(ps -Ao rss=,pcpu=,comm=)"
@@ -41,9 +42,13 @@ ps -Ao state=,comm= | awk '$1 ~ /^[RU]/ { s = substr($1, 1, 1); $1 = ""; n = $0;
   sort | uniq -c | sort -rn | awk -v n="$top_n" 'NR <= n'
 
 echo
-echo "== agent footprint (process counts)"
-for name in claude codex node uv python jump-cli zsh -zsh tmux; do
-  printf '%-9s %s\n' "$name" "$(pgrep -x -- "$name" 2>/dev/null | wc -l | tr -d ' ')"
+echo "== process counts (machine-wide, not only agents)"
+count() { pgrep "$@" 2>/dev/null | wc -l | tr -d ' '; }
+# Native Claude installs run as .../claude/versions/<ver>; Python shows as Python or python3.x.
+printf '%-9s %s\n' claude "$(count -f '(^|/)claude( |$)|/claude/versions/')"
+printf '%-9s %s\n' python "$(count -if '(^|/)python[0-9.]*( |$)')"
+for name in codex node uv jump-cli zsh -zsh tmux; do
+  printf '%-9s %s\n' "$name" "$(count -x -- "$name")"
 done
 
 if command -v docker >/dev/null 2>&1 && docker ps -q >/dev/null 2>&1; then
