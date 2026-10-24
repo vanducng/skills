@@ -27,6 +27,8 @@ Run these in parallel. Report top consumers per bucket.
 
 Never run `du -sh ~/*` in the foreground: a large project tree (`~/git`, `~/projects`) can take over 10 minutes and stall the audit. Size dotdirs one by one with a timeout, and size project roots per child in the background.
 
+Stock macOS has no `timeout`. It comes from Homebrew coreutils, as `timeout` or `gtimeout`. The commands below pick whichever exists, and without either they run with no time limit.
+
 ```bash
 # Volume stats - the Data volume is the real number; `/` is the sealed system volume
 df -h / /System/Volumes/Data
@@ -37,12 +39,15 @@ du -sh ~/Library/Caches ~/Library/Logs ~/Library/Containers \
        ~/Downloads ~/.Trash 2>/dev/null
 du -sh ~/Library/Group\ Containers/* 2>/dev/null | sort -rh | head -8
 
+T=$(command -v timeout || command -v gtimeout)
+
 # Dotdirs (mise, pyenv, nvm, agent CLIs, logs) - per-dir timeout, skip symlinks
 cd ~ && for d in .[!.]*; do [ -d "$d" ] && [ ! -L "$d" ] && \
-  printf '%s\t%s\n' "$(timeout 60 du -sh "$d" 2>/dev/null | cut -f1)" "$d"; done | sort -rh | head -20
+  printf '%s\t%s\n' "$(${T:+$T 60} du -sh "$d" 2>/dev/null | cut -f1)" "$d"; done | sort -rh | head -20
 
-# Project roots - background; symlinks to external volumes don't count
-for d in ~/git/*/ ~/projects/*/; do timeout 1800 du -sh "$d" 2>/dev/null; done | sort -rh
+# Project roots - detached; read $TMPDIR/project-sizes.txt when the job finishes
+( for d in ~/git/*/ ~/projects/*/; do ${T:+$T 1800} du -sh "$d" 2>/dev/null; done | sort -rh \
+  > "$TMPDIR/project-sizes.txt" ) &
 
 # Drill the heavy ones - top 15 each
 du -sh ~/Library/Application\ Support/* 2>/dev/null | sort -rh | head -15
@@ -113,7 +118,7 @@ Move user-owned files to the Trash with `/usr/bin/trash <path>` (macOS 15+) inst
 - **Claude Desktop VM**: `~/Library/Application Support/Claude/vm_bundles` - VM image, redownloads
 - **Agent / CLI logs**: one multi-GB JSONL under `~/.<tool>/logs/` is common. Check its mtime, then move it to Trash. Session transcripts (`~/.claude/projects`, `~/.codex/sessions`) are user history, so keep them by default
 - **Old tool runtimes**: `mise prune -y` removes versions that no config references. `~/.pyenv`, `~/.nvm` and conda installs need a per-version review
-- **Anonymous unused container volumes** (64-hex names, links 0): one approval covers the set. See Container engine prune
+- **Anonymous unused container volumes** (64-hex names, links 0): one approval covers the set. When asking, say that a database container started without `-v` writes to one of these, so they can hold data. See Container engine prune
 - **Regenerable named volumes**: `*playwright*`, `*venv*`, `*npm-cache*`, `*composer-cache*`, `buildx_buildkit_*_state`
 - **Stale dependency dirs**: `node_modules` / `.venv` in idle repos. See Stale dependency dirs
 
@@ -122,10 +127,10 @@ Move user-owned files to the Trash with `/usr/bin/trash <path>` (macOS 15+) inst
 - **Container engine VMs** - typically the largest single item. Confirm engine is unused (see Phase 4 migration check):
   - Docker Desktop: `~/Library/Containers/com.docker.docker/Data/vms`
   - OrbStack: `~/Library/Group Containers/*.dev.orbstack/data` (old installs: `~/.orbstack/data`)
-- **Named database volumes** (`*postgres*`, `*mysql*`, `*pgdata*`, `*redis*`, `*-data`), even when unused
   - Rancher Desktop: `~/Library/Application Support/rancher-desktop/lima`, `~/.rd`
   - Colima/Lima: `~/.colima`, `~/.lima`
   - Podman: `~/.local/share/containers`
+- **Named database volumes** (`*postgres*`, `*mysql*`, `*pgdata*`, `*redis*`, `*-data`), even when unused
 - **Xcode** archives + simulators: `~/Library/Developer/Xcode/{Archives,iOS DeviceSupport,watchOS DeviceSupport}`, `~/Library/Developer/CoreSimulator`
 - **Chat / messaging app data** (Slack, Teams, Discord, Zalo, WeChat, Telegram, Signal) - user-owned history
 - **Browser profiles** (Chrome, Brave, Arc, Edge, Firefox, Safari, Vivaldi, etc.) - bookmarks/sessions/extensions live here
@@ -148,8 +153,9 @@ Before quitting anything, walk the agent's parent PID chain (`p=$$; while [ "$p"
 
 Before deleting any app's data dir or cache, quit the app cleanly and confirm it is gone:
 ```bash
-timeout 20 osascript -e 'quit app "<App Name>"' 2>/dev/null; sleep 5
-ps -axo comm= | grep -E '/<App Name>\.app/Contents/MacOS/<App Name>$' || echo quit
+T=$(command -v timeout || command -v gtimeout)
+${T:+$T 20} osascript -e 'quit app "<App Name>"' 2>/dev/null; sleep 5
+ps -axo comm= | grep -E '/<App Name>\.app/Contents/MacOS/' || echo quit
 ```
 If the app ignores quit, skip its paths and report them. Never force-kill it.
 
@@ -159,7 +165,7 @@ Each regenerable cache is its own command. Do not pass several roots to one `rm`
 
 ### Container engine prune (engine still in use)
 
-Do not delete the VM. Do not run `docker system prune -af --volumes`. Unused volumes are often databases that are not attached to a running container, so they are 🔴, not part of an image prune.
+Do not delete the VM. Do not run `docker system prune -af --volumes`, and never fold volumes into an image prune. Named database volumes are 🔴. Anonymous unused volumes are 🟡 and need their own explicit approval, because they can still hold a database's data.
 
 Show `docker system df`, then run only the lines the user approved:
 
@@ -225,7 +231,7 @@ Always **preview first** with `find … -print` before adding `-delete`. Show to
 ## Phase 5 - Verify
 
 ```bash
-df -h /                             # confirm space freed
+df -h / /System/Volumes/Data        # confirm space freed; compare Data with the Phase 1 number
 node "$HOME/skills/skills/worktree/scripts/worktree.cjs" clean --merged 2>/dev/null
 docker context show 2>/dev/null     # if container engines were touched
 docker version --format '{{.Server.Version}}' 2>/dev/null
@@ -253,7 +259,7 @@ For per-repo registration (including worktrees not co-located under a directory 
 
 All cleanup runs through `vd:worktree` (`node "$HOME/skills/skills/worktree/scripts/worktree.cjs" clean` from each repository root) - never `rm -rf` a worktree. Flags and semantics (dry run by default, `--yes`, `--merged`, `--force` and its dirty-worktree skip) are vd:worktree's to consult; the approval aliases are `clean merged` → `clean --merged --yes` and `clean all` → `clean --yes`. Always show the dry-run candidates and total size before applying either alias, grouped into `.worktrees/`, task-workspace checkouts, and scratch dirs. `clean` from a repo root selects all three. Do not run repo-wide `clean --yes` when a candidate sits outside `.worktrees/` unless that path was named; remove named paths with `remove <path>`. Never infer approval for dirty paths from `clean all`. The dirty skip ignores untracked files, so also skip a candidate whose `git status --porcelain` shows `??` other than `.env*`.
 
-Before removing candidates, take one open-file snapshot (`lsof -nP -Fn 2>/dev/null | grep '^n/' | sed 's/^n//' | sort -u > "$TMPDIR/lsof.txt"`). Skip any candidate where `grep -F "$WT/"` matches the snapshot, which covers both cwd and open files. Running `lsof +D` per worktree takes minutes on large trees. If a worktree you need is in use, ask the user to close it. Never kill agent processes.
+Before removing candidates, take one open-file snapshot (`lsof -nP -Fn 2>/dev/null | grep '^n/' | sed 's/^n//' | sort -u > "$TMPDIR/lsof.txt"`). Skip any candidate where `grep -qxF "$WT" "$TMPDIR/lsof.txt" || grep -qF "$WT/" "$TMPDIR/lsof.txt"` succeeds. The exact match catches a cwd at the worktree root, and the prefix match catches cwds and open files under it. Running `lsof +D` per worktree takes minutes on large trees. If a worktree you need is in use, ask the user to close it. Never kill agent processes.
 
 Dry-run handling:
 - Give each repo's dry run a generous timeout and save the full output to a file. Never pipe it through `tail` or `head`: truncation hides candidates, and a dry run that prints nothing may have timed out on a repo with a lot of worktrees.
@@ -273,14 +279,17 @@ while read -r d; do
   ct=$(git -C "$p" log -1 --format=%ct HEAD 2>/dev/null || echo 0)
   idx=$(git -C "$p" rev-parse --path-format=absolute --git-path index 2>/dev/null)
   it=$( [ -n "$idx" ] && stat -f %m "$idx" 2>/dev/null || echo 0)
-  printf '%s\t%s\t%s\n' "$(du -sk "$d" | cut -f1)" "$(( (now - (ct > it ? ct : it)) / 86400 ))" "$d"
+  last=$(( ct > it ? ct : it ))
+  [ "$last" -eq 0 ] && { echo "$d" >> "$TMPDIR/deps-nogit.txt"; continue; }
+  printf '%s\t%s\t%s\n' "$(du -sk "$d" | cut -f1)" "$(( (now - last) / 86400 ))" "$d"
 done | sort -rn > "$TMPDIR/deps.tsv"   # KB, idle days, path
 ```
 
 - Idle time is the later of the HEAD commit time and the index mtime. The index changes on checkout, add and status refresh, so it catches recent work.
+- Paths outside a git repo have no timestamp and would look about 20,000 days idle. They go to `deps-nogit.txt` and never into a tier. List them separately for per-path review.
 - Show the 30, 60 and 90-day tiers with directory counts and GB. Call out worktrees with unmerged work separately, since their deps need a reinstall when the user picks them back up. Write the full path list to a scratch file and have the user approve that file. That meets the per-path rule for project roots.
 - Leave out paths inside worktrees that are being removed in the same run.
-- Before deleting: take a fresh `lsof` snapshot and skip any matches, and check that each path ends in `/node_modules` or `/.venv`. Use one `rm -rf` per path, and run it in the background, because hundreds of small-file trees take more than 10 minutes.
+- Before deleting: take a fresh `lsof` snapshot and skip any path that appears in it exactly or as a prefix, and check that each path ends in `/node_modules` or `/.venv`. Use one `rm -rf` per path, and run it in the background, because hundreds of small-file trees take more than 10 minutes.
 - A context-guard hook may block any command that mentions `node_modules` or `venv`. Ask the user before adding a temporary allow entry (for scout-block's `.vdignore` that is the glob `!node_modules`, not a regex), and remove the entry when you finish.
 
 ## Hard rules
