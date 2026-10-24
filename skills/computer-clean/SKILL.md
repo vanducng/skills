@@ -106,7 +106,7 @@ Standard regenerable caches. Apply only if path exists.
 
 ### 🟡 Review (user data, easy wins - confirm each)
 
-Move user-owned files to the Trash with `/usr/bin/trash <path>` (macOS 15+) instead of `rm` or `find -delete`. They stay recoverable until the user empties the Trash.
+Move user-owned files (Downloads, logs, app snapshots) to the Trash with `/usr/bin/trash <path>` (macOS 15+) instead of `rm` or `find -delete`. They stay recoverable until the user empties the Trash. Regenerable items have their own commands below: re-downloadable media, `mise prune`, container volumes and dependency dirs.
 
 - **Downloads**: `*.dmg`/`*.pkg`/`*.zip`/`*.rar`/`*.tar.gz` older than 30 days
 - **Downloads**: duplicate installers matching `* (1).*`, `* (2).*`
@@ -221,7 +221,7 @@ find ~/Downloads -maxdepth 3 -type f \
 osascript -e 'quit app "Podcasts"' 2>/dev/null; sleep 1
 find ~/Library/Group\ Containers/*.groups.com.apple.podcasts \
      ~/Library/Containers/com.apple.podcasts \
-     -type f \( -name '*.mp3' -o -name '*.m4a' -o -name '*.mp4' \) -delete 2>/dev/null
+     -type f \( -name '*.mp3' -o -name '*.m4a' -o -name '*.mp4' \) -delete 2>/dev/null   # re-downloadable episodes
 ```
 
 ### Files older than N months
@@ -269,11 +269,12 @@ Dry-run handling:
 
 ## Stale dependency dirs (🟡 - per-list approval)
 
-`node_modules` and `.venv` in idle repos are often the biggest regenerable item under project roots. Discover them, measure each repo's idle time, and present tiers:
+`node_modules` and `.venv` in idle repos are often the biggest regenerable item under project roots. Discover them, measure each repo's idle time, and present tiers. Hundreds of `du` calls take minutes, so the scan runs detached. Read `$TMPDIR/deps.tsv` when the job finishes:
 
 ```bash
-now=$(date +%s); : > "$TMPDIR/deps-nogit.txt"
-find "$HOME/git" "$HOME/projects" -type d \( -name node_modules -o -name .venv \) -prune -print 2>/dev/null |
+( now=$(date +%s); : > "$TMPDIR/deps-nogit.txt"; roots=()
+for r in "$HOME"/{git,code,src,projects,repos,dev}; do [ -d "$r" ] && roots+=("$r"); done
+find "${roots[@]}" -type d \( -name node_modules -o -name .venv \) -prune -print 2>/dev/null |
 while read -r d; do
   p=$(dirname "$d")
   ct=$(git -C "$p" log -1 --format=%ct HEAD 2>/dev/null || echo 0)
@@ -282,7 +283,7 @@ while read -r d; do
   last=$(( ct > it ? ct : it ))
   [ "$last" -eq 0 ] && { echo "$d" >> "$TMPDIR/deps-nogit.txt"; continue; }
   printf '%s\t%s\t%s\n' "$(du -sk "$d" | cut -f1)" "$(( (now - last) / 86400 ))" "$d"
-done | sort -rn > "$TMPDIR/deps.tsv"   # KB, idle days, path
+done | sort -rn > "$TMPDIR/deps.tsv" ) &   # KB, idle days, path
 ```
 
 - Idle time is the later of the HEAD commit time and the index mtime. The index changes on checkout, add and status refresh, so it catches recent work.
