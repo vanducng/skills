@@ -14,7 +14,7 @@ import subprocess
 import time
 
 HOME = os.path.expanduser("~")
-TRACE = re.compile(r"^\++(\d+\.\d+) (\S+?):(\d+)> (.*)")
+TRACE = re.compile(r"^\++(\d+\.\d+) (.+?):(\d+)> (.*)")
 STARTUP_FILES = (".zshenv", ".zprofile", ".zshrc", ".zlogin")
 
 
