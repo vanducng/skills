@@ -45,7 +45,7 @@ echo
 echo "== process counts (machine-wide, not only agents)"
 count() { pgrep "$@" 2>/dev/null | wc -l | tr -d ' '; }
 # Native Claude installs run as .../claude/versions/<ver>; Python shows as Python or python3.x.
-printf '%-9s %s\n' claude "$(count -f '(^|/)claude( |$)|/claude/versions/')"
+printf '%-9s %s\n' claude "$(count -f '^([^ ]*/)?claude( |$)|^[^ ]*/claude/versions/')"
 printf '%-9s %s\n' python "$(count -if '(^|/)python[0-9.]*( |$)')"
 for name in codex node uv jump-cli zsh -zsh tmux; do
   printf '%-9s %s\n' "$name" "$(count -x -- "$name")"
