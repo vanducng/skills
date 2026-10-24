@@ -2,6 +2,25 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.70.0](https://github.com/vanducng/skills/compare/v1.69.0...v1.70.0) (2026-10-24)
+
+
+### Features
+
+* add mac-resource-triage skill ([c6d26fe](https://github.com/vanducng/skills/commit/c6d26feda3dc1269b69d679b02736f60700c8e6d))
+* added mac-resource-triage for overloaded Macs and slow shell startup ([3e8c3e4](https://github.com/vanducng/skills/commit/3e8c3e4c9fb7d18f161257d1df3da8cd3488191f))
+* **computer-clean:** add stale deps sweep and safer volume and worktree pruning ([#529](https://github.com/vanducng/skills/issues/529)) ([72b49a0](https://github.com/vanducng/skills/commit/72b49a000f963d4bad5fd75eb152b71a46e7c2e2))
+
+
+### Bug Fixes
+
+* **mac-resource-triage:** anchor the claude count to the executable; exit 1 on an empty trace ([b333dac](https://github.com/vanducng/skills/commit/b333dac0ced4ec0eadf6430e85e6374dabf5f7a9))
+* **mac-resource-triage:** attribute trace lines from paths with spaces ([5e45bae](https://github.com/vanducng/skills/commit/5e45baebd4f0026233f6d7ad9d8db029b9ccb709))
+* **mac-resource-triage:** count native claude and python installs; read top's second sample ([ed8516a](https://github.com/vanducng/skills/commit/ed8516a9174ee5380845617691d4d6def2b300c5))
+* **mac-resource-triage:** fail loudly when ps fails; aggregate by app once ([2f7b3b9](https://github.com/vanducng/skills/commit/2f7b3b9eaf516a72f42de837a6a94206b419eb5f))
+* **mac-resource-triage:** give profiled zsh no stdin and a timeout ([042b855](https://github.com/vanducng/skills/commit/042b855080b2dbcb4cf9d781be79a547ab2aca0b))
+* **mac-resource-triage:** harden the helper scripts after review ([31aa66e](https://github.com/vanducng/skills/commit/31aa66e3723b033e8d42ab532ae7ee2b4b5d4dd2))
+
 ## [1.69.0](https://github.com/vanducng/skills/compare/v1.68.0...v1.69.0) (2026-10-23)
 
 
