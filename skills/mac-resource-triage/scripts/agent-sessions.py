@@ -15,7 +15,16 @@ import time
 HOME = os.path.expanduser("~")
 
 
-def process_table():
+def short_home(path: str) -> str:
+    return "~" + path[len(HOME):] if path == HOME or path.startswith(HOME + os.sep) else path
+
+
+def is_claude(cmd: str) -> bool:
+    argv0 = cmd.split()[0]
+    return os.path.basename(argv0) == "claude" or "/claude/versions/" in argv0
+
+
+def process_table() -> dict:
     out = subprocess.run(["ps", "-Ao", "pid=,ppid=,etime=,rss=,command="], capture_output=True, text=True).stdout
     table = {}
     for line in out.splitlines():
@@ -26,7 +35,7 @@ def process_table():
     return table
 
 
-def ancestors(pid, table):
+def ancestors(pid: int, table: dict) -> list:
     seen = []
     while pid in table and pid not in seen and pid > 1:
         seen.append(pid)
@@ -44,9 +53,8 @@ def main():
     now = time.time()
     rows = []
     for pid, proc in table.items():
-        if os.path.basename(proc["cmd"].split()[0]) != "claude" and " claude " not in f" {proc['cmd']} ":
-            continue
-        if "--chrome-native-host" in proc["cmd"]:
+        # Requiring a claude executable also keeps a reused PID's stale registry file out.
+        if not is_claude(proc["cmd"]) or "--chrome-native-host" in proc["cmd"]:
             continue
         info = {}
         try:
@@ -55,8 +63,8 @@ def main():
         except (OSError, ValueError):
             pass
         sid = info.get("sessionId", "")
-        transcript = glob.glob(f"{HOME}/.claude/projects/*/{sid}.jsonl") if sid else []
-        idle_h = (now - os.path.getmtime(transcript[0])) / 3600 if transcript else None
+        transcripts = glob.glob(f"{HOME}/.claude/projects/*/{sid}.jsonl") if sid else []
+        idle_h = (now - max(map(os.path.getmtime, transcripts))) / 3600 if transcripts else None
         parent_cmds = " ".join(table[a]["cmd"] for a in ancestors(proc["ppid"], table))
         seat = "@" in info.get("name", "") or "--name" in proc["cmd"] or "tmux-send" in parent_cmds
         rows.append({
@@ -65,7 +73,7 @@ def main():
             "idle_h": idle_h,
             "etime": proc["etime"],
             "rss_mb": proc["rss_mb"],
-            "cwd": info.get("cwd", "?").replace(HOME, "~"),
+            "cwd": short_home(info.get("cwd", "?")),
             "sid": sid,
             "flag": "self" if pid in self_chain else ("seat" if seat else ""),
         })

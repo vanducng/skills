@@ -5,6 +5,7 @@
 set -euo pipefail
 
 top_n="${1:-12}"
+[[ "$top_n" =~ ^[1-9][0-9]*$ ]] || { echo "usage: $0 [top_n >= 1]" >&2; exit 1; }
 [[ "$(uname -s)" == Darwin ]] || { echo "macOS only" >&2; exit 1; }
 
 cores="$(sysctl -n hw.ncpu)"
@@ -16,12 +17,13 @@ memory_pressure 2>/dev/null | tail -1 || true
 top -l 2 -n 0 -s 2 | grep -E '^(Processes|CPU usage|PhysMem)' | tail -3
 
 # Browsers and Electron apps run dozens of helpers; group them under their .app bundle.
+ps_rows="$(ps -Ao rss=,pcpu=,comm=)"
 by_app() {
-  ps -Ao rss=,pcpu=,comm= | awk '{
+  awk '{
     r = $1; c = $2; $1 = ""; $2 = ""; n = $0
     sub(/^ +/, "", n); sub(/\.app\/.*/, ".app", n); sub(/.*\//, "", n)
     R[n] += r; C[n] += c; N[n]++
-  } END { for (k in R) printf "%7.0f MB %7.1f%% %5d  %s\n", R[k] / 1024, C[k], N[k], k }'
+  } END { for (k in R) printf "%7.0f MB %7.1f%% %5d  %s\n", R[k] / 1024, C[k], N[k], k }' <<<"$ps_rows"
 }
 
 echo
@@ -29,7 +31,7 @@ echo "== top by CPU (RSS, CPU%, procs, app)"
 by_app | sort -k3 -rn | awk -v n="$top_n" 'NR <= n'
 echo
 echo "== top by memory"
-by_app | sort -rn | awk -v n="$top_n" 'NR <= n'
+by_app | sort -k1 -rn | awk -v n="$top_n" 'NR <= n'
 
 # macOS load average counts runnable threads (state R); U is uninterruptible wait, not in load.
 echo
