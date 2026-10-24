@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Read-only snapshot of a macOS workstation: load vs cores, memory pressure, swap, CPU split,
+# consumers grouped by app bundle, the run queue, agent footprint, and container stats.
+# Usage: resource-snapshot.sh [top_n]
+set -euo pipefail
+
+top_n="${1:-12}"
+[[ "$(uname -s)" == Darwin ]] || { echo "macOS only" >&2; exit 1; }
+
+cores="$(sysctl -n hw.ncpu)"
+ram_gb="$(( $(sysctl -n hw.memsize) / 1073741824 ))"
+echo "== host $(scutil --get LocalHostName 2>/dev/null || hostname)  cores=${cores}  ram=${ram_gb}G"
+uptime
+echo "swap: $(sysctl -n vm.swapusage)"
+memory_pressure 2>/dev/null | tail -1 || true
+top -l 2 -n 0 -s 2 | grep -E '^(Processes|CPU usage|PhysMem)' | tail -3
+
+# Browsers and Electron apps run dozens of helpers; group them under their .app bundle.
+by_app() {
+  ps -Ao rss=,pcpu=,comm= | awk '{
+    r = $1; c = $2; $1 = ""; $2 = ""; n = $0
+    sub(/^ +/, "", n); sub(/\.app\/.*/, ".app", n); sub(/.*\//, "", n)
+    R[n] += r; C[n] += c; N[n]++
+  } END { for (k in R) printf "%7.0f MB %7.1f%% %5d  %s\n", R[k] / 1024, C[k], N[k], k }'
+}
+
+echo
+echo "== top by CPU (RSS, CPU%, procs, app)"
+by_app | sort -k3 -rn | awk -v n="$top_n" 'NR <= n'
+echo
+echo "== top by memory"
+by_app | sort -rn | awk -v n="$top_n" 'NR <= n'
+
+# macOS load average counts runnable threads (state R); U is uninterruptible wait, not in load.
+echo
+echo "== run queue now (R = runnable, U = uninterruptible wait)"
+ps -Ao state=,comm= | awk '$1 ~ /^[RU]/ { s = substr($1, 1, 1); $1 = ""; n = $0; sub(/^ +/, "", n); sub(/.*\//, "", n); print s, n }' |
+  sort | uniq -c | sort -rn | awk -v n="$top_n" 'NR <= n'
+
+echo
+echo "== agent footprint (process counts)"
+for name in claude codex node uv python jump-cli zsh -zsh tmux; do
+  printf '%-9s %s\n' "$name" "$(pgrep -x -- "$name" 2>/dev/null | wc -l | tr -d ' ')"
+done
+
+if command -v docker >/dev/null 2>&1 && docker ps -q >/dev/null 2>&1; then
+  echo
+  echo "== containers by CPU ($(docker ps -q | wc -l | tr -d ' ') running)"
+  docker stats --no-stream --format '{{.CPUPerc}}\t{{.MemUsage}}\t{{.Name}}' | sort -rn | awk -v n="$top_n" 'NR <= n'
+fi
