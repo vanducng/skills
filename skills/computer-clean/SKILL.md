@@ -46,8 +46,8 @@ cd ~ && for d in .[!.]*; do [ -d "$d" ] && [ ! -L "$d" ] && \
   printf '%s\t%s\n' "$(tmo 60 du -sh "$d" 2>/dev/null | cut -f1)" "$d"; done | sort -rh | head -20
 
 # Project roots - detached; read $TMPDIR/project-sizes.txt when the job finishes
-( for d in ~/git/*/ ~/projects/*/; do tmo 1800 du -sh "$d" 2>/dev/null; done | sort -rh \
-  > "$TMPDIR/project-sizes.txt" ) &
+( for r in "$HOME"/{git,code,src,projects,repos,dev}; do [ -d "$r" ] && find "$r" -mindepth 1 -maxdepth 1 -type d; done |
+  while read -r d; do tmo 1800 du -sh "$d" 2>/dev/null; done | sort -rh > "$TMPDIR/project-sizes.txt" ) &
 
 # Drill the heavy ones - top 15 each
 du -sh ~/Library/Application\ Support/* 2>/dev/null | sort -rh | head -15
