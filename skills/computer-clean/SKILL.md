@@ -218,7 +218,9 @@ find ~/Downloads -maxdepth 3 -type f \
 ### Apple Podcasts media purge
 
 ```bash
-osascript -e 'quit app "Podcasts"' 2>/dev/null; sleep 1
+T=$(command -v timeout || command -v gtimeout)
+${T:+$T 20} osascript -e 'quit app "Podcasts"' 2>/dev/null; sleep 5
+ps -axo comm= | grep -qE '/Podcasts\.app/Contents/MacOS/' && echo "Podcasts still running - skip" ||
 find ~/Library/Group\ Containers/*.groups.com.apple.podcasts \
      ~/Library/Containers/com.apple.podcasts \
      -type f \( -name '*.mp3' -o -name '*.m4a' -o -name '*.mp4' \) -delete 2>/dev/null   # re-downloadable episodes
