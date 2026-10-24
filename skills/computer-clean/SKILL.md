@@ -27,7 +27,7 @@ Run these in parallel. Report top consumers per bucket.
 
 Never run `du -sh ~/*` in the foreground: a large project tree (`~/git`, `~/projects`) can take over 10 minutes and stall the audit. Size dotdirs one by one with a timeout, and size project roots per child in the background.
 
-Stock macOS has no `timeout`. It comes from Homebrew coreutils, as `timeout` or `gtimeout`. The commands below pick whichever exists, and without either they run with no time limit.
+Stock macOS has no `timeout`. It comes from Homebrew coreutils, as `timeout` or `gtimeout`. The `tmo` helper defined in each block uses whichever one exists, and without either it runs the command with no time limit. A `${T:+$T 60}` prefix would break under zsh, which does not word-split.
 
 ```bash
 # Volume stats - the Data volume is the real number; `/` is the sealed system volume
@@ -39,14 +39,14 @@ du -sh ~/Library/Caches ~/Library/Logs ~/Library/Containers \
        ~/Downloads ~/.Trash 2>/dev/null
 du -sh ~/Library/Group\ Containers/* 2>/dev/null | sort -rh | head -8
 
-T=$(command -v timeout || command -v gtimeout)
+tmo() { local t; t=$(command -v timeout || command -v gtimeout); if [ -n "$t" ]; then "$t" "$@"; else shift; "$@"; fi; }
 
 # Dotdirs (mise, pyenv, nvm, agent CLIs, logs) - per-dir timeout, skip symlinks
 cd ~ && for d in .[!.]*; do [ -d "$d" ] && [ ! -L "$d" ] && \
-  printf '%s\t%s\n' "$(${T:+$T 60} du -sh "$d" 2>/dev/null | cut -f1)" "$d"; done | sort -rh | head -20
+  printf '%s\t%s\n' "$(tmo 60 du -sh "$d" 2>/dev/null | cut -f1)" "$d"; done | sort -rh | head -20
 
 # Project roots - detached; read $TMPDIR/project-sizes.txt when the job finishes
-( for d in ~/git/*/ ~/projects/*/; do ${T:+$T 1800} du -sh "$d" 2>/dev/null; done | sort -rh \
+( for d in ~/git/*/ ~/projects/*/; do tmo 1800 du -sh "$d" 2>/dev/null; done | sort -rh \
   > "$TMPDIR/project-sizes.txt" ) &
 
 # Drill the heavy ones - top 15 each
@@ -153,8 +153,8 @@ Before quitting anything, walk the agent's parent PID chain (`p=$$; while [ "$p"
 
 Before deleting any app's data dir or cache, quit the app cleanly and confirm it is gone:
 ```bash
-T=$(command -v timeout || command -v gtimeout)
-${T:+$T 20} osascript -e 'quit app "<App Name>"' 2>/dev/null; sleep 5
+tmo() { local t; t=$(command -v timeout || command -v gtimeout); if [ -n "$t" ]; then "$t" "$@"; else shift; "$@"; fi; }
+tmo 20 osascript -e 'quit app "<App Name>"' 2>/dev/null; sleep 5
 ps -axo comm= | grep -E '/<App Name>\.app/Contents/MacOS/' || echo quit
 ```
 If the app ignores quit, skip its paths and report them. Never force-kill it.
@@ -218,8 +218,8 @@ find ~/Downloads -maxdepth 3 -type f \
 ### Apple Podcasts media purge
 
 ```bash
-T=$(command -v timeout || command -v gtimeout)
-${T:+$T 20} osascript -e 'quit app "Podcasts"' 2>/dev/null; sleep 5
+tmo() { local t; t=$(command -v timeout || command -v gtimeout); if [ -n "$t" ]; then "$t" "$@"; else shift; "$@"; fi; }
+tmo 20 osascript -e 'quit app "Podcasts"' 2>/dev/null; sleep 5
 ps -axo comm= | grep -qE '/Podcasts\.app/Contents/MacOS/' && echo "Podcasts still running - skip" ||
 find ~/Library/Group\ Containers/*.groups.com.apple.podcasts \
      ~/Library/Containers/com.apple.podcasts \
