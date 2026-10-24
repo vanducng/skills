@@ -26,12 +26,13 @@ by_app() {
   } END { for (k in R) printf "%7.0f MB %7.1f%% %5d  %s\n", R[k] / 1024, C[k], N[k], k }' <<<"$ps_rows"
 }
 
+app_rows="$(by_app)"
 echo
 echo "== top by CPU (RSS, CPU%, procs, app)"
-by_app | sort -k3 -rn | awk -v n="$top_n" 'NR <= n'
+sort -k3 -rn <<<"$app_rows" | awk -v n="$top_n" 'NR <= n'
 echo
 echo "== top by memory"
-by_app | sort -k1 -rn | awk -v n="$top_n" 'NR <= n'
+sort -k1 -rn <<<"$app_rows" | awk -v n="$top_n" 'NR <= n'
 
 # macOS load average counts runnable threads (state R); U is uninterruptible wait, not in load.
 echo
