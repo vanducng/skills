@@ -25,7 +25,10 @@ def is_claude(cmd: str) -> bool:
 
 
 def process_table() -> dict:
-    out = subprocess.run(["ps", "-Ao", "pid=,ppid=,etime=,rss=,command="], capture_output=True, text=True).stdout
+    ps = subprocess.run(["ps", "-Ao", "pid=,ppid=,etime=,rss=,command="], capture_output=True, text=True)
+    if ps.returncode != 0:
+        raise SystemExit(f"ps failed ({ps.returncode}): {ps.stderr.strip()}")
+    out = ps.stdout
     table = {}
     for line in out.splitlines():
         parts = line.split(None, 4)
