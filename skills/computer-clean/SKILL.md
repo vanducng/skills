@@ -272,7 +272,7 @@ Dry-run handling:
 `node_modules` and `.venv` in idle repos are often the biggest regenerable item under project roots. Discover them, measure each repo's idle time, and present tiers:
 
 ```bash
-now=$(date +%s)
+now=$(date +%s); : > "$TMPDIR/deps-nogit.txt"
 find "$HOME/git" "$HOME/projects" -type d \( -name node_modules -o -name .venv \) -prune -print 2>/dev/null |
 while read -r d; do
   p=$(dirname "$d")
