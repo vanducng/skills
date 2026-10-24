@@ -63,7 +63,7 @@ def main():
     if len(recs) < 2:
         print(f"no trace captured (zsh rc={trace.returncode}; expected PS4 lines like '+<epoch.ms> <file>:<line>> ')")
         print(f"  {tail(stderr)}")
-        return
+        raise SystemExit(1)
 
     by_file, by_line, sample = collections.Counter(), collections.Counter(), {}
     calls = collections.Counter()
@@ -79,6 +79,7 @@ def main():
             sample.setdefault(key, cmd[:90])
 
     print(f"traced {recs[-1][0] - recs[0][0]:.2f}s over {len(recs)} lines (xtrace inflates absolute time)")
+    print("time runs to the next traced line, so a `source` line's cost shows under the sourced file")
     print(f"compinit calls={calls['compinit']}  compdump (full rebuild) calls={calls['compdump']}  compaudit={calls['compaudit']}")
     print("\n-- by file")
     for f, secs in by_file.most_common(args.top):
