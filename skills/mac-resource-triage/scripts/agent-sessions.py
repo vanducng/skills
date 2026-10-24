@@ -19,6 +19,13 @@ def short_home(path: str) -> str:
     return "~" + path[len(HOME):] if path == HOME or path.startswith(HOME + os.sep) else path
 
 
+def mtime(path: str):
+    try:
+        return os.path.getmtime(path)
+    except OSError:
+        return None
+
+
 def is_claude(cmd: str) -> bool:
     argv0 = cmd.split()[0]
     return os.path.basename(argv0) == "claude" or "/claude/versions/" in argv0
@@ -67,7 +74,8 @@ def main():
             pass
         sid = info.get("sessionId", "")
         transcripts = glob.glob(f"{HOME}/.claude/projects/*/{sid}.jsonl") if sid else []
-        idle_h = (now - max(map(os.path.getmtime, transcripts))) / 3600 if transcripts else None
+        mtimes = [m for m in map(mtime, transcripts) if m is not None]
+        idle_h = (now - max(mtimes)) / 3600 if mtimes else None
         parent_cmds = " ".join(table[a]["cmd"] for a in ancestors(proc["ppid"], table))
         seat = "@" in info.get("name", "") or "--name" in proc["cmd"] or "tmux-send" in parent_cmds
         rows.append({
