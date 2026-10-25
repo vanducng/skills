@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog contains 94 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
+The catalog contains 95 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
 
 Count source: `find skills -mindepth 1 -maxdepth 1 -type d`. Validation: `scripts/validate.sh`.
 
@@ -68,7 +68,7 @@ Start with a local browser. Use `vd:browser` only when the site blocks local aut
 | --- | --- |
 | Web and frontend | `vd:uiuxdesign`, `vd:better-ui`, `vd:design-eng`, `vd:opendesign`, `vd:fastreact` |
 | Interface and storage design | `vd:apidesign`, `vd:dbdesign` |
-| Media, files, and social | `vd:omnimedia`, `vd:video`, `vd:marketing-design`, `vd:copywriting`, `vd:unslop`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
+| Media, files, and social | `vd:omnimedia`, `vd:video`, `vd:asciinema`, `vd:marketing-design`, `vd:copywriting`, `vd:unslop`, `vd:show-off`, `vd:file-browser`, `vd:twitter`, `vd:devlog` |
 
 ## Docs and diagrams
 
@@ -137,7 +137,7 @@ For reviews, `vd:code-review` posts PR findings and `vd:code-review --refactor` 
 
 Use `vd:docs` for internal project docs and ADRs. Its `site` subcommand manages a public documentation site.
 
-Use `vd:show-me` for a quick in-chat visual. Use `vd:diagram-design` for accessible HTML/SVG, `vd:text-diagram` for ASCII, `vd:diagram` for SVG or raster output, and `vd:excalidraw` for editable whiteboards. Use `vd:uiuxdesign` to design or build a product UI, `vd:better-ui` for exact polish values (concentric radius, surface shadows, press scale, icon motion), and `vd:design-eng` to decide whether motion should exist and how easing, popovers, and drags behave.
+Use `vd:show-me` for a quick in-chat visual. Use `vd:diagram-design` for accessible HTML/SVG, `vd:text-diagram` for ASCII, `vd:diagram` for SVG or raster output, and `vd:excalidraw` for editable whiteboards. Use `vd:uiuxdesign` to design or build a product UI, `vd:better-ui` for exact polish values (concentric radius, surface shadows, press scale, icon motion), and `vd:design-eng` to decide whether motion should exist and how easing, popovers, and drags behave. Use `vd:asciinema` to record a scripted CLI or TUI demo on sample data, check every scene from the cast, and publish a README GIF linked to asciinema.org.
 
 Use `vd:superwhisper` to search local dictation history, prepare standups, and diagnose recognition errors. Use `vd:alter` to audit Alter's macOS global hotkeys and change them without reading meeting data. Use `vd:jump-desktop` to check Jump Desktop Connect remote access, manage `.jump` viewer entries, and drive hosts through the `jump-cli` MCP server. Use `vd:braze` for Braze CLI reads and explicit opt-in changes. Use `vd:smartsheet` for bounded sheet reads and authorized row updates. Use `vd:voice-agent` to operate Retell through `vac`. Use `vd:structured` to read Structured days and the inbox, show a plan as a text timeline, and make authorized task and subtask changes through the `structured` CLI. Use `vd:gopass` for the local GPG password store and `vd:onepassword` for 1Password CLI (`op` / `op://` references). Use `vd:obsidian-vault` to capture ideas into the personal Obsidian PARA vault.
 
