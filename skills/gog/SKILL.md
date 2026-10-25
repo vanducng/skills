@@ -24,6 +24,10 @@ export GOG_HOME="${GOG_HOME:-$HOME/.config/vd/gog}"
 Never run a bare `gog` without `GOG_HOME`. Tokens then land in `~/.config/gogcli`
 and this skill cannot see them.
 
+A command handed to the person to run (`! gog ...`, a pasted snippet) runs in
+their shell, which does not have this export. Write the prefix inline:
+`GOG_HOME=$HOME/.config/vd/gog gog --client <client> auth add ...`.
+
 ## Flags (prompt / skill args)
 
 ```
@@ -115,6 +119,20 @@ Named OAuth clients: a registry entry may pin one (`gog --client <name>`); other
 gog --account acme --client acme me --json --no-input
 ```
 
+## Second host (headless, over ssh)
+
+Mint a token per host; never copy refresh tokens between machines.
+
+1. Copy only bootstrap material: the client JSON (`gog --client <c> auth credentials set <file>`, then delete the copy) and the `*.user.md` registry entries.
+2. `gog --client <c> auth add <email> --services <list> --readonly --remote --step 1` prints a URL. The person opens it in their own browser, picks the registry email, and copies the address bar after the redirect (the localhost page failing to load is expected).
+3. `gog --client <c> auth add <email> --services <list> --readonly --remote --step 2 --auth-url '<pasted url>'`, then `auth alias set` and `auth list --check`.
+
+Unattended read-only hosts (listeners) get `--readonly` tokens; interactive hosts keep full scopes.
+
+- Hand the URL over by opening it programmatically (browser automation or `open`), never as text to copy: a wrapped copy drops `response_type`.
+- The redirect goes to `127.0.0.1:<port>` on the person's machine, where nothing listens; the browser shows a connection error and hides the code from page APIs. Run a one-shot listener on that port first (stdlib `http.server`, one request) and take the URL from it.
+- macOS over ssh: the login keychain is locked (`-25308`). Use `GOG_KEYRING_BACKEND=file` with `GOG_KEYRING_PASSWORD` in `$GOG_HOME/env` (0600), and keep a copy of the password in the secret store.
+
 ## Preflight
 
 ```bash
@@ -186,6 +204,7 @@ Writes: read current state → `gog --account <a> me` → show account + id + mu
 | Symptom | Cause | Fix |
 |---|---|---|
 | Token missing after a successful browser login | `gog` ran without `GOG_HOME` | Always export `GOG_HOME=$HOME/.config/vd/gog` |
+| `OAuth client credentials missing`, expected at `~/.config/gogcli/credentials-<client>.json` | `GOG_HOME` unset; the client JSON lives in `$GOG_HOME/data/` | Rerun with the `GOG_HOME=` prefix. Do not create a new OAuth client |
 | Re-auth every 7 days | OAuth consent screen in Testing | Publish to In production, then `auth add --force-consent` once |
 | `authorized as A, expected B` | Wrong Google account in the chooser | Retry; pick the alias email |
 | `access_not_configured` / admin must review | Workspace blocks the OAuth client | Internal app in that org, or admin allowlists the client ID |
