@@ -4,7 +4,7 @@ description: Work inside an org/project/task workspace that any coding harness (
 license: MIT
 metadata:
   author: vanducng
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # OpenRig workspace
@@ -18,15 +18,15 @@ $PROJECTS_ROOT/
   AGENTS.md  workspace.yaml  fleet/{machines,routing,policy}.yaml  specs/{agents,rigs}/
   .worktrees/<repo>-<slice-id>/                 # gitignored git worktrees, one per repo per slice
   orgs/<org>/
-    AGENTS.md  org.yaml  repos.yaml            # repos.yaml is the only place paths live
-    <project>/
-      AGENTS.md  SPEC.md  project.yaml  repos.yaml
+    AGENTS.md  org.yaml  repos.yaml  resources.yaml   # repos.yaml is the only place paths live
+    projects/<project>/
+      AGENTS.md  SPEC.md  project.yaml  repos.yaml  resources.yaml
       missions/<mission>/SPEC.md                # frontmatter code:, ticket:, milestone:
       missions/<mission>/slices/<nn>-<slug>/    # committed record: SPEC, PROGRESS, PROOF
       tasks/<task>/                             # gitignored, machine-local, one per rig
         AGENTS.md                               # brief; OpenRig appends seat blocks
         rig.yaml
-        <repo> -> ../../../../../.worktrees/<repo>-<slice-id>   # per-slice rig only
+        <repo> -> ../../../../../../.worktrees/<repo>-<slice-id>   # per-slice rig only
 ```
 
 - **Org** = GitHub owner. **Project** = repos routinely changed in the same ticket. A repo belongs to one org and may appear in several projects.
@@ -111,13 +111,13 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 
 ## Start a task
 
-1. **Resolve.** Find the project (`workspace.yaml`, `orgs/<org>/<project>/repos.yaml`) and each repo's path for this machine (`orgs/<org>/repos.yaml`, key `paths.<machine>`). A missing path is a question, not a clone. Pick the kind above.
+1. **Resolve.** Find the project (`workspace.yaml`, `orgs/<org>/projects/<project>/repos.yaml`) and each repo's path for this machine (`orgs/<org>/repos.yaml`, key `paths.<machine>`). A missing path is a question, not a clone. Pick the kind above.
 2. **Record.** If the ticket has no slice yet:
    ```bash
-   rig scope slice create <mission> <slug> --template <sliceTemplate> --workspace "$PROJECTS_ROOT/orgs/<org>/<project>"
+   rig scope slice create <mission> <slug> --template <sliceTemplate> --workspace "$PROJECTS_ROOT/orgs/<org>/projects/<project>"
    ```
    Fill `SPEC.md`: intent, mini-requirements, proof contract, repos, territory. Print its names with `slice-names.cjs <slice dir> --repo <repo>`. Check with `rig scope audit --workspace … --mission <mission>`. On OpenRig 0.6.1 or newer, read that project's execution view with `rig view show execution --project <org>.<project> --mission <mission> --json`. Omitting `--project` reads only the default workspace.
-3. **Workdir.** A per-slice rig: `T="$PROJECTS_ROOT/orgs/<org>/<project>/tasks/<slice-id>"; mkdir -p "$T"`. A team rig already has its task dir.
+3. **Workdir.** A per-slice rig: `T="$PROJECTS_ROOT/orgs/<org>/projects/<project>/tasks/<slice-id>"; mkdir -p "$T"`. A team rig already has its task dir.
 4. **Worktrees.** One per repo, under `$PROJECTS_ROOT/.worktrees/`, named `<repo>-<slice-id>` from the helper.
    - Refresh the main checkout first when it is clean: `git fetch && git switch <default> && git pull --ff-only`.
    - **The repo has its own worktree command** (its `AGENTS.md` or docs name it, for example a `mise run worktree` task): run that from the main checkout, with its root variable pointed at `$PROJECTS_ROOT/.worktrees` and the name above.
@@ -126,16 +126,16 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
      node "$HOME/skills/skills/worktree/scripts/worktree.cjs" create <branch> --no-prefix --no-enter \
        --worktree-root "$PROJECTS_ROOT/.worktrees" --name <repo>-<slice-id>
      ```
-   - A per-slice rig links it into the task dir: `ln -s ../../../../../.worktrees/<repo>-<slice-id> "$T/<repo>"`, so rig specs and briefs keep using `<repo>`. A team rig's task dir holds no links; the baton names the worktree.
+   - A per-slice rig links it into the task dir: `ln -s ../../../../../../.worktrees/<repo>-<slice-id> "$T/<repo>"`, so rig specs and briefs keep using `<repo>`. A team rig's task dir holds no links; the baton names the worktree.
    - `.env`: let the repo's setup build it from `.env.example`. Never copy a checkout's `.env` that holds live provider keys into a worktree.
    - On an external disk with Docker bind mounts, prove the disk once per machine: a container writes a few thousand small files into a bind mount under `.worktrees/` behind a watchdog. If it hangs, restart the container runtime and keep that repo's worktrees on the internal disk until disk access is fixed.
    - Hand a worktree to a seat with the exact queue line `worktree_path=<real path>`. One writer per worktree. vd:workbench artifacts still land in the repo's main checkout.
-5. **Brief.** Write `$T/AGENTS.md`. First line is `Kind: <kind> <profile>` (`profile` only for a feature). Then ticket, objective, which `<repo>/` dirs are in scope, branch and base, validation commands, stopping point, and the slice path. Add the line "Before editing in a repo dir, read its AGENTS.md." Cursor does not read parent files, so also point to `../../AGENTS.md` and `../../../AGENTS.md`.
+5. **Brief.** Write `$T/AGENTS.md`. First line is `Kind: <kind> <profile>` (`profile` only for a feature). Then ticket, objective, which `<repo>/` dirs are in scope, branch and base, validation commands, stopping point, and the slice path. Add the line "Before editing in a repo dir, read its AGENTS.md." Cursor does not read parent files, so also point to `../../AGENTS.md` (project) and `../../../../AGENTS.md` (org).
 6. **Run.** `cd "$T"` and start any harness. For an OpenRig rig, continue below.
 
 ## Run it with OpenRig
 
-1. **Rig spec.** Copy `$PROJECTS_ROOT/specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`, using the template from `rig-kind.cjs`. Set `name: <slice-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../specs/agents/<role>` (the path relative to the task dir). Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`). A missing template is a stop, not a guess.
+1. **Rig spec.** Copy `$PROJECTS_ROOT/specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`, using the template from `rig-kind.cjs`. Set `name: <slice-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../../specs/agents/<role>` (the path relative to the task dir). Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`). A missing template is a stop, not a guess.
 2. **Models.** Take them from `fleet/routing.yaml`. The default seat is Claude Code with a bare model id (`claude-opus-5-5`). A seat that opts into `runtime: pi` uses `routing.pi`, as `provider/id:thinking`. When the script says `models: role`, use the named key in that same map.
 3. **Pi seat auth (Pi seats only).** A Pi seat gets a blank agent dir at `$OPENRIG_HOME/state/pi/<pod>-<member>@<rig>/agent`, and custom-provider env vars are not forwarded. Before `rig up`, put a `models.json` there (or a symlink to one shared file). It carries the provider's non-secret fields plus an `apiKey` of the form `"!<secret read command>"`. Never write a literal key.
 4. **Launch.**
@@ -169,7 +169,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 
 ## Add a project
 
-1. Create `orgs/<org>/<project>/` containing `AGENTS.md` (what it is, a repo table with each repo's role, rules), `SPEC.md` (frontmatter `intent:`), `project.yaml` (`schema: openrig.project/v0alpha1`, `metadata.id: <org>.<project>`), `repos.yaml`, and `missions/`.
+1. Create `orgs/<org>/projects/<project>/` (the folder name is the team rig's name) containing `AGENTS.md` (what it is, a repo table with each repo's role, rules), `SPEC.md` (frontmatter `intent:`), `project.yaml` (`schema: openrig.project/v0alpha1`, `metadata.id: <org>.<project>`), `repos.yaml`, `resources.yaml` (the channels, docs, dashboards, meetings and Jira this project cares about; data only, no secrets), and `missions/`. The org keeps its own `orgs/<org>/resources.yaml`.
 2. Add `{id, root}` to `workspace.yaml`.
 3. Add any new repo to `orgs/<org>/repos.yaml` with its per-machine paths.
 
