@@ -4,7 +4,7 @@ description: Work inside an org/project/task workspace that any coding harness (
 license: MIT
 metadata:
   author: vanducng
-  version: "0.6.1"
+  version: "0.7.0"
 ---
 
 # OpenRig workspace
@@ -111,7 +111,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 
 ## Start a task
 
-1. **Resolve.** Find the project (`workspace.yaml`, `orgs/<org>/projects/<project>/repos.yaml`) and each repo's path for this machine (`orgs/<org>/repos.yaml`, key `paths.<machine>`). A missing path is a question, not a clone. Pick the kind above.
+1. **Resolve.** Run `$PROJECTS_ROOT/fleet/bin/project-host $PROJECTS_ROOT/orgs/<org>/projects/<project>` first: a project runs only on the machine pinned by `host:` in its `repos.yaml`. On any other machine, stop and work there (`ssh <alias>`, or `rig up <rig.yaml> --host <openrig host>`); never create a task dir, worktree or rig here. Then find the project (`workspace.yaml`, `orgs/<org>/projects/<project>/repos.yaml`) and each repo's path for this machine (`orgs/<org>/repos.yaml`, key `paths.<machine>`). A missing path is a question, not a clone. Pick the kind above.
 2. **Record.** If the ticket has no slice yet:
    ```bash
    rig scope slice create <mission> <slug> --template <sliceTemplate> --workspace "$PROJECTS_ROOT/orgs/<org>/projects/<project>"
@@ -182,7 +182,7 @@ OpenRig restores seats from the snapshot taken at `rig down`, which still holds 
 
 ## Add a project
 
-1. Create `orgs/<org>/projects/<project>/` (the folder name is the team rig's name) containing `AGENTS.md` (what it is, a repo table with each repo's role, rules), `SPEC.md` (frontmatter `intent:`), `project.yaml` (`schema: openrig.project/v0alpha1`, `metadata.id: <org>.<project>`), `repos.yaml`, `resources.yaml` (the channels, docs, dashboards, meetings and Jira this project cares about; data only, no secrets), and `missions/`. The org keeps its own `orgs/<org>/resources.yaml`.
+1. Create `orgs/<org>/projects/<project>/` (the folder name is the team rig's name) containing `AGENTS.md` (what it is, a repo table with each repo's role, rules), `SPEC.md` (frontmatter `intent:`), `project.yaml` (`schema: openrig.project/v0alpha1`, `metadata.id: <org>.<project>`), `repos.yaml` (with `host: <machine id>` from `fleet/machines.yaml`, the only machine it runs on), `resources.yaml` (the channels, docs, dashboards, meetings and Jira this project cares about; data only, no secrets), and `missions/`. The org keeps its own `orgs/<org>/resources.yaml`.
 2. Add `{id, root}` to `workspace.yaml`.
 3. Add any new repo to `orgs/<org>/repos.yaml` with its per-machine paths.
 
