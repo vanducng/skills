@@ -4,7 +4,7 @@ description: Work inside an org/project/task workspace that any coding harness (
 license: MIT
 metadata:
   author: vanducng
-  version: "0.6.0"
+  version: "0.6.1"
 ---
 
 # OpenRig workspace
@@ -166,6 +166,19 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 - OpenRig 0.6 runs on Node.js 22 or 24. On macOS arm64, stay on Node.js 22. The CLI is the global npm package `@openrig/cli`, not a checkout of the source tree.
 - In `rig tui`, `graph` is a tab of a selected rig: type `rig <name>`, then `graph`. `:` only jumps between sections.
 - The daemon binds the Tailscale address too. Start it with `--host 127.0.0.1` unless you mean to expose it.
+
+## Restart or move a team rig
+
+OpenRig restores seats from the snapshot taken at `rig down`, which still holds the old cwd, and a seat stopped on its own stays stopped. So:
+
+- **Plain restart, no move:** `rig down <rig>`, then `rig up <rig> --existing`. Conversations resume. Never stop seats one by one first.
+- **Move (cwd changes):**
+  1. Each seat updates PROGRESS.md, its `LEARNED.md`, and runs `rig context recap-write`; that RECAP is what a successor is primed from.
+  2. Move the task dir (on the other host, `mv` the gitignored dirs by hand).
+  3. `rig seat set-cwd <seat> --cwd <new absolute path> --reason move` for each seat.
+  4. One seat at a time: `rig seat handover <seat> --source rebuild --reason move --dry-run`, then without `--dry-run`. A seat with no live tmux session cannot hand over; use `rig seat launch <seat> --fresh --reason move`.
+  5. No `rig down`, `rig up --existing` or fork between steps 3 and 4. A fork source is a session name (`fork:dev-impl@<rig>`), and it will not find a conversation whose cwd moved.
+- **Stopped rig whose saved cwd no longer exists:** `cd <task dir> && rig up rig.yaml --plan && rig up rig.yaml`. Same rig name, same topology seat dirs, so earlier RECAP and LEARNED still prime a rebuild.
 
 ## Add a project
 
