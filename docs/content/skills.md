@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog contains 95 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
+The catalog contains 96 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
 
 Count source: `find skills -mindepth 1 -maxdepth 1 -type d`. Validation: `scripts/validate.sh`.
 
@@ -116,7 +116,7 @@ These skills document CLIs owned alongside this catalog:
 
 Utilities for recurring work:
 
-`vd:superwhisper`, `vd:gog`, `vd:jira`, `vd:custom-mcp-connector`, `vd:kaneo`, `vd:issue-invoice`, `vd:computer-clean`, `vd:mac-resource-triage`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:openrig-workspace`, `vd:gopass`, `vd:onepassword`, `vd:obsidian-vault`, `vd:journal`, `vd:workbench`, `vd:braze`, `vd:smartsheet`, `vd:voice-agent`, `vd:structured`, `vd:alter`, `vd:jump-desktop`
+`vd:superwhisper`, `vd:gog`, `vd:jira`, `vd:custom-mcp-connector`, `vd:kaneo`, `vd:issue-invoice`, `vd:computer-clean`, `vd:mac-resource-triage`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:openrig-workspace`, `vd:project-resources`, `vd:gopass`, `vd:onepassword`, `vd:obsidian-vault`, `vd:journal`, `vd:workbench`, `vd:braze`, `vd:smartsheet`, `vd:voice-agent`, `vd:structured`, `vd:alter`, `vd:jump-desktop`
 
 ## Skill lifecycle
 
