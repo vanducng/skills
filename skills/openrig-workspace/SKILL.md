@@ -1,10 +1,10 @@
 ---
 name: openrig-workspace
-description: Work inside an org/project/task workspace that any coding harness (Pi, Claude Code, Codex, Grok Build, Cursor) reads out of the box and that OpenRig can drive without a fork. Use when the user says "start a task in <project>", "set up the task dir", "which rig", "feature profile", "bugfix", "sop", "run this ticket with openrig", "attach the rig in herdr", "which project does this repo belong to", "add a project", "name the worktree or branch", "slice names", or when the cwd is under a projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`). Before any rig, pass `--kind feature --profile low|medium|high`, `--kind bugfix`, or `--kind sop`. Owns the layout (including where worktrees live), the unit of work (slice, worktree, PR) and its names, task lifecycle, that choice, and OpenRig adjustments; defers worktree mechanics to the repo's own worktree command or vd:worktree, artifacts to vd:workbench, pane control to vd:herdr.
+description: Work inside an org/project/task workspace that any coding harness (Pi, Claude Code, Codex, Grok Build, Cursor) reads out of the box and that OpenRig can drive without a fork. Use when the user says "start a task in <project>", "set up the task dir", "which rig", "feature profile", "bugfix", "sop", "run this ticket with openrig", "attach the rig in herdr", "which project does this repo belong to", "add a project", "name the worktree or branch", "slice names", "seat effort", "stretch the quota", or when the cwd is under a projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`). Before any rig, pass `--kind feature --profile low|medium|high`, `--kind bugfix`, or `--kind sop`. Owns the layout (including where worktrees live), the unit of work (slice, worktree, PR) and its names, task lifecycle, that choice, and OpenRig adjustments; defers worktree mechanics to the repo's own worktree command or vd:worktree, artifacts to vd:workbench, pane control to vd:herdr.
 license: MIT
 metadata:
   author: vanducng
-  version: "0.7.0"
+  version: "0.8.0"
 ---
 
 # OpenRig workspace
@@ -179,6 +179,16 @@ OpenRig restores seats from the snapshot taken at `rig down`, which still holds 
   4. One seat at a time: `rig seat handover <seat> --source rebuild --reason move --dry-run`, then without `--dry-run`. A seat with no live tmux session cannot hand over; use `rig seat launch <seat> --fresh --reason move`.
   5. No `rig down`, `rig up --existing` or fork between steps 3 and 4. A fork source is a session name (`fork:dev-impl@<rig>`), and it will not find a conversation whose cwd moved.
 - **Stopped rig whose saved cwd no longer exists:** `cd <task dir> && rig up rig.yaml --plan && rig up rig.yaml`. Same rig name, same topology seat dirs, so earlier RECAP and LEARNED still prime a rebuild.
+
+## Tune seat effort to stretch a shared quota
+
+Seats on one subscription share its 5-hour and weekly limits, and so does every other project on it.
+
+- **Read the budget.** `$OPENRIG_HOME/state/provider-usage/*.json`, newest `asOf`: `rateLimits.five_hour` and `rateLimits.seven_day` (`usedPercent`, `resetsAt`). Pace is used percent over the elapsed share of the window; a weekly pace above about 100% means cut.
+- **Pick levels.** Planning, routing and the core engine writer keep the template's top effort. Breadth seats (a second writer, docs and briefs, runbook QA) drop one level. A reviewer drops from `xhigh` to `high` when CI and review bots also gate the merge.
+- **Save it, no restart.** `rig seat set-effort <seat> --effort <level> --reason "<why>"` applies at the seat's next managed continuation; `rig seat effort <seat>` shows requested, saved, launched and native. Mirror the level in the task `rig.yaml` so a rebuild keeps it.
+- **Apply it now, only while idle.** Wait for `idle` in `rig ps --nodes --rig <rig>`, then `rig send <seat> "/effort <level>" --raw` and accept the confirm prompt (option 1). Claude Code drops the prompt cache once and re-reads the full history on the next message. Never switch a seat mid-turn.
+- **Trim context too.** Every turn re-reads the context. Ask a seat past about 500k tokens to checkpoint in PROGRESS and run `/compact` itself at a quiet point (after a deploy, never mid-merge) instead of setting a compaction cap that can fire mid-task.
 
 ## Add a project
 
