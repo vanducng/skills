@@ -18,7 +18,7 @@ proposing fixes). It runs five review ways:
 
 **Review behavior worth knowing (design choices that prevent noise):**
 - **One upserted summary, posted first.** `--post` writes ONE summary *issue comment*, edited in place on re-runs (never stacked), and acknowledges the PR with 👀. If no summary exists yet, it also creates a short `Review running` placeholder before the LLM starts; on later commits it keeps the prior completed summary visible until the new result is ready. The final summary replaces that same comment and is posted BEFORE the inline review so it anchors on top (overview → details). Inline findings are a separate PR review. `review_id` is NOT shown in the comment (it only resolves on the local store; it stays in the JSON envelope). On a **fatal review failure** after miucr's internal retries, `--post` upserts that SAME summary comment with a visible GitHub alert instead of failing silently: operational/provider/infrastructure failures (`agent.unavailable`, `provider.rate_limited`, `quota.exceeded`, `review.timeout`, `github.unavailable`, etc.) render as `[!WARNING]`, while unknown `internal.error` failures render as `[!CAUTION]`; a later successful run replaces it with findings.
-- **The summary is a per-finding lifecycle ledger, not just the latest run.** Below a concise ≤5-bullet "What changed" summary, it renders always-visible tracking tables: **⚠️ Open (N)**, **⏸️ Deferred (N)** when a deferral was accepted, and **✅ Resolved (N)**. Each finding is tracked by its line-independent fingerprint across commits: a **Priority** column (P0-P4), status (`open` / `resolved` / `reopened` / `deferred` / `irrelevant`), the **origin commit** it was first raised on and the **resolved commit** it disappeared on (both linked), priority before→after for escalations, and first-seen / resolved timestamps. A clean review uses natural all-clear prose like `Review passed! No findings on the first review pass.` or `Review passed! 3 findings resolved. Good cleanup.` Accepted deferrals use `Review passed! N finding(s) deferred.` and do not block a clean or threshold approval. Info-level notes in files the pull request does not change are marked irrelevant and are not blocking. The deterministic note gets stronger as more findings are cleared and adapts to focused vs broad diffs. The footer is `Last reviewed commit` + review attempts + the miu-cr release. Lifecycle state is **storeless**: it lives in a hidden `<!-- miu-cr-ledger:<base64> -->` marker inside the comment (like the runs counter), so it survives ephemeral CI with no DB. A finding resolves only when it is absent AND its file is still in the diff (absence off-diff ≠ fix).
+- **The summary is a per-finding lifecycle ledger, not just the latest run.** Below a concise ≤5-bullet "What changed" summary, it renders always-visible tracking tables: **⚠️ Open (N)**, **⏸️ Deferred (N)** when a deferral was accepted, and **✅ Resolved (N)**. Each finding is tracked by its line-independent fingerprint across commits: a **Priority** column (P0-P4), status (`open` / `resolved` / `reopened` / `deferred` / `irrelevant`), the **origin commit** it was first raised on and the **resolved commit** it disappeared on (both linked), priority before→after for escalations, and first-seen / resolved timestamps. A clean review uses natural all-clear prose like `Review passed! No findings on the first review pass.` or `Review passed! 3 findings resolved. Good cleanup.` Accepted deferrals use `Review passed! N finding(s) deferred.` and do not block a clean or threshold approval. Info-level notes in files the pull request does not change are marked irrelevant and are not blocking. The deterministic note gets stronger as more findings are cleared and adapts to focused vs broad diffs. The footer is `Last reviewed commit` + review attempts + the miu-cr release. Lifecycle state is **storeless**: it lives in a hidden `<!-- miu-cr-ledger:<base64> -->` marker inside the comment (like the runs counter), so it survives ephemeral CI with no DB. The first review is asked to report every concrete defect in that pass. On a later commit the filter is the diff: a new finding is kept only when every non-empty line of its quoted code is a line that commit added or deleted and that text is not also unchanged context, or the finding is already open (`stats.stable_scope_dropped` counts the rest). An open finding stays open unless that commit deleted its line or its file. Absence outside the pull request diff is not a fix.
 - **Reply on the finding thread; miucr judges that reply and resolves it when the reply holds.** Each finding's inline comment is posted ONCE and deduped across re-runs via a hidden `<!-- miucr:fp=… -->` marker. Reply on that thread with `Fixed in <sha>: ...`, `Deferred: ...`, or `Not applicable: ...`. Only the pull request author, or an owner, member, or collaborator, is judged. A correct fix reply is one sentence: the verdict, a short file link, and the commit. It does not restate the author's reply. A rejected fix says what is still wrong. It is checked against every file in the cited commit, so a check moved to another file can count. Deleting the file without adding the check elsewhere does not. A deferral or not-applicable reply is judged from that reason alone. An accepted fix or not-applicable row moves to **✅ Resolved**. An accepted deferral moves to **⏸️ Deferred** and stays there until the finding disappears from a later diff. miucr then resolves the GitHub thread. A vague deferral stays open and the reply explains why. Findings that cannot sit on a changed line share one thread on the nearest changed line (or one pull request comment). That thread uses the same `--min-severity` floor as other inline comments. A pull request accepts at most 24 reply judgments per hour. One notice comment per review mentions the PR author while findings are open and is edited in place. A polled host picks up those replies on each poll, with no webhook. The reply judgment calls the model only for that thread. When the ledger is clear and the reviewed commit is still the head, a reply can approve, including a later reply that finds the finding already handled. If CI is still running, the summary says approval is waiting and a later poll approves. Manual "Resolve conversation" mirrors into the summary and can approve on that same rule. So an agent acting on a review should read the threads, apply the fix or record a real deferral, and reply in that format.
 - **Repeat-run stability is deterministic inputs + low-variance generation.** For the same repo/ref/config, file selection, context assembly, rules, anchoring, gating, fingerprints, and comment dedupe are deterministic. SDK-backed Anthropic/OpenAI calls use `temperature: 0`; exact model output can still vary, so PR posting is idempotent rather than duplicate-prone.
 - **One-click suggestions and approvals are explicit write actions.** `--suggest` emits a native GitHub ` ```suggestion ` block ONLY for findings at or above the suggestion floor (`medium`) when the patch *deterministically* replaces the exact anchored line(s) and the model is certain of a grounded mechanical fix (a cited rule or an obvious best practice). It NEVER guesses an unverifiable value (a URL, path, route, ID, version, config key, API signature); such concerns become a verification-question in the rationale instead. `--patch-repair` (requires `--suggest`) runs one focused 2nd LLM pass to recover a repairable near-miss patch. `--approval clean|threshold` submits APPROVE only when the policy and safety gates pass; the first approval body is short (`LGTM`) and links to the code review summary unless `--approval-note none` is set. Approval is head-SHA scoped: a later clean push can be approved again bodyless, threshold re-approvals carry the threshold note, and the same commit is not approved twice. Permission/self-approval failures warn and degrade rather than failing the review.
@@ -349,7 +349,10 @@ summary counts (`repos`, `accounts`). Host YAML uses `providers`, `store`,
 layering is defaults -> `review`/`agent` -> `host.review` -> repo overrides.
 PAT accounts support `auth_env`/`auth_file`/`auth_command`; App accounts support
 App/installation ids from literal/env plus private keys from path/env/command.
-Provider credentials also support `auth_env` and `auth_command`.
+Provider credentials also support `auth_env` and `auth_command`. `repos[].provider`
+names a `providers` entry (or built-in `anthropic`/`openai`) for that repo; empty
+means `default_provider`, so one host can mix an Anthropic gateway with a
+ChatGPT-plan `kind: openai`, `auth: oauth` provider. An unknown name is `config.invalid`.
 
 Repo prompts override the global prompt (`system_prompt` or
 `system_prompt_file`, mutually exclusive). `repos[].rules` can point to markdown
@@ -571,25 +574,33 @@ Precedence: `--model` > `MIUCR_CODEX_MODEL` > the config `model` (if not `gpt-4o
 `--provider` is an explicit flag backed by a registry; `openai` is the only entry
 (`--provider anthropic`/unknown → `login.provider_unsupported`; Anthropic OAuth is ToS-prohibited).
 Loopback binds an allow-listed port (`1455`, then `1457`). Envelope `kind: init.result`-style
-**secret-free** payload: `{provider, oauth_path, expires_at, account_id, has_api_key}` (**no tokens**).
-Errors: `login.provider_unsupported`, `login.port_unavailable`, `login.timeout`, `login.exchange_failed`, `login.write_failed`.
+**secret-free** payload: `{provider, oauth_store, oauth_path?, expires_at, account_id, has_api_key}` (**no tokens**).
+`oauth_store` is `file` (default; `oauth_path` set) or `postgres` (no `oauth_path`).
+Errors: `login.provider_unsupported`, `login.port_unavailable`, `login.timeout`, `login.exchange_failed`, `login.write_failed`,
+`oauth.key_missing`, `oauth.key_invalid`, `oauth.decrypt_failed`.
+
+**Postgres store backend** (`MIUCR_STORE_BACKEND=postgres`): login/whoami/logout and review-time refresh
+use an AES-256-GCM sealed row in Postgres (`oauth_credentials`) instead of `oauth.json`, keyed by
+`MIUCR_OAUTH_KEY` (base64 of 32 bytes, required). A login from another process is picked up on the
+next review without a restart. Selection reads env or `config.toml` only, so `serve --host` needs
+`MIUCR_STORE_BACKEND=postgres` + `MIUCR_PG_DSN` in env (host YAML `store` is not consulted).
 
 **Precedence**: the cached OAuth credential sits **below** an explicit `--api-key` / `OPENAI_API_KEY`
 in OpenAI resolution: an explicit key always wins; OAuth is consulted only when no OpenAI key is set.
-`oauth.json` is gitignored, `0600`, never logged/in-envelope.
+`oauth.json` is gitignored, `0600`, never logged/in-envelope (the postgres row is sealed the same way).
 **CI uses an `OPENAI_API_KEY` secret, not OAuth** (browser-interactive): `miucr review --provider openai`.
 
 ### `whoami` / `logout`: inspect and clear the cached OAuth identity
 
 ```sh
-miucr whoami     # {logged_in, provider, account_id, expires_at, expired} (NEVER the token)
-miucr logout     # delete oauth.json; idempotent ({removed: bool})
+miucr whoami     # {logged_in, oauth_store, oauth_path?, provider, account_id, expires_at, expired} (NEVER the token)
+miucr logout     # delete the cached record (oauth.json or postgres row); idempotent ({removed, oauth_store, oauth_path?})
 ```
 
 `whoami` whitelists only the non-secret fields from the cached record: the four secret fields
 (access/refresh/id token, api key) are never read into the envelope, so no token can leak (json or
 pretty). No cached record → `kind: whoami` with `{logged_in: false}` (clean exit, not an error).
-`logout` removes `oauth.json`; a missing record reports `{removed: false}` rather than erroring, so
+`logout` removes the cached record; a missing record reports `{removed: false}` rather than erroring, so
 it is safe to run twice. Both emit the `miucr.cli/v1` envelope (`kind: whoami` / `kind: logout`).
 
 ### `upgrade` (alias `update`): self-update from GitHub Releases
