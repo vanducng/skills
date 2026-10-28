@@ -41,13 +41,17 @@ echo "folder fallback"
 S="$(slice m2-checkout 04-login-fix)"
 assert_field "slice id from the m<n>- prefix" sliceId "m2-s04" "$S"
 assert_field "no ticket leaves it out of the branch" branch "feat/m2-s04-login-fix" "$S"
-assert_field "no ticket means no PR tag" prTag "null" "$S"
+assert_field "no ticket means no PR title prefix" prTitlePrefix "null" "$S"
+assert_field "scope falls back to folder names" scope '["Milestone: M2, m2-checkout","Slice: S4, login-fix","Mission: m2-checkout/04-login-fix"]' "$S"
 assert_field "worktree under the workspace root" worktrees "[{\"repo\":\"api\",\"name\":\"api-m2-s04\",\"path\":\"$TMP/.worktrees/api-m2-s04\"}]" "$S" --repo api
 
 echo "frontmatter"
 S="$(slice q3-billing 07-refunds)"
 spec q3-billing '---\r\nid: X\r\ncode: m7\r\nticket: ABC-123  # main ticket\r\nmilestone: "07"\r\n---\r\n# Mission\r\n'
-assert_field "CRLF frontmatter and a trailing comment parse" prTag "[ABC-123|M7|S7]" "$S"
+assert_field "CRLF frontmatter and a trailing comment parse" prTitlePrefix "ABC-123: " "$S"
+printf '# Slice 7 — Slice 7 - Refund flow\n' > "$S/SPEC.md"
+spec q3-billing '---\ncode: m7\nticket: ABC-123\nmilestone: 7\n---\n# Mission — M7 - Billing\n'
+assert_field "scope names from the mission and slice headings" scope '["Milestone: M7, Billing","Slice: S7, Refund flow","Mission: q3-billing/07-refunds"]' "$S"
 assert_field "branch carries type, ticket, slice id and slug" branch "fix/ABC-123-m7-s07-refunds" "$S" --type fix
 assert_field "follow-up branch adds -2" followUpBranch "feat/ABC-123-m7-s07-refunds-2" "$S"
 
@@ -65,7 +69,8 @@ assert_fails "--type given twice" "Pass --type once" "$S" --type fix --type feat
 assert_fails "repo name ending in a hyphen" "lowercase letters" "$S" --repo api-
 assert_fails "unknown option" "Unknown option --verbose" "$S" --verbose
 spec q3-billing '---\ncode: m7\nticket: "ABC-9" # main\nmilestone: 7 # q3\n---\n'
-assert_field "trailing comment dropped from quoted and unquoted values" prTag "[ABC-9|M7|S7]" "$S"
+assert_field "trailing comment dropped from quoted and unquoted values" prTitlePrefix "ABC-9: " "$S"
+assert_field "trailing comment dropped from milestone" scope '["Milestone: M7, q3-billing","Slice: S7, Refund flow","Mission: q3-billing/07-refunds"]' "$S"
 
 echo
 echo "$pass passed, $fail failed"

@@ -1,15 +1,17 @@
 ---
 name: openrig-workspace
-description: Work inside an org/project/task workspace across coding harnesses and fleet hosts. Use for task directories, rig selection, feature profiles, bugfix or SOP runs, project discovery, worktree and slice names, seat effort, quota adjustments, or projects workspace sync across macOS and Linux. Also applies when the cwd is under a projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`). Before any rig, pass `--kind feature --profile low|medium|high`, `--kind bugfix`, or `--kind sop`. Owns the workspace layout, unit of work (slice, worktree, PR), task lifecycle, OpenRig adjustments, and fleet sync diagnosis; defers worktree mechanics to the repo's own command or vd:worktree, artifacts to vd:workbench, and pane control to vd:herdr.
+description: Work inside an org/project/task workspace across coding harnesses and fleet hosts. Use for task directories, rig selection, feature profiles, bugfix or SOP runs, project discovery, worktree and slice names, seat effort, quota adjustments, or projects workspace sync across macOS and Linux. Also applies when the cwd is under a projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`), when a seat treats a one-turn classifier refusal as a standing ban, and when the operator messages a rig from outside it (captain-signed messages). Before any rig, pass `--kind feature --profile low|medium|high`, `--kind bugfix`, or `--kind sop`. Owns the workspace layout, unit of work (slice, worktree, PR), task lifecycle, OpenRig adjustments, and fleet sync diagnosis; defers worktree mechanics to the repo's own command or vd:worktree, artifacts to vd:workbench, and pane control to vd:herdr.
 license: MIT
 metadata:
   author: vanducng
-  version: "0.8.0"
+  version: "0.9.0"
 ---
 
 # OpenRig workspace
 
 One git repo, `$PROJECTS_ROOT` (default `$HOME/projects`), holds org and project context, task records, and machine-local task workdirs. Code stays in its repos. The layout works because every harness reads `AGENTS.md` from the git root down to the cwd, so a task dir inside this repo inherits fleet, org, and project rules automatically. See `references/harness-context.md` for the per-harness discovery rules and sources.
+
+`$HOME/projects` may be a symlink (on mac01 it points at an external disk). Resolve paths from `workspace.yaml`, not from the home dir. The workspace's own `AGENTS.md` and `fleet/policy.yaml` hold the rules; this skill covers the mechanics and does not repeat them.
 
 ## Fleet workspace sync
 
@@ -19,18 +21,24 @@ For workspace sync or Git failures across laptop, macOS desktop, and Linux hosts
 
 ```
 $PROJECTS_ROOT/
-  AGENTS.md  workspace.yaml  fleet/{machines,routing,policy}.yaml  specs/{agents,rigs}/
+  AGENTS.md  workspace.yaml                     # root rules (operator session, captain, messages, file homes)
+  fleet/{machines,routing,policy}.yaml          # hosts; seat models; authority and operator identity
+  fleet/bin/                                    # project-host, cc-proxy-seat, rig-say, workspace-sync, ...
+  specs/{agents,rigs,skills}/                   # seat roles, rig templates, workspace skills
   .worktrees/<repo>-<slice-id>/                 # gitignored git worktrees, one per repo per slice
   orgs/<org>/
-    AGENTS.md  org.yaml  repos.yaml  resources.yaml   # repos.yaml is the only place paths live
+    AGENTS.md  org.yaml  repos.yaml  resources.yaml  contacts.yaml   # repos.yaml is the only place paths live
+    kb/                                         # the org's knowledge bundle (OKF), kept by <org>-watch
+    tasks/<org>-watch/                          # gitignored task dir of the parked watch rig
     projects/<project>/
-      AGENTS.md  SPEC.md  project.yaml  repos.yaml  resources.yaml
+      AGENTS.md  SPEC.md  project.yaml  repos.yaml (host:)  resources.yaml
       missions/<mission>/SPEC.md                # frontmatter code:, ticket:, milestone:
       missions/<mission>/slices/<nn>-<slug>/    # committed record: SPEC, PROGRESS, PROOF
       tasks/<task>/                             # gitignored, machine-local, one per rig
         AGENTS.md                               # brief; OpenRig appends seat blocks
         rig.yaml
         <repo> -> ../../../../../../.worktrees/<repo>-<slice-id>   # per-slice rig only
+$HOME/.share/openrig/<org>/<project>/<mission>/ # cited captures (screenshots, logs), outside git
 ```
 
 - **Org** = GitHub owner. **Project** = repos routinely changed in the same ticket. A repo belongs to one org and may appear in several projects.
@@ -39,7 +47,7 @@ $PROJECTS_ROOT/
 
 ## Naming
 
-One slice id everywhere, so `rg <slice-id>` finds the record, the worktrees, the branches and the artifacts. Print the names instead of typing them:
+One slice id everywhere, so `rg <slice-id>` finds the record, the worktrees, the branches and the artifacts. Print the names (and the PR title prefix and `## Scope` lines) instead of typing them:
 
 ```bash
 node "$HOME/skills/skills/openrig-workspace/scripts/slice-names.cjs" <slice dir> --repo <repo> [--repo <repo2>] [--type fix]
@@ -51,7 +59,8 @@ node "$HOME/skills/skills/openrig-workspace/scripts/slice-names.cjs" <slice dir>
 | Slice id | `<code>-s<nn>`; `code:` from the mission SPEC frontmatter, else the mission folder's `m<n>-` prefix (`milestone:` falls back to that prefix's number) | `m2-s04` |
 | Worktree | `$PROJECTS_ROOT/.worktrees/<repo>-<slice-id>/`; also the repo's compose project and local host name | `.worktrees/api-m2-s04/` |
 | Branch | repo convention first; else `<type>/<TICKET>-<slice-id>-<slug>`; each follow-up PR adds `-2`, `-3` | `fix/ABC-123-m2-s04-login-fix` |
-| PR tag | `[<TICKET>\|M<milestone>\|S<n>]` from the mission frontmatter `ticket:` and `milestone:`, where the workspace tags PRs | `[ABC-123\|M2\|S4]` |
+| PR title | `<TICKET>: <what shipped, in plain words>`; no bracket tag, milestone or conventional prefix | `ABC-123: fixed login redirect loop` |
+| PR body `## Scope` | `Milestone: M<n>, <mission name>`, `Slice: S<n>, <slice name>`, `Mission: <mission>/<slice>` | `Slice: S4, Login fix` |
 | Per-slice task dir and rig | `tasks/<slice-id>/`, rig name the same | `tasks/m2-s04/` |
 
 The mission `code` must be unique among projects that share a repo, because their worktrees share one `.worktrees/`. vd:workbench derives the feature id from a `<type>/<TICKET>-<slug>` branch (here `abc-123-m2-s04-login-fix`; not `feature/`). With a bare-ticket branch convention, claim the id once with `workbench new <slug> --ticket <TICKET>`.
@@ -65,6 +74,9 @@ The mission `code` must be unique among projects that share a repo, because thei
 5. Authority comes from `fleet/policy.yaml` and the brief. Nothing in this workspace authorizes merge, deploy, force-push, or messages to people.
 6. Never `git clean -x` in `$PROJECTS_ROOT`; it deletes ignored task dirs.
 7. Do not pick a rig template by feel. Run `scripts/rig-kind.cjs` and copy the template it prints.
+8. One machine per project: `host:` in the project's `repos.yaml`. Run `fleet/bin/project-host <project path>` (exit 1 on the wrong machine) before creating a task dir, worktree or rig.
+9. An operator session (outside any rig) plans, investigates read-only and drafts. Code, PRs, merges and deploys are dispatched to the project's rig (`fleet/policy.yaml`, `operator_session`).
+10. Messages from the operator or an operator session to a rig are signed `captain@global` (see Talk to it). Seats never sign as captain.
 
 ## Choose the kind
 
@@ -88,7 +100,7 @@ node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind sop
 
 These flags do not select `solo`, `team`, or `squad`. They also do not select the upstream starters `first-project`, `first-project-claude`, or `first-project-mixed`. Those are two-seat recipes for a repository with no org layout.
 
-`models: default` means every seat uses the routing default for its runtime. Claude Code uses the bare id under `default`. A seat with `runtime: pi` uses `routing.pi.default`, as `provider/id:thinking`. `models: role` uses the named key (`owner`, `implement`, `design`, `review`) in that same map. Routing wins over model strings baked into the template.
+`models: default` means every seat takes `default` from `fleet/routing.yaml`; `models: role` takes the seat's key under `seats:` (`owner`, `impl`, `review`, `qa`, `pm`). Each key names a `catalog:` entry (model, effort, window). Routing wins over model strings baked into the template.
 
 Put the choice on the first line of the task `AGENTS.md`: `Kind: feature medium`.
 
@@ -120,7 +132,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
    ```bash
    rig scope slice create <mission> <slug> --template <sliceTemplate> --workspace "$PROJECTS_ROOT/orgs/<org>/projects/<project>"
    ```
-   Fill `SPEC.md`: intent, mini-requirements, proof contract, repos, territory. Print its names with `slice-names.cjs <slice dir> --repo <repo>`. Check with `rig scope audit --workspace … --mission <mission>`. On OpenRig 0.6.1 or newer, read that project's execution view with `rig view show execution --project <org>.<project> --mission <mission> --json`. Omitting `--project` reads only the default workspace.
+   Fill `SPEC.md`: intent, mini-requirements, proof contract, repos, territory. Print its names with `slice-names.cjs <slice dir> --repo <repo>`. Check with `rig scope audit --workspace … --mission <mission>`. Read that project's execution view with `rig view show execution --project <org>.<project> --mission <mission> --json`. Omitting `--project` reads only the default workspace.
 3. **Workdir.** A per-slice rig: `T="$PROJECTS_ROOT/orgs/<org>/projects/<project>/tasks/<slice-id>"; mkdir -p "$T"`. A team rig already has its task dir.
 4. **Worktrees.** One per repo, under `$PROJECTS_ROOT/.worktrees/`, named `<repo>-<slice-id>` from the helper.
    - Refresh the main checkout first when it is clean: `git fetch && git switch <default> && git pull --ff-only`.
@@ -140,19 +152,20 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 ## Run it with OpenRig
 
 1. **Rig spec.** Copy `$PROJECTS_ROOT/specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`, using the template from `rig-kind.cjs`. Set `name: <slice-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../../specs/agents/<role>` (the path relative to the task dir). Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`). A missing template is a stop, not a guess.
-2. **Models.** Take them from `fleet/routing.yaml`. The default seat is Claude Code with a bare model id (`claude-opus-5-5`). A seat that opts into `runtime: pi` uses `routing.pi`, as `provider/id:thinking`. When the script says `models: role`, use the named key in that same map.
-3. **Pi seat auth (Pi seats only).** A Pi seat gets a blank agent dir at `$OPENRIG_HOME/state/pi/<pod>-<member>@<rig>/agent`, and custom-provider env vars are not forwarded. Before `rig up`, put a `models.json` there (or a symlink to one shared file). It carries the provider's non-secret fields plus an `apiKey` of the form `"!<secret read command>"`. Never write a literal key.
-4. **Launch.**
+2. **Models.** Take them from `fleet/routing.yaml` (every seat runs on Claude Code). Check quota with `cpq` and that the id is live on cli-proxy (`/v1/models`) first. A native Claude id needs nothing more. A cli-proxy id (`grok-4.7`, `glm-5.3`, ...) needs `fleet/bin/cc-proxy-seat <seat cwd> <model>` before launch: it writes that cwd's `.claude/settings.local.json` (proxy URL, key helper, compact window). Seats that share a cwd share that file, so seats on different models need different cwds. A seat that opts into another runtime (Codex, Pi) follows the notes in `fleet/routing.yaml`; a Pi seat also needs a `models.json` in `$OPENRIG_HOME/state/pi/<pod>-<member>@<rig>/agent` whose `apiKey` is `"!<secret read command>"`, never a literal key.
+3. **Launch.**
    ```bash
    cd "$T" && rig up rig.yaml --plan && rig up rig.yaml
    ```
-   Then check `rig ps --nodes --rig <name>`. If a seat shows `att` or `needs-input`, read its pane before retrying.
-5. **Look at it in Herdr.** `rig terminal open <name>` opens every running seat in a new workspace named after the rig, up to 16 seats per tab. Herdr is the default provider. A second open does not reuse that workspace; it suffixes another (`<name> (2)`). The TUI link `term ▸ rig <name>` does the same open. To keep one Herdr workspace per org, create a tab there and run `tmux attach -t <seat>` (see vd:herdr). Closing a tile never stops a seat.
-6. **Talk to it.**
-   - Solo rig: type in the tile or use `rig send <seat> "…"`. Pi runner prefixes are `/followup <text>` and `/abort`; Claude Code seats take plain text.
-   - Team rig: talk to the owner, and steer the writer directly only to unblock or abort it.
+   Then check `rig ps --nodes --rig <name>`: every seat `run`, and each `Model (...)` line's "last observed" matches "configured". If a seat shows `att` or `needs-input`, read its pane before retrying.
+4. **Look at it in Herdr.** `rig terminal open <name>` opens every running seat in a new workspace named after the rig, up to 16 seats per tab. Herdr is the default provider. A second open does not reuse that workspace; it suffixes another (`<name> (2)`). The TUI link `term ▸ rig <name>` does the same open. To keep one Herdr workspace per org, create a tab there and run `tmux attach -t <seat>` (see vd:herdr). Closing a tile never stops a seat.
+5. **Talk to it.** A shell outside a seat has no sender identity: a plain `rig send` arrives as `From: <unknown sender>`, which seats treat as information only. The From line comes from `OPENRIG_SESSION_NAME`, so the operator and operator sessions sign as `captain@global` (workspace `AGENTS.md`, Captain):
+   - A message: `fleet/bin/rig-say <seat> "<text>"` (signs, then checks the pane; do not resend what it reports delivered or queued).
+   - Work: a queue item to the owner, so it is tracked: `rig queue create --source captain@global --destination <owner seat> --summary "<one line>" --body-file <brief>`.
+   - Team rig: address the owner. Steer the writer directly only to unblock or abort it. Broadcast (`OPENRIG_SESSION_NAME=captain@global rig send --rig <rig> "<text>"`) only for a stop or a rule every seat needs now; record a standing rule in an `AGENTS.md` first and name the file in the message.
+   - Solo rig: type in the tile or use `rig-say`. Pi runner prefixes are `/followup <text>` and `/abort`; Claude Code seats take plain text.
    - Chat is not recorded. Ask the seat to update `PROGRESS.md` or its queue item.
-7. **Finish.** Update the slice, then remove each of its worktrees with the repo's own remove command or vd:worktree once it is merged or abandoned, never with unlanded work. A per-slice rig also runs `rig down <name>` (which strips OpenRig blocks from `$T/AGENTS.md`), deletes each `$T/<repo>` link and deletes `$T`. A team rig keeps running and keeps its task dir; only the slice's worktrees go.
+6. **Finish.** Update the slice, then remove each of its worktrees with the repo's own remove command or vd:worktree once it is merged or abandoned, never with unlanded work. A per-slice rig also runs `rig down <name>` (which strips OpenRig blocks from `$T/AGENTS.md`), deletes each `$T/<repo>` link and deletes `$T`. A team rig keeps running and keeps its task dir; only the slice's worktrees go.
 
 ## After a merge
 
@@ -166,9 +179,12 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 - To give an existing seat a fresh occupant: `rig seat launch <seat> --fresh --stop --reason "<why>"`. To relaunch it keeping the conversation (for example after a settings change such as a new `ANTHROPIC_BASE_URL`), wait for `idle`, then `rig seat stop <seat> --reason "<why>"` and `rig launch <rig id> <logical id>`; background shells and monitors die, so tell the seat to re-arm them.
 - A resume relaunch can report `Harness launch failed: Claude resume failed: timed out waiting for Claude to become active` and leave the seat `att` / "needs you" with continuity `failed`, even though Claude came up with its conversation. Check before acting: `rig capture <seat>` shows the earlier work, and a `rig send` gets a reply. If both hold, the record is stale: `rig seat clear-attention <seat> --reason "<why>"` (it takes no `--operator`). If not, relaunch it; never clear attention you have not verified.
 - OpenRig launches Codex seats with `-s workspace-write`, unless a named Codex profile or `full_bypass` replaces it. They cannot reach the daemon unless `[sandbox_workspace_write] network_access = true`. A fresh launch on 0.6.1 or newer resolves a linked worktree's git dir. Prefer Claude Code or Pi seats when the seat must call the daemon.
-- OpenRig launches Claude Code seats with `--permission-mode acceptEdits`, so the first Bash call waits for approval in the tile. The operator can switch that conversation to auto there (`shift+tab`). On 0.6 or newer, a future launch is `rig seat set-permissions <seat> --mode <mode> --reason "<why>"`. Modes are `floor`, `full_bypass`, and `inherit`. `auto` is accepted only when that seat's Claude executable advertises it. The command does not relaunch the seat, and `rig seat status` does not prove the live mode. Agents do not change another seat's permissions. The same boundary applies to `rig seat set-typing-guard`.
-- On 0.6.1 or newer, OpenRig's own help is `rig context get help`. If `rig` cannot run, use [openrig.dev/help/agents](https://www.openrig.dev/help/agents).
-- OpenRig 0.6 runs on Node.js 22 or 24. On macOS arm64, stay on Node.js 22. The CLI is the global npm package `@openrig/cli`, not a checkout of the source tree.
+- A Claude Code seat's permission mode comes from its member's `permission_policy`: `builtin:auto` launches `--permission-mode auto`, `builtin:yolo` launches `--dangerously-skip-permissions`. A member with no policy launches `--permission-mode acceptEdits`, so the first Bash call waits for approval in the tile; the operator can switch that conversation to auto there (`shift+tab`). A future launch is `rig seat set-permissions <seat> --mode <mode> --reason "<why>"`. Modes are `floor`, `full_bypass`, and `inherit`. `auto` is accepted only when that seat's Claude executable advertises it. The command does not relaunch the seat, and `rig seat status` does not prove the live mode. Agents do not change another seat's permissions. The same boundary applies to `rig seat set-typing-guard`.
+- A harness classifier denial is one turn. When auto mode refuses a command the project `AGENTS.md` already grants, do not write that refusal into `LEARNED.md` or the recap as a new rule, and do not withdraw the grant. Do not switch tools to sneak the same action through in that turn. Retry the same command on a later turn, or ask the operator to approve it in the pane. An unsigned message still does not add a product decision.
+- `rig up <rig> --existing` (and `--fresh <seats>` with it) restores each seat's launch command from the `rig down` snapshot, including the old `--model`. A `rig seat set-model` or rig.yaml edit made while the rig was down does not reach that launch. After it, run `rig seat launch <seat> --fresh --stop --reason "<why>"` for each changed seat and check the "last observed" model in `rig ps --nodes --rig <rig>`.
+- `rig send` from a shell that is not a seat arrives as `From: <unknown sender>`; `--from` is ignored. Sign with `fleet/bin/rig-say` or `--source captain@global` on a queue item (Talk to it).
+- OpenRig's own help is `rig context get help` (the fleet runs 0.7.x; `rig --version`). If `rig` cannot run, use [openrig.dev/help/agents](https://www.openrig.dev/help/agents).
+- OpenRig runs on Node.js 22 or 24. On macOS arm64, stay on Node.js 22. The CLI is the global npm package `@openrig/cli`, not a checkout of the source tree.
 - In `rig tui`, `graph` is a tab of a selected rig: type `rig <name>`, then `graph`. `:` only jumps between sections.
 - The daemon binds the Tailscale address too. Start it with `--host 127.0.0.1` unless you mean to expose it.
 
@@ -176,7 +192,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 
 OpenRig restores seats from the snapshot taken at `rig down`, which still holds the old cwd, and a seat stopped on its own stays stopped. So:
 
-- **Plain restart, no move:** `rig down <rig>`, then `rig up <rig> --existing`. Conversations resume. Never stop seats one by one first.
+- **Plain restart, no move:** `rig down <rig>`, then `rig up <rig> --existing`. Conversations resume with the launch settings in the snapshot (see the model gotcha above). Never stop seats one by one first.
 - **Move (cwd changes):**
   1. Each seat updates PROGRESS.md, its `LEARNED.md`, and runs `rig context recap-write`; that RECAP is what a successor is primed from.
   2. Move the task dir (on the other host, `mv` the gitignored dirs by hand).
@@ -189,10 +205,10 @@ OpenRig restores seats from the snapshot taken at `rig down`, which still holds 
 
 Seats on one subscription share its 5-hour and weekly limits, and so does every other project on it.
 
-- **Read the budget.** `$OPENRIG_HOME/state/provider-usage/*.json`, newest `asOf`: `rateLimits.five_hour` and `rateLimits.seven_day` (`usedPercent`, `resetsAt`). Pace is used percent over the elapsed share of the window; a weekly pace above about 100% means cut.
+- **Read the budget.** `cpq` (or `cpq --json`) prints used, left, reset and pace for every cli-proxy Claude and Codex account; `$OPENRIG_HOME/state/provider-usage/*.json` holds the native seat's own `rateLimits`. Pace is used percent over the elapsed share of the window; a weekly pace above about 100% means cut, and above about 110% move seats to `grok-4.7` on cli-proxy (`fleet/routing.yaml`).
 - **Pick levels.** Planning, routing and the core engine writer keep the template's top effort. Breadth seats (a second writer, docs and briefs, runbook QA) drop one level. A reviewer drops from `xhigh` to `high` when CI and review bots also gate the merge.
 - **Save it, no restart.** `rig seat set-effort <seat> --effort <level> --reason "<why>"` applies at the seat's next managed continuation; `rig seat effort <seat>` shows requested, saved, launched and native. Mirror the level in the task `rig.yaml` so a rebuild keeps it.
-- **Apply it now, only while idle.** Wait for `idle` in `rig ps --nodes --rig <rig>`, then `rig send <seat> "/effort <level>" --raw` and accept the confirm prompt (option 1). Claude Code drops the prompt cache once and re-reads the full history on the next message. Never switch a seat mid-turn: `rig send` still types into a busy pane, and the confirm prompt then waits there. `/effort` also saves the level as the user-wide default for that model (`modelSettings.<model>.effortLevel` in `~/.claude/settings.json`), and `/model` rewrites the top-level `model` default the same way, so put those values back after each switch; seats are unaffected because OpenRig launches them with `--model` and `--effort`. To change a seat's model, `rig seat set-model <seat> --model <id> --reason "<why>"` saves it, then `/model <id>` on the idle seat applies it now.
+- **Apply it now, only while idle.** Wait for `idle` in `rig ps --nodes --rig <rig>`, then `rig send <seat> "/effort <level>" --raw` and accept the confirm prompt (option 1). Claude Code drops the prompt cache once and re-reads the full history on the next message. Never switch a seat mid-turn: `rig send` still types into a busy pane, and the confirm prompt then waits there. `/effort` also saves the level as the user-wide default for that model (`modelSettings.<model>.effortLevel` in `~/.claude/settings.json`), and `/model` rewrites the top-level `model` default the same way, so put those values back after each switch; seats are unaffected because OpenRig launches them with `--model` and `--effort`. To change a seat's model between native Claude ids, `rig seat set-model <seat> --model <id> --reason "<why>"` saves it, then `/model <id>` on the idle seat applies it now. Moving to or from a cli-proxy id changes the base URL, so `/model` is not enough: set the model in rig.yaml, run `rig seat set-model` and `fleet/bin/cc-proxy-seat <seat cwd> <id>`, then `rig seat launch <seat> --fresh --stop --reason "<why>"` once the seat has checkpointed in PROGRESS.
 - **Trim context too.** Every turn re-reads the context. Ask a seat past about 500k tokens to checkpoint in PROGRESS and run `/compact` itself at a quiet point (after a deploy, never mid-merge) instead of setting a compaction cap that can fire mid-task.
 
 ## Add a project

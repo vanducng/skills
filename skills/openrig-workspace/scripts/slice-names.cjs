@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Prints every name a slice uses (slice id, worktrees, branch, PR tag), derived from its folder and its mission's
-// SPEC.md frontmatter, so no name is typed by hand.
+// Prints every name a slice uses (slice id, worktrees, branch, PR title prefix and ## Scope lines), derived from its
+// folder, its SPEC.md heading and its mission's SPEC.md, so no name is typed by hand.
 
 const fs = require("fs");
 const path = require("path");
@@ -38,6 +38,15 @@ function frontmatter(file) {
     fields[pair[1]] = quoted ? quoted[2] : raw.replace(/\s+#.*$/, "");
   }
   return fields;
+}
+
+// "# Mission — M2 - Checkout" -> "Checkout"; "# Slice 4 — Slice 4 - Login fix" -> "Login fix".
+function heading(file, word) {
+  if (!fs.existsSync(file)) return null;
+  const match = fs.readFileSync(file, "utf8").match(/^# (.+)$/m);
+  if (!match) return null;
+  const strip = new RegExp(`^(?:(?:${word}|M)\\s*\\d*\\s*[—–:-]\\s*)+`, "i");
+  return match[1].trim().replace(strip, "").trim() || null;
 }
 
 function workspaceRoot(from) {
@@ -86,12 +95,19 @@ const worktrees = flags("--repo").map((repo) => {
 });
 
 const branch = `${type}/${ticket ? `${ticket}-` : ""}${sliceId}-${slug}`;
+const missionName = mission.title || heading(specPath, "Mission") || path.basename(missionDir);
+const sliceName = heading(path.join(sliceDir, "SPEC.md"), "Slice") || slug;
 const result = {
   sliceId,
   worktrees,
   branch,
   followUpBranch: `${branch}-2`,
-  prTag: ticket && milestone ? `[${ticket}|M${Number(milestone)}|S${Number(nn)}]` : null,
+  prTitlePrefix: ticket ? `${ticket}: ` : null,
+  scope: [
+    ...(milestone ? [`Milestone: M${Number(milestone)}, ${missionName}`] : []),
+    `Slice: S${Number(nn)}, ${sliceName}`,
+    `Mission: ${path.basename(missionDir)}/${path.basename(sliceDir)}`,
+  ],
 };
 
 if (json) {
@@ -101,6 +117,7 @@ if (json) {
   for (const w of worktrees) lines.push(`worktree: ${w.name}${w.path ? ` (${w.path})` : ""}`);
   if (worktrees.length && !root) lines.push("worktree root: unknown (no workspace.yaml above the slice or in PROJECTS_ROOT)");
   lines.push(`branch: ${result.branch}`, `follow-up branch: ${result.followUpBranch}`);
-  lines.push(`pr tag: ${result.prTag || `none (set ticket: and milestone: in ${specPath})`}`);
+  lines.push(`pr title: ${result.prTitlePrefix ? `${result.prTitlePrefix}<what shipped, in plain words>` : `none (set ticket: in ${specPath})`}`);
+  lines.push("pr body ## Scope:", ...result.scope.map((line) => `  ${line}`));
   process.stdout.write(`${lines.join("\n")}\n`);
 }

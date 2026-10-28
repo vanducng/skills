@@ -9,12 +9,12 @@ Checked 2026-09. Re-check when a harness changes its docs.
 | Codex | `~/.codex/AGENTS.md`, then git root down to cwd. With no git root, cwd only. 32 KiB cap (`project_doc_max_bytes`) | up to git root | no | learn.chatgpt.com/docs/agent-configuration/agents-md |
 | Grok Build | home rules, then repo root down to cwd; reads both `AGENTS.md` and `CLAUDE.md`. With no git root, cwd only. Needs folder trust. Skills walk `.agents/skills` up to the repo root | up to git root | no | xai-org/grok-build `docs/user-guide/12-project-rules.md`, `08-skills.md` |
 | Cursor | `AGENTS.md` at the workspace root and nested subdirs (applied when working with files there), `.cursor/rules/*.mdc` | not documented | yes | cursor.com/docs/rules |
-| OpenRig seat | writes managed blocks into `<seat cwd>/AGENTS.md` on every launch, whatever the agent spec says | n/a | n/a | OpenRig 0.5.x `rigspec-instantiator.ts` |
+| OpenRig seat | writes managed blocks into the file the rig spec's `managed_blocks` names per runtime (workspace rigs: `claude-code: CLAUDE.local.md`), else `<seat cwd>/AGENTS.md`, on every launch | n/a | n/a | OpenRig 0.7.x; checked on a live task dir 2026-10-29 |
 
 ## Consequences for the layout
 
 - The only chain every harness reads is git root down to cwd. Putting task dirs inside the workspace repo makes org and project `AGENTS.md` load for Codex and Grok as well as for Pi and Claude.
 - One `CLAUDE.md` anywhere in the chain switches Claude off `AGENTS.md`, so the workspace uses `AGENTS.md` only.
 - When you start a harness inside a repo worktree that tracks `CLAUDE.md`, Claude reads only the `CLAUDE.md` chain, and task, project, and org `AGENTS.md` are skipped. Start from the task dir, or set Claude's "Project instructions" to `claude-md-and-agents-md` in `/config`.
-- Setting an OpenRig seat's cwd to the task dir keeps its managed blocks out of tracked repo files.
+- Setting an OpenRig seat's cwd to the task dir keeps its managed blocks out of tracked repo files. `CLAUDE.local.md` is safe: unlike `CLAUDE.md`, it does not switch Claude off `AGENTS.md`.
 - `rg` from a task dir finds files inside nested worktrees even though the parent repo ignores `tasks/`. A search that starts above the ignored path skips them.
