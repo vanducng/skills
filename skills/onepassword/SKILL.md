@@ -42,6 +42,33 @@ If `whoami` fails with desktop-app connection errors: unlock the app, confirm CL
 
 Multiple accounts: `--account <shorthand|url|id>` or `OP_ACCOUNT`.
 
+## Service account on a workstation (no prompt per read)
+
+Desktop-app integration asks for system auth on each new process, which stalls long-running agent sessions. A read-only service account removes the prompt. Set it up once with the user.
+
+1. **The user creates it** (an account owner or admin, in the web UI): Developer → Directory → Service Accounts → New. Grant **read only** on the named shared vaults the agents need, nothing else. Service accounts cannot reach Personal, Private or Employee vaults, so items there must move to a shared vault first. Agents never create service accounts or change vault access.
+2. **The user stores the token** in one of two places, never in shell history:
+   - One service account per vault: a mode-600 token file (`$OP_SA_TOKEN_FILE`, default `$HOME/.share/op-svc.txt`), one tab-separated line per account: `<name>	<token>	<scope note>	<created>`. Use this for agents in tmux or headless seats, where a Keychain read can prompt.
+   - A single account: the macOS Keychain, typed at a prompt: `security add-generic-password -U -a "$USER" -s op-service-account -w`.
+
+3. **Agents call `op` through the wrapper**, which loads the token for that one process only, instead of exporting it into every shell:
+
+   ```bash
+   scripts/op-sa --sa <name> whoami
+   scripts/op-sa --sa <name> item list --vault "<vault>" --format json
+   scripts/op-sa --sa <name> read "op://<vault>/<item>/<field>"
+   scripts/op-sa run --env-file=.env.tpl -- <command>   # Keychain account
+   ```
+
+   Before asking for a new service account, list the existing ones (`cut -f1,3 "$OP_SA_TOKEN_FILE"`) and add the item to the vault of an existing account when one fits.
+
+   Install it on `PATH` with `ln -s "$PWD/scripts/op-sa" ~/.local/bin/op-sa` (run from this skill's directory).
+
+Rules:
+- The token is a credential: never print it, commit it, or pass it as an argument. Rotating it is the user's call.
+- With the token set, `op` ignores the desktop app, so items outside the granted vaults return "not found". Fall back to plain `op` (desktop app) for those, and say which item needed it.
+- A Keychain read from a headless or tmux session can still prompt once; "Always Allow" for `security` fixes it.
+
 ## Secret references
 
 ```text

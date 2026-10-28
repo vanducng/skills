@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Runs op with a read-only service-account token scoped to this one process.
+# op-sa --sa <name> <op args>: token from the line starting with <name><TAB> in $OP_SA_TOKEN_FILE.
+# op-sa <op args>: token from the macOS Keychain item $OP_SA_KEYCHAIN_SERVICE.
+set -euo pipefail
+
+name="${OP_SA:-}"
+if [[ "${1:-}" == "--sa" ]]; then
+  name="${2:?op-sa: --sa needs a service account name}"
+  shift 2
+fi
+
+if [[ -n "$name" ]]; then
+  file="${OP_SA_TOKEN_FILE:-$HOME/.share/op-svc.txt}"
+  [[ -r "$file" ]] || { echo "op-sa: token file $file is not readable." >&2; exit 2; }
+  token="$(awk -F'\t' -v n="$name" '$1 == n { print $2; exit }' "$file")"
+  [[ -n "$token" ]] || { echo "op-sa: no '$name' line in $file (name<TAB>token<TAB>...)." >&2; exit 2; }
+else
+  service="${OP_SA_KEYCHAIN_SERVICE:-op-service-account}"
+  if ! token="$(security find-generic-password -a "$USER" -s "$service" -w 2>/dev/null)"; then
+    echo "op-sa: no Keychain item '$service' for $USER; pass --sa <name> to use the token file." >&2
+    exit 2
+  fi
+fi
+
+OP_SERVICE_ACCOUNT_TOKEN="$token" exec op "$@"
