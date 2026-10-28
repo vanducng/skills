@@ -2,6 +2,14 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.71.0](https://github.com/vanducng/skills/compare/v1.70.0...v1.71.0) (2026-10-28)
+
+
+### Features
+
+* **onepassword:** op-sa reads named service accounts from a token file ([c57971c](https://github.com/vanducng/skills/commit/c57971cee4e3306911320f2233c8ceef64be45d9))
+* **openrig-workspace:** tune seat effort to stretch a shared quota ([cc695ee](https://github.com/vanducng/skills/commit/cc695eeea8c105c1fec4b3f65d9f52db20659729))
+
 ## [1.70.0](https://github.com/vanducng/skills/compare/v1.69.0...v1.70.0) (2026-10-25)
 
 
