@@ -25,6 +25,14 @@ for ref in $(yq '[.contacts[]?.ref] + [.conversations[]?.with[]?] | unique | .[]
   grep -qx -- "$ref" <<<"$keys" || report "contact '$ref' is not a key in $contacts"
 done
 
+org_res="$org/resources.yaml"
+if [[ -f "$org_res" ]]; then
+  org_convs="$(yq '[.conversations[]?.id] + [.messaging[]?.channels[]?.id] | .[]' "$org_res")"
+  for r in $(yq '.conversations[]? | select(has("ref")) | .ref' "$res"); do
+    grep -qx -- "$r" <<<"$org_convs" || report "conversation ref '$r' is not an id in $org_res"
+  done
+fi
+
 convs="$(yq '.conversations[]? | select(has("id")) | .id' "$res")"
 for c in $(yq '.threads[]?.conversation' "$res"); do
   grep -qx -- "$c" <<<"$convs" || report "thread conversation '$c' is not a conversation id in $res"
@@ -36,7 +44,8 @@ for f in "$res" "$contacts"; do
   perl -ne 'print "$.:$_" if /(?<![\w\/])\+\d{10,15}(?!\d)|(?<![\w\/])\(?[2-9]\d{2}\)?[ .-]\d{3}[ .-]\d{4}(?!\d)/' "$f" \
     | sed "s|^|FAIL: phone-like value in $f:|" | grep . && fail=1 || true
   grep -nE '/Users/[a-z]|/home/[a-z]' "$f" | sed "s|^|FAIL: home path in $f:|" | grep . && fail=1 || true
-  grep -niE '(api[_-]?key|secret|token|password)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9_\-]{16,}' "$f" \
+  # a key-like value: 20+ token chars with both a letter and a digit (names like app/prod pass)
+  perl -ne 'print "$.:$_" if /(api[_-]?key|secret|token|password)["\x27]?\s*[:=]\s*["\x27]?(?=[A-Za-z0-9_\-]*\d)(?=[A-Za-z0-9_\-]*[A-Za-z])[A-Za-z0-9_\-]{20,}/i' "$f" \
     | sed "s|^|FAIL: key-like value in $f:|" | grep . && fail=1 || true
 done
 
