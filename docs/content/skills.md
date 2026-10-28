@@ -118,6 +118,8 @@ Utilities for recurring work:
 
 `vd:superwhisper`, `vd:gog`, `vd:jira`, `vd:custom-mcp-connector`, `vd:kaneo`, `vd:issue-invoice`, `vd:computer-clean`, `vd:mac-resource-triage`, `vd:worktree`, `vd:herd-worktree`, `vd:herdr`, `vd:openrig-workspace`, `vd:project-resources`, `vd:gopass`, `vd:onepassword`, `vd:obsidian-vault`, `vd:journal`, `vd:workbench`, `vd:braze`, `vd:smartsheet`, `vd:voice-agent`, `vd:structured`, `vd:alter`, `vd:jump-desktop`
 
+`vd:openrig-workspace` also handles projects workspace sync across macOS and Linux hosts. It discovers the fleet registry and checks each host's Git credentials, background scheduler, disk access, branch divergence, and owned record sync before reporting fleet health.
+
 ## Skill lifecycle
 
 | Skill | Owns |

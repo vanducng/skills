@@ -84,6 +84,7 @@ Start local. Escalate to `vd:browser` only when a local run hits a wall.
 | Need | Skill |
 |---|---|
 | Map the repo | `vd:scout` |
+| Sync a projects workspace across fleet hosts | `vd:openrig-workspace` |
 | Cited comparison of known options | `vd:research` |
 | Edge cases / blast radius | `vd:scenario` |
 | Keep iterating one command | `vd:auto-loop` |

@@ -1,6 +1,6 @@
 ---
 name: openrig-workspace
-description: Work inside an org/project/task workspace that any coding harness (Pi, Claude Code, Codex, Grok Build, Cursor) reads out of the box and that OpenRig can drive without a fork. Use when the user says "start a task in <project>", "set up the task dir", "which rig", "feature profile", "bugfix", "sop", "run this ticket with openrig", "attach the rig in herdr", "which project does this repo belong to", "add a project", "name the worktree or branch", "slice names", "seat effort", "stretch the quota", or when the cwd is under a projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`). Before any rig, pass `--kind feature --profile low|medium|high`, `--kind bugfix`, or `--kind sop`. Owns the layout (including where worktrees live), the unit of work (slice, worktree, PR) and its names, task lifecycle, that choice, and OpenRig adjustments; defers worktree mechanics to the repo's own worktree command or vd:worktree, artifacts to vd:workbench, pane control to vd:herdr.
+description: Work inside an org/project/task workspace across coding harnesses and fleet hosts. Use for task directories, rig selection, feature profiles, bugfix or SOP runs, project discovery, worktree and slice names, seat effort, quota adjustments, or projects workspace sync across macOS and Linux. Also applies when the cwd is under a projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`). Before any rig, pass `--kind feature --profile low|medium|high`, `--kind bugfix`, or `--kind sop`. Owns the workspace layout, unit of work (slice, worktree, PR), task lifecycle, OpenRig adjustments, and fleet sync diagnosis; defers worktree mechanics to the repo's own command or vd:worktree, artifacts to vd:workbench, and pane control to vd:herdr.
 license: MIT
 metadata:
   author: vanducng
@@ -10,6 +10,10 @@ metadata:
 # OpenRig workspace
 
 One git repo, `$PROJECTS_ROOT` (default `$HOME/projects`), holds org and project context, task records, and machine-local task workdirs. Code stays in its repos. The layout works because every harness reads `AGENTS.md` from the git root down to the cwd, so a task dir inside this repo inherits fleet, org, and project rules automatically. See `references/harness-context.md` for the per-harness discovery rules and sources.
+
+## Fleet workspace sync
+
+For workspace sync or Git failures across laptop, macOS desktop, and Linux hosts, read [references/fleet-sync.md](references/fleet-sync.md). Discover every host from `fleet/machines.yaml`; distinguish machine IDs, SSH aliases, and OpenRig host IDs. Check each host's credentials, scheduler, workspace log, and live GitHub head separately. A successful SSH read or scheduler exit code does not prove background workspace sync works.
 
 ## Layout
 
