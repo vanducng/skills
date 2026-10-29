@@ -51,6 +51,7 @@ const suggestions = [
       const update = () => {
         node.style.display = input && input.value.trim() !== '' ? 'none' : '';
       };
+      if (input && document.activeElement === sc.closest('dialog')?.querySelector('[data-close-modal]')) input.focus();
       if (input && !input.dataset.vdSugg) {
         input.dataset.vdSugg = '1';
         input.addEventListener('input', update);
@@ -72,6 +73,7 @@ const suggestions = [
 
 <style is:global>
   .vd-suggestions {
+    --vd-sugg-pad-x: 0.75rem;
     margin-top: 1rem;
     text-align: start;
   }
@@ -85,14 +87,15 @@ const suggestions = [
   }
   .vd-suggestions ul {
     list-style: none;
-    margin: 0;
+    /* Row padding bleeds out so link text lines up with the label and input edge. */
+    margin: 0 calc(-1 * var(--vd-sugg-pad-x)) -0.5rem;
     padding: 0;
     display: grid;
     gap: 0.2rem;
   }
   .vd-suggestions a {
     display: block;
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem var(--vd-sugg-pad-x);
     border-radius: 0.5rem;
     color: var(--sl-color-text);
     text-decoration: none;
