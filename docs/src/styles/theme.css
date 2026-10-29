@@ -66,10 +66,14 @@ site-search dialog {
   outline-offset: 0;
 }
 
+:root {
+  --vd-search-row: 3.625rem;
+}
+
 #starlight__search {
   --pagefind-ui-background: var(--sl-color-bg-nav);
   /* Reserve the input row so suggestions don't shift when Pagefind mounts. */
-  min-height: 3.625rem;
+  min-height: var(--vd-search-row);
   --pagefind-ui-scale: 0.9;
   --pagefind-ui-border-radius: 0.5rem;
   --pagefind-ui-primary: var(--sl-color-accent);
@@ -197,36 +201,25 @@ starlight-toc a[aria-current='true'] {
   background-color: color-mix(in srgb, var(--sl-color-accent) 6%, transparent);
 }
 
-/* ---- Header icon buttons share one 2.5rem square ---- */
+/* ---- Mobile header icon buttons share one square (Starlight also positions the menu button from this size) ---- */
 :root {
   --sl-menu-button-size: 2.5rem;
 }
 
-starlight-menu-button button {
-  align-items: center;
-  box-sizing: border-box;
-  inline-size: 2.5rem;
-  block-size: 2.5rem;
-  padding: 0;
-  justify-content: center;
-  border: 1px solid var(--sl-color-gray-5);
-  border-radius: 0.5rem;
-  background-color: var(--sl-color-bg-nav);
-  color: var(--sl-color-text);
-  box-shadow: none;
-}
-
 @media (max-width: 49.99rem) {
+  starlight-menu-button button,
   site-search > button {
     align-items: center;
-    box-sizing: border-box;
-    inline-size: 2.5rem;
-    block-size: 2.5rem;
-    padding: 0;
     justify-content: center;
+    box-sizing: border-box;
+    inline-size: var(--sl-menu-button-size);
+    block-size: var(--sl-menu-button-size);
+    padding: 0;
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 0.5rem;
     background-color: var(--sl-color-bg-nav);
+    color: var(--sl-color-text);
+    box-shadow: none;
   }
 }
 
@@ -241,7 +234,7 @@ starlight-menu-button[aria-expanded='true'] button {
   }
 
   site-search dialog button[data-close-modal] {
-    block-size: 3.625rem;
+    block-size: var(--vd-search-row);
   }
 }
 
