@@ -51,6 +51,7 @@ const suggestions = [
       const update = () => {
         node.style.display = input && input.value.trim() !== '' ? 'none' : '';
       };
+      if (input && document.activeElement?.matches('[data-close-modal]')) input.focus();
       if (input && !input.dataset.vdSugg) {
         input.dataset.vdSugg = '1';
         input.addEventListener('input', update);
@@ -85,7 +86,8 @@ const suggestions = [
   }
   .vd-suggestions ul {
     list-style: none;
-    margin: 0;
+    /* Row padding bleeds out so link text lines up with the label and input edge. */
+    margin: 0 -0.75rem -0.5rem;
     padding: 0;
     display: grid;
     gap: 0.2rem;
