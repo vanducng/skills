@@ -5,6 +5,10 @@
 
 /* ---- Accent (violet) ---- */
 :root {
+  /* Starlight positions the fixed menu button and the mobile TOC bar from these. */
+  --sl-menu-button-size: 2.5rem;
+  --sl-mobile-toc-height: 3.5rem;
+  --vd-search-row: 3.625rem;
   --sl-color-accent-low: #ede9fe;
   --sl-color-accent: #7c3aed;
   --sl-color-accent-high: #4c1d95;
@@ -45,7 +49,31 @@ starlight-theme-toggle {
   margin-inline: auto;
 }
 
+site-search dialog {
+  background-color: var(--sl-color-bg-nav);
+}
+
+#starlight__search .pagefind-ui__search-input::placeholder {
+  color: var(--sl-color-gray-3);
+  opacity: 1;
+}
+
+@media (min-width: 50rem) {
+  site-search dialog {
+    border-color: var(--sl-color-gray-5);
+    box-shadow: 0 24px 48px -12px rgb(0 0 0 / 0.5);
+  }
+}
+
+#starlight__search .pagefind-ui__search-input:focus {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 0;
+}
+
 #starlight__search {
+  --pagefind-ui-background: var(--sl-color-bg-nav);
+  /* Reserve the input row so suggestions don't shift when Pagefind mounts. */
+  min-height: var(--vd-search-row);
   --pagefind-ui-scale: 0.9;
   --pagefind-ui-border-radius: 0.5rem;
   --pagefind-ui-primary: var(--sl-color-accent);
@@ -122,4 +150,121 @@ starlight-toc a[aria-current='true'] {
     );
     border-top: 1px solid var(--sl-color-hairline);
   }
+}
+
+/* ---- Prev / next: compact cards ---- */
+.pagination-links {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.pagination-links a {
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: var(--sl-text-sm);
+  font-weight: 600;
+  line-height: 1.35;
+  border-radius: 0.5rem;
+  border-color: var(--sl-color-gray-5);
+  box-shadow: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.pagination-links a[rel='next'] {
+  grid-column: 2;
+}
+
+.pagination-links a > span {
+  font-size: var(--sl-text-xs);
+  font-weight: 500;
+  color: var(--sl-color-gray-3);
+}
+
+.pagination-links .link-title {
+  display: block;
+  text-wrap: balance;
+  margin-top: 0.125rem;
+  font-size: var(--sl-text-base);
+  font-weight: 600;
+  color: var(--sl-color-white);
+}
+
+.pagination-links a > svg {
+  font-size: 1rem;
+  inline-size: 1rem;
+  block-size: 1rem;
+  flex-shrink: 0;
+}
+
+.pagination-links a:hover {
+  border-color: var(--sl-color-accent);
+  background-color: color-mix(in srgb, var(--sl-color-accent) 6%, transparent);
+}
+
+/* ---- Mobile header icon buttons share one square ---- */
+@media (max-width: 49.99rem) {
+  starlight-menu-button button,
+  site-search > button {
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    inline-size: var(--sl-menu-button-size);
+    block-size: var(--sl-menu-button-size);
+    padding: 0;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background-color: var(--sl-color-bg-nav);
+    color: var(--sl-color-text);
+    box-shadow: none;
+  }
+}
+
+starlight-menu-button[aria-expanded='true'] button {
+  border-color: var(--sl-color-gray-3);
+}
+
+/* ---- Full-screen search on mobile: no edge border ---- */
+@media (max-width: 49.99rem) {
+  site-search dialog {
+    border: 0;
+  }
+
+  site-search dialog button[data-close-modal] {
+    block-size: var(--vd-search-row);
+  }
+}
+
+/* ---- Mobile menu footer: theme + GitHub on one centered row ---- */
+.mobile-preferences {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding-block: 1rem;
+  margin-inline: 0.5rem;
+}
+
+.mobile-preferences .social-icons {
+  margin: 0;
+  padding: 0;
+}
+
+.mobile-preferences .gh-text {
+  display: inline;
+}
+
+/* Theme toggle moved before GitHub, so Starlight's trailing divider has nothing to separate. */
+.right-group .social-icons::after {
+  display: none;
+}
+
+@media (max-width: 49.99rem) {
+  .sidebar-content {
+    --sl-sidebar-pad-x: 0.5rem;
+  }
+}
+
+mobile-starlight-toc .toggle {
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  align-items: center;
 }
