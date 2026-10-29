@@ -62,9 +62,10 @@ const suggestions = [
       const dlg = document.querySelector('#starlight__search')?.closest('dialog');
       if (!dlg || dlg.dataset.vdArmed) return;
       dlg.dataset.vdArmed = '1';
+      // Pagefind mounts its input late on large indexes, so re-run on every DOM change while open.
       new MutationObserver(() => {
-        if (dlg.hasAttribute('open')) [0, 80, 250].forEach((t) => setTimeout(inject, t));
-      }).observe(dlg, { attributes: true, attributeFilter: ['open'] });
+        if (dlg.hasAttribute('open')) inject();
+      }).observe(dlg, { attributes: true, attributeFilter: ['open'], childList: true, subtree: true });
     };
     arm();
     document.addEventListener('astro:page-load', arm);
