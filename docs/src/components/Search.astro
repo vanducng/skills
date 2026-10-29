@@ -73,7 +73,7 @@ const suggestions = [
         if (!dlg.hasAttribute('open')) return void delete dlg.dataset.vdFocused;
         queued ||= requestAnimationFrame(() => {
           queued = 0;
-          inject();
+          if (dlg.hasAttribute('open')) inject();
         });
       }).observe(dlg, { attributes: true, attributeFilter: ['open'], childList: true, subtree: true });
     };
