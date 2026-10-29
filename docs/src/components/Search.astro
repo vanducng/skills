@@ -55,7 +55,8 @@ const suggestions = [
       // Hand focus over once per open, so a later Tab to Cancel is never pulled back.
       if (input && dlg && !dlg.dataset.vdFocused) {
         dlg.dataset.vdFocused = '1';
-        if (document.activeElement === dlg.querySelector('[data-close-modal]')) input.focus();
+        const at = document.activeElement;
+        if (at === dlg || at === dlg.querySelector('[data-close-modal]')) input.focus();
       }
       if (input && !input.dataset.vdSugg) {
         input.dataset.vdSugg = '1';
