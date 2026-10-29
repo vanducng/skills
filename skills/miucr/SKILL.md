@@ -27,7 +27,9 @@ Run in order and stop at the first step that needs the user.
    - `miucr whoami` shows a valid OAuth login.
    Otherwise ask the user to pick: `miucr login --provider openai` (ChatGPT plan, opens
    a browser) or export an API key. Never ask them to paste a key into chat.
-3. Config, only if none exists: `miucr init --non-interactive --provider <anthropic|openai> --auth <env|oauth> --yes`.
+3. Config, only if none exists. With an env key: `miucr init --non-interactive --provider <anthropic|openai> --auth env --yes`.
+   OAuth cannot run non-interactively (`init.aborted`): ask the user to run `miucr init` in
+   their own terminal and pick browser login.
 4. Rules: if `.miu/cr/rules/` is empty, `miucr rules init`, then edit the scaffold for
    this stack (frontmatter `globs`, prose is reviewer context). Verify with
    `miucr rules check <a changed file>`.

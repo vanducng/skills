@@ -1,352 +1,140 @@
 ---
 name: miudb
-description: >
-  Query, inspect, and manage saved database connections through the Go `miudb`
-  CLI. Use when the user asks to run SQL, list schemas, add native
-  connections, smoke-test connections, inspect tunnel-backed databases, or
-  produce agent-readable JSON from SQLite, Postgres, MySQL, Snowflake, or
-  BigQuery.
-license: MIT
-allowed-tools:
-  - Bash
-metadata:
-  author: vanducng
-  version: "0.2.1"
-  binary: miudb
+description: Query, inspect, and manage saved database connections through the `miudb` CLI (miu-db). Use when asked to set up miudb, add or import connections, smoke-test them, run SQL, inspect a schema, draw an ERD, wire the MCP server into an agent host, or read the activity log, on SQLite, Postgres, MySQL, Snowflake, or BigQuery. Output is the `miudb.cli/v1` JSON envelope; parse it, don't grep prose.
 ---
 
 # miudb
 
-Headless database CLI for agent-safe SQL work against saved database
-connections. Prefer direct `miudb` commands for one-shot machine-readable
-output and scripted checks. Use `miudb mcp serve` only when configuring an MCP
-host, and use `miudb serve` only for Neovim/custom protocol clients.
+`miudb` keeps saved connections, secrets, SSH tunnels, adapters, query paging,
+schema inspection, and ERDs in one local Go binary. Every command prints one
+JSON envelope on stdout; diagnostics go to stderr.
 
-Do not use `sqlit` for miudb tasks.
+For anything not covered here, ask the source of truth instead of guessing:
 
-## Install/verify
+- `miudb <command> --help` for flags and defaults; `miudb commands` and
+  `miudb describe <command>` for the machine-readable catalog.
+- `https://db.miu.sh/<page>.md` for raw docs: `onboarding`, `install`, `usage`,
+  `authentication`, `erd`, `mcp`, `activity`, `cli-contract`, `architecture`.
+  Index: `https://db.miu.sh/llms.txt`.
 
-```bash
-brew install vanducng/tap/miudb   # first install
-miudb upgrade                      # self-update to the latest release
-miudb version --output json        # v0.8.0 or newer
-miudb commands --output json
-```
+## Set up
 
-If the catalog lacks a command you need, run `miudb upgrade`, or build from the
-local checkout:
+Run in order and stop at the first step that needs the user.
 
-```bash
-cd <your-miu-db-checkout>          # your local clone of the miu-db source repo
-go build -buildvcs=false -o ./.miu-db/miudb ./cmd/miudb
-```
+1. `miudb version` - if missing: `curl -fsSL https://db.miu.sh/install.sh | sh`
+   (Homebrew installs upgrade with `brew upgrade miudb`). `miudb upgrade --check`
+   reports a newer release; upgrade only if the user agrees.
+2. `miudb connections list --basic` - the `ref` column (`group/name`, or bare
+   `name` when unique) is what `--connection` takes. If the connection the user
+   named is missing, stop and ask. Never substitute a similar one.
+3. Add a connection only when asked. Credentials come from the user's env or a
+   command they trust; never ask them to paste a password into chat.
+4. `miudb connections test <ref>` for one, `miudb connections smoke` for all.
 
-## Default local config
+## Commands
 
-`miudb` uses a native Go store by default:
-
-```text
-~/.config/miu/db/connections.json
-~/.config/miu/db/credentials.json
-```
-
-Sensitive values are classified before persistence. New database and SSH
-passwords are stored outside `connections.json` by default using the OS
-Keychain/keyring service named `miudb`.
-
-For migrated configs, `miudb` reads `credentials-export.json` from the same
-directory when `credentials.json` is absent.
-
-Only pass `--config-dir`, `--connections-file`, `--credentials-file`,
-`--credentials-export`, `--secret-source`, `--keyring-service`, or
-`--gopass-prefix` when the user asks for a non-default store.
-
-By default, secret lookup can use file credentials, the `miudb` keyring
-service, and gopass paths under the `miudb` prefix. Treat `--credentials-export`
-as a deprecated alias for `--credentials-file`.
-
-## Discover commands and connections
-
-```bash
-miudb commands --output json
-miudb describe connections add --output json
-miudb describe connections test --output json
-miudb describe query run --output json
-miudb describe connections smoke --output json
-miudb describe mcp serve --output json
-miudb connections list --output json
-miudb connections list --basic --output json   # scannable: ref/name/group/db_type/host
-```
-
-Connections are addressed by **`group/name`** (e.g. `analytics/warehouse-prod`); a bare
-`name` works when it is unique across groups. The `ref` column from `--basic` is
-exactly what to pass to `--connection`. The `-c` short flag only exists on
-`erd` subcommands (see below) - other commands like `query run` require the
-long `--connection` form and reject `-c` with "unknown shorthand flag". If the
-named connection is not listed, stop and ask the user. Do not substitute a
-similar connection.
-
-## Add connections
-
-```bash
-miudb connections add \
-  --name app-dev \
-  --db-type postgresql \
-  --host localhost \
-  --port 5432 \
-  --database app \
-  --username app \
-  --password "$APP_DB_PASSWORD" \
-  --secret-store keyring \
-  --output json
-```
-
-Variations: SQLite uses `--db-type sqlite --path ./app.db` (no host); bastion-reachable servers add `--tunnel --ssh-config-alias bastion`; provider settings are repeatable `--option k=v` pairs (`--option authenticator=snowflake_jwt --option warehouse=DEV_WH`) plus `--extra-option sslmode=require`. Full flag surface: `miudb describe connections add --output json`.
-
-Secret stores for new connections:
-
-- `keyring`: OS Keychain/keyring service named `miudb` on CGO-enabled builds.
-  Release binaries (`brew install`) are CGO-disabled and fall back to an
-  encrypted file keyring at `~/.config/miu/db/keyring/<connection>:<kind>`
-  (JWE / PBES2-HS256+A128KW, one file per secret) - NOT the OS Keychain, so
-  `security find-generic-password -s miudb ...` finds nothing there.
-- `file`: local `credentials.json` with mode `0600`.
-- `inline`: leave the value in `connections.json`.
-- `none`: discard the supplied secret and require another resolver later.
+| Goal | Command |
+|---|---|
+| Add SQLite | `miudb connections add --name app --db-type sqlite --path ./app.db` |
+| Add Postgres/MySQL | `miudb connections add --name app --db-type postgresql --host localhost --port 5432 --database app --username app --password "$APP_DB_PASSWORD"` |
+| Through a bastion | add `--tunnel --ssh-config-alias <alias>` |
+| Provider settings | repeat `--option k=v` (Snowflake `warehouse`, `role`; BigQuery project is `--host`) |
+| Import a shared file | `miudb connections import ./conns.json --dry-run`, then without `--dry-run` |
+| Test one / all | `miudb connections test <ref>` / `miudb connections smoke --timeout 20s` |
+| One statement | `miudb query run --connection <ref> --sql '<SQL>' --limit 100` |
+| Next page | `miudb query fetch-page --cursor <page.next_cursor>` |
+| Several statements (Snowflake, MySQL) | `miudb query script --connection <ref> --sql 'a; b'` (`--atomic` for a transaction) |
+| Per-call role/warehouse | add `--session role=ANALYST` (provider-specific keys, not persisted) |
+| Schema | `miudb schema tree --connection <ref>` |
+| ERD (SQLite, Postgres, MySQL) | `miudb erd generate -c <ref>`; `miudb erd serve -c <ref>` to open it |
+| Snowflake OAuth | `miudb auth login <ref>`, `miudb auth status <ref>` |
+| Activity | `miudb activity --since 24h`, `--failed`, `--connection <ref>` |
 
 Rules:
 
-- Prefer `--secret-store keyring` for user-entered credentials.
-- Use `--password-command` only when the command is already trusted by the
-  user; never invent a credential command.
-- Use `--secret-store file` only for disposable/local test configs or when the
-  user explicitly wants a file-backed credential.
-- Never print passwords, credential files, private keys, or service account
-  JSON.
-
-Verify where a secret landed (cheapest first, never reveals the value):
-
-- `miudb connections list --output json` -> `has_password: true`, and the
-  connection's `secrets[]` shows `provider: keyring` + `ref`.
-- `ls ~/.config/miu/db/keyring/` -> `<connection>:db` file on release builds
-  (contents are JWE-encrypted; the raw password is not in the file).
-- `miudb connections test <CONN>` -> `ok: true` proves it resolves end-to-end.
-
-## Test one connection
-
-```bash
-miudb connections test <CONN> \
-  --timeout 12s \
-  --output json
-```
-
-Use `connections test` when the user names one connection or asks whether one
-connection is reachable. This opens the connection and may create an SSH
-tunnel, but does not run user SQL.
-
-## OAuth login for Snowflake and BigQuery
-
-Acquire and store an OAuth token for a connection supporting OAuth (Snowflake, BigQuery):
-
-```bash
-miudb auth login <CONN> --output json
-miudb auth status <CONN> --output json
-miudb auth logout <CONN> --output json
-```
-
-Tokens are stored in the keyring service. On CGO-disabled builds (release binaries), fallback to file-based credential storage.
-
-## Smoke-test connections
-
-```bash
-miudb connections smoke \
-  --timeout 12s \
-  --concurrency 4 \
-  --output json
-```
-
-Interpretation:
-
-- Top-level `ok: false` can be expected when local-only databases are stopped.
-- Check `.data.results[]` for per-connection pass/fail.
-- Local failures like `localhost:3307 refused` usually mean a local service or
-  tunnel is not running.
-- Tunnel failures can mean SSH alias/key/remote network issues.
-
-Summarize results without printing passwords or secret file contents.
-
-## Run a query
-
-```bash
-miudb query run \
-  --connection <CONN> \
-  --sql '<SQL>' \
-  --limit 100 \
-  --output json
-```
-
-Rules:
-
-- Keep `--limit` bounded unless the user explicitly asks for a large export.
-- Prefer read-only SQL unless the user explicitly authorizes mutation.
-- Use single quotes around SQL containing BigQuery/MySQL backticks.
-- If SQL contains single-quoted literals and backticks, escape carefully; do
-  not assume file input exists unless `miudb describe query run` says it does.
-- Snowflake rejects the alias `rows` (`unexpected 'rows'`). `ROWS` is reserved.
-  Use another alias, such as `row_cnt`.
-
-## Fetch paged results
-
-If `query run` returns a cursor or truncation marker, continue with:
-
-```bash
-miudb query fetch-page \
-  --cursor <CURSOR> \
-  --output json
-```
-
-## Run multi-statement scripts
-
-For Snowflake and MySQL, execute multiple statements in one script; each statement produces one result set:
-
-```bash
-miudb query script \
-  --connection <CONN> \
-  --sql 'SELECT 1; SELECT 2' \
-  --output json
-```
-
-Postgres rejects multi-command scripts; run statements individually with `query run`.
-
-## Inspect schema
-
-```bash
-miudb schema tree \
-  --connection <CONN> \
-  --output json
-```
-
-Metadata SQL also works through `query run`: `information_schema` tables/columns on Postgres/Snowflake, `SHOW DATABASES` / `SHOW TABLES` / `DESCRIBE` on MySQL, `INFORMATION_SCHEMA` on BigQuery (quote `dataset`.`table` with backticks inside single-quoted SQL), `sqlite_master` + `PRAGMA table_info` on SQLite.
-
-## Generate an ERD (interactive diagram)
-
-`miudb erd` turns a connection into a self-contained, offline interactive ER diagram (Cytoscape) plus a DBML export. Tier-1: MySQL, Postgres. Snowflake/BigQuery/DuckDB return a clean "unsupported" error.
-
-```bash
-# interactive offline index.html + schema.json + schema.dbml (default --format html)
-miudb erd generate -c <group/name> --out-dir .diagrams/<name>-erd --output json
-# serve it; auto-opens the browser for an interactive terminal (--no-open to suppress);
-# --from <dir|schema.json> renders an existing export with no DB
-miudb erd serve -c <group/name> --output json
-```
-
-Short flags on every `erd` command: `-c`/`--connection`, `-s`/`--schema`,
-`-m`/`--meta`, `-f`/`--format`, `-p`/`--port`. A connection with no default
-database (e.g. a server-level DSN) errors with a clear "pass --schema" hint.
-
-Two layers:
-- **Deterministic (miudb):** introspect -> `schema.json` (the render source-of-truth) -> DBML + HTML. No LLM.
-- **Agentic (you):** author `meta.json` to add **colored domain groups** + table **descriptions**. Without it, tables render as Framework/Other with no colors (`erd generate` emits a warning saying so).
-
-### Agentic polish recipe (how to make a good diagram)
-
-1. Scaffold: `miudb erd meta --stub --connection <CONN> --out-dir <dir>` - auto-detects framework tables (Laravel/Rails/Django/Prisma) and seeds blank `groups`/`descriptions`. The envelope `data.next_step` reminds you what to fill.
-2. Read `<dir>/schema.json` (the IR: `tables[] -> {pk, columns, fks, indexes, rows}`). Cheap, high-signal inputs: FK topology (which tables connect), table-name prefixes, FK hub degree, and row counts. Migration *filenames* (`ls database/migrations` / `db/migrate`) are a strong signal too - you do NOT need to read their contents.
-3. Edit `meta.json`:
-   - **`groups`**: cluster every non-framework table into 5-9 domains. Densely-FK-connected tables belong together; split by name prefix and responsibility (catalog vs apply vs analytics vs CMS vs auth). Each group = `{ "color": "#hex", "tables": [...] }`. Put core domains in saturated colors, infra/marketing in muted. Palette: `#2563eb` blue, `#16a34a` green, `#9333ea` purple, `#d97706` amber, `#dc2626` red, `#0d9488` teal, `#db2777` pink, `#475569` slate.
-   - **`descriptions`**: 1 line per important table (hubs + biggest by rows), inferred from name + columns + FK role (self-ref FK -> "conditional/nested"; double-FK + unique pair -> "junction"; `*_id` hub -> "owns/links X").
-   - leave **`framework_tables`** / **`audit_columns`** as detected.
-4. Regenerate: `miudb erd generate --connection <CONN> --meta <dir>/meta.json` (or `erd serve`). Iterate.
-
-Single-pass works: stub -> fill -> generate. Aim to leave 0 tables ungrouped (the renderer buckets ungrouped non-framework tables as "Other"). Use generic examples; never paste real connection/schema names into the diagram metadata you commit.
-
-## Stdio protocol
-
-For Neovim or custom client integration only (normal agent work uses the direct CLI above):
-
-```bash
-miudb serve --protocol jsonrpc --output json
-```
-
-## MCP server
-
-For MCP-native hosts such as Codex, Claude Code, Cursor, and VS Code, use:
-
-```bash
-miudb mcp serve --transport stdio
-```
-
-Useful flags:
-
-- `--connection <name>`: repeat to restrict visible/callable connections.
-- `--limit <n>`: default row limit for MCP query tools.
-- `--max-limit <n>`: maximum accepted MCP query limit.
-- `--max-bytes <n>`: maximum serialized bytes per tool/resource response.
-- `--allow-mutate`: allow mutation SQL through MCP `query_run`; unsafe.
-
-MCP tools exposed by the server:
-
-- `connections_list`
-- `connection_describe`
-- `connection_test`
-- `connections_smoke`
-- `schema_tree`
-- `query_run`
-- `query_fetch_page`
-
-MCP `query_run` is read-only by default and rejects mutation SQL unless
-`--allow-mutate` is explicitly provided. Stdout is reserved for MCP frames;
-startup errors and diagnostics go to stderr.
-
-## Query activity log
-
-Each session captures activity events in a per-session JSONL log. Query and prune it with:
-
-```bash
-miudb activity --connection <CONN> --since 24h --output json
-miudb activity --failed --since 7d --output json
-miudb activity prune --older-than 30d --output json
-```
-
-Use `--since` to filter by relative duration (e.g. `24h`, `7d`); omit to read all captured events. Use `--failed` to show only failed queries.
+- `-c` exists only on `erd` commands. `query run`, `schema tree`, and the rest
+  need `--connection` (`-c` fails with `unknown shorthand flag`).
+- `--limit` (default 100) and `--timeout` (default 30s) are global flags.
+- `query run` executes whatever SQL it gets. Run mutations only when the user
+  asked for them; prefer read-only SQL.
+- Single-quote SQL with backticks (BigQuery, MySQL). Snowflake reserves `rows`
+  as an alias; use `row_cnt`.
+- `query script` is rejected on SQLite, Postgres, and BigQuery
+  (`query.script_unsupported`); run statements one at a time.
+- New passwords go to the `keyring` store by default (`--secret-store keyring|file|inline|none`).
+  Release binaries are built without cgo, so `keyring` is an encrypted file
+  keyring under `~/.config/miu/db/keyring/`, not the macOS Keychain.
+- Never print passwords, credential files, private keys, or service-account JSON.
+  `connections list` shows `has_password: true`, never the value.
 
 ## Output contract
 
-- stdout is JSON.
-- stderr is diagnostics only.
-- `ok: false` is a structured failure, not necessarily a shell failure.
-- **Query results live at `data.result`** - `columns[]` (objects with `name`/`type`) and
-  `rows[]` (array-of-arrays, positional to `columns`), plus `truncated`. On failure there is
-  **no `data` key** at all; read top-level `error.code` / `error.message`. Parse defensively:
+```json
+{ "ok": true, "api_version": "miudb.cli/v1", "kind": "query.result", "command": "query run",
+  "request_id": "req_...", "summary": { "connection": "app", "db_type": "sqlite" },
+  "data": { "connection": "app", "result": {
+    "columns": [ { "name": "id", "type": "INTEGER", "nullable": true } ],
+    "rows": [ [1], [2] ], "truncated": true } },
+  "page": { "limit": 2, "next_cursor": "..." }, "artifacts": [], "warnings": [] }
+```
 
-  ```bash
-  miudb query run --connection <CONN> --sql '<SQL>' --output json | python3 -c "
-  import sys,json
-  d=json.load(sys.stdin)
-  if not d.get('ok'): print('ERR:', d['error']['message'][:200]); sys.exit(1)
-  r=d['data']['result']
-  print(' | '.join(c['name'] for c in r['columns']))
-  for row in r['rows']: print(' | '.join('' if v is None else str(v) for v in row))"
-  ```
+- Branch on `ok` first. On `ok:false` read `error.code`, `error.message`,
+  `error.hint`, `error.retryable`; there is no `data`. Exception: a failed
+  `query script` prints `kind: query.script_result` with `ok:false`, no `error`,
+  and `data.results` plus `data.errors` for the statements that ran (exit 2).
+- Rows are positional arrays matching `columns`. `truncated: true` plus
+  `page.next_cursor` means more rows exist.
+- Exit `0` success, `2` bad input or `connection.not_found`, `1` anything else.
+  `connections smoke` exits 0 even when some connections fail: read
+  `data.results[].ok` and `summary.failed`.
+- Output is scrubbed: credential-named fields and password-bearing URLs are
+  redacted. Query values are not masked; they are the user's data.
 
-  Guarding on `ok` first matters: a blocked network or expired credential returns a well-formed
-  envelope with exit status 0, so an unguarded `d['data']` raises `KeyError` instead of showing
-  the real error.
-- Command descriptions are available via `miudb describe <command>`.
-- Output is secret-hardened: credential-named values, password-bearing URLs, and
-  `key=secret` assignments are redacted before stdout (`connections list` shows
-  `has_password: true`, never the value). Query-result *values* are NOT masked -
-  they're the user's data. Do not inspect credential stores unless asked.
-- The command catalog currently includes `connections test`, `mcp serve`, and
-  the native `serve` protocol; choose the narrowest command that matches the
-  user's use case.
+| Error or symptom | Do |
+|---|---|
+| `connection.not_found` | `miudb connections list --basic`, then ask the user. |
+| `unknown shorthand flag: 'c'` | Use `--connection`. |
+| `connection.refused`, `localhost ... refused` | The local database or tunnel is down. Say so; do not retry in a loop. |
+| SSH or tunnel error | Check the `~/.ssh/config` alias, key path, and network. |
+| Secret lookup timeout | Keyring or gopass needs the user's session. Ask them. |
+| BigQuery `no credentials found` | `gcloud auth application-default login`, or set `bigquery_credentials_path`. |
+| Snowflake `no access token` | `miudb auth login <ref>`. |
+| `query.multi_statement_not_allowed` | Use `query script` (Snowflake, MySQL). |
+| `query.output_too_large` (MCP) | Lower the limit or select fewer columns. |
 
-## Failure modes
+## ERD polish
 
-- **connection not found** -> run `connections list`, then ask the user.
-- **localhost refused** -> local database/tunnel is not running.
-- **secret timeout** -> keyring/gopass lookup may need user session access.
-- **SSH/tunnel error** -> check `~/.ssh/config`, key path, username, and network.
-- **BigQuery auth error** -> verify `options.bigquery_credentials_path`.
-- **Snowflake JWT error** -> verify `options.private_key_file`.
-- **query too large** -> lower `--limit` or ask before exporting.
+`erd generate` writes `index.html` (offline, interactive) and `schema.json`
+(`--format html,json,dbml` adds DBML) to `--out-dir`, default
+`$VD_VISUALS_PATH/<ref-slug>-erd`, else `<git-root>/.work/visuals/<ref-slug>-erd`,
+else `.diagrams/<ref-slug>-erd`. Without a `meta.json` every table renders
+ungrouped and uncolored, and the envelope warns.
+
+1. `miudb erd meta --stub -c <ref> --out-dir <dir>` seeds `meta.json` with
+   detected framework tables and empty `groups` and `descriptions`.
+2. Read `<dir>/schema.json`. FK topology, table-name prefixes, and row counts are
+   enough; migration file names help too.
+3. Fill `groups` with 5-9 domains, each `{ "color": "#hex", "tables": [...] }`,
+   leaving no table ungrouped, and one-line `descriptions` for hub tables. Keep
+   the detected `framework_tables` and `audit_columns`.
+4. `miudb erd generate -c <ref> --meta <dir>/meta.json`, or `erd serve` to view.
+
+Viewer: zoom and pan, click a table to spotlight its FK chain, double-click for
+the column drawer, search, domain filters, shortest FK path, schema lint
+(Insights), DBML copy, and Share links that encode filters in the URL.
+
+## MCP
+
+For hosts that want tools instead of a shell:
+`claude mcp add --transport stdio miudb -- miudb mcp serve --transport stdio`.
+Tools: `connections_list`, `connection_describe`, `connection_test`,
+`connections_smoke`, `schema_tree`, `query_run`, `query_script`,
+`query_fetch_page`. `query_run` is read-only unless the server starts with
+`--allow-mutate`; a mutating `query_script` also needs `allow_mutate=true` per
+call. Restrict with repeated `--connection <ref>`. Hosts: `mcp.md`.
+
+## Privacy
+
+Saved connections are private. Never copy connection names, hosts, schemas, or
+query results into commits, docs, or examples; use generic `users` / `products` /
+`orders` names instead.
