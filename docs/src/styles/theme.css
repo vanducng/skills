@@ -5,6 +5,10 @@
 
 /* ---- Accent (violet) ---- */
 :root {
+  /* Starlight positions the fixed menu button and the mobile TOC bar from these. */
+  --sl-menu-button-size: 2.5rem;
+  --sl-mobile-toc-height: 3.5rem;
+  --vd-search-row: 3.625rem;
   --sl-color-accent-low: #ede9fe;
   --sl-color-accent: #7c3aed;
   --sl-color-accent-high: #4c1d95;
@@ -64,10 +68,6 @@ site-search dialog {
 #starlight__search .pagefind-ui__search-input:focus {
   outline: 2px solid var(--sl-color-accent);
   outline-offset: 0;
-}
-
-:root {
-  --vd-search-row: 3.625rem;
 }
 
 #starlight__search {
@@ -201,11 +201,7 @@ starlight-toc a[aria-current='true'] {
   background-color: color-mix(in srgb, var(--sl-color-accent) 6%, transparent);
 }
 
-/* ---- Mobile header icon buttons share one square (Starlight also positions the menu button from this size) ---- */
-:root {
-  --sl-menu-button-size: 2.5rem;
-}
-
+/* ---- Mobile header icon buttons share one square ---- */
 @media (max-width: 49.99rem) {
   starlight-menu-button button,
   site-search > button {
@@ -259,10 +255,6 @@ starlight-menu-button[aria-expanded='true'] button {
 /* Theme toggle moved before GitHub, so Starlight's trailing divider has nothing to separate. */
 .right-group .social-icons::after {
   display: none;
-}
-
-:root {
-  --sl-mobile-toc-height: 3.5rem;
 }
 
 @media (max-width: 49.99rem) {
