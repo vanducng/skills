@@ -13,7 +13,8 @@ ENFORCE=0
 [[ "${1:-}" == "--enforce" ]] && ENFORCE=1
 
 # Vendored skills are upstream-owned; do not fail CI on their prose.
-VENDORED_RE='^(browser|browser-trace|ego-browser)$'
+# aside-browser is the stub `aside --update` rewrites with a typographic apostrophe.
+VENDORED_RE='^(browser|browser-trace|ego-browser|aside-browser)$'
 
 # em dash U+2014, en dash U+2013, curly doubles U+201C/201D, curly singles U+2018/2019.
 # Literal characters, not $'\u...' escapes: bash 3.2 (stock macOS) leaves those
