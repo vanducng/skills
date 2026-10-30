@@ -2,6 +2,16 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.71.1](https://github.com/vanducng/skills/compare/v1.71.0...v1.71.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **aside-browser:** use a typographic apostrophe in the entry point ([f6a8ad9](https://github.com/vanducng/skills/commit/f6a8ad9c282d3a8533c5d43cc80dd2ead7982f02))
+* **ci:** treat aside-browser as vendored in check-slop ([907ddce](https://github.com/vanducng/skills/commit/907ddcefd1665b6d5743c065fea346a72a2fb07d))
+* **docs:** focus the search input even when Pagefind mounts late ([#535](https://github.com/vanducng/skills/issues/535)) ([9052226](https://github.com/vanducng/skills/commit/9052226105a12f2adf52edc84ca40a36c2bea350))
+* **docs:** focus the search input when the dialog itself holds focus ([#537](https://github.com/vanducng/skills/issues/537)) ([b416186](https://github.com/vanducng/skills/commit/b41618607936907bfee3a434c561b9acefca6752))
+
 ## [1.71.0](https://github.com/vanducng/skills/compare/v1.70.0...v1.71.0) (2026-10-28)
 
 
