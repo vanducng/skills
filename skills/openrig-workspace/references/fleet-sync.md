@@ -2,6 +2,10 @@
 
 Use for the shared projects workspace across macOS laptops, macOS desktops, and Linux hosts. Read the workspace `AGENTS.md`, `fleet/machines.yaml`, and current `fleet/bin/workspace-sync` before taking action. Host names, SSH aliases, paths, job labels, and project ownership come from that workspace and the live host, never from this reference.
 
+## Start with the workspace's fleet command
+
+If the workspace has `fleet/bin/fleet-sync`, run it before checking hosts by hand. `fleet-sync --check` reports every host's skills, dotfiles and projects checkouts, installed skills, scheduled sync results, Rex server and rigs, read-only. The default run also pulls, installs skills and copies cited captures, so it needs the same authority as running the sync jobs. `--list` names its modules; `--host` and `--only` narrow a run. Use the manual steps below for whatever it flags.
+
 ## Resolve hosts and authority
 
 Build a row per registered host with its machine ID, access method, OS, physical workspace path, scheduler, latest workspace result, and ahead/behind counts. Report unreachable hosts as unverified. Resolve `$PROJECTS_ROOT` on each host, defaulting to its own `$HOME/projects`, then use `pwd -P` to detect an external volume. Do not expand the local user's home into remote commands.
