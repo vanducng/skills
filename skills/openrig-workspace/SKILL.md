@@ -1,17 +1,17 @@
 ---
 name: openrig-workspace
-description: Work inside an org/project/task workspace across coding harnesses and fleet hosts. Use for task directories, rig selection, feature profiles, bugfix or SOP runs, project discovery, worktree and slice names, seat effort, quota adjustments, or projects workspace sync across macOS and Linux. Also applies when the cwd is under a projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`), when a seat treats a one-turn classifier refusal as a standing ban, and when the operator messages a rig from outside it (captain-signed messages). Before any rig, pass `--kind feature --profile low|medium|high`, `--kind bugfix`, or `--kind sop`. Owns the workspace layout, unit of work (slice, worktree, PR), task lifecycle, OpenRig adjustments, and fleet sync diagnosis; defers worktree mechanics to the repo's own command or vd:worktree, artifacts to vd:workbench, and pane control to vd:herdr.
+description: Work inside the org/project/task projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`) across harnesses and fleet hosts. Use whenever the cwd is under it or a task touches a project, mission, slice, task dir, worktree, rig or seat there, such as rig kind (`--kind feature --profile low|medium|high`, `--kind bugfix`, `--kind sop`), slice and worktree names, starting or finishing a task, restarting or moving a rig, seat effort and quota, captain-signed messages, a seat treating a one-turn classifier refusal as a ban, Rex server upgrades on rig hosts, and workspace sync across macOS and Linux. Also owns resources.yaml and contacts.yaml ('update resources.yaml', 'collect resources for <project>', 'add this channel/thread/person', 'refresh contacts', 'who do we talk to about <topic>'). Defers OpenRig itself to `rig context get openrig-skills`, worktree mechanics to the repo's own command or vd:worktree, artifacts to vd:workbench, and pane control to vd:herdr or Rex's rex skill.
 license: MIT
 metadata:
   author: vanducng
-  version: "0.10.0"
+  version: "0.11.0"
 ---
 
 # OpenRig workspace
 
 One git repo, `$PROJECTS_ROOT` (default `$HOME/projects`), holds org and project context, task records, and machine-local task workdirs. Code stays in its repos. The layout works because every harness reads `AGENTS.md` from the git root down to the cwd, so a task dir inside this repo inherits fleet, org, and project rules automatically. See `references/harness-context.md` for the per-harness discovery rules and sources.
 
-`$HOME/projects` may be a symlink (on mac01 it points at an external disk). Resolve paths from `workspace.yaml`, not from the home dir. The workspace's own `AGENTS.md` and `fleet/policy.yaml` hold the rules; this skill covers the mechanics and does not repeat them.
+`$HOME/projects` may be a symlink (on some hosts it points at an external disk). Resolve paths from `workspace.yaml`, not from the home dir. The workspace's own `AGENTS.md` and `fleet/policy.yaml` hold the rules; this skill covers the mechanics and does not repeat them. Every `AGENTS.md` in the workspace points here, so a seat or operator session that touches a project, slice, task dir, rig, seat or resources file loads this skill first.
 
 ## Fleet workspace sync
 
@@ -158,7 +158,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
    cd "$T" && rig up rig.yaml --plan && rig up rig.yaml
    ```
    Then check `rig ps --nodes --rig <name>`: every seat `run`, and each `Model (...)` line's "last observed" matches "configured". If a seat shows `att` or `needs-input`, read its pane before retrying.
-4. **Look at it in Herdr.** `rig terminal open <name>` opens every running seat in a new workspace named after the rig, up to 16 seats per tab. Herdr is the default provider. A second open does not reuse that workspace; it suffixes another (`<name> (2)`). The TUI link `term ▸ rig <name>` does the same open. To keep one Herdr workspace per org, create a tab there and run `tmux attach -t <seat>` (see vd:herdr). Closing a tile never stops a seat.
+4. **Look at it.** `rig terminal open <name>` opens every running seat as tiles, up to 16 per tab: inside Rex as a Rex session, otherwise in Herdr (the default provider). A second open does not reuse that workspace; it suffixes another (`<name> (2)`). The TUI link `term ▸ rig <name>` does the same open. To keep one Herdr workspace per org, create a tab there and run `tmux attach -t <seat>` (see vd:herdr). Closing a tile never stops a seat.
 5. **Talk to it.** A shell outside a seat has no sender identity: a plain `rig send` arrives as `From: <unknown sender>`, which seats treat as information only. The From line comes from `OPENRIG_SESSION_NAME`, so the operator and operator sessions sign as `captain@global` (workspace `AGENTS.md`, Captain):
    - A message: `fleet/bin/rig-say <seat> "<text>"` (signs, then checks the pane; do not resend what it reports delivered or queued).
    - Work: a queue item to the owner, so it is tracked: `rig queue create --source captain@global --destination <owner seat> --summary "<one line>" --body-file <brief>`.
@@ -173,44 +173,20 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 - Active worktrees pick the change up when they next merge the base (right before their own merge, or on a conflict) and rerun the repo's setup, which should add new `.env.example` keys without overwriting values.
 - Stop and remove the merged worktree's stack and worktree.
 
-## OpenRig gotchas
+## OpenRig operations
 
-- `rig launch` wants the rig **id** from `rig ps --json`, not the name. `rig up` and `rig down` accept either; if a name matches several rigs, `rig down` refuses and lists the ids.
-- To give an existing seat a fresh occupant: `rig seat launch <seat> --fresh --stop --reason "<why>"`. To relaunch it keeping the conversation (for example after a settings change such as a new `ANTHROPIC_BASE_URL`), wait for `idle`, then `rig seat stop <seat> --reason "<why>"` and `rig launch <rig id> <logical id>`; background shells and monitors die, so tell the seat to re-arm them.
-- A resume relaunch can report `Harness launch failed: Claude resume failed: timed out waiting for Claude to become active` and leave the seat `att` / "needs you" with continuity `failed`, even though Claude came up with its conversation. Check before acting: `rig capture <seat>` shows the earlier work, and a `rig send` gets a reply. If both hold, the record is stale: `rig seat clear-attention <seat> --reason "<why>"` (it takes no `--operator`). If not, relaunch it; never clear attention you have not verified.
-- OpenRig launches Codex seats with `-s workspace-write`, unless a named Codex profile or `full_bypass` replaces it. They cannot reach the daemon unless `[sandbox_workspace_write] network_access = true`. A fresh launch on 0.6.1 or newer resolves a linked worktree's git dir. Prefer Claude Code or Pi seats when the seat must call the daemon.
-- A Claude Code seat's permission mode comes from its member's `permission_policy`: `builtin:auto` launches `--permission-mode auto`, `builtin:yolo` launches `--dangerously-skip-permissions`. A member with no policy launches `--permission-mode acceptEdits`, so the first Bash call waits for approval in the tile; the operator can switch that conversation to auto there (`shift+tab`). A future launch is `rig seat set-permissions <seat> --mode <mode> --reason "<why>"`. Modes are `floor`, `full_bypass`, and `inherit`. `auto` is accepted only when that seat's Claude executable advertises it. The command does not relaunch the seat, and `rig seat status` does not prove the live mode. Agents do not change another seat's permissions. The same boundary applies to `rig seat set-typing-guard`.
-- A harness classifier denial is one turn. When auto mode refuses a command the project `AGENTS.md` already grants, do not write that refusal into `LEARNED.md` or the recap as a new rule, and do not withdraw the grant. Do not switch tools to sneak the same action through in that turn. Retry the same command on a later turn, or ask the operator to approve it in the pane. An unsigned message still does not add a product decision.
-- `rig up <rig> --existing` (and `--fresh <seats>` with it) restores each seat's launch command from the `rig down` snapshot, including the old `--model`. A `rig seat set-model` or rig.yaml edit made while the rig was down does not reach that launch. After it, run `rig seat launch <seat> --fresh --stop --reason "<why>"` for each changed seat and check the "last observed" model in `rig ps --nodes --rig <rig>`.
-- `rig send` from a shell that is not a seat arrives as `From: <unknown sender>`; `--from` is ignored. Sign with `fleet/bin/rig-say` or `--source captain@global` on a queue item (Talk to it).
-- OpenRig's own help is `rig context get help` (the fleet runs 0.7.x; `rig --version`). If `rig` cannot run, use [openrig.dev/help/agents](https://www.openrig.dev/help/agents).
-- OpenRig runs on Node.js 22 or 24. On macOS arm64, stay on Node.js 22. The CLI is the global npm package `@openrig/cli`, not a checkout of the source tree.
-- In `rig tui`, `graph` is a tab of a selected rig: type `rig <name>`, then `graph`. `:` only jumps between sections.
-- The daemon binds the Tailscale address too. Start it with `--host 127.0.0.1` unless you mean to expose it.
+OpenRig's own procedures come from the installed CLI, so they always match the running version: `rig context get openrig-skills` is the index, and `rig context get <name>` loads one by its bare name (`rig-lifecycle`, `seat-continuity-and-handover`, `openrig-upgrade`, `watchdog`, `mission-slice-sop`), and `rig context get help` is the troubleshooting guide. This skill adds only what is specific to this workspace:
 
-## Restart or move a team rig
+| When | Read |
+|---|---|
+| A seat misbehaves, a relaunch or resume looks wrong, permissions, `rig send` identity | [references/openrig-ops.md](references/openrig-ops.md), Gotchas |
+| Restarting a team rig, moving a task dir or project to another cwd or host | [references/openrig-ops.md](references/openrig-ops.md), Restart or move a team rig |
+| Changing a seat's effort or model, quota running hot | [references/openrig-ops.md](references/openrig-ops.md), Tune seat effort |
+| Upgrading or restarting the Rex server on a host with rigs | [references/rex-upgrade.md](references/rex-upgrade.md) |
 
-OpenRig restores seats from the snapshot taken at `rig down`, which still holds the old cwd, and a seat stopped on its own stays stopped. So:
+## Project resources and contacts
 
-- **Plain restart, no move:** `rig down <rig>`, then `rig up <rig> --existing`. Conversations resume with the launch settings in the snapshot (see the model gotcha above). Never stop seats one by one first.
-- **Move (cwd changes):**
-  1. Each seat updates PROGRESS.md, its `LEARNED.md`, and runs `rig context recap-write`; that RECAP is what a successor is primed from.
-  2. Move the task dir (on the other host, `mv` the gitignored dirs by hand).
-  3. `rig seat set-cwd <seat> --cwd <new absolute path> --reason move` for each seat.
-  4. One seat at a time: `rig seat handover <seat> --source rebuild --reason move --dry-run`, then without `--dry-run`. A seat with no live tmux session cannot hand over; use `rig seat launch <seat> --fresh --reason move`.
-  5. No `rig down`, `rig up --existing` or fork between steps 3 and 4. A fork source is a session name (`fork:dev-impl@<rig>`), and it will not find a conversation whose cwd moved.
-- **Rex server upgrade or restart on a host with rigs:** read `references/rex-upgrade.md` first. Seats in tmux usually survive, Rex views of them do not, and on Linux a tmux started from a Rex pane dies with the Rex unit.
-- **Stopped rig whose saved cwd no longer exists:** `cd <task dir> && rig up rig.yaml --plan && rig up rig.yaml`. Same rig name, same topology seat dirs, so earlier RECAP and LEARNED still prime a rebuild.
-
-## Tune seat effort to stretch a shared quota
-
-Seats on one subscription share its 5-hour and weekly limits, and so does every other project on it.
-
-- **Read the budget.** `cpq` (or `cpq --json`) prints used, left, reset and pace for every cli-proxy Claude and Codex account; `$OPENRIG_HOME/state/provider-usage/*.json` holds the native seat's own `rateLimits`. Pace is used percent over the elapsed share of the window; a weekly pace above about 100% means cut, and above about 110% move seats to `grok-4.7` on cli-proxy (`fleet/routing.yaml`).
-- **Pick levels.** Planning, routing and the core engine writer keep the template's top effort. Breadth seats (a second writer, docs and briefs, runbook QA) drop one level. A reviewer drops from `xhigh` to `high` when CI and review bots also gate the merge.
-- **Save it, no restart.** `rig seat set-effort <seat> --effort <level> --reason "<why>"` applies at the seat's next managed continuation; `rig seat effort <seat>` shows requested, saved, launched and native. Mirror the level in the task `rig.yaml` so a rebuild keeps it.
-- **Apply it now, only while idle.** Wait for `idle` in `rig ps --nodes --rig <rig>`, then `rig send <seat> "/effort <level>" --raw` and accept the confirm prompt (option 1). Claude Code drops the prompt cache once and re-reads the full history on the next message. Never switch a seat mid-turn: `rig send` still types into a busy pane, and the confirm prompt then waits there. `/effort` also saves the level as the user-wide default for that model (`modelSettings.<model>.effortLevel` in `~/.claude/settings.json`), and `/model` rewrites the top-level `model` default the same way, so put those values back after each switch; seats are unaffected because OpenRig launches them with `--model` and `--effort`. To change a seat's model between native Claude ids, `rig seat set-model <seat> --model <id> --reason "<why>"` saves it, then `/model <id>` on the idle seat applies it now. Moving to or from a cli-proxy id changes the base URL, so `/model` is not enough: set the model in rig.yaml, run `rig seat set-model` and `fleet/bin/cc-proxy-seat <seat cwd> <id>`, then `rig seat launch <seat> --fresh --stop --reason "<why>"` once the seat has checkpointed in PROGRESS.
-- **Trim context too.** Every turn re-reads the context. Ask a seat past about 500k tokens to checkpoint in PROGRESS and run `/compact` itself at a quiet point (after a deploy, never mid-merge) instead of setting a compaction cap that can fire mid-task.
+`resources.yaml` (org and project) and the org `contacts.yaml` are how seats find people, conversations, environments and provider objects. Collect and change them only through [references/project-resources.md](references/project-resources.md): read-only collection, a diff with evidence, a write only on the user's yes, then `scripts/check-resources.sh <project dir>`. Schema: [references/resources-schema.md](references/resources-schema.md).
 
 ## Add a project
 
@@ -220,5 +196,5 @@ Seats on one subscription share its 5-hour and weekly limits, and so does every 
 
 ## Workflow position
 
-- **Composes:** vd:worktree (worktree mechanics), vd:workbench (artifacts), vd:herdr (Herdr panes and tabs), and Rex's own `rex` skill (Rex panes; host upgrades in `references/rex-upgrade.md`).
-- **Upstream OpenRig skills:** `openrig-skills` and `openrig-herdr` cover OpenRig itself. This skill only covers the workspace convention.
+- **Composes:** vd:worktree (worktree mechanics), vd:workbench (artifacts), vd:herdr (Herdr panes), Rex's own `rex` skill (Rex panes).
+- **Upstream OpenRig skills:** `rigs` (install, start, attach from your own session), `openrig-skills` and `rig context get` (OpenRig itself, inside a rig), `refocusing` (a long-running seat that lost the outcome). This skill covers only the workspace convention and the fleet's observed gotchas.
