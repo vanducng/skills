@@ -1,10 +1,10 @@
 ---
 name: openrig-workspace
-description: Work inside the org/project/task projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`) across harnesses and fleet hosts. Use whenever the cwd is under it or a task touches a project, mission, slice, task dir, worktree, rig or seat there, such as rig kind (`--kind feature --profile low|medium|high`, `--kind bugfix`, `--kind sop`), slice and worktree names, starting or finishing a task, restarting or moving a rig, seat effort and quota, captain-signed messages, a seat treating a one-turn classifier refusal as a ban, Rex server upgrades on rig hosts, and workspace sync across macOS and Linux. Also owns resources.yaml and contacts.yaml ('update resources.yaml', 'collect resources for <project>', 'add this channel/thread/person', 'refresh contacts', 'who do we talk to about <topic>'). Defers OpenRig itself to `rig context get openrig-skills`, worktree mechanics to the repo's own command or vd:worktree, artifacts to vd:workbench, and pane control to vd:herdr or Rex's rex skill.
+description: Work inside the org/project/task projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`) across harnesses and fleet hosts. Use whenever the cwd is under it or a task touches a project, mission, slice, task dir, worktree, rig or seat there, such as rig kind (`--kind feature --profile low|medium|high`, `--kind bugfix`, `--kind sop`), slice and worktree names, starting or finishing a task, restarting or moving a rig, seat effort and quota, captain-signed messages, a seat treating a one-turn classifier refusal as a ban, Rex server upgrades on rig hosts, and workspace sync across macOS and Linux. Also owns resources.yaml and contacts.yaml ('update resources.yaml', 'collect resources for <project>', 'add this channel/thread/person', 'refresh contacts', 'who do we talk to about <topic>'). Defers OpenRig itself to `rig context get openrig-skills`, worktree mechanics to the repo's own command or vd:worktree, artifacts to vd:workbench, and pane control to Rex's rex skill.
 license: MIT
 metadata:
   author: vanducng
-  version: "0.11.0"
+  version: "0.12.0"
 ---
 
 # OpenRig workspace
@@ -23,7 +23,7 @@ For workspace sync or Git failures across laptop, macOS desktop, and Linux hosts
 $PROJECTS_ROOT/
   AGENTS.md  workspace.yaml                     # root rules (operator session, captain, messages, file homes)
   fleet/{machines,routing,policy}.yaml          # hosts; seat models; authority and operator identity
-  fleet/bin/                                    # project-host, cc-proxy-seat, rig-say, workspace-sync, ...
+  fleet/bin/                                    # project-host, rig-to-pi, pi-rig-check, rig-say, workspace-sync, ...
   specs/{agents,rigs,skills}/                   # seat roles, rig templates, workspace skills
   .worktrees/<repo>-<slice-id>/                 # gitignored git worktrees, one per repo per slice
   orgs/<org>/
@@ -100,7 +100,7 @@ node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind sop
 
 These flags do not select `solo`, `team`, or `squad`. They also do not select the upstream starters `first-project`, `first-project-claude`, or `first-project-mixed`. Those are two-seat recipes for a repository with no org layout.
 
-`models: default` means every seat takes `default` from `fleet/routing.yaml`; `models: role` takes the seat's key under `seats:` (`owner`, `impl`, `review`, `qa`, `pm`). Each key names a `catalog:` entry (model, effort, window). Routing wins over model strings baked into the template.
+Every template is a pi-tui rig. A seat's model comes from its role (`PI_TUI_ROLE`) in one profile under `pi.profiles` in `fleet/routing.yaml`; `pi.default_profile` applies unless the operator or the project names another. Routing wins over model strings baked into the template.
 
 Put the choice on the first line of the task `AGENTS.md`: `Kind: feature medium`.
 
@@ -151,19 +151,19 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 
 ## Run it with OpenRig
 
-1. **Rig spec.** Copy `$PROJECTS_ROOT/specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`, using the template from `rig-kind.cjs`. Set `name: <slice-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../../specs/agents/<role>` (the path relative to the task dir). Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`). A missing template is a stop, not a guess.
-2. **Models.** Take them from `fleet/routing.yaml` (every seat runs on Claude Code). Check quota with `cpq` and that the id is live on cli-proxy (`/v1/models`) first. A native Claude id needs nothing more. A cli-proxy id (`grok-4.7`, `glm-5.3`, ...) needs `fleet/bin/cc-proxy-seat <seat cwd> <model>` before launch: it writes that cwd's `.claude/settings.local.json` (proxy URL, key helper, compact window). Seats that share a cwd share that file, so seats on different models need different cwds. A seat that opts into another runtime (Codex, Pi) follows the notes in `fleet/routing.yaml`; a Pi seat also needs a `models.json` in `$OPENRIG_HOME/state/pi/<pod>-<member>@<rig>/agent` whose `apiKey` is `"!<secret read command>"`, never a literal key.
+1. **Rig spec.** Copy `$PROJECTS_ROOT/specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`, using the template from `rig-kind.cjs`. Set `name: <slice-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../../specs/agents/pi-seat` (the path relative to the task dir), keeping each member's `env.PI_TUI_ROLE`: the pi-tui launcher reads that role's skills and startup files from `specs/agents/<role>`. Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`). A missing template is a stop, not a guess.
+2. **Models.** Run `fleet/bin/rig-to-pi convert "$T/rig.yaml" [profile]`: it sets every agent seat's model from the profile and the seat's role. Check quota with `cpq` and that each id is live on the gateway (`/v1/models`) and in the operator's Pi `models.json` first. Each seat's Pi folder (`$OPENRIG_HOME/state/pi-tui/<seat>/agent`) is provisioned by the launcher at every launch from the operator's own Pi setup: models, footer with the seat name, title, board hook, workspace trust, role skills and startup files. Nothing is written by hand. A running rig still on Claude Code or Codex moves with `rig-to-pi recap <rig>`, then `rig-to-pi switch <rig.yaml> [profile]`, which keeps addresses, queue rows and claims and briefs each successor with its recap and previous conversation.
 3. **Launch.**
    ```bash
    cd "$T" && rig up rig.yaml --plan && rig up rig.yaml
    ```
-   Then check `rig ps --nodes --rig <name>`: every seat `run`, and each `Model (...)` line's "last observed" matches "configured". If a seat shows `att` or `needs-input`, read its pane before retrying.
-4. **Look at it.** `rig terminal open <name>` opens every running seat as tiles, up to 16 per tab: inside Rex as a Rex session, otherwise in Herdr (the default provider). A second open does not reuse that workspace; it suffixes another (`<name> (2)`). The TUI link `term ▸ rig <name>` does the same open. To keep one Herdr workspace per org, create a tab there and run `tmux attach -t <seat>` (see vd:herdr). Closing a tile never stops a seat.
+   Then check `rig ps --nodes --rig <name>` (every seat `run`) and `fleet/bin/pi-rig-check <name>`: each seat's footer shows its seat name and the intended model, with no gateway or launcher error. OpenRig reads no activity or model for a pi-tui seat, so its `unknown` there is expected. If a seat is at a shell, read the launcher's message in its pane before retrying.
+4. **Look at it.** Views are Rex only: `rig terminal open <name> --provider rex` opens every running seat as tiles in a Rex session. Always name the provider: with none, OpenRig picks Rex only when the command runs inside a Rex block and otherwise falls back to Herdr. Run `rig tui` inside Rex for the same reason, since its `term ▸` link uses the same rule. Keep one view per rig: a second viewer on the same seats stops the tmux hook from fitting each window to its tile. Closing a tile never stops a seat.
 5. **Talk to it.** A shell outside a seat has no sender identity: a plain `rig send` arrives as `From: <unknown sender>`, which seats treat as information only. The From line comes from `OPENRIG_SESSION_NAME`, so the operator and operator sessions sign as `captain@global` (workspace `AGENTS.md`, Captain):
    - A message: `fleet/bin/rig-say <seat> "<text>"` (signs, then checks the pane; do not resend what it reports delivered or queued).
    - Work: a queue item to the owner, so it is tracked: `rig queue create --source captain@global --destination <owner seat> --summary "<one line>" --body-file <brief>`.
    - Team rig: address the owner. Steer the writer directly only to unblock or abort it. Broadcast (`OPENRIG_SESSION_NAME=captain@global rig send --rig <rig> "<text>"`) only for a stop or a rule every seat needs now; record a standing rule in an `AGENTS.md` first and name the file in the message.
-   - Solo rig: type in the tile or use `rig-say`. Pi runner prefixes are `/followup <text>` and `/abort`; Claude Code seats take plain text.
+   - Solo rig: type in the tile or use `rig-say`. A pi-tui seat takes plain text; Pi's own slash commands (`/reload`, `/compact`) work in its tile. Never type into a seat whose editor holds someone's draft.
    - Chat is not recorded. Ask the seat to update `PROGRESS.md` or its queue item.
 6. **Finish.** Update the slice, then remove each of its worktrees with the repo's own remove command or vd:worktree once it is merged or abandoned, never with unlanded work. A per-slice rig also runs `rig down <name>` (which strips OpenRig blocks from `$T/AGENTS.md`), deletes each `$T/<repo>` link and deletes `$T`. A team rig keeps running and keeps its task dir; only the slice's worktrees go.
 
@@ -196,5 +196,5 @@ OpenRig's own procedures come from the installed CLI, so they always match the r
 
 ## Workflow position
 
-- **Composes:** vd:worktree (worktree mechanics), vd:workbench (artifacts), vd:herdr (Herdr panes), Rex's own `rex` skill (Rex panes).
+- **Composes:** vd:worktree (worktree mechanics), vd:workbench (artifacts), Rex's own `rex` skill (Rex panes).
 - **Upstream OpenRig skills:** `rigs` (install, start, attach from your own session), `openrig-skills` and `rig context get` (OpenRig itself, inside a rig), `refocusing` (a long-running seat that lost the outcome). This skill covers only the workspace convention and the fleet's observed gotchas.
