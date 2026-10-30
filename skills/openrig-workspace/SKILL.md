@@ -4,7 +4,7 @@ description: Work inside an org/project/task workspace across coding harnesses a
 license: MIT
 metadata:
   author: vanducng
-  version: "0.9.0"
+  version: "0.10.0"
 ---
 
 # OpenRig workspace
@@ -199,6 +199,7 @@ OpenRig restores seats from the snapshot taken at `rig down`, which still holds 
   3. `rig seat set-cwd <seat> --cwd <new absolute path> --reason move` for each seat.
   4. One seat at a time: `rig seat handover <seat> --source rebuild --reason move --dry-run`, then without `--dry-run`. A seat with no live tmux session cannot hand over; use `rig seat launch <seat> --fresh --reason move`.
   5. No `rig down`, `rig up --existing` or fork between steps 3 and 4. A fork source is a session name (`fork:dev-impl@<rig>`), and it will not find a conversation whose cwd moved.
+- **Rex server upgrade or restart on a host with rigs:** read `references/rex-upgrade.md` first. Seats in tmux usually survive, Rex views of them do not, and on Linux a tmux started from a Rex pane dies with the Rex unit.
 - **Stopped rig whose saved cwd no longer exists:** `cd <task dir> && rig up rig.yaml --plan && rig up rig.yaml`. Same rig name, same topology seat dirs, so earlier RECAP and LEARNED still prime a rebuild.
 
 ## Tune seat effort to stretch a shared quota
@@ -219,5 +220,5 @@ Seats on one subscription share its 5-hour and weekly limits, and so does every 
 
 ## Workflow position
 
-- **Composes:** vd:worktree (worktree mechanics), vd:workbench (artifacts), vd:herdr (panes and tabs).
+- **Composes:** vd:worktree (worktree mechanics), vd:workbench (artifacts), vd:herdr (Herdr panes and tabs), and Rex's own `rex` skill (Rex panes; host upgrades in `references/rex-upgrade.md`).
 - **Upstream OpenRig skills:** `openrig-skills` and `openrig-herdr` cover OpenRig itself. This skill only covers the workspace convention.
