@@ -8,7 +8,7 @@ The conductor is a workspace project (`<operator-org>.conductor`) whose one rig 
 |---|---|---|
 | `orch-lead@conductor` | `conductor`: the operator's conversation; reads desk digests, sends desks work | reasoning family, medium |
 | `orch-human@conductor` | terminal running `rig tui` (Feed, Mission Control) | none |
-| `<org>-<desk>@conductor` | `desk`: one project; read-only plus queue rows | execution family, medium |
+| `<org>-<desk>@conductor` | `desk`: one project, or several quiet ones of the same org; read-only plus queue rows | execution family, medium |
 
 - Pods are orgs, members are short project names, so addresses never repeat a word.
 - Models come from the `conductor` profile in the routing file (`pi.profiles`), applied by the fleet's Pi converter. Keep the conductor off the model reserved for watch rigs.
@@ -17,12 +17,12 @@ The conductor is a workspace project (`<operator-org>.conductor`) whose one rig 
 
 ## Routes
 
-Every machine in the machines file has `openrig_id` and `openrig_url`. Every host carries:
+Every machine in the machines file has `openrig_id` and `openrig_url`. Every host carries a route to every *other* machine's `openrig_id`. It never carries a route to itself or an alias: `rig tui` lists every registry entry as a host, so a self route or an alias shows the same rigs twice.
 
-- a route to every `openrig_id`, its own included, so a desk always passes `--host <openrig_id>` and the command works wherever the conductor runs;
-- the alias `conductor`, pointing at the pinned host. Project leads escalate with `rig queue create --host conductor --destination <org>-<desk>@conductor ...`, so no brief names a machine.
+- A desk passes `--host <openrig_id>` for `rig ps` and `rig queue create`, and `OPENRIG_URL=<openrig_url>` for the queue verbs that have no `--host` (`list`, `show`, `handoff`). Both are dropped when the project's machine is the conductor's own.
+- A project lead escalates with `rig queue create --host "$(fleet/bin/conductor where)" --destination <org>-<desk>@conductor ...`. `where` reads the pin from git, so no brief names a machine, and it prints nothing on the conductor's own host.
 
-`conductor routes` writes both on every machine (over ssh) and repoints the alias after a move.
+`conductor routes` keeps every machine's registry in this shape over ssh, and removes self routes and old aliases.
 
 ## Run it
 
@@ -40,11 +40,13 @@ fleet/bin/conductor move <machine>  # down, repin repos.yaml, push, repoint rout
 
 What a move carries: the roster, roles, routes and desk files. What it leaves behind on the old daemon: queue history, gateway asks and answers, and seat conversations. Drain open rows before moving.
 
-## Look at it from any machine
+## Talk to it from any machine
 
-The view is a Rex session on the conductor host's own Rex server. From another machine, connect with that server's address (`rex_url` in the machines file): `rex -S <rex_url> ls`, or add the host in the Rex app. Don't attach to the seats' tmux over ssh. Keep one view per rig.
+`conductor view` creates one Rex session on the conductor host's own Rex server, `conductor-chat`: the lead's pane at full width over a short `rig tui` strip. It replaces any earlier view, because OpenRig wants one view per rig. Desks get no tiles; the lead and the desk files cover them. Open that session from the Rex app on a desktop or phone, after adding the host by its server address (`rex_url` in the machines file). From a shell, `rex -S <rex_url> ls` lists it. Don't attach to the seats' tmux over ssh.
 
 ## Add a desk
+
+Name a desk `<org>-<area>`. Give a quiet project to an existing desk of the same org by appending its id to that desk's `DESK_PROJECT` (comma-separated) instead of adding a seat. Never put two orgs on one desk.
 
 1. Add the member under its org pod in the conductor project's `rig.yaml`, with `PI_TUI_ROLE: desk`, `DESK_PROJECT: <org>.<project>` and `restore_policy: relaunch_fresh`, plus the two edges (`delegates_to` from `orch.lead`, `escalates_to` back). Add `desks/<org>-<desk>.md`. Commit.
 2. On the conductor host, run `conductor down && conductor up`. Or, to avoid restarting the other seats, add it live with `rig add conductor <org> <member fragment>` and convert the fragment's model first.
