@@ -2,6 +2,22 @@
 
 Use for the shared projects workspace across macOS laptops, macOS desktops, and Linux hosts. Read the workspace `AGENTS.md`, `fleet/machines.yaml`, and current `fleet/bin/workspace-sync` before taking action. Host names, SSH aliases, paths, job labels, and project ownership come from that workspace and the live host, never from this reference.
 
+## "Sync fleet"
+
+The operator's words "sync fleet" (or "fleet sync", "sync all hosts") authorize the default `fleet-sync` run: pulls, skill installs and capture copies on every host. They do not authorize committing, stashing, resetting or cleaning another host's dirty files, or touching rigs.
+
+1. `fleet/bin/fleet-sync --check` from the workspace root. Read every `!` line.
+2. `fleet/bin/fleet-sync`. It is idempotent, so run it even when nothing is behind: it also copies missing cited captures.
+3. `fleet/bin/fleet-sync --check` again. A `!` that survives is a finding, not noise.
+4. Report one row per host (repos behind and dirty, skills release, rigs running and needing attention), then each surviving `!` with its cause and the one command that fixes it. List dirty files by path and leave them; say whose they likely are.
+
+Known traps:
+
+- `Cannot rebase onto multiple branches` on a pull: another pull ran at the same moment. Retry with `git fetch origin && git rebase --autostash origin/main`.
+- An autostash that fails to apply leaves unmerged paths and keeps the stash. Copy each conflicted file aside (the workspace's gitignored scratch dir) before resolving, check every other stashed file made it into the working tree, then drop that stash by its hash. Never a bare `git stash pop`, never another stash.
+- Records not committing on a host: read the workspace-sync log there. A secret-scanner hit blocks every record commit on that host until the allowlist or the record is fixed.
+- A host behind on skills after a skills commit: hosts that install from releases get it only after the next release.
+
 ## Start with the workspace's fleet command
 
 If the workspace has `fleet/bin/fleet-sync`, run it before checking hosts by hand. `fleet-sync --check` reports every host's skills, dotfiles and projects checkouts, installed skills, scheduled sync results, Rex server and rigs, read-only. The default run also pulls, installs skills and copies cited captures, so it needs the same authority as running the sync jobs. `--list` names its modules; `--host` and `--only` narrow a run. Use the manual steps below for whatever it flags.
