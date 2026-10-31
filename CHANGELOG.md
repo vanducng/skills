@@ -2,6 +2,18 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.72.0](https://github.com/vanducng/skills/compare/v1.71.2...v1.72.0) (2026-10-31)
+
+
+### Features
+
+* add para skill ([ee4cef7](https://github.com/vanducng/skills/commit/ee4cef72eef3ae05fb2482051ce7fc7bf8b92576))
+
+
+### Bug Fixes
+
+* **openrig-workspace:** keep the description under 1024 characters ([8bdd41b](https://github.com/vanducng/skills/commit/8bdd41b03ea11d99944f21dbe477cfddb500ff7c))
+
 ## [1.71.2](https://github.com/vanducng/skills/compare/v1.71.1...v1.71.2) (2026-10-30)
 
 
