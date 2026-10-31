@@ -31,18 +31,18 @@ All of it goes through `fleet/bin/conductor`:
 ```bash
 fleet/bin/conductor status          # pinned host, where it runs; warns on two copies or a wrong host
 fleet/bin/conductor up              # on the pinned host only: sync, render tasks/conductor, convert models, register the human, routes, rig up
-fleet/bin/conductor view            # on the pinned host: rig terminal open conductor --provider rex
+fleet/bin/conductor view            # on the pinned host: the one Rex view (rig terminal open conductor --provider rex)
 fleet/bin/conductor down            # commits desk state first; refuses while conductor seats hold open queue rows
 fleet/bin/conductor move <machine>  # down, repin repos.yaml, push, repoint routes, up on <machine>
 ```
 
 `up` refuses on any machine other than the pinned one. While a conductor runs elsewhere it also refuses, unless you pass `--force`, which only warns: two conductors answer the same leads twice, so keep one.
 
-What a move carries: the roster, roles, routes and desk files. What it leaves behind on the old daemon: queue history, gateway asks and answers, and seat conversations. Drain open rows before moving.
+What a move carries: the roster, roles, routes and desk files. What it leaves behind on the old daemon: queue history, gateway asks and answers, and seat conversations. Drain open rows before moving. The old copy is archived there, hidden from `rig ps` and the TUI; `rig unarchive <rig id>` brings that history back. A later `rig up` on that host creates a new rig and leaves the archived one hidden.
 
 ## Talk to it from any machine
 
-`conductor view` creates one Rex session on the conductor host's own Rex server, `conductor-chat`: the lead's pane at full width over a short `rig tui` strip. It replaces any earlier view, because OpenRig wants one view per rig. Desks get no tiles; the lead and the desk files cover them. Open that session from the Rex app on a desktop or phone, after adding the host by its server address (`rex_url` in the machines file). From a shell, `rex -S <rex_url> ls` lists it. Don't attach to the seats' tmux over ssh.
+`conductor view` opens the rig's one Rex view, `rig terminal open conductor --provider rex`, on the conductor host's own Rex server: one tile per seat, and the lead's tile is where the operator types. Keep it the only view: a second view on the same seats makes the tmux tile-fit hook resize them back and forth. Open that session from the Rex app on a desktop or phone, after adding the host by its server address (`rex_url` in the machines file). Don't attach to the seats' tmux over ssh.
 
 ## Add a desk
 
