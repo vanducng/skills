@@ -24,7 +24,7 @@ Verify `AGENTS.md` exists at that root. If missing, stop and ask.
 ## Hard rules
 
 1. **Filesystem first.** Create/update `.md` files. `notesmd-cli` is optional sugar. Official `obsidian` CLI needs the app running and is only for `open`.
-2. **Inbox, then promote.** New capture goes in `0 Inbox/` (ideas: `0 Inbox/Ideas.md`). Do not invent top-level folders.
+2. **Inbox, then promote.** New capture goes in `0 Inbox/` (ideas: `0 Inbox/Ideas.md`). Do not invent top-level folders. Which bucket an item belongs in follows `vd:para`.
 3. **Append, do not rewrite.** Newest bullet first under `## Open`. Never delete an idea; move it to `## Promoted` when it becomes a project note.
 4. **Android-safe names.** No `" * : < > ? \ |` in filenames. Spaces are fine.
 5. **Do not commit plugin dirs.** `.obsidian/`, `.makemd/`, `.space/`, `.trash/` stay local.
