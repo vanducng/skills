@@ -183,6 +183,7 @@ OpenRig's own procedures come from the installed CLI, so they always match the r
 | Restarting a team rig, moving a task dir or project to another cwd or host | [references/openrig-ops.md](references/openrig-ops.md), Restart or move a team rig |
 | Changing a seat's effort or model, quota running hot | [references/openrig-ops.md](references/openrig-ops.md), Tune seat effort |
 | Upgrading or restarting the Rex server on a host with rigs | [references/rex-upgrade.md](references/rex-upgrade.md) |
+| Running, moving, viewing or growing the operator's conductor rig; adding or archiving a desk | [references/conductor.md](references/conductor.md) |
 
 ## Project resources and contacts
 
