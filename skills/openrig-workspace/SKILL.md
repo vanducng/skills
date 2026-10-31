@@ -28,7 +28,7 @@ $PROJECTS_ROOT/
   .worktrees/<repo>-<slice-id>/                 # gitignored git worktrees, one per repo per slice
   orgs/<org>/
     AGENTS.md  org.yaml  repos.yaml  resources.yaml  contacts.yaml   # repos.yaml is the only place paths live
-    kb/                                         # the org's knowledge bundle (OKF), kept by <org>-watch
+    kb/                                         # the org's knowledge bundle (OKF, PARA buckets per vd:para), kept by <org>-watch
     tasks/<org>-watch/                          # gitignored task dir of the parked watch rig
     projects/<project>/
       AGENTS.md  SPEC.md  project.yaml  repos.yaml (host:)  resources.yaml
