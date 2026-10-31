@@ -1,6 +1,6 @@
 ---
 name: openrig-workspace
-description: Work inside the org/project/task projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`) across harnesses and fleet hosts. Use whenever the cwd is under it or a task touches a project, mission, slice, task dir, worktree, rig or seat there, such as rig kind (`--kind feature --profile low|medium|high`, `--kind bugfix`, `--kind sop`), slice and worktree names, starting or finishing a task, restarting or moving a rig, seat effort and quota, captain-signed messages, a seat treating a one-turn classifier refusal as a ban, Rex server upgrades on rig hosts, and workspace sync across macOS and Linux. Also owns resources.yaml and contacts.yaml ('update resources.yaml', 'collect resources for <project>', 'add this channel/thread/person', 'refresh contacts', 'who do we talk to about <topic>'). Defers OpenRig itself to `rig context get openrig-skills`, worktree mechanics to the repo's own command or vd:worktree, artifacts to vd:workbench, and pane control to Rex's rex skill.
+description: Work inside the org/project/task projects workspace (`$PROJECTS_ROOT`, default `$HOME/projects`) across harnesses and fleet hosts. Use whenever the cwd is under it or a task touches a project, mission, slice, task dir, worktree, rig or seat there, such as rig kind (`--kind feature --profile low|medium|high`, `--kind bugfix`, `--kind sop`), slice and worktree names, starting or finishing a task, restarting or moving a rig, seat effort and quota, captain-signed messages, a seat treating a one-turn classifier refusal as a ban, Rex server upgrades on rig hosts, and workspace sync across macOS and Linux ('sync fleet', 'fleet sync', 'sync all hosts', 'check the fleet'). Also owns resources.yaml and contacts.yaml ('update resources.yaml', 'collect resources for <project>', 'add this channel/thread/person', 'refresh contacts', 'who do we talk to about <topic>'). Defers OpenRig itself to `rig context get openrig-skills`, worktree mechanics to the repo's own command or vd:worktree, artifacts to vd:workbench, and pane control to Rex's rex skill.
 license: MIT
 metadata:
   author: vanducng
@@ -15,7 +15,7 @@ One git repo, `$PROJECTS_ROOT` (default `$HOME/projects`), holds org and project
 
 ## Fleet workspace sync
 
-For workspace sync or Git failures across laptop, macOS desktop, and Linux hosts, read [references/fleet-sync.md](references/fleet-sync.md). Discover every host from `fleet/machines.yaml`; distinguish machine IDs, SSH aliases, and OpenRig host IDs. Check each host's credentials, scheduler, workspace log, and live GitHub head separately. A successful SSH read or scheduler exit code does not prove background workspace sync works.
+When the operator says "sync fleet", run the recipe at the top of [references/fleet-sync.md](references/fleet-sync.md): check, full run, check again, report. For workspace sync or Git failures across laptop, macOS desktop, and Linux hosts, read the rest of that file. Discover every host from `fleet/machines.yaml`; distinguish machine IDs, SSH aliases, and OpenRig host IDs. Check each host's credentials, scheduler, workspace log, and live GitHub head separately. A successful SSH read or scheduler exit code does not prove background workspace sync works.
 
 ## Layout
 
