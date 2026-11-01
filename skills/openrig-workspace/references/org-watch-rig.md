@@ -1,6 +1,6 @@
 # Org watch rig: set one up, run it, audit it
 
-One parked rig per org collects that org's events into its knowledge tree (`kb/`, an Open Knowledge Format bundle filed by PARA). It has four pi-tui seats: `inbox`, `meetings` and `tickets` collect, and `dream` consolidates. There is no committer seat: the workspace sync job commits the tree on the org's watch host, behind `kb gate`. What a seat may do is in its role files and the workspace okf skill, not here. Where knowledge rules live: [org-knowledge.md](org-knowledge.md).
+One parked rig per org collects that org's events into its knowledge tree (`kb/`, an Open Knowledge Format bundle filed by PARA). It has four pi-tui seats: `inbox`, `meetings` and `tickets` collect, and `dream` consolidates. The collectors start with the rig. The dream is parked until the operator enables it (see below). There is no committer seat: the workspace sync job commits the tree on the org's watch host, behind `kb gate`. What a seat may do is in its role files and the workspace okf skill, not here. Where knowledge rules live: [org-knowledge.md](org-knowledge.md).
 
 ## Set up an org watch rig
 
@@ -12,17 +12,28 @@ Run it on the org's watch host. Each step has a check; stop at the first one tha
 4. **Render the rig** from the template (no render script; the steps are these):
    1. Make `orgs/<org>/tasks/<org>-watch/` (gitignored) and copy `specs/rigs/org-watch/rig.yaml`, `AGENTS.md` and `watchdogs/` into it.
    2. In `rig.yaml` set `name: <org>-watch` and rewrite every `agent_ref` to `local:../../../../specs/agents/pi-seat` (the path from that task dir). Keep each member's `env.PI_TUI_ROLE`: the launcher reads the role's skills and startup files from `specs/agents/<role>`.
-   3. In each `watchdogs/<member>.yaml` replace `<org>` with the org id.
+   3. In each `watchdogs/<member>.yaml` replace `<org>` with the org id. Copy `dream.member.yaml` into the task dir too (it stays unused until the dream is enabled).
    4. `fleet/bin/rig-to-pi convert rig.yaml watch` writes every model from the `watch` profile of `fleet/routing.yaml`: collectors at medium, the dream at high. Check quota with `cpq` and that each model id is live on the gateway first.
 5. **Cursors.** For a new org, set each source's cursor 7 days back with `kb cursor set` (the first value, not a backward move). A migration resets cursors through its own plan, never through this step. Check: `kb due <org> <seat>` runs for each seat.
-6. **Launch.** Run `fleet/bin/fleet-sync`, then `"$PROJECTS_ROOT/bin/fleet" toolchain --check`. Then in the task dir: `rig up rig.yaml --plan`, `rig up rig.yaml`, and register one watchdog per seat:
+6. **Launch.** Run `fleet/bin/fleet-sync`, then `"$PROJECTS_ROOT/bin/fleet" toolchain --check`. Then in the task dir: `rig up rig.yaml --plan`, `rig up rig.yaml`, and register one watchdog for each collector:
 
    ```bash
    rig watchdog register --spec watchdogs/<member>.yaml --policy periodic-reminder \
-     --target-session watch-<member>@<org>-watch --interval-seconds 1800
+     --target-session watch-<member>@<org>-watch --interval-seconds 1800 --registered-by "$OPENRIG_SESSION_NAME"
    ```
 
-   Check: `rig ps --nodes --rig <org>-watch` shows four running seats, `fleet/bin/pi-rig-check <org>-watch` shows each seat's intended model, and `rig watchdog list` shows four jobs with the one-line message.
+   Check: `rig ps --nodes --rig <org>-watch` shows three running seats, `fleet/bin/pi-rig-check <org>-watch` shows each seat's footer, and `rig watchdog list` shows three jobs with the one-line message.
+
+## Enable the dream
+
+The dream's member is not in `rig.yaml`, so the first launch never starts it. When it has passed review, run one command from the task dir:
+
+```bash
+rig add <org>-watch watch dream.member.yaml --rig-root "$PWD" && rig watchdog register --spec watchdogs/dream.yaml \
+  --policy periodic-reminder --target-session watch-dream@<org>-watch --interval-seconds 1800 --registered-by "$OPENRIG_SESSION_NAME"
+```
+
+Check: `rig ps --nodes --rig <org>-watch` shows four running seats and `rig watchdog list` shows the dream's job. To park it again, `rig watchdog stop <job id>` and `rig seat stop watch-dream@<org>-watch`.
 
 ## Standing rules
 
@@ -30,7 +41,7 @@ Run it on the org's watch host. Each step has a check; stop at the first one tha
 - The only committer is the workspace sync job behind `kb gate`. A seat never runs `git`.
 - To move a rig: stop it, change `kb_host`, run fleet-sync, and render and launch it on the new host (step 4 to 6). Cursors live in the task dir's `state/`, so copy `state/` over before launching or set them again.
 - To retire one: stop it, remove the rig, and drop the org's `kb_host` so the gate stops running for it. The tree stays.
-- To change a model: check the live list and `cpq`, edit the `watch` profile, rerun `rig-to-pi convert`, then `rig seat set-model` and `rig seat launch --fresh --stop` per seat.
+- To change a model: check the live list and `cpq`, edit the `watch` profile, rerun `rig-to-pi convert` (the dream's model is in `dream.member.yaml`; keep it equal to the profile), then `rig seat set-model` and `rig seat launch --fresh --stop` per seat.
 - A seat that cannot continue sends one queue row to the org's conductor desk and stops. It never works around a refused command.
 
 ## Weekly audit
