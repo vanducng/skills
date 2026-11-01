@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.73.0](https://github.com/vanducng/skills/compare/v1.72.0...v1.73.0) (2026-11-01)
+
+
+### Features
+
+* **openrig-workspace:** human seat running Pi in rigs with more than two seats ([44b5bec](https://github.com/vanducng/skills/commit/44b5bec28f317277f8b4ef46acbb45d2857f69f0))
+
 ## [1.72.0](https://github.com/vanducng/skills/compare/v1.71.2...v1.72.0) (2026-10-31)
 
 
