@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.12.0"
+  version: "0.13.0"
 ---
 
 # OpenRig workspace
@@ -151,7 +151,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 
 ## Run it with OpenRig
 
-1. **Rig spec.** Copy `$PROJECTS_ROOT/specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`, using the template from `rig-kind.cjs`. Set `name: <slice-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../../specs/agents/pi-seat` (the path relative to the task dir), keeping each member's `env.PI_TUI_ROLE`: the pi-tui launcher reads that role's skills and startup files from `specs/agents/<role>`. Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`). A missing template is a stop, not a guess.
+1. **Rig spec.** Copy `$PROJECTS_ROOT/specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`, using the template from `rig-kind.cjs`. Set `name: <slice-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../../specs/agents/pi-seat` (the path relative to the task dir), keeping each member's `env.PI_TUI_ROLE`: the pi-tui launcher reads that role's skills and startup files from `specs/agents/<role>`. Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`). A missing template is a stop, not a guess. Keep the human seat that every template with more than two seats carries: a `runtime: terminal` member `human` in the first pod whose startup action types `pi`, so the operator has a Pi shell inside the rig to talk to the team. When you build a spec with more than two seats by hand, add it the same way.
 2. **Models.** Run `fleet/bin/rig-to-pi convert "$T/rig.yaml" [profile]`: it sets every agent seat's model from the profile and the seat's role. Check quota with `cpq` and that each id is live on the gateway (`/v1/models`) and in the operator's Pi `models.json` first. Each seat's Pi folder (`$OPENRIG_HOME/state/pi-tui/<seat>/agent`) is provisioned by the launcher at every launch from the operator's own Pi setup: models, footer with the seat name, title, board hook, workspace trust, role skills and startup files. Nothing is written by hand. A running rig still on Claude Code or Codex moves with `rig-to-pi recap <rig>`, then `rig-to-pi switch <rig.yaml> [profile]`, which keeps addresses, queue rows and claims and briefs each successor with its recap and previous conversation.
 3. **Launch.**
    ```bash
@@ -163,6 +163,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
    - A message: `fleet/bin/rig-say <seat> "<text>"` (signs, then checks the pane; do not resend what it reports delivered or queued).
    - Work: a queue item to the owner, so it is tracked: `rig queue create --source captain@global --destination <owner seat> --summary "<one line>" --body-file <brief>`.
    - Team rig: address the owner. Steer the writer directly only to unblock or abort it. Broadcast (`OPENRIG_SESSION_NAME=captain@global rig send --rig <rig> "<text>"`) only for a stop or a rule every seat needs now; record a standing rule in an `AGENTS.md` first and name the file in the message.
+   - Human seat (`<first pod>-human@<rig>`): the operator's Pi shell in the rig. Pi there is an operator session: it signs as captain with `rig-say` and the queue, and sends work to the owner instead of doing it. Seats never route work to it or type into it, and a broadcast lands there too.
    - Solo rig: type in the tile or use `rig-say`. A pi-tui seat takes plain text; Pi's own slash commands (`/reload`, `/compact`) work in its tile. Never type into a seat whose editor holds someone's draft.
    - Chat is not recorded. Ask the seat to update `PROGRESS.md` or its queue item.
 6. **Finish.** Update the slice, then remove each of its worktrees with the repo's own remove command or vd:worktree once it is merged or abandoned, never with unlanded work. A per-slice rig also runs `rig down <name>` (which strips OpenRig blocks from `$T/AGENTS.md`), deletes each `$T/<repo>` link and deletes `$T`. A team rig keeps running and keeps its task dir; only the slice's worktrees go.
