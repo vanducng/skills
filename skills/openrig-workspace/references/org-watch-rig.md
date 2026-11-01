@@ -6,20 +6,20 @@ One parked rig per org collects that org's events into its knowledge tree (`kb/`
 
 Run it on the org's watch host. Each step has a check; stop at the first one that fails.
 
-1. **Sources.** Add every source the rig reads to the org `resources.yaml`, one id per source (a Slack channel, a mailbox label, a calendar, a tracker project, a Drive folder). The id is the `source_ref` of its anchors, so each anchor must resolve to an entry. Accounts, channels, direct-message ids and the search order are data there, not in a role file. Check: every source id is in the org `resources.yaml`, and `scripts/check-resources.sh <project dir>` exits 0 for each project that lists one. A source whose kind has no anchor form (for example Teams) is not collected: say so in the resources file and tell the operator.
+1. **Sources.** Add every source the rig reads to the org `resources.yaml`, one id per source (a Slack channel, a mailbox label, a calendar, a tracker project, a Drive folder). The id is the `source_ref` of its anchors, so each anchor must resolve to an entry. Accounts, channels, direct-message ids and the search order are data there, not in a role file. Check: every source id is in the org `resources.yaml`, and `scripts/check-resources.sh <project dir>` exits 0 for each project that lists one. For a tracker, also add a top-level `ticket_scope:` key (`source`, `involving`, `projects`, `exclude_done`, `first_run_days_back`): the tickets seat reads only that key and does nothing, reporting to the desk, when it is missing. A source whose kind has no anchor form (for example Teams) is not collected: say so in the resources file and tell the operator.
 2. **Host.** Set `kb_host:` in `org.yaml` to a machine id from `fleet/machines.yaml`. Set it only at cutover: the field turns on the commit gate for that org on that host.
-3. **Tree.** `"$PROJECTS_ROOT/bin/kb" init <org>`. It writes the root index, `log.md` and `inbox/triage.md` and no empty buckets. Check: `kb lint <org>` exits 0.
+3. **Tree.** `"${PROJECTS_ROOT:-$HOME/projects}/bin/kb" init <org>`. It writes the root index, `log.md` and `inbox/triage.md` and no empty buckets. Check: `kb lint <org>` exits 0.
 4. **Render the rig** from the template (no render script; the steps are these):
    1. Make `orgs/<org>/tasks/<org>-watch/` (gitignored) and copy `specs/rigs/org-watch/rig.yaml`, `AGENTS.md` and `watchdogs/` into it.
    2. In `rig.yaml` set `name: <org>-watch` and rewrite every `agent_ref` to `local:../../../../specs/agents/pi-seat` (the path from that task dir). Keep each member's `env.PI_TUI_ROLE`: the launcher reads the role's skills and startup files from `specs/agents/<role>`.
    3. In each `watchdogs/<member>.yaml` replace `<org>` with the org id. Copy `dream.member.yaml` into the task dir too (it stays unused until the dream is enabled).
    4. `fleet/bin/rig-to-pi convert rig.yaml watch` writes every model from the `watch` profile of `fleet/routing.yaml`: collectors at medium, the dream at high. Check quota with `cpq` and that each model id is live on the gateway first.
 5. **Cursors.** For a new org, set each source's cursor 7 days back with `kb cursor set` (the first value, not a backward move). A migration resets cursors through its own plan, never through this step. Check: `kb due <org> <seat>` runs for each seat.
-6. **Launch.** Run `fleet/bin/fleet-sync`, then `"$PROJECTS_ROOT/bin/fleet" toolchain --check`. Then in the task dir: `rig up rig.yaml --plan`, `rig up rig.yaml`, and register one watchdog for each collector:
+6. **Launch.** Run `fleet/bin/fleet-sync`, then `"${PROJECTS_ROOT:-$HOME/projects}/bin/fleet" toolchain --check`. Then in the task dir: `rig up rig.yaml --plan`, `rig up rig.yaml`, and register one watchdog for each collector:
 
    ```bash
    rig watchdog register --spec watchdogs/<member>.yaml --policy periodic-reminder \
-     --target-session watch-<member>@<org>-watch --interval-seconds 1800 --registered-by "$OPENRIG_SESSION_NAME"
+     --target-session watch-<member>@<org>-watch --interval-seconds 1800 --registered-by <your session, or operator>
    ```
 
    Check: `rig ps --nodes --rig <org>-watch` shows three running seats, `fleet/bin/pi-rig-check <org>-watch` shows each seat's footer, and `rig watchdog list` shows three jobs with the one-line message.
@@ -30,7 +30,7 @@ The dream's member is not in `rig.yaml`, so the first launch never starts it. Wh
 
 ```bash
 rig add <org>-watch watch dream.member.yaml --rig-root "$PWD" && rig watchdog register --spec watchdogs/dream.yaml \
-  --policy periodic-reminder --target-session watch-dream@<org>-watch --interval-seconds 1800 --registered-by "$OPENRIG_SESSION_NAME"
+  --policy periodic-reminder --target-session watch-dream@<org>-watch --interval-seconds 1800 --registered-by <your session, or operator>
 ```
 
 Check: `rig ps --nodes --rig <org>-watch` shows four running seats and `rig watchdog list` shows the dream's job. To park it again, `rig watchdog stop <job id>` and `rig seat stop watch-dream@<org>-watch`.
