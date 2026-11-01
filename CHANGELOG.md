@@ -2,6 +2,14 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.73.1](https://github.com/vanducng/skills/compare/v1.73.0...v1.73.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **openrig-workspace:** audit section starts with the audit job; human seat once the template carries it ([e56f986](https://github.com/vanducng/skills/commit/e56f9865b910abbe28e7cd48a841a901ad08b06b))
+* **openrig-workspace:** the human seat is the first member of the first pod ([a0d7702](https://github.com/vanducng/skills/commit/a0d770282606247c70f0f56401ba5a2b8ed192b9))
+
 ## [1.73.0](https://github.com/vanducng/skills/compare/v1.72.0...v1.73.0) (2026-11-01)
 
 
