@@ -25,11 +25,3 @@ source = 'https://github.com/citrolabs/ego-lite'
 path = 'skills/ego-browser'
 size = 51415
 mtime = '2026-09-02T14:07:29Z'
-
-[skills.open-code-review]
-sha = '4b3f41df10175de8b32754a2289fa7a28f4503ae'
-tree_hash = '4b5061b24c35c34258b168c02078cb170c808941cd13dd994fa071e2326ffdc5'
-source = 'https://github.com/alibaba/open-code-review'
-path = 'skills/open-code-review'
-size = 8936
-mtime = '2026-06-14T19:19:22Z'
