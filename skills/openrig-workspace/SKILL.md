@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.13.1"
+  version: "0.13.2"
 ---
 
 # OpenRig workspace
@@ -161,7 +161,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 4. **Look at it.** Views are Rex only: `rig terminal open <name> --provider rex` opens every running seat as tiles in a Rex session. Always name the provider: with none, OpenRig picks Rex only when the command runs inside a Rex block and otherwise falls back to Herdr. Run `rig tui` inside Rex for the same reason, since its `term ▸` link uses the same rule. Keep one view per rig: a second viewer on the same seats stops the tmux hook from fitting each window to its tile. Closing a tile never stops a seat.
 5. **Talk to it.** A shell outside a seat has no sender identity: a plain `rig send` arrives as `From: <unknown sender>`, which seats treat as information only. The From line comes from `OPENRIG_SESSION_NAME`, so the operator and operator sessions sign as `captain@global` (workspace `AGENTS.md`, Captain):
    - A message: `fleet/bin/rig-say <seat> "<text>"` (signs, then checks the pane; do not resend what it reports delivered or queued).
-   - Work: a queue item to the owner, so it is tracked: `rig queue create --source captain@global --destination <owner seat> --summary "<one line>" --body-file <brief>`.
+   - Work: a queue item to the owner, so it is tracked: `rig queue create --source captain@global --destination <owner seat> --summary "<one line>" --body-file <brief>`. From a human seat, the seat's own `OPENRIG_SESSION_NAME` wins over `--source`, so prefix the command with `OPENRIG_SESSION_NAME=captain@global`. For a rig on another host add `--host <openrig_id>`, and read the row back with `OPENRIG_URL=<openrig_url> rig queue list` (ids and urls from `fleet/machines.yaml`).
    - Team rig: address the owner. Steer the writer directly only to unblock or abort it. Broadcast (`OPENRIG_SESSION_NAME=captain@global rig send --rig <rig> "<text>"`) only for a stop or a rule every seat needs now; record a standing rule in an `AGENTS.md` first and name the file in the message.
    - Human seat (`<first pod>-human@<rig>`): the operator's Pi shell in the rig. Pi there is an operator session: it signs as captain with `rig-say` and the queue, and sends work to the owner instead of doing it. Seats never route work to it or type into it, and a broadcast lands there too.
    - Solo rig: type in the tile or use `rig-say`. A pi-tui seat takes plain text; Pi's own slash commands (`/reload`, `/compact`) work in its tile. Never type into a seat whose editor holds someone's draft.
