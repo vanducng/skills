@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.73.2](https://github.com/vanducng/skills/compare/v1.73.1...v1.73.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* **openrig-workspace:** verify host identity when syncing the fleet ([bb6129d](https://github.com/vanducng/skills/commit/bb6129dbfc1937e6746a10fada4ed68ac3e46b8c))
+
 ## [1.73.1](https://github.com/vanducng/skills/compare/v1.73.0...v1.73.1) (2026-11-01)
 
 
