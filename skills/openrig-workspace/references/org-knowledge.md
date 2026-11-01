@@ -11,7 +11,7 @@ This page points. It restates nothing, so it cannot drift.
 
 ## What a seat reads first
 
-`kb context <org>`, the workspace command. It is the only read path: the org's entry point, then `kb context <org> <page-id>` for one page, or `kb context <org> --day <YYYY-MM-DD>` for one closed day. Do not browse the tree.
+`kb context <org>`, the workspace command, is the entry point to the read path: it prints the org's root index and map. Then `kb context <org> <page-id>` for one page, or `kb context <org> --day <YYYY-MM-DD>` for one closed day; `kb map <org>` prints the projects map by itself. Read through these commands and do not browse the tree.
 
 ## The commands, by name
 
