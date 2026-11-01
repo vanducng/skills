@@ -171,9 +171,7 @@ After a valid fix:
 4. Resolve only threads that were fixed or proven false/stale, and only after the inline reply succeeds.
 5. For already-resolved threads with no explanatory inline reply, post the retrospective rationale before treating them as clear.
 6. Re-run the narrow relevant checks.
-7. If the repo has OpenCodeReview (`code-review.yml`), comment `/ocr`, wait for
-   the `issue_comment` run, then fetch threads again.
-8. Repeat this feedback loop until `reviewThreads` has zero
+7. Repeat this feedback loop until `reviewThreads` has zero
    `isResolved == false && isOutdated == false` actionable threads and zero
    resolved threads missing explanatory replies. For full CI watching and merge
    gating use `vd:ship`.
