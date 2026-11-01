@@ -190,6 +190,10 @@ OpenRig's own procedures come from the installed CLI, so they always match the r
 
 `resources.yaml` (org and project) and the org `contacts.yaml` are how seats find people, conversations, environments and provider objects. Collect and change them only through [references/project-resources.md](references/project-resources.md): read-only collection, a diff with evidence, a write only on the user's yes, then `scripts/check-resources.sh <project dir>`. Schema: [references/resources-schema.md](references/resources-schema.md).
 
+## Org knowledge and watch rigs
+
+Each org keeps a knowledge tree that a parked watch rig fills. To set one up, run it or audit it, follow [references/org-watch-rig.md](references/org-watch-rig.md). Where the tree's rules live, and the commands a seat uses, are in [references/org-knowledge.md](references/org-knowledge.md).
+
 ## Add a project
 
 1. Create `orgs/<org>/projects/<project>/` (the folder name is the team rig's name) containing `AGENTS.md` (what it is, a repo table with each repo's role, rules), `SPEC.md` (frontmatter `intent:`), `project.yaml` (`schema: openrig.project/v0alpha1`, `metadata.id: <org>.<project>`), `repos.yaml` (with `host: <machine id>` from `fleet/machines.yaml`, the only machine it runs on), `resources.yaml` (the channels, docs, dashboards, meetings and Jira this project cares about; data only, no secrets), and `missions/`. The org keeps its own `orgs/<org>/resources.yaml`.
