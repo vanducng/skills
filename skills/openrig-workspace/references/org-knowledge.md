@@ -4,7 +4,7 @@ This page points. It restates nothing, so it cannot drift.
 
 | You need | Go to |
 |---|---|
-| How an org's knowledge tree is laid out, what a page and a daily entry look like, anchors and citations, lifecycle, who may write what | the workspace `okf-v2` skill (the org contract) |
+| How an org's knowledge tree is laid out, what a page and a daily entry look like, anchors and citations, lifecycle, who may write what | the workspace `okf` skill (the org contract) |
 | Which PARA bucket a thing belongs in; the weekly and monthly reviews | the `para` skill |
 | Setting up, running or auditing an org's watch rig | [org-watch-rig.md](org-watch-rig.md) |
 | A seat's job | its role file, named by the rig template |
