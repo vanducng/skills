@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.73.3](https://github.com/vanducng/skills/compare/v1.73.2...v1.73.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **skill-audit:** fall back to workbench resolve when no Reports path is injected ([fe518e5](https://github.com/vanducng/skills/commit/fe518e5d30768dd8219369252ed991d05d99c95f))
+
 ## [1.73.2](https://github.com/vanducng/skills/compare/v1.73.1...v1.73.2) (2026-11-01)
 
 
