@@ -13,7 +13,7 @@ Run it on the org's watch host. Each step has a check; stop at the first one tha
    1. Make `orgs/<org>/tasks/<org>-watch/` (gitignored) and copy `specs/rigs/org-watch/rig.yaml`, `AGENTS.md` and `watchdogs/` into it.
    2. In `rig.yaml` set `name: <org>-watch` and rewrite every pi-seat `agent_ref` to `local:../../../../specs/agents/pi-seat` (the path from that task dir; the human seat's `builtin:terminal` stays as it is). Keep each member's `env.PI_TUI_ROLE`: the launcher reads the role's skills and startup files from `specs/agents/<role>`.
    3. Once the template carries the human seat, this copy brings it along with the other members (it is part of `rig.yaml`; nothing extra to copy). In each `watchdogs/<member>.yaml` replace `<org>` with the org id. Copy `dream.member.yaml` into the task dir too (it stays unused until the dream is enabled).
-   4. `fleet/bin/rig-to-pi convert rig.yaml watch` writes every model from the `watch` profile of `fleet/routing.yaml`: collectors at medium, the dream at high. Check quota with `cpq` and that each model id is live on the gateway first.
+   4. `fleet/bin/rig-to-pi convert rig.yaml watch` writes every model from the `watch` profile of `fleet/routing.yaml`: collectors at medium, the dream at high. It also fills each member's `PI_TUI_CWD` placeholder with the absolute directory of the rendered file (the task dir): the launcher changes to it first, so a pane that inherits a dead working directory still starts, and an unfilled placeholder stops the seat at launch. Check quota with `cpq` and that each model id is live on the gateway first.
 5. **Cursors.** For a new org, set each source's cursor 7 days back with `kb cursor set` (the first value, not a backward move). A migration resets cursors through its own plan, never through this step. Check: `kb due <org> <seat>` runs for each seat.
 6. **Launch.** Run `fleet/bin/fleet-sync`, then `"${PROJECTS_ROOT:-$HOME/projects}/bin/fleet" toolchain --check`. Then in the task dir: `rig up rig.yaml --plan`, `rig up rig.yaml`, and register one watchdog for each collector:
 
@@ -29,7 +29,8 @@ Run it on the org's watch host. Each step has a check; stop at the first one tha
 The dream's member is not in `rig.yaml`, so the first launch never starts it. When it has passed review, run one command from the task dir:
 
 ```bash
-rig add <org>-watch watch dream.member.yaml --rig-root "$PWD" && rig watchdog register --spec watchdogs/dream.yaml \
+"${PROJECTS_ROOT:-$HOME/projects}/fleet/bin/rig-to-pi" fill-cwd dream.member.yaml \
+  && rig add <org>-watch watch dream.member.yaml --rig-root "$PWD" && rig watchdog register --spec watchdogs/dream.yaml \
   --policy periodic-reminder --target-session watch-dream@<org>-watch --interval-seconds 1800 --registered-by <your session, or operator>
 ```
 
