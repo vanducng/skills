@@ -18,7 +18,7 @@ Answers "which skills earn their keep, and which are quietly failing?" from tran
 2. **Read the aggregates.** Rank by the question asked - usage (`invocations`, `projects`), quality (`err_rate`, `corrections`, `interrupts` on `solo_sessions`), cost (`tokens`), coverage (`coverage.never_used`).
 3. **Verify before concluding.** Counters flag *candidates*. Open `sessions-<runtime>.jsonl`, find the session, read the transcript. No claim of "skill X is broken" ships without a quote.
 4. **Optionally fan out.** For a real audit, dispatch one analysis subagent per runtime (they read different formats and shouldn't share a context) plus one for catalog health. Give each the aggregates path and the traps below.
-5. **Report.** Write to the injected Reports path using the injected naming convention (`{type}-{date}-{slug}.md`). Findings ranked by lever size, each with evidence. Catalog actions are *proposals* - never delete or merge a skill unprompted.
+5. **Report.** Write to the injected Reports path using the injected naming convention (`{type}-{date}-{slug}.md`). If no `Reports:` path was injected into context, resolve it instead of hand-rolling: run `python3 $HOME/skills/skills/workbench/scripts/workbench.py resolve --json` (or the installed symlink) in a workbench-umbrella repo, and use its `reports` field. Do not call `vd_paths.py` helpers directly - they take internal args only the hook runtime supplies and raise `TypeError` on their own. Findings ranked by lever size, each with evidence. Catalog actions are *proposals* - never delete or merge a skill unprompted.
 
 ## What it measures
 
