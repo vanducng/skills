@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tracking board</title>
+<style>
+  body { font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 20px; background: #f6f8fa; color: #1f2328; }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 21px; margin: 0; } h2 { font-size: 16px; margin: 0 0 10px; } h3 { font-size: 14px; margin: 14px 0 6px; }
+  .sub { color: #59636e; margin: 2px 0 14px; } .headline { font-weight: 600; margin: 6px 0 2px; }
+  .card { background: #fff; border: 1px solid #d1d9e0; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; } th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #eaeef2; vertical-align: top; }
+  th { color: #59636e; font-weight: 600; font-size: 13px; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .done { background: #dafbe1; color: #1a7f37; } .doing { background: #ddf4ff; color: #0969da; } .planned { background: #eaeef2; color: #59636e; }
+  .blocked, .fail { background: #ffebe9; color: #cf222e; } .pass { background: #dafbe1; color: #1a7f37; } .decide { background: #fff8c5; color: #9a6700; } .accepted { background: #dafbe1; color: #1a7f37; }
+  .bar { height: 8px; background: #eaeef2; border-radius: 4px; overflow: hidden; width: 120px; display: inline-block; vertical-align: middle; }
+  .bar i { display: block; height: 100%; background: #2da44e; }
+  a { color: #0969da; word-break: break-word; } code { background: #f6f8fa; padding: 0 4px; border-radius: 4px; font-size: 12px; }
+  pre { background: #f6f8fa; padding: 10px 12px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0 16px; }
+  .stat { background: #fff; border: 1px solid #d1d9e0; border-radius: 10px; padding: 10px 12px; } .stat b { font-size: 20px; display: block; }
+  details.dl { border-bottom: 1px solid #eaeef2; padding: 6px 0; } details.dl summary { cursor: pointer; } details.dl p { margin: 6px 0 0 18px; }
+  ul { margin: 4px 0; padding-left: 20px; } .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } @media (max-width: 800px) { .two { grid-template-columns: 1fr; } }
+  #nav { position: fixed; top: 20px; left: 16px; width: 190px; max-height: calc(100vh - 40px); overflow-y: auto; background: #fff; border: 1px solid #d1d9e0; border-radius: 10px; padding: 10px 8px; font-size: 13px; }
+  #nav b { display: block; padding: 2px 8px 6px; color: #59636e; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  #nav a { display: block; padding: 4px 8px; border-radius: 6px; color: #1f2328; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #nav a.sub { padding-left: 20px; color: #59636e; font-size: 12px; }
+  #nav a:hover { background: #f6f8fa; } #nav a.on { background: #ddf4ff; color: #0969da; font-weight: 600; }
+  .wrap { margin-left: 230px; } .card, h2[id] { scroll-margin-top: 16px; }
+  /* Annotate mode and the feedback panel (talks to server.cjs; read-only when served without it). */
+  #fb { position: fixed; top: 20px; right: 16px; width: 300px; max-height: calc(100vh - 40px); display: flex; flex-direction: column; background: #fff; border: 1px solid #d1d9e0; border-radius: 10px; font-size: 13px; z-index: 20; }
+  #fb header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #eaeef2; } #fb header b { flex: 1; }
+  #fb .list { overflow-y: auto; padding: 6px 10px; flex: 1; } #fb .note { border-bottom: 1px solid #eaeef2; padding: 6px 0; } #fb .note small { color: #59636e; display: block; }
+  #fb .note .kind { font-weight: 600; text-transform: capitalize; } #fb .note button { float: right; border: 0; background: none; color: #cf222e; cursor: pointer; }
+  #fb footer { padding: 10px 12px; border-top: 1px solid #eaeef2; } #fb .status { color: #59636e; margin: 6px 0 0; } #fb .reply { white-space: pre-wrap; background: #f6f8fa; border-radius: 6px; padding: 8px; margin-top: 6px; max-height: 240px; overflow-y: auto; }
+  #fb button.primary { background: #1f883d; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-weight: 600; cursor: pointer; } #fb button.primary:disabled { background: #94d3a2; cursor: default; }
+  #fb.min .list, #fb.min footer { display: none; }
+  .toggle { border: 1px solid #d1d9e0; background: #f6f8fa; border-radius: 6px; padding: 3px 8px; cursor: pointer; } .toggle.on { background: #ddf4ff; border-color: #0969da; color: #0969da; font-weight: 600; }
+  body.annotating .card, body.annotating tr { cursor: crosshair; } body.annotating .card:hover, body.annotating tr:hover { outline: 2px dashed #0969da; outline-offset: 2px; }
+  .noted { box-shadow: inset 3px 0 0 #bf8700; }
+  #pop { position: fixed; z-index: 30; width: 320px; background: #fff; border: 1px solid #d1d9e0; border-radius: 10px; padding: 10px; box-shadow: 0 8px 24px rgba(140,149,159,.3); display: none; }
+  #pop textarea { width: 100%; box-sizing: border-box; min-height: 80px; font: inherit; margin: 6px 0; } #pop .row { display: flex; gap: 6px; justify-content: flex-end; } #pop .anchor { color: #59636e; font-size: 12px; } #pop q { display: block; color: #59636e; font-size: 12px; margin-top: 4px; }
+  .wrap { margin-right: 330px; }
+  @media (max-width: 1100px) { #fb { position: static; width: auto; margin-bottom: 12px; } .wrap { margin-right: 0; } }
+  @media (max-width: 1100px) { #nav { position: static; width: auto; max-height: none; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 2px; } #nav b { display: none; } #nav a.sub { display: none; } .wrap { margin-left: 0; } }
+  /* One palette for every board and diagram. Diagrams name roles, never colors (README, Diagram conventions). */
+  :root {
+    --role-ours-fill: #ddf4ff; --role-ours-line: #0969da;
+    --role-provider-fill: #fbefff; --role-provider-line: #8250df;
+    --role-person-fill: #fff8c5; --role-person-line: #9a6700;
+    --role-store-fill: #f6f8fa; --role-store-line: #57606a;
+    --role-legacy-fill: #ffffff; --role-legacy-line: #8c959f;
+    --role-risk-fill: #ffebe9; --role-risk-line: #cf222e;
+    --role-done-fill: #dafbe1; --role-done-line: #1a7f37;
+  }
+  .pele { --pele-bg: #ffffff; --pele-fg: #1f2328; --pele-muted: #59636e; --pele-line: #57606a; --pele-surface: #f6f8fa; --pele-surface-alt: #eaeef2; --pele-border: #d1d9e0; --pele-accent: #0969da; --pele-critical: #cf222e; }
+  .pele .ours, .pele .pele-actor-control { --_s: var(--role-ours-fill); --_b: var(--role-ours-line); }
+  .pele .provider, .pele .pele-actor-boundary { --_s: var(--role-provider-fill); --_b: var(--role-provider-line); }
+  .pele .person, .pele .pele-actor-actor { --_s: var(--role-person-fill); --_b: var(--role-person-line); }
+  .pele .store, .pele .pele-actor-database, .pele .pele-actor-queue, .pele .pele-actor-collections, .pele .pele-actor-entity { --_s: var(--role-store-fill); --_b: var(--role-store-line); }
+  .pele .legacy { --_s: var(--role-legacy-fill); --_b: var(--role-legacy-line); } .pele .legacy > :is(rect, path, polygon, circle, ellipse) { stroke-dasharray: 4 3; }
+  .pele .risk, .pele .pele-frame-critical { --_s: var(--role-risk-fill); --_b: var(--role-risk-line); }
+  .pele .done { --_s: var(--role-done-fill); --_b: var(--role-done-line); }
+  .pele-cluster.ours, .pele-cluster.provider, .pele-cluster.store, .pele-cluster.legacy { --_a: var(--_s); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 12px; font-size: 12px; color: #59636e; }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -2px; border-radius: 3px; border: 1.5px solid var(--l); background: var(--f); }
+</style>
+</head>
+<body>
+<nav id="nav"></nav>
+<aside id="fb" class="min"><header><b>Changes (<span id="fbcount">0</span>)</b><button class="toggle" id="fbmode" title="Click a card or row, or select text, to add a note">Annotate</button><button class="toggle" id="fbmin">▾</button></header>
+<div class="list" id="fblist"></div>
+<footer><button class="primary" id="fbsend" disabled>Send feedback</button> <button class="toggle" id="fbclear">Clear</button><p class="status" id="fbstatus"></p><div class="reply" id="fbreply" hidden></div></footer></aside>
+<div id="pop"><div class="anchor" id="popanchor"></div><q id="popquote" hidden></q><select id="popkind"><option value="change">Change</option><option value="comment">Comment</option><option value="question">Question</option></select><textarea id="poptext" placeholder="Your note"></textarea><div class="row"><button class="toggle" id="popcancel">Cancel</button><button class="primary" id="popsave" style="background:#0969da;color:#fff;border:0;border-radius:6px;padding:4px 10px">Add note</button></div></div>
+<div class="wrap">
+<h1 id="title"></h1>
+<p class="headline" id="headline"></p>
+<p class="sub" id="updated"></p>
+<div class="grid" id="stats"></div>
+<div class="card" id="needs"><h2>Needs you</h2><ol id="needslist"></ol></div>
+<div id="sections"></div>
+<div id="missions"></div>
+<div class="card" id="log"><h2>Done log</h2><table id="donelog"></table></div>
+<div class="card" id="decisions"><h2>Decisions</h2><table id="dectable"></table></div>
+<div class="card" id="declogcard"><h2>Decision log: reasoning and evidence</h2><div id="declog"></div></div>
+<div id="sections-bottom"></div>
+<div class="card" id="facts"><h2>Discovery log (facts read, with source)</h2><table id="factstable"></table></div>
+<div class="card" id="links"><h2>Resources</h2><table id="linkstable"></table></div>
+</div>
+
+<!-- Data: edit board.json next to this file, then run board.cjs render. -->
+<script id="board" type="application/json">
+__BOARD_JSON__
+</script>
+<script src="https://cdn.jsdelivr.net/npm/pele@1.13.0/dist/pele.global.js"></script>
+<script>
+const b = JSON.parse(document.getElementById("board").textContent);
+const label = { done: "done", doing: "in progress", planned: "planned", blocked: "blocked", decide: "needs decision", accepted: "accepted", pass: "PASS", fail: "FAIL" };
+const pill = s => `<span class="pill ${s}">${label[s] || s}</span>`;
+const esc = s => String(s ?? "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const link = s => /^https?:\/\//.test(s) ? `<a href="${s}">${esc(s)}</a>` : esc(s);
+const byId = id => document.getElementById(id);
+document.title = b.title || "Tracking board";
+byId("title").textContent = b.title || "";
+byId("headline").textContent = b.headline || "";
+byId("updated").textContent = `Updated ${b.updated || "?"} · ${b.phase || ""}`;
+const sections = b.sections || [];
+const slices = (b.missions || []).flatMap(m => m.slices || []);
+const count = s => slices.filter(x => x.status === s).length;
+const decisions = b.decisions || [];
+byId("stats").innerHTML = [
+  ["Missions", (b.missions || []).length], ["Slices done", `${count("done")}/${slices.length}`], ["In progress", count("doing")],
+  ["Blocked", count("blocked")], ["Decisions", decisions.filter(d => d.status === "accepted").length], ["Open", decisions.filter(d => d.status === "decide").length]
+].map(([k, v]) => `<div class="stat"><b>${v}</b>${k}</div>`).join("");
+byId("needslist").innerHTML = (b.needs && b.needs.length ? b.needs : ["None."]).map(n => `<li>${esc(n)}</li>`).join("");
+// Sections carry trusted, hand-written HTML; diagrams are Mermaid text rendered by pele into <div data-diagram="id">.
+const cardOf = s => `<div class="card" id="${esc(s.id)}"><h2>${esc(s.title)}</h2>${s.html || ""}</div>`;
+const upper = sections.filter(s => s.place !== "bottom"), lower = sections.filter(s => s.place === "bottom");
+byId("sections").innerHTML = upper.map(cardOf).join("");
+byId("sections-bottom").innerHTML = lower.map(cardOf).join("");
+byId("missions").innerHTML = (b.missions || []).map((m, i) => `
+  <div class="card" id="mission-${i}"><h2>${esc(m.id)}: ${esc(m.name)} ${pill(m.status)}</h2><p>${esc(m.goal)}</p>
+  <table><tr><th>Slice</th><th>What</th><th>Owner</th><th>Status</th><th>Progress</th><th>Note</th></tr>
+  ${(m.slices || []).map(s => `<tr><td>${esc(s.id)}</td><td>${esc(s.name)}${s.pr ? ` · ${link(s.pr)}` : ""}</td><td>${esc(s.owner || "?")}</td><td>${pill(s.status)}</td>
+    <td><span class="bar"><i style="width:${s.progress || 0}%"></i></span> ${s.progress || 0}%</td><td>${esc(s.note)}</td></tr>`).join("")}
+  </table></div>`).join("");
+byId("donelog").innerHTML = `<tr><th>When</th><th>What</th><th>Evidence</th></tr>` + (b.log || []).map(([t, w, e]) => `<tr><td>${esc(t)}</td><td>${esc(w)}</td><td>${link(e)}</td></tr>`).join("");
+byId("dectable").innerHTML = `<tr><th>#</th><th>Question</th><th>Decision / recommendation</th><th>Status</th></tr>` +
+  decisions.map(d => `<tr><td>${esc(d.id)}</td><td>${esc(d.q)}</td><td>${esc(d.rec)}</td><td>${pill(d.status)}</td></tr>`).join("");
+byId("declog").innerHTML = decisions.filter(d => d.status === "accepted").map(d => `<details class="dl"><summary><b>${esc(d.id)}</b> ${esc(d.q)}: ${esc(d.rec)}</summary><p><b>Why:</b> ${esc(d.why || "?")}</p><p><b>Evidence:</b> ${esc(d.evidence || "?")}</p><p class="sub">Decided ${esc(d.decided || "?")}</p></details>`).join("") || "<p class=\"sub\">None yet.</p>";
+byId("factstable").innerHTML = `<tr><th>Fact</th><th>Source</th></tr>` + (b.facts || []).map(([f, s]) => `<tr><td>${esc(f)}</td><td>${esc(s)}</td></tr>`).join("");
+byId("linkstable").innerHTML = (b.links || []).map(([t, u]) => `<tr><td>${esc(t)}</td><td><a href="${u}">${esc(u)}</a></td></tr>`).join("");
+// Floating section nav: one link per card, missions as sub-links, the visible card highlighted.
+const navItems = [["needs", "Needs you"], ...upper.map(s => [s.id, s.nav || s.title]),
+  ["missions", "Missions"], ...(b.missions || []).map((m, i) => [`mission-${i}`, `${m.id}: ${m.name}`, true]),
+  ["log", "Done log"], ["decisions", "Decisions"], ["declogcard", "Decision log"], ...lower.map(s => [s.id, s.nav || s.title]),
+  ["facts", "Facts"], ["links", "Resources"]];
+byId("nav").innerHTML = "<b>Sections</b>" + navItems.map(([id, t, sub]) => `<a href="#${id}" data-id="${id}"${sub ? ' class="sub"' : ""} title="${esc(t)}">${esc(t)}</a>`).join("");
+const navLinks = [...document.querySelectorAll("#nav a")];
+const spy = () => {
+  let current = navItems[0][0];
+  for (const [id] of navItems) { const el = byId(id); if (el && el.getBoundingClientRect().top <= 80) current = id; }
+  navLinks.forEach(a => a.classList.toggle("on", a.dataset.id === current));
+};
+addEventListener("scroll", spy, { passive: true });
+spy();
+// Optional test-case table: <div data-tests></div> in a section renders b.tests.
+for (const el of document.querySelectorAll("[data-tests]")) el.innerHTML = `<table><tr><th>#</th><th>Case</th><th>Operator does</th><th>Pass when</th><th>Status</th><th>Evidence</th></tr>` +
+  (b.tests || []).map(c => `<tr><td>${esc(c.id)}</td><td>${esc(c.what)}</td><td>${esc(c.operator)}</td><td>${esc(c.pass)}</td><td>${pill(c.status)}</td><td>${link(c.evidence || "")}</td></tr>`).join("") + `</table>`;
+const diagrams = b.diagrams || {};
+// Legend under each diagram: only the roles that diagram uses (node classes and sequence participant types).
+const roles = { ours: "ours", provider: "provider", person: "person", store: "store", legacy: "legacy (being replaced)", risk: "risk / failure", done: "done / proven" };
+const typeRole = { actor: "person", control: "ours", boundary: "provider", database: "store", queue: "store", collections: "store", entity: "store" };
+const legendFor = src => {
+  const used = new Set([...src.matchAll(/:::(\w+)|\bclass\s+[\w,]+\s+(\w+)/g)].map(m => m[1] || m[2]).filter(r => r in roles));
+  for (const m of src.matchAll(/^\s*actor\s|"type":\s*"(\w+)"/gm)) used.add(m[1] ? typeRole[m[1]] : "person");
+  if (/^\s*critical\b/m.test(src)) used.add("risk");
+  return [...used].filter(Boolean).map(r => `<span style="--f:var(--role-${r}-fill);--l:var(--role-${r}-line)">${roles[r]}</span>`).join("");
+};
+for (const el of document.querySelectorAll("[data-diagram]")) {
+  const src = diagrams[el.dataset.diagram] || "";
+  try { pele.mount(el, src); } catch (e) { el.innerHTML = `<pre>${esc(src)}</pre>`; }
+  const key = legendFor(src);
+  if (key) el.insertAdjacentHTML("afterend", `<div class="legend">${key}</div>`);
+}
+// ---- Annotate and send feedback -------------------------------------------------------------
+const store = `board-notes:${location.pathname}`;
+let notes = JSON.parse(localStorage.getItem(store) || "[]");
+let authed = false, online = false, pending = null;
+const fb = byId("fb"), pop = byId("pop");
+const save = () => { localStorage.setItem(store, JSON.stringify(notes)); paint(); };
+const anchorOf = el => {
+  const card = el.closest(".card");
+  const title = card ? (card.querySelector("h2")?.textContent || card.id).replace(/\s+(planned|in progress|blocked|done|needs decision|accepted)$/i, "").trim() : "board";
+  const row = el.closest("tr");
+  const key = row && row.cells.length ? row.cells[0].textContent.trim().slice(0, 40) : "";
+  return { cardId: card?.id || "", key, label: key ? `${title} › ${key}` : title };
+};
+const marks = () => {
+  document.querySelectorAll(".noted").forEach(e => e.classList.remove("noted"));
+  for (const n of notes) {
+    const card = n.cardId && byId(n.cardId);
+    if (!card) continue;
+    const row = n.key ? [...card.querySelectorAll("tr")].find(r => r.cells[0]?.textContent.trim().slice(0, 40) === n.key) : null;
+    (row || card).classList.add("noted");
+  }
+};
+function paint() {
+  byId("fbcount").textContent = notes.length;
+  byId("fblist").innerHTML = notes.map((n, i) => `<div class="note"><button data-i="${i}" title="Remove">✕</button><span class="kind">${esc(n.kind)}</span> · ${esc(n.anchor)}${n.quote ? `<small>“${esc(n.quote)}”</small>` : ""}<div>${esc(n.text)}</div></div>`).join("") || `<p class="sub">Turn on Annotate, then click a card or a row, or select text.</p>`;
+  byId("fbsend").disabled = !notes.length || !authed || !!pending;
+  if (notes.length) fb.classList.remove("min");
+  marks();
+}
+const setStatus = t => { byId("fbstatus").textContent = t; };
+byId("fblist").onclick = e => { const i = e.target.dataset?.i; if (i !== undefined) { notes.splice(+i, 1); save(); } };
+byId("fbmin").onclick = () => fb.classList.toggle("min");
+byId("fbclear").onclick = () => { if (notes.length && confirm("Remove all notes?")) { notes = []; save(); } };
+byId("fbmode").onclick = () => { const on = document.body.classList.toggle("annotating"); byId("fbmode").classList.toggle("on", on); if (on) fb.classList.remove("min"); };
+let draft = null;
+const openPop = (x, y, anchor, quote) => {
+  draft = { ...anchor, quote };
+  byId("popanchor").textContent = `Note on: ${anchor.label}`;
+  byId("popquote").hidden = !quote; byId("popquote").textContent = quote || "";
+  byId("poptext").value = "";
+  pop.style.display = "block";
+  pop.style.left = `${Math.min(x, innerWidth - 340)}px`; pop.style.top = `${Math.min(y, innerHeight - 220)}px`;
+  byId("poptext").focus();
+};
+byId("popcancel").onclick = () => { pop.style.display = "none"; draft = null; };
+byId("popsave").onclick = () => {
+  const text = byId("poptext").value.trim();
+  if (!text || !draft) return;
+  notes.push({ id: `n${Date.now().toString(36)}`, kind: byId("popkind").value, anchor: draft.label, cardId: draft.cardId, key: draft.key, quote: draft.quote || "", text });
+  pop.style.display = "none"; draft = null; save();
+};
+document.addEventListener("mouseup", e => {
+  if (!document.body.classList.contains("annotating") || fb.contains(e.target) || pop.contains(e.target) || byId("nav").contains(e.target)) return;
+  const target = e.target.closest(".card, tr");
+  if (!target || e.target.closest("a, button, summary")) return;
+  const quote = String(getSelection() || "").trim().slice(0, 500);
+  openPop(e.clientX + 8, e.clientY + 8, anchorOf(target), quote);
+});
+byId("fbsend").onclick = async () => {
+  byId("fbsend").disabled = true; setStatus("Sending…");
+  try {
+    const r = await fetch("feedback", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes }) });
+    const body = await r.text();
+    if (r.status !== 202) { setStatus(`Not sent: ${body}`); byId("fbsend").disabled = false; return; }
+    pending = JSON.parse(body).id; notes = []; save(); setStatus("Queued for the human seat…");
+  } catch (err) { setStatus(`Not sent: ${err.message}`); byId("fbsend").disabled = false; }
+};
+const label2 = { queued: "Queued for the human seat…", delivered: "Delivered to the human seat…", working: "The seat is working on it…", done: "Done. Reply below.", aborted: "The run was stopped." };
+if ("EventSource" in window && location.protocol.startsWith("http")) {
+  const es = new EventSource("events");
+  es.addEventListener("hello", e => { online = true; authed = JSON.parse(e.data).auth; setStatus(authed ? "" : "Read-only: open the login link from the human seat (board.cjs login) to send feedback."); paint(); });
+  es.addEventListener("status", e => { const d = JSON.parse(e.data); if (!pending || d.id === pending) setStatus(label2[d.state] || d.state); });
+  es.addEventListener("reply", e => { const d = JSON.parse(e.data); if (pending && d.id !== pending) return; byId("fbreply").hidden = false; byId("fbreply").textContent = d.reply || "(no reply text)"; pending = null; fb.classList.remove("min"); paint(); });
+  es.addEventListener("reload", () => { sessionStorage.setItem(`${store}:y`, String(scrollY)); sessionStorage.setItem(`${store}:reply`, byId("fbreply").hidden ? "" : byId("fbreply").textContent); location.reload(); });
+  es.onerror = () => { if (!online) setStatus("Feedback server offline: notes stay in this browser."); };
+}
+const y = sessionStorage.getItem(`${store}:y`);
+if (y) { sessionStorage.removeItem(`${store}:y`); setTimeout(() => scrollTo(0, +y), 300); }
+const keptReply = sessionStorage.getItem(`${store}:reply`);
+if (keptReply) { sessionStorage.removeItem(`${store}:reply`); byId("fbreply").hidden = false; byId("fbreply").textContent = keptReply; fb.classList.remove("min"); }
+paint();
+</script>
+</body>
+</html>
