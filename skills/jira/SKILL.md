@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[--project ALIAS] [--type bug|task] [ISSUE-KEY|request]"
 metadata:
   author: vanducng
-  version: "1.3.2"
+  version: "1.4.0"
 ---
 
 # Jira Integration (CLI Backend)
@@ -50,6 +50,23 @@ For Bug and Task creation, keep the ticket direct:
 - Load `references/inline-images.md` before any image write (create, edit, or comment).
 - Omit implementation details, proposed code, and speculative analysis unless requested.
 - Apply assignee, sprint, parent, and initial status from the matching local type rules.
+
+### Work tickets (Story, Task)
+
+A ticket that asks someone to do work uses four headed sections, written through the REST ADF pattern below so headings and bullets render:
+
+| Section | Holds |
+|---|---|
+| **Goal** | One or two sentences: the outcome, and why it matters now |
+| **Background** | Short bullets of facts the assignee needs, each from a source (an email, a provider reply, a record); no opinions |
+| **What to do** | Bullets of concrete steps, with the link to the exact console page or object |
+| **Done when** | One or two checkable outcomes |
+
+- Name the assignee only when the user did; otherwise follow the instance rule (often unassigned).
+- Resolve the parent and the active sprint live, and show both in the proposed payload.
+- If the project lacks the requested issue type (for example no `Task`), say so and use the closest one it has (`Story`); never invent a type.
+- A ticket for another person is a message to people: show the exact summary, fields and body, and create it only after the user's yes on that text. Read it back (type, assignee, parent, sprint, status) after creating.
+- Keep it to what the assignee must act on. Internal analysis, transcripts and personal data stay out.
 
 ## Instance Rules (MANDATORY - load before writes)
 
