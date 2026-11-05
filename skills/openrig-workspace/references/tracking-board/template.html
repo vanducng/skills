@@ -23,23 +23,50 @@
   .stat { background: #fff; border: 1px solid #d1d9e0; border-radius: 10px; padding: 10px 12px; } .stat b { font-size: 20px; display: block; }
   details.dl { border-bottom: 1px solid #eaeef2; padding: 6px 0; } details.dl summary { cursor: pointer; } details.dl p { margin: 6px 0 0 18px; }
   ul { margin: 4px 0; padding-left: 20px; } .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } @media (max-width: 800px) { .two { grid-template-columns: 1fr; } }
-  nav a { margin-right: 12px; font-size: 13px; }
-  .pele { --pele-bg: #ffffff; --pele-fg: #1f2328; --pele-muted: #59636e; --pele-line: #57606a; --pele-surface: #f6f8fa; --pele-surface-alt: #eaeef2; --pele-border: #d1d9e0; }
+  #nav { position: fixed; top: 20px; left: 16px; width: 190px; max-height: calc(100vh - 40px); overflow-y: auto; background: #fff; border: 1px solid #d1d9e0; border-radius: 10px; padding: 10px 8px; font-size: 13px; }
+  #nav b { display: block; padding: 2px 8px 6px; color: #59636e; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  #nav a { display: block; padding: 4px 8px; border-radius: 6px; color: #1f2328; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #nav a.sub { padding-left: 20px; color: #59636e; font-size: 12px; }
+  #nav a:hover { background: #f6f8fa; } #nav a.on { background: #ddf4ff; color: #0969da; font-weight: 600; }
+  .wrap { margin-left: 230px; } .card, h2[id] { scroll-margin-top: 16px; }
+  @media (max-width: 1100px) { #nav { position: static; width: auto; max-height: none; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 2px; } #nav b { display: none; } #nav a.sub { display: none; } .wrap { margin-left: 0; } }
+  /* One palette for every board and diagram. Diagrams name roles, never colors (README, Diagram conventions). */
+  :root {
+    --role-ours-fill: #ddf4ff; --role-ours-line: #0969da;
+    --role-provider-fill: #fbefff; --role-provider-line: #8250df;
+    --role-person-fill: #fff8c5; --role-person-line: #9a6700;
+    --role-store-fill: #f6f8fa; --role-store-line: #57606a;
+    --role-legacy-fill: #ffffff; --role-legacy-line: #8c959f;
+    --role-risk-fill: #ffebe9; --role-risk-line: #cf222e;
+    --role-done-fill: #dafbe1; --role-done-line: #1a7f37;
+  }
+  .pele { --pele-bg: #ffffff; --pele-fg: #1f2328; --pele-muted: #59636e; --pele-line: #57606a; --pele-surface: #f6f8fa; --pele-surface-alt: #eaeef2; --pele-border: #d1d9e0; --pele-accent: #0969da; --pele-critical: #cf222e; }
+  .pele .ours, .pele .pele-actor-control { --_s: var(--role-ours-fill); --_b: var(--role-ours-line); }
+  .pele .provider, .pele .pele-actor-boundary { --_s: var(--role-provider-fill); --_b: var(--role-provider-line); }
+  .pele .person, .pele .pele-actor-actor { --_s: var(--role-person-fill); --_b: var(--role-person-line); }
+  .pele .store, .pele .pele-actor-database, .pele .pele-actor-queue, .pele .pele-actor-collections, .pele .pele-actor-entity { --_s: var(--role-store-fill); --_b: var(--role-store-line); }
+  .pele .legacy { --_s: var(--role-legacy-fill); --_b: var(--role-legacy-line); } .pele .legacy > :is(rect, path, polygon, circle, ellipse) { stroke-dasharray: 4 3; }
+  .pele .risk, .pele .pele-frame-critical { --_s: var(--role-risk-fill); --_b: var(--role-risk-line); }
+  .pele .done { --_s: var(--role-done-fill); --_b: var(--role-done-line); }
+  .pele-cluster.ours, .pele-cluster.provider, .pele-cluster.store, .pele-cluster.legacy { --_a: var(--_s); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 12px; font-size: 12px; color: #59636e; }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -2px; border-radius: 3px; border: 1.5px solid var(--l); background: var(--f); }
 </style>
 </head>
 <body>
+<nav id="nav"></nav>
 <div class="wrap">
 <h1 id="title"></h1>
 <p class="headline" id="headline"></p>
 <p class="sub" id="updated"></p>
-<nav id="nav"></nav>
 <div class="grid" id="stats"></div>
 <div class="card" id="needs"><h2>Needs you</h2><ol id="needslist"></ol></div>
 <div id="sections"></div>
 <div id="missions"></div>
 <div class="card" id="log"><h2>Done log</h2><table id="donelog"></table></div>
 <div class="card" id="decisions"><h2>Decisions</h2><table id="dectable"></table></div>
-<div class="card"><h2>Decision log: reasoning and evidence</h2><div id="declog"></div></div>
+<div class="card" id="declogcard"><h2>Decision log: reasoning and evidence</h2><div id="declog"></div></div>
+<div id="sections-bottom"></div>
 <div class="card" id="facts"><h2>Discovery log (facts read, with source)</h2><table id="factstable"></table></div>
 <div class="card" id="links"><h2>Resources</h2><table id="linkstable"></table></div>
 </div>
@@ -61,8 +88,6 @@ byId("title").textContent = b.title || "";
 byId("headline").textContent = b.headline || "";
 byId("updated").textContent = `Updated ${b.updated || "?"} · ${b.phase || ""}`;
 const sections = b.sections || [];
-byId("nav").innerHTML = [["needs", "Needs you"], ...sections.map(s => [s.id, s.nav || s.title]), ["missions", "Missions"], ["log", "Done log"], ["decisions", "Decisions"], ["facts", "Facts"], ["links", "Resources"]]
-  .map(([id, t]) => `<a href="#${id}">${esc(t)}</a>`).join("");
 const slices = (b.missions || []).flatMap(m => m.slices || []);
 const count = s => slices.filter(x => x.status === s).length;
 const decisions = b.decisions || [];
@@ -72,9 +97,12 @@ byId("stats").innerHTML = [
 ].map(([k, v]) => `<div class="stat"><b>${v}</b>${k}</div>`).join("");
 byId("needslist").innerHTML = (b.needs && b.needs.length ? b.needs : ["None."]).map(n => `<li>${esc(n)}</li>`).join("");
 // Sections carry trusted, hand-written HTML; diagrams are Mermaid text rendered by pele into <div data-diagram="id">.
-byId("sections").innerHTML = sections.map(s => `<div class="card" id="${esc(s.id)}"><h2>${esc(s.title)}</h2>${s.html || ""}</div>`).join("");
-byId("missions").innerHTML = (b.missions || []).map(m => `
-  <div class="card"><h2>${esc(m.id)}: ${esc(m.name)} ${pill(m.status)}</h2><p>${esc(m.goal)}</p>
+const cardOf = s => `<div class="card" id="${esc(s.id)}"><h2>${esc(s.title)}</h2>${s.html || ""}</div>`;
+const top = sections.filter(s => s.place !== "bottom"), bottom = sections.filter(s => s.place === "bottom");
+byId("sections").innerHTML = top.map(cardOf).join("");
+byId("sections-bottom").innerHTML = bottom.map(cardOf).join("");
+byId("missions").innerHTML = (b.missions || []).map((m, i) => `
+  <div class="card" id="mission-${i}"><h2>${esc(m.id)}: ${esc(m.name)} ${pill(m.status)}</h2><p>${esc(m.goal)}</p>
   <table><tr><th>Slice</th><th>What</th><th>Owner</th><th>Status</th><th>Progress</th><th>Note</th></tr>
   ${(m.slices || []).map(s => `<tr><td>${esc(s.id)}</td><td>${esc(s.name)}${s.pr ? ` · ${link(s.pr)}` : ""}</td><td>${esc(s.owner || "?")}</td><td>${pill(s.status)}</td>
     <td><span class="bar"><i style="width:${s.progress || 0}%"></i></span> ${s.progress || 0}%</td><td>${esc(s.note)}</td></tr>`).join("")}
@@ -85,10 +113,35 @@ byId("dectable").innerHTML = `<tr><th>#</th><th>Question</th><th>Decision / reco
 byId("declog").innerHTML = decisions.filter(d => d.status === "accepted").map(d => `<details class="dl"><summary><b>${esc(d.id)}</b> ${esc(d.q)}: ${esc(d.rec)}</summary><p><b>Why:</b> ${esc(d.why || "?")}</p><p><b>Evidence:</b> ${esc(d.evidence || "?")}</p><p class="sub">Decided ${esc(d.decided || "?")}</p></details>`).join("") || "<p class=\"sub\">None yet.</p>";
 byId("factstable").innerHTML = `<tr><th>Fact</th><th>Source</th></tr>` + (b.facts || []).map(([f, s]) => `<tr><td>${esc(f)}</td><td>${esc(s)}</td></tr>`).join("");
 byId("linkstable").innerHTML = (b.links || []).map(([t, u]) => `<tr><td>${esc(t)}</td><td><a href="${u}">${esc(u)}</a></td></tr>`).join("");
+// Floating section nav: one link per card, missions as sub-links, the visible card highlighted.
+const navItems = [["needs", "Needs you"], ...top.map(s => [s.id, s.nav || s.title]),
+  ["missions", "Missions"], ...(b.missions || []).map((m, i) => [`mission-${i}`, `${m.id}: ${m.name}`, true]),
+  ["log", "Done log"], ["decisions", "Decisions"], ["declogcard", "Decision log"], ...bottom.map(s => [s.id, s.nav || s.title]),
+  ["facts", "Facts"], ["links", "Resources"]];
+byId("nav").innerHTML = "<b>Sections</b>" + navItems.map(([id, t, sub]) => `<a href="#${id}" data-id="${id}"${sub ? ' class="sub"' : ""} title="${esc(t)}">${esc(t)}</a>`).join("");
+const navLinks = [...document.querySelectorAll("#nav a")];
+const spy = () => {
+  let current = navItems[0][0];
+  for (const [id] of navItems) { const el = byId(id); if (el && el.getBoundingClientRect().top <= 80) current = id; }
+  navLinks.forEach(a => a.classList.toggle("on", a.dataset.id === current));
+};
+addEventListener("scroll", spy, { passive: true });
+spy();
 const diagrams = b.diagrams || {};
+// Legend under each diagram: only the roles that diagram uses (node classes and sequence participant types).
+const roles = { ours: "ours", provider: "provider", person: "person", store: "store", legacy: "legacy (being replaced)", risk: "risk / failure", done: "done / proven" };
+const typeRole = { actor: "person", control: "ours", boundary: "provider", database: "store", queue: "store", collections: "store", entity: "store" };
+const legendFor = src => {
+  const used = new Set([...src.matchAll(/:::(\w+)|\bclass\s+[\w,]+\s+(\w+)/g)].map(m => m[1] || m[2]).filter(r => r in roles));
+  for (const m of src.matchAll(/^\s*actor\s|"type":\s*"(\w+)"/gm)) used.add(m[1] ? typeRole[m[1]] : "person");
+  if (/^\s*critical\b/m.test(src)) used.add("risk");
+  return [...used].filter(Boolean).map(r => `<span style="--f:var(--role-${r}-fill);--l:var(--role-${r}-line)">${roles[r]}</span>`).join("");
+};
 for (const el of document.querySelectorAll("[data-diagram]")) {
   const src = diagrams[el.dataset.diagram] || "";
   try { pele.mount(el, src); } catch (e) { el.innerHTML = `<pre>${esc(src)}</pre>`; }
+  const key = legendFor(src);
+  if (key) el.insertAdjacentHTML("afterend", `<div class="legend">${key}</div>`);
 }
 </script>
 </body>
