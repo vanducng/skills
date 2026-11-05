@@ -29,6 +29,21 @@
   #nav a.sub { padding-left: 20px; color: #59636e; font-size: 12px; }
   #nav a:hover { background: #f6f8fa; } #nav a.on { background: #ddf4ff; color: #0969da; font-weight: 600; }
   .wrap { margin-left: 230px; } .card, h2[id] { scroll-margin-top: 16px; }
+  /* Annotate mode and the feedback panel (talks to server.cjs; read-only when served without it). */
+  #fb { position: fixed; top: 20px; right: 16px; width: 300px; max-height: calc(100vh - 40px); display: flex; flex-direction: column; background: #fff; border: 1px solid #d1d9e0; border-radius: 10px; font-size: 13px; z-index: 20; }
+  #fb header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #eaeef2; } #fb header b { flex: 1; }
+  #fb .list { overflow-y: auto; padding: 6px 10px; flex: 1; } #fb .note { border-bottom: 1px solid #eaeef2; padding: 6px 0; } #fb .note small { color: #59636e; display: block; }
+  #fb .note .kind { font-weight: 600; text-transform: capitalize; } #fb .note button { float: right; border: 0; background: none; color: #cf222e; cursor: pointer; }
+  #fb footer { padding: 10px 12px; border-top: 1px solid #eaeef2; } #fb .status { color: #59636e; margin: 6px 0 0; } #fb .reply { white-space: pre-wrap; background: #f6f8fa; border-radius: 6px; padding: 8px; margin-top: 6px; max-height: 240px; overflow-y: auto; }
+  #fb button.primary { background: #1f883d; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-weight: 600; cursor: pointer; } #fb button.primary:disabled { background: #94d3a2; cursor: default; }
+  #fb.min .list, #fb.min footer { display: none; }
+  .toggle { border: 1px solid #d1d9e0; background: #f6f8fa; border-radius: 6px; padding: 3px 8px; cursor: pointer; } .toggle.on { background: #ddf4ff; border-color: #0969da; color: #0969da; font-weight: 600; }
+  body.annotating .card, body.annotating tr { cursor: crosshair; } body.annotating .card:hover, body.annotating tr:hover { outline: 2px dashed #0969da; outline-offset: 2px; }
+  .noted { box-shadow: inset 3px 0 0 #bf8700; }
+  #pop { position: fixed; z-index: 30; width: 320px; background: #fff; border: 1px solid #d1d9e0; border-radius: 10px; padding: 10px; box-shadow: 0 8px 24px rgba(140,149,159,.3); display: none; }
+  #pop textarea { width: 100%; box-sizing: border-box; min-height: 80px; font: inherit; margin: 6px 0; } #pop .row { display: flex; gap: 6px; justify-content: flex-end; } #pop .anchor { color: #59636e; font-size: 12px; } #pop q { display: block; color: #59636e; font-size: 12px; margin-top: 4px; }
+  .wrap { margin-right: 330px; }
+  @media (max-width: 1100px) { #fb { position: static; width: auto; margin-bottom: 12px; } .wrap { margin-right: 0; } }
   @media (max-width: 1100px) { #nav { position: static; width: auto; max-height: none; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 2px; } #nav b { display: none; } #nav a.sub { display: none; } .wrap { margin-left: 0; } }
   /* One palette for every board and diagram. Diagrams name roles, never colors (README, Diagram conventions). */
   :root {
@@ -55,6 +70,10 @@
 </head>
 <body>
 <nav id="nav"></nav>
+<aside id="fb" class="min"><header><b>Changes (<span id="fbcount">0</span>)</b><button class="toggle" id="fbmode" title="Click a card or row, or select text, to add a note">Annotate</button><button class="toggle" id="fbmin">▾</button></header>
+<div class="list" id="fblist"></div>
+<footer><button class="primary" id="fbsend" disabled>Send feedback</button> <button class="toggle" id="fbclear">Clear</button><p class="status" id="fbstatus"></p><div class="reply" id="fbreply" hidden></div></footer></aside>
+<div id="pop"><div class="anchor" id="popanchor"></div><q id="popquote" hidden></q><select id="popkind"><option value="change">Change</option><option value="comment">Comment</option><option value="question">Question</option></select><textarea id="poptext" placeholder="Your note"></textarea><div class="row"><button class="toggle" id="popcancel">Cancel</button><button class="primary" id="popsave" style="background:#0969da;color:#fff;border:0;border-radius:6px;padding:4px 10px">Add note</button></div></div>
 <div class="wrap">
 <h1 id="title"></h1>
 <p class="headline" id="headline"></p>
@@ -143,6 +162,87 @@ for (const el of document.querySelectorAll("[data-diagram]")) {
   const key = legendFor(src);
   if (key) el.insertAdjacentHTML("afterend", `<div class="legend">${key}</div>`);
 }
+// ---- Annotate and send feedback -------------------------------------------------------------
+const store = `board-notes:${location.pathname}`;
+let notes = JSON.parse(localStorage.getItem(store) || "[]");
+let authed = false, online = false, pending = null;
+const fb = byId("fb"), pop = byId("pop");
+const save = () => { localStorage.setItem(store, JSON.stringify(notes)); paint(); };
+const anchorOf = el => {
+  const card = el.closest(".card");
+  const title = card ? (card.querySelector("h2")?.textContent || card.id).replace(/\s+(planned|in progress|blocked|done|needs decision|accepted)$/i, "").trim() : "board";
+  const row = el.closest("tr");
+  const key = row && row.cells.length ? row.cells[0].textContent.trim().slice(0, 40) : "";
+  return { cardId: card?.id || "", key, label: key ? `${title} › ${key}` : title };
+};
+const marks = () => {
+  document.querySelectorAll(".noted").forEach(e => e.classList.remove("noted"));
+  for (const n of notes) {
+    const card = n.cardId && byId(n.cardId);
+    if (!card) continue;
+    const row = n.key ? [...card.querySelectorAll("tr")].find(r => r.cells[0]?.textContent.trim().slice(0, 40) === n.key) : null;
+    (row || card).classList.add("noted");
+  }
+};
+function paint() {
+  byId("fbcount").textContent = notes.length;
+  byId("fblist").innerHTML = notes.map((n, i) => `<div class="note"><button data-i="${i}" title="Remove">✕</button><span class="kind">${esc(n.kind)}</span> · ${esc(n.anchor)}${n.quote ? `<small>“${esc(n.quote)}”</small>` : ""}<div>${esc(n.text)}</div></div>`).join("") || `<p class="sub">Turn on Annotate, then click a card or a row, or select text.</p>`;
+  byId("fbsend").disabled = !notes.length || !authed || !!pending;
+  if (notes.length) fb.classList.remove("min");
+  marks();
+}
+const setStatus = t => { byId("fbstatus").textContent = t; };
+byId("fblist").onclick = e => { const i = e.target.dataset?.i; if (i !== undefined) { notes.splice(+i, 1); save(); } };
+byId("fbmin").onclick = () => fb.classList.toggle("min");
+byId("fbclear").onclick = () => { if (notes.length && confirm("Remove all notes?")) { notes = []; save(); } };
+byId("fbmode").onclick = () => { const on = document.body.classList.toggle("annotating"); byId("fbmode").classList.toggle("on", on); if (on) fb.classList.remove("min"); };
+let draft = null;
+const openPop = (x, y, anchor, quote) => {
+  draft = { ...anchor, quote };
+  byId("popanchor").textContent = `Note on: ${anchor.label}`;
+  byId("popquote").hidden = !quote; byId("popquote").textContent = quote || "";
+  byId("poptext").value = "";
+  pop.style.display = "block";
+  pop.style.left = `${Math.min(x, innerWidth - 340)}px`; pop.style.top = `${Math.min(y, innerHeight - 220)}px`;
+  byId("poptext").focus();
+};
+byId("popcancel").onclick = () => { pop.style.display = "none"; draft = null; };
+byId("popsave").onclick = () => {
+  const text = byId("poptext").value.trim();
+  if (!text || !draft) return;
+  notes.push({ id: `n${Date.now().toString(36)}`, kind: byId("popkind").value, anchor: draft.label, cardId: draft.cardId, key: draft.key, quote: draft.quote || "", text });
+  pop.style.display = "none"; draft = null; save();
+};
+document.addEventListener("mouseup", e => {
+  if (!document.body.classList.contains("annotating") || fb.contains(e.target) || pop.contains(e.target) || byId("nav").contains(e.target)) return;
+  const target = e.target.closest(".card, tr");
+  if (!target || e.target.closest("a, button, summary")) return;
+  const quote = String(getSelection() || "").trim().slice(0, 500);
+  openPop(e.clientX + 8, e.clientY + 8, anchorOf(target), quote);
+});
+byId("fbsend").onclick = async () => {
+  byId("fbsend").disabled = true; setStatus("Sending…");
+  try {
+    const r = await fetch("feedback", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes }) });
+    const body = await r.text();
+    if (r.status !== 202) { setStatus(`Not sent: ${body}`); byId("fbsend").disabled = false; return; }
+    pending = JSON.parse(body).id; notes = []; save(); setStatus("Queued for the human seat…");
+  } catch (err) { setStatus(`Not sent: ${err.message}`); byId("fbsend").disabled = false; }
+};
+const label2 = { queued: "Queued for the human seat…", delivered: "Delivered to the human seat…", working: "The seat is working on it…", done: "Done. Reply below.", aborted: "The run was stopped." };
+if ("EventSource" in window && location.protocol.startsWith("http")) {
+  const es = new EventSource("events");
+  es.addEventListener("hello", e => { online = true; authed = JSON.parse(e.data).auth; setStatus(authed ? "" : "Read-only: open the login link from the human seat (board.cjs login) to send feedback."); paint(); });
+  es.addEventListener("status", e => { const d = JSON.parse(e.data); if (!pending || d.id === pending) setStatus(label2[d.state] || d.state); });
+  es.addEventListener("reply", e => { const d = JSON.parse(e.data); if (pending && d.id !== pending) return; byId("fbreply").hidden = false; byId("fbreply").textContent = d.reply || "(no reply text)"; pending = null; fb.classList.remove("min"); paint(); });
+  es.addEventListener("reload", () => { sessionStorage.setItem(`${store}:y`, String(scrollY)); sessionStorage.setItem(`${store}:reply`, byId("fbreply").hidden ? "" : byId("fbreply").textContent); location.reload(); });
+  es.onerror = () => { if (!online) setStatus("Feedback server offline: notes stay in this browser."); };
+}
+const y = sessionStorage.getItem(`${store}:y`);
+if (y) { sessionStorage.removeItem(`${store}:y`); setTimeout(() => scrollTo(0, +y), 300); }
+const keptReply = sessionStorage.getItem(`${store}:reply`);
+if (keptReply) { sessionStorage.removeItem(`${store}:reply`); byId("fbreply").hidden = false; byId("fbreply").textContent = keptReply; fb.classList.remove("min"); }
+paint();
 </script>
 </body>
 </html>

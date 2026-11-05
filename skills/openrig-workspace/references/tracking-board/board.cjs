@@ -3,6 +3,7 @@
 //   board.cjs init <org>/<project>/<slug> [--title "..."]   create board.json and index.html
 //   board.cjs render <org>/<project>/<slug> | <dir>          rebuild index.html from board.json
 //   board.cjs url <org>/<project>/<slug>                     print the tailnet URL
+//   board.cjs login <org>/<project>/<slug>                   print the one-time login URL (lets that browser send feedback)
 //   board.cjs list                                           list boards with their headline
 //   board.cjs check <org>/<project>/<slug>                   lint diagrams against the conventions; parse them with pele
 //                                                            when it is installed ($PELE_DIR, default ~/.cache/openrig-boards)
@@ -62,13 +63,18 @@ if (cmd === "init") {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "board.json"), JSON.stringify({
     title: titleAt >= 0 ? rest[titleAt + 1] : `${org} ${project}: ${slug}`,
-    org, project, slug, updated: now(), headline: "", phase: "Started",
+    org, project, slug, owner_seat: process.env.OPENRIG_SESSION_NAME || "", updated: now(), headline: "", phase: "Started",
     needs: [], sections: [], diagrams: {}, missions: [], log: [], decisions: [], facts: [], links: [],
   }, null, 2) + "\n");
   console.log(render(dir));
   console.log(`${base()}/${arg}/`);
 } else if (cmd === "render") {
   console.log(render(boardDir(arg)));
+} else if (cmd === "login") {
+  boardDir(arg);
+  const tokenFile = path.join(root, ".board-token");
+  if (!fs.existsSync(tokenFile)) die("no token yet: start the board server first (serve.sh)");
+  console.log(`${base()}/${arg}/?k=${fs.readFileSync(tokenFile, "utf8").trim()}`);
 } else if (cmd === "url") {
   boardDir(arg);
   console.log(`${base()}/${arg}/`);
@@ -104,5 +110,5 @@ if (cmd === "init") {
       console.log(`${org}/${project}/${slug}\t${data.updated || "?"}\t${data.headline || data.title}`);
     }
 } else {
-  die("usage: board.cjs init|render|url|check <org>/<project>/<slug> [--title \"...\"] | list");
+  die("usage: board.cjs init|render|url|login|check <org>/<project>/<slug> [--title \"...\"] | list");
 }
