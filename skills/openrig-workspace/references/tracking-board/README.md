@@ -57,7 +57,7 @@ browser ──POST feedback──► server.cjs ──► feedback/inbox/<id>.js
    └──── events: status, reply, reload ◄── feedback/status, feedback/done, index.html ◄── the seat applies, renders, replies
 ```
 
-- **Install once per machine:** `ln -s "$B/board-bridge.js" ~/.pi/agent/extensions/board-bridge.js`, then `/reload` in the human seat. The bridge runs only in a seat named `*-human@*` and serves only boards whose `owner_seat` is that seat.
+- **Install once per machine:** the `board-bridge` Pi extension ships with the operator's dotfiles (`dotfiles/pi/.pi/agent/extensions/board-bridge.js` in vanducng/dotfiles, linked by `make stow-pi`); `/reload` in the human seat to load it. It runs only in a seat named `*-human@*`, serves only boards whose `owner_seat` is that seat, and finds `board.cjs` through `$OPENRIG_BOARD_CLI`, `~/skills`, or the installed skill.
 - **Log in once per browser:** open the URL from `board.cjs login`. The server sets an HttpOnly, SameSite=Strict cookie and drops the token from the address. Without it the page is read-only. The token is `<root>/.board-token` (mode 600); deleting it and restarting the server logs every browser out.
 - **The seat's reply** ends with one line per note: `<note id>: applied | deferred | needs you - <why>`. Applying a note follows the normal rules: records in git, build work to the rig's owner seat, `render` at the end.
 - **Live updates** are server-sent events (`/events`): one-way and reconnecting, so no WebSocket is needed.
