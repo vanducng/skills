@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.13.2"
+  version: "0.13.3"
 ---
 
 # OpenRig workspace
@@ -185,6 +185,7 @@ OpenRig's own procedures come from the installed CLI, so they always match the r
 | Changing a seat's effort or model, quota running hot | [references/openrig-ops.md](references/openrig-ops.md), Tune seat effort |
 | Upgrading or restarting the Rex server on a host with rigs | [references/rex-upgrade.md](references/rex-upgrade.md) |
 | Running, moving, viewing or growing the operator's conductor rig; adding or archiving a desk | [references/conductor.md](references/conductor.md) |
+| Posting a project update to a team channel: shape, mentions, post and read back | [references/team-update.md](references/team-update.md) |
 
 ## Project resources and contacts
 
