@@ -1,6 +1,6 @@
 # Tracking board
 
-One HTML page per initiative (one or more missions that move together), so the operator and every later session can see missions, slices, decisions with their reasons, and open asks without re-reading transcripts. The data lives in `board.json`; `board.cjs` renders `index.html` from `template.html`; `serve.sh` publishes the boards on the tailnet.
+One HTML page per initiative (one or more missions that move together), so the operator and every later session can see missions, slices, decisions with their reasons, and open asks without re-reading transcripts. The data lives in `board.json`; `board.cjs` renders `index.html` from `template.html`; `server.cjs`, started by `serve.sh`, publishes the boards on the tailnet and carries the operator's notes back to the rig's human seat.
 
 ## When to offer it
 
@@ -24,6 +24,7 @@ B="$HOME/skills/skills/openrig-workspace/references/tracking-board"
 node "$B/board.cjs" init <org>/<project>/<slug> --title "<initiative>"   # board.json + index.html, prints the URL
 node "$B/board.cjs" render <org>/<project>/<slug>                        # after every board.json edit
 node "$B/board.cjs" url <org>/<project>/<slug>
+node "$B/board.cjs" login <org>/<project>/<slug>                         # one-time link that lets a browser send feedback
 node "$B/board.cjs" list
 node "$B/board.cjs" check <org>/<project>/<slug>                         # lint and parse every diagram before render
 bash "$B/serve.sh"                                                        # once per machine boot; idempotent
@@ -35,6 +36,7 @@ bash "$B/status.sh" --rig <rig> --project-dir <project dir> --missions <m8-x,m9-
 
 | Key | Shape | Notes |
 |---|---|---|
+| `owner_seat` | string | the human seat that receives this board's feedback, e.g. `lead-human@<rig>`; `init` fills it from `OPENRIG_SESSION_NAME` |
 | `title`, `headline`, `phase`, `updated` | strings | `updated` in the operator's zone; headline in the brief's form (state, done/total, what waits) |
 | `needs` | `[string]` | open asks for the operator; empty when none |
 | `missions` | `[{id, name, goal, status, slices: [{id, name, owner, status, progress, note, pr?}]}]` | status: `planned`, `doing`, `blocked`, `done`, `decide`; progress 0-100 |
@@ -44,6 +46,22 @@ bash "$B/status.sh" --rig <rig> --project-dir <project dir> --missions <m8-x,m9-
 | `links` | `[[title, url]]` | consoles, PRs, tickets, docs |
 | `sections` | `[{id, title, nav?, place?, html}]` | hand-written HTML cards (intent, design, knowledge references); shown before the missions, or after the decision log with `"place": "bottom"` (risks) |
 | `diagrams` | `{id: "<Mermaid text>"}` | rendered by pele into `<div data-diagram="id"></div>` placed in a section |
+
+## Feedback from the board
+
+The operator turns on **Annotate**, clicks a card or a table row (or selects text in it) and adds a note: change, comment or question. Notes collect in the floating **Changes** panel on the right and stay in that browser until sent. **Send feedback** posts them; the board's owner seat receives them as one user message, applies them, and the panel shows the seat's progress and reply while the page reloads with the update.
+
+```
+browser ──POST feedback──► server.cjs ──► feedback/inbox/<id>.json ──► board-bridge (Pi extension, owner seat)
+   ▲                            │                                         └► pi.sendUserMessage(notes), followUp when busy
+   └──── events: status, reply, reload ◄── feedback/status, feedback/done, index.html ◄── the seat applies, renders, replies
+```
+
+- **Install once per machine:** `ln -s "$B/board-bridge.js" ~/.pi/agent/extensions/board-bridge.js`, then `/reload` in the human seat. The bridge runs only in a seat named `*-human@*` and serves only boards whose `owner_seat` is that seat.
+- **Log in once per browser:** open the URL from `board.cjs login`. The server sets an HttpOnly, SameSite=Strict cookie and drops the token from the address. Without it the page is read-only. The token is `<root>/.board-token` (mode 600); deleting it and restarting the server logs every browser out.
+- **The seat's reply** ends with one line per note: `<note id>: applied | deferred | needs you - <why>`. Applying a note follows the normal rules: records in git, build work to the rig's owner seat, `render` at the end.
+- **Live updates** are server-sent events (`/events`): one-way and reconnecting, so no WebSocket is needed.
+- `feedback/` keeps every batch (`inbox`, `processing`, `status`, `done`) as the audit trail; it is never served.
 
 ## Diagram conventions
 
