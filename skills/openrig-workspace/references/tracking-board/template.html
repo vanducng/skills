@@ -98,9 +98,9 @@ byId("stats").innerHTML = [
 byId("needslist").innerHTML = (b.needs && b.needs.length ? b.needs : ["None."]).map(n => `<li>${esc(n)}</li>`).join("");
 // Sections carry trusted, hand-written HTML; diagrams are Mermaid text rendered by pele into <div data-diagram="id">.
 const cardOf = s => `<div class="card" id="${esc(s.id)}"><h2>${esc(s.title)}</h2>${s.html || ""}</div>`;
-const top = sections.filter(s => s.place !== "bottom"), bottom = sections.filter(s => s.place === "bottom");
-byId("sections").innerHTML = top.map(cardOf).join("");
-byId("sections-bottom").innerHTML = bottom.map(cardOf).join("");
+const upper = sections.filter(s => s.place !== "bottom"), lower = sections.filter(s => s.place === "bottom");
+byId("sections").innerHTML = upper.map(cardOf).join("");
+byId("sections-bottom").innerHTML = lower.map(cardOf).join("");
 byId("missions").innerHTML = (b.missions || []).map((m, i) => `
   <div class="card" id="mission-${i}"><h2>${esc(m.id)}: ${esc(m.name)} ${pill(m.status)}</h2><p>${esc(m.goal)}</p>
   <table><tr><th>Slice</th><th>What</th><th>Owner</th><th>Status</th><th>Progress</th><th>Note</th></tr>
@@ -114,9 +114,9 @@ byId("declog").innerHTML = decisions.filter(d => d.status === "accepted").map(d 
 byId("factstable").innerHTML = `<tr><th>Fact</th><th>Source</th></tr>` + (b.facts || []).map(([f, s]) => `<tr><td>${esc(f)}</td><td>${esc(s)}</td></tr>`).join("");
 byId("linkstable").innerHTML = (b.links || []).map(([t, u]) => `<tr><td>${esc(t)}</td><td><a href="${u}">${esc(u)}</a></td></tr>`).join("");
 // Floating section nav: one link per card, missions as sub-links, the visible card highlighted.
-const navItems = [["needs", "Needs you"], ...top.map(s => [s.id, s.nav || s.title]),
+const navItems = [["needs", "Needs you"], ...upper.map(s => [s.id, s.nav || s.title]),
   ["missions", "Missions"], ...(b.missions || []).map((m, i) => [`mission-${i}`, `${m.id}: ${m.name}`, true]),
-  ["log", "Done log"], ["decisions", "Decisions"], ["declogcard", "Decision log"], ...bottom.map(s => [s.id, s.nav || s.title]),
+  ["log", "Done log"], ["decisions", "Decisions"], ["declogcard", "Decision log"], ...lower.map(s => [s.id, s.nav || s.title]),
   ["facts", "Facts"], ["links", "Resources"]];
 byId("nav").innerHTML = "<b>Sections</b>" + navItems.map(([id, t, sub]) => `<a href="#${id}" data-id="${id}"${sub ? ' class="sub"' : ""} title="${esc(t)}">${esc(t)}</a>`).join("");
 const navLinks = [...document.querySelectorAll("#nav a")];

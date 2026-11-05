@@ -25,6 +25,7 @@ node "$B/board.cjs" init <org>/<project>/<slug> --title "<initiative>"   # board
 node "$B/board.cjs" render <org>/<project>/<slug>                        # after every board.json edit
 node "$B/board.cjs" url <org>/<project>/<slug>
 node "$B/board.cjs" list
+node "$B/board.cjs" check <org>/<project>/<slug>                         # lint and parse every diagram before render
 bash "$B/serve.sh"                                                        # once per machine boot; idempotent
 bash "$B/status.sh" --rig <rig> --project-dir <project dir> --missions <m8-x,m9-y> \
   --repo <owner/repo> --search "<TICKET-1> OR <TICKET-2> in:title"       # data for a periodic brief
@@ -41,8 +42,27 @@ bash "$B/status.sh" --rig <rig> --project-dir <project dir> --missions <m8-x,m9-
 | `log` | `[[when, what, evidence]]` | provider writes, merges, Jira edits, dispatches |
 | `facts` | `[[fact, source]]` | what was read, with its source; newest first |
 | `links` | `[[title, url]]` | consoles, PRs, tickets, docs |
-| `sections` | `[{id, title, nav?, html}]` | hand-written HTML cards (intent, design, knowledge references) shown before the missions |
+| `sections` | `[{id, title, nav?, place?, html}]` | hand-written HTML cards (intent, design, knowledge references); shown before the missions, or after the decision log with `"place": "bottom"` (risks) |
 | `diagrams` | `{id: "<Mermaid text>"}` | rendered by pele into `<div data-diagram="id"></div>` placed in a section |
+
+## Diagram conventions
+
+Every board uses one palette, defined once in `template.html`. A diagram names roles, never colors, so the same thing looks the same on every board and the colors can change in one place. `board.cjs check` rejects `classDef`, `style`, `linkStyle`, `fill:` and `rgb(...)` in diagrams, and any role not in this table.
+
+| Role | Color | Flowchart | Sequence participant |
+|---|---|---|---|
+| `ours` | blue | `A["Polaris"]:::ours`, or `class A,B ours` | `participant P@{ "type": "control" } as Polaris` |
+| `provider` | purple | third-party platform: `:::provider` | `participant R@{ "type": "boundary" } as Retell` |
+| `person` | amber | a phone or a person: `:::person` | `actor L as Lead` |
+| `store` | gray | database, bucket, ledger: `:::store` | `participant D@{ "type": "database" } as DB` (also `queue`) |
+| `legacy` | dashed gray | what is being replaced: `:::legacy` | - |
+| `risk` | red | a failure path: `:::risk` | `critical <label> ... end` frame |
+| `done` | green | proven or shipped: `:::done` | - |
+
+- Subgraphs take a role with `class <subgraph-id> <role>` (not `subgraph X:::role`).
+- Edges: `-->` a call, `-.->` a callback, webhook or config write, `==>` the critical path.
+- Each diagram gets a legend of the roles it uses, under it, automatically.
+- Requires pele 1.13 or later: roles are CSS classes on the rendered SVG, recolored through pele's own variables.
 
 ## Rules
 
