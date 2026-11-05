@@ -14,7 +14,7 @@
   th { color: #59636e; font-weight: 600; font-size: 13px; }
   .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
   .done { background: #dafbe1; color: #1a7f37; } .doing { background: #ddf4ff; color: #0969da; } .planned { background: #eaeef2; color: #59636e; }
-  .blocked { background: #ffebe9; color: #cf222e; } .decide { background: #fff8c5; color: #9a6700; } .accepted { background: #dafbe1; color: #1a7f37; }
+  .blocked, .fail { background: #ffebe9; color: #cf222e; } .pass { background: #dafbe1; color: #1a7f37; } .decide { background: #fff8c5; color: #9a6700; } .accepted { background: #dafbe1; color: #1a7f37; }
   .bar { height: 8px; background: #eaeef2; border-radius: 4px; overflow: hidden; width: 120px; display: inline-block; vertical-align: middle; }
   .bar i { display: block; height: 100%; background: #2da44e; }
   a { color: #0969da; word-break: break-word; } code { background: #f6f8fa; padding: 0 4px; border-radius: 4px; font-size: 12px; }
@@ -97,7 +97,7 @@ __BOARD_JSON__
 <script src="https://cdn.jsdelivr.net/npm/pele@1.13.0/dist/pele.global.js"></script>
 <script>
 const b = JSON.parse(document.getElementById("board").textContent);
-const label = { done: "done", doing: "in progress", planned: "planned", blocked: "blocked", decide: "needs decision", accepted: "accepted" };
+const label = { done: "done", doing: "in progress", planned: "planned", blocked: "blocked", decide: "needs decision", accepted: "accepted", pass: "PASS", fail: "FAIL" };
 const pill = s => `<span class="pill ${s}">${label[s] || s}</span>`;
 const esc = s => String(s ?? "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 const link = s => /^https?:\/\//.test(s) ? `<a href="${s}">${esc(s)}</a>` : esc(s);
@@ -146,6 +146,9 @@ const spy = () => {
 };
 addEventListener("scroll", spy, { passive: true });
 spy();
+// Optional test-case table: <div data-tests></div> in a section renders b.tests.
+for (const el of document.querySelectorAll("[data-tests]")) el.innerHTML = `<table><tr><th>#</th><th>Case</th><th>Operator does</th><th>Pass when</th><th>Status</th><th>Evidence</th></tr>` +
+  (b.tests || []).map(c => `<tr><td>${esc(c.id)}</td><td>${esc(c.what)}</td><td>${esc(c.operator)}</td><td>${esc(c.pass)}</td><td>${pill(c.status)}</td><td>${link(c.evidence || "")}</td></tr>`).join("") + `</table>`;
 const diagrams = b.diagrams || {};
 // Legend under each diagram: only the roles that diagram uses (node classes and sequence participant types).
 const roles = { ours: "ours", provider: "provider", person: "person", store: "store", legacy: "legacy (being replaced)", risk: "risk / failure", done: "done / proven" };
