@@ -4,6 +4,8 @@
 //   board.cjs render <org>/<project>/<slug> | <dir>          rebuild index.html from board.json
 //   board.cjs url <org>/<project>/<slug>                     print the tailnet URL
 //   board.cjs list                                           list boards with their headline
+//   board.cjs check <org>/<project>/<slug>                   lint diagrams against the conventions; parse them with pele
+//                                                            when it is installed ($PELE_DIR, default ~/.cache/openrig-boards)
 // Root: $OPENRIG_BOARDS_ROOT (default ~/.share/openrig/boards). URL base: $OPENRIG_BOARDS_URL, else the
 // tailnet name from `tailscale status --json` plus /boards (see serve.sh).
 "use strict";
@@ -70,6 +72,28 @@ if (cmd === "init") {
 } else if (cmd === "url") {
   boardDir(arg);
   console.log(`${base()}/${arg}/`);
+} else if (cmd === "check") {
+  const dir = boardDir(arg);
+  const data = JSON.parse(fs.readFileSync(path.join(dir, "board.json"), "utf8"));
+  const roles = new Set(["ours", "provider", "person", "store", "legacy", "risk", "done"]);
+  const peleDir = process.env.PELE_DIR || path.join(os.homedir(), ".cache", "openrig-boards");
+  let pele = null;
+  try { pele = require(require.resolve("pele", { paths: [peleDir, __dirname] })); } catch { /* optional */ }
+  let problems = 0;
+  const placed = new Set((data.sections || []).flatMap(s => [...(s.html || "").matchAll(/data-diagram="([^"]+)"/g)].map(m => m[1])));
+  for (const [id, src] of Object.entries(data.diagrams || {})) {
+    const issues = [];
+    if (!placed.has(id)) issues.push("not placed in any section (<div data-diagram=\"" + id + "\"></div>)");
+    if (/^\s*(classDef|style|linkStyle)\b|\bfill:|rgb\(/m.test(src)) issues.push("sets colors; use a role class (:::ours, class <subgraph> provider) or a participant type instead");
+    for (const m of src.matchAll(/:::(\w+)|^\s*class\s+[\w,]+\s+(\w+)/gm)) if (!roles.has(m[1] || m[2])) issues.push(`unknown role ${m[1] || m[2]}`);
+    if (/^sequenceDiagram/.test(src.trim()) && /^\s*(Note|[\w]+\s*-[->x)]+)[^\n]*;/m.test(src)) issues.push("';' inside a sequence note or message ends the statement");
+    if (pele) { try { pele.render(src); } catch (e) { issues.push(`pele: ${String(e.message).split("\n")[0]}`); } }
+    for (const i of issues) console.log(`${id}: ${i}`);
+    problems += issues.length;
+  }
+  if (!pele) console.log(`check: pele not installed, parse skipped (npm install --prefix ${peleDir} pele@1.13.0)`);
+  console.log(problems ? `check: ${problems} problem(s)` : "check: ok");
+  process.exit(problems ? 1 : 0);
 } else if (cmd === "list") {
   if (!fs.existsSync(root)) process.exit(0);
   for (const org of fs.readdirSync(root)) for (const project of fs.readdirSync(path.join(root, org)))
@@ -80,5 +104,5 @@ if (cmd === "init") {
       console.log(`${org}/${project}/${slug}\t${data.updated || "?"}\t${data.headline || data.title}`);
     }
 } else {
-  die("usage: board.cjs init|render|url <org>/<project>/<slug> [--title \"...\"] | list");
+  die("usage: board.cjs init|render|url|check <org>/<project>/<slug> [--title \"...\"] | list");
 }
