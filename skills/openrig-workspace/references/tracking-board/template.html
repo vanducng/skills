@@ -114,7 +114,9 @@ byId("stats").innerHTML = [
   ["Missions", (b.missions || []).length], ["Slices done", `${count("done")}/${slices.length}`], ["In progress", count("doing")],
   ["Blocked", count("blocked")], ["Decisions", decisions.filter(d => d.status === "accepted").length], ["Open", decisions.filter(d => d.status === "decide").length]
 ].map(([k, v]) => `<div class="stat"><b>${v}</b>${k}</div>`).join("");
-byId("needslist").innerHTML = (b.needs && b.needs.length ? b.needs : ["None."]).map(n => `<li>${esc(n)}</li>`).join("");
+const attr = s => esc(s).replace(/"/g, "&quot;");
+byId("needslist").innerHTML = (b.needs && b.needs.length ? b.needs : ["None."]).map(n => typeof n === "string" ? `<li>${esc(n)}</li>`
+  : `<li>${esc(n.text)}${n.href ? ` <a href="${attr(n.href)}">${esc(n.link || "details")}</a>` : ""}</li>`).join("");
 // Sections carry trusted, hand-written HTML; diagrams are Mermaid text rendered by pele into <div data-diagram="id">.
 const cardOf = s => `<div class="card" id="${esc(s.id)}"><h2>${esc(s.title)}</h2>${s.html || ""}</div>`;
 const upper = sections.filter(s => s.place !== "bottom"), lower = sections.filter(s => s.place === "bottom");
@@ -128,7 +130,7 @@ byId("missions").innerHTML = (b.missions || []).map((m, i) => `
   </table></div>`).join("");
 byId("donelog").innerHTML = `<tr><th>When</th><th>What</th><th>Evidence</th></tr>` + (b.log || []).map(([t, w, e]) => `<tr><td>${esc(t)}</td><td>${esc(w)}</td><td>${link(e)}</td></tr>`).join("");
 byId("dectable").innerHTML = `<tr><th>#</th><th>Question</th><th>Decision / recommendation</th><th>Status</th></tr>` +
-  decisions.map(d => `<tr><td>${esc(d.id)}</td><td>${esc(d.q)}</td><td>${esc(d.rec)}</td><td>${pill(d.status)}</td></tr>`).join("");
+  decisions.map(d => `<tr id="dec-${attr(d.id)}"><td>${esc(d.id)}</td><td>${esc(d.q)}</td><td>${esc(d.rec)}</td><td>${pill(d.status)}</td></tr>`).join("");
 byId("declog").innerHTML = decisions.filter(d => d.status === "accepted").map(d => `<details class="dl"><summary><b>${esc(d.id)}</b> ${esc(d.q)}: ${esc(d.rec)}</summary><p><b>Why:</b> ${esc(d.why || "?")}</p><p><b>Evidence:</b> ${esc(d.evidence || "?")}</p><p class="sub">Decided ${esc(d.decided || "?")}</p></details>`).join("") || "<p class=\"sub\">None yet.</p>";
 byId("factstable").innerHTML = `<tr><th>Fact</th><th>Source</th></tr>` + (b.facts || []).map(([f, s]) => `<tr><td>${esc(f)}</td><td>${esc(s)}</td></tr>`).join("");
 byId("linkstable").innerHTML = (b.links || []).map(([t, u]) => `<tr><td>${esc(t)}</td><td><a href="${u}">${esc(u)}</a></td></tr>`).join("");
