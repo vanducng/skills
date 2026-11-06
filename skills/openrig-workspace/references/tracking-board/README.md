@@ -38,7 +38,7 @@ bash "$B/status.sh" --rig <rig> --project-dir <project dir> --missions <m8-x,m9-
 |---|---|---|
 | `owner_seat` | string | the human seat that receives this board's feedback, e.g. `lead-human@<rig>`; `init` fills it from `OPENRIG_SESSION_NAME` |
 | `title`, `headline`, `phase`, `updated` | strings | `updated` in the operator's zone; headline in the brief's form (state, done/total, what waits) |
-| `needs` | `[string]` | open asks for the operator; empty when none |
+| `needs` | `[string \| {text, href, link?}]` | open asks for the operator; empty when none. An object adds a link to the detail (`#dec-<id>` for a decision row, a section `#<id>`, or a URL); `link` is the link text, default `details` |
 | `missions` | `[{id, name, goal, status, slices: [{id, name, owner, status, progress, note, pr?}]}]` | status: `planned`, `doing`, `blocked`, `done`, `decide`; progress 0-100 |
 | `decisions` | `[{id, q, rec, status, why, evidence, decided}]` | `C<n>` accepted, `Q<n>` or `R<n>` open (`decide`); the decision log shows why and evidence |
 | `log` | `[[when, what, evidence]]` | provider writes, merges, Jira edits, dispatches |
