@@ -608,8 +608,8 @@ test('create handles unicode characters', () => {
   assert(!json.wouldCreate.branch.includes('测'), 'Should not contain unicode');
 });
 
-test('create handles leading/trailing dashes', () => {
-  const result = run('create "---feature---" --dry-run --json');
+test('create trims trailing dashes (a leading dash is refused, see below)', () => {
+  const result = run('create "feature---" --dry-run --json');
   assert(result.success, 'Should succeed');
   const json = assertJSON(result.output);
   assert(!json.wouldCreate.branch.endsWith('/-'), 'Should not end with dash');
@@ -1342,6 +1342,27 @@ test('integration: base follows origin/HEAD, after dev/develop and before main',
   sh('git branch dev HEAD', repo);
   json = assertJSON(run('create "b3" --dry-run --json', { cwd: repo }).output);
   assert(json.wouldCreate.baseBranch === 'dev', `got ${json.wouldCreate.baseBranch}`);
+});
+
+test('create refuses an option-looking name before any side effect', () => {
+  const repo = setupMiseRepo('option-name-repo');
+  fs.writeFileSync(path.join(repo, '.env'), 'SECRET=1\n');
+  const root = path.join(TMP_BASE, 'option-name-root');
+  const countWorktrees = () => sh('git worktree list --porcelain', repo).split('\n').filter(l => l.startsWith('worktree ')).length;
+  const branches = () => sh('git branch --format="%(refname:short)"', repo);
+  const branchesBefore = branches();
+  for (const name of ['--help', '-h', '--bogus', '-x']) {
+    const result = run(`create ${name} --no-prefix --worktree-root "${root}" --json`, { cwd: repo });
+    assert(!result.success && result.exitCode === 2, `${name}: expected exit 2, got ${result.exitCode}`);
+    assert(assertJSON(result.output).error.code === 'INVALID_FEATURE_NAME', `${name}: wrong error code`);
+    assert(countWorktrees() === 1, `${name}: created a worktree`);
+    assert(branches() === branchesBefore, `${name}: created a branch`);
+    assert(!fs.existsSync(root), `${name}: created the worktree root (env copy target)`);
+  }
+  const text = run('create --help', { cwd: repo });
+  assert(!text.success && /Usage: node worktree\.cjs/.test(text.stderr), 'plain run prints usage on stderr');
+  const removal = run('remove --help --json', { cwd: repo });
+  assert(!removal.success && removal.exitCode === 2, 'remove also refuses an option-looking name');
 });
 
 try {
