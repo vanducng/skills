@@ -17,7 +17,7 @@ Two things this exists to get right:
      at 2026-07-02T23:56Z is 7/3 in Asia/Ho_Chi_Minh. Grouping on the raw UTC date
      misfiles work across day and month boundaries.
 
-Run with: ~/.claude/skills/.venv/bin/python3 (needs pyyaml)
+Run with: uv run --with pyyaml scripts/harvest-prs.py ...
 """
 
 import argparse
