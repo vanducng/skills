@@ -106,67 +106,76 @@ if (nodeVersion < MIN_NODE_VERSION) {
   process.exit(1);
 }
 
-// Parse arguments
-const args = process.argv.slice(2);
-const jsonOutput = args.includes('--json');
-const jsonIndex = args.indexOf('--json');
-if (jsonIndex > -1) args.splice(jsonIndex, 1);
+// Parse arguments in one left-to-right pass. Every token is a boolean flag, a
+// value flag (its next token must exist and not start with '-'), or a
+// positional; any other '-' token is refused. Errors are collected here and
+// refused in main() before ANY subcommand runs, so a mistyped flag can never
+// create or remove a worktree or copy env files.
+const BOOLEAN_FLAGS = new Set([
+  '--json', '--dry-run', '--no-prefix', '--checkout-submodules', '--no-post-create-hook',
+  '--no-copy-env', '--no-enter', '--skip-repo-task', '--no-pre-remove-hook', '--yes',
+  '--merged', '--stale', '--force',
+]);
+const VALUE_FLAGS = new Set(['--prefix', '--env', '--worktree-root', '--name', '--base', '--post-create-hook']);
 
-// Value-taking flags (--prefix, --env, --worktree-root, --name, --base,
-// --post-create-hook) read their value through takeFlagValue. A missing value or
-// one starting with '-' is recorded here and refused in main() before any side
-// effect, instead of swallowing the next argument (e.g. `--prefix --help`).
-const optionValueErrors = [];
-// consumeDashValue: let the caller validate a '-' value itself (--base reports INVALID_BASE_BRANCH).
-function takeFlagValue(flag, { consumeDashValue = false } = {}) {
-  const i = args.indexOf(flag);
-  if (i === -1) return { present: false, value: undefined };
-  const value = args[i + 1];
-  if (value === undefined || (value.startsWith('-') && !consumeDashValue)) {
-    optionValueErrors.push(value === undefined ? `${flag} needs a value` : `${flag} needs a value, got option-looking "${value}"`);
-    args.splice(i, 1); // leave the bad value in args so the name guard sees it too
-    return { present: true, value: undefined };
+function parseArgv(argv) {
+  const positionals = [];
+  const flags = new Set();
+  const values = {};
+  const errors = [];
+  const refuse = (message, code = 'INVALID_FEATURE_NAME') => errors.push({ code, message });
+  for (let i = 0; i < argv.length; i++) {
+    const token = argv[i];
+    if (BOOLEAN_FLAGS.has(token)) {
+      flags.add(token);
+    } else if (VALUE_FLAGS.has(token)) {
+      const value = argv[i + 1];
+      if (value === undefined) {
+        refuse(`${token} needs a value`, token === '--base' ? 'INVALID_BASE_BRANCH' : undefined);
+      } else if (value.startsWith('-')) {
+        refuse(`${token} needs a value, got option-looking "${value}"`, token === '--base' ? 'INVALID_BASE_BRANCH' : undefined);
+      } else {
+        values[token] = value;
+      }
+      i++; // the value token is never reinterpreted as a flag or name
+    } else if (token.startsWith('-') && !(positionals.length === 0 && (token === '--help' || token === '-h'))) {
+      refuse(`Unknown option or option-looking name: ${token}`);
+    } else {
+      positionals.push(token);
+    }
   }
-  args.splice(i, 2);
-  return { present: true, value };
+  return { positionals, flags, values, errors };
 }
+
+const parsed = parseArgv(process.argv.slice(2));
+const args = parsed.positionals;
+const parseErrors = parsed.errors;
+const jsonOutput = process.argv.includes('--json');
+const hasFlag = flag => parsed.flags.has(flag);
 
 let branchPrefix = 'feat';
 let branchPrefixWarning = null;
-const prefixFlag = takeFlagValue('--prefix');
-if (prefixFlag.present) {
-  const rawPrefix = prefixFlag.value || 'feat';
+if ('--prefix' in parsed.values) {
+  const rawPrefix = parsed.values['--prefix'] || 'feat';
   branchPrefix = sanitizeBranchPrefix(rawPrefix);
   if (branchPrefix !== rawPrefix.toLowerCase()) {
     branchPrefixWarning = `Branch prefix sanitized: "${rawPrefix}" → "${branchPrefix}"`;
   }
 }
 
-const envFlag = takeFlagValue('--env');
-const envFilesToCopy = (envFlag.value || '').split(',').map(v => v.trim()).filter(Boolean);
-
-const dryRunIndex = args.indexOf('--dry-run');
-const dryRun = dryRunIndex > -1;
-if (dryRunIndex > -1) args.splice(dryRunIndex, 1);
-
+const envFilesToCopy = (parsed.values['--env'] || '').split(',').map(v => v.trim()).filter(Boolean);
+const dryRun = hasFlag('--dry-run');
 // --no-prefix: skip branch prefix and preserve original case in feature name
-const noPrefixIndex = args.indexOf('--no-prefix');
-const noPrefix = noPrefixIndex > -1;
-if (noPrefixIndex > -1) args.splice(noPrefixIndex, 1);
-
+const noPrefix = hasFlag('--no-prefix');
 // --worktree-root: explicit override for worktree location (Claude's decision)
-const worktreeRootFlag = takeFlagValue('--worktree-root');
-const explicitWorktreeRoot = worktreeRootFlag.value ?? null;
-
-const nameFlag = takeFlagValue('--name');
-const explicitWorktreeName = nameFlag.present ? nameFlag.value || '' : null;
+const explicitWorktreeRoot = parsed.values['--worktree-root'] ?? null;
+const explicitWorktreeName = '--name' in parsed.values ? parsed.values['--name'] || '' : null;
 
 // --base: explicit override for base branch (skip auto-detection)
-const baseFlag = takeFlagValue('--base', { consumeDashValue: true });
 let explicitBase = null;
 let explicitBaseError = null;
-if (baseFlag.present) {
-  const sanitized = sanitizeBaseBranch(baseFlag.value);
+if ('--base' in parsed.values) {
+  const sanitized = sanitizeBaseBranch(parsed.values['--base']);
   if (sanitized && typeof sanitized === 'object' && sanitized.error) {
     // Store error for later - will be reported during cmdCreate
     explicitBaseError = sanitized;
@@ -175,53 +184,28 @@ if (baseFlag.present) {
   }
 }
 
-const checkoutSubmodulesIndex = args.indexOf('--checkout-submodules');
-const checkoutSubmodules = checkoutSubmodulesIndex > -1;
-if (checkoutSubmodulesIndex > -1) args.splice(checkoutSubmodulesIndex, 1);
-
+const checkoutSubmodules = hasFlag('--checkout-submodules');
 // --post-create-hook <path|command>: run after worktree creation in the new
 // worktree dir. If absent, auto-detect (.worktree/hooks/post-create or
 // scripts/setup-worktree). Use --no-post-create-hook to disable detection.
-const postCreateHook = takeFlagValue('--post-create-hook').value ?? null;
-const noPostCreateHookIndex = args.indexOf('--no-post-create-hook');
-const noPostCreateHook = noPostCreateHookIndex > -1;
-if (noPostCreateHookIndex > -1) args.splice(noPostCreateHookIndex, 1);
-
+const postCreateHook = parsed.values['--post-create-hook'] ?? null;
+const noPostCreateHook = hasFlag('--no-post-create-hook');
 // --no-copy-env: skip copying untracked .env* files from the source checkout
-const noCopyEnvIndex = args.indexOf('--no-copy-env');
-const noCopyEnv = noCopyEnvIndex > -1;
-if (noCopyEnvIndex > -1) args.splice(noCopyEnvIndex, 1);
-
+const noCopyEnv = hasFlag('--no-copy-env');
 // --no-enter: stay in the current directory instead of switching the agent
 // session into the new worktree. Default is to enter (WORKTREE_NO_ENTER=1 also opts out).
-const noEnterIndex = args.indexOf('--no-enter');
-const noEnter = noEnterIndex > -1 || process.env.WORKTREE_NO_ENTER === '1';
-if (noEnterIndex > -1) args.splice(noEnterIndex, 1);
-
+const noEnter = hasFlag('--no-enter') || process.env.WORKTREE_NO_ENTER === '1';
 // --skip-repo-task: create here even though the repo declares its own worktree task
-const skipRepoTaskIndex = args.indexOf('--skip-repo-task');
-const skipRepoTask = skipRepoTaskIndex > -1;
-if (skipRepoTaskIndex > -1) args.splice(skipRepoTaskIndex, 1);
-
+const skipRepoTask = hasFlag('--skip-repo-task');
 // --no-pre-remove-hook: skip .worktree/hooks/pre-remove on remove
-const noPreRemoveHookIndex = args.indexOf('--no-pre-remove-hook');
-const noPreRemoveHook = noPreRemoveHookIndex > -1;
-if (noPreRemoveHookIndex > -1) args.splice(noPreRemoveHookIndex, 1);
-
+const noPreRemoveHook = hasFlag('--no-pre-remove-hook');
 // --yes: confirm a destructive bulk op (clean executes; default is dry-run)
-const yesIndex = args.indexOf('--yes');
-const confirmYes = yesIndex > -1;
-if (yesIndex > -1) args.splice(yesIndex, 1);
-
+const confirmYes = hasFlag('--yes');
 // clean scope: --merged (branch merged into base), --stale (gone-from-remote
 // or prunable). Neither flag = both. --force includes dirty worktrees.
-const cleanMerged = args.includes('--merged');
-[args.indexOf('--merged')].filter(i => i > -1).forEach(i => args.splice(i, 1));
-const cleanStale = args.includes('--stale');
-[args.indexOf('--stale')].filter(i => i > -1).forEach(i => args.splice(i, 1));
-const forceIndex = args.indexOf('--force');
-const cleanForce = forceIndex > -1;
-if (forceIndex > -1) args.splice(forceIndex, 1);
+const cleanMerged = hasFlag('--merged');
+const cleanStale = hasFlag('--stale');
+const cleanForce = hasFlag('--force');
 
 const command = args[0];
 // For create: args[1] is project (or feature for standalone), args[2] is feature
@@ -2458,28 +2442,24 @@ Exit codes:
   print(help);
 }
 
-// An option-looking argument (anything starting with '-') left after flag
-// parsing is never a valid feature, project or worktree name. Refuse it before
-// any git call, mkdir or env copy so a mistyped flag cannot create a worktree.
-function refuseOptionLookingNames() {
-  if (command !== 'create' && command !== 'remove') return;
-  const bad = args.slice(1).find(a => a.startsWith('-'));
-  if (bad === undefined && optionValueErrors.length === 0) return;
+// Refuse every parse error before dispatching to any subcommand.
+function refuseParseErrors() {
+  if (parseErrors.length === 0) return;
   if (!jsonOutput) showHelp(console.error);
-  const reason = optionValueErrors[0] || `Unknown option or option-looking name: ${bad}`;
-  outputError('INVALID_FEATURE_NAME', reason, {
-    suggestion: 'Names cannot start with "-". Run "node worktree.cjs --help" for usage.'
+  outputError(parseErrors[0].code, parseErrors[0].message, {
+    suggestion: 'Names and flag values cannot start with "-". Run "node worktree.cjs --help" for usage.'
   });
 }
 
 // Main
 function main() {
+  refuseParseErrors();
+
   if (command === '--help' || command === '-h' || command === 'help') {
     showHelp();
     return;
   }
 
-  refuseOptionLookingNames();
 
   switch (command) {
     case 'create':
