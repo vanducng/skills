@@ -1365,25 +1365,40 @@ test('create refuses an option-looking name before any side effect', () => {
   assert(!removal.success && removal.exitCode === 2, 'remove also refuses an option-looking name');
 });
 
-test('value-taking flags refuse a missing or option-looking value before any side effect', () => {
-  const repo = setupMiseRepo('flag-value-repo');
+test('a single-pass parser refuses bad arguments before any subcommand acts', () => {
+  const repo = setupMiseRepo('single-pass-repo');
   fs.writeFileSync(path.join(repo, '.env'), 'SECRET=1\n');
-  const root = path.join(TMP_BASE, 'flag-value-root');
+  const root = path.join(TMP_BASE, 'single-pass-root');
+  const keep = path.join(TMP_BASE, 'single-pass-keep');
+  sh(`git worktree add -q -b temporary "${keep}"`, repo);
   const countWorktrees = () => sh('git worktree list --porcelain', repo).split('\n').filter(l => l.startsWith('worktree ')).length;
   const branches = () => sh('git branch --format="%(refname:short)"', repo);
   const branchesBefore = branches();
+  const valueFlags = ['--prefix', '--env', '--worktree-root', '--name', '--base', '--post-create-hook'];
+  const booleanFlags = ['--json', '--dry-run', '--no-prefix', '--checkout-submodules', '--no-post-create-hook',
+    '--no-copy-env', '--no-enter', '--skip-repo-task', '--no-pre-remove-hook', '--yes', '--merged', '--stale', '--force'];
   const cases = [
-    'create --prefix --help demo --worktree-root "ROOT" --no-enter',
-    ...['--prefix', '--env', '--worktree-root', '--name', '--base', '--post-create-hook'].flatMap(flag => [
-      `create ${flag} --help demo --worktree-root "ROOT" --no-enter`,
-      `create demo --worktree-root "ROOT" --no-enter ${flag}`,
+    'remove --base --help temporary --json',
+    `create --prefix --json abc def --worktree-root "${root}" --no-enter`,
+    'remove temporary --bogus',
+    'remove temporary --name',
+    'remove temporary --prefix --yes',
+    'clean --yes --force --base --help',
+    'clean --merged --yes --worktree-root',
+    'clean --yes --bogus',
+    'list --bogus',
+    ...valueFlags.flatMap(v => [
+      `create ${v} --help demo --worktree-root "${root}" --no-enter`,
+      `create demo --worktree-root "${root}" --no-enter ${v}`,
+      ...booleanFlags.map(b => `create demo --worktree-root "${root}" --no-enter ${v} ${b}`),
     ]),
-  ].map(c => c.replace('ROOT', root));
+  ];
   for (const args of cases) {
-    const result = run(`${args} --json`, { cwd: repo });
+    const result = run(args, { cwd: repo });
     assert(!result.success && result.exitCode === 2, `${args}: expected exit 2, got ${result.exitCode}`);
-    assert(countWorktrees() === 1, `${args}: created a worktree`);
-    assert(branches() === branchesBefore, `${args}: created a branch`);
+    assert(countWorktrees() === 2, `${args}: changed the worktree list`);
+    assert(fs.existsSync(keep), `${args}: removed the existing worktree`);
+    assert(branches() === branchesBefore, `${args}: changed branches`);
     assert(!fs.existsSync(root), `${args}: created the worktree root (env copy target)`);
   }
 });
