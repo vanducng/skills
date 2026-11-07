@@ -1365,6 +1365,29 @@ test('create refuses an option-looking name before any side effect', () => {
   assert(!removal.success && removal.exitCode === 2, 'remove also refuses an option-looking name');
 });
 
+test('value-taking flags refuse a missing or option-looking value before any side effect', () => {
+  const repo = setupMiseRepo('flag-value-repo');
+  fs.writeFileSync(path.join(repo, '.env'), 'SECRET=1\n');
+  const root = path.join(TMP_BASE, 'flag-value-root');
+  const countWorktrees = () => sh('git worktree list --porcelain', repo).split('\n').filter(l => l.startsWith('worktree ')).length;
+  const branches = () => sh('git branch --format="%(refname:short)"', repo);
+  const branchesBefore = branches();
+  const cases = [
+    'create --prefix --help demo --worktree-root "ROOT" --no-enter',
+    ...['--prefix', '--env', '--worktree-root', '--name', '--base', '--post-create-hook'].flatMap(flag => [
+      `create ${flag} --help demo --worktree-root "ROOT" --no-enter`,
+      `create demo --worktree-root "ROOT" --no-enter ${flag}`,
+    ]),
+  ].map(c => c.replace('ROOT', root));
+  for (const args of cases) {
+    const result = run(`${args} --json`, { cwd: repo });
+    assert(!result.success && result.exitCode === 2, `${args}: expected exit 2, got ${result.exitCode}`);
+    assert(countWorktrees() === 1, `${args}: created a worktree`);
+    assert(branches() === branchesBefore, `${args}: created a branch`);
+    assert(!fs.existsSync(root), `${args}: created the worktree root (env copy target)`);
+  }
+});
+
 try {
   fs.rmSync(TMP_BASE, { recursive: true, force: true });
 } catch { /* temp dir cleanup is best-effort */ }

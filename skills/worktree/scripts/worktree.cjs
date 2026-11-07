@@ -112,24 +112,38 @@ const jsonOutput = args.includes('--json');
 const jsonIndex = args.indexOf('--json');
 if (jsonIndex > -1) args.splice(jsonIndex, 1);
 
-const prefixIndex = args.indexOf('--prefix');
+// Value-taking flags (--prefix, --env, --worktree-root, --name, --base,
+// --post-create-hook) read their value through takeFlagValue. A missing value or
+// one starting with '-' is recorded here and refused in main() before any side
+// effect, instead of swallowing the next argument (e.g. `--prefix --help`).
+const optionValueErrors = [];
+// consumeDashValue: let the caller validate a '-' value itself (--base reports INVALID_BASE_BRANCH).
+function takeFlagValue(flag, { consumeDashValue = false } = {}) {
+  const i = args.indexOf(flag);
+  if (i === -1) return { present: false, value: undefined };
+  const value = args[i + 1];
+  if (value === undefined || (value.startsWith('-') && !consumeDashValue)) {
+    optionValueErrors.push(value === undefined ? `${flag} needs a value` : `${flag} needs a value, got option-looking "${value}"`);
+    args.splice(i, 1); // leave the bad value in args so the name guard sees it too
+    return { present: true, value: undefined };
+  }
+  args.splice(i, 2);
+  return { present: true, value };
+}
+
 let branchPrefix = 'feat';
 let branchPrefixWarning = null;
-if (prefixIndex > -1) {
-  const rawPrefix = args[prefixIndex + 1] || 'feat';
+const prefixFlag = takeFlagValue('--prefix');
+if (prefixFlag.present) {
+  const rawPrefix = prefixFlag.value || 'feat';
   branchPrefix = sanitizeBranchPrefix(rawPrefix);
   if (branchPrefix !== rawPrefix.toLowerCase()) {
     branchPrefixWarning = `Branch prefix sanitized: "${rawPrefix}" → "${branchPrefix}"`;
   }
-  args.splice(prefixIndex, 2);
 }
 
-const envIndex = args.indexOf('--env');
-let envFilesToCopy = [];
-if (envIndex > -1) {
-  envFilesToCopy = (args[envIndex + 1] || '').split(',').map(v => v.trim()).filter(Boolean);
-  args.splice(envIndex, 2);
-}
+const envFlag = takeFlagValue('--env');
+const envFilesToCopy = (envFlag.value || '').split(',').map(v => v.trim()).filter(Boolean);
 
 const dryRunIndex = args.indexOf('--dry-run');
 const dryRun = dryRunIndex > -1;
@@ -141,34 +155,24 @@ const noPrefix = noPrefixIndex > -1;
 if (noPrefixIndex > -1) args.splice(noPrefixIndex, 1);
 
 // --worktree-root: explicit override for worktree location (Claude's decision)
-const worktreeRootIndex = args.indexOf('--worktree-root');
-let explicitWorktreeRoot = null;
-if (worktreeRootIndex > -1) {
-  explicitWorktreeRoot = args[worktreeRootIndex + 1];
-  args.splice(worktreeRootIndex, 2);
-}
+const worktreeRootFlag = takeFlagValue('--worktree-root');
+const explicitWorktreeRoot = worktreeRootFlag.value ?? null;
 
-const nameIndex = args.indexOf('--name');
-let explicitWorktreeName = null;
-if (nameIndex > -1) {
-  explicitWorktreeName = args[nameIndex + 1] || '';
-  args.splice(nameIndex, 2);
-}
+const nameFlag = takeFlagValue('--name');
+const explicitWorktreeName = nameFlag.present ? nameFlag.value || '' : null;
 
 // --base: explicit override for base branch (skip auto-detection)
-const baseIndex = args.indexOf('--base');
+const baseFlag = takeFlagValue('--base', { consumeDashValue: true });
 let explicitBase = null;
 let explicitBaseError = null;
-if (baseIndex > -1) {
-  const rawBase = args[baseIndex + 1];
-  const sanitized = sanitizeBaseBranch(rawBase);
+if (baseFlag.present) {
+  const sanitized = sanitizeBaseBranch(baseFlag.value);
   if (sanitized && typeof sanitized === 'object' && sanitized.error) {
     // Store error for later - will be reported during cmdCreate
     explicitBaseError = sanitized;
   } else {
     explicitBase = sanitized; // null if empty/invalid, string if valid
   }
-  args.splice(baseIndex, 2);
 }
 
 const checkoutSubmodulesIndex = args.indexOf('--checkout-submodules');
@@ -178,12 +182,7 @@ if (checkoutSubmodulesIndex > -1) args.splice(checkoutSubmodulesIndex, 1);
 // --post-create-hook <path|command>: run after worktree creation in the new
 // worktree dir. If absent, auto-detect (.worktree/hooks/post-create or
 // scripts/setup-worktree). Use --no-post-create-hook to disable detection.
-const postCreateHookIndex = args.indexOf('--post-create-hook');
-let postCreateHook = null;
-if (postCreateHookIndex > -1) {
-  postCreateHook = args[postCreateHookIndex + 1];
-  args.splice(postCreateHookIndex, 2);
-}
+const postCreateHook = takeFlagValue('--post-create-hook').value ?? null;
 const noPostCreateHookIndex = args.indexOf('--no-post-create-hook');
 const noPostCreateHook = noPostCreateHookIndex > -1;
 if (noPostCreateHookIndex > -1) args.splice(noPostCreateHookIndex, 1);
@@ -2465,9 +2464,10 @@ Exit codes:
 function refuseOptionLookingNames() {
   if (command !== 'create' && command !== 'remove') return;
   const bad = args.slice(1).find(a => a.startsWith('-'));
-  if (bad === undefined) return;
+  if (bad === undefined && optionValueErrors.length === 0) return;
   if (!jsonOutput) showHelp(console.error);
-  outputError('INVALID_FEATURE_NAME', `Unknown option or option-looking name: ${bad}`, {
+  const reason = optionValueErrors[0] || `Unknown option or option-looking name: ${bad}`;
+  outputError('INVALID_FEATURE_NAME', reason, {
     suggestion: 'Names cannot start with "-". Run "node worktree.cjs --help" for usage.'
   });
 }
