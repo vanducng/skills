@@ -230,6 +230,7 @@ const command = args[0];
 const arg1 = args[1];
 const arg2 = args[2];
 
+
 // Detect which AI agent runtime is invoking the script so suggested
 // next-steps and "open in agent" hints stay accurate.
 // Override with WORKTREE_AGENT_CMD=<your-cli> for unknown runtimes.
@@ -2406,7 +2407,7 @@ function cmdPorts() {
   });
 }
 
-function showHelp() {
+function showHelp(print = console.log) {
   const help = `Git Worktree Manager (runtime-agnostic: Claude Code / Codex / shell)
 
 Usage: node worktree.cjs <command> [options]
@@ -2455,7 +2456,20 @@ Exit codes:
   68  network (fetch) failed
   70  runtime / node version error
   75  post-create hook failed`;
-  console.log(help);
+  print(help);
+}
+
+// An option-looking argument (anything starting with '-') left after flag
+// parsing is never a valid feature, project or worktree name. Refuse it before
+// any git call, mkdir or env copy so a mistyped flag cannot create a worktree.
+function refuseOptionLookingNames() {
+  if (command !== 'create' && command !== 'remove') return;
+  const bad = args.slice(1).find(a => a.startsWith('-'));
+  if (bad === undefined) return;
+  if (!jsonOutput) showHelp(console.error);
+  outputError('INVALID_FEATURE_NAME', `Unknown option or option-looking name: ${bad}`, {
+    suggestion: 'Names cannot start with "-". Run "node worktree.cjs --help" for usage.'
+  });
 }
 
 // Main
@@ -2464,6 +2478,8 @@ function main() {
     showHelp();
     return;
   }
+
+  refuseOptionLookingNames();
 
   switch (command) {
     case 'create':
