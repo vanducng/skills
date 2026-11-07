@@ -17,6 +17,12 @@ jira:
   project: EXAMPLE
   token_env: JIRA_EXAMPLE_API_TOKEN
   email_env: JIRA_EXAMPLE_USER_EMAIL
+delivery:                      # optional; omit if the invoice is not mailed
+  mail_gog_account: <account>
+  to: "Name <ap@example.com>"
+  bcc: [<you@example.com>]
+  subject: "<Name> Invoice {Mon} {YYYY}"
+  attachment: "<Client> Invoice - <Name> - {YYYYMM}.pdf"
 ---
 
 # Invoice rules: example
@@ -43,6 +49,7 @@ prose for the agent.
 | `repos[].slug` | `owner/repo` to harvest |
 | `repos[].label` | Prefix used when citing that repo's PRs. Required whenever two repos have overlapping PR number ranges, e.g. `(other PR #201)` vs `(PR #1234)` |
 | `jira.*` | Base URL, project key, and the env var names holding credentials. **Names only - never the secrets** |
+| `delivery.*` | Who receives the exported PDF, and the subject and attachment name patterns. Copy them from last month's sent mail |
 
 ## Tab layout
 
