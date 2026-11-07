@@ -124,7 +124,7 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs create "<SLUG>" --prefix 
 node $HOME/skills/skills/worktree/scripts/worktree.cjs create "<PROJECT>" "<SLUG>" --prefix <TYPE>
 ```
 
-`create` and `remove` refuse any name that starts with `-` (exit 2, `INVALID_FEATURE_NAME`, usage on stderr) before touching git or the filesystem, so a mistyped flag such as `create --help` never creates a worktree or copies env files.
+`create` and `remove` refuse any name, and any value for a value-taking flag (`--prefix`, `--env`, `--worktree-root`, `--name`, `--base`, `--post-create-hook`), that is missing or starts with `-` (exit 2, `INVALID_FEATURE_NAME`, usage on stderr) before touching git or the filesystem, so a mistyped flag such as `create --help` never creates a worktree or copies env files.
 
 After every successful non-dry-run create that returns `worktreePath`, if `HERDR_ENV=1`, invoke `vd:herdr rename <project> <intent>` for the current pane. Pass the repository or selected monorepo project and the original feature description or ticket. Outside Herdr, skip the handoff. A rename failure does not invalidate the created worktree.
 
