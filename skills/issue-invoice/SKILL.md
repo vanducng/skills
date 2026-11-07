@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[client] [YYYY-MM] | rollover | --list"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # issue-invoice
@@ -65,7 +65,7 @@ Locate the Total row and its exact `SUM` ranges. Match the previous month's tota
 ### 2. Harvest PRs
 
 ```bash
-scripts/harvest-prs.py --client <alias> 2026-08
+uv run --with pyyaml scripts/harvest-prs.py --client <alias> 2026-08
 ```
 
 Groups PRs by the client's local working day across all configured repos, citing
@@ -90,10 +90,16 @@ curl -sS -u "$JIRA_X_USER_EMAIL:$JIRA_X_API_TOKEN" \
 
 Most PR titles carry the ticket id; otherwise check the body
 (`gh pr view N --repo <slug> --json body`) for a `Jira:` line. When neither exists,
-infer from domain and **tell the user which rows were inferred**.
+list the assigned tickets updated that month (`AND updated >= <YYYY-MM-01>`) - a real
+ticket usually exists. Only then infer from domain, and **tell the user which rows
+were inferred**.
 
-Size hours against the client's calibration table. **Always present the proposed
-rows and the new invoice total for approval before writing** - this is money.
+Rows already on the tab stay as they are; append only new work.
+
+Size hours against the client's calibration table. Bulk CI or infra PR days (runner
+migrations, token scoping, Terraform imports) bill well below their PR count; probe
+and scratch PRs bill nothing. **Always present the full timesheet - existing and new
+rows, with day of week - and the new total for approval before writing.** This is money.
 
 ### 3b. Gmail for work the PR list does not show
 
@@ -119,6 +125,19 @@ Include the instance only when it has its own transcript:
 
 A recurring series often copies one shared notes doc onto every instance. That shared file is not a transcript. Skip the hold when it is the only attachment, and skip instances with no notes email and no unique notes doc.
 
+Gemini mails notes to every invitee, so a notes mail proves the meeting ran, not that the user joined. Read the instance doc for attendance and length:
+
+```bash
+gog --account "$ACCT" --client "$CLIENT" calendar events --from <YYYY-MM-01> --to <next-01> --all-pages --json
+gog --account "$ACCT" --client "$CLIENT" docs cat <docId> --all-tabs
+```
+
+- `Transcript` tab: length from `Transcription ended after HH:MM:SS`; attendance from the user's speaker lines.
+- No transcript: length is the doc's Drive `createdTime` minus the start time in its title; attendance from sentences naming the user in the notes.
+- "A summary wasn't produced ... not enough conversation" means the meeting did not happen. Skip it.
+
+Bill the length rounded up to 0.5h unless the rules fix a duration. Present each instance with date, day of week, length, and the attendance evidence, so the user can strike ones they missed.
+
 Column B stays `Meeting`. Column C is the event title from the rules.
 
 ### 4. Write
@@ -143,14 +162,42 @@ Re-read the block and assert: row count, hours sum equals the Total cell, dates
 ascending, no dates outside the month, no blank ticket/note cells. Then screenshot
 with `ego-browser` for a visual pass.
 
+### 6. Export and send
+
+Only when the rules define `delivery`. `gog sheets export` prints every tab with
+gridlines, so export the one tab:
+
+```bash
+scripts/export-tab-pdf.sh "$CLIENT" <email> <oauth-client.json> "$SID" <gid> "/tmp/<attachment name>.pdf"
+pdftoppm -r 130 -png "/tmp/<attachment name>.pdf" /tmp/invoice   # read the PNG
+```
+
+It fits the tab on one page. Compare the render with last month's sent PDF
+(`gmail attachment <messageId> <attachmentId>`): header, invoice number, date, Total.
+Copy subject and body from last month's sent mail, show the preview, and send only
+on an explicit go:
+
+```bash
+gog --account "$ACCT" --client "$CLIENT" gmail send --to "<to>" --bcc "<bcc>" \
+  --subject "<subject>" --body-file body.txt --attach "/tmp/<attachment name>.pdf" --json --no-input
+```
+
+Re-read the sent message headers to confirm To and Bcc.
+
 ## Monthly rollover
 
 ```bash
 export GOG_HOME="$HOME/.config/vd/gog"
-gog --account "$ACCT" api call sheets v4 spreadsheets.batchUpdate --allow-write \
+# --force: batchUpdate refuses to run non-interactively without it
+gog --account "$ACCT" api call sheets v4 spreadsheets.batchUpdate --allow-write --force \
   --params "{\"spreadsheetId\":\"$SID\"}" \
-  --body '{"requests":[{"duplicateSheet":{"sourceSheetId":OLD_SHEET_ID,"insertSheetIndex":0,"newSheetName":"202609"}}]}'
+  --body '{"requests":[
+    {"duplicateSheet":{"sourceSheetId":OLD_SHEET_ID,"insertSheetIndex":0,"newSheetName":"202609","newSheetId":NEW_ID}},
+    {"deleteDimension":{"range":{"sheetId":NEW_ID,"dimension":"ROWS","startIndex":FIRST_EXTRA,"endIndex":LAST_EXTRA}}}]}'
 ```
+
+A long month copies dozens of rows. Pick `newSheetId` yourself so the same call can
+trim the copy back to the template's short block above Total.
 
 Then: update the invoice number and date cells, `values clear` the old data block
 (formatting survives), write the new month from the first data row, leave the
@@ -174,6 +221,7 @@ Each of these cost real time. Do not rediscover them.
 - **Token death** (`invalid_grant` / `invalid_rapt`) needs `gog auth add --force-consent`
   for that person alias. Weekly death means the OAuth app is still in Testing -
   publish it; do not keep re-authing.
+- **`gog calendar events` pages silently.** Pass `--all-pages`, or later meetings vanish.
 - **Calendar is a separate scope.** If `gog calendar` 403s, ask for meeting dates
   or re-add with calendar in `--services`.
 - **A shared series notes doc is not attendance.** Count a meeting only from a unique notes doc or a notes email for that date.
