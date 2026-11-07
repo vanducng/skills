@@ -2,6 +2,25 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.74.0](https://github.com/vanducng/skills/compare/v1.73.2...v1.74.0) (2026-11-07)
+
+
+### Features
+
+* **issue-invoice:** one-tab PDF export, mail delivery, and meeting attendance checks ([856711a](https://github.com/vanducng/skills/commit/856711a587ca94a11bcda38278a69cb9f326e81c))
+* **jira,openrig-workspace:** work-ticket shape and team-update reference ([89d7d8d](https://github.com/vanducng/skills/commit/89d7d8d5cee9ec810190a3132743e2d5556f1352))
+* **jira,openrig-workspace:** work-ticket shape and team-update reference ([ed342d1](https://github.com/vanducng/skills/commit/ed342d1fafdbaacebb8adcf994453e5b8b70df4b))
+* **openrig-workspace:** add per-initiative tracking boards ([9579e87](https://github.com/vanducng/skills/commit/9579e877f9be8d65da19319ab53e8caa5207ee3f))
+* **openrig-workspace:** add per-initiative tracking boards ([a6ac1b4](https://github.com/vanducng/skills/commit/a6ac1b4a80b7881dfdaa2b1380bde4f19faf76e9))
+* **openrig-workspace:** annotate boards and send feedback to the human seat ([a13e127](https://github.com/vanducng/skills/commit/a13e12772fd4f93e2eeca2729962a4c0b6c1caef))
+* **openrig-workspace:** board nav, role colors for diagrams, board check ([745fa3a](https://github.com/vanducng/skills/commit/745fa3ae0bbfa52366b54f2aba9817b7975f678a))
+* **openrig-workspace:** optional test-case table on boards ([a784c53](https://github.com/vanducng/skills/commit/a784c53d1c680aaa10dfca224994f8ab7b2806e3))
+
+
+### Bug Fixes
+
+* **skill-audit:** fall back to workbench resolve when no Reports path is injected ([fe518e5](https://github.com/vanducng/skills/commit/fe518e5d30768dd8219369252ed991d05d99c95f))
+
 ## [1.73.2](https://github.com/vanducng/skills/compare/v1.73.1...v1.73.2) (2026-11-01)
 
 
