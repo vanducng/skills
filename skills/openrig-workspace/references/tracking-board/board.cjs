@@ -57,6 +57,18 @@ function cleanSvg(svg, prefix) {
   return out;
 }
 
+// A statechart from the statechart skill colors states by phase (its view's color classes) and marks broken states
+// with a classDef. On a board it takes the role palette: phases map to roles, breaks and mayBreak to risk, and the
+// classDef lines go. bugPath and repeats stay as marks the template draws. board.json keeps the chart as written.
+const PHASE_ROLE = { blue: "ours", orange: "person", purple: "provider", yellow: "store", teal: "done", tan: "legacy", pink: "ours", breaks: "risk", mayBreak: "risk" };
+const STATE_MARKS = ["bugPath", "repeats"];
+const isStatechart = src => /^\s*stateDiagram(?:-v2)?\s*$/m.test(src);
+function boardSource(src) {
+  if (!isStatechart(src)) return src;
+  return src.split("\n").filter(l => !/^\s*classDef\s+(?:breaks|mayBreak)\s/.test(l))
+    .map(l => l.replace(/^(\s*class\s+[\w,]+\s+)(\w+)\s*$/, (_, head, c) => head + (PHASE_ROLE[c] || c))).join("\n");
+}
+
 // Wide flowcharts (LR, RL) get a second, top-down drawing for phones.
 function prerender(data) {
   const diagrams = data.diagrams || {}, out = {};
@@ -66,7 +78,7 @@ function prerender(data) {
   if (!pele) return { out, missing: true, failed: [] };
   const failed = [];
   ids.forEach((id, i) => {
-    const src = String(diagrams[id] || "");
+    const src = boardSource(String(diagrams[id] || ""));
     try {
       const svg = cleanSvg(pele.render(src).svg, `d${i}w-`);
       if (!svg) throw new Error("diagram markup was refused");
@@ -172,12 +184,21 @@ if (cmd === "init") {
   const peleDir = process.env.PELE_DIR || path.join(os.homedir(), ".cache", "openrig-boards");
   const pele = loadPele();
   let problems = 0;
-  const placed = new Set((data.sections || []).flatMap(s => [...(s.html || "").matchAll(/data-diagram="([^"]+)"/g)].map(m => m[1])));
-  for (const [id, src] of Object.entries(data.diagrams || {})) {
-    const issues = [];
-    if (!placed.has(id)) issues.push("not placed in any section (<div data-diagram=\"" + id + "\"></div>)");
+  // Where each diagram is drawn: once only, since a second drawing would repeat its SVG ids.
+  const placed = new Map(), place = (id, where) => placed.set(id, [...(placed.get(id) || []), where]);
+  for (const s of data.sections || []) for (const m of (s.html || "").matchAll(/data-diagram="([^"]+)"/g)) place(m[1], `section ${s.id}`);
+  for (const m of data.missions || []) for (const sl of m.slices || []) {
+    if (!sl.diagram) continue;
+    place(sl.diagram, `slice ${sl.id}`);
+    if (!(sl.diagram in (data.diagrams || {}))) { console.log(`slice ${sl.id} names unknown diagram ${sl.diagram}`); problems++; }
+  }
+  for (const [id, where] of placed) if (where.length > 1) { console.log(`diagram ${id} placed twice: ${where[0]} and ${where[1]}`); problems++; }
+  for (const [id, raw] of Object.entries(data.diagrams || {})) {
+    const issues = [], src = boardSource(String(raw)), marks = isStatechart(src) ? STATE_MARKS : [];
+    if (!placed.has(id)) issues.push("not placed in any section (<div data-diagram=\"" + id + "\"></div>) or slice (\"diagram\": \"" + id + "\")");
     if (/^\s*(classDef|style|linkStyle)\b|\bfill:|rgb\(/m.test(src)) issues.push("sets colors; use a role class (:::ours, class <subgraph> provider) or a participant type instead");
-    for (const m of src.matchAll(/:::(\w+)|^\s*class\s+[\w,]+\s+(\w+)/gm)) if (!roles.has(m[1] || m[2])) issues.push(`unknown role ${m[1] || m[2]}`);
+    if (/^\s*click\b/m.test(src)) issues.push("click adds a link or handler to a node; put links in a section or in links instead");
+    for (const m of src.matchAll(/:::(\w+)|^\s*class\s+[\w,]+\s+(\w+)/gm)) if (!roles.has(m[1] || m[2]) && !marks.includes(m[1] || m[2])) issues.push(`unknown role ${m[1] || m[2]}`);
     if (/^sequenceDiagram/.test(src.trim()) && /^\s*(Note|[\w]+\s*-[->x)]+)[^\n]*;/m.test(src)) issues.push("';' inside a sequence note or message ends the statement");
     if (pele) { try { pele.render(src); } catch (e) { issues.push(`pele: ${String(e.message).split("\n")[0]}`); } }
     for (const i of issues) console.log(`${id}: ${i}`);

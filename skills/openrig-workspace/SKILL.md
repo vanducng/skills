@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.18.1"
+  version: "0.19.0"
 ---
 
 # OpenRig workspace

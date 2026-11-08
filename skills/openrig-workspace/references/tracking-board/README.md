@@ -40,13 +40,13 @@ bash "$B/status.sh" --rig <rig> --project-dir <project dir> --missions <m8-x,m9-
 | `owner_seat` | string | the human seat that receives this board's feedback, e.g. `lead-human@<rig>`; `init` fills it from `OPENRIG_SESSION_NAME` |
 | `title`, `headline`, `phase`, `updated` | strings | `updated` in the operator's zone; headline in the brief's form (state, done/total, what waits) |
 | `needs` | `[string \| {text, href, link?}]` | open asks for the operator; empty when none. An object adds a link to the detail (`#dec-<id>` for a decision row, a section `#<id>`, or a URL); `link` is the link text, default `details` |
-| `missions` | `[{id, name, goal, status, slices: [{id, name, owner, status, progress, note, pr?}]}]` | status: `planned`, `doing`, `blocked`, `done`, `decide`; progress 0-100 |
-| `decisions` | `[{id, q, rec, status, why, evidence, decided}]` | `C<n>` accepted, `Q<n>` or `R<n>` open (`decide`); the decision log shows why and evidence |
+| `missions` | `[{id, name, goal, status, slices: [{id, name, owner, status, progress, note, pr?, diagram?}]}]` | status: `planned`, `doing`, `blocked`, `done`, `decide`; progress 0-100; `diagram` names a `diagrams` id drawn under the slice's note (a statechart, for example) |
+| `decisions` | `[{id, q, rec, status, why, evidence, decided}]` | `C<n>` accepted, `Q<n>` or `R<n>` open (`decide`). Each row shows the id, a small status badge and the question at full width; opening it shows the recommendation, why and evidence |
 | `log` | `[[when, what, evidence]]` | provider writes, merges, Jira edits, dispatches |
 | `facts` | `[[fact, source]]` | what was read, with its source; newest first |
 | `links` | `[[title, url]]` | consoles, PRs, tickets, docs |
 | `sections` | `[{id, title, nav?, place?, html}]` | hand-written HTML cards (intent, design, knowledge references). `place`: omitted puts the card between the headline block and the missions (as before); `"after"` puts it right after the missions; `"bottom"` puts it after the decision log (risks). Tables in `html` become stacked rows on a phone when their first row is `<th>` cells. A `<p class="sub">` is muted small text |
-| `diagrams` | `{id: "<Mermaid text>"}` | drawn by pele at render time into `<div data-diagram="id"></div>` placed in a section; see Diagram conventions |
+| `diagrams` | `{id: "<Mermaid text>"}` | drawn by pele at render time into `<div data-diagram="id"></div>` placed in a section, or under a slice that names it; see Diagram conventions |
 
 ## Reading the board
 
@@ -81,7 +81,7 @@ browser ──POST feedback──► server.cjs ──► feedback/inbox/<id>.js
 
 ## Diagram conventions
 
-Every board uses one palette, defined once in `template.html`. A diagram names roles, never colors, so the same thing looks the same on every board and the colors can change in one place. `board.cjs check` rejects `classDef`, `style`, `linkStyle`, `fill:` and `rgb(...)` in diagrams, and any role not in this table.
+Every board uses one palette, defined once in `template.html`. A diagram names roles, never colors, so the same thing looks the same on every board and the colors can change in one place. `board.cjs check` rejects `classDef`, `style`, `linkStyle`, `fill:`, `rgb(...)` and `click` in diagrams, any role not in this table, a slice `diagram` that names no diagram, and a diagram placed twice (a section and a slice, say), whose second drawing would repeat its SVG ids (a statechart's own marks are mapped first, below).
 
 | Role | Color | Flowchart | Sequence participant |
 |---|---|---|---|
@@ -94,6 +94,7 @@ Every board uses one palette, defined once in `template.html`. A diagram names r
 | `done` | green | proven or shipped: `:::done` | - |
 
 - Subgraphs take a role with `class <subgraph-id> <role>` (not `subgraph X:::role`).
+- A statechart from the `statechart` skill goes in as written. `render` and `check` map its phase colors to roles (blue `ours`, orange `person`, purple `provider`, yellow `store`, teal `done`, tan `legacy`, pink `ours`) and `breaks` and `mayBreak` to `risk`, and drop its two `classDef` lines; `bugPath` (a state on the shortest path to a bug) gets a thick red border and `repeats` a dashed one. Its own Legend block names the phases. Any other `classDef` is still rejected.
 - Edges: `-->` a call, `-.->` a callback, webhook or config write, `==>` the critical path.
 - Each diagram gets a legend of the roles it uses, under it, automatically.
 - Requires pele 1.13 or later: roles are CSS classes on the rendered SVG, recolored through pele's own variables (they follow the light and dark theme).
@@ -107,7 +108,7 @@ Every board uses one palette, defined once in `template.html`. A diagram names r
 node --test skills/openrig-workspace/references/tracking-board/tests/board.test.cjs   # render contract, helpers, tokens, contrast
 ```
 
-- `fixtures/board.json` is the synthetic board (a done mission, mixed statuses, open and accepted decisions, a long log, facts, links, a diagram, a risks table); `fixtures/empty.json` is what `init` writes. Never put a real board in the repo.
+- `fixtures/board.json` is the synthetic board (a done mission, mixed statuses, open and accepted decisions, a long log, facts, links, a diagram, a slice with a statechart, a risks table); `fixtures/empty.json` is what `init` writes. Never put a real board in the repo.
 - Render a fixture into a scratch root and serve it to look at it: `OPENRIG_BOARDS_ROOT=<scratch> node board.cjs render --all`, then `OPENRIG_BOARDS_ROOT=<scratch> OPENRIG_BOARDS_PORT=<free port> node server.cjs`. Check 390, 768 and 1440 wide, light and dark, the Changes sheet, a note box, and one feedback round trip. For the phone note box run `node tests/mobile-composer.check.cjs <rendered index.html> [--shots --out <dir>]`: headless Chrome with the iOS keyboard simulated, asserting every frame while a note is typed. `?now=<ISO time>` fixes the clock for captures.
 - The page's pure helpers sit between `tb:helpers:start` and `tb:helpers:end` in the script so the tests can load them without a DOM.
 
