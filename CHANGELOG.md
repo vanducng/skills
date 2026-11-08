@@ -2,6 +2,16 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.77.0](https://github.com/vanducng/skills/compare/v1.76.0...v1.77.0) (2026-11-08)
+
+
+### Features
+
+* **intake,shape:** gate skills with evals ([#577](https://github.com/vanducng/skills/issues/577)) ([01c5c5b](https://github.com/vanducng/skills/commit/01c5c5b55d2ad4381a5b0e33f5809cd022c056e5))
+* **openrig-workspace:** rig kind content for a one-seat studio rig ([#580](https://github.com/vanducng/skills/issues/580)) ([0b925a0](https://github.com/vanducng/skills/commit/0b925a0993a75a83c5d42cde273b11f48a39bc5b))
+* **retro:** gate skill with evals ([#578](https://github.com/vanducng/skills/issues/578)) ([780150a](https://github.com/vanducng/skills/commit/780150ab9a2ab1f862ff583f07ed32b23e7c686b))
+* **verify:** prove a change on parent and head, with evals ([#581](https://github.com/vanducng/skills/issues/581)) ([2c27b78](https://github.com/vanducng/skills/commit/2c27b78f0f46e9bf03a701de58c1759b38ab3b93))
+
 ## [1.76.0](https://github.com/vanducng/skills/compare/v1.75.0...v1.76.0) (2026-11-08)
 
 
