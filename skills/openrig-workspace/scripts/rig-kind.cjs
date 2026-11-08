@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Maps a task kind to the rig template under $PROJECTS_ROOT/specs/rigs/<template>.
 // feature requires --profile low|medium|high. bugfix and sop reject --profile.
+// Seat ids are <pod>.<member> as in the template. `model` names the routing role that
+// `fleet/bin/rig-to-pi convert` resolves for the seat, or `terminal` for the operator's Pi shell.
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");
@@ -14,57 +16,64 @@ function flag(name) {
   return value;
 }
 
+const seat = (id, model) => ({ id, model });
+const solo = [seat("dev.build", "build")];
+const workshop = [
+  seat("orch.human", "terminal"),
+  seat("orch.lead", "lead"),
+  seat("dev.build", "build"),
+  seat("dev.qa", "qa"),
+  seat("dev.review", "review"),
+];
+const factory = [
+  seat("orch.human", "terminal"),
+  seat("orch.lead", "lead"),
+  seat("orch.advisor", "advisor"),
+  seat("orch.pm", "pm"),
+  seat("dev.build", "build"),
+  seat("dev.qa", "qa"),
+  seat("dev.design", "design"),
+  seat("review.r1", "review"),
+];
+
 const kinds = {
   feature: {
     profiles: {
       low: {
-        template: "feature-low",
-        models: "default",
+        template: "solo",
+        models: "role",
         sliceTemplate: "placeholder",
-        seats: [{ id: "task.owner", model: "default" }],
+        seats: solo,
         rule: "One seat writes the change. No review seat.",
       },
       medium: {
-        template: "normal",
-        models: "default",
-        sliceTemplate: "placeholder",
-        seats: [
-          { id: "task.owner", model: "default" },
-          { id: "task.impl", model: "default" },
-          { id: "task.review", model: "default" },
-        ],
-        rule: "Owner coordinates. One writer. Fresh reviewer.",
-      },
-      high: {
-        template: "feature-high",
+        template: "workshop",
         models: "role",
         sliceTemplate: "placeholder",
-        seats: [
-          { id: "lead.owner", model: "owner" },
-          { id: "dev.impl", model: "implement" },
-          { id: "product.pm", model: "design" },
-          { id: "review.review", model: "review" },
-        ],
-        rule: "Lead agrees the plan with the operator before implementation. One writer. Fresh reviewer. Product seat for user-visible behavior.",
+        seats: workshop,
+        rule: "Lead coordinates. One writer. QA runs the change; a fresh reviewer from another model family reads the pushed head.",
+      },
+      high: {
+        template: "factory",
+        models: "role",
+        sliceTemplate: "placeholder",
+        seats: factory,
+        rule: "Lead agrees the plan with the operator before implementation. One writer. Design and PM seats for user-visible behavior; advisor for a second opinion. A second reviewer (review.r2) is added with rig add when the slice needs one.",
       },
     },
   },
   bugfix: {
-    template: "bugfix",
-    models: "default",
+    template: "workshop",
+    models: "role",
     sliceTemplate: "bug-fix",
-    seats: [
-      { id: "task.owner", model: "default" },
-      { id: "task.impl", model: "default" },
-      { id: "task.review", model: "default" },
-    ],
+    seats: workshop,
     rule: "Reproduce the failure before any edit. Same seats as a medium feature.",
   },
   sop: {
-    template: "sop",
-    models: "default",
+    template: "solo",
+    models: "role",
     sliceTemplate: "placeholder",
-    seats: [{ id: "task.owner", model: "default" }],
+    seats: solo,
     rule: "Follow the procedure already written for this org and project. One seat. Do not invent steps or extra seats.",
   },
 };
