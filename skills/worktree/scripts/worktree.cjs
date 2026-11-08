@@ -106,129 +106,113 @@ if (nodeVersion < MIN_NODE_VERSION) {
   process.exit(1);
 }
 
-// Parse arguments
-const args = process.argv.slice(2);
-const jsonOutput = args.includes('--json');
-const jsonIndex = args.indexOf('--json');
-if (jsonIndex > -1) args.splice(jsonIndex, 1);
+// Parse arguments in one left-to-right pass. Every token is a boolean flag, a
+// value flag (its next token must exist and not start with '-'), or a
+// positional; any other '-' token is refused. Errors are collected here and
+// refused in main() before ANY subcommand runs, so a mistyped flag can never
+// create or remove a worktree or copy env files.
+const BOOLEAN_FLAGS = new Set([
+  '--json', '--dry-run', '--no-prefix', '--checkout-submodules', '--no-post-create-hook',
+  '--no-copy-env', '--no-enter', '--skip-repo-task', '--no-pre-remove-hook', '--yes',
+  '--merged', '--stale', '--force',
+]);
+const VALUE_FLAGS = new Set(['--prefix', '--env', '--worktree-root', '--name', '--base', '--post-create-hook']);
 
-const prefixIndex = args.indexOf('--prefix');
+function parseArgv(argv) {
+  const positionals = [];
+  const flags = new Set();
+  const values = {};
+  const errors = [];
+  const refuse = (message, code = 'INVALID_FEATURE_NAME') => errors.push({ code, message });
+  for (let i = 0; i < argv.length; i++) {
+    const token = argv[i];
+    if (BOOLEAN_FLAGS.has(token)) {
+      flags.add(token);
+    } else if (VALUE_FLAGS.has(token)) {
+      const value = argv[i + 1];
+      if (value === undefined) {
+        refuse(`${token} needs a value`, token === '--base' ? 'INVALID_BASE_BRANCH' : undefined);
+      } else if (value.startsWith('-')) {
+        refuse(`${token} needs a value, got option-looking "${value}"`, token === '--base' ? 'INVALID_BASE_BRANCH' : undefined);
+      } else {
+        values[token] = value;
+      }
+      i++; // the value token is never reinterpreted as a flag or name
+    } else if (token.startsWith('-') && !(positionals.length === 0 && (token === '--help' || token === '-h'))) {
+      refuse(`Unknown option or option-looking name: ${token}`);
+    } else {
+      positionals.push(token);
+    }
+  }
+  return { positionals, flags, values, errors };
+}
+
+const parsed = parseArgv(process.argv.slice(2));
+const args = parsed.positionals;
+const parseErrors = parsed.errors;
+const jsonOutput = process.argv.includes('--json');
+const hasFlag = flag => parsed.flags.has(flag);
+
 let branchPrefix = 'feat';
 let branchPrefixWarning = null;
-if (prefixIndex > -1) {
-  const rawPrefix = args[prefixIndex + 1] || 'feat';
+if ('--prefix' in parsed.values) {
+  const rawPrefix = parsed.values['--prefix'] || 'feat';
   branchPrefix = sanitizeBranchPrefix(rawPrefix);
   if (branchPrefix !== rawPrefix.toLowerCase()) {
     branchPrefixWarning = `Branch prefix sanitized: "${rawPrefix}" → "${branchPrefix}"`;
   }
-  args.splice(prefixIndex, 2);
 }
 
-const envIndex = args.indexOf('--env');
-let envFilesToCopy = [];
-if (envIndex > -1) {
-  envFilesToCopy = (args[envIndex + 1] || '').split(',').map(v => v.trim()).filter(Boolean);
-  args.splice(envIndex, 2);
-}
-
-const dryRunIndex = args.indexOf('--dry-run');
-const dryRun = dryRunIndex > -1;
-if (dryRunIndex > -1) args.splice(dryRunIndex, 1);
-
+const envFilesToCopy = (parsed.values['--env'] || '').split(',').map(v => v.trim()).filter(Boolean);
+const dryRun = hasFlag('--dry-run');
 // --no-prefix: skip branch prefix and preserve original case in feature name
-const noPrefixIndex = args.indexOf('--no-prefix');
-const noPrefix = noPrefixIndex > -1;
-if (noPrefixIndex > -1) args.splice(noPrefixIndex, 1);
-
+const noPrefix = hasFlag('--no-prefix');
 // --worktree-root: explicit override for worktree location (Claude's decision)
-const worktreeRootIndex = args.indexOf('--worktree-root');
-let explicitWorktreeRoot = null;
-if (worktreeRootIndex > -1) {
-  explicitWorktreeRoot = args[worktreeRootIndex + 1];
-  args.splice(worktreeRootIndex, 2);
-}
-
-const nameIndex = args.indexOf('--name');
-let explicitWorktreeName = null;
-if (nameIndex > -1) {
-  explicitWorktreeName = args[nameIndex + 1] || '';
-  args.splice(nameIndex, 2);
-}
+const explicitWorktreeRoot = parsed.values['--worktree-root'] ?? null;
+const explicitWorktreeName = '--name' in parsed.values ? parsed.values['--name'] || '' : null;
 
 // --base: explicit override for base branch (skip auto-detection)
-const baseIndex = args.indexOf('--base');
 let explicitBase = null;
 let explicitBaseError = null;
-if (baseIndex > -1) {
-  const rawBase = args[baseIndex + 1];
-  const sanitized = sanitizeBaseBranch(rawBase);
+if ('--base' in parsed.values) {
+  const sanitized = sanitizeBaseBranch(parsed.values['--base']);
   if (sanitized && typeof sanitized === 'object' && sanitized.error) {
     // Store error for later - will be reported during cmdCreate
     explicitBaseError = sanitized;
   } else {
     explicitBase = sanitized; // null if empty/invalid, string if valid
   }
-  args.splice(baseIndex, 2);
 }
 
-const checkoutSubmodulesIndex = args.indexOf('--checkout-submodules');
-const checkoutSubmodules = checkoutSubmodulesIndex > -1;
-if (checkoutSubmodulesIndex > -1) args.splice(checkoutSubmodulesIndex, 1);
-
+const checkoutSubmodules = hasFlag('--checkout-submodules');
 // --post-create-hook <path|command>: run after worktree creation in the new
 // worktree dir. If absent, auto-detect (.worktree/hooks/post-create or
 // scripts/setup-worktree). Use --no-post-create-hook to disable detection.
-const postCreateHookIndex = args.indexOf('--post-create-hook');
-let postCreateHook = null;
-if (postCreateHookIndex > -1) {
-  postCreateHook = args[postCreateHookIndex + 1];
-  args.splice(postCreateHookIndex, 2);
-}
-const noPostCreateHookIndex = args.indexOf('--no-post-create-hook');
-const noPostCreateHook = noPostCreateHookIndex > -1;
-if (noPostCreateHookIndex > -1) args.splice(noPostCreateHookIndex, 1);
-
+const postCreateHook = parsed.values['--post-create-hook'] ?? null;
+const noPostCreateHook = hasFlag('--no-post-create-hook');
 // --no-copy-env: skip copying untracked .env* files from the source checkout
-const noCopyEnvIndex = args.indexOf('--no-copy-env');
-const noCopyEnv = noCopyEnvIndex > -1;
-if (noCopyEnvIndex > -1) args.splice(noCopyEnvIndex, 1);
-
+const noCopyEnv = hasFlag('--no-copy-env');
 // --no-enter: stay in the current directory instead of switching the agent
 // session into the new worktree. Default is to enter (WORKTREE_NO_ENTER=1 also opts out).
-const noEnterIndex = args.indexOf('--no-enter');
-const noEnter = noEnterIndex > -1 || process.env.WORKTREE_NO_ENTER === '1';
-if (noEnterIndex > -1) args.splice(noEnterIndex, 1);
-
+const noEnter = hasFlag('--no-enter') || process.env.WORKTREE_NO_ENTER === '1';
 // --skip-repo-task: create here even though the repo declares its own worktree task
-const skipRepoTaskIndex = args.indexOf('--skip-repo-task');
-const skipRepoTask = skipRepoTaskIndex > -1;
-if (skipRepoTaskIndex > -1) args.splice(skipRepoTaskIndex, 1);
-
+const skipRepoTask = hasFlag('--skip-repo-task');
 // --no-pre-remove-hook: skip .worktree/hooks/pre-remove on remove
-const noPreRemoveHookIndex = args.indexOf('--no-pre-remove-hook');
-const noPreRemoveHook = noPreRemoveHookIndex > -1;
-if (noPreRemoveHookIndex > -1) args.splice(noPreRemoveHookIndex, 1);
-
+const noPreRemoveHook = hasFlag('--no-pre-remove-hook');
 // --yes: confirm a destructive bulk op (clean executes; default is dry-run)
-const yesIndex = args.indexOf('--yes');
-const confirmYes = yesIndex > -1;
-if (yesIndex > -1) args.splice(yesIndex, 1);
-
+const confirmYes = hasFlag('--yes');
 // clean scope: --merged (branch merged into base), --stale (gone-from-remote
 // or prunable). Neither flag = both. --force includes dirty worktrees.
-const cleanMerged = args.includes('--merged');
-[args.indexOf('--merged')].filter(i => i > -1).forEach(i => args.splice(i, 1));
-const cleanStale = args.includes('--stale');
-[args.indexOf('--stale')].filter(i => i > -1).forEach(i => args.splice(i, 1));
-const forceIndex = args.indexOf('--force');
-const cleanForce = forceIndex > -1;
-if (forceIndex > -1) args.splice(forceIndex, 1);
+const cleanMerged = hasFlag('--merged');
+const cleanStale = hasFlag('--stale');
+const cleanForce = hasFlag('--force');
 
 const command = args[0];
 // For create: args[1] is project (or feature for standalone), args[2] is feature
 // For remove: args[1] is worktree name or path
 const arg1 = args[1];
 const arg2 = args[2];
+
 
 // Detect which AI agent runtime is invoking the script so suggested
 // next-steps and "open in agent" hints stay accurate.
@@ -2406,7 +2390,7 @@ function cmdPorts() {
   });
 }
 
-function showHelp() {
+function showHelp(print = console.log) {
   const help = `Git Worktree Manager (runtime-agnostic: Claude Code / Codex / shell)
 
 Usage: node worktree.cjs <command> [options]
@@ -2455,15 +2439,27 @@ Exit codes:
   68  network (fetch) failed
   70  runtime / node version error
   75  post-create hook failed`;
-  console.log(help);
+  print(help);
+}
+
+// Refuse every parse error before dispatching to any subcommand.
+function refuseParseErrors() {
+  if (parseErrors.length === 0) return;
+  if (!jsonOutput) showHelp(console.error);
+  outputError(parseErrors[0].code, parseErrors[0].message, {
+    suggestion: 'Names and flag values cannot start with "-". Run "node worktree.cjs --help" for usage.'
+  });
 }
 
 // Main
 function main() {
+  refuseParseErrors();
+
   if (command === '--help' || command === '-h' || command === 'help') {
     showHelp();
     return;
   }
+
 
   switch (command) {
     case 'create':
