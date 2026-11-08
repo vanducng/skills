@@ -310,6 +310,24 @@
   body.annotating:not(.composing) .annobar { display: flex; } body.annotating .page { padding-bottom: calc(var(--tb-sp-7) + 80px); } .annobar span { flex: 1; font-weight: 600; font-size: var(--tb-fs-sm); line-height: 1.3; } .annobar button { min-height: var(--tb-tap); padding: 0 var(--tb-sp-3); border: 0; border-radius: 9px; font-weight: 700; background: var(--tb-bg); color: var(--tb-text); cursor: pointer; }
   body.annotating .srow, body.annotating .drow, body.annotating .lrow, body.annotating .mission > summary, body.annotating .frow { cursor: copy; }
   @media (pointer: coarse) { body:not(.annotating) .smain, body:not(.annotating) .drow > details > summary { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; } }
+  /* Below 1024 the note box is the whole visible screen above the keyboard (the visual viewport), never a sheet
+     floating over page rows: one header line (Cancel, title and anchor, Add note), the kind selector, then the
+     textarea, which takes the rest and keeps one height while typing. */
+  @media (max-width: 1023.98px) {
+    .composer.on { top: var(--tb-vv-top, 0px); bottom: auto; height: var(--tb-vv-h, 100%); max-height: none; border-radius: 0; padding: 8px 12px 12px; box-shadow: none;
+      display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto auto minmax(0, 1fr); grid-template-areas: "cancel title save" "quote quote quote" "kind kind kind" "text text text"; column-gap: 8px; row-gap: 8px; align-items: center; }
+    .composer.on .grab, .composer.on .body > .hint { display: none; }
+    .composer.on header, .composer.on .body, .composer.on footer, .composer.on .btns { display: contents; }
+    .composer.on h2 { grid-area: title; min-width: 0; font-size: var(--tb-fs-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .composer.on h2::after { content: " · " attr(data-anchor) / ""; font-weight: 500; color: var(--tb-muted); }
+    .composer.on .quote { grid-area: quote; max-height: 3em; }
+    .composer.on .seg { grid-area: kind; padding: 2px; } .composer.on .seg button { min-height: 32px; position: relative; }
+    .composer.on textarea { grid-area: text; align-self: stretch; height: 100%; min-height: calc(4 * 1.4em + 2 * var(--tb-sp-3)); resize: none; }
+    #cmpcancel { grid-area: cancel; } #cmpsave { grid-area: save; }
+    #cmpcancel, #cmpsave, #send, #sheetclose { min-height: 36px; height: 36px; padding: 0 var(--tb-sp-3); font-size: var(--tb-fs-sm); position: relative; }
+    /* 36px to the eye, 44px to the finger. */
+    .composer.on .seg button::after, #cmpcancel::after, #cmpsave::after, #send::after, #sheetclose::after { content: ""; position: absolute; inset: -6px 0; }
+  }
   @media (min-width: 1024px) {
     .sheet, .composer { left: var(--tb-rail-w); right: 0; max-width: 680px; margin: 0 auto; }
     .annobar { left: calc(var(--tb-rail-w) + var(--tb-sp-5)); right: auto; width: min(480px, calc(100vw - var(--tb-rail-w) - 48px)); }
@@ -393,7 +411,7 @@
   </div>
   <footer><button class="primary" id="send" type="button" disabled>Send feedback</button><div class="status" id="fbstatus" role="status" aria-live="polite"><i></i><span></span></div></footer>
 </aside>
-<form class="sheet composer" id="composer" role="dialog" aria-labelledby="cmp-h" tabindex="-1" novalidate>
+<form class="sheet composer" id="composer" role="dialog" aria-labelledby="cmp-h" tabindex="-1" novalidate autocomplete="off">
   <div class="grab"></div>
   <header><h2 id="cmp-h">Add a note</h2></header>
   <div class="body">
@@ -401,7 +419,7 @@
     <blockquote class="quote" id="cmp-quote" hidden></blockquote>
     <div class="seg" id="cmp-kind" role="group" aria-label="Kind of note"><button type="button" data-k="change" aria-pressed="true">Change</button><button type="button" data-k="comment" aria-pressed="false">Comment</button><button type="button" data-k="question" aria-pressed="false">Question</button></div>
     <label class="sr" for="cmp-text">Your note</label>
-    <textarea id="cmp-text" rows="3" placeholder="What should change, or what do you want to know?"></textarea>
+    <textarea id="cmp-text" rows="3" autocomplete="off" placeholder="What should change, or what do you want to know?"></textarea>
   </div>
   <footer><div class="btns"><button class="secondary" type="button" id="cmpcancel">Cancel</button><button class="primary" type="submit" id="cmpsave" disabled>Add note</button></div></footer>
 </form>
@@ -861,29 +879,40 @@ function openSheet(o, quiet) {
   if (o && !quiet) $("#sheetclose").focus(); else if (!o && lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus();
   paintNotes();
 }
-// Keep the composer above the on-screen keyboard and the annotated row above the composer.
+// Below 1024 the note box covers the visual viewport above the keyboard; from 1024 to 1279 it sits on the keyboard and
+// the annotated row is scrolled above it. iOS sends visualViewport scroll events on every caret move while typing:
+// those change neither height nor offsetTop, so they are ignored, and real changes are applied once per frame.
+const phoneBox = () => matchMedia("(max-width: 1023.98px)").matches;
+let vvSeen = "", vvFrame = 0;
+function placeBox() {
+  const vv = window.visualViewport, h = vv ? vv.height : innerHeight, top0 = vv ? vv.offsetTop : 0, key = `${h}|${top0}|${innerHeight}`;
+  if (key === vvSeen) return false;
+  vvSeen = key; const st = document.documentElement.style;
+  st.setProperty("--tb-kb", `${Math.max(0, innerHeight - h - top0)}px`); st.setProperty("--tb-vv-top", `${top0}px`); st.setProperty("--tb-vv-h", `${h}px`);
+  return true;
+}
+function onViewport() { if (!vvFrame) vvFrame = requestAnimationFrame(() => { vvFrame = 0; if (placeBox()) fit(); }); }
 function fit() {
   const vv = window.visualViewport;
-  document.documentElement.style.setProperty("--tb-kb", `${vv ? Math.max(0, innerHeight - vv.height - vv.offsetTop) : 0}px`);
-  if (!draft || !composer.classList.contains("on") || panelMode()) return;
+  if (!draft || !composer.classList.contains("on") || panelMode() || phoneBox()) return;
   const el = byKey(draft.akey); if (!el) return;
   const top0 = vv ? vv.offsetTop : 0, h = vv ? vv.height : innerHeight, bar = $(".bar").offsetHeight + 8, bottom = top0 + h - composer.getBoundingClientRect().height - 12;
   const r = el.getBoundingClientRect();
   if (r.bottom > bottom) scrollBy({ top: Math.min(r.bottom - bottom, r.top - top0 - bar), behavior: "instant" });
   else if (r.top < top0 + bar) scrollBy({ top: r.top - top0 - bar, behavior: "instant" });
 }
-if (window.visualViewport) { visualViewport.addEventListener("resize", fit); visualViewport.addEventListener("scroll", fit); }
+if (window.visualViewport) { visualViewport.addEventListener("resize", onViewport); visualViewport.addEventListener("scroll", onViewport); }
 function persistDraft() { if (draft) ls.set(`${store}:draft`, JSON.stringify({ ...draft, text: cmpText.value })); else ls.del(`${store}:draft`); }
 function setKind(k) { draft.kind = k; $$("#cmp-kind button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.k === k))); }
 function openComposer(d, focus) {
   draft = { akey: d.akey, label: d.label, quote: d.quote || "", kind: d.kind || "change" };
-  $("#cmp-anchor").textContent = d.label; const q = $("#cmp-quote"); q.hidden = !d.quote; q.textContent = d.quote || "";
+  $("#cmp-anchor").textContent = d.label; $("#cmp-h").dataset.anchor = String(d.label).split(" › ").pop(); const q = $("#cmp-quote"); q.hidden = !d.quote; q.textContent = d.quote || "";
   cmpText.value = d.text || ""; setKind(draft.kind); $("#cmpsave").disabled = !cmpText.value.trim();
   if (sheet.classList.contains("on") && MODAL()) openSheet(false);
   if (!composer.classList.contains("on")) cmpFocus = document.activeElement;
   composer.classList.add("on"); document.body.classList.add("composing"); markTarget(byKey(draft.akey)); syncModal(); paintNotes();
   persistDraft();
-  requestAnimationFrame(() => { fit(); setTimeout(fit, 250); });
+  placeBox(); requestAnimationFrame(() => { fit(); setTimeout(fit, 250); });
   if (focus !== false) cmpText.focus({ preventScroll: true });
 }
 function closeComposer() {
@@ -924,6 +953,8 @@ page.addEventListener("pointerdown", e => {
   lp = setTimeout(() => {
     lp = null; suppress = el; if (navigator.vibrate) navigator.vibrate(12); annotate(el);
     document.addEventListener("pointerup", () => setTimeout(() => { suppress = null; }, 400), { once: true });
+    // The lift is the user gesture iOS opens the keyboard for; without preventDefault its mouse events refocus the row.
+    document.addEventListener("touchend", ev => { ev.preventDefault(); if (composer.classList.contains("on")) cmpText.focus({ preventScroll: true }); }, { once: true, passive: false });
   }, 520);
   const cancel = ev => { if (ev && ev.type === "pointermove" && Math.hypot(ev.clientX - x, ev.clientY - y) < 10) return; clearTimeout(lp); lp = null; page.removeEventListener("pointermove", cancel); page.removeEventListener("pointerup", cancel); page.removeEventListener("pointercancel", cancel); };
   page.addEventListener("pointermove", cancel); page.addEventListener("pointerup", cancel, { once: true }); page.addEventListener("pointercancel", cancel, { once: true });
