@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Maps a task kind to the rig template under $PROJECTS_ROOT/specs/rigs/<template>.
-// feature requires --profile low|medium|high. bugfix and sop reject --profile.
+// feature requires --profile low|medium|high. bugfix, sop and content reject --profile.
 // Seat ids are <pod>.<member> as in the template. `model` names the routing role that
 // `fleet/bin/rig-to-pi convert` resolves for the seat, or `terminal` for the operator's Pi shell.
 
@@ -18,6 +18,7 @@ function flag(name) {
 
 const seat = (id, model) => ({ id, model });
 const solo = [seat("dev.build", "build")];
+const studio = [seat("research.writer", "writer")];
 const workshop = [
   seat("orch.human", "terminal"),
   seat("orch.lead", "lead"),
@@ -76,6 +77,13 @@ const kinds = {
     seats: solo,
     rule: "Follow the procedure already written for this org and project. One seat. Do not invent steps or extra seats.",
   },
+  content: {
+    template: "studio",
+    models: "role",
+    sliceTemplate: "placeholder",
+    seats: studio,
+    rule: "Research, plan, write for one named reader. Sources with checked-on dates for every fact a reader acts on. Small site changes in scope. Publishing, deploys and messages to people wait for the operator.",
+  },
 };
 
 function fail(message) {
@@ -109,6 +117,7 @@ if (list) {
   rows.push({ kind: "feature", profile: "high", ...kinds.feature.profiles.high });
   rows.push({ kind: "bugfix", profile: null, ...kinds.bugfix });
   rows.push({ kind: "sop", profile: null, ...kinds.sop });
+  rows.push({ kind: "content", profile: null, ...kinds.content });
   if (json) process.stdout.write(`${JSON.stringify(rows)}\n`);
   else {
     for (const row of rows) {
@@ -122,10 +131,10 @@ if (list) {
 const kind = flag("--kind");
 const profile = flag("--profile");
 if (!kind) {
-  fail("Pass --kind feature|bugfix|sop. feature also requires --profile low|medium|high.");
+  fail("Pass --kind feature|bugfix|sop|content. feature also requires --profile low|medium|high.");
 }
 if (!Object.prototype.hasOwnProperty.call(kinds, kind)) {
-  fail(`Unknown --kind ${kind}. Use feature, bugfix, or sop.`);
+  fail(`Unknown --kind ${kind}. Use feature, bugfix, sop, or content.`);
 }
 
 if (kind === "feature") {
