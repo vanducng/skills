@@ -78,7 +78,6 @@ if (!code) fail(`Set code: in ${specPath} frontmatter; the mission folder has no
 const [, nn, slug] = folder;
 const sliceId = `${code}-s${nn}`;
 const milestone = mission.milestone || (prefix ? prefix[1].slice(1) : null);
-if (milestone && !/^\d+$/.test(milestone)) fail(`milestone: ${milestone} in ${specPath} must be a number.`);
 const ticket = mission.ticket || null;
 if (ticket && !/^[A-Za-z][A-Za-z0-9]*-\d+$/.test(ticket)) fail(`ticket: ${ticket} in ${specPath} must look like ABC-123.`);
 const types = flags("--type");
@@ -104,7 +103,8 @@ const result = {
   followUpBranch: `${branch}-2`,
   prTitlePrefix: ticket ? `${ticket}: ` : null,
   scope: [
-    ...(milestone ? [`Milestone: M${Number(milestone)}, ${missionName}`] : []),
+    // A numeric milestone becomes M<n>; free text ("11/6 dashboard feedback") is printed as written.
+    ...(milestone ? [/^\d+$/.test(milestone) ? `Milestone: M${Number(milestone)}, ${missionName}` : `Milestone: ${milestone}`] : []),
     `Slice: S${Number(nn)}, ${sliceName}`,
     `Mission: ${path.basename(missionDir)}/${path.basename(sliceDir)}`,
   ],
