@@ -22,12 +22,11 @@ if len(desc) > 1024:
 words = len(body.split())
 if words > 800:
     sys.exit(f"body is {words} words, over the 800 ceiling")
-scenarios = [d for d in (skill / "evals").glob("*/") if d.is_dir()] if (skill / "evals").is_dir() else []
+# A scenario is a directory with prompt.md and checks.sh; any other directory is a helper, as the runner treats it.
+evals = skill / "evals"
+scenarios = [d for d in evals.iterdir() if (d / "prompt.md").is_file() and (d / "checks.sh").is_file()] if evals.is_dir() else []
 if len(scenarios) < 3:
     sys.exit(f"{len(scenarios)} eval scenarios, need 3")
-for d in scenarios:
-    if not (d / "prompt.md").is_file() or not (d / "checks.sh").is_file():
-        sys.exit(f"{d.name}: needs prompt.md and checks.sh")
 clean = 0
 for d in scenarios:
     meta = d / "scenario.json"

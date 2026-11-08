@@ -28,6 +28,6 @@ python3 scripts/run_evals.py <skill-dir> --before <old-skill-dir> --after <new-s
 - `--runtime pi` is the only adapter so far (Claude Code and Codex adapters are a follow-up). Skills are loaded with `--skill`; installed skills, context files, extensions and MCP are switched off so a run sees only the skill under test.
 - Run artifacts (agent output, check output, the results JSON) go to `--out-dir`; keep the JSON as the evidence and record its sha256. In before/after mode the JSON also holds the blind key, the seed, the margin, both paths and the verdict, so it resolves X and Y without stdout.
 
-`checks.sh` is run, not sandboxed: it inherits only `PATH`, `HOME`, `TMPDIR` and `LANG`, but it can still touch the filesystem. Run only evals from a repository you have reviewed, as you would a test suite.
+`checks.sh` is run, not sandboxed: it inherits only `PATH`, `HOME`, `TMPDIR`, `LANG` and `LC_ALL`, but it can still touch the filesystem. Run only evals from a repository you have reviewed, as you would a test suite.
 
 Use the cheapest model first, one family per round, and small N (3). A run costs quota: do not rerun a green round.
