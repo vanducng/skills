@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.15.0"
+  version: "0.16.0"
 ---
 
 # OpenRig workspace
@@ -90,21 +90,23 @@ node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind bugfix
 node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind sop
 ```
 
-| Kind | Profile | When | Template |
-|---|---|---|---|
-| `feature` | `low` | One repo, one reviewable change, no migration, no new flow | `feature-low` |
-| `feature` | `medium` | Needs a reviewer who did not write the code. Still one writer | `normal` |
-| `feature` | `high` | More than one repo, a new user-visible flow, or a plan the operator must accept before code | `feature-high` |
-| `bugfix` | none | Something is failing. Prove it, then fix it | `bugfix` |
-| `sop` | none | The org or project already has the steps. Execute them | `sop` |
+| Kind | Profile | When | Template | Seats |
+|---|---|---|---|---|
+| `feature` | `low` | One repo, one reviewable change, no migration, no new flow | `solo` | `dev.build` |
+| `feature` | `medium` | Needs a reviewer who did not write the code. Still one writer | `workshop` | `orch.human`, `orch.lead`, `dev.build`, `dev.qa`, `dev.review` |
+| `feature` | `high` | More than one repo, a new user-visible flow, or a plan the operator must accept before code | `factory` | `orch.human`, `orch.lead`, `orch.advisor`, `orch.pm`, `dev.build`, `dev.qa`, `dev.design`, `review.r1` |
+| `bugfix` | none | Something is failing. Prove it, then fix it | `workshop` | as `feature` `medium` |
+| `sop` | none | The org or project already has the steps. Execute them | `solo` | `dev.build` |
 
-These flags do not select `solo`, `team`, or `squad`. They also do not select the upstream starters `first-project`, `first-project-claude`, or `first-project-mixed`. Those are two-seat recipes for a repository with no org layout.
+Each seat's `PI_TUI_ROLE` is its member name (`lead`, `build`, `qa`, `review`, `design`, `pm`, `advisor`), and `rig-to-pi convert` picks its model from that role. A `factory` slice that needs a second reviewer adds `review.r2` with `rig add`; the template carries one.
+
+These flags do not select `team` or `squad`. They also do not select the upstream starters `first-project`, `first-project-claude`, or `first-project-mixed`. Those are two-seat recipes for a repository with no org layout.
 
 Every template is a pi-tui rig. A seat's model comes from its role (`PI_TUI_ROLE`) in one profile under `pi.profiles` in `fleet/routing.yaml`; `pi.default_profile` applies unless the operator or the project names another. Routing wins over model strings baked into the template.
 
 Put the choice on the first line of the task `AGENTS.md`: `Kind: feature medium`.
 
-**Feature.** Low is the owner writing alone. Medium adds one writer and a fresh reviewer; the owner does not edit that worktree. High does not start implementation until the operator has accepted the plan. The product seat is for user-visible behavior, briefs, and docs.
+**Feature.** Low is `solo`: `dev.build` writes alone. Medium is `workshop`: `orch.lead` coordinates and does not edit the worktree; `dev.build` writes, `dev.qa` runs the change, and `dev.review` reviews it. High is `factory`: the workshop seats (with `review.r1` in place of `dev.review`) plus `orch.advisor`, `orch.pm` and `dev.design`, with `review.r2` added by `rig add` when a second reviewer is needed. High does not start implementation until the operator has accepted the plan. `orch.pm` writes the briefs and docs, and `dev.design` the mockups for user-visible behavior.
 
 **Bug fix.** No code until a check is red or the cause is proven from evidence. Same seats as a medium feature. Create the slice with `--template bug-fix`.
 
