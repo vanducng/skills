@@ -31,6 +31,7 @@ tools/vd/dist/
 docs/dist/
 .astro/
 .agents/
+!skills/*/evals/*/fixture/.agents/
 .mcp.json
 skills/twitter/.pytest_cache/
 
