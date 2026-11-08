@@ -4,7 +4,7 @@ description: "Set up an isolated git worktree for a Laravel project served by La
 license: MIT
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Laravel Herd Worktree
@@ -15,7 +15,7 @@ Spin up an isolated, runnable copy of a Laravel project on its own Herd site for
 
 ## Design: this is a thin Herd layer on top of `vd:worktree`
 
-Do **not** reinvent worktree mechanics. `vd:worktree` already creates the worktree under `.worktrees/<repo>-<feature>/`, copies all `.env*` (nested included), assigns a deterministic 10-port block (`.env.worktree` → `WORKTREE_PORT_BASE`), keeps `.git/info/exclude` clean, anchors agent artifacts to the main checkout, and enters the worktree. This skill only adds what Herd needs and then defers finishing to `vd:ship` / `vd:git`.
+Do **not** reinvent worktree mechanics. `vd:worktree` already creates the worktree under `.worktrees/<repo>-<feature>/`, copies the `.env*.example` templates (never a secret file), assigns a deterministic 10-port block (`.env.worktree` → `WORKTREE_PORT_BASE`), keeps `.git/info/exclude` clean, anchors agent artifacts to the main checkout, and enters the worktree. This skill only adds what Herd needs and then defers finishing to `vd:ship` / `vd:git`.
 
 | Concern | Owner |
 |---|---|
@@ -40,7 +40,7 @@ WT="$(for d in "$HOME/skills/skills/worktree" "$HOME/.claude/skills/worktree" "$
 node "$WT" create "<branch>" --no-prefix --json
 ```
 
-`$WT` resolves to the first worktree install that exists - the `$HOME/skills` dev repo, else the Claude (`~/.claude/skills`) or Codex (`~/.agents/skills`) install; pick it once per session and reuse it below. Parse the JSON for the worktree `path` and `portBase`, then move the session into the worktree (per the `sessionSwitch` block). The `.env` is already copied - you only *rewrite* it below.
+`$WT` resolves to the first worktree install that exists - the `$HOME/skills` dev repo, else the Claude (`~/.claude/skills`) or Codex (`~/.agents/skills`) install; pick it once per session and reuse it below. Parse the JSON for the worktree `path` and `portBase`, then move the session into the worktree (per the `sessionSwitch` block). The `.env` comes from `.env.example`: `vd:worktree` copies no secret file and prints the run-time line for the secrets it left behind. Run `php artisan key:generate` once in the worktree, then *rewrite* the `.env` below.
 
 ```bash
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel)")   # main repo name
@@ -90,7 +90,7 @@ grep -q '^SANCTUM_STATEFUL_DOMAINS=' "$ENV" \
 
 ### 4. Database - isolate or share (Herd Pro footgun)
 
-On Herd Pro the worktree's copied `.env` points at the **same** shared DB as main. A feature branch running `migrate` / `migrate:fresh` / seeders would mutate your main dev database. Ask (AskUserQuestion in Claude Code; plain-text question elsewhere):
+On Herd Pro the worktree's `.env` (from `.env.example`) usually points at the **same** shared DB as main. A feature branch running `migrate` / `migrate:fresh` / seeders would mutate your main dev database. Ask (AskUserQuestion in Claude Code; plain-text question elsewhere):
 
 ```
 AskUserQuestion:
@@ -198,7 +198,7 @@ Because teardown lives in the worktree's `pre-remove` hook, `vd:worktree clean` 
 
 ## Checklist
 
-- [ ] Worktree created via `vd:worktree` (`.worktrees/$SITE_NAME`, `.env` copied, ports assigned)
+- [ ] Worktree created via `vd:worktree` (`.worktrees/$SITE_NAME`, `.env` from the template plus `key:generate`, ports assigned)
 - [ ] `herd link` done; **scheme matches source** (secured ⇒ `herd secure`)
 - [ ] `.env` rewritten: `APP_URL` (correct scheme), `SESSION_DOMAIN`/Sanctum only if applicable
 - [ ] Database decision made (isolated DB + `DB_DATABASE` rewritten, or explicitly sharing)

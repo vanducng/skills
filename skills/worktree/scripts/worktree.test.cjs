@@ -1005,7 +1005,8 @@ function setupTempRepo() {
   fs.writeFileSync(path.join(TMP_REPO, 'backend', 'requirements.txt'), 'requests\n');
   fs.mkdirSync(path.join(TMP_REPO, '.claude'), { recursive: true });
   fs.writeFileSync(path.join(TMP_REPO, '.claude', 'settings.local.json'), '{}');
-  fs.writeFileSync(path.join(TMP_REPO, '.worktreeinclude'), '.claude/settings.local.json\n# comment\n../escape\n');
+  fs.writeFileSync(path.join(TMP_REPO, '.worktreeinclude'), '.claude/settings.local.json\n# comment\n../escape\n.secrets/age-key.txt\nconfig\n');
+  fs.writeFileSync(path.join(TMP_REPO, '.env.example'), 'SECRET=\n');
   const hooksDir = path.join(TMP_REPO, '.worktree', 'hooks');
   fs.mkdirSync(hooksDir, { recursive: true });
   fs.writeFileSync(path.join(hooksDir, 'pre-remove'), `#!/bin/sh\necho "$WORKTREE_ID:$WORKTREE_PORT_BASE" > "${PRE_REMOVE_MARKER}"\n`);
@@ -1014,18 +1015,31 @@ function setupTempRepo() {
   fs.writeFileSync(path.join(TMP_REPO, '.env'), 'SECRET=1\n');
   fs.writeFileSync(path.join(TMP_REPO, 'backend', '.env'), 'API=1\n');
   fs.writeFileSync(path.join(TMP_REPO, '.env";touch INJECTED #'), 'EVIL=1\n');
+  fs.mkdirSync(path.join(TMP_REPO, '.secrets'), { recursive: true });
+  fs.writeFileSync(path.join(TMP_REPO, '.secrets', 'age-key.txt'), 'AGE-SECRET-KEY-1\n');
+  fs.mkdirSync(path.join(TMP_REPO, 'config'), { recursive: true });
+  fs.writeFileSync(path.join(TMP_REPO, 'config', 'master.key'), 'k\n');
+  fs.writeFileSync(path.join(TMP_REPO, 'config', 'app.yml'), 'a: 1\n');
 }
 
 let integration = null;
 
-test('integration: create copies nested env files, assigns ports, suggests installs', () => {
+test('integration: create copies no secret file, only templates, assigns ports, suggests installs', () => {
   setupTempRepo();
   const result = run('create "integration test" --json', { cwd: TMP_REPO });
   assert(result.success, `create failed: ${result.output} ${result.stderr}`);
   integration = assertJSON(result.output);
   assert(integration.worktreePath.includes(`${path.sep}.worktrees${path.sep}`), 'worktree under .worktrees');
-  assert(integration.envFilesCopied.includes('.env'), 'copies root .env');
-  assert(integration.envFilesCopied.includes('backend/.env'), 'copies nested backend/.env');
+  assert(!fs.existsSync(path.join(integration.worktreePath, 'backend', '.env')), 'nested backend/.env is not copied');
+  assert(fs.readFileSync(path.join(integration.worktreePath, '.env'), 'utf-8') === 'SECRET=\n', 'root .env comes from the template, not the checkout');
+  assert(integration.envFilesCopied.includes('.env'), 'the template copy is reported');
+  ['.env', 'backend/.env', '.secrets/age-key.txt', 'config/master.key'].forEach(name => {
+    assert(integration.secretFilesNotCopied.includes(name), `secretFilesNotCopied lists ${name}`);
+  });
+  assert(!fs.existsSync(path.join(integration.worktreePath, '.secrets', 'age-key.txt')), 'a secret .worktreeinclude entry is not copied');
+  assert(!fs.existsSync(path.join(integration.worktreePath, 'config', 'master.key')), 'a key inside an included dir is not copied');
+  assert(fs.existsSync(path.join(integration.worktreePath, 'config', 'app.yml')), 'the rest of an included dir is copied');
+  assert(integration.secretsHint === 'op-sa --sa <org>-rig run --env-file=.env.example -- <cmd>', `hint: ${integration.secretsHint}`);
   assert(integration.includeCopied.includes('.claude/settings.local.json'), 'copies .worktreeinclude entry');
   assert(Number.isInteger(integration.portBase) && integration.portBase >= 20000, 'port base assigned');
   assert(integration.suggestedInstalls.some(s => s.command === 'npm install' && s.dir === '.'), 'suggests npm install at root');
@@ -1097,15 +1111,23 @@ test('integration: create attaches to existing branch', () => {
   assert(head === 'existing-branch', `expected existing-branch, got ${head}`);
 });
 
-test('integration: --no-copy-env skips env copying', () => {
+test('integration: --no-copy-env skips the env templates too', () => {
   assert(integration, 'create must have succeeded');
   const result = run('create "no env" --no-copy-env --json', { cwd: TMP_REPO });
   assert(result.success, 'create should succeed');
   const json = assertJSON(result.output);
   assert(json.envFilesCopied.length === 0, 'no env files copied');
+  assert(!fs.existsSync(path.join(json.worktreePath, '.env')), 'no .env from the template');
 });
 
-test('integration: create names each copied env file first, in text and --json, and never prints a value', () => {
+test('integration: an explicit --env secret is not copied either', () => {
+  assert(integration, 'create must have succeeded');
+  const json = assertJSON(run('create "explicit env" --env .env --json', { cwd: TMP_REPO }).output);
+  assert(fs.readFileSync(path.join(json.worktreePath, '.env'), 'utf-8') === 'SECRET=\n', 'the checkout .env did not overwrite the template');
+  assert(json.secretFilesNotCopied.includes('.env'), 'reported as not copied');
+});
+
+test('integration: create names the secret files it left behind and the run-time line, and never prints a value', () => {
   assert(integration, 'create must have succeeded');
   const secrets = ['SENTINEL_root_7f3a91', 'SENTINEL_nested_c20be4'];
   fs.writeFileSync(path.join(TMP_REPO, '.env.local'), `TOKEN=${secrets[0]}\n`);
@@ -1113,15 +1135,17 @@ test('integration: create names each copied env file first, in text and --json, 
 
   const text = run('create "env names text" --no-enter', { cwd: TMP_REPO });
   assert(text.success, `text create failed: ${text.output} ${text.stderr}`);
-  const copied = text.output.indexOf('Environment files copied:');
-  assert(copied !== -1 && copied < text.output.indexOf('Next Steps:'), 'copied files are listed before Next Steps');
-  ['.env.local', 'backend/.env.local'].forEach(name => assert(text.output.includes(`✓ ${name}`), `text names ${name}`));
-  assert(text.output.includes('.env.worktree (generated, not copied)'), 'the generated file is marked as not copied');
+  const left = text.output.indexOf('Secret files not copied');
+  assert(left !== -1 && left < text.output.indexOf('Next Steps:'), 'secret files are listed before Next Steps');
+  ['.env.local', 'backend/.env.local'].forEach(name => assert(text.output.includes(`- ${name}`), `text names ${name}`));
+  assert(text.output.includes('op-sa --sa <org>-rig run --env-file=.env.example -- <cmd>'), 'text prints the run-time line');
+  assert(text.output.includes('✓ .env'), 'the template copy is still listed');
 
   const json = run('create "env names json" --no-enter --json', { cwd: TMP_REPO });
   assert(json.success, `json create failed: ${json.output} ${json.stderr}`);
-  const names = assertJSON(json.output).envFilesCopied;
-  ['.env.local', 'backend/.env.local'].forEach(name => assert(names.includes(name), `envFilesCopied has ${name}`));
+  const data = assertJSON(json.output);
+  ['.env.local', 'backend/.env.local'].forEach(name => assert(data.secretFilesNotCopied.includes(name), `secretFilesNotCopied has ${name}`));
+  assert(!data.envFilesCopied.includes('.env.local'), 'envFilesCopied has no secret');
 
   [text, json].forEach(r => secrets.forEach(s => {
     assert(!r.output.includes(s) && !(r.stderr || '').includes(s), `output leaks the value ${s}`);
@@ -1335,7 +1359,7 @@ test('integration: env starts from .env.example when the repo setup creates .env
   const result = run('create "env" --json', { cwd: repo });
   assert(result.success, `create failed: ${result.output} ${result.stderr}`);
   const json = assertJSON(result.output);
-  assert(json.envFromTemplate === true, 'reports envFromTemplate');
+  assert(json.secretFilesNotCopied.includes('.env'), 'the checkout .env is reported, not copied');
   assert(fs.readFileSync(path.join(json.worktreePath, '.env'), 'utf-8') === 'API_KEY=\n', '.env comes from the template');
 });
 

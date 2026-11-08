@@ -1,16 +1,16 @@
 ---
 name: worktree
-description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under a top-level .worktrees/ dir, auto-copies .env files (nested included), assigns each worktree a deterministic port block, trusts mise configs in the new worktree when present, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Hands Laravel Herd projects to herd-worktree for site/env/database setup. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
+description: "Create, inspect, and clean isolated git worktrees for parallel feature development. Standardizes worktrees under a top-level .worktrees/ dir, copies env templates but never a secret file (it prints the run-time secrets line instead), assigns each worktree a deterministic port block, trusts mise configs in the new worktree when present, and runs lifecycle hooks for DB seed/teardown. Use for feature isolation, parallel-agent workflows, worktree health audits, stale cleanup, port conflicts, and monorepo or submodule setups. Hands Laravel Herd projects to herd-worktree for site/env/database setup. Runtime-agnostic: works in Claude Code, Codex CLI, and plain shell."
 license: MIT
 argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | repair | remove <name>"
 metadata:
   author: vanducng
-  version: "2.8.2"
+  version: "3.0.0"
 ---
 
 # Worktree
 
-Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run lives on its own branch and its own filesystem path - without disturbing your main checkout. Each worktree arrives ready to run: env files copied, a private port block assigned, install commands detected. **By default the agent session moves into the new worktree** so subsequent work happens there - pass `--no-enter` to stay put. Pairs naturally with `vd:cook` and `vd:fix` (implement in the worktree) and `vd:ship` (land it).
+Spin up an isolated git worktree so a new feature, bugfix, or parallel agent run lives on its own branch and its own filesystem path - without disturbing your main checkout. Each worktree arrives ready to run: env templates copied (never secrets), a private port block assigned, install commands detected. **By default the agent session moves into the new worktree** so subsequent work happens there - pass `--no-enter` to stay put. Pairs naturally with `vd:cook` and `vd:fix` (implement in the worktree) and `vd:ship` (land it).
 
 ## Standard location: `.worktrees/`
 
@@ -130,8 +130,8 @@ After every successful non-dry-run create that returns `worktreePath`, if `REX_S
 
 `create` does the session-setup work automatically:
 
-1. Copies untracked `.env*` files from the source checkout - **including nested ones** (`backend/.env`, `frontend/.env.local`, up to 3 levels). `create` reports every copied file by relative path, ahead of the next steps in its text summary and as `envFilesCopied` in `--json` (names only; a value is never printed). Disable with `--no-copy-env`. When the repo's own setup creates `.env` from `.env.example` (a `cp .env.example .env` in `scripts/`, `bin/`, a Makefile, justfile, Taskfile or mise config), the checkout's root `.env` is **not** copied, so its keys and stack settings stay behind; `envFromTemplate: true` reports it.
-2. Copies `.env*.example` templates for any env name not already copied.
+1. Copies no secret file. A secret file is a real `.env*` (anything but a `.example`, `.sample`, `.template`, `.tpl` or `.dist` template), anything under `.secrets/`, or a `*.key`, `*.pem`, `*.p12` or `*.pfx` file. The auto-scan, `--env` and `.worktreeinclude` all skip them. `create` lists the untracked ones it left behind (nested included, up to 3 levels) by relative path, ahead of the next steps in its text summary and as `secretFilesNotCopied` in `--json` (names only; a value is never printed), with the line to read them at run time instead, also as `secretsHint`: `op-sa --sa <org>-rig run --env-file=<template> -- <cmd>` (the template is the repo's `.env*.example` when it has one).
+2. Copies `.env*.example` templates to their env name (`.env.example` becomes `.env`), reported in `envFilesCopied`. Disable with `--no-copy-env`.
 3. Copies `.worktreeinclude` entries (see below).
 4. Assigns a deterministic 10-port block and writes `.env.worktree`.
 5. Verifies the checkout landed on the requested branch (auto-rescues via `git switch` if git silently attached elsewhere) and warns when the base branch is behind its fetched remote.
@@ -146,7 +146,7 @@ After every successful non-dry-run create that returns `worktreePath`, if `REX_S
 | `--base <branch>` | Override auto-detected base (default: `dev → develop → origin/HEAD → main → master`; `origin/HEAD` is the remote's default branch, set it with `git remote set-head origin --auto`) |
 | `--no-prefix` | Preserve original case + slashes (Jira keys, `user/type/feature`); attaches if branch exists |
 | `--skip-repo-task` | Create a plain worktree even though the repo declares its own worktree task |
-| `--no-copy-env` | Skip auto-copy of untracked `.env*` files |
+| `--no-copy-env` | Skip copying the `.env*.example` templates |
 | `--no-enter` | Stay in the current dir; don't switch the session into the new worktree (default: enter). Also via `WORKTREE_NO_ENTER=1` |
 | `--checkout-submodules` | Run `git submodule update --init --checkout --recursive` after create |
 | `--post-create-hook <x>` | Explicit hook script path or shell command (overrides auto-detect) |
@@ -156,7 +156,7 @@ After every successful non-dry-run create that returns `worktreePath`, if `REX_S
 | `--name <dir>` | Worktree directory name instead of `<repo>-<feature>`; one segment of letters, digits, `.`, `-`, `_`. Two worktrees with the same name in different roots must be removed by path or branch |
 | `--json` | Machine-readable output |
 | `--dry-run` | Preview without touching disk (includes `portBase`) |
-| `--env <files>` | Comma-separated root-level `.env` files to copy (legacy; auto-copy covers this) |
+| `--env <files>` | Comma-separated root-level env templates to copy (legacy; a secret file is never copied) |
 
 Exit codes and the remaining env overrides are printed by `worktree.cjs --help`; `WORKTREE_AGENT_CMD` overrides the "Next steps" CLI hint for runtimes the script can't auto-detect.
 
@@ -225,15 +225,14 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs ports --json
 
 ### `.worktreeinclude` - copy manifest
 
-Same convention Claude Code's native worktrees use: one repo-relative path per line (file or directory, literal paths, `#` comments) copied into each new worktree. For local-only files the env auto-copy doesn't cover:
+Same convention Claude Code's native worktrees use: one repo-relative path per line (file or directory, literal paths, `#` comments) copied into each new worktree, for local-only files such as editor or agent settings:
 
 ```
 .claude/settings.local.json
-.secrets/age-key.txt
-config/master.key
+.vscode/launch.json
 ```
 
-Unsafe entries (absolute, `..`, globs) are skipped with a warning.
+Unsafe entries (absolute, `..`, globs) are skipped with a warning. A secret entry, or a secret file inside an included directory, is skipped and listed in `secretFilesNotCopied`.
 
 ### Hooks - DB seeding and teardown
 
