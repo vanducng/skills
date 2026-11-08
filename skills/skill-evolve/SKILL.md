@@ -12,7 +12,7 @@ metadata:
 
 Close the loop between *using* skills and *improving* them: the friction you hit this session (a wrong command, a missing recipe, a stale doc) is the highest-signal feedback there is. Capture it **selectively** and ship it back into the skills repo - most sessions produce **0-2** real skill improvements, and a long list is a smell.
 
-Adjacent skills: `vd:rule-miner` (standing-behavior corrections → CLAUDE.md/AGENTS.md rules), `vd:skill-management` (lifecycle ops), `vd:skill-creator` (new skill scaffold), memory (project/user facts). skill-evolve only edits the **content of existing skills** from *this session's* evidence.
+Adjacent skills: `vd:rule-miner` (standing-behavior corrections → CLAUDE.md/AGENTS.md rules), `vd:skill-management` (lifecycle ops), `vd:create-skill` (new skill, evals first), memory (project/user facts). skill-evolve only edits the **content of existing skills** from *this session's* evidence.
 
 ## The three buckets (route every candidate before doing anything)
 

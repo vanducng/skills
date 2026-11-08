@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog contains 97 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
+The catalog contains 96 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
 
 Count source: `find skills -mindepth 1 -maxdepth 1 -type d`. Validation: `scripts/validate.sh`.
 
@@ -124,8 +124,7 @@ Utilities for recurring work:
 
 | Skill | Owns |
 | --- | --- |
-| `vd:skill-creator` | Authoring a new `SKILL.md` (description, hard rules, writing principles) |
-| `vd:create-skill` | Evals-first skill authoring and fixing: eval harness with a no-skill baseline and blind before/after, promotion ladder (replaces `vd:skill-creator`) |
+| `vd:create-skill` | Evals-first skill authoring and fixing: eval harness with a no-skill baseline and blind before/after, promotion ladder |
 | `vd:skill-management` | Scaffold, vendor, validate, release (`--create` delegates authoring) |
 | `vd:skill-evolve` | Improve skills that already exist |
 | `vd:skill-audit` | Which skills actually get used |
