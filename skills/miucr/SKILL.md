@@ -78,7 +78,7 @@ Write actions on `--pr --post` are opt-in: `--suggest` (one-click suggestions),
 |---|---|
 | `agent.auth_failed`, `agent.auth_expired` | Fix the key or rerun `miucr login`. Do not retry. |
 | `provider.rate_limited`, `agent.unavailable` | Retry later; check `error.details.resets_in_seconds`. |
-| `review.timeout` | Raise `--timeout 1800s` or narrow the diff (`--include`, `--exclude`). |
+| `review.timeout` | Follow the message. Job deadline: raise `--timeout 1800s` or `[review].timeout`, or narrow the diff (`--include`, `--exclude`). Call timeout: raise `[review].call_timeout` (`review.call_timeout` on the host). Nested deadline of unknown origin: retry and check the provider. |
 | `config.invalid` | Fix the named config field or flag value. |
 | `quota.exceeded` | Wait for the window or raise `[providers.<name>.quota]`. |
 | `github.auth`, `github.pr_not_found` | Check `GITHUB_TOKEN` scope and the PR ref. |
