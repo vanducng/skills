@@ -1,59 +1,49 @@
 ---
 name: workbench
-description: Manage the feature-first .workbench umbrella - create, resolve, switch, list, archive, and gc per-feature folders ({ticket}-{slug}) that group plans/reports/visuals/journals/state. Use when the user says "workbench new", "list features", "archive feature", "switch feature", "what feature am I on", "clean up .workbench", or needs to organize agent artifacts under .workbench/features/.
+description: "Resolve where a unit of work keeps its records (SPEC.md, PROGRESS.md, PROOF.md, reports/) - the slice folder in an OpenRig rig, .workbench/<id>/ elsewhere. Creates and checks a bench folder, attaches proof without a rig, migrates old features trees. Use when asked where to write a report, proof or progress note, to start a record, or to migrate the workbench."
 license: MIT
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Workbench
 
-> **Records layout (workflow foundation, slice 07).** A unit of work's records now live in one shape: the slice folder in an OpenRig rig, and `.workbench/<id>/{SPEC.md,PROGRESS.md,PROOF.md,proof/,reports/}` elsewhere. `scripts/records.cjs` resolves the folder (`resolve`), creates and checks a bench folder (`init`, `check`), writes proof artifacts without a rig (`proof add`) and moves old trees (`migrate`). It replaces the feature folders below (`features/<id>/{plans,reports,visuals,journals,state}/`, `feature.json`, `INDEX.md`). Until the hook layout follows and `workbench.py` is replaced (the next change), the commands below still describe what the hooks and `workbench.py` read and write: do not run `records.cjs migrate --apply` before then, or the next producer write recreates `features/<id>/`.
-
-Lifecycle owner for the **feature-first** `.workbench/` umbrella. One folder per feature - `features/{ticket}-{slug}/{plans,reports,visuals,journals,state}/` - so a ticket's artifacts stay together instead of scattering across type-first sibling dirs.
-
-This skill owns the **write path** (create / archive / gc). The control-plane hooks own read-path resolution, so `workbench new` computes the exact id the hooks resolve - they never diverge (it reuses the deployed hooks lib - `~/.claude` or `~/.codex/hooks/lib`).
-
-## Prerequisites
-
-- The repo opts into feature-first: `paths.umbrella` set and `paths.layout: "feature-first"` in `<git-root>/.vd.json`.
-- Hooks deployed (`vd install hooks`). Without them the CLI errors with a clear message.
-- A type-first repo can still be inspected, but feature routing only activates under `feature-first`.
-
-## Run
+One record shape, in one of two places: `SPEC.md`, `PROGRESS.md`, `PROOF.md`, `reports/`, `proof/`. Ask the resolver where; never build the path yourself.
 
 ```bash
-python3 $HOME/skills/skills/workbench/scripts/workbench.py <command> [args]
+R=<this skill's directory>/scripts/records.cjs   # next to this SKILL.md
+node "$R" resolve --json
 ```
 
-If the repo isn't at `$HOME/skills`, use the installed symlink (`$HOME/.claude/skills/workbench/...` or `$HOME/.agents/skills/workbench/...`). Pick one at session start and reuse it.
+`resolve` prints `mode`, `dir`, `spec`, `progress`, `proofFile`, `proofDir`, `reports` and `proofAdd`. Notes, reviews and reports go in `reports`.
+
+## In a rig
+
+`mode: rig` when `OPENRIG_SESSION_NAME` is set (no `workspace.yaml` via `--root`, `$PROJECTS_ROOT` or the cwd: exit 2). `dir` is the slice folder, found from `--slice <NN-slug|mission/NN-slug|path>`, a worktree named `<repo>-<code>-s<nn>`, or the cwd. If the slice cannot be named, `resolve` exits 2: pass `--slice`. It never falls back to `.workbench/`, so a rig has one record.
+
+Evidence goes in with the printed `proofAdd` plus `--artifact-type guard|qa|rev1-r1|rev1-r2|adjudication --verdict CLEAR|BLOCKING|CONCERNING|PASS|NOT-CLEAR`, `--candidate-sha`, `--money-evidence` and `--file`. Do not write `PROOF.md` or `proof/` by hand. Slice folders come from `rig scope slice create`; `init` refuses in a rig.
+
+## Outside a rig
+
+`mode: bench`. The record is `<main worktree>/.workbench/<id>/{SPEC.md,PROGRESS.md,PROOF.md,proof/,reports/}`; the id is `--id`, else the branch (`feat/PROJ-12-x` gives `proj-12-x`).
 
 | Command | Does |
 |---|---|
-| `new [slug] [--ticket T] [--parent id] [--from-scratch]` | Create (or switch to) a feature folder. Idempotent: an existing ticket/slug switches instead of duplicating. With no args, derives `{ticket}-{slug}` from the current `feat/*` branch. `--from-scratch` promotes `_global/scratch/` content. |
-| `resolve [--json]` | Print the resolved feature + all five type-paths for the current context - the author verify-loop. |
-| `switch <id\|ticket\|slug>` | Set this session's active feature (per-session, via `VD_SESSION_ID`). The cross-session / multi-ticket escape hatch. |
-| `list [--status active\|done\|archived\|all]` | Table of features, derived by scanning `feature.json` (reconciled against disk). |
-| `status [id]` | Detail for one feature: ticket, status, artifact counts, supersede chain, relatedDocs. |
-| `archive <id> [--reason r] [--superseded-by id]` | Move `features/<id>` → `_archive/<id>` and mark `status: done`. |
-| `restore <id>` | Move `_archive/<id>` back to `features/<id>`. |
-| `reindex` | Rebuild `.workbench/INDEX.md` from a `feature.json` scan (recovery / human overview). |
-| `gc [--force]` | Sweep `tmp/`, `*.pid`, `*.log`. Dry-run by default; `--force` deletes. |
-| `triage` | List `_unsorted/` items awaiting a home. |
+| `init [--id I] [--intent T]` | Create the folder from the templates. Idempotent; never overwrites. |
+| `check <dir> [--stage close]` | The `rig scope audit` rules: authored intent, numbered mini-requirements, checkbox proof contract, valid proof headers; at close, the retro line. Exit 1 on findings. |
+| `proof add <dir> --artifact-type T --verdict V --candidate-sha S --money-evidence M (--file F \| --body B)` | Write `proof/<name>.md` with the same C1 header as `rig proof add` and list it in `PROOF.md`. Optional `--evidences`, `--self-check`, `--media`, `--name`, `--replace`. |
 
-## Identity
+A fresh `init` folder fails `check` until its `TODO` lines are authored. Captures stay under `~/.share/openrig/`, cited by sha256.
 
-A feature's id is `{ticket}-{slug}` (or `{slug}` when ticketless), **frozen at creation, no date** - the immutable cross-reference for commits/journals/PRs. The human-facing `label` in `feature.json` is renameable; the dir name is not. Resolution is branch-first and deterministic; on a `feat/PROJ-3316-...` branch the hooks and this CLI both resolve `proj-3316-...`.
+## Migrating old trees
+
+`migrate` lists what it would move from `.workbench/features/<id>/`; `migrate --apply` moves it to `.workbench/<id>/` (`reports/` as is; plans, visuals, journals and state under `reports/<type>/`; `feature.json` kept in `reports/`; a `SPEC.md` written from its label). It never overwrites: a name clash is reported and left. A second run does nothing. Run it only after the hook layout change lands, or old producer skills recreate `features/`.
+
+## Old commands
+
+`scripts/workbench.py new <slug>` calls `init --id <slug>`; it refuses `--ticket` and `--parent`. Every other old command prints "removed" and exits 2. `feature.json`, `INDEX.md` and the five type folders are gone.
 
 ## Notes
 
-- `feature.json` is authoritative; `INDEX.md` and `list` output are derived and rebuildable - they survive `git clean` / machine moves as long as the folders do.
-- Reserved roots (`features/`, `_global/`, `_archive/`, `_unsorted/`, `tmp/`) sort apart and can't collide with a feature id.
-- Per-type subfolders are fixed (`plans reports visuals journals state`); use `state/` for unmodeled overflow rather than inventing a sixth type.
-
-## Workflow position
-
-**Pairs with:** the producer skills (`vd:scout`, `vd:plan`, `vd:debug`, `vd:journal`, …) which write into the injected paths this resolves.
-
-**Auto-claim handshake:** in a feature-first repo with no active feature, the hook context shows `Feature: none` and paths resolve under `_global/scratch/`. The entry-point producer skills (`vd:brainstorm`, `vd:plan`, `vd:cook --quick`, `vd:ultracook`) call `new <slug>` at the start of a unit of work to claim `features/<slug>/`, then write there - so a brand-new project's artifacts get a named home instead of pooling in scratch. `new` is idempotent, so a later skill in the same flow resolves the existing feature rather than duplicating it.
+Producer skills that write to the hook-injected `Reports:` path keep doing so; that path changes with the hook layout, not here. Bench folders sit under the main worktree, so they outlive `git worktree remove`.
