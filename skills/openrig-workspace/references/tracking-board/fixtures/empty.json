@@ -1,0 +1,18 @@
+{
+  "title": "Empty board",
+  "org": "demo",
+  "project": "audit",
+  "slug": "empty",
+  "owner_seat": "",
+  "updated": "2026-11-08 10:30",
+  "headline": "",
+  "phase": "Started",
+  "needs": [],
+  "sections": [],
+  "diagrams": {},
+  "missions": [],
+  "log": [],
+  "decisions": [],
+  "facts": [],
+  "links": []
+}
