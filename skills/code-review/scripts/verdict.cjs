@@ -33,7 +33,8 @@ const API = [
   /(^|\/)(openapi|swagger)[^/]*\.(ya?ml|json)$/i,
 ];
 const DOCS = /\.(md|mdx|txt|rst)$|(^|\/)docs\//i;
-// A REVIEW.md line "Security axis: always" asks for the security axis on every change, whatever the tier.
+// A REVIEW.md line "Security axis: always" asks for the security axis on every change, whatever the tier. Read at the
+// base and the head: a PR that deletes the line still needs the axis it would drop.
 const ASKS_SECURITY = /^[ \t]*(?:[-*][ \t]+)?\**security axis\**:[ \t]*always\b/im;
 
 class Fail extends Error {}
@@ -61,7 +62,7 @@ function tier(base, head, k = keys(base, head)) {
   if (deep.length) return { tier: "Deep", axes: ["spec", "standards", "security"], why: `risky paths: ${deep.join(", ")}`, files: files.length, lines };
   const t = files.every(f => DOCS.test(f)) ? { tier: "Quick", why: "docs only" }
     : { tier: lines < 50 ? "Quick" : "Standard", why: `${lines} changed lines, no risky path` };
-  if (asksSecurity(k.head)) return { ...t, axes: ["spec", "standards", "security"], why: `${t.why}; REVIEW.md asks for the security axis`, files: files.length, lines };
+  if (asksSecurity(k.base) || asksSecurity(k.head)) return { ...t, axes: ["spec", "standards", "security"], why: `${t.why}; REVIEW.md asks for the security axis`, files: files.length, lines };
   return { ...t, axes: ["spec", "standards"], files: files.length, lines };
 }
 

@@ -46,7 +46,7 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
 | Standard | anything else | lenses by path (schema, API, UI) |
 | Deep | auth, secrets, migrations, CI, money, infra, API routes and controllers, OpenAPI specs | `security` axis; run the failing case for each finding |
 
-A `REVIEW.md` line `Security axis: always` adds the `security` axis at every tier.
+A `REVIEW.md` line `Security axis: always`, at the base or the head, adds the `security` axis at every tier.
 
 ## Other modes
 

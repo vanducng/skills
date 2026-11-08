@@ -159,3 +159,16 @@ test("--security below Deep is allowed only when the repo's REVIEW.md asks for t
   assert.match(fs.readFileSync(path.join(asks, "v.md"), "utf8"), /^axes: \{spec: pass, standards: pass, security: pass\}$/m);
   assert.match(run(asks, "tier", "--base", "main").json().why, /REVIEW\.md asks for the security axis/);
 });
+
+test("a PR that deletes 'Security axis: always' from REVIEW.md still needs the security axis", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "verdict-"));
+  git(dir, "init", "-q", "-b", "main");
+  fs.writeFileSync(path.join(dir, "REVIEW.md"), "- Security axis: always\n");
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "base");
+  git(dir, "checkout", "-q", "-b", "feat");
+  fs.writeFileSync(path.join(dir, "REVIEW.md"), "# Review\n");
+  fs.writeFileSync(path.join(dir, "a.js"), "x\n");
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "drop the rule");
+  assert.deepEqual(run(dir, "tier", "--base", "main").json().axes, ["spec", "standards", "security"]);
+  assert.match(run(dir, "write", "--base", "main", "--out", "v.md", "--spec", "pass", "--standards", "pass").err, /--security is required/);
+});
