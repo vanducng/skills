@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[official|staging|beta] [--auto] [--merge] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-screenshots] [--skip-journal] [--skip-docs] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.5.1"
+  version: "1.6.0"
 ---
 
 # Ship
@@ -72,7 +72,12 @@ Repository deployment policy and an explicitly named source/target branch take p
    `gh pr create` or `gh pr edit`. If the repo has a PR template, fill that
    template only. Otherwise use the canonical fallback body. Do not invent
    `Summary` / `Validation` / ad hoc PR bodies. Run a `vd:unslop` pass over
-   title and body before posting - no AI tells, no em dashes.
+   title and body before posting - no AI tells, no em dashes. Then lint the
+   title and body with the repo's PR linter before `gh pr create` and every
+   body edit: `fleet pr-lint --title <t> --body-file <f>` (with the org and
+   profile its rules name) when `fleet` is on PATH, else the lint command the
+   repo's `AGENTS.md` documents. Fix until it exits 0, so the merge gate is
+   not the first to see a body problem.
 10b. **Before/after for user-visible UI.** Step 12b embeds a before/after pair in
    the PR (and on a confirmed ticket when linked) when the diff changes what a
    user sees. Prefer pairs already captured during cook/fix; otherwise capture

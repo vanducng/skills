@@ -123,3 +123,39 @@ test("round 2 and later map to rev1-r2, the last type rig proof accepts, with th
     run(dir, "write", "--base", "main", "--out", path.join(proof, r.proof_name), "--spec", "fail", "--standards", "pass", "--finding", "F1|spec|Important|open|x");
   }
 });
+
+test("round --pr counts only that PR's verdicts, across seat names, and names the proof by PR", () => {
+  const dir = repo({ "a.js": "x\n" });
+  const slice = path.join(dir, "02-long");
+  fs.mkdirSync(path.join(slice, "proof"), { recursive: true });
+  const proof = path.join("02-long", "proof");
+  const w = (out, ...extra) => run(dir, "write", "--base", "main", "--out", path.join(proof, out), "--spec", "fail", "--standards", "pass", ...extra);
+  w("other-1.md", "--pr", "1430", "--seat", "dev.review"); w("other-2.md", "--pr", "1430", "--seat", "dev.review");
+  const first = run(dir, "round", proof, "--pr", "1429").json();
+  assert.deepEqual([first.round, first.artifact_type, first.proof_name], [1, "rev1-r1", "02-long-pr1429-rev1-round1.md"]);
+  assert.match(fs.readFileSync(path.join(slice, "proof", "other-1.md"), "utf8"), /^pr: 1430$/m);
+  w("mine-1.md", "--pr", "#1429", "--seat", "dev.review");   // the seat was renamed after round 1
+  w("mine-2.md", "--pr", "1429", "--seat", "review-r1");
+  assert.equal(run(dir, "round", proof, "--pr", "1429").json().round, 3);
+  assert.equal(run(dir, "round", proof).json().round, 5);     // without --pr: every verdict in the slice, as before
+  assert.throws(() => run(dir, "round", proof, "--pr", "x").json(), SyntaxError);
+});
+
+test("tier: a new API route, API controller or OpenAPI spec is Deep", () => {
+  for (const f of ["routes/api.php", "app/Http/Controllers/Api/TransferController.php", "src/api/v1/routes.ts",
+    "services/api/handlers/user_handler.go", "openapi.yaml", "docs/api/swagger.json"]) {
+    assert.equal(run(repo({ [f]: "x\n" }), "tier", "--base", "main").json().tier, "Deep", f);
+  }
+  for (const f of ["src/apiary/hive.js", "src/api/client.ts", "docs/api/guide.md"])
+    assert.notEqual(run(repo({ [f]: "x\n".repeat(80) }), "tier", "--base", "main").json().tier, "Deep", f);
+});
+
+test("--security below Deep is allowed only when the repo's REVIEW.md asks for the security axis", () => {
+  const plain = repo({ "src/a.js": "x\n" });
+  assert.match(run(plain, "write", "--base", "main", "--out", "v.md", "--spec", "pass", "--standards", "pass", "--security", "pass").err, /Deep axis/);
+  const asks = repo({ "src/a.js": "x\n", "REVIEW.md": "# Review\n\n- Security axis: always (every change touches customer data)\n" });
+  const r = run(asks, "write", "--base", "main", "--out", "v.md", "--spec", "pass", "--standards", "pass", "--security", "pass");
+  assert.equal(r.code, 0, r.err);
+  assert.match(fs.readFileSync(path.join(asks, "v.md"), "utf8"), /^axes: \{spec: pass, standards: pass, security: pass\}$/m);
+  assert.match(run(asks, "tier", "--base", "main").json().why, /REVIEW\.md asks for the security axis/);
+});

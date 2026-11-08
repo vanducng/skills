@@ -2,10 +2,12 @@
 // The review verdict, bound to the exact diff it judged.
 //
 //   verdict.cjs tier  --base <ref> [--head <ref>]           Quick | Standard | Deep, the axes it needs, and why
-//   verdict.cjs round <proof-dir> [--seat S]                 this review's round number (prior verdicts by this seat + 1),
-//                                                          the proof artifact type and file name; exit 3 past round 3
+//   verdict.cjs round <proof-dir> [--seat S] [--pr N]        this review's round number (prior verdicts + 1: with --pr, that
+//                                                          PR's of any seat; else this seat's), the proof artifact type and
+//                                                          file name (with the PR number when given); exit 3 past round 3
 //   verdict.cjs write --base <ref> [--head <ref>] --out <file> --spec R --standards R [--security R]
 //                     [--finding "F1|spec|Important|open|one line"]... [--seat S] [--family F: vendor family, e.g. claude] [--round N]
+//                     [--pr N: recorded as pr: N, which round --pr counts]
 //   verdict.cjs check <file> --base <ref> [--head <ref>]    does the file still bind to <base>..<head>?
 //
 // R is pass | fail | inconclusive. The binding is the merge-base diff's `git patch-id --stable` (ignores whitespace)
@@ -22,7 +24,17 @@ const STATUSES = ["open", "fixed", "declined"];
 const AXES = ["spec", "standards", "security"];
 // Paths that make a change Deep (adds the security axis): auth, secrets, migrations, CI, money, infra.
 const DEEP = /(^|\/)(auth|login|session|secrets?|credentials?|\.env|migrations?|\.github\/workflows|ci|billing|payments?|money|invoice|terraform|infra|k8s|helm|Dockerfile)(\/|\.|$)/i;
+// API surface is Deep too: a routes/api file, a route, controller, handler or endpoint file under an api/ path, an
+// Api controller folder, or an OpenAPI or Swagger spec. Generic shapes only, no framework list.
+const API = [
+  /(^|\/)routes\/api\.[a-z]+$/i,
+  /(^|\/)api\/(?:[^/]+\/)*[^/]*(route|controller|handler|endpoint)s?[^/]*\.[a-z]+$/i,
+  /(^|\/)controllers?\/api\//i,
+  /(^|\/)(openapi|swagger)[^/]*\.(ya?ml|json)$/i,
+];
 const DOCS = /\.(md|mdx|txt|rst)$|(^|\/)docs\//i;
+// A REVIEW.md line "Security axis: always" asks for the security axis on every change, whatever the tier.
+const ASKS_SECURITY = /^[ \t]*(?:[-*][ \t]+)?\**security axis\**:[ \t]*always\b/im;
 
 class Fail extends Error {}
 function git(args, opts = {}) {
@@ -45,11 +57,17 @@ function tier(base, head, k = keys(base, head)) {
   const files = rows.map(r => r[2]);
   const lines = rows.reduce((n, r) => n + (Number(r[0]) || 0) + (Number(r[1]) || 0), 0);
   if (!files.length) throw new Fail(`${k.base.slice(0, 12)}..${k.head.slice(0, 12)} changes nothing: there is no diff to judge`);
-  const deep = files.filter(f => DEEP.test(f));
+  const deep = files.filter(f => DEEP.test(f) || API.some(re => re.test(f)));
   if (deep.length) return { tier: "Deep", axes: ["spec", "standards", "security"], why: `risky paths: ${deep.join(", ")}`, files: files.length, lines };
-  if (files.every(f => DOCS.test(f))) return { tier: "Quick", axes: ["spec", "standards"], why: "docs only", files: files.length, lines };
-  if (lines < 50) return { tier: "Quick", axes: ["spec", "standards"], why: `${lines} changed lines, no risky path`, files: files.length, lines };
-  return { tier: "Standard", axes: ["spec", "standards"], why: `${lines} changed lines, no risky path`, files: files.length, lines };
+  const t = files.every(f => DOCS.test(f)) ? { tier: "Quick", why: "docs only" }
+    : { tier: lines < 50 ? "Quick" : "Standard", why: `${lines} changed lines, no risky path` };
+  if (asksSecurity(k.head)) return { ...t, axes: ["spec", "standards", "security"], why: `${t.why}; REVIEW.md asks for the security axis`, files: files.length, lines };
+  return { ...t, axes: ["spec", "standards"], files: files.length, lines };
+}
+
+function asksSecurity(head) {
+  const r = spawnSync("git", ["show", `${head}:REVIEW.md`], { encoding: "utf8" });
+  return r.status === 0 && ASKS_SECURITY.test(r.stdout);
 }
 
 // The leading `---` blocks of a file (the C1 header, then the verdict's own), as fleet's verdict check reads them.
@@ -61,9 +79,17 @@ function blocks(text) {
 }
 const isVerdict = text => blocks(text).some(b => /^axes:\s*\{/m.test(b));
 
-function priorVerdicts(dir, seat) {
+function prNumber(v) {
+  const n = String(v).replace(/^#/, "");
+  if (!/^\d+$/.test(n)) throw new Fail(`--pr takes the PR number, not '${v}'`);
+  return n;
+}
+
+// With a PR number, only that PR's verdicts count (any seat: a rename does not reset the rounds); else the seat's.
+function priorVerdicts(dir, seat, pr) {
   if (!fs.existsSync(dir)) return [];
   const same = (text) => {
+    if (pr) return (text.match(/^pr:\s*"?#?(\d+)"?$/m) || [])[1] === pr;
     if (!seat) return true;
     const m = text.match(/^reviewer_seat:\s*"?([^"\n]+)"?/m);
     return m ? m[1] === seat : true; // a verdict with no seat counts: an old format is still a round
@@ -93,8 +119,9 @@ function write(o) {
   for (const axis of ["spec", "standards"]) if (!axes[axis]) throw new Fail(`--${axis} is required: the axes are never blended`);
   const k = keys(o["--base"], o["--head"] || "HEAD");
   const t = tier(o["--base"], o["--head"] || "HEAD", k);
-  if (t.tier === "Deep" && !axes.security) throw new Fail(`this change is Deep (${t.why}): --security is required`);
-  if (t.tier !== "Deep" && axes.security) throw new Fail(`--security is the Deep axis and this change is ${t.tier} (${t.why}): put a security finding on the standards axis`);
+  const security = t.axes.includes("security");
+  if (security && !axes.security) throw new Fail(`this change needs the security axis (${t.tier}: ${t.why}): --security is required`);
+  if (!security && axes.security) throw new Fail(`--security is the Deep axis and this change is ${t.tier} (${t.why}): put a security finding on the standards axis, or add "Security axis: always" to REVIEW.md`);
   const findings = (o["--finding"] || []).map(parseFinding);
   for (const f of findings) if (!axes[f.axis]) throw new Fail(`finding ${f.id} is on the ${f.axis} axis, which has no result`);
   for (const [axis, r] of Object.entries(axes))
@@ -105,6 +132,7 @@ function write(o) {
     `base: ${k.base}`, `head: ${k.head}`, `patch_id: ${k.patch_id}`, `diff_digest: ${q(k.diff_digest)}`,
     `reviewed_at: ${new Date().toISOString().replace(/\.\d+Z$/, "Z")}`];
   if (o["--round"]) lines.push(`round: ${Number(o["--round"])}`);
+  if (o["--pr"]) lines.push(`pr: ${prNumber(o["--pr"])}`);
   if (o["--seat"]) lines.push(`reviewer_seat: ${q(o["--seat"])}`);
   if (o["--family"]) lines.push(`reviewer_family: ${q(o["--family"])}`);
   lines.push(findings.length ? "findings:" : "findings: []");
@@ -147,11 +175,12 @@ function main(argv) {
     case "tier": need(); return tier(o["--base"], o["--head"] || "HEAD");
     case "round": {
       const dir = o._[0] || "proof";
-      const n = priorVerdicts(dir, o["--seat"]).length + 1;
+      const pr = o["--pr"] && prNumber(o["--pr"]);
+      const n = priorVerdicts(dir, o["--seat"], pr).length + 1;
       if (n > 3) { process.stdout.write(JSON.stringify({ round: n, stop: "round cap: hand the approach back to the lead, do not review again" }) + "\n"); process.exit(3); }
       // rig proof add takes rev1-r1 and rev1-r2 only: every later round is rev1-r2, and the name keeps rounds apart in proof/.
       const slice = path.basename(path.dirname(path.resolve(dir)));
-      return { round: n, artifact_type: n === 1 ? "rev1-r1" : "rev1-r2", proof_name: `${slice}-rev1-round${n}.md` };
+      return { round: n, artifact_type: n === 1 ? "rev1-r1" : "rev1-r2", proof_name: `${slice}${pr ? `-pr${pr}` : ""}-rev1-round${n}.md` };
     }
     case "write": need(); return write(o);
     case "check": { need(); if (!o._[0]) throw new Fail("check <verdict file>"); const r = check(o._[0], o["--base"], o["--head"] || "HEAD"); if (!r.bound) { process.stdout.write(JSON.stringify(r) + "\n"); process.exit(1); } return r; }
