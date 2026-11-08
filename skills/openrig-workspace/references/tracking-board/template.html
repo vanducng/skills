@@ -116,7 +116,7 @@
   .menu { position: fixed; left: 0; right: 0; top: calc(var(--tb-bar-h) + env(safe-area-inset-top)); z-index: 39; background: var(--tb-surface); border-bottom: 1px solid var(--tb-line);
     box-shadow: var(--tb-shadow); padding: var(--tb-sp-2) var(--tb-sp-3) var(--tb-sp-3); display: none; max-height: calc(100vh - var(--tb-bar-h) - env(safe-area-inset-top)); overflow: auto; overscroll-behavior: contain; }
   .menu.open { display: block; }
-  .menu a, .rail a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--tb-tap); padding-top: 4px; padding-bottom: 4px; padding: 0 var(--tb-sp-3); border-radius: var(--tb-r-sm); color: var(--tb-text); text-decoration: none; }
+  .menu a, .rail a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--tb-tap); padding: 4px var(--tb-sp-3); border-radius: var(--tb-r-sm); color: var(--tb-text); text-decoration: none; }
   .menu a:active, .rail a:hover { background: var(--tb-surface-2); }
   .menu a .n, .rail a .n { color: var(--tb-muted); font-size: var(--tb-fs-sm); font-variant-numeric: tabular-nums; }
   .menu a.sub, .rail a.sub { padding-left: var(--tb-sp-6); color: var(--tb-muted); }
@@ -723,7 +723,7 @@ function stackTables() {
 
 // ---- Draw the page (the handlers below attach to what this creates) ----
 for (const [name, fn] of [["The board", build], ["The navigation", buildNav], ["Tables", stackTables], ["Lists", limitLists], ["Asks", clampNeeds]]) { try { fn(); } catch (e) { fail(`${name} could not be drawn.`, e); } }
-addEventListener("resize", clampNeeds); if (document.fonts && document.fonts.ready) document.fonts.ready.then(clampNeeds);
+addEventListener("resize", clampNeeds); addEventListener("resize", () => { layoutPanel(); syncModal(); }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(clampNeeds);
 
 // ---- Menu ----
 const menu = $("#menu"), menuBtn = $("#menubtn");
@@ -837,11 +837,17 @@ function inertPage(on) { for (const el of [$(".bar"), $("#rail"), $("#menu"), pa
 // At 1280 and up the note box sits directly under the Changes panel, which is only as tall as its notes.
 function layoutPanel() {
   const st = document.documentElement.style;
-  if (panelMode() && composer.classList.contains("on") && sheet.classList.contains("on")) {
-    st.setProperty("--tb-comp-top", "auto"); st.setProperty("--tb-comp-bottom", "auto");
-    const top = Math.round(sheet.getBoundingClientRect().bottom + 12);
-    st.setProperty("--tb-comp-top", `${top}px`);
-  } else { st.removeProperty("--tb-comp-top"); st.removeProperty("--tb-comp-bottom"); }
+  sheet.style.maxHeight = "";
+  if (!(panelMode() && composer.classList.contains("on") && sheet.classList.contains("on"))) { st.removeProperty("--tb-comp-top"); st.removeProperty("--tb-comp-bottom"); return; }
+  // Cap the panel so panel + note box fit the viewport (the note list scrolls inside); the box follows the panel,
+  // and falls back to the bottom edge whenever it would not fit under it.
+  const bar = $(".bar").offsetHeight, gap = 12, edge = 16, boxH = composer.offsetHeight, top0 = bar + gap;
+  const room = innerHeight - top0 - gap - boxH - edge;
+  if (room >= 160) sheet.style.maxHeight = `${room}px`;
+  st.setProperty("--tb-comp-bottom", "auto");
+  const under = Math.round(sheet.getBoundingClientRect().bottom + gap);
+  if (room >= 160 && under + boxH <= innerHeight - edge + 1) st.setProperty("--tb-comp-top", `${under}px`);
+  else { st.removeProperty("--tb-comp-top"); st.removeProperty("--tb-comp-bottom"); }
 }
 function syncModal() {
   const sh = MODAL() && sheet.classList.contains("on"), cm = MODAL() && composer.classList.contains("on");
