@@ -556,3 +556,33 @@ test("migrate on a repo with no old tree says so and exits 0", () => {
   assert.equal(r.code, 0);
   assert.match(r.out, /nothing to migrate/i);
 });
+
+// ---- the skill text and evals (the workbench.py shim is tested by test_workbench.py, which CI runs) -----------
+
+test("the old feature.json, INDEX.md and type-folder machinery is gone from the skill", () => {
+  const skill = fs.readFileSync(path.join(__dirname, "..", "SKILL.md"), "utf8");
+  assert.doesNotMatch(skill, /feature\.json.*(authoritative|derived)|INDEX\.md.*rebuild/i);
+});
+
+test("SKILL.md is 500 words or fewer and has the frontmatter the validator needs", () => {
+  const skill = fs.readFileSync(path.join(__dirname, "..", "SKILL.md"), "utf8");
+  assert.ok(skill.split(/\s+/).filter(Boolean).length <= 500, "word count");
+  assert.match(skill, /^---\nname: workbench\n/);
+  // A strict YAML loader (pi's) drops the whole skill when a plain scalar holds ": ".
+  const front = skill.split("\n---\n")[0].split("\n").slice(1);
+  for (const line of front.filter(l => /^\w+: /.test(l))) {
+    const value = line.slice(line.indexOf(": ") + 2);
+    assert.ok(/^"/.test(value) || !value.includes(": "), `quote the frontmatter value: ${line.slice(0, 40)}`);
+  }
+});
+
+test("every eval scenario has a prompt, an executable checks.sh and at least one is a clean case", () => {
+  const evals = path.join(__dirname, "..", "evals");
+  const dirs = fs.readdirSync(evals).filter(d => /^\d+-/.test(d));
+  assert.ok(dirs.length >= 3);
+  for (const d of dirs) {
+    assert.ok(fs.existsSync(path.join(evals, d, "prompt.md")), `${d} prompt`);
+    assert.ok(fs.statSync(path.join(evals, d, "checks.sh")).mode & 0o111, `${d} checks.sh executable`);
+  }
+  assert.ok(dirs.some(d => { try { return JSON.parse(fs.readFileSync(path.join(evals, d, "scenario.json"), "utf8")).clean === true; } catch { return false; } }), "a clean case");
+});
