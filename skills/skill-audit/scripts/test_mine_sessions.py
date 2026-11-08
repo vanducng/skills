@@ -523,16 +523,26 @@ class Aggregate(unittest.TestCase):
 PI_PROBE = "Command exited with code 1"
 PROBES = [
     ("grep -q needle haystack.txt", ""),
-    ("rg -c needle src | head -1; rg -q other src", ""),
-    ("cd repo && diff a.txt b.txt >/dev/null 2>&1", ""),
+    ("rg -q needle src", ""),
+    ("diff a.txt b.txt >/dev/null 2>&1", ""),
     ("pgrep -f worker", ""),
     ("git log --oneline | grep -c fix", "0"),
+    ("grep -E '(a|b)' notes.txt", ""),  # parentheses and a pipe inside quotes are not shell syntax
 ]
 FAILURES = [
     ("pytest -q", "1 failed"),  # exit 1 from a real command
-    ("grep needle missing.txt", "grep: missing.txt: No such file or directory"),  # diagnostic in the output
+    ("grep needle missing.txt", "grep: missing.txt: No such file or directory"),  # the tool's own diagnostic
     ("make build", "boom"),
     ("echo done", ""),
+    # An earlier stage failed and the probe at the end only reported the exit:
+    ("cat missing.txt | grep x", "cat: missing.txt: No such file or directory"),
+    ("curl -s http://localhost:1/x | grep ok", "curl: (7) Failed to connect to localhost port 1"),
+    ("python3 run.py | grep -c PASS", "Traceback (most recent call last):\n  File \"run.py\", line 1\nValueError: x\n0"),
+    ("cd nowhere && diff a b", "/bin/bash: line 1: cd: nowhere: No such file or directory"),
+    ("make build; grep -q done log", ""),
+    ("set -o pipefail; false | grep -q x", ""),
+    ("(cd sub && grep -q x f)", ""),
+    ("grep -q x f || grep -q y f", ""),
 ]
 
 

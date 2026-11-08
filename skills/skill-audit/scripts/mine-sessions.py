@@ -61,15 +61,16 @@ COUNTER_KEYS = (
 
 
 # A shell command whose last stage is one of these exits 1 to answer "nothing matched": the harness flags it as a
-# tool error, but nothing failed. It counts as a probe, not an error, unless the output carries the tool's own
-# diagnostic (`grep: file: No such file`).
+# tool error, but nothing failed. It counts as a probe, not an error, only when the command is a plain pipeline
+# (no `&&`, `||`, `;`, `cd`, subshell or background job that could have failed first) ending in a probe tool, and
+# its output is empty or one number (`grep -c`): any other text may be an earlier stage's diagnostic.
 PROBE_TOOLS = frozenset({"grep", "egrep", "fgrep", "rg", "diff", "cmp", "pgrep", "test", "["})
 SHELL_TOOLS = frozenset({"bash", "Bash"})
 _EXIT1_HEAD = re.compile(r"\AExit code:? 1\b")
 _EXIT1_TAIL = re.compile(r"Command exited with code 1\s*\Z")
-_DIAGNOSTIC = re.compile(r"^(?:grep|egrep|fgrep|rg|diff|cmp|pgrep|test|bash|sh|zsh|\[): ", re.M)
-_STAGE_SPLIT = re.compile(r"\|\||&&|[|;&\n]")
+_QUOTED = re.compile(r"'[^']*'|\"(?:[^\"\\]|\\.)*\"")
 _REDIRECT = re.compile(r"\d*>&\d+|&>\S*|\d*>>?\s*\S+")
+_COMPOUND = re.compile(r"&&|\|\||[;&\n`(){}]|\$\(")
 
 
 def command_of(arguments):
@@ -82,9 +83,12 @@ def command_of(arguments):
     return command if isinstance(command, str) else ""
 
 
-def last_stage_tool(command):
-    """Program name of the last command in a shell line, or ''."""
-    stages = [x.strip() for x in _STAGE_SPLIT.split(_REDIRECT.sub(" ", command)) if x.strip()]
+def probe_pipeline_tool(command):
+    """Program name of the last stage of a plain pipeline, or '' when the command is anything more."""
+    plain = _REDIRECT.sub(" ", _QUOTED.sub("Q", command))
+    if _COMPOUND.search(plain):
+        return ""
+    stages = [x.strip() for x in plain.split("|") if x.strip()]
     for word in stages[-1].split() if stages else []:
         if word in ("!", "command", "builtin", "sudo", "env") or re.match(r"[A-Za-z_]\w*=", word):
             continue
@@ -94,12 +98,16 @@ def last_stage_tool(command):
 
 def is_probe_exit(tool, command, content):
     """True for an error result that is only a probe's exit 1 (no match), not a failure."""
-    if tool not in SHELL_TOOLS or last_stage_tool(command) not in PROBE_TOOLS:
+    if tool not in SHELL_TOOLS or probe_pipeline_tool(command) not in PROBE_TOOLS:
         return False
     text = "\n".join(texts_of(content)).strip()
-    if not (_EXIT1_HEAD.search(text) or _EXIT1_TAIL.search(text)):
+    if _EXIT1_HEAD.search(text):
+        text = _EXIT1_HEAD.sub("", text, count=1).strip()
+    elif _EXIT1_TAIL.search(text):
+        text = _EXIT1_TAIL.sub("", text, count=1).strip()
+    else:
         return False
-    return not _DIAGNOSTIC.search(text)
+    return text == "" or text.isdigit()
 
 
 def load_registry(dirs=REGISTRY_DIRS):
