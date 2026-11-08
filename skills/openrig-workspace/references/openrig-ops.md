@@ -25,6 +25,7 @@ OpenRig restores seats from the snapshot taken at `rig down`, which still holds 
 - **Move (cwd changes):**
   1. Each seat updates PROGRESS.md, its `LEARNED.md`, and runs `rig context recap-write`; that RECAP is what a successor is primed from.
   2. Move the task dir (on the other host, `mv` the gitignored dirs by hand).
+     When the project itself moves host, also copy each mission's `slices/.nn-*` files (OpenRig slice claim markers, gitignored per-host state) so slice numbering carries over.
   3. `rig seat set-cwd <seat> --cwd <new absolute path> --reason move` for each seat.
   4. One seat at a time: `rig seat handover <seat> --source rebuild --reason move --dry-run`, then without `--dry-run`. A seat with no live tmux session cannot hand over; use `rig seat launch <seat> --fresh --reason move`.
   5. No `rig down`, `rig up --existing` or fork between steps 3 and 4. A fork source is a session name (`fork:dev-impl@<rig>`), and it will not find a conversation whose cwd moved.
