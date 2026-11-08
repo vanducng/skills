@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[what you are trying to do]"
 metadata:
   author: vanducng
-  version: "0.1.3"
+  version: "0.1.4"
 ---
 
 # Guide
@@ -14,7 +14,7 @@ This skill picks the next skill. It does not interview, plan, or edit source. Na
 
 ## Delivery spine
 
-One path: **interview → brainstorm → plan → cook → ship**. `vd:ultracook` runs the smallest slice of the same path.
+One path: **interview → brainstorm → plan → cook → ship**.
 
 | If | Use |
 |---|---|
@@ -24,7 +24,6 @@ One path: **interview → brainstorm → plan → cook → ship**. `vd:ultracook
 | Want is clear, how is not | `vd:brainstorm` |
 | Approach is picked | `vd:plan` → `vd:cook` → `vd:code-review` → `vd:ship` |
 | Something is broken | `vd:debug` → `vd:fix` |
-| Drive the whole thing | `vd:ultracook` |
 
 ## Three "just get it done" paths
 
@@ -32,9 +31,8 @@ One path: **interview → brainstorm → plan → cook → ship**. `vd:ultracook
 |---|---|
 | `vd:cook --quick` | Tight, no plan, one surface. You will still verify and test. |
 | `vd:fix` | Known bug, narrow blast radius. `--quick` on cook covers similar ground. |
-| `vd:ultracook` (direct) | User asked to orchestrate and the task is trivial. Ultracook classifies; it should not open a goal-dir. |
 
-If two apply, prefer `vd:fix` for failures, `vd:cook --quick` for small builds, `vd:ultracook` when the user wants a conductor.
+If two apply, prefer `vd:fix` for failures and `vd:cook --quick` for small builds.
 
 ## Review lenses
 
@@ -55,11 +53,8 @@ If two apply, prefer `vd:fix` for failures, `vd:cook --quick` for small builds, 
 | Logged-in browsing in an isolated ego space | `vd:ego-browser` |
 | Persistent local Chrome, CDP, video, network mocks | `vd:agent-browser` (+ `vd:browser-profile` to launch) |
 | Vendor-free raw-CDP traces | `vd:browser-trace` |
-| CAPTCHA / anti-bot / proxy (Browserbase) | `vd:browser` |
 | Logged-in end-to-end flows | `vd:web-e2e` |
 | Performance | `vd:web-perf` |
-
-Start local. Escalate to `vd:browser` only when a local run hits a wall.
 
 ## Diagram picker
 
@@ -67,8 +62,6 @@ Start local. Escalate to `vd:browser` only when a local run hits a wall.
 |---|---|
 | Explain the current topic in chat | `vd:show-me` |
 | ASCII sketch | `vd:text-diagram` |
-| General SVG / raster | `vd:diagram` |
-| Editable whiteboard | `vd:excalidraw` |
 | Polished, accessible HTML/SVG with layout guidance | `vd:diagram-design` |
 
 ## Interface
@@ -87,7 +80,6 @@ Start local. Escalate to `vd:browser` only when a local run hits a wall.
 | Sync a projects workspace across fleet hosts | `vd:openrig-workspace` |
 | Cited comparison of known options | `vd:research` |
 | Edge cases / blast radius | `vd:scenario` |
-| Keep iterating one command | `vd:auto-loop` |
 | Mechanical quality grind | `vd:optimize-loop` |
 | Which skill do I run? | this skill |
 

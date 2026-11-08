@@ -18,7 +18,6 @@ Grilling walks an **existing** plan or idea until every load-bearing decision ha
 | Caller | Why |
 |---|---|
 | `vd:plan` | A sequencing detail is still fuzzy after intent is confirmed |
-| `vd:ultracook` (semi) | A pipeline stage is underspecified |
 | `vd:interview --wayfinder` | A grilling ticket on the map |
 | User says "grill me" / "stress-test this plan" | Direct |
 

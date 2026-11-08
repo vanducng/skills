@@ -7,7 +7,7 @@ keywords: [visual, explainer, mermaid, call-tree, component-tree, file-tree, inf
 argument-hint: "[topic or question]"
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.1.1"
   source: "adapted from humanlayer/skills plugins/show-me (MIT)"
 ---
 
@@ -24,9 +24,7 @@ Hand off. Do not reimplement the heavier visual skills.
 | Need | Use |
 |---|---|
 | Keepable ASCII / box diagram | `vd:text-diagram` |
-| Versioned SVG / raster under Visuals or `docs/diagrams` | `vd:diagram` |
 | Polished accessible HTML / SVG artifact | `vd:diagram-design` |
-| Editable whiteboard | `vd:excalidraw` |
 | Bilingual promo / showcase page | `vd:show-off` |
 | Designed HTML page | `vd:opendesign` |
 

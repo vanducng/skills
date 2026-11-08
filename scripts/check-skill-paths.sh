@@ -20,8 +20,8 @@ ENFORCE=0
 # (static templates like assets/comparison-template.html stay legal).
 FORBIDDEN='(\.workbench/|plans/(reports|visuals|journals)|feature-folder\.json|assets/(showoff|show-off|artifacts|output|evidence|runs|traces)/)'
 # Allowed to reference umbrella paths: migrator + lifecycle owner + skill-authoring docs,
-# plus consumers that READ the layout (devlog) and skills that DOCUMENT it (worktree, ultracook).
-ALLOWLIST_RE='^(workbench|template-skill|worktree|ultracook|devlog)$'
+# plus consumers that READ the layout (devlog) and skills that DOCUMENT it (worktree).
+ALLOWLIST_RE='^(workbench|template-skill|worktree|devlog)$'
 
 violations=0
 flagged_files=0

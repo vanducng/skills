@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[topic or problem] [--quick | --deep]"
 metadata:
   author: vanducng
-  version: "1.4.0"
+  version: "1.4.1"
 ---
 
 # Brainstorm
@@ -79,7 +79,7 @@ For a deeper toolkit (SCAMPER, How-Might-We, JTBD, pre-mortem), see [`references
 
 Where helpful, pull in proven patterns: search the web (`WebSearch`), read library docs, scan the codebase. Don't invent in a vacuum when the wheel exists. But also don't *only* surface known options - the user could have searched too.
 
-**For visual brainstorming** (UI layouts, page/dashboard structure, comparing visual designs): produce a **visual draft** alongside text options - a single static HTML page rendering A/B/C panels in the browser, so the user can react to shapes, not just words. Full procedure, save paths, CSS vocabulary, and specialist handoff (`vd:opendesign` / `vd:diagram` / `vd:excalidraw`): [`references/visual-draft.md`](references/visual-draft.md). The brief itself stays text-only - visual drafts are intermediate artifacts.
+**For visual brainstorming** (UI layouts, page/dashboard structure, comparing visual designs): produce a **visual draft** alongside text options - a single static HTML page rendering A/B/C panels in the browser, so the user can react to shapes, not just words. Full procedure, save paths, CSS vocabulary, and specialist handoff (`vd:opendesign` / `vd:diagram-design`): [`references/visual-draft.md`](references/visual-draft.md). The brief itself stays text-only - visual drafts are intermediate artifacts.
 
 ## Phase 3 - Stress-test (red team)
 

@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[topic or ask] [--grill | --wayfinder]"
 metadata:
   author: vanducng
-  version: "1.2.0"
+  version: "1.2.1"
 ---
 
 # Interview
@@ -22,7 +22,7 @@ Default and `--grill` (want / walk-an-idea). `--wayfinder` uses the map rules in
 4. **Explicit yes on a concrete restate.** "Sounds good", "whatever you think", and silence are not yes. Why: a hollow yes becomes the wrong PR.
 5. **Out of scope is mandatory.** Half of misalignment is silent disagreement about what is *not* being built.
 6. **No options, no plan, no code** until the restate is confirmed. Why: options widen the search; this skill narrows it.
-7. **Non-interactive is a blocker, not a guess.** CI, `vd:auto-loop`, `ultracook --auto` / exec: write the missing slots and stop. Do not invent the user.
+7. **Non-interactive is a blocker, not a guess.** CI, scheduled runs, exec: write the missing slots and stop. Do not invent the user.
 
 ## Modes
 
@@ -40,7 +40,7 @@ Detect `--grill` from the flag or "grill this", "stress-test my plan". Detect `-
 
 ### 0. Interactive check
 
-If there is no live user (CI, scheduled, auto-loop, `ULTRACOOK_EXEC=1`): stop. List the missing slots (who / why / success / constraint / out of scope). Do not fill them in.
+If there is no live user (CI, scheduled, exec): stop. List the missing slots (who / why / success / constraint / out of scope). Do not fill them in.
 
 If the ask is already a typo, rename, or a self-contained one-liner and you can write the restate at ≥95% confidence: write it, ask once, and skip the loop.
 

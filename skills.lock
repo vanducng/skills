@@ -2,14 +2,6 @@
 generated = '2026-09-02T14:07:29Z'
 
 [skills]
-[skills.browser]
-sha = 'b2ae7283497efec71533d292b19b874dd9d0fc4e'
-tree_hash = '4af4dda3fe9286bfc9334ae7be2b12164fdb5c2e920f547970ed48e34b36eddd'
-source = 'https://github.com/browserbase/skills'
-path = 'skills/browser'
-size = 28836
-mtime = '2026-05-19T02:36:42Z'
-
 [skills.browser-trace]
 sha = 'b2ae7283497efec71533d292b19b874dd9d0fc4e'
 tree_hash = '1a0e25d1c0495839017969ac175f443bd984172f80b46484ae22d6b47374c21d'
