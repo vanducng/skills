@@ -2,6 +2,18 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.79.0](https://github.com/vanducng/skills/compare/v1.78.0...v1.79.0) (2026-11-08)
+
+
+### Features
+
+* **statechart:** vendor the statechart lens skill with evals ([#597](https://github.com/vanducng/skills/issues/597)) ([5a19875](https://github.com/vanducng/skills/commit/5a198755debf13b029c5bc642e6b2ab08285a285))
+
+
+### Bug Fixes
+
+* **openrig-workspace:** slice-names accepts a free-text mission milestone ([#592](https://github.com/vanducng/skills/issues/592)) ([c6dc7b6](https://github.com/vanducng/skills/commit/c6dc7b65732f63d6525054651ff65d5f0048a5f0))
+
 ## [1.78.0](https://github.com/vanducng/skills/compare/v1.77.1...v1.78.0) (2026-11-08)
 
 
