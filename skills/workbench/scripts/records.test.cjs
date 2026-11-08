@@ -407,6 +407,61 @@ test("the PROOF.md index line is one line however the evidence is written", () =
   assert.equal(fs.readFileSync(path.join(d, "PROOF.md"), "utf8").split("\n").filter(l => /injected/.test(l)).length, 1);
 });
 
+test("the printed proof commands survive a path with spaces and quotes", () => {
+  const parent = tmp(), dirName = "my repo's dir", dir = path.join(parent, dirName);
+  fs.mkdirSync(dir);
+  git(dir, "init", "-q", "-b", "feat/PROJ-4-x");
+  git(dir, "commit", "-q", "--allow-empty", "-m", "i");
+  const bench = run(["resolve", "--json"], { cwd: dir }).json();
+  const split = cmd => spawnSync("bash", ["-c", `set -- ${cmd}; printf '%s\\n' "$@"`], { encoding: "utf8" }).stdout.trim().split("\n");
+  const words = split(bench.proofAdd);
+  assert.equal(words[words.length - 1], bench.dir);
+  assert.equal(words[words.length - 3], "proof");
+  const w = workspace();
+  const spaced = path.join(parent, "ws with space");
+  fs.renameSync(w.root, spaced);
+  const rig = run(["resolve", "--slice", "01-board", "--json"], { cwd: spaced, env: { ...RIG, PROJECTS_ROOT: spaced } }).json();
+  const rw = split(rig.proofAdd);
+  assert.deepEqual(rw.slice(0, 3), ["rig", "proof", "--workspace"]);
+  assert.equal(rw[3], spaced);
+  assert.equal(rw[rw.length - 1], rig.dir);
+});
+
+test("init and migrate never write through a symlink at SPEC.md, PROGRESS.md or PROOF.md", () => {
+  const dir = repo("proj", "feat/PROJ-9-x");
+  const d = path.join(dir, ".workbench", "proj-9-x");
+  fs.mkdirSync(d, { recursive: true });
+  const victim = path.join(dir, "victim.txt");
+  write(victim, "keep me\n");
+  fs.symlinkSync(victim, path.join(d, "SPEC.md"));
+  fs.symlinkSync(path.join(dir, "does-not-exist"), path.join(d, "PROOF.md"));
+  assert.equal(run(["init"], { cwd: dir }).code, 0);
+  assert.equal(fs.readFileSync(victim, "utf8"), "keep me\n");
+  assert.equal(fs.existsSync(path.join(dir, "does-not-exist")), false, "a dangling link is not created through");
+  assert.ok(fs.lstatSync(path.join(d, "SPEC.md")).isSymbolicLink(), "an existing entry is left alone by init");
+  const m = legacy();
+  write(victim, "keep me\n");
+  fs.mkdirSync(path.join(m.wb, "proj-1-alpha"), { recursive: true });
+  fs.symlinkSync(victim, path.join(m.wb, "proj-1-alpha", "SPEC.md"));
+  run(["migrate", "--apply"], { cwd: m.dir });
+  assert.equal(fs.readFileSync(victim, "utf8"), "keep me\n", "migrate does not write the SPEC.md through a link");
+});
+
+test("a missing --file is a clean error, not a stack trace", () => {
+  const { d } = benchDir();
+  const r = run(["proof", "add", d, "--artifact-type", "qa", "--verdict", "PASS", "--candidate-sha", "a", "--money-evidence", "m", "--file", path.join(d, "nope.md")]);
+  assert.equal(r.code, 2);
+  assert.match(r.err, /^records: .*--file/);
+  assert.doesNotMatch(r.err, /\n\s+at /);
+});
+
+test("SKILL.md states the new record layout and points at records.cjs", () => {
+  const skill = fs.readFileSync(path.join(__dirname, "..", "SKILL.md"), "utf8");
+  assert.match(skill, /records\.cjs/);
+  assert.match(skill, /\.workbench\/<id>\/\{SPEC\.md,PROGRESS\.md,PROOF\.md,proof\/,reports\/\}/);
+  assert.match(skill, /migrate --apply/);
+});
+
 test("the enums and required fields are the daemon's (skipped when the OpenRig package is not installed)", { skip: !(() => { try { return !!findAudit(); } catch { return false; } })() }, () => {
   const src = fs.readFileSync(findAudit(), "utf8");
   const arr = name => JSON.parse(new RegExp(`const ${name} = (\\[[^\\]]*\\]);`).exec(src)[1]);

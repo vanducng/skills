@@ -4,7 +4,8 @@
 //   records.cjs init [--id <id>] [--intent "<text>"]            create the .workbench/<id>/ folder (no rig only)
 //   records.cjs check <dir> [--stage close]                      the shape checks `rig scope audit` makes, for any record folder
 //   records.cjs proof add <dir> --artifact-type .. --verdict .. --candidate-sha .. --money-evidence .. (--file F | --body T)
-//   records.cjs migrate [--apply]                                move .workbench/features/<id>/ into .workbench/<id>/
+//   records.cjs migrate [--apply]                                move .workbench/features/<id>/ into .workbench/<id>/ (run it only once the
+//                                                                hook layout and workbench.py follow; see skills/workbench/SKILL.md)
 // In a rig (OPENRIG_SESSION_NAME set and a workspace.yaml found) the folder is the slice folder and evidence goes through
 // `rig proof add`. Anywhere else it is <main worktree>/.workbench/<id>/, in the same shape.
 "use strict";
@@ -68,6 +69,8 @@ function frontmatter(file) {
   return out;
 }
 const quote = s => JSON.stringify(String(s));
+// A shell word: left bare when plainly safe, else single-quoted.
+const sh = s => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(s) ? s : `'${String(s).replace(/'/g, "'\\''")}'`);
 // A header scalar: plain when it is plainly safe, JSON-quoted (valid YAML) otherwise.
 const scalar = s => (/^[A-Za-z][A-Za-z0-9_./ -]*$/.test(s) && !/^(true|false|null|yes|no|on|off)$/i.test(s) ? s : quote(s));
 
@@ -159,10 +162,10 @@ function resolve(opts, cwd) {
   if (inRig && !ws) throw new Fail(`in a rig (OPENRIG_SESSION_NAME=${process.env.OPENRIG_SESSION_NAME}) but no workspace.yaml found from --root, $PROJECTS_ROOT or the current directory; a rig does not write a .workbench record`);
   if (ws) {
     const s = findSlice(ws, opts, cwd);
-    return shape(s.dir, "rig", { workspace: ws, mission: s.mission, slice: s.slice, proofAdd: `rig proof --workspace ${ws} add ${s.dir}` });
+    return shape(s.dir, "rig", { workspace: ws, mission: s.mission, slice: s.slice, proofAdd: `rig proof --workspace ${sh(ws)} add ${sh(s.dir)}` });
   }
   const id = benchId(opts, cwd), root = mainWorktree(cwd), dir = path.join(root, ".workbench", id);
-  return shape(dir, "bench", { id, proofAdd: `node ${__filename} proof add ${dir}` });
+  return shape(dir, "bench", { id, proofAdd: `node ${sh(__filename)} proof add ${sh(dir)}` });
 }
 
 // ---- init and check ---------------------------------------------------------------------------------------------------
@@ -176,7 +179,7 @@ function init(opts, cwd) {
   fs.mkdirSync(r.reports, { recursive: true });
   const made = [];
   for (const [file, body] of [[r.spec, SPEC_TEMPLATE(r.id, opts["--intent"])], [r.progress, PROGRESS_TEMPLATE(r.id)], [r.proofFile, PROOF_TEMPLATE(r.id)]])
-    if (!exists(file)) { fs.writeFileSync(file, body); made.push(path.basename(file)); }
+    if (!lexists(file)) { replaceFile(file, body); made.push(path.basename(file)); }
   return { ...r, created: made };
 }
 function sections(spec) {
@@ -242,7 +245,8 @@ function proofAdd(dir, opts) {
   if (!opts["--file"] && opts["--body"] === undefined) throw new Fail("give the artifact body with --file or --body");
   let body = opts["--body"];
   if (opts["--file"]) {
-    const raw = fs.readFileSync(path.resolve(opts["--file"]));
+    let raw;
+    try { raw = fs.readFileSync(path.resolve(opts["--file"])); } catch { throw new Fail(`cannot read --file ${opts["--file"]}`); }
     if (BINARY_EXT.has(path.extname(opts["--file"]).toLowerCase()) || raw.includes(0)) throw new Fail(`--file ${opts["--file"]} is binary: an artifact body is text; put captures under proof/ and pass them with --media`);
     body = raw.toString("utf8");
   }
@@ -309,7 +313,7 @@ function migrate(opts, cwd) {
   const todo = moves.filter(m => !exists(m.to));
   if (opts["--apply"]) {
     for (const m of todo) { fs.mkdirSync(path.dirname(m.to), { recursive: true }); fs.renameSync(m.from, m.to); }
-    for (const s of specs) { fs.mkdirSync(path.dirname(s.file), { recursive: true }); fs.writeFileSync(s.file, SPEC_TEMPLATE(s.id, s.intent)); }
+    for (const s of specs) { fs.mkdirSync(path.dirname(s.file), { recursive: true }); if (!lexists(s.file)) replaceFile(s.file, SPEC_TEMPLATE(s.id, s.intent)); }
     for (const id of ls(features)) pruneEmpty(path.join(features, id));
     if (!ls(features).length && isDir(features)) fs.rmdirSync(features);
   }
