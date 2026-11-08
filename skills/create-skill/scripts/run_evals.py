@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -41,6 +42,7 @@ def pi_argv(binary: str, model: str, skill: Path | None, prompt: str, needs: lis
 
 
 ADAPTERS = {"pi": pi_argv}
+SKILL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")  # a sibling skill's directory name, never a path
 
 
 def usage_error(message: str) -> SystemExit:
@@ -63,7 +65,11 @@ def find_scenarios(evals_dir: Path, only: list[str]) -> list[dict]:
                 raise usage_error(f"{path.name} is not a scenario: it needs prompt.md and checks.sh")
             continue
         meta = json.loads((path / "scenario.json").read_text()) if (path / "scenario.json").is_file() else {}
-        needs = [evals_dir.parent.parent / name for name in meta.get("needs_skills", [])]
+        names = meta.get("needs_skills", [])
+        bad = [str(n) for n in names if not isinstance(n, str) or not SKILL_NAME.match(n)]
+        if bad:
+            raise usage_error(f"{path.name}: needs_skills takes skill names, not paths: {', '.join(bad)}")
+        needs = [evals_dir.parent.parent / name for name in names]
         missing = [str(p) for p in needs if not (p / "SKILL.md").is_file()]
         if missing:
             raise usage_error(f"{path.name} needs skills that are not beside the skill under test: {', '.join(missing)}")

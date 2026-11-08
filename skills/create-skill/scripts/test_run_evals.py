@@ -136,6 +136,22 @@ class Runner(unittest.TestCase):
             self.run_main(skill2, fake2)
         self.assertEqual(stop.exception.code, 2)
 
+    def test_a_needs_skills_entry_that_is_not_a_plain_skill_name_is_a_usage_error(self):
+        # A name is joined beside the skill under test: a path would load any directory as a skill, even one that
+        # holds a SKILL.md. Each case below points at a real skill-shaped directory and must still be refused.
+        for i, kind in enumerate(["absolute", "parent", "nested"]):
+            base = self.root / f"x{i}"
+            outside = self.root / f"outside{i}"
+            outside.mkdir()
+            (outside / "SKILL.md").write_text("---\nname: outside\n---\n")
+            name = {"absolute": str(outside), "parent": f"../../outside{i}", "nested": "a/b"}[kind]
+            skill, fake = build(base, dict(STANDARD, **{"04-bad": (CHECK_DONE, {"needs_skills": [name]})}))
+            (base / "a" / "b").mkdir(parents=True)
+            (base / "a" / "b" / "SKILL.md").write_text("---\nname: b\n---\n")
+            with self.subTest(kind=kind), self.assertRaises(SystemExit) as stop:
+                self.run_main(skill, fake)
+            self.assertEqual(stop.exception.code, 2)
+
     def test_a_non_scenario_directory_is_skipped_and_selecting_it_is_a_usage_error(self):
         skill, fake = build(self.root, STANDARD)
         (skill / "evals" / "helpers").mkdir()
