@@ -1,0 +1,5 @@
+schema: openrig.workspace/v0alpha1
+projects:
+  - id: acme.shop
+    root: orgs/acme/projects/shop
+    rigs: []

@@ -20,6 +20,7 @@ jobs:
           python3 hooks/test_hooks.py
           python3 hooks/test_agent_notify.py
           python3 skills/workbench/scripts/test_workbench.py
+          node --test skills/workbench/scripts/records.test.cjs
           python3 skills/create-skill/scripts/test_run_evals.py
       - name: Run git skill helper tests
         run: bash skills/git/scripts/wait-for-checks.test.sh
