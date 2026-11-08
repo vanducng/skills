@@ -55,9 +55,51 @@ HARNESS_COMMANDS = frozenset(
 )
 
 COUNTER_KEYS = (
-    "invocations", "tool_calls", "tool_errors", "corrections", "interrupts",
+    "invocations", "tool_calls", "tool_errors", "probes", "corrections", "interrupts",
     "aborts", "tokens", "agents", "agent_tool_calls", "agent_tool_errors", "agent_tokens",
 )
+
+
+# A shell command whose last stage is one of these exits 1 to answer "nothing matched": the harness flags it as a
+# tool error, but nothing failed. It counts as a probe, not an error, unless the output carries the tool's own
+# diagnostic (`grep: file: No such file`).
+PROBE_TOOLS = frozenset({"grep", "egrep", "fgrep", "rg", "diff", "cmp", "pgrep", "test", "["})
+SHELL_TOOLS = frozenset({"bash", "Bash"})
+_EXIT1_HEAD = re.compile(r"\AExit code:? 1\b")
+_EXIT1_TAIL = re.compile(r"Command exited with code 1\s*\Z")
+_DIAGNOSTIC = re.compile(r"^(?:grep|egrep|fgrep|rg|diff|cmp|pgrep|test|bash|sh|zsh|\[): ", re.M)
+_STAGE_SPLIT = re.compile(r"\|\||&&|[|;&\n]")
+_REDIRECT = re.compile(r"\d*>&\d+|&>\S*|\d*>>?\s*\S+")
+
+
+def command_of(arguments):
+    if isinstance(arguments, str):
+        try:
+            arguments = json.loads(arguments)
+        except ValueError:
+            return ""
+    command = arguments.get("command") if isinstance(arguments, dict) else None
+    return command if isinstance(command, str) else ""
+
+
+def last_stage_tool(command):
+    """Program name of the last command in a shell line, or ''."""
+    stages = [x.strip() for x in _STAGE_SPLIT.split(_REDIRECT.sub(" ", command)) if x.strip()]
+    for word in stages[-1].split() if stages else []:
+        if word in ("!", "command", "builtin", "sudo", "env") or re.match(r"[A-Za-z_]\w*=", word):
+            continue
+        return os.path.basename(word)
+    return ""
+
+
+def is_probe_exit(tool, command, content):
+    """True for an error result that is only a probe's exit 1 (no match), not a failure."""
+    if tool not in SHELL_TOOLS or last_stage_tool(command) not in PROBE_TOOLS:
+        return False
+    text = "\n".join(texts_of(content)).strip()
+    if not (_EXIT1_HEAD.search(text) or _EXIT1_TAIL.search(text)):
+        return False
+    return not _DIAGNOSTIC.search(text)
 
 
 def load_registry(dirs=REGISTRY_DIRS):
@@ -203,13 +245,16 @@ def mine_claude_session(path, registry, cutoff_epoch=0):
                     row["usage_by_tool"][name] += 1
                     bump(row, cur, "tool_calls")
                 if len(id2call) < ID_MAP_CAP:
-                    id2call[c.get("id")] = (name, cur)
+                    id2call[c.get("id")] = (name, cur, command_of(c.get("input")))
         elif kind == "user":
             content = (d.get("message") or {}).get("content")
             if included and isinstance(content, list):
                 for c in content:
                     if isinstance(c, dict) and c.get("type") == "tool_result" and c.get("is_error"):
-                        tool, at = id2call.get(c.get("tool_use_id"), ("?", cur))
+                        tool, at, command = id2call.get(c.get("tool_use_id"), ("?", cur, ""))
+                        if is_probe_exit(tool, command, c.get("content")):
+                            bump(row, at, "probes")
+                            continue
                         row["errors_by_tool"][tool] += 1
                         bump(row, at, "tool_errors")
             for text in texts_of(content):
@@ -441,12 +486,17 @@ def mine_pi_session(path, registry, cutoff_epoch=0):
                         if skill:
                             row["skillmd_reads"][skill] += 1
                 if len(id2call) < ID_MAP_CAP:
-                    id2call[c.get("id")] = (name, cur)
+                    id2call[c.get("id")] = (name, cur, command_of(c.get("arguments")))
         elif role == "toolResult":
             if included and msg.get("isError"):
-                tool, at = id2call.get(msg.get("toolCallId"), (msg.get("toolName") or "?", cur))
-                row["errors_by_tool"][tool] += 1
-                bump(row, at, "tool_errors")
+                tool, at, command = id2call.get(
+                    msg.get("toolCallId"), (msg.get("toolName") or "?", cur, "")
+                )
+                if is_probe_exit(tool, command, msg.get("content")):
+                    bump(row, at, "probes")
+                else:
+                    row["errors_by_tool"][tool] += 1
+                    bump(row, at, "tool_errors")
         elif role == "user":
             for text in texts_of(msg.get("content")):
                 if not text:
@@ -710,6 +760,7 @@ def baseline(rows):
         "sessions": len(rows),
         "tool_calls": calls,
         "tool_errors": totals["tool_errors"],
+        "probes": totals["probes"],
         "err_rate": round(totals["tool_errors"] / calls, 4) if calls else None,
         "interrupts": totals["interrupts"],
         "aborts": totals["aborts"],

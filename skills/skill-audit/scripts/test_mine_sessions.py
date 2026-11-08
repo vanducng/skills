@@ -519,5 +519,78 @@ class Aggregate(unittest.TestCase):
         self.assertEqual(rows[0]["first_ts"], "2999-01-01T00:00:00Z")
 
 
+# Shell calls that exit 1: (command, result text) pairs as the harnesses write them.
+PI_PROBE = "Command exited with code 1"
+PROBES = [
+    ("grep -q needle haystack.txt", ""),
+    ("rg -c needle src | head -1; rg -q other src", ""),
+    ("cd repo && diff a.txt b.txt >/dev/null 2>&1", ""),
+    ("pgrep -f worker", ""),
+    ("git log --oneline | grep -c fix", "0"),
+]
+FAILURES = [
+    ("pytest -q", "1 failed"),  # exit 1 from a real command
+    ("grep needle missing.txt", "grep: missing.txt: No such file or directory"),  # diagnostic in the output
+    ("make build", "boom"),
+    ("echo done", ""),
+]
+
+
+class Probes(unittest.TestCase):
+    """A shell probe that exits 1 (nothing matched) is counted as a probe; a failure is still an error."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        self.addCleanup(self.tmp.cleanup)
+
+    def pi_row(self, cases):
+        lines = [cc for i, (command, out) in enumerate(cases) for cc in (
+            pi_assistant(f"a{i:02d}", "bash", f"x{i}", args={"command": command}),
+            {**pi_result(f"b{i:02d}", f"x{i}", "bash", True), "message": {
+                "role": "toolResult", "toolCallId": f"x{i}", "toolName": "bash", "isError": True,
+                "content": [{"type": "text", "text": f"{out}\n\n\n{PI_PROBE}".lstrip("\n")}]}},
+        )]
+        return m.mine_pi_session(write(self.root / "p" / "s.jsonl", lines), REGISTRY)
+
+    def claude_row(self, cases):
+        lines = []
+        for i, (command, out) in enumerate(cases):
+            block = {"type": "tool_use", "name": "Bash", "id": f"c{i}", "input": {"command": command}}
+            lines.append({"type": "assistant", "timestamp": f"a{i:02d}", "message": {
+                "model": "opus", "usage": {"output_tokens": 0}, "content": [block]}})
+            lines.append({"type": "user", "timestamp": f"b{i:02d}", "message": {"content": [{
+                "type": "tool_result", "tool_use_id": f"c{i}", "is_error": True,
+                "content": f"Exit code 1\n{out}".strip()}]}})
+        return m.mine_claude_session(write(self.root / "c" / "s.jsonl", lines), REGISTRY)
+
+    def counts(self, row):
+        attr = row["attr"][m.NONE]
+        return attr["tool_errors"], attr["probes"], sum(row["errors_by_tool"].values())
+
+    def test_pi_exit_one_probes_are_not_errors(self):
+        self.assertEqual(self.counts(self.pi_row(PROBES)), (0, len(PROBES), 0))
+
+    def test_pi_real_failures_are_still_errors(self):
+        self.assertEqual(self.counts(self.pi_row(FAILURES)), (len(FAILURES), 0, len(FAILURES)))
+
+    def test_claude_exit_one_probes_are_not_errors(self):
+        self.assertEqual(self.counts(self.claude_row(PROBES)), (0, len(PROBES), 0))
+
+    def test_claude_real_failures_are_still_errors(self):
+        self.assertEqual(self.counts(self.claude_row(FAILURES)), (len(FAILURES), 0, len(FAILURES)))
+
+    def test_a_mixed_session_splits_cleanly_and_the_baseline_reports_both(self):
+        row = self.pi_row(PROBES + FAILURES)
+        self.assertEqual(self.counts(row), (len(FAILURES), len(PROBES), len(FAILURES)))
+        base = m.baseline([row])
+        self.assertEqual((base["tool_errors"], base["probes"]), (len(FAILURES), len(PROBES)))
+
+    def test_a_non_shell_tool_or_exit_two_is_never_a_probe(self):
+        self.assertFalse(m.is_probe_exit("read", "grep x", [{"type": "text", "text": PI_PROBE}]))
+        self.assertFalse(m.is_probe_exit("bash", "grep x f", [{"type": "text", "text": "Command exited with code 2"}]))
+        self.assertTrue(m.is_probe_exit("bash", "grep x f", [{"type": "text", "text": PI_PROBE}]))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
