@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -32,14 +33,16 @@ PI_FLAGS = [
 ]  # fmt: skip
 
 
-def pi_argv(binary: str, model: str, skill: Path | None, prompt: str) -> list[str]:
+def pi_argv(binary: str, model: str, skill: Path | None, prompt: str, needs: list[Path] = ()) -> list[str]:
+    """`needs` are other skills a scenario depends on: loaded in every variant, before the skill under test."""
     argv = [binary, *PI_FLAGS, "--model", model]
-    if skill is not None:
-        argv += ["--skill", str(skill)]
+    for path in [*needs, *([skill] if skill is not None else [])]:
+        argv += ["--skill", str(path)]
     return [*argv, prompt]
 
 
 ADAPTERS = {"pi": pi_argv}
+SKILL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")  # a sibling skill's directory name, never a path
 
 
 def usage_error(message: str) -> SystemExit:
@@ -62,12 +65,21 @@ def find_scenarios(evals_dir: Path, only: list[str]) -> list[dict]:
                 raise usage_error(f"{path.name} is not a scenario: it needs prompt.md and checks.sh")
             continue
         meta = json.loads((path / "scenario.json").read_text()) if (path / "scenario.json").is_file() else {}
+        names = meta.get("needs_skills", [])
+        bad = [str(n) for n in names if not isinstance(n, str) or not SKILL_NAME.match(n)]
+        if bad:
+            raise usage_error(f"{path.name}: needs_skills takes skill names, not paths: {', '.join(bad)}")
+        needs = [evals_dir.parent.parent / name for name in names]
+        missing = [str(p) for p in needs if not (p / "SKILL.md").is_file()]
+        if missing:
+            raise usage_error(f"{path.name} needs skills that are not beside the skill under test: {', '.join(missing)}")
         found.append({
             "name": path.name,
             "dir": path,
             "prompt": (path / "prompt.md").read_text(),
             "clean": bool(meta.get("clean", False)),
             "timeout": int(meta.get("timeout", DEFAULT_TIMEOUT)),
+            "needs": needs,
         })  # fmt: skip
     return found
 
@@ -87,7 +99,7 @@ def run_one(job: dict, adapter, binary: str, out_dir: Path) -> dict:
         for target in (work, orig):
             if fixture.is_dir():
                 shutil.copytree(fixture, target, dirs_exist_ok=True)
-        argv = adapter(binary, model, variant["skill"], scenario["prompt"])
+        argv = adapter(binary, model, variant["skill"], scenario["prompt"], scenario["needs"])
         try:
             done = subprocess.run(argv, cwd=work, capture_output=True, text=True, timeout=scenario["timeout"], check=False)
             output, record["returncode"] = done.stdout, done.returncode

@@ -4,4 +4,5 @@
 type_is 'investigation'
 grep -Eiq '^- \[ \] .*(file:line|[A-Za-z0-9_./-]+:[0-9]+|`[^`]+:[0-9]+`)' "$spec" || { echo "contract does not ask for file:line citations"; exit 1; }
 grep -Eiq '^- \[ \] .*measured.*inferred.*guess' "$spec" || { echo "contract does not label claims measured/inferred/guess"; exit 1; }
+! grep -Eq '^lenses:.*statechart' "$spec" || { echo "a statechart lens on work with no states"; exit 1; }
 echo ok
