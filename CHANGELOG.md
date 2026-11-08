@@ -2,6 +2,18 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.78.0](https://github.com/vanducng/skills/compare/v1.77.1...v1.78.0) (2026-11-08)
+
+
+### Features
+
+* **openrig-workspace:** records are committed only by workspace-sync, and workspace commits name host, rig and seat ([#586](https://github.com/vanducng/skills/issues/586)) ([15716fe](https://github.com/vanducng/skills/commit/15716fef459ed733c4e15ca5f12de9b1b32561de))
+
+
+### Bug Fixes
+
+* **openrig-workspace:** phone note box above the keyboard, tailnet sign-in for boards ([#588](https://github.com/vanducng/skills/issues/588)) ([6f36d35](https://github.com/vanducng/skills/commit/6f36d358e39d7868f466a2eefdb0be8b86f9302c))
+
 ## [1.77.1](https://github.com/vanducng/skills/compare/v1.77.0...v1.77.1) (2026-11-08)
 
 
