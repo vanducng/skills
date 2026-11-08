@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.77.1](https://github.com/vanducng/skills/compare/v1.77.0...v1.77.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* **code-review:** round 2 and later attach as rev1-r2 with the round in the file name ([#584](https://github.com/vanducng/skills/issues/584)) ([b5fa084](https://github.com/vanducng/skills/commit/b5fa084d2da7cad670700d7fb6f2cb4e74f926e7))
+
 ## [1.77.0](https://github.com/vanducng/skills/compare/v1.76.0...v1.77.0) (2026-11-08)
 
 
