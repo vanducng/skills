@@ -5,7 +5,7 @@
 //   verdict.cjs round <proof-dir> [--seat S]                 this review's round number (prior verdicts by this seat + 1),
 //                                                          the proof artifact type and file name; exit 3 past round 3
 //   verdict.cjs write --base <ref> [--head <ref>] --out <file> --spec R --standards R [--security R]
-//                     [--finding "F1|spec|Important|open|one line"]... [--seat S] [--family F] [--round N]
+//                     [--finding "F1|spec|Important|open|one line"]... [--seat S] [--family F: vendor family, e.g. claude] [--round N]
 //   verdict.cjs check <file> --base <ref> [--head <ref>]    does the file still bind to <base>..<head>?
 //
 // R is pass | fail | inconclusive. The binding is the merge-base diff's `git patch-id --stable` (ignores whitespace)

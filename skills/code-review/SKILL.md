@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[--base <ref>] [--post] [--refactor]"
 metadata:
   author: vanducng
-  version: "2.0.2"
+  version: "2.0.3"
 ---
 
 # code-review
@@ -29,7 +29,7 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
 5. **Findings:** ids `F1`, `F2`, each with an axis, a tag (`Important` blocks, `Nit`, `Pre-existing`) and a status (`open`, `fixed`, `declined`).
    - Flag the class of bug, so every instance gets fixed.
    - A deliberate product choice is a question, not a finding.
-6. **Write:** `node "$V" write --base <base> --out <file> --spec R --standards R [--security R] --finding "F1|spec|Important|open|<one line>" --seat <seat> --family <model family> --round N`. It binds the file to the diff and refuses a blended or impossible verdict.
+6. **Write:** `node "$V" write --base <base> --out <file> --spec R --standards R [--security R] --finding "F1|spec|Important|open|<one line>" --seat <seat> --family <vendor family> --round N`. `--family` takes the vendor family (`claude`, `gpt`, `glm`), not the model name (`opus`). It binds the file to the diff and refuses a blended or impossible verdict.
 7. **Attach:**
    - in a rig: `rig proof add --file <step 6's --out file> --artifact-type <artifact_type> --name <proof_name>` from step 2's output (round 1 is `rev1-r1`, every later round `rev1-r2`, the only types `rig proof` accepts; the name keeps each round's file) with the printed `verdict`;
    - outside one: the workbench record's `proof add` with that file.
