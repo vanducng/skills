@@ -22,8 +22,8 @@
  *   --worktree-root <path> Explicit worktree directory (default: <git-root>/.worktrees)
  *   --name <dir>           Worktree directory name (default: <repo>-<feature>)
  *   --json                 Output in JSON format for LLM consumption
- *   --env <files>          Comma-separated list of .env files to copy (legacy)
- *   --no-copy-env          Skip auto-copy of untracked .env* files
+ *   --env <files>          Comma-separated root-level env templates to copy (legacy; a secret file is never copied)
+ *   --no-copy-env          Skip copying the .env*.example templates
  *   --no-enter             Don't switch the agent session into the new worktree (default: enter)
  *   --no-pre-remove-hook   Skip .worktree/hooks/pre-remove on remove
  *   --dry-run              Show what would be done without executing
@@ -190,7 +190,7 @@ const checkoutSubmodules = hasFlag('--checkout-submodules');
 // scripts/setup-worktree). Use --no-post-create-hook to disable detection.
 const postCreateHook = parsed.values['--post-create-hook'] ?? null;
 const noPostCreateHook = hasFlag('--no-post-create-hook');
-// --no-copy-env: skip copying untracked .env* files from the source checkout
+// --no-copy-env: skip copying the .env*.example templates (secret files are never copied)
 const noCopyEnv = hasFlag('--no-copy-env');
 // --no-enter: stay in the current directory instead of switching the agent
 // session into the new worktree. Default is to enter (WORKTREE_NO_ENTER=1 also opts out).
@@ -263,6 +263,11 @@ function output(data) {
         console.log(`\n📄 Environment files copied:`);
         data.envFilesCopied.forEach(f => console.log(`   ✓ ${f}`));
         if (data.portBase) console.log(`   + ${data.envWorktreeFile} (generated, not copied)`);
+      }
+      if (data.secretFilesNotCopied && data.secretFilesNotCopied.length > 0) {
+        console.log(`\n🔐 Secret files not copied (read secrets at run time):`);
+        data.secretFilesNotCopied.forEach(f => console.log(`   - ${f}`));
+        console.log(`   ${data.secretsHint}`);
       }
       if (data.worktreePath) {
         const sw = data.sessionSwitch;
@@ -814,25 +819,25 @@ function findEnvFilesRecursive(dir, relPrefix = '', depth = 0) {
   return out;
 }
 
-// Copy real (untracked, gitignored) .env* files from the source checkout,
-// including nested ones. Tracked env files arrive via checkout.
-function copyUntrackedEnvFiles(srcDir, destDir, skip = []) {
-  const copied = [];
-  const warnings = [];
+// A file that holds secrets: a real .env* (not a template), anything under .secrets/, or a key file.
+// create never copies one; the worktree reads secrets at run time (secretsHint).
+const ENV_TEMPLATE_RE = /\.(example|sample|template|tpl|dist)$/;
+function isSecretPath(rel) {
+  const segs = rel.split(/[\\/]/);
+  const base = segs[segs.length - 1];
+  if (base === ENV_WORKTREE_FILE) return false;
+  if (base.startsWith('.env')) return !ENV_TEMPLATE_RE.test(base);
+  return segs.includes('.secrets') || /\.(key|pem|p12|pfx)$/i.test(base);
+}
 
-  findEnvFilesRecursive(srcDir).forEach(rel => {
-    if (skip.includes(rel) || isTrackedByGit(rel, srcDir)) return;
-    try {
-      const destPath = path.join(destDir, rel);
-      fs.mkdirSync(path.dirname(destPath), { recursive: true });
-      fs.copyFileSync(path.join(srcDir, rel), destPath);
-      copied.push(rel);
-    } catch (err) {
-      warnings.push(`Failed to copy ${rel}: ${err.message}`);
-    }
-  });
+function secretsHint(srcDir) {
+  const template = findEnvTemplates(srcDir)[0] || '<template>';
+  return `op-sa --sa <org>-rig run --env-file=${template} -- <cmd>`;
+}
 
-  return { copied, warnings };
+// The untracked secret files of the source checkout (nested .env* included): reported, never copied.
+function untrackedSecretEnvFiles(srcDir) {
+  return findEnvFilesRecursive(srcDir).filter(rel => isSecretPath(rel) && !isTrackedByGit(rel, srcDir));
 }
 
 // Detect install commands from lockfiles in the new worktree (root + one
@@ -973,6 +978,7 @@ function readWorktreeInclude(srcDir) {
 function copyWorktreeIncludeEntries(srcDir, destDir, entries) {
   const copied = [];
   const warnings = [];
+  const secrets = [];
   const resolvedSrc = path.resolve(srcDir);
 
   entries.forEach(entry => {
@@ -990,17 +996,27 @@ function copyWorktreeIncludeEntries(srcDir, destDir, entries) {
       return;
     }
     if (!fs.existsSync(srcPath)) return;
+    if (isSecretPath(entry)) {
+      secrets.push(entry);
+      return;
+    }
     const destPath = path.join(destDir, entry);
+    const filter = src => {
+      const rel = path.relative(resolvedSrc, src).split(path.sep).join('/');
+      if (!isSecretPath(rel)) return true;
+      secrets.push(rel);
+      return false;
+    };
     try {
       fs.mkdirSync(path.dirname(destPath), { recursive: true });
-      fs.cpSync(srcPath, destPath, { recursive: true, force: false, errorOnExist: false });
+      fs.cpSync(srcPath, destPath, { recursive: true, force: false, errorOnExist: false, filter });
       copied.push(entry);
     } catch (err) {
       warnings.push(`Failed to copy ${entry}: ${err.message}`);
     }
   });
 
-  return { copied, warnings };
+  return { copied, warnings, secrets };
 }
 
 // Per-worktree port block: deterministic hash of the worktree name maps to a
@@ -1838,24 +1854,20 @@ function cmdCreate() {
     }
   }
 
-  // Env propagation order: real untracked .env* files win, templates fill
-  // gaps, explicit --env entries and .worktreeinclude add the rest.
+  // Env: templates only (`.env.example` becomes `.env`). No secret file is copied, from the
+  // auto-scan, --env or .worktreeinclude; they are listed with the run-time line instead.
   const envFilesCopied = [];
-  const envFromTemplate = setupCreatesEnvFromTemplate(sourceDir);
-  if (!noCopyEnv) {
-    const untracked = copyUntrackedEnvFiles(sourceDir, worktreePath, envFromTemplate ? ['.env'] : []);
-    untracked.copied.forEach(f => envFilesCopied.push(f));
-    untracked.warnings.forEach(w => warnings.push(w));
-  }
-
-  const envResult = copyEnvTemplates(sourceDir, worktreePath);
+  const secretFilesNotCopied = untrackedSecretEnvFiles(sourceDir);
+  const envResult = noCopyEnv ? { copied: [], warnings: [] } : copyEnvTemplates(sourceDir, worktreePath);
   envResult.warnings.forEach(w => warnings.push(w));
-  envResult.copied.forEach(c => {
-    if (!envFilesCopied.includes(c.to)) envFilesCopied.push(c.to);
-  });
+  envResult.copied.forEach(c => envFilesCopied.push(c.to));
 
   if (safeEnvFilesToCopy.length > 0) {
     safeEnvFilesToCopy.forEach(envFile => {
+      if (isSecretPath(envFile)) {
+        if (!secretFilesNotCopied.includes(envFile)) secretFilesNotCopied.push(envFile);
+        return;
+      }
       const sourcePath = path.join(sourceDir, envFile);
       const destPath = path.join(worktreePath, envFile);
       if (fs.existsSync(sourcePath)) {
@@ -1876,6 +1888,7 @@ function cmdCreate() {
   const includeEntries = readWorktreeInclude(sourceDir);
   const includeResult = copyWorktreeIncludeEntries(sourceDir, worktreePath, includeEntries);
   includeResult.warnings.forEach(w => warnings.push(w));
+  includeResult.secrets.forEach(f => { if (!secretFilesNotCopied.includes(f)) secretFilesNotCopied.push(f); });
 
   // Per-worktree identity + port block
   const worktreeEnv = buildWorktreeEnv(worktreeName, branchName, portBase, sourceDir, worktreePath);
@@ -1947,7 +1960,8 @@ function cmdCreate() {
     worktreeId: worktreeEnv.WORKTREE_ID,
     envWorktreeFile: ENV_WORKTREE_FILE,
     envFilesCopied,
-    envFromTemplate,
+    secretFilesNotCopied,
+    secretsHint: secretFilesNotCopied.length > 0 ? secretsHint(sourceDir) : undefined,
     envTemplatesCopied: envResult.copied,
     includeCopied: includeResult.copied,
     suggestedInstalls,
@@ -1980,16 +1994,6 @@ function detectRepoWorktreeTask(repoRoot) {
     return { kind: 'script', command: rel, source: rel, usage: `head -20 ${rel}` };
   }
   return null;
-}
-
-// The repo's own setup writes .env from .env.example (e.g. `[ -f .env ] || cp .env.example .env`),
-// so a copied checkout .env would only carry that checkout's keys and stack settings along.
-const SETUP_PATHSPECS = ['scripts', 'bin', 'Makefile', 'justfile', 'Justfile', 'Taskfile.yml', ...MISE_CONFIG_NAMES.map(n => n.split(path.sep).join('/'))];
-
-function setupCreatesEnvFromTemplate(repoRoot) {
-  if (!fs.existsSync(path.join(repoRoot, '.env.example'))) return false;
-  const pattern = `cp[[:space:]]+(-[[:alpha:]]+[[:space:]]+)*["']?\\.env\\.example["']?[[:space:]]+["']?\\.env["']?([[:space:];)&|]|$)`;
-  return gitArgs(['grep', '-q', '-E', pattern, '--', ...SETUP_PATHSPECS], { cwd: repoRoot }).success;
 }
 
 // A compose service that bind-mounts the repo root runs the toolchain in containers,
@@ -2422,8 +2426,8 @@ Options:
   --worktree-root <path>   Explicit worktree directory (default: <git-root>/.worktrees)
   --name <dir>             Worktree directory name (default: <repo>-<feature>)
   --json                   Output in JSON format for LLM consumption
-  --env <files>            Comma-separated list of .env files to copy (legacy)
-  --no-copy-env            Skip auto-copy of untracked .env* files from source checkout
+  --env <files>            Comma-separated root-level env templates to copy (legacy; a secret file is never copied)
+  --no-copy-env            Skip copying the .env*.example templates
   --no-enter               Stay in the current dir; don't switch the session into the worktree
   --no-pre-remove-hook     Skip .worktree/hooks/pre-remove teardown on remove
   --dry-run                Show what would be done without executing
