@@ -28,7 +28,7 @@ class Shim(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_new_with_slug_runs_records_init(self):
-        r = shim(["new", "PROJ-12 Thing", "--ticket", "PROJ-12"], self.dir)
+        r = shim(["new", "PROJ-12 Thing"], self.dir)
         self.assertEqual(r.returncode, 0, r.stderr)
         for f in ("SPEC.md", "PROGRESS.md", "PROOF.md"):
             self.assertTrue(os.path.exists(os.path.join(self.dir, ".workbench", "proj-12-thing", f)), f)
@@ -39,6 +39,14 @@ class Shim(unittest.TestCase):
         git(self.dir, "commit", "-q", "--allow-empty", "-m", "i")
         self.assertEqual(shim(["new"], self.dir).returncode, 0)
         self.assertTrue(os.path.exists(os.path.join(self.dir, ".workbench", "proj-3-x", "SPEC.md")))
+
+    def test_new_refuses_ticket_and_parent_rather_than_dropping_them(self):
+        for flags, hint in ((["--ticket", "PROJ-12"], "new PROJ-12-thing"), (["--ticket=PROJ-12"], "new PROJ-12-thing"), (["--parent", "old-id"], "new thing")):
+            r = shim(["new", "thing", *flags], self.dir)
+            self.assertEqual(r.returncode, 2, flags)
+            self.assertIn("removed", r.stderr, flags)
+            self.assertIn(hint, r.stderr, flags)
+        self.assertFalse(os.path.exists(os.path.join(self.dir, ".workbench")))
 
     def test_removed_commands_exit_2_and_write_nothing(self):
         for cmd in ("resolve", "switch", "list", "status", "archive", "restore", "reindex", "gc", "triage"):

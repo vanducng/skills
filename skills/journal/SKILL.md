@@ -77,14 +77,13 @@ If delegating, pass: mode, topic hint, `<since>` ref, plan dir (if any), and the
 
 Path: write to the injected `Journals:` path. Filename: `journal-{YYYYMMDD-HHMM}-{slug}.md`. Use the naming pattern from the session hook (`## Naming` block) when present.
 
-If the hook context has no `Journals:` path, do not search `$HOME`, inspect sibling features, or guess the artifact folder. Load `vd:workbench`, resolve from the current git root, and use its `journals` field exactly:
+If the hook context has no `Journals:` path, do not search `$HOME`, inspect sibling features, or guess the artifact folder. Load `vd:workbench`, resolve from the current git root, and write under `journals/` in its `reports` field:
 
 ```bash
-workbench_script='<loaded-workbench-skill-dir>/scripts/workbench.py'
-VD_SESSION_ID="${VD_SESSION_ID:-}" python3 "$workbench_script" resolve --json
+node '<loaded-workbench-skill-dir>/scripts/records.cjs' resolve --json
 ```
 
-Resolve `<loaded-workbench-skill-dir>` from the `vd:workbench` skill location in this runtime - never a hardcoded `$HOME/skills`. Use only the hook-exported `VD_SESSION_ID`; no runtime-specific substitute unless that runtime's hooks document the same state key. When it is absent, accept branch-based resolution only if the returned feature matches the active branch or plan - otherwise stop and ask instead of constructing a destination.
+Resolve `<loaded-workbench-skill-dir>` from the `vd:workbench` skill location in this runtime - never a hardcoded `$HOME/skills`. If `resolve` exits non-zero, stop and ask instead of constructing a destination.
 
 > Journals are a personal dev log - what *I* learned, decided, or broke - not project documentation. `./docs/` is for artifacts shared with the team (architecture, code standards, changelog).
 

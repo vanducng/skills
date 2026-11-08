@@ -63,7 +63,7 @@ node "$HOME/skills/skills/openrig-workspace/scripts/slice-names.cjs" <slice dir>
 | PR body `## Scope` | `Milestone: M<n>, <mission name>`, `Slice: S<n>, <slice name>`, `Mission: <mission>/<slice>` | `Slice: S4, Login fix` |
 | Per-slice task dir and rig | `tasks/<slice-id>/`, rig name the same | `tasks/m2-s04/` |
 
-The mission `code` must be unique among projects that share a repo, because their worktrees share one `.worktrees/`. vd:workbench derives the feature id from a `<type>/<TICKET>-<slug>` branch (here `abc-123-m2-s04-login-fix`; not `feature/`). With a bare-ticket branch convention, claim the id once with `workbench new <slug> --ticket <TICKET>`.
+The mission `code` must be unique among projects that share a repo, because their worktrees share one `.worktrees/`. vd:workbench derives the feature id from a `<type>/<TICKET>-<slug>` branch (here `abc-123-m2-s04-login-fix`; not `feature/`). With a bare-ticket branch convention, claim the id once with `workbench new <TICKET>-<slug>`.
 
 ## Hard rules
 

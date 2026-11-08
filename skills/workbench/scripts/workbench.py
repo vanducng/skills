@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compatibility shim. The workbench is now records.cjs (see SKILL.md).
 
-`new [slug]` still works for the producer skills that call it: it runs `records.cjs init`. Every other old
+`new [slug]` still works for the producer skills that call it: it runs `records.cjs init`; `--ticket` and `--parent` are refused. Every other old
 command prints "removed" and exits 2. Remove this file when no skill calls `workbench new` any more.
 """
 import os
@@ -17,17 +17,19 @@ def main(argv):
     cmd = argv[0] if argv else ""
     if cmd == "new":
         rest = argv[1:]
-        slug = None
-        i = 0
-        while i < len(rest):
-            if rest[i] in ("--ticket", "--parent"):
-                i += 2
-                continue
-            if rest[i].startswith("--"):
-                i += 1
-                continue
-            slug = slug or rest[i]
-            i += 1
+        flags = [a for a in rest if a.startswith("--")]
+        if flags:
+            words = [a for a in rest if not a.startswith("--")]
+            ticket = next((a.split("=", 1)[1] for a in rest if a.startswith("--ticket=")), None)
+            if ticket is None and "--ticket" in rest and rest.index("--ticket") + 1 < len(rest):
+                ticket = rest[rest.index("--ticket") + 1]
+            slug = next((w for w in words if w != ticket), "slug")
+            sys.stderr.write(
+                f"workbench.py new: {flags[0].split('=')[0]} was removed; the id is the slug alone, so put a ticket in it: "
+                f"workbench.py new {ticket + '-' if ticket else ''}{slug}\n"
+            )
+            return 2
+        slug = rest[0] if rest else None
         args = ["node", RECORDS, "init"]
         if slug:
             args += ["--id", re.sub(r"[^a-z0-9]+", "-", slug.lower()).strip("-")]

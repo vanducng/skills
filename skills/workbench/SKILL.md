@@ -42,7 +42,7 @@ A fresh `init` folder fails `check` until its `TODO` lines are authored. Capture
 
 ## Old commands
 
-`scripts/workbench.py new <slug>` still works and calls `init --id <slug>`. Every other old command prints "removed" and exits 2. `feature.json`, `INDEX.md` and the five type folders are gone.
+`scripts/workbench.py new <slug>` calls `init --id <slug>`; it refuses `--ticket` and `--parent`. Every other old command prints "removed" and exits 2. `feature.json`, `INDEX.md` and the five type folders are gone.
 
 ## Notes
 
