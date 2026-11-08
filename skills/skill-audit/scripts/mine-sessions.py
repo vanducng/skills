@@ -5,6 +5,10 @@ from __future__ import annotations
 
 import argparse
 import bisect
+try:
+    import fcntl
+except ImportError:  # no flock on this platform: concurrent writers are then not serialised
+    fcntl = None
 import glob
 import json
 import os
@@ -12,6 +16,7 @@ import re
 import socket
 import sys
 import time
+import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -119,6 +124,16 @@ def begin_window(row, skill, ts):
 def end_window(row, ts):
     if row["windows"] and row["windows"][-1]["end"] is None:
         row["windows"][-1]["end"] = ts or ""
+
+
+def interrupt_window(row, skill):
+    """A Codex abort whose reason is `interrupted` is the user's Ctrl+C: in the window it is an interrupt, as pi's
+    aborted turn already is, so the same act gives the same outcome on every runtime. The per-skill aggregate keeps it
+    as an abort."""
+    window = last_window(row, skill)
+    if window is not None and window["counts"]["aborts"]:
+        window["counts"]["aborts"] -= 1
+        window["counts"]["interrupts"] += 1
 
 
 def last_window(row, skill):
@@ -388,8 +403,11 @@ def mine_codex_session(path, registry, cutoff_epoch=0):
                 bump(row, cur, "tool_errors")
                 row["errors_by_tool"]["event_error"] += 1
             elif included and ptype == "turn_aborted":
+                reason = p.get("reason") or "unknown"
                 bump(row, cur, "aborts")
-                row["aborts_by_reason"][p.get("reason") or "unknown"] += 1
+                row["aborts_by_reason"][reason] += 1
+                if reason == "interrupted":
+                    interrupt_window(row, cur)
             elif ptype == "token_count":
                 total = ((p.get("info") or {}).get("total_token_usage") or {}).get("total_tokens") or 0
                 if total > seen_tokens:
@@ -768,14 +786,17 @@ def outcome_rows(row):
     """One row per invocation window of a session: skill, runtime, session, window, outcome, counters, evidence."""
     out = []
     windows = row["windows"]
+    seen = Counter()
     for index, window in enumerate(windows):
+        tie = seen[(window["skill"], window["start"])]
+        seen[(window["skill"], window["start"])] += 1
         end = window["end"] or (windows[index + 1]["start"] if index + 1 < len(windows) else row["last_ts"]) or ""
         out.append({
             "runtime": row["runtime"],
             "session": row["session"],
             "project": row["project"],
             "skill": window["skill"],
-            "window": {"start": window["start"], "end": end, "index": index},
+            "window": {"start": window["start"], "end": end, "index": index, "tie": tie},
             "outcome": classify(window["counts"]),
             "counts": window["counts"],
             "reads": row["skillmd_reads"].get(window["skill"], 0),
@@ -787,28 +808,38 @@ def outcome_rows(row):
 
 
 def outcome_key(r):
-    return (r["runtime"], r["session"], r["skill"], r["window"]["index"], r["window"]["start"])
+    """Stable across scans of different width: not the window index, which shifts when an earlier window enters scope."""
+    return (r["runtime"], r["session"], r["skill"], r["window"]["start"], r["window"].get("tie", 0))
 
 
 def write_outcomes(path, new_rows):
-    """Merge `new_rows` into the JSONL at `path` by key (a rerun, or a longer window, updates rows in place)."""
-    merged = {}
-    if os.path.isfile(path):
-        with open(path) as fh:
-            for line in fh:
-                try:
-                    r = json.loads(line)
-                    merged[outcome_key(r)] = r
-                except (ValueError, KeyError, TypeError):
-                    continue
-    for r in new_rows:
-        merged[outcome_key(r)] = r
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w") as fh:
-        for r in sorted(merged.values(), key=lambda r: (r["window"]["start"], r["runtime"], r["session"], r["window"]["index"])):
-            fh.write(json.dumps(r, sort_keys=True) + "\n")
-    os.replace(tmp, path)
+    """Merge `new_rows` into the JSONL at `path` by key (a rerun, or a wider scan, updates rows in place). The
+    read-merge-replace runs under an exclusive lock and through a unique temp file, so two miners on one host never
+    interleave or lose each other's rows."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path + ".lock", "a") as lock:
+        if fcntl is not None:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        merged = {}
+        if os.path.isfile(path):
+            with open(path) as fh:
+                for line in fh:
+                    try:
+                        r = json.loads(line)
+                        merged[outcome_key(r)] = r
+                    except (ValueError, KeyError, TypeError):
+                        continue
+        for r in new_rows:
+            merged[outcome_key(r)] = r
+        tmp = f"{path}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
+        try:
+            with open(tmp, "w") as fh:
+                for r in sorted(merged.values(), key=lambda r: (r["window"]["start"], r["runtime"], r["session"], r["window"]["index"])):
+                    fh.write(json.dumps(r, sort_keys=True) + "\n")
+            os.replace(tmp, path)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
     return len(merged)
 
 
@@ -873,6 +904,10 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if args.since < 0:
         ap.error("--since must be >= 0")
+    if args.outcomes is not None:
+        args.outcomes = os.path.expanduser(args.outcomes.strip())
+        if not args.outcomes:
+            ap.error("--outcomes needs a directory (or no value for the default)")
 
     os.makedirs(args.out, exist_ok=True)
     registry = load_registry()

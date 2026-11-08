@@ -38,10 +38,10 @@ Answers "which skills earn their keep, and which are quietly failing?" from tran
 `python3 scripts/mine-sessions.py --outcomes [DIR]` also writes one row per invocation window to `DIR/<host>.jsonl` (default `~/.share/openrig/skill-outcomes/`, local, never a repo path), merged by key so a rerun updates rows in place. A row holds the skill, runtime, session, window start and end, the window's counters, the session's `SKILL.md` read count for that skill, evidence (session and window) and an `outcome`:
 
 - `failed`: an abort, or at least 2 tool errors on at least half the window's calls;
-- `corrected`: a correction or an interrupt;
+- `corrected`: a correction or an interrupt. A Codex abort whose reason is `interrupted` (the user's Ctrl+C) counts as an interrupt, as pi's aborted turn does, so the same act gives the same outcome on every runtime; any other abort reason is `failed`;
 - `pass`: neither.
 
-The rule is a coarse heuristic and each row says so. Only explicit invocations open a window: a skill the model loaded by reading its `SKILL.md` leaves no row (its reads show in `skillmd_reads`). `create-skill` and the weekly retro read these rows.
+The rule is a coarse heuristic and each row says so. Counters cover the main session only: work and errors in subagents a skill spawned roll up into the per-skill aggregates, not into the row, so a window that mostly delegated can read `pass`. There is no `task` field: `project` and `session` approximate it. Only explicit invocations open a window: a skill the model loaded by reading its `SKILL.md` leaves no row (its reads show in `skillmd_reads`). `create-skill` and the weekly retro read these rows.
 
 ## How to interpret
 
