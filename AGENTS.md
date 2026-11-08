@@ -24,13 +24,13 @@ Skills must work across computers and users. Never hardcode personal absolute pa
 
 ## Documentation Sync
 
-The `skills/` directory is the source of truth for the catalog; `docs/` must track it. When you add, remove, or rename a skill - or materially change what one does - update the docs in the same change:
+The `skills/` directory is the source of truth for the catalog; `docs/` must track it. When you add, remove, or rename a skill - or materially change what one does - update the pages that describe its behavior (its own `SKILL.md`, references, and any docs page about it) in the same change.
 
-- `docs/content/skills.md`: place the skill in the taxonomy tables and keep the catalog count accurate.
-- `docs/content/index.mdx`: update the skill-count metric when it changes.
+The catalog page and its counts are the exception: `docs/content/skills.md` (taxonomy tables, catalog count) and the skill count in `docs/content/index.mdx` are updated in one docs PR per wave, not in each skill PR, so skill PRs do not conflict on them. `scripts/check-docs-site.sh` no longer fails on a stale count; it prints `skills=<n>` and checks the rest of the docs contract.
+
 - `llms.txt` / `llms-full.txt` are generated at docs build time by the starlight-llms-txt plugin - no manual edits.
 
-Validate before committing with `bash scripts/check-docs-site.sh --check`. A skill change that ships without the matching docs update is incomplete.
+Validate before committing with `bash scripts/check-docs-site.sh --check`.
 
 ## Testing Guidelines
 

@@ -7,7 +7,6 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 python3 - "$MODE" "$REPO" <<'PY'
 import pathlib
-import re
 import sys
 
 mode = sys.argv[1]
@@ -20,16 +19,11 @@ def text(rel):
 def exists(rel):
     return (repo / rel).exists()
 
-def first_int(pattern, body):
-    m = re.search(pattern, body)
-    return int(m.group(1)) if m else None
-
 cfg = text("docs/astro.config.mjs")
 pkg = text("docs/package.json")
 pages = text(".github/workflows/pages.yml")
 install = text("docs/content/install.md")
 skills_page = text("docs/content/skills.md")
-home = text("docs/content/index.mdx")
 agent_ctx = text("docs/content/agent-context.md")
 dev_guidelines = text("docs/content/development-guidelines.md")
 readme = text("README.md")
@@ -81,10 +75,6 @@ checks = [
     # Deployment
     ("pages workflow builds with astro", "withastro/action" in pages and "path: ./docs" in pages),
     ("README links public docs", "https://skills.vanducng.dev" in readme),
-
-    # Docs track the skills/ catalog
-    ("catalog page count matches skills dir", first_int(r"contains (\d+) skills", skills_page) == skill_count),
-    ("homepage count matches skills dir", first_int(r"(\d+) skills across", home) == skill_count),
 
     # Zensical fully removed (docs migrated to Astro Starlight)
     ("zensical config removed", not exists("zensical.toml")),
