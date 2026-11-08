@@ -253,6 +253,12 @@ test("section placement keeps the old default: no place is before the missions",
   assert.ok(fixture.sections.some(s => s.place === "after"), "the fixture uses the opt-in value");
 });
 
+test("mission anchors are keyed on the mission id and the old #mission-N form is kept as an alias", () => {
+  assert.match(templateText, /idOf\(`m-\$\{m\.id\}`, used\)/);
+  assert.match(templateText, /\^mission-\(\\d\+\)\$/);
+  assert.doesNotMatch(templateText, /id="mission-\$\{i\}"/);
+});
+
 test("idOf makes unique DOM ids from any text", () => {
   const used = new Set(["needs"]);
   assert.equal(H.idOf("M2.4", used), "M2.4");

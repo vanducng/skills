@@ -116,11 +116,11 @@
   .menu { position: fixed; left: 0; right: 0; top: calc(var(--tb-bar-h) + env(safe-area-inset-top)); z-index: 39; background: var(--tb-surface); border-bottom: 1px solid var(--tb-line);
     box-shadow: var(--tb-shadow); padding: var(--tb-sp-2) var(--tb-sp-3) var(--tb-sp-3); display: none; max-height: calc(100vh - var(--tb-bar-h) - env(safe-area-inset-top)); overflow: auto; overscroll-behavior: contain; }
   .menu.open { display: block; }
-  .menu a, .rail a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--tb-tap); padding: 0 var(--tb-sp-3); border-radius: var(--tb-r-sm); color: var(--tb-text); text-decoration: none; }
+  .menu a, .rail a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--tb-tap); padding-top: 4px; padding-bottom: 4px; padding: 0 var(--tb-sp-3); border-radius: var(--tb-r-sm); color: var(--tb-text); text-decoration: none; }
   .menu a:active, .rail a:hover { background: var(--tb-surface-2); }
   .menu a .n, .rail a .n { color: var(--tb-muted); font-size: var(--tb-fs-sm); font-variant-numeric: tabular-nums; }
   .menu a.sub, .rail a.sub { padding-left: var(--tb-sp-6); color: var(--tb-muted); }
-  .menu a > span:first-child, .rail a > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .menu a > span:first-child, .rail a > span:first-child { min-width: 0; overflow-wrap: anywhere; line-height: 1.3; }
   .rail { display: none; }
   .menu .menuclose { width: 100%; justify-content: center; margin-bottom: var(--tb-sp-1); }
 
@@ -172,10 +172,10 @@
   .needscard .cnt { background: var(--tb-decide); color: var(--tb-surface); min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: var(--tb-fs-sm); }
   .need { display: grid; grid-template-columns: 24px 1fr; gap: var(--tb-sp-2); } .need + .need { border-top: 1px solid var(--tb-line); padding-top: var(--tb-sp-3); }
   .nno { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--tb-decide); color: var(--tb-decide); font-weight: 800; font-size: var(--tb-fs-xs); display: inline-flex; align-items: center; justify-content: center; margin-top: 2px; }
-  .ntext { margin-bottom: 6px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; } .ntext.full { -webkit-line-clamp: unset; display: block; }
+  .ntext { margin-bottom: 6px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; overflow: hidden; } .ntext.full { -webkit-line-clamp: unset; display: block; }
   .nact { display: flex; flex-wrap: wrap; gap: var(--tb-sp-2); } .nmore { background: transparent; border-color: transparent; color: var(--tb-accent); text-decoration: underline; text-underline-offset: 3px; padding: 0 var(--tb-sp-2); }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--tb-sp-2); }
-  .stat { display: grid; align-content: space-between; gap: 2px; min-height: 76px; padding: var(--tb-sp-3); border-radius: var(--tb-r-md); border: 1px solid var(--tb-line); background: var(--tb-surface); text-decoration: none; color: var(--tb-text); }
+  .stat { display: grid; align-content: start; gap: 6px; min-height: 76px; padding: var(--tb-sp-3); border-radius: var(--tb-r-md); border: 1px solid var(--tb-line); background: var(--tb-surface); text-decoration: none; color: var(--tb-text); }
   .stat b { font-size: var(--tb-fs-2xl); line-height: 1; font-variant-numeric: tabular-nums; } .stat span { font-size: var(--tb-fs-sm); color: var(--tb-muted); font-weight: 600; }
   .stat.blocked.hot { background: var(--tb-blocked-soft); border-color: var(--tb-blocked); } .stat.blocked.hot b, .stat.blocked.hot span { color: var(--tb-blocked); }
   .stat.decide.hot { background: var(--tb-decide-soft); border-color: var(--tb-decide); } .stat.decide.hot b, .stat.decide.hot span { color: var(--tb-decide); }
@@ -183,7 +183,7 @@
   .lead { display: grid; gap: var(--tb-sp-4); } .side { display: contents; }
   .toolbar { display: grid; gap: var(--tb-sp-2); } .tcount { font-size: var(--tb-fs-meta); color: var(--tb-muted); }
 
-  .declist { padding: var(--tb-sp-2) var(--tb-sp-4); } .declist > h2, .listcard > h2 { padding: var(--tb-sp-3) 0 var(--tb-sp-1); }
+  .declist { padding: var(--tb-sp-2) 20px; } .declist > h2, .listcard > h2 { padding: var(--tb-sp-3) 0 var(--tb-sp-1); }
   .drow { border-top: 1px solid var(--tb-line); } .drow:first-child { border-top: 0; }
   summary { list-style: none; cursor: pointer; } summary::-webkit-details-marker { display: none; }
   .drow summary, .drow .dsum { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: var(--tb-sp-2); min-height: 56px; padding: var(--tb-sp-2) 0; }
@@ -203,19 +203,19 @@
   .slices { border-top: 1px solid var(--tb-line); }
   .srow { --tb-prw: 92px; border-bottom: 1px solid var(--tb-line); } .srow:last-child { border-bottom: 0; }
   .stop { position: relative; }
-  .smain { display: grid; grid-template-columns: minmax(2.7em, max-content) minmax(0, 1fr) auto 24px; grid-template-areas: "id name pill chv" "line line line line"; gap: 2px var(--tb-sp-2); align-items: center; width: 100%; padding: 6px var(--tb-sp-3) 6px var(--tb-sp-4); border: 0; background: none; text-align: left; }
+  .smain { display: grid; grid-template-columns: minmax(2.7em, max-content) minmax(0, 1fr) auto 24px; grid-template-areas: "id name pill chv" "line line line line"; gap: 2px var(--tb-sp-2); align-items: center; width: 100%; padding: 6px var(--tb-sp-3) 6px 20px; border: 0; background: none; text-align: left; }
   button.smain { cursor: pointer; } .smain .chv { grid-area: chv; width: 24px; justify-content: center; }
   .sid { grid-area: id; position: relative; font-family: var(--tb-mono); font-size: var(--tb-fs-sm); font-weight: 700; color: var(--tb-muted); } .sname { grid-area: name; font-weight: 600; line-height: 1.3; }
   .smain .pill { grid-area: pill; justify-self: end; height: 22px; padding: 0 var(--tb-sp-2); }
   .sline { grid-area: line; display: flex; align-items: center; gap: var(--tb-sp-2); min-height: 28px; min-width: 0; }
   .srow.haspr .sline { min-height: var(--tb-tap); padding-right: calc(var(--tb-prw) + var(--tb-sp-2)); }
   .sown { flex: 1 1 auto; min-width: 0; color: var(--tb-muted); font-size: var(--tb-fs-meta); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sprog { display: flex; align-items: center; gap: 6px; flex: none; } .sprog .bartrack { width: 36px; } .pct { font-size: var(--tb-fs-meta); color: var(--tb-muted); font-variant-numeric: tabular-nums; min-width: 2.5em; text-align: right; }
+  .sprog { display: flex; align-items: center; gap: 6px; flex: none; } .sprog .bartrack { width: 36px; } .pct { font-size: var(--tb-fs-meta); color: var(--tb-muted); font-variant-numeric: tabular-nums; min-width: 3em; text-align: right; }
   .prchip { position: absolute; right: var(--tb-sp-3); bottom: 6px; width: var(--tb-prw); height: var(--tb-tap); justify-content: center; padding: 0 var(--tb-sp-2); font-size: var(--tb-fs-sm); }
   .prchip span { overflow: hidden; text-overflow: ellipsis; }
-  .snote { display: none; padding: 0 var(--tb-sp-4) var(--tb-sp-3) calc(var(--tb-sp-4) + 2.7em + var(--tb-sp-2)); }
+  .snote { display: none; padding: 0 var(--tb-sp-4) var(--tb-sp-3) calc(20px + 2.7em + var(--tb-sp-2)); }
   .srow.open .snote { display: block; }
-  @media (min-width: 700px) { .sprog .bartrack { width: 96px; } }
+  @media (min-width: 700px) { .sprog .bartrack { width: 96px; } .srow .sline { padding-right: calc(var(--tb-prw) + var(--tb-sp-2)); min-height: var(--tb-tap); } }
   .srow.noted, .drow.noted, .lrow.noted, .frow.noted, .mission.noted > summary, tr.noted { box-shadow: inset 4px 0 0 var(--tb-new); background: color-mix(in srgb, var(--tb-new) 8%, var(--tb-surface)); }
   .card.noted { box-shadow: inset 4px 0 0 var(--tb-new), var(--tb-shadow); }
   .target { outline: 3px solid var(--tb-accent); outline-offset: -3px; }
@@ -224,7 +224,8 @@
   .sid .newdot, .did .newdot { position: absolute; left: -12px; top: 50%; margin: 0; transform: translateY(-50%); }
   .did { position: relative; }
 
-  .listcard { padding: var(--tb-sp-2) var(--tb-sp-4); }
+  .listcard { padding: var(--tb-sp-2) 20px; }
+  .declist .drow, .listcard .lrow, .listcard .frow, .listcard .drow { margin: 0 -20px; padding-left: 20px; padding-right: 20px; }
   .lrow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px var(--tb-sp-3); padding: var(--tb-sp-3) 0; border-top: 1px solid var(--tb-line); }
   .lrow .meta a { display: inline-flex; align-items: center; min-height: var(--tb-tap); max-width: 100%; overflow-wrap: anywhere; }
   .lrow time { color: var(--tb-muted); font-size: var(--tb-fs-meta); font-variant-numeric: tabular-nums; }
@@ -287,7 +288,6 @@
   .scrim { position: fixed; inset: 0; background: var(--tb-scrim); z-index: 50; opacity: 0; pointer-events: none; } .scrim.on { opacity: 1; pointer-events: auto; }
   .sheet { position: fixed; z-index: 60; left: 0; right: 0; bottom: 0; max-height: 82vh; display: flex; flex-direction: column; background: var(--tb-surface); border-radius: var(--tb-r-lg) var(--tb-r-lg) 0 0; box-shadow: var(--tb-shadow-up); transform: translateY(105%); padding-bottom: env(safe-area-inset-bottom); visibility: hidden; }
   .sheet.on { transform: none; visibility: visible; }
-  .sheet:focus { outline: none; }
   .composer { z-index: 61; bottom: var(--tb-kb, 0px); max-height: 60vh; }
   .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--tb-line-strong); margin: 8px auto 0; flex: none; }
   .sheet header { display: flex; align-items: center; gap: var(--tb-sp-2); padding: var(--tb-sp-2) var(--tb-sp-4) var(--tb-sp-3); flex: none; } .sheet header h2 { flex: 1; font-size: var(--tb-fs-lg); }
@@ -299,7 +299,7 @@
   .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; border-radius: var(--tb-r-md); background: var(--tb-surface-2); } .seg button { min-height: 44px; border: 0; border-radius: 9px; background: none; font-weight: 650; cursor: pointer; } .seg button[aria-pressed="true"] { background: var(--tb-surface); box-shadow: var(--tb-shadow), inset 0 0 0 1px var(--tb-accent); color: var(--tb-accent); }
   .hint { color: var(--tb-muted); font-size: var(--tb-fs-meta); }
   .nrow { border: 1px solid var(--tb-line); border-radius: var(--tb-r-md); padding: var(--tb-sp-3); display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; } .nrow .top { display: flex; align-items: center; gap: var(--tb-sp-2); } .nrow .kind { font-weight: 700; font-size: var(--tb-fs-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--tb-accent); }
-  .nrow .anchor { min-width: 0; color: var(--tb-muted); font-size: var(--tb-fs-sm); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .nrow .rm { min-width: var(--tb-tap); height: var(--tb-tap); margin: -8px -8px -8px 0; border: 0; background: none; color: var(--tb-blocked); font-weight: 700; cursor: pointer; }
+  .nrow .anchor { min-width: 0; color: var(--tb-muted); font-size: var(--tb-fs-sm); flex: 1; overflow-wrap: anywhere; } .nrow .rm { min-width: var(--tb-tap); height: var(--tb-tap); margin: -8px -8px -8px 0; border: 0; background: none; color: var(--tb-blocked); font-weight: 700; cursor: pointer; }
   .nrow blockquote, .quote { margin: 0; padding-left: var(--tb-sp-3); border-left: 3px solid var(--tb-line-strong); color: var(--tb-muted); font-size: var(--tb-fs-sm); max-height: 4.6em; overflow: hidden; }
   .status { display: flex; align-items: flex-start; gap: 8px; font-size: var(--tb-fs-sm); color: var(--tb-muted); min-height: 20px; } .status i { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--tb-planned); flex: none; }
   .status.ok i { background: var(--tb-ok-bar); } .status.err { color: var(--tb-blocked); } .status.err i { background: var(--tb-blocked); }
@@ -315,9 +315,9 @@
     .annobar { left: calc(var(--tb-rail-w) + var(--tb-sp-5)); right: auto; width: min(480px, calc(100vw - var(--tb-rail-w) - 48px)); }
   }
   @media (min-width: 1280px) {
-    .sheet { left: auto; right: var(--tb-sp-4); top: calc(var(--tb-bar-h) + var(--tb-sp-3)); bottom: var(--tb-sp-4); width: var(--tb-sheet-w); max-width: none; margin: 0; max-height: none; border-radius: var(--tb-r-lg); border: 1px solid var(--tb-line); transform: none; z-index: 30; box-shadow: var(--tb-shadow); }
-    body.composing .sheet:not(.composer) { bottom: 436px; }
-    .composer { top: auto; bottom: var(--tb-sp-4); max-height: 400px; z-index: 31; border: 1px solid var(--tb-line-strong); }
+    .sheet { left: auto; right: var(--tb-sp-4); top: calc(var(--tb-bar-h) + var(--tb-sp-3)); bottom: auto; width: var(--tb-sheet-w); max-width: none; margin: 0; max-height: calc(100vh - var(--tb-bar-h) - var(--tb-sp-5) - var(--tb-sp-3)); border-radius: var(--tb-r-lg); border: 1px solid var(--tb-line); transform: none; z-index: 30; box-shadow: var(--tb-shadow); }
+    body.composing .sheet:not(.composer) .hint, body.composing .sheet:not(.composer) .seg, body.composing .sheet:not(.composer) footer { display: none; }
+    .composer { top: var(--tb-comp-top, auto); bottom: var(--tb-comp-bottom, var(--tb-sp-4)); max-height: 400px; z-index: 31; border: 1px solid var(--tb-line-strong); }
     .grab, .scrim { display: none; }
     body.has-side .page { padding-right: calc(var(--tb-sheet-w) + var(--tb-sp-4) + var(--tb-sp-3)); }
   }
@@ -335,9 +335,9 @@
     .toolbar .search { flex: 1 1 280px; max-width: 420px; order: 0; } .toolbar .filters { flex: 0 1 auto; margin-left: auto; flex-wrap: wrap; overflow: visible; order: 0; } .toolbar .tcount { flex-basis: 100%; white-space: normal; order: 0; }
     .stop { display: grid; grid-template-columns: minmax(0, 1fr) 112px; align-items: center; }
     .smain { grid-template-columns: 56px minmax(0, 1fr) 132px 150px 24px; grid-template-areas: "id name pill prog chv" "id own pill prog chv"; min-height: 64px; row-gap: 0; }
-    .sid { align-self: center; } .sline { display: contents; } .sown { grid-area: own; align-self: start; } .sprog { grid-area: prog; } .sprog .bartrack { flex: 1; width: auto; } .pct { min-width: 3.2em; }
+    .sid { align-self: center; } .sline { display: contents; } .sown { grid-area: own; align-self: start; } .sprog { grid-area: prog; } .sprog .bartrack { flex: 1; width: auto; } .pct { min-width: 3em; }
     .prchip { position: static; width: auto; margin-right: var(--tb-sp-3); }
-    .snote { padding-left: calc(var(--tb-sp-4) + 56px + var(--tb-sp-2)); }
+    .snote { padding-left: calc(20px + 56px + var(--tb-sp-2)); }
     .mission > summary { grid-template-columns: auto minmax(0, 1fr) auto 220px auto; grid-template-areas: "id name pill prog chv"; }
     .drow summary { grid-template-columns: 40px 1fr auto auto; }
   }
@@ -359,6 +359,7 @@
     .card { box-shadow: none; break-inside: avoid; } .snote { display: block !important; } .lead { display: block; } .lead > * { margin-bottom: 14px; }
     .twocol { display: block; } .dgbox { overflow: visible; }
     a { color: inherit; }
+    .need a.chip { border: 0; padding: 0; min-height: 0; background: none; text-decoration: underline; } .need a.chip svg, .nmore { display: none !important; }
     .card, .needscard, .needscard.clear, .stat, .stat.hot, .noted, tr.noted { background: #fff !important; border: 1px solid #555 !important; box-shadow: none !important; }
   }
   @media (forced-colors: active) { .pill, .chip, .ibtn, .stat, .card { border: 1px solid CanvasText; } .bartrack i { background: Highlight; } .pill::before { background: CanvasText; } }
@@ -386,7 +387,7 @@
   <header><h2 id="sheet-h">Changes</h2><button class="ibtn" id="sheetclose" type="button" aria-label="Close changes">Close</button></header>
   <div class="body">
     <div class="seg" id="seg" role="group" aria-label="Annotate mode"><button type="button" data-v="off" aria-pressed="true">Annotate off</button><button type="button" data-v="on" aria-pressed="false">Annotate on</button></div>
-    <p class="hint">With Annotate on, tap a slice, decision or log row to add a note. On a phone, pressing and holding a row does the same. Select text first to quote it.</p>
+    <p class="hint">With Annotate on, click or tap a slice, decision or log row to add a note, or select text in it first to quote it. On a touch screen, pressing and holding a row does the same.</p>
     <div id="notelist" style="display:grid;grid-template-columns:minmax(0,1fr);gap:var(--tb-sp-2)"></div>
     <div class="reply" id="reply" hidden tabindex="0" aria-label="Reply from the seat"></div>
   </div>
@@ -493,6 +494,7 @@ const ss = {
 };
 const query = new URLSearchParams(location.search);
 const nowMs = () => { const v = query.get("now"); const t = v ? parseWhen(v) : NaN; return Number.isNaN(t) ? Date.now() : t; };
+const wide = () => matchMedia("(min-width: 1024px)").matches;
 const panelMode = () => matchMedia("(min-width: 1280px)").matches;
 const I = {
   chev: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
@@ -557,6 +559,7 @@ const pill = s => `<span class="pill ${pillClass(s)}">${esc(label(s))}</span>`;
 const safeRun = (name, fn) => { try { return fn(); } catch (e) { return `<section class="card emptycard" role="alert"><b>${esc(name)} could not be drawn</b><p class="meta mono">${esc(e.message || e)}</p></section>`; } };
 const DOT = '<span class="newdot" role="img" aria-label="Changed since your last visit"></span>';
 const A = { dec: id => `dec-${idOf(id, new Set())}` };
+const mIds = new Map(missions.map(m => [m, idOf(`m-${m.id}`, used)]));
 const secIds = new Map(sections.map(s => [s, idOf(s.id, used)]));
 
 // ---- Visits: what changed since the last time this browser opened the board ----
@@ -600,14 +603,14 @@ function sliceRow(m, s) {
   const hasNote = !!String(s.note || "").trim();
   const main = `<span class="sid">${ch ? DOT : ""}${esc(s.id)}</span><span class="sname">${esc(s.name)}</span>${pill(s.status)}<span class="sline"><span class="sown" title="${esc(s.owner || "")}">${esc(s.owner || "no owner")}</span><span class="sprog"><span class="bartrack" aria-hidden="true"><i style="width:${p}%"></i></span><span class="pct">${p}%</span></span></span>`;
   const prchip = s.pr ? (href ? `<a class="chip prchip" href="${esc(href)}"${ext ? ' rel="noopener"' : ""} title="${esc(s.pr)}"><span>${esc(prLabel(s.pr))}</span>${ext ? I.ext : ""}</a>` : `<span class="meta prchip">${esc(String(s.pr).slice(0, 40))}</span>`) : "";
-  return `<li class="srow${s.pr ? " haspr" : ""}" id="${esc(id)}" data-status="${esc(s.status)}" data-text="${esc(`${s.id} ${s.name} ${s.owner || ""} ${s.note || ""}`.toLowerCase())}" data-akey="s:${esc(m.id)}/${esc(s.id)}" data-label="${esc(`${m.id}: ${m.name} › ${s.id}`)}"${ch ? ' data-changed="1"' : ""}>
-    <div class="stop">${hasNote ? `<button class="smain" type="button" aria-expanded="false" aria-controls="n-${esc(id)}">${main}<span class="chv">${I.chev}</span></button>` : `<div class="smain">${main}</div>`}${prchip}</div>
+  return `<li class="srow${s.pr ? " haspr" : ""}${wide() && hasNote ? " open" : ""}" id="${esc(id)}" data-status="${esc(s.status)}" data-text="${esc(`${s.id} ${s.name} ${s.owner || ""} ${s.note || ""}`.toLowerCase())}" data-akey="s:${esc(m.id)}/${esc(s.id)}" data-label="${esc(`${m.id}: ${m.name} › ${s.id}`)}"${ch ? ' data-changed="1"' : ""}>
+    <div class="stop">${hasNote ? `<button class="smain" type="button" aria-expanded="${wide()}" aria-controls="n-${esc(id)}">${main}<span class="chv">${I.chev}</span></button>` : `<div class="smain">${main}</div>`}${prchip}</div>
     ${hasNote ? `<div class="snote" id="n-${esc(id)}">${esc(s.note)}</div>` : ""}</li>`;
 }
 function missionHtml(m, i) {
   const sl = m.slices || [], done = sl.filter(s => s.status === "done").length, pct = sl.length ? Math.round(done / sl.length * 100) : 0;
   const open = m.status !== "done";
-  return `<details class="card mission" id="mission-${i}" data-mission${open ? " open" : ""}>
+  return `<details class="card mission" id="${mIds.get(m)}" data-mission${open ? " open" : ""}>
     <summary data-akey="m:${esc(m.id)}" data-label="${esc(`${m.id}: ${m.name}`)}"><span class="mid">${esc(m.id)}</span><span class="mname">${esc(m.name)}</span>${pill(m.status)}<span class="mprog"><span class="bartrack" aria-hidden="true"><i style="width:${pct}%"></i></span><span class="meta">${done}/${sl.length} done</span></span><span class="chv">${I.chev}</span></summary>
     ${m.goal ? `<p class="goal">${esc(m.goal)}</p>` : ""}
     ${sl.length ? `<ul class="slices">${sl.map(s => sliceRow(m, s)).join("")}</ul>` : '<p class="goal">No slices yet.</p>'}
@@ -654,7 +657,7 @@ const ordered = orderMissions(missions);
 const before = sections.filter(s => s.place !== "after" && s.place !== "bottom"), upper = sections.filter(s => s.place === "after"), lower = sections.filter(s => s.place === "bottom");
 const navItems = [["needs", "Needs you", needs.length], ["decisions", "Open decisions", openDec.length],
   ...before.map(s => [secIds.get(s), s.nav || s.title]),
-  ["missions", "Missions", missions.length], ...ordered.map((m, i) => [`mission-${i}`, `${m.id} ${m.name}`, null, true]),
+  ["missions", "Missions", missions.length], ...ordered.map(m => [mIds.get(m), `${m.id} ${m.name}`, null, true]),
   ...upper.map(s => [secIds.get(s), s.nav || s.title]),
   ["done-log", "Done log", logRows.length], ["decision-log", "Decision log", accDec.length], ...lower.map(s => [secIds.get(s), s.nav || s.title]),
   ["facts", "Facts", facts.length], ["links", "Links", links.length]];
@@ -676,7 +679,7 @@ function build() {
       <a class="stat blocked${count("blocked") ? " hot" : ""}" href="#missions" data-f="blocked"><b>${count("blocked")}</b><span>Blocked</span></a>
       <a class="stat decide${openDec.length ? " hot" : ""}" href="#decisions"><b>${openDec.length}</b><span>Open decisions</span></a>
       <a class="stat" href="#missions" data-f="doing"><b>${count("doing")}</b><span>In progress</span></a>
-      <div class="overall"><div class="row"><span><b>${doneN} of ${total}</b> slices done</span><span>${total ? Math.round(doneN / total * 100) : 0}%</span></div><div class="bartrack" role="progressbar" aria-valuenow="${doneN}" aria-valuemin="0" aria-valuemax="${total}" aria-label="Slices done"><i style="width:${total ? doneN / total * 100 : 0}%"></i></div></div></section>
+      <div class="overall"><div class="row"><span><b>${doneN} of ${total}</b> slices done</span><span>${total ? Math.round(doneN / total * 100) : 0}%</span></div>${total ? `<div class="bartrack" role="progressbar" aria-valuenow="${doneN}" aria-valuemin="0" aria-valuemax="${total}" aria-label="Slices done"><i style="width:${doneN / total * 100}%"></i></div>` : ""}</div></section>
     ${safeRun("Open decisions", decCard)}</div></div>`;
   const chip = (f, t2, n) => `<button class="chip" type="button" data-f="${f}" aria-pressed="${f === "all"}">${t2} <span class="n">${n}</span></button>`;
   const toolbar = !total ? "" : `<div class="toolbar" id="toolbar"><div class="search" role="search"><label class="sr" for="q">Search slices, decisions, log and facts</label>${I.search}<input id="q" type="search" placeholder="Search slices, decisions, log, facts" autocomplete="off" enterkeyhint="search"></div>
@@ -783,10 +786,16 @@ function reveal(el, force) {
   const row = el.closest(".srow");
   if (row && !row.classList.contains("open")) { row.classList.add("open"); const bt = $(".smain", row); if (bt && bt.tagName === "BUTTON") bt.setAttribute("aria-expanded", "true"); moved = true; }
   const d = el.matches(".drow") && $("details", el); if (d && !d.open) { d.open = true; moved = true; }
+  if (el.tagName === "DETAILS" && !el.open) { el.open = true; moved = true; }
   if (moved) el.scrollIntoView({ block: "start", behavior: "instant" });
   el.classList.remove("hl"); void el.offsetWidth; el.classList.add("hl");
 }
-function openHash(force) { const id = decodeURIComponent(location.hash.slice(1)); if (id) reveal(document.getElementById(id), force === true); }
+// #mission-N from older links means the Nth mission in board order.
+function openHash(force) {
+  let id = decodeURIComponent(location.hash.slice(1)); const old = /^mission-(\d+)$/.exec(id);
+  if (old && missions[+old[1]]) id = mIds.get(missions[+old[1]]);
+  if (id) reveal(document.getElementById(id), force === true);
+}
 addEventListener("hashchange", openHash);
 
 // ---- Annotate and send feedback ----
@@ -815,6 +824,7 @@ function paintNotes() {
   $("#annonotes").textContent = n ? `Notes (${n})` : "Notes";
   marks();
   document.body.classList.toggle("has-side", panelMode() && (sheet.classList.contains("on") || composer.classList.contains("on")));
+  layoutPanel();
 }
 function setAnno(on) {
   document.body.classList.toggle("annotating", on);
@@ -824,15 +834,25 @@ function setAnno(on) {
 const MODAL = () => !panelMode();
 function inertPage(on) { for (const el of [$(".bar"), $("#rail"), $("#menu"), page]) { if (on) el.setAttribute("inert", ""); else el.removeAttribute("inert"); } }
 // Below 1280 the Changes sheet and the note box are modal: the page behind them is inert and they say so.
+// At 1280 and up the note box sits directly under the Changes panel, which is only as tall as its notes.
+function layoutPanel() {
+  const st = document.documentElement.style;
+  if (panelMode() && composer.classList.contains("on") && sheet.classList.contains("on")) {
+    st.setProperty("--tb-comp-top", "auto"); st.setProperty("--tb-comp-bottom", "auto");
+    const top = Math.round(sheet.getBoundingClientRect().bottom + 12);
+    st.setProperty("--tb-comp-top", `${top}px`);
+  } else { st.removeProperty("--tb-comp-top"); st.removeProperty("--tb-comp-bottom"); }
+}
 function syncModal() {
   const sh = MODAL() && sheet.classList.contains("on"), cm = MODAL() && composer.classList.contains("on");
   inertPage(sh || cm); scrim.classList.toggle("on", sh);
   sheet.setAttribute("aria-modal", String(sh)); composer.setAttribute("aria-modal", String(cm));
+  layoutPanel();
 }
 function openSheet(o, quiet) {
   if (o) { lastFocus = document.activeElement; setMenu(false); }
   sheet.classList.toggle("on", o); annotBtn.setAttribute("aria-expanded", String(o)); syncModal();
-  if (o && !quiet) sheet.focus(); else if (!o && lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus();
+  if (o && !quiet) $("#sheetclose").focus(); else if (!o && lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus();
   paintNotes();
 }
 // Keep the composer above the on-screen keyboard and the annotated row above the composer.
@@ -861,8 +881,11 @@ function openComposer(d, focus) {
   if (focus !== false) cmpText.focus({ preventScroll: true });
 }
 function closeComposer() {
+  const row = draft && byKey(draft.akey);
   composer.classList.remove("on"); document.body.classList.remove("composing"); markTarget(null); draft = null; persistDraft(); syncModal(); paintNotes();
-  if (cmpFocus && cmpFocus.focus && document.contains(cmpFocus) && cmpFocus !== document.body) cmpFocus.focus();
+  // Back to where the person was; after a touch start that is the annotated row, never the page body.
+  const back = cmpFocus && cmpFocus !== document.body && document.contains(cmpFocus) ? cmpFocus : row;
+  if (back) { if (!back.matches("a, button, input, textarea, summary, [tabindex]")) back.setAttribute("tabindex", "-1"); back.focus({ preventScroll: true }); }
   cmpFocus = null;
 }
 cmpText.addEventListener("input", () => { $("#cmpsave").disabled = !cmpText.value.trim(); persistDraft(); });
