@@ -1,6 +1,6 @@
 # Review guide
 
-Read `AGENTS.md` first. It holds the rules a change here is reviewed against: layout, commands, naming, portability, documentation sync and commits. This file says how a review is run and reported. It adds only the few rules that live in CI or in the release flow rather than in `AGENTS.md`.
+Read `AGENTS.md` first. It holds the rules a change here is reviewed against: layout, commands, naming, portability, documentation sync and commits. This file says how a review is run and reported. It adds no rule of its own: a Standards finding cites `AGENTS.md`, a page under `docs/content/`, or a check.
 
 ## What you read
 
@@ -12,17 +12,16 @@ Read `AGENTS.md` first. It holds the rules a change here is reviewed against: la
 
 Report each axis on its own line; never blend them.
 
-- **Spec:** the change does what its issue or plan asks, and nothing it does not ask. A skill that now triggers on requests it should leave to another skill, or stops triggering on its own, is a finding.
+- **Spec:** the change does what its issue or plan asks, and nothing it does not ask.
 - **Standards:** the change follows `AGENTS.md` and the rules below.
 - **Security** (a third axis, for a script that runs commands, reads credentials, serves on a port, or writes outside its own directory): input reaching a shell or a path, secrets printed or logged, a listener bound wider than it needs, and a check that fails open.
 
-## Rules a reviewer checks that `AGENTS.md` does not state
+## Where the Standards rules are written
 
-- **Public repository.** No organisation, client, person, host or vault name, no personal absolute path, and no private URL, in the diff or the pull request body. Fixtures are synthetic.
-- **Docs move with the change.** A skill's `SKILL.md`, references and the docs pages about it are updated in the same pull request, except the catalog page and the skill count (one docs pull request per wave, per `AGENTS.md`).
-- **Versions.** A changed skill bumps its `metadata.version` (patch for a fix, minor for new behaviour). `CHANGELOG.md` and `version.txt` belong to the release flow: a pull request does not edit them.
-- **Tests that fail first.** A behaviour change in a script ships with a test that failed before it, run in CI when the skill already has a test file there. A changed skill text that has `evals/` ships with the eval that shows the change; a skill without evals does not need new ones for a text fix.
-- **Descriptions.** The `description` stays at or under 1024 characters and says when to use the skill and when not to.
+- **Portability** (`AGENTS.md`, Coding Style): no personal absolute path, username or machine-only location; use repository-relative paths, `$HOME`, environment variables or hook-injected roots.
+- **Documentation sync** (`AGENTS.md`, Documentation Sync): when a skill is added, removed, renamed or materially changed, its `SKILL.md`, references and the docs pages about it change in the same pull request. The exception is the catalog page and the skill count, which are updated in one docs pull request per wave.
+- **Release versions** (`docs/content/development-guidelines.md`): the skill-catalog release versions are edited only in the Release Please pull request.
+- **Validation and pull requests** (`AGENTS.md`, Testing Guidelines and Commit & Pull Request Guidelines): the commands it names are run, Conventional Commits with no AI tool named, and a pull request lists its validation commands and shows sample output or screenshots when it changes rendered assets, browser UI, diagrams or CLI output.
 
 ## Each finding
 
@@ -33,7 +32,7 @@ Report each axis on its own line; never blend them.
 ## Not a finding
 
 - What CI already enforces: frontmatter and the 1024-character limit (`scripts/validate.sh`), slop words (`scripts/check-slop.sh`), catalog and release versions (`scripts/check-release-versions.sh`, `scripts/check-release-tag-collision.sh`), the docs contract (`scripts/check-docs-site.sh --check`) and the skill tests in `.github/workflows/validate.yml`.
-- A preference with no rule behind it in `AGENTS.md` or this file.
+- A preference with no rule behind it in `AGENTS.md`, `docs/content/` or a check.
 - Code or text the change does not touch, unless the change makes it wrong (then Pre-existing or Important, with the reason).
 
 ## Verdict
