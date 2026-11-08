@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.15.0"
+  version: "0.16.0"
 ---
 
 # OpenRig workspace
@@ -90,13 +90,15 @@ node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind bugfix
 node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind sop
 ```
 
-| Kind | Profile | When | Template |
-|---|---|---|---|
-| `feature` | `low` | One repo, one reviewable change, no migration, no new flow | `feature-low` |
-| `feature` | `medium` | Needs a reviewer who did not write the code. Still one writer | `normal` |
-| `feature` | `high` | More than one repo, a new user-visible flow, or a plan the operator must accept before code | `feature-high` |
-| `bugfix` | none | Something is failing. Prove it, then fix it | `bugfix` |
-| `sop` | none | The org or project already has the steps. Execute them | `sop` |
+| Kind | Profile | When | Template | Seats |
+|---|---|---|---|---|
+| `feature` | `low` | One repo, one reviewable change, no migration, no new flow | `solo` | `dev.build` |
+| `feature` | `medium` | Needs a reviewer who did not write the code. Still one writer | `workshop` | `orch.human`, `orch.lead`, `dev.build`, `dev.qa`, `dev.review` |
+| `feature` | `high` | More than one repo, a new user-visible flow, or a plan the operator must accept before code | `factory` | `orch.human`, `orch.lead`, `orch.advisor`, `orch.pm`, `dev.build`, `dev.qa`, `dev.design`, `review.r1` |
+| `bugfix` | none | Something is failing. Prove it, then fix it | `workshop` | as `feature` `medium` |
+| `sop` | none | The org or project already has the steps. Execute them | `solo` | `dev.build` |
+
+Each seat's `PI_TUI_ROLE` is its member name (`lead`, `build`, `qa`, `review`, `design`, `pm`, `advisor`), and `rig-to-pi convert` picks its model from that role. A `factory` slice that needs a second reviewer adds `review.r2` with `rig add`; the template carries one.
 
 These flags do not select `solo`, `team`, or `squad`. They also do not select the upstream starters `first-project`, `first-project-claude`, or `first-project-mixed`. Those are two-seat recipes for a repository with no org layout.
 
