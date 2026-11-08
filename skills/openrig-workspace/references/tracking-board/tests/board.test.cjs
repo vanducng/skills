@@ -124,25 +124,36 @@ test("diagrams are drawn at render time: ids prefixed, a top-down variant for LR
 test("render --all re-renders every board, skips the token file, reports a bad board and exits 1", () => {
   const root = tmp();
   const a = put(root, "demo/audit/one", fixture), b = put(root, "demo/portal/two", { ...fixture, title: "Two" });
+  put(root, "demo/aaa/nokey", { missions: [], decisions: [] }); // a required key missing, first in directory order
   put(root, "demo/portal/bad", "{ not json");
   fs.writeFileSync(path.join(root, ".board-token"), "secret");
   fs.mkdirSync(path.join(root, "demo", "audit", "one", "feedback"), { recursive: true });
   const env = { OPENRIG_BOARDS_ROOT: root, PELE_DIR: path.join(root, "none") };
   const r = run(["render", "--all"], env);
   assert.equal(r.code, 1);
-  assert.match(r.out, /2 of 3 board\(s\) rendered/);
+  assert.match(r.out, /2 of 4 board\(s\) rendered/, "a bad board does not stop the ones after it");
   assert.match(r.err, /demo\/portal\/bad/);
+  assert.match(r.err, /demo\/aaa\/nokey: .*has no "title"/);
   assert.equal(embedded(fs.readFileSync(path.join(a, "index.html"), "utf8")).title, fixture.title);
   assert.equal(embedded(fs.readFileSync(path.join(b, "index.html"), "utf8")).title, "Two");
   const l = run(["list"], env);
   assert.equal(l.code, 1, "list reports the unreadable board instead of hiding it");
-  fs.rmSync(path.join(root, "demo", "portal", "bad"), { recursive: true });
+  fs.rmSync(path.join(root, "demo", "portal", "bad"), { recursive: true }); fs.rmSync(path.join(root, "demo", "aaa"), { recursive: true });
   const ok = run(["render", "--all"], env);
   assert.equal(ok.code, 0);
   assert.match(ok.out, /2 of 2 board\(s\) rendered/);
   const list = run(["list"], env);
   assert.equal(list.code, 0, list.err);
   assert.equal(list.out.trim().split("\n").length, 2);
+});
+
+test("render of one bad board says why and exits 2 without a stack trace", () => {
+  const root = tmp();
+  const d = put(root, "demo/audit/nokey", { missions: [] });
+  const r = run(["render", d], { OPENRIG_BOARDS_ROOT: root });
+  assert.equal(r.code, 2);
+  assert.match(r.err, /^board: .*has no "title"/);
+  assert.doesNotMatch(r.err, /\n\s+at /);
 });
 
 test("render --all on an empty root renders nothing and succeeds", () => {
@@ -168,7 +179,7 @@ test("check keeps its diagram lint and roles", () => {
 // ---- the page's pure helpers --------------------------------------------------------------------------------------
 
 const helperSrc = /\/\* tb:helpers:start[^\n]*\n([\s\S]*?)\/\* tb:helpers:end \*\//.exec(templateText)[1];
-const H = new Function(`${helperSrc}\nreturn { esc, safeHref, parseWhen, relTime, prLabel, pillClass, sliceSig, decSig, diffBoard, snapshot, idOf, STATUSES };`)();
+const H = new Function(`${helperSrc}\nreturn { esc, safeHref, parseWhen, relTime, prLabel, pillClass, sliceSig, decSig, diffBoard, snapshot, idOf, orderMissions, STATUSES };`)();
 
 test("esc escapes the five HTML characters", () => {
   assert.equal(H.esc(`<a href="x" onclick='y'>&</a>`), "&lt;a href=&quot;x&quot; onclick=&#39;y&#39;&gt;&amp;&lt;/a&gt;");
@@ -230,6 +241,18 @@ test("changed-since: new or different slices and decisions and new log rows are 
   assert.equal(diff.log.length, 1);
 });
 
+test("orderMissions lists open missions first and finished ones after, keeping board order in each group", () => {
+  const ms = [{ id: "A", status: "done" }, { id: "B", status: "doing" }, { id: "C", status: "done" }, { id: "D", status: "blocked" }, { id: "E", status: "planned" }];
+  assert.deepEqual(H.orderMissions(ms).map(m => m.id), ["B", "D", "E", "A", "C"]);
+  assert.deepEqual(H.orderMissions([]), []);
+});
+
+test("section placement keeps the old default: no place is before the missions", () => {
+  assert.match(templateText, /before = sections\.filter\(s => s\.place !== "after" && s\.place !== "bottom"\)/);
+  assert.match(templateText, /lead \+ sect\(before\) \+ toolbar \+ missionsBlock \+ sect\(upper\)/);
+  assert.ok(fixture.sections.some(s => s.place === "after"), "the fixture uses the opt-in value");
+});
+
 test("idOf makes unique DOM ids from any text", () => {
   const used = new Set(["needs"]);
   assert.equal(H.idOf("M2.4", used), "M2.4");
@@ -259,7 +282,7 @@ test("the token names the board index page copies are all present", () => {
   const need = ["font", "mono", "fs-xs", "fs-sm", "fs-md", "fs-lg", "fs-xl", "fs-2xl", "fs-3xl", "lh-tight", "lh-body", "sp-1", "sp-2", "sp-3", "sp-4", "sp-5", "sp-6", "sp-7",
     "r-sm", "r-md", "r-lg", "r-pill", "tap", "bar-h", "rail-w", "sheet-w", "bg", "surface", "surface-2", "line", "line-strong", "text", "muted", "accent", "accent-ink", "accent-soft",
     "focus", "scrim", "shadow", "shadow-up", "new", "ok", "ok-soft", "ok-bar", "doing", "doing-soft", "blocked", "blocked-soft", "decide", "decide-soft", "planned", "planned-soft"];
-  for (const n of need) assert.ok(`--tb-${n}` in light, `--tb-${n}`);
+  for (const n of [...need, "fs-meta"]) assert.ok(`--tb-${n}` in light, `--tb-${n}`);
   for (const r of ["ours", "provider", "person", "store", "legacy", "risk", "done"]) for (const k of ["fill", "line"]) assert.ok(`--role-${r}-${k}` in light, `--role-${r}-${k}`);
   assert.equal(light["--tb-tap"], "44px");
   assert.equal(light["--tb-fs-md"], "15px");

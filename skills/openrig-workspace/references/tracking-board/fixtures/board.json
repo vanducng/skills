@@ -24,7 +24,8 @@
       "id": "design",
       "title": "Intent and design",
       "nav": "Design",
-      "html": "<p>One streaming path replaces the batch job. Each record is validated, deduplicated and routed in a single handler, and every outbound notice goes through the provider wrapper with a signed receipt coming back.</p>\n<div class=\"two\"><div><h3>In scope</h3><ul><li>Streaming validator and routing rules</li><li>Provider client, receipts, retry policy</li><li>Operator console with queue, failures and approvals</li></ul></div>\n<div><h3>Out of scope</h3><ul><li>Customer-facing status page</li><li>Historical analytics beyond 90 days</li><li>Replacing the ticketing system</li></ul></div></div>\n<h3>Flow</h3><div data-diagram=\"flow\"></div>"
+      "html": "<p>One streaming path replaces the batch job. Each record is validated, deduplicated and routed in a single handler, and every outbound notice goes through the provider wrapper with a signed receipt coming back.</p>\n<div class=\"two\"><div><h3>In scope</h3><ul><li>Streaming validator and routing rules</li><li>Provider client, receipts, retry policy</li><li>Operator console with queue, failures and approvals</li></ul></div>\n<div><h3>Out of scope</h3><ul><li>Customer-facing status page</li><li>Historical analytics beyond 90 days</li><li>Replacing the ticketing system</li></ul></div></div>\n<h3>Flow</h3><div data-diagram=\"flow\"></div>",
+      "place": "after"
     },
     {
       "id": "risks",
@@ -35,7 +36,7 @@
     }
   ],
   "diagrams": {
-    "flow": "flowchart LR\n  C[\"Caller\"]:::person --> G[\"Intake gateway\"]:::ours\n  G --> V[\"Validator and dedup\"]:::ours\n  V ==> P[\"Provider API\"]:::provider\n  P -.->|receipt webhook| G\n  V --> L[(\"Delivery ledger\")]:::store\n  P --> T[\"Timeout and retry path\"]:::risk\n  O[\"Old batch job\"]:::legacy -.-> G\n  V --> D[\"Shipped schema contract\"]:::done"
+    "flow": "flowchart LR\n  C[\"Caller\"]:::person --> G[\"Intake gateway\"]:::ours\n  O[\"Old batch job\"]:::legacy -.-> G\n  G --> V[\"Validator and dedup\"]:::ours\n  V ==> P[\"Provider API\"]:::provider\n  P -.->|receipt webhook| V\n  V --> L[(\"Delivery ledger\")]:::store\n  V --> D[\"Shipped schema contract\"]:::done\n  P --> T[\"Timeout and retry path\"]:::risk"
   },
   "missions": [
     {

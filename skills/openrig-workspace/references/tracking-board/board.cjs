@@ -101,7 +101,7 @@ function summary(data) {
 function render(dir) {
   const file = path.join(dir, "board.json");
   const data = JSON.parse(fs.readFileSync(file, "utf8"));
-  for (const key of ["title", "missions", "decisions"]) if (!(key in data)) die(`${file} has no "${key}"`);
+  for (const key of ["title", "missions", "decisions"]) if (!(key in data)) throw new Error(`${file} has no "${key}"`);
   const drawn = prerender(data);
   if (drawn.missing) console.error(`board: pele not installed, diagrams show their source text (npm install --prefix ${process.env.PELE_DIR || path.join(os.homedir(), ".cache", "openrig-boards")} pele@1.13.0)`);
   for (const f of drawn.failed) console.error(`board: diagram not drawn, source shown: ${f}`);
@@ -145,7 +145,7 @@ if (cmd === "init") {
     org, project, slug, owner_seat: process.env.OPENRIG_SESSION_NAME || "", updated: now(), headline: "", phase: "Started",
     needs: [], sections: [], diagrams: {}, missions: [], log: [], decisions: [], facts: [], links: [],
   }, null, 2) + "\n");
-  console.log(render(dir));
+  try { console.log(render(dir)); } catch (e) { die(e.message); }
   console.log(`${base()}/${arg}/`);
 } else if (cmd === "render" && arg === "--all") {
   let failed = 0;
@@ -156,7 +156,7 @@ if (cmd === "init") {
   console.log(`render: ${all.length - failed} of ${all.length} board(s) rendered`);
   process.exit(failed ? 1 : 0);
 } else if (cmd === "render") {
-  console.log(render(boardDir(arg)));
+  try { console.log(render(boardDir(arg))); } catch (e) { die(e.message); }
 } else if (cmd === "login") {
   boardDir(arg);
   const tokenFile = path.join(root, ".board-token");

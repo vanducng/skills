@@ -22,6 +22,7 @@
     --tb-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --tb-fs-xs: 12px; --tb-fs-sm: 13px; --tb-fs-md: 15px; --tb-fs-lg: 17px; --tb-fs-xl: 21px; --tb-fs-2xl: 26px; --tb-fs-3xl: 34px;
     --tb-lh-tight: 1.2; --tb-lh-body: 1.5;
+    --tb-fs-meta: 14px;
     --tb-sp-1: 4px; --tb-sp-2: 8px; --tb-sp-3: 12px; --tb-sp-4: 16px; --tb-sp-5: 24px; --tb-sp-6: 32px; --tb-sp-7: 48px;
     --tb-r-sm: 8px; --tb-r-md: 12px; --tb-r-lg: 16px; --tb-r-pill: 999px;
     --tb-tap: 44px; --tb-bar-h: 56px; --tb-rail-w: 232px; --tb-sheet-w: 340px;
@@ -121,6 +122,7 @@
   .menu a.sub, .rail a.sub { padding-left: var(--tb-sp-6); color: var(--tb-muted); }
   .menu a > span:first-child, .rail a > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rail { display: none; }
+  .menu .menuclose { width: 100%; justify-content: center; margin-bottom: var(--tb-sp-1); }
 
   .page { padding: var(--tb-sp-4) var(--tb-sp-4) calc(var(--tb-sp-7) + env(safe-area-inset-bottom)); display: grid; gap: var(--tb-sp-4); align-content: start; min-width: 0; }
   @media (min-width: 700px) { .page { padding: var(--tb-sp-5) var(--tb-sp-5) calc(var(--tb-sp-7) + env(safe-area-inset-bottom)); gap: var(--tb-sp-5); } }
@@ -151,7 +153,7 @@
   .search { position: relative; } .search svg { position: absolute; left: 14px; top: 13px; width: 18px; height: 18px; fill: none; stroke: var(--tb-muted); stroke-width: 2; stroke-linecap: round; pointer-events: none; }
   .search input { width: 100%; height: var(--tb-tap); padding: 0 var(--tb-sp-4) 0 42px; border: 1px solid var(--tb-line-strong); border-radius: var(--tb-r-md); background: var(--tb-surface); color: var(--tb-text); font-size: 16px; }
   .search input::placeholder { color: var(--tb-muted); }
-  .meta { color: var(--tb-muted); font-size: var(--tb-fs-sm); }
+  .meta { color: var(--tb-muted); font-size: var(--tb-fs-meta); }
   .bartrack { height: 8px; border-radius: 4px; background: var(--tb-planned-soft); box-shadow: inset 0 0 0 1px var(--tb-line-strong); overflow: hidden; } .bartrack i { display: block; height: 100%; background: var(--tb-ok-bar); border-radius: 4px; }
   .newdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--tb-new); margin-right: 6px; vertical-align: 1px; flex: none; }
   .mono { font-family: var(--tb-mono); }
@@ -160,7 +162,7 @@
 
   /* ===== Board page ===== */
   .hero { display: grid; gap: var(--tb-sp-2); }
-  .crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; color: var(--tb-muted); font-size: var(--tb-fs-sm); }
+  .crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; color: var(--tb-muted); font-size: var(--tb-fs-meta); }
   .hero h1 { font-size: var(--tb-fs-2xl); line-height: var(--tb-lh-tight); letter-spacing: -.01em; }
   .hero .headline { font-size: var(--tb-fs-md); max-width: 70ch; }
   .changed { display: inline-flex; align-items: center; min-height: var(--tb-tap); padding: 0 var(--tb-sp-3); border-radius: var(--tb-r-pill); border: 1px solid var(--tb-new); color: var(--tb-new); font-weight: 650; font-size: var(--tb-fs-sm); background: transparent; cursor: pointer; text-align: left; }
@@ -170,21 +172,23 @@
   .needscard .cnt { background: var(--tb-decide); color: var(--tb-surface); min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: var(--tb-fs-sm); }
   .need { display: grid; grid-template-columns: 24px 1fr; gap: var(--tb-sp-2); } .need + .need { border-top: 1px solid var(--tb-line); padding-top: var(--tb-sp-3); }
   .nno { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--tb-decide); color: var(--tb-decide); font-weight: 800; font-size: var(--tb-fs-xs); display: inline-flex; align-items: center; justify-content: center; margin-top: 2px; }
-  .ntext { margin-bottom: 6px; }
+  .ntext { margin-bottom: 6px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; } .ntext.full { -webkit-line-clamp: unset; display: block; }
+  .nact { display: flex; flex-wrap: wrap; gap: var(--tb-sp-2); } .nmore { background: transparent; border-color: transparent; color: var(--tb-accent); text-decoration: underline; text-underline-offset: 3px; padding: 0 var(--tb-sp-2); }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--tb-sp-2); }
   .stat { display: grid; align-content: space-between; gap: 2px; min-height: 76px; padding: var(--tb-sp-3); border-radius: var(--tb-r-md); border: 1px solid var(--tb-line); background: var(--tb-surface); text-decoration: none; color: var(--tb-text); }
   .stat b { font-size: var(--tb-fs-2xl); line-height: 1; font-variant-numeric: tabular-nums; } .stat span { font-size: var(--tb-fs-sm); color: var(--tb-muted); font-weight: 600; }
   .stat.blocked.hot { background: var(--tb-blocked-soft); border-color: var(--tb-blocked); } .stat.blocked.hot b, .stat.blocked.hot span { color: var(--tb-blocked); }
   .stat.decide.hot { background: var(--tb-decide-soft); border-color: var(--tb-decide); } .stat.decide.hot b, .stat.decide.hot span { color: var(--tb-decide); }
-  .overall { grid-column: 1 / -1; display: grid; gap: 6px; } .overall .row { display: flex; justify-content: space-between; font-size: var(--tb-fs-sm); color: var(--tb-muted); } .overall .row b { color: var(--tb-text); }
+  .overall { grid-column: 1 / -1; display: grid; gap: 6px; } .overall .row { display: flex; justify-content: space-between; font-size: var(--tb-fs-meta); color: var(--tb-muted); } .overall .row b { color: var(--tb-text); }
   .lead { display: grid; gap: var(--tb-sp-4); } .side { display: contents; }
-  .toolbar { display: grid; gap: var(--tb-sp-2); } .tcount { font-size: var(--tb-fs-sm); color: var(--tb-muted); }
+  .toolbar { display: grid; gap: var(--tb-sp-2); } .tcount { font-size: var(--tb-fs-meta); color: var(--tb-muted); }
 
   .declist { padding: var(--tb-sp-2) var(--tb-sp-4); } .declist > h2, .listcard > h2 { padding: var(--tb-sp-3) 0 var(--tb-sp-1); }
   .drow { border-top: 1px solid var(--tb-line); } .drow:first-child { border-top: 0; }
   summary { list-style: none; cursor: pointer; } summary::-webkit-details-marker { display: none; }
-  .drow summary { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: var(--tb-sp-2); min-height: 56px; padding: var(--tb-sp-2) 0; }
-  .dq { font-weight: 600; min-width: 0; } .dq small { display: block; font-weight: 400; color: var(--tb-muted); font-size: var(--tb-fs-sm); margin-top: 2px; }
+  .drow summary, .drow .dsum { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: var(--tb-sp-2); min-height: 56px; padding: var(--tb-sp-2) 0; }
+  .drow .dsum { grid-template-columns: auto 1fr auto; }
+  .dq { font-weight: 600; min-width: 0; } .dq small { display: block; font-weight: 400; color: var(--tb-muted); font-size: var(--tb-fs-meta); margin-top: 2px; }
   .did { font-family: var(--tb-mono); font-weight: 700; font-size: var(--tb-fs-sm); color: var(--tb-muted); min-width: 28px; }
   .dbody { display: grid; gap: var(--tb-sp-2); padding: 0 0 var(--tb-sp-4) 36px; } .dbody p { max-width: 70ch; }
   details[open] > summary .chv svg, .smain[aria-expanded="true"] .chv svg { transform: rotate(180deg); }
@@ -197,32 +201,33 @@
   .mission > summary .pill { grid-area: pill; } .mission > summary .chv { grid-area: chv; } .mprog { grid-area: prog; display: flex; align-items: center; gap: var(--tb-sp-3); } .mprog .bartrack { flex: 1; max-width: 360px; }
   .goal { padding: 0 var(--tb-sp-4) var(--tb-sp-3); color: var(--tb-muted); max-width: 80ch; }
   .slices { border-top: 1px solid var(--tb-line); }
-  .srow { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main pr" "note note"; align-items: center; border-bottom: 1px solid var(--tb-line); } .srow:last-child { border-bottom: 0; }
-  .smain { grid-area: main; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "id name pill chv" "own own prog prog"; gap: 4px var(--tb-sp-2); align-items: center; width: 100%; min-height: 72px; padding: var(--tb-sp-3) var(--tb-sp-3) var(--tb-sp-3) var(--tb-sp-4); border: 0; background: none; text-align: left; }
-  button.smain { cursor: pointer; } .smain .chv { grid-area: chv; width: 28px; justify-content: center; }
-  .sid { grid-area: id; font-family: var(--tb-mono); font-size: var(--tb-fs-sm); font-weight: 700; color: var(--tb-muted); display: inline-flex; align-items: center; } .sname { grid-area: name; font-weight: 600; line-height: 1.3; }
-  .smain .pill { grid-area: pill; }
-  .sown { grid-area: own; color: var(--tb-muted); font-size: var(--tb-fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  .sprog { grid-area: prog; display: flex; align-items: center; gap: 8px; justify-self: end; } .sprog .bartrack { width: 84px; } .pct { font-size: var(--tb-fs-sm); color: var(--tb-muted); font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
-  .prchip { grid-area: pr; margin-right: var(--tb-sp-3); font-size: var(--tb-fs-xs); max-width: 160px; }
+  .srow { --tb-prw: 92px; border-bottom: 1px solid var(--tb-line); } .srow:last-child { border-bottom: 0; }
+  .stop { position: relative; }
+  .smain { display: grid; grid-template-columns: minmax(2.7em, max-content) minmax(0, 1fr) auto 24px; grid-template-areas: "id name pill chv" "line line line line"; gap: 2px var(--tb-sp-2); align-items: center; width: 100%; padding: 6px var(--tb-sp-3) 6px var(--tb-sp-4); border: 0; background: none; text-align: left; }
+  button.smain { cursor: pointer; } .smain .chv { grid-area: chv; width: 24px; justify-content: center; }
+  .sid { grid-area: id; position: relative; font-family: var(--tb-mono); font-size: var(--tb-fs-sm); font-weight: 700; color: var(--tb-muted); } .sname { grid-area: name; font-weight: 600; line-height: 1.3; }
+  .smain .pill { grid-area: pill; justify-self: end; height: 22px; padding: 0 var(--tb-sp-2); }
+  .sline { grid-area: line; display: flex; align-items: center; gap: var(--tb-sp-2); min-height: 28px; min-width: 0; }
+  .srow.haspr .sline { min-height: var(--tb-tap); padding-right: calc(var(--tb-prw) + var(--tb-sp-2)); }
+  .sown { flex: 1 1 auto; min-width: 0; color: var(--tb-muted); font-size: var(--tb-fs-meta); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sprog { display: flex; align-items: center; gap: 6px; flex: none; } .sprog .bartrack { width: 36px; } .pct { font-size: var(--tb-fs-meta); color: var(--tb-muted); font-variant-numeric: tabular-nums; min-width: 2.5em; text-align: right; }
+  .prchip { position: absolute; right: var(--tb-sp-3); bottom: 6px; width: var(--tb-prw); height: var(--tb-tap); justify-content: center; padding: 0 var(--tb-sp-2); font-size: var(--tb-fs-sm); }
   .prchip span { overflow: hidden; text-overflow: ellipsis; }
-  .snote { grid-area: note; display: none; padding: 0 var(--tb-sp-4) var(--tb-sp-3) calc(var(--tb-sp-4) + 40px); }
+  .snote { display: none; padding: 0 var(--tb-sp-4) var(--tb-sp-3) calc(var(--tb-sp-4) + 2.7em + var(--tb-sp-2)); }
   .srow.open .snote { display: block; }
+  @media (min-width: 700px) { .sprog .bartrack { width: 96px; } }
   .srow.noted, .drow.noted, .lrow.noted, .frow.noted, .mission.noted > summary, tr.noted { box-shadow: inset 4px 0 0 var(--tb-new); background: color-mix(in srgb, var(--tb-new) 8%, var(--tb-surface)); }
   .card.noted { box-shadow: inset 4px 0 0 var(--tb-new), var(--tb-shadow); }
   .target { outline: 3px solid var(--tb-accent); outline-offset: -3px; }
   .hl { animation: hl 2.4s ease-out 1; } @keyframes hl { from { background: var(--tb-accent-soft); } }
   @media (prefers-reduced-motion: reduce) { .hl { animation: none; outline: 3px solid var(--tb-focus); outline-offset: -3px; } }
-  @media (max-width: 699px) {
-    .srow { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "pr" "note"; }
-    .prchip { margin: -4px 0 var(--tb-sp-3) calc(var(--tb-sp-4) + 40px); justify-self: start; } .smain { padding-right: var(--tb-sp-3); }
-  }
-  .srow, .drow { position: relative; } .srow > .smain .newdot, .drow .newdot { position: absolute; left: 5px; margin: 0; } .srow > .smain .newdot { top: 26px; } .drow .newdot { top: 28px; left: -11px; }
+  .sid .newdot, .did .newdot { position: absolute; left: -12px; top: 50%; margin: 0; transform: translateY(-50%); }
+  .did { position: relative; }
 
   .listcard { padding: var(--tb-sp-2) var(--tb-sp-4); }
   .lrow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px var(--tb-sp-3); padding: var(--tb-sp-3) 0; border-top: 1px solid var(--tb-line); }
   .lrow .meta a { display: inline-flex; align-items: center; min-height: var(--tb-tap); max-width: 100%; overflow-wrap: anywhere; }
-  .lrow time { color: var(--tb-muted); font-size: var(--tb-fs-sm); font-variant-numeric: tabular-nums; }
+  .lrow time { color: var(--tb-muted); font-size: var(--tb-fs-meta); font-variant-numeric: tabular-nums; }
   .frow { padding: var(--tb-sp-3) 0; border-top: 1px solid var(--tb-line); display: grid; gap: 2px; }
   .listcard ul > li:first-child { border-top: 0; }
   ul.limited:not(.all) > .beyond { display: none; }
@@ -271,12 +276,12 @@
   .pele-cluster.ours, .pele-cluster.provider, .pele-cluster.store, .pele-cluster.legacy { --_a: var(--_s); }
   .dgsrc { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: var(--tb-fs-sm)/1.5 var(--tb-mono); background: var(--tb-surface-2); padding: var(--tb-sp-3); border-radius: var(--tb-r-sm); }
   details.srcwrap > summary { display: inline-flex; align-items: center; min-height: var(--tb-tap); color: var(--tb-accent); font-weight: 600; font-size: var(--tb-fs-sm); }
-  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--tb-fs-xs); color: var(--tb-muted); } .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -2px; border-radius: 3px; border: 1.5px solid var(--l); background: var(--f); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--tb-fs-sm); color: var(--tb-muted); } .legend span::before { content: ""; display: inline-block; width: 22px; height: 13px; margin-right: 6px; vertical-align: -2px; border-radius: 4px; border: 2px solid var(--l); background: var(--f); box-shadow: inset 0 0 0 2px var(--f); }
   .dgfoot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tb-sp-2); }
-  dialog.dgfull { width: min(96vw, 1400px); max-height: 92vh; padding: 0; border: 1px solid var(--tb-line); border-radius: var(--tb-r-lg); background: var(--tb-surface); color: var(--tb-text); }
+  dialog.dgfull { width: min(calc(100vw - 16px), 1400px); max-height: 92vh; padding: 0; border: 1px solid var(--tb-line); border-radius: var(--tb-r-lg); background: var(--tb-surface); color: var(--tb-text); }
   dialog.dgfull::backdrop { background: var(--tb-scrim); }
   dialog.dgfull header { display: flex; align-items: center; justify-content: space-between; gap: var(--tb-sp-2); padding: var(--tb-sp-3) var(--tb-sp-4); border-bottom: 1px solid var(--tb-line); position: sticky; top: 0; background: var(--tb-surface); }
-  dialog.dgfull .dgpan { overflow: auto; max-height: calc(92vh - 70px); padding: var(--tb-sp-4); } dialog.dgfull svg { display: block; max-width: none !important; margin: 0 auto; }
+  dialog.dgfull .dgbtns { display: flex; gap: var(--tb-sp-2); } dialog.dgfull .dgpan { overflow: auto; max-height: calc(92vh - 70px); padding: var(--tb-sp-4); } dialog.dgfull svg { display: block; max-width: 100% !important; height: auto; margin: 0 auto; } dialog.dgfull .dgpan.actual svg { max-width: none !important; }
 
   /* Changes sheet (phones and tablets) / side panel (1280 and up, only with notes or when open), note composer */
   .scrim { position: fixed; inset: 0; background: var(--tb-scrim); z-index: 50; opacity: 0; pointer-events: none; } .scrim.on { opacity: 1; pointer-events: auto; }
@@ -292,7 +297,7 @@
   .primary:disabled { background: var(--tb-planned-soft); color: var(--tb-planned); cursor: not-allowed; box-shadow: inset 0 0 0 1px var(--tb-line-strong); }
   .secondary { min-height: 48px; border: 1px solid var(--tb-line-strong); border-radius: var(--tb-r-md); background: var(--tb-surface); font-weight: 650; cursor: pointer; padding: 0 var(--tb-sp-4); }
   .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; border-radius: var(--tb-r-md); background: var(--tb-surface-2); } .seg button { min-height: 44px; border: 0; border-radius: 9px; background: none; font-weight: 650; cursor: pointer; } .seg button[aria-pressed="true"] { background: var(--tb-surface); box-shadow: var(--tb-shadow), inset 0 0 0 1px var(--tb-accent); color: var(--tb-accent); }
-  .hint { color: var(--tb-muted); font-size: var(--tb-fs-sm); }
+  .hint { color: var(--tb-muted); font-size: var(--tb-fs-meta); }
   .nrow { border: 1px solid var(--tb-line); border-radius: var(--tb-r-md); padding: var(--tb-sp-3); display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; } .nrow .top { display: flex; align-items: center; gap: var(--tb-sp-2); } .nrow .kind { font-weight: 700; font-size: var(--tb-fs-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--tb-accent); }
   .nrow .anchor { min-width: 0; color: var(--tb-muted); font-size: var(--tb-fs-sm); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .nrow .rm { min-width: var(--tb-tap); height: var(--tb-tap); margin: -8px -8px -8px 0; border: 0; background: none; color: var(--tb-blocked); font-weight: 700; cursor: pointer; }
   .nrow blockquote, .quote { margin: 0; padding-left: var(--tb-sp-3); border-left: 3px solid var(--tb-line-strong); color: var(--tb-muted); font-size: var(--tb-fs-sm); max-height: 4.6em; overflow: hidden; }
@@ -310,27 +315,29 @@
     .annobar { left: calc(var(--tb-rail-w) + var(--tb-sp-5)); right: auto; width: min(480px, calc(100vw - var(--tb-rail-w) - 48px)); }
   }
   @media (min-width: 1280px) {
-    .sheet { left: auto; right: var(--tb-sp-4); top: calc(var(--tb-bar-h) + var(--tb-sp-3)); bottom: auto; width: var(--tb-sheet-w); max-width: none; margin: 0; max-height: calc(100vh - var(--tb-bar-h) - var(--tb-sp-5)); border-radius: var(--tb-r-lg); border: 1px solid var(--tb-line); transform: none; z-index: 30; box-shadow: var(--tb-shadow); }
-    body.composing .sheet:not(.composer) { max-height: calc(100vh - var(--tb-bar-h) - 420px); }
+    .sheet { left: auto; right: var(--tb-sp-4); top: calc(var(--tb-bar-h) + var(--tb-sp-3)); bottom: var(--tb-sp-4); width: var(--tb-sheet-w); max-width: none; margin: 0; max-height: none; border-radius: var(--tb-r-lg); border: 1px solid var(--tb-line); transform: none; z-index: 30; box-shadow: var(--tb-shadow); }
+    body.composing .sheet:not(.composer) { bottom: 436px; }
     .composer { top: auto; bottom: var(--tb-sp-4); max-height: 400px; z-index: 31; border: 1px solid var(--tb-line-strong); }
     .grab, .scrim { display: none; }
-    body.has-side .page { padding-right: calc(var(--tb-sheet-w) + var(--tb-sp-5) + var(--tb-sp-4)); }
+    body.has-side .page { padding-right: calc(var(--tb-sheet-w) + var(--tb-sp-4) + var(--tb-sp-3)); }
   }
 
   @media (min-width: 700px) {
     .lead .stats { grid-template-columns: repeat(3, 1fr); }
-    .toolbar { grid-template-columns: minmax(0, 1fr); }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tb-sp-2) var(--tb-sp-3); }
+    .toolbar .search { order: 1; flex: 1 1 240px; } .toolbar .tcount { order: 2; flex: 0 1 auto; white-space: nowrap; } .toolbar .filters { order: 3; flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; } .filters .chip { flex: none; }
     .twocol { grid-template-columns: 1fr 1fr; gap: var(--tb-sp-5); align-items: start; }
     .lrow { grid-template-columns: 148px minmax(0, 1fr); padding: var(--tb-sp-2) 0; }
   }
   @media (min-width: 1024px) {
     .hero h1 { font-size: var(--tb-fs-3xl); } .hero .headline { font-size: var(--tb-fs-lg); }
-    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tb-sp-2) var(--tb-sp-3); position: sticky; top: var(--tb-bar-h); z-index: 20; background: var(--tb-bg); padding: var(--tb-sp-2) 0; }
-    .toolbar .search { flex: 1 1 280px; max-width: 420px; } .toolbar .filters { flex: 0 1 auto; margin-left: auto; } .toolbar .tcount { flex-basis: 100%; }
-    .smain { grid-template-columns: 56px minmax(0, 1fr) 132px 150px 24px; grid-template-areas: "id name pill prog chv" "id own pill prog chv"; min-height: 64px; row-gap: 0; align-items: center; }
-    .sid { align-self: center; } .sown { align-self: start; }
-    .srow { grid-template-columns: minmax(0, 1fr) 112px; } .prchip { margin-left: 0; justify-self: start; min-height: 36px; }
-    .sprog { justify-self: stretch; } .sprog .bartrack { flex: 1; width: auto; } .snote { padding-left: calc(var(--tb-sp-4) + 56px + var(--tb-sp-2)); }
+    .toolbar { position: sticky; top: var(--tb-bar-h); z-index: 20; background: var(--tb-bg); padding: var(--tb-sp-2) 0; }
+    .toolbar .search { flex: 1 1 280px; max-width: 420px; order: 0; } .toolbar .filters { flex: 0 1 auto; margin-left: auto; flex-wrap: wrap; overflow: visible; order: 0; } .toolbar .tcount { flex-basis: 100%; white-space: normal; order: 0; }
+    .stop { display: grid; grid-template-columns: minmax(0, 1fr) 112px; align-items: center; }
+    .smain { grid-template-columns: 56px minmax(0, 1fr) 132px 150px 24px; grid-template-areas: "id name pill prog chv" "id own pill prog chv"; min-height: 64px; row-gap: 0; }
+    .sid { align-self: center; } .sline { display: contents; } .sown { grid-area: own; align-self: start; } .sprog { grid-area: prog; } .sprog .bartrack { flex: 1; width: auto; } .pct { min-width: 3.2em; }
+    .prchip { position: static; width: auto; margin-right: var(--tb-sp-3); }
+    .snote { padding-left: calc(var(--tb-sp-4) + 56px + var(--tb-sp-2)); }
     .mission > summary { grid-template-columns: auto minmax(0, 1fr) auto 220px auto; grid-template-areas: "id name pill prog chv"; }
     .drow summary { grid-template-columns: 40px 1fr auto auto; }
   }
@@ -340,7 +347,7 @@
     body:not(.has-side) .lead { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; gap: var(--tb-sp-4) var(--tb-sp-5); grid-template-areas: "hero hero" "needs dec" "stats dec"; }
     body:not(.has-side) .lead.nodec { grid-template-areas: "hero hero" "needs stats"; }
     body:not(.has-side) .lead .hero { grid-area: hero; } body:not(.has-side) .lead .needscard { grid-area: needs; } body:not(.has-side) .lead .stats { grid-area: stats; }
-    body:not(.has-side) .lead .declist, body:not(.has-side) .lead .emptycard { grid-area: dec; align-self: stretch; }
+    body:not(.has-side) .lead .declist, body:not(.has-side) .lead .emptycard { grid-area: dec; align-self: start; }
   }
 
   .plain { padding: var(--tb-sp-4); } .plain > * + * { margin-top: var(--tb-sp-2); } .plain h2 { font-size: var(--tb-fs-lg); margin-top: var(--tb-sp-5); } .plain h1 { font-size: var(--tb-fs-2xl); line-height: var(--tb-lh-tight); } .plain ol, .plain ul { padding-left: 22px; list-style: revert; } .plain li + li { margin-top: var(--tb-sp-1); }
@@ -352,6 +359,7 @@
     .card { box-shadow: none; break-inside: avoid; } .snote { display: block !important; } .lead { display: block; } .lead > * { margin-bottom: 14px; }
     .twocol { display: block; } .dgbox { overflow: visible; }
     a { color: inherit; }
+    .card, .needscard, .needscard.clear, .stat, .stat.hot, .noted, tr.noted { background: #fff !important; border: 1px solid #555 !important; box-shadow: none !important; }
   }
   @media (forced-colors: active) { .pill, .chip, .ibtn, .stat, .card { border: 1px solid CanvasText; } .bartrack i { background: Highlight; } .pill::before { background: CanvasText; } }
 </style>
@@ -362,7 +370,7 @@
 <header class="bar">
   <button class="ibtn menubtn" id="menubtn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Sections"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   <div class="title" id="bartitle">Tracking board</div>
-  <button class="ibtn" id="theme" type="button" aria-pressed="false"><span id="themeicon"></span><span class="lbl">Theme</span></button>
+  <button class="ibtn" id="theme" type="button" aria-pressed="false"><span id="themeicon"></span><span class="lbl">Dark</span></button>
   <button class="ibtn" id="annot" type="button" aria-label="Annotate and changes" aria-expanded="false" aria-controls="sheet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg><span class="lbl">Annotate</span><span class="badge" id="annotbadge">0</span></button>
 </header>
 <nav class="menu" id="menu" aria-label="Sections"></nav>
@@ -386,7 +394,7 @@
 </aside>
 <form class="sheet composer" id="composer" role="dialog" aria-labelledby="cmp-h" tabindex="-1" novalidate>
   <div class="grab"></div>
-  <header><h2 id="cmp-h">Add a note</h2><button class="ibtn" id="cmpclose" type="button" aria-label="Cancel note">Cancel</button></header>
+  <header><h2 id="cmp-h">Add a note</h2></header>
   <div class="body">
     <p class="hint">On <b id="cmp-anchor"></b></p>
     <blockquote class="quote" id="cmp-quote" hidden></blockquote>
@@ -396,8 +404,8 @@
   </div>
   <footer><div class="btns"><button class="secondary" type="button" id="cmpcancel">Cancel</button><button class="primary" type="submit" id="cmpsave" disabled>Add note</button></div></footer>
 </form>
-<div class="annobar" id="annobar"><span id="annotext" role="status">Annotate on. Tap a row to add a note.</span><button type="button" id="annonotes">Notes</button><button type="button" id="annodone">Done</button></div>
-<dialog class="dgfull" id="dgfull" aria-label="Diagram, full size"><header><b id="dgfull-t">Diagram</b><button class="ibtn" type="button" id="dgfull-x">Close</button></header><div class="dgpan" id="dgfull-body"></div></dialog>
+<div class="annobar" id="annobar" role="group" aria-label="Annotate mode"><span id="annotext" role="status">Annotate on. Tap a row to add a note.</span><button type="button" id="annonotes">Notes</button><button type="button" id="annodone">Done</button></div>
+<dialog class="dgfull" id="dgfull" aria-label="Diagram, full size"><header><b id="dgfull-t">Diagram</b><span class="dgbtns"><button class="ibtn" type="button" id="dgfull-zoom" aria-pressed="false">Actual size</button><button class="ibtn" type="button" id="dgfull-x">Close</button></span></header><div class="dgpan" id="dgfull-body"></div></dialog>
 
 <!-- Data: edit board.json next to this file, then run board.cjs render. -->
 <script id="board" type="application/json">
@@ -461,6 +469,8 @@ function snapshot(b) {
   for (const r of b.log || []) o.log.push(`${r[0]}|${r[1]}`);
   return o;
 }
+// Open missions first, finished ones after, each group in board order.
+const orderMissions = ms => [...ms.filter(m => m.status !== "done"), ...ms.filter(m => m.status === "done")];
 function idOf(s, used) {
   let id = String(s ?? "").replace(/[^A-Za-z0-9._:\-]/g, "_") || "x", n = 2;
   const base = id;
@@ -483,16 +493,24 @@ const ss = {
 };
 const query = new URLSearchParams(location.search);
 const nowMs = () => { const v = query.get("now"); const t = v ? parseWhen(v) : NaN; return Number.isNaN(t) ? Date.now() : t; };
-const wide = () => matchMedia("(min-width: 1024px)").matches;
 const panelMode = () => matchMedia("(min-width: 1280px)").matches;
 const I = {
   chev: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
   right: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>',
   ext: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
   moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
-  sun: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
 };
+
+// ---- Long asks show three lines and a Show more button ----
+function clampNeeds() {
+  for (const t of $$(".ntext")) { const btn = $(".nmore", t.parentElement); if (btn) btn.hidden = !(t.classList.contains("full") || t.scrollHeight > t.clientHeight + 1); }
+}
+document.addEventListener("click", e => {
+  const m = e.target.closest(".nmore"); if (!m) return;
+  const t = document.getElementById(m.getAttribute("aria-controls")), full = t.classList.toggle("full");
+  m.setAttribute("aria-expanded", String(full)); m.textContent = full ? "Show less" : "Show more";
+});
 
 // ---- Long lists show their first rows and a button for the rest ----
 function limitLists() {
@@ -510,7 +528,7 @@ const expandList = ul => { if (ul && ul.classList.contains("limited") && !ul.cla
 // ---- Theme ----
 const root = document.documentElement, themeBtn = $("#theme");
 const isDark = () => { const a = root.getAttribute("data-theme"); return a ? a === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
-function syncTheme() { themeBtn.setAttribute("aria-pressed", String(isDark())); themeBtn.setAttribute("aria-label", isDark() ? "Dark theme on. Switch to light" : "Light theme on. Switch to dark"); $("#themeicon").innerHTML = isDark() ? I.sun : I.moon; }
+function syncTheme() { themeBtn.setAttribute("aria-pressed", String(isDark())); themeBtn.setAttribute("aria-label", "Dark theme"); $("#themeicon").innerHTML = I.moon; }
 themeBtn.addEventListener("click", () => { const n = isDark() ? "light" : "dark"; root.setAttribute("data-theme", n); ls.set("tb-theme", n); syncTheme(); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", syncTheme);
 
@@ -537,6 +555,7 @@ const store = `board-notes:${location.pathname}`;
 const label = s => STATUSES[s] || String(s || "Unknown");
 const pill = s => `<span class="pill ${pillClass(s)}">${esc(label(s))}</span>`;
 const safeRun = (name, fn) => { try { return fn(); } catch (e) { return `<section class="card emptycard" role="alert"><b>${esc(name)} could not be drawn</b><p class="meta mono">${esc(e.message || e)}</p></section>`; } };
+const DOT = '<span class="newdot" role="img" aria-label="Changed since your last visit"></span>';
 const A = { dec: id => `dec-${idOf(id, new Set())}` };
 const secIds = new Map(sections.map(s => [s, idOf(s.id, used)]));
 
@@ -563,26 +582,27 @@ function needsHtml() {
   const items = needs.map((n, i) => {
     const o = typeof n === "string" ? { text: n } : (n || {}), href = o.href ? safeHref(o.href) : "";
     const ext = /^https?:/i.test(href);
-    return `<li class="need"><span class="nno" aria-hidden="true">${i + 1}</span><div><p class="ntext">${esc(o.text)}</p>${href ? `<a class="chip" href="${esc(href)}"${ext ? ' rel="noopener"' : ""}>${esc(o.link || "Details")}${ext ? I.ext : I.right}</a>` : ""}</div></li>`;
+    return `<li class="need"><span class="nno" aria-hidden="true">${i + 1}</span><div><p class="ntext" id="nt${i}">${esc(o.text)}</p><div class="nact">${href ? `<a class="chip" href="${esc(href)}"${ext ? ' rel="noopener"' : ""}>${esc(o.link || "Details")}${ext ? I.ext : I.right}</a>` : ""}<button class="chip nmore" type="button" aria-expanded="false" aria-controls="nt${i}" hidden>Show more</button></div></div></li>`;
   }).join("");
   return `<section class="card needscard" id="needs" aria-labelledby="needs-h"><header><h2 id="needs-h">Needs you</h2><span class="cnt" aria-label="${needs.length} items">${needs.length}</span></header><ol>${items}</ol></section>`;
 }
 function decRow(d) {
-  const open = d.status !== "accepted", id = A.dec(d.id);
+  const open = d.status !== "accepted", id = A.dec(d.id), ch = changedDec.has(d.id);
   const text = `${d.id} ${d.q} ${d.rec} ${d.why || ""}`.toLowerCase();
-  return `<li class="drow${changedDec.has(d.id) ? " is-changed" : ""}" id="${esc(id)}" data-text="${esc(text)}" data-akey="d:${esc(d.id)}" data-label="Decisions › ${esc(d.id)}"${changedDec.has(d.id) ? ' data-changed="1"' : ""}>
-    <details><summary><span class="did">${changedDec.has(d.id) ? '<span class="newdot"></span><span class="sr">Changed. </span>' : ""}${esc(d.id)}</span><span class="dq">${esc(d.q)}<small>${esc(d.rec)}</small></span>${pill(open ? "decide" : "accepted").replace(label("decide"), "Decide")}<span class="chv">${I.chev}</span></summary>
-    <div class="dbody"><p><b>Recommendation.</b> ${esc(d.rec)}</p>${d.why ? `<p><b>Why.</b> ${esc(d.why)}</p>` : '<p class="meta">Reasoning is added when the decision is taken.</p>'}${d.evidence ? `<p><b>Evidence.</b> ${esc(d.evidence)}</p>` : ""}${d.decided ? `<p class="meta">Decided ${esc(d.decided)}</p>` : ""}</div></details></li>`;
+  const head = `<span class="did">${ch ? DOT : ""}${esc(d.id)}</span><span class="dq">${esc(d.q)}<small>${esc(d.rec)}</small></span>${pill(open ? "decide" : "accepted").replace(label("decide"), "Decide")}`;
+  const more = [d.why && `<p><b>Why.</b> ${esc(d.why)}</p>`, d.evidence && `<p><b>Evidence.</b> ${esc(d.evidence)}</p>`, d.decided && `<p class="meta">Decided ${esc(d.decided)}</p>`].filter(Boolean).join("");
+  return `<li class="drow" id="${esc(id)}" data-text="${esc(text)}" data-akey="d:${esc(d.id)}" data-label="Decisions › ${esc(d.id)}"${ch ? ' data-changed="1"' : ""}>
+    ${more ? `<details><summary>${head}<span class="chv">${I.chev}</span></summary><div class="dbody">${more}</div></details>` : `<div class="dsum">${head}</div>`}</li>`;
 }
 function sliceRow(m, s) {
   const id = sliceDomId(m, s), ch = changedSlice.has(s.id), p = Math.max(0, Math.min(100, Number(s.progress) || 0));
   const href = s.pr ? safeHref(s.pr) : "", ext = /^https?:/i.test(href);
   const hasNote = !!String(s.note || "").trim();
-  const main = `<span class="sid">${ch ? '<span class="newdot" title="Changed since your last visit"></span><span class="sr">Changed. </span>' : ""}${esc(s.id)}</span><span class="sname">${esc(s.name)}</span>${pill(s.status)}<span class="sown" title="${esc(s.owner || "")}">${esc(s.owner || "no owner")}</span><span class="sprog"><span class="bartrack" role="progressbar" aria-valuenow="${p}" aria-valuemin="0" aria-valuemax="100" aria-label="Progress of ${esc(s.id)}"><i style="width:${p}%"></i></span><span class="pct">${p}%</span></span>`;
+  const main = `<span class="sid">${ch ? DOT : ""}${esc(s.id)}</span><span class="sname">${esc(s.name)}</span>${pill(s.status)}<span class="sline"><span class="sown" title="${esc(s.owner || "")}">${esc(s.owner || "no owner")}</span><span class="sprog"><span class="bartrack" aria-hidden="true"><i style="width:${p}%"></i></span><span class="pct">${p}%</span></span></span>`;
   const prchip = s.pr ? (href ? `<a class="chip prchip" href="${esc(href)}"${ext ? ' rel="noopener"' : ""} title="${esc(s.pr)}"><span>${esc(prLabel(s.pr))}</span>${ext ? I.ext : ""}</a>` : `<span class="meta prchip">${esc(String(s.pr).slice(0, 40))}</span>`) : "";
-  return `<li class="srow${wide() && hasNote ? " open" : ""}" id="${esc(id)}" data-status="${esc(s.status)}" data-text="${esc(`${s.id} ${s.name} ${s.owner || ""} ${s.note || ""}`.toLowerCase())}" data-akey="s:${esc(m.id)}/${esc(s.id)}" data-label="${esc(`${m.id}: ${m.name} › ${s.id}`)}"${ch ? ' data-changed="1"' : ""}>
-    ${hasNote ? `<button class="smain" type="button" aria-expanded="${wide() ? "true" : "false"}" aria-controls="n-${esc(id)}">${main}<span class="chv">${I.chev}</span></button>` : `<div class="smain">${main}</div>`}
-    ${prchip}${hasNote ? `<div class="snote" id="n-${esc(id)}">${esc(s.note)}</div>` : ""}</li>`;
+  return `<li class="srow${s.pr ? " haspr" : ""}" id="${esc(id)}" data-status="${esc(s.status)}" data-text="${esc(`${s.id} ${s.name} ${s.owner || ""} ${s.note || ""}`.toLowerCase())}" data-akey="s:${esc(m.id)}/${esc(s.id)}" data-label="${esc(`${m.id}: ${m.name} › ${s.id}`)}"${ch ? ' data-changed="1"' : ""}>
+    <div class="stop">${hasNote ? `<button class="smain" type="button" aria-expanded="false" aria-controls="n-${esc(id)}">${main}<span class="chv">${I.chev}</span></button>` : `<div class="smain">${main}</div>`}${prchip}</div>
+    ${hasNote ? `<div class="snote" id="n-${esc(id)}">${esc(s.note)}</div>` : ""}</li>`;
 }
 function missionHtml(m, i) {
   const sl = m.slices || [], done = sl.filter(s => s.status === "done").length, pct = sl.length ? Math.round(done / sl.length * 100) : 0;
@@ -597,7 +617,7 @@ function logHtml() {
   return logRows.map((r, i) => {
     const [when, what, ev] = Array.isArray(r) ? r : [r && r.when, r && r.what, r && r.evidence], key = `${when}|${what}`, ch = changedLog.has(key);
     const href = safeHref(ev), isUrl = /^https?:/i.test(href);
-    return `<li class="lrow" data-text="${esc(`${when} ${what} ${ev}`.toLowerCase())}" data-akey="l:${i}" data-label="${esc(`Done log › ${when}`)}"${ch ? ' data-changed="1"' : ""}><time>${ch ? '<span class="newdot"></span><span class="sr">New. </span>' : ""}${esc(when)}</time><div><p>${esc(what)}</p>${ev ? `<p class="meta">${isUrl ? `<a href="${esc(href)}" rel="noopener">${esc(String(ev).replace(/^https?:\/\//, "").replace(/^[^/]+\/[^/]+\/[^/]+\//, ""))}</a>` : esc(ev)}</p>` : ""}</div></li>`;
+    return `<li class="lrow" data-text="${esc(`${when} ${what} ${ev}`.toLowerCase())}" data-akey="l:${i}" data-label="${esc(`Done log › ${when}`)}"${ch ? ' data-changed="1"' : ""}><time>${ch ? DOT + " " : ""}${esc(when)}</time><div><p>${esc(what)}</p>${ev ? `<p class="meta">${isUrl ? `<a href="${esc(href)}" rel="noopener">${esc(String(ev).replace(/^https?:\/\//, "").replace(/^[^/]+\/[^/]+\/[^/]+\//, ""))}</a>` : esc(ev)}</p>` : ""}</div></li>`;
   }).join("");
 }
 function factsHtml() { return facts.map(([f, s], i) => `<li class="frow" data-text="${esc(`${f} ${s}`.toLowerCase())}" data-akey="f:${i}" data-label="Facts › ${esc(String(f).slice(0, 40))}"><p>${esc(f)}</p><p class="meta">${esc(s)}</p></li>`).join(""); }
@@ -629,11 +649,12 @@ function sectionHtml(s) {
   return `<section class="card sect" id="${esc(id)}" data-akey="c:${esc(id)}" data-label="${esc(s.title)}" aria-labelledby="${esc(id)}-h"><h2 id="${esc(id)}-h">${esc(s.title)}</h2>${html}</section>`;
 }
 
-// Sections: "top" before the missions, default after them, "bottom" after the decision log.
-const top = sections.filter(s => s.place === "top"), upper = sections.filter(s => s.place !== "bottom" && s.place !== "top"), lower = sections.filter(s => s.place === "bottom");
+// Sections: no place = before the missions, "after" = right after them, "bottom" = after the decision log.
+const ordered = orderMissions(missions);
+const before = sections.filter(s => s.place !== "after" && s.place !== "bottom"), upper = sections.filter(s => s.place === "after"), lower = sections.filter(s => s.place === "bottom");
 const navItems = [["needs", "Needs you", needs.length], ["decisions", "Open decisions", openDec.length],
-  ...top.map(s => [secIds.get(s), s.nav || s.title]),
-  ["missions", "Missions", missions.length], ...missions.map((m, i) => [`mission-${i}`, `${m.id} ${m.name}`, null, true]),
+  ...before.map(s => [secIds.get(s), s.nav || s.title]),
+  ["missions", "Missions", missions.length], ...ordered.map((m, i) => [`mission-${i}`, `${m.id} ${m.name}`, null, true]),
   ...upper.map(s => [secIds.get(s), s.nav || s.title]),
   ["done-log", "Done log", logRows.length], ["decision-log", "Decision log", accDec.length], ...lower.map(s => [secIds.get(s), s.nav || s.title]),
   ["facts", "Facts", facts.length], ["links", "Links", links.length]];
@@ -653,21 +674,21 @@ function build() {
     ${safeRun("Needs you", needsHtml)}
     <div class="side"><section class="stats" aria-label="Counts">
       <a class="stat blocked${count("blocked") ? " hot" : ""}" href="#missions" data-f="blocked"><b>${count("blocked")}</b><span>Blocked</span></a>
-      <a class="stat decide${openDec.length ? " hot" : ""}" href="#decisions"><b>${openDec.length}</b><span>To decide</span></a>
+      <a class="stat decide${openDec.length ? " hot" : ""}" href="#decisions"><b>${openDec.length}</b><span>Open decisions</span></a>
       <a class="stat" href="#missions" data-f="doing"><b>${count("doing")}</b><span>In progress</span></a>
       <div class="overall"><div class="row"><span><b>${doneN} of ${total}</b> slices done</span><span>${total ? Math.round(doneN / total * 100) : 0}%</span></div><div class="bartrack" role="progressbar" aria-valuenow="${doneN}" aria-valuemin="0" aria-valuemax="${total}" aria-label="Slices done"><i style="width:${total ? doneN / total * 100 : 0}%"></i></div></div></section>
     ${safeRun("Open decisions", decCard)}</div></div>`;
   const chip = (f, t2, n) => `<button class="chip" type="button" data-f="${f}" aria-pressed="${f === "all"}">${t2} <span class="n">${n}</span></button>`;
-  const toolbar = !total ? "" : `<div class="toolbar" id="toolbar"><div class="search" role="search"><label class="sr" for="q">Search slices, decisions, log and facts</label>${I.search}<input id="q" type="search" placeholder="Search slices, decisions, log" autocomplete="off" enterkeyhint="search"></div>
+  const toolbar = !total ? "" : `<div class="toolbar" id="toolbar"><div class="search" role="search"><label class="sr" for="q">Search slices, decisions, log and facts</label>${I.search}<input id="q" type="search" placeholder="Search slices, decisions, log, facts" autocomplete="off" enterkeyhint="search"></div>
     <div class="filters" role="group" aria-label="Filter slices by status">${chip("all", "All", total)}${chip("doing", "Doing", count("doing"))}${chip("blocked", "Blocked", count("blocked"))}${chip("decide", "Decide", count("decide"))}${chip("done", "Done", doneN)}${changedN ? chip("changed", "Changed", changedN) : ""}</div>
     <p class="tcount" id="tcount" aria-live="polite"></p></div>`;
   const missionsBlock = missions.length
-    ? `<section id="missions" aria-label="Missions" style="display:grid;gap:var(--tb-sp-4)">${missions.map((m, i) => safeRun(`Mission ${m.id}`, () => missionHtml(m, i))).join("")}<section class="card emptycard" id="nomatch" hidden><b>Nothing matches</b><p>No slice, decision, log or fact matches this filter.</p><p><button class="chip" type="button" id="clearfilter">Clear filter</button></p></section></section>`
+    ? `<section id="missions" aria-label="Missions" style="display:grid;gap:var(--tb-sp-4)">${ordered.map((m, i) => safeRun(`Mission ${m.id}`, () => missionHtml(m, i))).join("")}<section class="card emptycard" id="nomatch" hidden><b>Nothing matches</b><p>No slice, decision, log or fact matches this filter.</p><p><button class="chip" type="button" id="clearfilter">Clear filter</button></p></section></section>`
     : `<section class="card emptycard" id="missions"><b>No missions yet</b><p>Add missions and slices to board.json, then run <code>board.cjs render</code>.</p></section>`;
   const list = (id, title, body, empty, searchable = true, limit = 0) => `<section class="card listcard" id="${id}" aria-labelledby="${id}-h"><h2 id="${id}-h">${title}</h2>${body ? `<ul${searchable ? " data-list" : ""}${limit ? ` data-limit="${limit}"` : ""}>${body}</ul>` : `<p class="meta" style="padding:var(--tb-sp-2) 0 var(--tb-sp-3)">${empty}</p>`}</section>`;
   const decLog = list("decision-log", `Decision log · accepted`, accDec.map(decRow).join(""), "No decisions accepted yet.", true, 8);
   const sect = list2 => list2.map(s => safeRun(s.title, () => sectionHtml(s))).join("");
-  page.insertAdjacentHTML("beforeend", lead + sect(top) + toolbar + missionsBlock + sect(upper) +
+  page.insertAdjacentHTML("beforeend", lead + sect(before) + toolbar + missionsBlock + sect(upper) +
     `<div class="twocol">${list("done-log", "Done log", logHtml(), "Nothing done yet.", true, 12)}${decLog}</div>` + sect(lower) +
     `<div class="twocol">${list("facts", "Facts read, with source", factsHtml(), "No facts recorded.", true, 8)}${list("links", "Links", linksHtml(), "No links.", false, 10)}</div>`);
 }
@@ -675,7 +696,7 @@ function build() {
 // ---- Nav: top-bar menu on phones, sticky rail from 1024 ----
 function buildNav() {
   const html = navItems.map(([id, t, n, sub]) => `<a href="#${esc(id)}"${sub ? ' class="sub"' : ""}><span>${esc(t)}</span>${n != null ? `<span class="n">${n}</span>` : ""}</a>`).join("");
-  $("#menu").innerHTML = html; $("#rail").innerHTML = `<h2>On this board</h2>${html}`;
+  $("#menu").innerHTML = `<button class="ibtn menuclose" type="button">Close menu</button>${html}`; $("#rail").innerHTML = `<h2>On this board</h2>${html}`;
   const secs = $$("#rail a").map(a => [a, document.getElementById(decodeURIComponent(a.getAttribute("href").slice(1)))]).filter(p => p[1]);
   let tick = false;
   const spy = () => { tick = false; let cur = secs[0]; for (const p of secs) if (p[1].getBoundingClientRect().top <= 140) cur = p; for (const p of secs) { if (p === cur) p[0].setAttribute("aria-current", "true"); else p[0].removeAttribute("aria-current"); } };
@@ -698,13 +719,14 @@ function stackTables() {
 }
 
 // ---- Draw the page (the handlers below attach to what this creates) ----
-for (const [name, fn] of [["The board", build], ["The navigation", buildNav], ["Tables", stackTables], ["Lists", limitLists]]) { try { fn(); } catch (e) { fail(`${name} could not be drawn.`, e); } }
+for (const [name, fn] of [["The board", build], ["The navigation", buildNav], ["Tables", stackTables], ["Lists", limitLists], ["Asks", clampNeeds]]) { try { fn(); } catch (e) { fail(`${name} could not be drawn.`, e); } }
+addEventListener("resize", clampNeeds); if (document.fonts && document.fonts.ready) document.fonts.ready.then(clampNeeds);
 
 // ---- Menu ----
 const menu = $("#menu"), menuBtn = $("#menubtn");
 const setMenu = o => { menu.classList.toggle("open", o); menuBtn.setAttribute("aria-expanded", String(o)); };
 menuBtn.addEventListener("click", () => setMenu(!menu.classList.contains("open")));
-menu.addEventListener("click", e => { if (e.target.closest("a")) setMenu(false); });
+menu.addEventListener("click", e => { if (e.target.closest("a")) setMenu(false); else if (e.target.closest(".menuclose")) { setMenu(false); menuBtn.focus(); } });
 document.addEventListener("click", e => { if (menu.classList.contains("open") && !menu.contains(e.target) && !menuBtn.contains(e.target)) setMenu(false); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && menu.classList.contains("open")) { setMenu(false); menuBtn.focus(); } });
 
@@ -773,7 +795,7 @@ let authed = false, online = false, pending = null, draft = null, lastFocus = nu
 const sheet = $("#sheet"), scrim = $("#scrim"), composer = $("#composer"), annotBtn = $("#annot"), cmpText = $("#cmp-text");
 const SEL = ".srow, .drow, .lrow, .mission > summary, .frow, .sect tr[data-akey], .sect[data-akey]";
 const byKey = k => $$("[data-akey]").find(x => x.dataset.akey === k);
-let targetEl = null;
+let targetEl = null, cmpFocus = null;
 const markTarget = el => { if (targetEl) targetEl.classList.remove("target"); targetEl = el || null; if (targetEl) targetEl.classList.add("target"); };
 const saveNotes = () => { ls.set(store, JSON.stringify(notes)); paintNotes(); };
 const setStatus = (t, cls) => { const el = $("#fbstatus"); el.className = `status${cls ? ` ${cls}` : ""}`; $("span", el).textContent = t; if (cls === "err") el.setAttribute("role", "alert"); else el.setAttribute("role", "status"); };
@@ -801,10 +823,15 @@ function setAnno(on) {
 }
 const MODAL = () => !panelMode();
 function inertPage(on) { for (const el of [$(".bar"), $("#rail"), $("#menu"), page]) { if (on) el.setAttribute("inert", ""); else el.removeAttribute("inert"); } }
+// Below 1280 the Changes sheet and the note box are modal: the page behind them is inert and they say so.
+function syncModal() {
+  const sh = MODAL() && sheet.classList.contains("on"), cm = MODAL() && composer.classList.contains("on");
+  inertPage(sh || cm); scrim.classList.toggle("on", sh);
+  sheet.setAttribute("aria-modal", String(sh)); composer.setAttribute("aria-modal", String(cm));
+}
 function openSheet(o, quiet) {
   if (o) { lastFocus = document.activeElement; setMenu(false); }
-  sheet.classList.toggle("on", o); annotBtn.setAttribute("aria-expanded", String(o));
-  const modal = o && MODAL(); scrim.classList.toggle("on", modal); inertPage(modal); sheet.setAttribute("aria-modal", String(modal));
+  sheet.classList.toggle("on", o); annotBtn.setAttribute("aria-expanded", String(o)); syncModal();
   if (o && !quiet) sheet.focus(); else if (!o && lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus();
   paintNotes();
 }
@@ -827,15 +854,20 @@ function openComposer(d, focus) {
   $("#cmp-anchor").textContent = d.label; const q = $("#cmp-quote"); q.hidden = !d.quote; q.textContent = d.quote || "";
   cmpText.value = d.text || ""; setKind(draft.kind); $("#cmpsave").disabled = !cmpText.value.trim();
   if (sheet.classList.contains("on") && MODAL()) openSheet(false);
-  composer.classList.add("on"); document.body.classList.add("composing"); markTarget(byKey(draft.akey)); paintNotes();
+  if (!composer.classList.contains("on")) cmpFocus = document.activeElement;
+  composer.classList.add("on"); document.body.classList.add("composing"); markTarget(byKey(draft.akey)); syncModal(); paintNotes();
   persistDraft();
   requestAnimationFrame(() => { fit(); setTimeout(fit, 250); });
   if (focus !== false) cmpText.focus({ preventScroll: true });
 }
-function closeComposer() { composer.classList.remove("on"); document.body.classList.remove("composing"); markTarget(null); draft = null; persistDraft(); paintNotes(); }
+function closeComposer() {
+  composer.classList.remove("on"); document.body.classList.remove("composing"); markTarget(null); draft = null; persistDraft(); syncModal(); paintNotes();
+  if (cmpFocus && cmpFocus.focus && document.contains(cmpFocus) && cmpFocus !== document.body) cmpFocus.focus();
+  cmpFocus = null;
+}
 cmpText.addEventListener("input", () => { $("#cmpsave").disabled = !cmpText.value.trim(); persistDraft(); });
 $("#cmp-kind").addEventListener("click", e => { const k = e.target.closest("button"); if (k && draft) { setKind(k.dataset.k); persistDraft(); } });
-$("#cmpcancel").addEventListener("click", closeComposer); $("#cmpclose").addEventListener("click", closeComposer);
+$("#cmpcancel").addEventListener("click", closeComposer);
 cmpText.addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); composer.requestSubmit(); } });
 composer.addEventListener("submit", e => {
   e.preventDefault(); const text = cmpText.value.trim(); if (!text || !draft) return;
@@ -889,13 +921,14 @@ document.addEventListener("keydown", e => {
   if ($("#dgfull").open) return;
   if (sheet.classList.contains("on")) openSheet(false); else if (document.body.classList.contains("annotating")) setAnno(false);
 });
-// Keep Tab inside a modal sheet.
-sheet.addEventListener("keydown", e => {
+// Keep Tab inside a modal sheet or note box.
+const trapTab = box => e => {
   if (e.key !== "Tab" || !MODAL()) return;
-  const f = $$("button:not([disabled]), [tabindex='0']", sheet).filter(x => !x.closest("[hidden]")); if (!f.length) return;
+  const f = $$("button:not([disabled]), textarea, [tabindex='0']", box).filter(x => !x.closest("[hidden]")); if (!f.length) return;
   const first = f[0], last = f[f.length - 1];
-  if (e.shiftKey && (document.activeElement === first || document.activeElement === sheet)) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-});
+  if (e.shiftKey && (document.activeElement === first || document.activeElement === box)) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+};
+sheet.addEventListener("keydown", trapTab(sheet)); composer.addEventListener("keydown", trapTab(composer));
 $("#send").addEventListener("click", async () => {
   const send = $("#send"); send.disabled = true; setStatus("Sending…");
   try {
@@ -924,10 +957,11 @@ const dlg = $("#dgfull");
 page.addEventListener("click", e => {
   const z = e.target.closest("[data-zoom]"); if (!z) return;
   const src = document.getElementById(z.dataset.zoom); if (!src) return;
-  const svg = $(".dg-wide svg", src); if (!svg) return;
-  $("#dgfull-t").textContent = z.dataset.title; $("#dgfull-body").innerHTML = svg.outerHTML;
+  const svg = (matchMedia("(max-width: 699px)").matches && $(".dg-tall svg", src)) || $(".dg-wide svg", src); if (!svg) return;
+  $("#dgfull-t").textContent = z.dataset.title; $("#dgfull-body").innerHTML = svg.outerHTML; $("#dgfull-body").classList.remove("actual"); $("#dgfull-zoom").setAttribute("aria-pressed", "false");
   if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
 });
+$("#dgfull-zoom").addEventListener("click", e => { const on = $("#dgfull-body").classList.toggle("actual"); e.currentTarget.setAttribute("aria-pressed", String(on)); });
 $("#dgfull-x").addEventListener("click", () => dlg.close ? dlg.close() : dlg.removeAttribute("open"));
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
 
