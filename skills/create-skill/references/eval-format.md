@@ -7,7 +7,7 @@ A skill's evals live in `<skill>/evals/<n>-<slug>/`, three or more of them.
 | `prompt.md` | The task, exactly as a user would give it. Put every instruction the run needs here: the harness loads no `AGENTS.md`, no extensions, no installed skills. |
 | `fixture/` | Optional. Copied into a fresh temp directory; the run starts there. |
 | `checks.sh` | Deterministic pass check, run in that directory after the agent finishes. Exit 0 = pass. No judge model. |
-| `scenario.json` | Optional. `{"clean": true}` marks a case the skill must leave alone; `{"timeout": 600}` overrides the run limit. |
+| `scenario.json` | Optional. `{"clean": true}` marks a case the skill must leave alone; `{"timeout": 600}` overrides the run limit; `{"needs_skills": ["other"]}` loads sibling skills (beside the skill under test) in every variant, so the baseline drops only the skill under test. |
 
 `checks.sh` gets these environment variables:
 

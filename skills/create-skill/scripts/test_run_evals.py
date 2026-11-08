@@ -117,6 +117,25 @@ class Runner(unittest.TestCase):
         _, result = self.run_main(skill, fake, "--runs", "1")
         self.assertTrue(all(r["error"] == "timeout" for r in result["records"] if r["variant"] == "with"))
 
+    def test_needs_skills_loads_sibling_skills_in_both_variants_with_the_skill_under_test_last(self):
+        # A scenario that needs another skill gets it in the baseline too: only the skill under test is removed.
+        scenarios = dict(STANDARD, **{"04-needs-helper": ('#!/usr/bin/env bash\n[ -f helper.txt ] || [ -f done.txt ]\n', {"needs_skills": ["helper"]})})
+        skill, fake = build(self.root, scenarios)
+        helper = self.root / "helper"
+        helper.mkdir()
+        (helper / "MARK").write_text("helper.txt")
+        (helper / "SKILL.md").write_text("---\nname: helper\n---\n")
+        argv = m.pi_argv("pi", "p/m", skill, "go", [helper])
+        self.assertEqual([argv[i + 1] for i, a in enumerate(argv) if a == "--skill"], [str(helper), str(skill)])
+        code, data = self.run_main(skill, fake, "--scenario", "04-needs-helper")
+        without = [r for r in data["records"] if r["variant"] == "without"]
+        self.assertTrue(without and all(r["passed"] for r in without))  # the baseline ran with helper loaded
+        bad = dict(STANDARD, **{"04-needs-missing": (CHECK_DONE, {"needs_skills": ["nowhere"]})})
+        skill2, fake2 = build(self.root / "b", bad)
+        with self.assertRaises(SystemExit) as stop:
+            self.run_main(skill2, fake2)
+        self.assertEqual(stop.exception.code, 2)
+
     def test_a_non_scenario_directory_is_skipped_and_selecting_it_is_a_usage_error(self):
         skill, fake = build(self.root, STANDARD)
         (skill / "evals" / "helpers").mkdir()
