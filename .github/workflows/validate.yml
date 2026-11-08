@@ -22,6 +22,7 @@ jobs:
           python3 skills/workbench/scripts/test_workbench.py
           node --test skills/workbench/scripts/records.test.cjs
           node --test skills/code-review/scripts/verdict.test.cjs
+          node --test skills/openrig-workspace/references/tracking-board/tests/board.test.cjs
           python3 skills/create-skill/scripts/test_run_evals.py
       - name: Run git skill helper tests
         run: bash skills/git/scripts/wait-for-checks.test.sh
