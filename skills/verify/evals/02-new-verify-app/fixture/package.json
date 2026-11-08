@@ -1,0 +1,10 @@
+{
+  "name": "shop",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "health": "curl -fsS http://localhost:3000/health",
+    "test": "node --test",
+    "e2e": "node e2e/run.js"
+  }
+}
