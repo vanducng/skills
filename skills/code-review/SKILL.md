@@ -17,7 +17,7 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
 ## Steps
 
 1. **Tier:** `node "$V" tier --base <base>` prints the tier and the axes it needs.
-2. **Round:** `node "$V" round <record>/proof` exits 3 past round 3: stop and hand the approach back to the lead. From round 2, read only `git diff <previous verdict head>..HEAD` and the open findings; repeat nothing.
+2. **Round:** `node "$V" round <record>/proof --seat <seat>` (your verdicts count; another seat's do not) exits 3 past round 3: stop and hand the approach to the lead. From round 2, read only `git diff <previous verdict head>..HEAD` and the open findings; repeat nothing.
 3. **Read:**
    - for Spec: the slice `SPEC.md` (intent, mini-requirements, proof contract). No SPEC (a plain PR or commit): write `--spec inconclusive` and judge Standards;
    - for Standards: `REVIEW.md`, then `AGENTS.md`, else `references/checklist.md`;
@@ -31,7 +31,7 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
    - A deliberate product choice is a question, not a finding.
 6. **Write:** `node "$V" write --base <base> --out <file> --spec R --standards R [--security R] --finding "F1|spec|Important|open|<one line>" --seat <seat> --family <model family> --round N`. It binds the file to the diff and refuses a blended or impossible verdict.
 7. **Attach:**
-   - in a rig: `rig proof add --artifact-type rev1-r1` with the printed `verdict`;
+   - in a rig: `rig proof add --artifact-type rev1-r<N>` with the printed `verdict`;
    - outside one: the workbench record's `proof add`.
    Then run `fleet verdict-check <record> --base <base>` if `fleet` is on PATH, else `node "$V" check <file> --base <base>`.
 8. **Report:** axis results, findings by id, the file path.

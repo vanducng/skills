@@ -127,8 +127,8 @@ Collect findings as you go into this structure (memory only - don't write a file
 ### 4. Post the review
 
 Default behavior:
-- PR mode + no `--dry-run` → **post** via single `gh api` call (see below).
-- PR mode + `--dry-run` → **print** the JSON payload, exit, do not call the API.
+- Nothing posts unless `--post` was passed. Printing the payload is the default.
+- PR mode + `--post` → **post** via a single `gh api` call (see below).
 - Non-PR modes → **print** the findings as a markdown report. Never post.
 - GitHub rejects `APPROVE` reviews from the PR author. If the authenticated user is the author and the verdict is `Approve`, submit the same body as `COMMENT` and say a different reviewer is required for branch-protection approval.
 
@@ -157,8 +157,8 @@ When `gh pr checks` shows failures:
 ## Re-review after the author pushes
 
 1. Diff the head you reviewed against the new head. A reply saying "fixed" is not the fix.
-2. Check each finding at the new head. Unless `--dry-run`: fixed → resolve your own thread; not fixed → reply on it and keep it open. Thread state can't ride in the review POST, so this is the one exception to Hard rule 1.
-3. When the change has a runtime path, offer one end-to-end run and reconcile its output with the source of truth ([`references/live-verification.md`](references/live-verification.md#end-to-end-run)). It runs read-only by default; any write or post in it needs the user's go-ahead and never happens under `--auto`.
+2. Check each finding at the new head. With `--post`: fixed → resolve your own thread; not fixed → reply on it and keep it open (thread state can't ride in the review POST, so threads are handled after it).
+3. When the change has a runtime path, offer one end-to-end run and reconcile its output with the source of truth ([`references/live-verification.md`](references/live-verification.md#end-to-end-run)). It runs read-only; any write or post in it needs the user's go-ahead.
 4. Read every unresolved thread at the current head, bot reviewers included. Decide blocking or not; name the non-blocking ones in the review body.
 5. Refresh `headRefOid` and checks right before submitting, then submit the review against that SHA with the verdict the rules above give (author-can't-approve fallback included).
 

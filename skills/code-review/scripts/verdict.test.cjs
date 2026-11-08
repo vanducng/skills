@@ -100,3 +100,12 @@ test("the security axis is Deep only, and an empty diff has nothing to judge", (
   assert.match(run(empty, "tier", "--base", "main").err, /changes nothing/);
   assert.equal(run(empty, "write", "--base", "main", "--out", "v.md", "--spec", "pass", "--standards", "pass").code, 2);
 });
+test("round filters by seat, so another seat's verdict is not this seat's round", () => {
+  const dir = repo({ "a.js": "x\n" });
+  run(dir, "write", "--base", "main", "--out", "proof/other.md", "--spec", "fail", "--standards", "pass", "--seat", "other.review");
+  const mine = run(dir, "round", "proof", "--seat", "me.review").json();
+  assert.equal(mine.round, 1);
+  assert.equal(mine.artifact_type, "rev1-r1");
+  run(dir, "write", "--base", "main", "--out", "proof/mine.md", "--spec", "pass", "--standards", "pass", "--seat", "me.review");
+  assert.equal(run(dir, "round", "proof", "--seat", "me.review").json().round, 2);
+});

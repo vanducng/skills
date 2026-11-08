@@ -2,7 +2,8 @@
 // The review verdict, bound to the exact diff it judged.
 //
 //   verdict.cjs tier  --base <ref> [--head <ref>]           Quick | Standard | Deep, the axes it needs, and why
-//   verdict.cjs round <proof-dir>                           this review's round number (prior verdicts + 1); exit 3 past 3
+//   verdict.cjs round <proof-dir> [--seat S]                 this review's round number (prior verdicts by this seat + 1)
+//                                                          and the proof artifact type (rev1-rN); exit 3 past round 3
 //   verdict.cjs write --base <ref> [--head <ref>] --out <file> --spec R --standards R [--security R]
 //                     [--finding "F1|spec|Important|open|one line"]... [--seat S] [--family F] [--round N]
 //   verdict.cjs check <file> --base <ref> [--head <ref>]    does the file still bind to <base>..<head>?
@@ -60,9 +61,17 @@ function blocks(text) {
 }
 const isVerdict = text => blocks(text).some(b => /^axes:\s*\{/m.test(b));
 
-function priorVerdicts(dir) {
+function priorVerdicts(dir, seat) {
   if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir).filter(n => n.endsWith(".md") && isVerdict(fs.readFileSync(path.join(dir, n), "utf8")));
+  const same = (text) => {
+    if (!seat) return true;
+    const m = text.match(/^reviewer_seat:\s*"?([^"\n]+)"?/m);
+    return m ? m[1] === seat : true; // a verdict with no seat counts: an old format is still a round
+  };
+  return fs.readdirSync(dir).filter(n => {
+    const text = fs.readFileSync(path.join(dir, n), "utf8");
+    return n.endsWith(".md") && same(text) && isVerdict(text);
+  });
 }
 
 function parseFinding(s) {
@@ -137,9 +146,10 @@ function main(argv) {
   switch (cmd) {
     case "tier": need(); return tier(o["--base"], o["--head"] || "HEAD");
     case "round": {
-      const n = priorVerdicts(o._[0] || "proof").length + 1;
+      const vs = priorVerdicts(o._[0] || "proof", o["--seat"]);
+      const n = vs.length + 1;
       if (n > 3) { process.stdout.write(JSON.stringify({ round: n, stop: "round cap: hand the approach back to the lead, do not review again" }) + "\n"); process.exit(3); }
-      return { round: n };
+      return { round: n, artifact_type: `rev1-r${n}` };
     }
     case "write": need(); return write(o);
     case "check": { need(); if (!o._[0]) throw new Fail("check <verdict file>"); const r = check(o._[0], o["--base"], o["--head"] || "HEAD"); if (!r.bound) { process.stdout.write(JSON.stringify(r) + "\n"); process.exit(1); } return r; }
