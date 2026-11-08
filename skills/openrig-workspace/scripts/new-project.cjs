@@ -40,34 +40,30 @@ function findRoot(given) {
   }
 }
 
-// Machine ids are the keys under `machines:` in fleet/machines.yaml. Without that file any host is accepted, with a warning.
+// Machine ids are the keys under `machines:` in fleet/machines.yaml, read with yq (check-resources.sh needs it too), so
+// any indent or quoting works. Without that file any host is accepted, with a warning.
 function machines(root) {
   const file = path.join(root, "fleet", "machines.yaml");
   if (!fs.existsSync(file)) return null;
-  const ids = [];
-  let inside = false;
-  for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
-    if (/^machines:\s*$/.test(line)) { inside = true; continue; }
-    if (!inside) continue;
-    if (/^\S/.test(line)) break;
-    const m = /^ {2}([A-Za-z0-9][\w.-]*):\s*(?:#.*)?$/.exec(line);
-    if (m) ids.push(m[1]);
-  }
-  return ids;
+  const r = spawnSync("yq", ["-o=json", ".machines // {} | keys", file], { encoding: "utf8" });
+  if (r.error) fail("yq (mikefarah v4) is required to read fleet/machines.yaml");
+  if (r.status !== 0) fail(`cannot read ${file}: ${r.stderr.trim()}`);
+  return JSON.parse(r.stdout);
 }
 
-// Adds the entry after the last project already listed, leaving every other line as it was.
-function addToWorkspace(file, id, rel) {
+// Returns workspace.yaml with the entry added after the last project already listed, every other line as it was.
+// Called before anything is written, so a workspace.yaml it cannot extend refuses the run with no files created.
+function withProject(file, id, rel) {
   const lines = fs.readFileSync(file, "utf8").split("\n");
   const start = lines.findIndex(l => /^projects:\s*$/.test(l));
-  if (start < 0) fail(`${file} has no projects: list`);
+  if (start < 0) fail(`${file} has no block projects: list; fix it before adding a project`);
   let end = start + 1;
   for (let i = start + 1; i < lines.length; i++) {
     if (/^\s+\S/.test(lines[i])) end = i + 1;
     else if (/^\S/.test(lines[i])) break;
   }
   lines.splice(end, 0, `  - id: ${id}`, `    root: ${rel}`, "    rigs: []");
-  fs.writeFileSync(file, lines.join("\n"));
+  return lines.join("\n");
 }
 
 const argv = process.argv.slice(2);
@@ -93,6 +89,7 @@ if (fs.existsSync(dir)) fail(`${rel} already exists`);
 const workspace = path.join(root, "workspace.yaml");
 if (new RegExp(`^\\s+- id: ${org}\\.${project}\\s*$`, "m").test(fs.readFileSync(workspace, "utf8"))) fail(`${org}.${project} is already in workspace.yaml`);
 
+const workspaceText = withProject(workspace, `${org}.${project}`, rel);
 const known = machines(root);
 if (known && !known.includes(opts.host)) fail(`unknown host '${opts.host}'; fleet/machines.yaml has: ${known.join(", ") || "(none)"}`);
 if (!known) process.stderr.write(`new-project: warning: no fleet/machines.yaml under ${root}; host '${opts.host}' not checked\n`);
@@ -110,7 +107,7 @@ const files = {
 
 fs.mkdirSync(path.join(dir, "missions"), { recursive: true });
 for (const [f, body] of Object.entries(files)) fs.writeFileSync(path.join(dir, f), body);
-addToWorkspace(workspace, `${org}.${project}`, rel);
+fs.writeFileSync(workspace, workspaceText);
 process.stdout.write(`created ${rel}/ (${Object.keys(files).join(", ")}) and added ${org}.${project} to workspace.yaml\n`);
 
 const check = spawnSync("bash", [path.join(__dirname, "check-resources.sh"), dir], { stdio: "inherit" });

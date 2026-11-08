@@ -95,6 +95,28 @@ refuse "one name only" "give <org> and <project>" acme --host box-a --root "$ROO
 refuse "a root without workspace.yaml" "no workspace.yaml" acme x5 --host box-a --root "$TMP"
 [[ "$(snapshot)" == "$before" ]] && ok "no refusal changed any file" || bad "a refused run wrote files"
 
+echo "machines.yaml in another indent and quoting"
+cat > "$ROOT/fleet/machines.yaml" <<'YAML'
+schema: projects.machines/v1
+machines:
+    "box-q":
+        default: true
+    box-r: {ssh_alias: r}
+YAML
+out="$(run acme fourspace --host box-q --root "$ROOT")"; [[ $? == 0 ]] && ok "a quoted key at four-space indent is a machine" || bad "four-space: $out"
+out="$(run acme flowmap --host box-r --root "$ROOT")"; [[ $? == 0 ]] && ok "a key with a flow mapping is a machine" || bad "flow map: $out"
+refuse "a host not in the re-indented file" "unknown host 'box-a'" acme x6 --host box-a --root "$ROOT"
+
+echo "a workspace.yaml without a projects: list refuses before writing"
+BAD="$TMP/bad"
+mkdir -p "$BAD/orgs/acme"
+cp "$ROOT/orgs/acme/"*.yaml "$BAD/orgs/acme/"
+printf 'schema: openrig.workspace/v0alpha1\nproject:\n  - id: acme.shop\n' > "$BAD/workspace.yaml"
+before_bad="$( (cd "$BAD" && find . -type f | sort | xargs cksum) )"
+refuse "no projects: list" "no block projects: list" acme half --host x --root "$BAD"
+[[ ! -e "$BAD/orgs/acme/projects/half" ]] && ok "no project dir was created" || bad "half-created project left behind"
+[[ "$( (cd "$BAD" && find . -type f | sort | xargs cksum) )" == "$before_bad" ]] && ok "no file changed" || bad "a file changed"
+
 echo "without fleet/machines.yaml the host is accepted with a warning"
 rm "$ROOT/fleet/machines.yaml"
 out="$(run acme loose --host anything --root "$ROOT")"; code=$?
