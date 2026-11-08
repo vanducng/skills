@@ -19,8 +19,10 @@ Run it on the org's watch host. Each step has a check; stop at the first one tha
 
    ```bash
    rig watchdog register --spec watchdogs/<member>.yaml --policy periodic-reminder \
-     --target-session watch-<member>@<org>-watch --interval-seconds 1800 --registered-by <your session, or operator>
+     --target-session watch-<member>@<org>-watch --interval-seconds <the member's interval> --registered-by <your session, or operator>
    ```
+
+   The intervals are staggered on purpose: inbox 1860 s, meetings 2580 s, tickets 3180 s and the dream 3660 s (31, 43, 53 and 61 minutes), the `intervalSeconds` in each `watchdogs/<member>.yaml`. Pass the same number, never one shared value: seats on one model plan that wake in the same minute hit its limit together. Keep the four coprime if you change one.
 
    Check: `rig ps --nodes --rig <org>-watch` shows three running collector seats (and the human seat once the template carries it), `fleet/bin/pi-rig-check <org>-watch` shows each seat's footer, and `rig watchdog list` shows three jobs with the one-line message.
 
@@ -30,7 +32,7 @@ The dream's member is not in `rig.yaml`, so the first launch never starts it. Wh
 
 ```bash
 rig add <org>-watch watch dream.member.yaml --rig-root "$PWD" && rig watchdog register --spec watchdogs/dream.yaml \
-  --policy periodic-reminder --target-session watch-dream@<org>-watch --interval-seconds 1800 --registered-by <your session, or operator>
+  --policy periodic-reminder --target-session watch-dream@<org>-watch --interval-seconds 3660 --registered-by <your session, or operator>
 ```
 
 Check: `rig ps --nodes --rig <org>-watch` shows the dream running with the three collectors (and the human seat once the template carries it) and `rig watchdog list` shows the dream's job. To park it again, `rig watchdog stop <job id>` and `rig seat stop watch-dream@<org>-watch`.
