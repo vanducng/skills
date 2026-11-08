@@ -97,10 +97,11 @@ const known = machines(root);
 if (known && !known.includes(opts.host)) fail(`unknown host '${opts.host}'; fleet/machines.yaml has: ${known.join(", ") || "(none)"}`);
 if (!known) process.stderr.write(`new-project: warning: no fleet/machines.yaml under ${root}; host '${opts.host}' not checked\n`);
 
-const intent = (opts.intent || `What ${project} delivers, in one sentence. Replace this before the first mission.`).replace(/"/g, "'").replace(/\s+/g, " ").trim();
+// JSON.stringify output is a valid YAML double-quoted scalar, so any quote, backslash or colon is safe.
+const intent = JSON.stringify((opts.intent || `What ${project} delivers, in one sentence. Replace this before the first mission.`).replace(/\s+/g, " ").trim());
 const files = {
   "AGENTS.md": `# ${project}\n\nWhat ${project} is and who it is for, in two or three lines.\n\n## Repos\n\n| Repo | Role here |\n|---|---|\n\n## Rules\n\n- Project resources (channels, meetings, dashboards, docs): \`resources.yaml\` in this folder, pointing into the org's \`../../resources.yaml\` by id. Data only, never secrets.\n- Before changing a project, mission, slice, task dir, worktree, rig or seat, load the \`openrig-workspace\` skill.\n`,
-  "SPEC.md": `---\nintent: "${intent}"\n---\n\n# ${project}\n\nAgent-facing context is in \`AGENTS.md\` next to this file.\n`,
+  "SPEC.md": `---\nintent: ${intent}\n---\n\n# ${project}\n\nAgent-facing context is in \`AGENTS.md\` next to this file.\n`,
   "project.yaml": `schema: openrig.project/v0alpha1\nkind: project\nmetadata:\n  id: ${org}.${project}\n  name: ${project}\ninstall:\n  intent: SPEC.md\n  context: []\n  skills: []\nmissions:\n  root: missions\n`,
   "repos.yaml": `schema: projects.project-repos/v1\n# The one machine this project runs on (fleet/machines.yaml id). Rigs, task dirs and worktrees exist only there.\nhost: ${opts.host}\nrepos: []\n`,
   "resources.yaml": "schema: projects.resources/v2\n",

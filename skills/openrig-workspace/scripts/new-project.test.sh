@@ -53,9 +53,22 @@ yq '.projects[].id' "$ROOT/workspace.yaml" | tr '\n' ' ' | grep -q 'acme.shop ac
 [[ "$(yq '.projects[0].rigs[0]' "$ROOT/workspace.yaml")" == "shop" ]] && ok "existing entries untouched" || bad "existing entry changed"
 bash "$DIR/check-resources.sh" "$P" >/dev/null && ok "check-resources.sh passes on its own" || bad "check-resources.sh fails"
 
-echo "intent option"
-run acme intents --host box-a --intent 'Ship "refunds" in one go' --root "$ROOT" >/dev/null
-grep -q "^intent: \"Ship 'refunds' in one go\"$" "$ROOT/orgs/acme/projects/intents/SPEC.md" && ok "--intent is written, quotes made safe" || bad "intent text: $(head -3 "$ROOT/orgs/acme/projects/intents/SPEC.md")"
+echo "intent option round-trips through YAML"
+n=0
+intent_case() {
+  local desc="$1" text="$2" want="${3:-$2}" name got
+  n=$((n+1)); name="intent$n"
+  node "$RUNNER" acme "$name" --host box-a --intent "$text" --root "$ROOT" >/dev/null 2>&1; code=$?
+  got="$(sed -n '/^---$/,/^---$/p' "$ROOT/orgs/acme/projects/$name/SPEC.md" | sed '1d;$d' | yq '.intent' 2>&1)"
+  if [[ $code == 0 && "$got" == "$want" ]]; then ok "$desc"; else bad "$desc (exit $code, parsed '$got', want '$want')"; fi
+}
+intent_case "a backslash" 'path C:\quux\bar'
+intent_case "a double quote" 'Ship "refunds" in one go'
+intent_case "a colon and a hash" 'Goal: ship it # now'
+intent_case "a single quote" "It's the one"
+intent_case "a newline becomes a space" $'first line\nsecond line' 'first line second line'
+intent_case "unicode" 'Café and 日本語'
+intent_case "a leading dash and brackets" '- [x] {y}'
 
 echo "refusals (nothing is written)"
 before="$(snapshot)"
