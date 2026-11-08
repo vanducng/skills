@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 // Board server: static files for every board, plus per-board feedback and live events.
 //   GET  /<org>/<project>/<slug>/            the board (index.html) and any page beside it
-//   POST /<org>/<project>/<slug>/feedback    notes from the page -> feedback/inbox/<id>.json (needs the login cookie)
+//   POST /<org>/<project>/<slug>/feedback    notes from the page -> feedback/inbox/<id>.json (needs a sign-in, below)
 //   GET  /<org>/<project>/<slug>/events      server-sent events: hello, status, reply, reload
-// Login: open any board URL with ?k=<token> once (board.cjs login prints it); the server sets an HttpOnly,
-// SameSite=Strict cookie. The token lives in <root>/.board-token (mode 600). Bind is loopback only; publish with
-// `tailscale serve` (serve.sh), never Funnel.
+// Signed in (may send feedback) by either:
+//   the token cookie: open any board URL with ?k=<token> once (board.cjs login prints it); the server sets an HttpOnly,
+//   SameSite=Strict cookie. The token lives in <root>/.board-token (mode 600);
+//   a tailnet identity: `tailscale serve` adds Tailscale-User-Login to each request (and strips one a client sent);
+//   a login listed in <root>/.board-owners (one per line, mode 600) is signed in. No list, or one others can read or
+//   write, means token only.
+// Bind is loopback only; publish with `tailscale serve` (serve.sh), never Funnel.
 "use strict";
 const http = require("node:http");
 const fs = require("node:fs");
@@ -16,6 +20,7 @@ const crypto = require("node:crypto");
 const root = path.resolve(process.env.OPENRIG_BOARDS_ROOT || path.join(os.homedir(), ".share", "openrig", "boards"));
 const port = Number(process.env.OPENRIG_BOARDS_PORT || 47320);
 const tokenFile = path.join(root, ".board-token");
+const ownersFile = path.join(root, ".board-owners");
 fs.mkdirSync(root, { recursive: true });
 if (!fs.existsSync(tokenFile)) fs.writeFileSync(tokenFile, crypto.randomBytes(24).toString("hex"), { mode: 0o600 });
 const token = fs.readFileSync(tokenFile, "utf8").trim();
@@ -27,7 +32,27 @@ const kinds = ["comment", "change", "question"];
 const clients = new Map();
 const watched = new Set();
 
-const loggedIn = req => (req.headers.cookie || "").split(/;\s*/).includes(`board_k=${token}`);
+// Read on each check, so adding a login needs no restart.
+function owners() {
+  try {
+    if (fs.statSync(ownersFile).mode & 0o077) return new Set();
+    return new Set(fs.readFileSync(ownersFile, "utf8").split("\n").map(l => l.trim().toLowerCase()).filter(l => l && !l.startsWith("#")));
+  } catch { return new Set(); }
+}
+// Tailscale sends a non-ASCII display name as an RFC 2047 word (=?utf-8?q?...?= or =?utf-8?b?...?=).
+function headerText(v) {
+  const m = /^=\?utf-8\?([qb])\?(.*)\?=$/i.exec(String(v || "").trim());
+  if (!m) return String(v || "").trim();
+  if (m[1].toLowerCase() === "b") return Buffer.from(m[2], "base64").toString("utf8");
+  return Buffer.from(m[2].replace(/_/g, " ").replace(/=([0-9a-f]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))), "latin1").toString("utf8");
+}
+// null when not signed in; who is the display name for a tailnet sign-in.
+function signedIn(req) {
+  if ((req.headers.cookie || "").split(/;\s*/).includes(`board_k=${token}`)) return {};
+  const login = String(req.headers["tailscale-user-login"] || "").trim().toLowerCase();
+  if (login && owners().has(login)) return { who: headerText(req.headers["tailscale-user-name"]) || login };
+  return null;
+}
 const end = (res, code, body, type = "text/plain; charset=utf-8") => { res.writeHead(code, { "Content-Type": type, "Cache-Control": "no-store" }); res.end(body); };
 const emit = (dir, event, data) => { for (const res of clients.get(dir) || []) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); };
 const readJson = file => { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; } };
@@ -49,7 +74,7 @@ function watch(dir) {
 }
 
 function feedback(req, res, dir, board) {
-  if (!loggedIn(req)) return end(res, 401, "Log in first: open the board's login link (board.cjs login).");
+  if (!signedIn(req)) return end(res, 401, "Not signed in: open the board through its tailnet address as a listed owner, or open its login link (board.cjs login).");
   if (!/^application\/json\b/.test(req.headers["content-type"] || "")) return end(res, 415, "JSON only");
   let body = "";
   req.on("data", chunk => { body += chunk; if (body.length > 65536) req.destroy(); });
@@ -75,7 +100,8 @@ function feedback(req, res, dir, board) {
 function events(req, res, dir) {
   watch(dir);
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-store", Connection: "keep-alive" });
-  res.write(`event: hello\ndata: ${JSON.stringify({ auth: loggedIn(req) })}\n\n`);
+  const me = signedIn(req);
+  res.write(`event: hello\ndata: ${JSON.stringify(me ? { auth: true, ...me } : { auth: false })}\n\n`);
   if (!clients.has(dir)) clients.set(dir, new Set());
   clients.get(dir).add(res);
   const beat = setInterval(() => res.write(": beat\n\n"), 25000);

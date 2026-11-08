@@ -1002,7 +1002,12 @@ const stateText = { queued: "Queued for the human seat…", delivered: "Delivere
 if ("EventSource" in window && location.protocol.startsWith("http")) {
   const es = new EventSource("events");
   addEventListener("pagehide", () => es.close());
-  es.addEventListener("hello", e => { online = true; authed = !!JSON.parse(e.data).auth; setStatus(authed ? "Connected. Notes are sent to the human seat." : "Read-only: open the login link from the human seat (board.cjs login) to send feedback.", authed ? "ok" : ""); paintNotes(); });
+  es.addEventListener("hello", e => {
+    const h = JSON.parse(e.data); online = true; authed = !!h.auth;
+    setStatus(!authed ? "Read-only. To send feedback, open this board through its tailnet address as a listed owner, or open the login link from the human seat (board.cjs login)."
+      : h.who ? `Connected as ${h.who}. Notes go to the human seat.` : "Connected. Notes go to the human seat.", authed ? "ok" : "");
+    paintNotes();
+  });
   es.addEventListener("status", e => { const d = JSON.parse(e.data); if (!pending || d.id === pending) setStatus(stateText[d.state] || d.state, "ok"); });
   es.addEventListener("reply", e => { const d = JSON.parse(e.data); if (pending && d.id !== pending) return; const r = $("#reply"); r.hidden = false; r.textContent = d.reply || "(no reply text)"; pending = null; openSheet(true); });
   es.addEventListener("reload", () => {
