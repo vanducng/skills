@@ -184,12 +184,15 @@ if (cmd === "init") {
   const peleDir = process.env.PELE_DIR || path.join(os.homedir(), ".cache", "openrig-boards");
   const pele = loadPele();
   let problems = 0;
-  const placed = new Set((data.sections || []).flatMap(s => [...(s.html || "").matchAll(/data-diagram="([^"]+)"/g)].map(m => m[1])));
+  // Where each diagram is drawn: once only, since a second drawing would repeat its SVG ids.
+  const placed = new Map(), place = (id, where) => placed.set(id, [...(placed.get(id) || []), where]);
+  for (const s of data.sections || []) for (const m of (s.html || "").matchAll(/data-diagram="([^"]+)"/g)) place(m[1], `section ${s.id}`);
   for (const m of data.missions || []) for (const sl of m.slices || []) {
     if (!sl.diagram) continue;
-    placed.add(sl.diagram);
+    place(sl.diagram, `slice ${sl.id}`);
     if (!(sl.diagram in (data.diagrams || {}))) { console.log(`slice ${sl.id} names unknown diagram ${sl.diagram}`); problems++; }
   }
+  for (const [id, where] of placed) if (where.length > 1) { console.log(`diagram ${id} placed twice: ${where[0]} and ${where[1]}`); problems++; }
   for (const [id, raw] of Object.entries(data.diagrams || {})) {
     const issues = [], src = boardSource(String(raw)), marks = isStatechart(src) ? STATE_MARKS : [];
     if (!placed.has(id)) issues.push("not placed in any section (<div data-diagram=\"" + id + "\"></div>) or slice (\"diagram\": \"" + id + "\")");

@@ -232,6 +232,13 @@ test("a statechart passes check: phase colors map to roles, breaks and mayBreak 
   const missing = run(["check", "demo/audit/sc3"], env);
   assert.equal(missing.code, 1, "a slice naming a missing diagram fails check");
   assert.match(missing.out, new RegExp(`slice ${ghost[0].slices[0].id.replace(".", "\\.")} names unknown diagram nope`));
+  const twice = structuredClone(fixture.missions);
+  twice[0].slices[0].diagram = "flow";
+  put(root, "demo/audit/sc4", { ...fixture, missions: twice });
+  const dup = run(["check", "demo/audit/sc4"], env);
+  assert.equal(dup.code, 1, "a diagram drawn twice would repeat its SVG ids");
+  const sect = fixture.sections.find(x => /data-diagram="flow"/.test(x.html)).id;
+  assert.match(dup.out, new RegExp(`diagram flow placed twice: section ${sect} and slice ${twice[0].slices[0].id.replace(".", "\\.")}`));
 });
 
 test("render draws a statechart in the role palette: no inline colors reach pele", () => {
