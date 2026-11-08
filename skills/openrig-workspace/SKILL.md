@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.14.1"
+  version: "0.15.0"
 ---
 
 # OpenRig workspace
@@ -198,8 +198,8 @@ Each org keeps a knowledge tree that a parked watch rig fills. To set one up, ru
 
 ## Add a project
 
-1. Create `orgs/<org>/projects/<project>/` (the folder name is the team rig's name) containing `AGENTS.md` (what it is, a repo table with each repo's role, rules), `SPEC.md` (frontmatter `intent:`), `project.yaml` (`schema: openrig.project/v0alpha1`, `metadata.id: <org>.<project>`), `repos.yaml` (with `host: <machine id>` from `fleet/machines.yaml`, the only machine it runs on), `resources.yaml` (the channels, docs, dashboards, meetings and Jira this project cares about; data only, no secrets), and `missions/`. The org keeps its own `orgs/<org>/resources.yaml`.
-2. Add `{id, root}` to `workspace.yaml`.
+1. Run `node "$HOME/skills/skills/openrig-workspace/scripts/new-project.cjs" <org> <project> --host <machine id> [--intent "<one sentence>"]` (root: `--root`, `$PROJECTS_ROOT`, or the nearest parent with `workspace.yaml`). It creates `orgs/<org>/projects/<project>/` (the folder name is the team rig's name) with `AGENTS.md`, `SPEC.md` (frontmatter `intent:`), `project.yaml` (`metadata.id: <org>.<project>`), `repos.yaml` (`host:` is the one machine the project runs on, checked against `fleet/machines.yaml`), `resources.yaml` (v2, empty) and `missions/`, adds `{id, root, rigs: []}` to `workspace.yaml`, and runs `check-resources.sh` on the result, exiting with its code. It refuses an existing project, an invalid name, an option in place of a name, an unknown host and an org that does not exist. Then fill in `AGENTS.md` (what it is, a repo table with each repo's role, rules) and `SPEC.md`, and put the channels, docs, dashboards, meetings and Jira this project cares about in `resources.yaml` (data only, no secrets). The org keeps its own `orgs/<org>/resources.yaml`.
+2. Add the project's rig name to its `workspace.yaml` entry when a rig exists.
 3. Add any new repo to `orgs/<org>/repos.yaml` with its per-machine paths.
 
 ## Workflow position

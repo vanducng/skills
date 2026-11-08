@@ -26,6 +26,7 @@ jobs:
         run: |
           bash skills/openrig-workspace/scripts/slice-names.test.sh
           bash skills/openrig-workspace/scripts/check-resources.test.sh
+          bash skills/openrig-workspace/scripts/new-project.test.sh
       - name: Check release version consistency
         run: bash scripts/check-release-versions.sh
       - name: Check release tag does not collide
