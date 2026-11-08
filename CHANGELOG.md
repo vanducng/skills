@@ -2,6 +2,14 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.80.0](https://github.com/vanducng/skills/compare/v1.79.0...v1.80.0) (2026-11-08)
+
+
+### Features
+
+* **intake,shape:** wire the statechart lens into intake and shape ([#598](https://github.com/vanducng/skills/issues/598)) ([35b9ee4](https://github.com/vanducng/skills/commit/35b9ee4b1cdd7e778ebf05473f1fd84b6ab4b566))
+* **openrig-workspace:** statecharts on boards in the role palette, compact decision rows ([#596](https://github.com/vanducng/skills/issues/596)) ([8f4467c](https://github.com/vanducng/skills/commit/8f4467ccac1fa7f8d50a869f0a3f64b97ae494c9))
+
 ## [1.79.0](https://github.com/vanducng/skills/compare/v1.78.0...v1.79.0) (2026-11-08)
 
 
