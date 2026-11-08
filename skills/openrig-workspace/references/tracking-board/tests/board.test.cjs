@@ -259,7 +259,7 @@ test("render draws a statechart in the role palette: no inline colors reach pele
 // ---- the page's pure helpers --------------------------------------------------------------------------------------
 
 const helperSrc = /\/\* tb:helpers:start[^\n]*\n([\s\S]*?)\/\* tb:helpers:end \*\//.exec(templateText)[1];
-const H = new Function(`${helperSrc}\nreturn { esc, safeHref, parseWhen, relTime, prLabel, pillClass, sliceSig, decSig, diffBoard, snapshot, idOf, orderMissions, STATUSES };`)();
+const H = new Function(`${helperSrc}\nreturn { esc, md, safeHref, parseWhen, relTime, prLabel, pillClass, sliceSig, decSig, diffBoard, snapshot, idOf, orderMissions, STATUSES };`)();
 
 test("esc escapes the five HTML characters", () => {
   assert.equal(H.esc(`<a href="x" onclick='y'>&</a>`), "&lt;a href=&quot;x&quot; onclick=&#39;y&#39;&gt;&amp;&lt;/a&gt;");
@@ -461,7 +461,7 @@ async function server(owners, mode = 0o600) {
     ac.abort(); return JSON.parse(/data: (.*)/.exec(text)[1]);
   };
   const token = fs.readFileSync(path.join(root, ".board-token"), "utf8").trim();
-  return { root, post, hello, token, stop: () => child.kill() };
+  return { root, base, post, hello, token, stop: () => child.kill() };
 }
 
 test("sign-in: an allowlisted Tailscale login sends feedback, and hello names the person", async () => {
@@ -492,5 +492,132 @@ test("sign-in: an allowlist others can read or write is ignored, and the token c
     assert.equal((await s.post({ "tailscale-user-login": "owner@example.com" })).status, 401);
     assert.equal((await s.post({ cookie: `board_k=${s.token}` })).status, 202);
     assert.deepEqual(await s.hello({ cookie: `board_k=${s.token}` }), { auth: true });
+  } finally { s.stop(); }
+});
+
+// ---- board chat: POST /chat and GET /thread --------------------------------------------------------------------
+
+const chatOf = (s, headers, body) => fetch(`${s.base}/chat`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
+const threadOf = (s, headers, q = "") => fetch(`${s.base}/thread${q}`, { headers });
+
+test("chat and thread: the token and a listed login are accepted, anything else is refused", async () => {
+  const s = await server("owner@example.com\n");
+  try {
+    const listed = { "tailscale-user-login": "owner@example.com", "tailscale-user-name": "Sample Owner" };
+    for (const h of [{ cookie: `board_k=${s.token}` }, listed]) {
+      assert.equal((await chatOf(s, h, { text: "hello" })).status, 202);
+      assert.equal((await threadOf(s, h)).status, 200);
+    }
+    for (const h of [{}, { "tailscale-user-login": "other@example.com" }, { cookie: "board_k=nope" }]) {
+      assert.equal((await chatOf(s, h, { text: "hello" })).status, 401);
+      assert.equal((await threadOf(s, h)).status, 401, "a browser that is not signed in sees no thread");
+    }
+    const inbox = path.join(s.root, "demo/audit/sample/feedback/inbox");
+    const items = fs.readdirSync(inbox).sort().map(f => JSON.parse(fs.readFileSync(path.join(inbox, f), "utf8")));
+    assert.equal(items.length, 2);
+    assert.deepEqual(Object.keys(items[1]).sort(), ["board", "id", "kind", "received_at", "text", "who"]);
+    assert.equal(items[1].kind, "chat");
+    assert.equal(items[1].who, "Sample Owner");
+    assert.equal((await chatOf(s, { cookie: `board_k=${s.token}` }, { text: "   " })).status, 400, "an empty message is refused");
+  } finally { s.stop(); }
+});
+
+test("thread: notes and chat in send order, each with its state and the seat's reply", async () => {
+  const s = await server();
+  try {
+    const k = { cookie: `board_k=${s.token}` };
+    const a = await (await s.post(k)).json();
+    const b = await (await chatOf(s, k, { text: "What is blocking **M2.3**?", anchor: "M2 › M2.3", quote: "Retry and backoff" })).json();
+    const c = await (await chatOf(s, k, { text: "and the sandbox?" })).json();
+    const fb = path.join(s.root, "demo/audit/sample/feedback");
+    // The bridge moves a delivered item to processing/ and writes status and done.
+    fs.renameSync(path.join(fb, "inbox", `${a.id}.json`), path.join(fb, "processing", `${a.id}.json`));
+    fs.renameSync(path.join(fb, "inbox", `${b.id}.json`), path.join(fb, "processing", `${b.id}.json`));
+    fs.writeFileSync(path.join(fb, "status", `${a.id}.json`), JSON.stringify({ id: a.id, state: "done", at: "2026-11-08T21:00:00Z" }));
+    fs.writeFileSync(path.join(fb, "done", `${a.id}.json`), JSON.stringify({ id: a.id, reply: "Applied.", at: "2026-11-08T21:00:00Z" }));
+    fs.writeFileSync(path.join(fb, "status", `${b.id}.json`), JSON.stringify({ id: b.id, state: "working", at: "2026-11-08T21:01:00Z" }));
+    const r = await threadOf(s, k);
+    assert.equal(r.status, 200);
+    const { items } = await r.json();
+    assert.deepEqual(items.map(i => [i.id, i.kind, i.state]), [[a.id, "notes", "done"], [b.id, "chat", "working"], [c.id, "chat", "queued"]]);
+    assert.equal(items[0].reply, "Applied.");
+    assert.equal(items[0].notes[0].text, "x");
+    assert.equal(items[1].text, "What is blocking **M2.3**?");
+    assert.equal(items[1].anchor, "M2 › M2.3");
+    assert.equal(items[1].reply, undefined);
+    const last = await (await threadOf(s, k, "?limit=2")).json();
+    assert.deepEqual(last.items.map(i => i.id), [b.id, c.id], "limit keeps the newest, oldest first");
+  } finally { s.stop(); }
+});
+
+// ---- board chat: the safe markdown renderer in template.html -----------------------------------------------------
+
+// Every tag the renderer may emit, and the only attribute values it may write.
+const tagsOk = html => {
+  for (const [, tag, attrs] of html.matchAll(/<\/?([a-zA-Z0-9]+)([^>]*)>/g)) {
+    assert.ok(["p", "br", "strong", "em", "code", "pre", "ul", "ol", "li", "a"].includes(tag), `tag <${tag}> in ${html}`);
+    const rest = attrs.replace(/ href="https?:\/\/[^"<>\s]*"| target="_blank"| rel="noopener noreferrer"| start="\d+"/g, "");
+    assert.equal(rest.trim(), "", `unexpected attributes ${attrs} in ${html}`);
+  }
+};
+
+test("markdown: paragraphs, bold, italic, code, lists and http(s) links render", () => {
+  const { md } = H;
+  const html = md("Hi **there**, *you* and _me_.\nSecond line `a<b`\n\n- one\n- two with [docs](https://example.com/a_b_c?x=1&y=2)\n\n3. three\n4. four\n\n```\n<b>raw</b>\n```\nsee https://example.com/x.");
+  tagsOk(html);
+  assert.match(html, /<p>Hi <strong>there<\/strong>, <em>you<\/em> and <em>me<\/em>\.<br>Second line <code>a&lt;b<\/code><\/p>/);
+  assert.match(html, /<ul><li>one<\/li><li>two with <a href="https:\/\/example\.com\/a_b_c\?x=1&amp;y=2" target="_blank" rel="noopener noreferrer">docs<\/a><\/li><\/ul>/);
+  assert.match(html, /<ol start="3"><li>three<\/li><li>four<\/li><\/ol>/);
+  assert.match(html, /<pre><code>&lt;b&gt;raw&lt;\/b&gt;<\/code><\/pre>/);
+  assert.match(html, /see <a href="https:\/\/example\.com\/x"[^>]*>https:\/\/example\.com\/x<\/a>\./);
+});
+
+test("markdown: script, javascript: links and raw HTML never render", () => {
+  const { md } = H;
+  for (const src of [
+    "<script>alert(1)</script>",
+    "[click](javascript:alert(1))",
+    "[click](JavaScript:alert(1)) and javascript:alert(1)",
+    '<img src=x onerror="alert(1)"> <a href="https://x">y</a>',
+    '[x](https://example.com/"><script>alert(1)</script>)',
+    "**<iframe src=https://example.com>**",
+    "`</code><script>x</script>`",
+    "```\n</code></pre><script>x</script>\n```",
+    "\u0000 0\u0000 [a](data:text/html,<script>x</script>)",
+  ]) {
+    const html = md(src);
+    tagsOk(html);
+    assert.doesNotMatch(html, /<script|<img|<iframe|href="(?!https?:)|javascript:[^<]*"/i, src);
+  }
+  assert.equal(md("<b>x</b>"), "<p>&lt;b&gt;x&lt;/b&gt;</p>");
+});
+
+test("the page script parses", () => {
+  const scripts = [...templateText.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  assert.ok(scripts.length >= 1);
+  for (const code of scripts) new (require("node:vm").Script)(code, { filename: "template.html" });
+});
+
+test("events: status and reply reach signed-in browsers only, reload reaches every browser", async () => {
+  const s = await server();
+  try {
+    const listen = headers => {
+      const ac = new AbortController(), seen = [];
+      const done = fetch(`${s.base}/events`, { headers, signal: ac.signal }).then(async r => {
+        const reader = r.body.getReader();
+        for (;;) { const { value, done: end } = await reader.read(); if (end) return; for (const m of new TextDecoder().decode(value).matchAll(/event: (\w+)/g)) seen.push(m[1]); }
+      }).catch(() => {});
+      return { seen, stop: () => { ac.abort(); return done; } };
+    };
+    const inn = listen({ cookie: `board_k=${s.token}` }), out = listen({});
+    await new Promise(r => setTimeout(r, 300));
+    const fb = path.join(s.root, "demo/audit/sample/feedback");
+    fs.writeFileSync(path.join(fb, "status", "x.json"), JSON.stringify({ id: "x", state: "done", at: "2026-11-08T21:00:00Z" }));
+    fs.writeFileSync(path.join(fb, "done", "x.json"), JSON.stringify({ id: "x", reply: "private reply", at: "2026-11-08T21:00:00Z" }));
+    fs.writeFileSync(path.join(s.root, "demo/audit/sample/index.html"), "<p>new</p>");
+    await new Promise(r => setTimeout(r, 900));
+    await inn.stop(); await out.stop();
+    assert.ok(inn.seen.includes("status") && inn.seen.includes("reply") && inn.seen.includes("reload"), inn.seen.join(","));
+    assert.deepEqual(out.seen.filter(e => e !== "hello"), ["reload"]);
   } finally { s.stop(); }
 });
