@@ -2,6 +2,19 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.75.0](https://github.com/vanducng/skills/compare/v1.74.0...v1.75.0) (2026-11-08)
+
+
+### Features
+
+* **openrig-workspace:** mobile-first tracking board ([#558](https://github.com/vanducng/skills/issues/558)) ([045b440](https://github.com/vanducng/skills/commit/045b440d18096e9c8cb0ad85e3e44e8035ac51ba))
+
+
+### Bug Fixes
+
+* **worktree:** show copied env files first and pin that values never print ([24e80ef](https://github.com/vanducng/skills/commit/24e80ef2deaa6df1f4134034988f469f9fb38bae))
+* **worktree:** show copied env files first and pin that values never print ([9f4c05e](https://github.com/vanducng/skills/commit/9f4c05e919da135cef64c710d2d208bdefb3bdb7))
+
 ## [1.74.0](https://github.com/vanducng/skills/compare/v1.73.2...v1.74.0) (2026-11-08)
 
 
