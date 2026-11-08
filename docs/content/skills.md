@@ -124,7 +124,7 @@ Utilities for recurring work:
 
 | Skill | Owns |
 | --- | --- |
-| `vd:create-skill` | Evals-first skill authoring and fixing: eval harness with a no-skill baseline and blind before/after, promotion ladder |
+| `vd:skill-creator` | Authoring a new `SKILL.md` (description, hard rules, writing principles) |
 | `vd:skill-management` | Scaffold, vendor, validate, release (`--create` delegates authoring) |
 | `vd:skill-evolve` | Improve skills that already exist |
 | `vd:skill-audit` | Which skills actually get used |
