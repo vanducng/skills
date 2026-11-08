@@ -2,11 +2,13 @@
 // Tracking boards: one HTML page per initiative, rendered from board.json.
 //   board.cjs init <org>/<project>/<slug> [--title "..."]   create board.json and index.html
 //   board.cjs render <org>/<project>/<slug> | <dir>          rebuild index.html from board.json
+//   board.cjs render --all                                   rebuild every board under the root
 //   board.cjs url <org>/<project>/<slug>                     print the tailnet URL
 //   board.cjs login <org>/<project>/<slug>                   print the one-time login URL (lets that browser send feedback)
 //   board.cjs list                                           list boards with their headline
 //   board.cjs check <org>/<project>/<slug>                   lint diagrams against the conventions; parse them with pele
 //                                                            when it is installed ($PELE_DIR, default ~/.cache/openrig-boards)
+// render draws each diagram with pele into the page (no CDN at view time); without pele the page shows the diagram source.
 // Root: $OPENRIG_BOARDS_ROOT (default ~/.share/openrig/boards). URL base: $OPENRIG_BOARDS_URL, else the
 // tailnet name from `tailscale status --json` plus /boards (see serve.sh).
 "use strict";
@@ -34,13 +36,90 @@ function now() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+const escHtml = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function loadPele() {
+  const peleDir = process.env.PELE_DIR || path.join(os.homedir(), ".cache", "openrig-boards");
+  try { return require(require.resolve("pele", { paths: [peleDir, __dirname] })); } catch { return null; }
+}
+
+// pele output is trusted markup, but a diagram is board text: drop anything that could run, keep only safe links,
+// and give every id a prefix so two diagrams (or the wide and tall variants of one) never share a marker id.
+function cleanSvg(svg, prefix) {
+  const safe = u => /^(#|https?:|mailto:)/i.test(u.trim());
+  let out = svg.replace(/\s(?:xlink:)?href="([^"]*)"/gi, (m, u) => (safe(u) ? m : ""));
+  if (/<script|<foreignObject|\son[a-z]+\s*=/i.test(out)) return null;
+  const ids = [...out.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]);
+  for (const id of ids) {
+    out = out.split(` id="${id}"`).join(` id="${prefix}${id}"`).split(`url(#${id})`).join(`url(#${prefix}${id})`)
+      .split(`href="#${id}"`).join(`href="#${prefix}${id}"`);
+  }
+  return out;
+}
+
+// Wide flowcharts (LR, RL) get a second, top-down drawing for phones.
+function prerender(data) {
+  const diagrams = data.diagrams || {}, out = {};
+  const ids = Object.keys(diagrams);
+  if (!ids.length) return { out, missing: false, failed: [] };
+  const pele = loadPele();
+  if (!pele) return { out, missing: true, failed: [] };
+  const failed = [];
+  ids.forEach((id, i) => {
+    const src = String(diagrams[id] || "");
+    try {
+      const svg = cleanSvg(pele.render(src).svg, `d${i}w-`);
+      if (!svg) throw new Error("diagram markup was refused");
+      const flip = /^(\s*(?:flowchart|graph)\s+)(?:LR|RL)\b/;
+      out[id] = { svg };
+      if (flip.test(src)) {
+        const tall = cleanSvg(pele.render(src.replace(flip, "$1TB")).svg, `d${i}t-`);
+        if (tall) out[id].tall = tall;
+      }
+    } catch (e) { failed.push(`${id}: ${String(e.message).split("\n")[0]}`); }
+  });
+  return { out, missing: false, failed };
+}
+
+// Plain-text summary for readers without JavaScript, filled into <noscript id="summary"> at render time.
+function summary(data) {
+  const needs = (data.needs || []).map(n => (typeof n === "string" ? n : (n && n.text) || "")).filter(Boolean);
+  const slices = (data.missions || []).flatMap(m => m.slices || []);
+  const open = (data.decisions || []).filter(d => d.status !== "accepted");
+  const lines = [
+    `<h1>${escHtml(data.title)}</h1>`,
+    data.headline ? `<p><b>${escHtml(data.headline)}</b></p>` : "",
+    `<p>${escHtml([data.phase, data.updated && `updated ${data.updated}`].filter(Boolean).join(", "))}</p>`,
+    `<h2>Needs you</h2>${needs.length ? `<ol>${needs.map(n => `<li>${escHtml(n)}</li>`).join("")}</ol>` : "<p>Nothing is waiting on you.</p>"}`,
+    `<h2>Open decisions</h2>${open.length ? `<ul>${open.map(d => `<li>${escHtml(d.id)}: ${escHtml(d.q)} Recommended: ${escHtml(d.rec)}</li>`).join("")}</ul>` : "<p>None.</p>"}`,
+    `<h2>Missions</h2><ul>${(data.missions || []).map(m => `<li>${escHtml(m.id)} ${escHtml(m.name)}: ${escHtml(m.status)}, ${(m.slices || []).filter(s => s.status === "done").length}/${(m.slices || []).length} slices done</li>`).join("")}</ul>`,
+    `<p>${slices.length} slices in all. JavaScript is needed for the full board; board.json beside this file has every row.</p>`,
+  ];
+  return `<noscript id="summary"><div class="card plain">${lines.join("")}</div></noscript>`;
+}
+
 function render(dir) {
   const file = path.join(dir, "board.json");
   const data = JSON.parse(fs.readFileSync(file, "utf8"));
-  for (const key of ["title", "missions", "decisions"]) if (!(key in data)) die(`${file} has no "${key}"`);
-  const json = JSON.stringify(data, null, 2).replace(/<\//g, "<\\/");
-  fs.writeFileSync(path.join(dir, "index.html"), fs.readFileSync(template, "utf8").replace("__BOARD_JSON__", () => json));
+  for (const key of ["title", "missions", "decisions"]) if (!(key in data)) throw new Error(`${file} has no "${key}"`);
+  const drawn = prerender(data);
+  if (drawn.missing) console.error(`board: pele not installed, diagrams show their source text (npm install --prefix ${process.env.PELE_DIR || path.join(os.homedir(), ".cache", "openrig-boards")} pele@1.13.0)`);
+  for (const f of drawn.failed) console.error(`board: diagram not drawn, source shown: ${f}`);
+  const embedded = { ...data, rendered: { diagrams: drawn.out } };
+  // \u003c keeps "</script>" and "<!--" inside the data from ending or confusing the script element.
+  const json = JSON.stringify(embedded, null, 2).replace(/</g, "\\u003c");
+  const html = fs.readFileSync(template, "utf8").replace("__BOARD_JSON__", () => json).replace(/<noscript id="summary">[\s\S]*?<\/noscript>/, () => summary(data));
+  fs.writeFileSync(path.join(dir, "index.html"), html);
   return path.join(dir, "index.html");
+}
+
+// Every <org>/<project>/<slug> directory under the root that holds a board.json.
+function boards() {
+  const dirs = p => (fs.existsSync(p) ? fs.readdirSync(p, { withFileTypes: true }).filter(e => e.isDirectory() && !e.name.startsWith(".")).map(e => e.name) : []);
+  const out = [];
+  for (const org of dirs(root)) for (const project of dirs(path.join(root, org))) for (const slug of dirs(path.join(root, org, project)))
+    if (fs.existsSync(path.join(root, org, project, slug, "board.json"))) out.push({ slug: `${org}/${project}/${slug}`, dir: path.join(root, org, project, slug) });
+  return out;
 }
 
 function base() {
@@ -66,10 +145,18 @@ if (cmd === "init") {
     org, project, slug, owner_seat: process.env.OPENRIG_SESSION_NAME || "", updated: now(), headline: "", phase: "Started",
     needs: [], sections: [], diagrams: {}, missions: [], log: [], decisions: [], facts: [], links: [],
   }, null, 2) + "\n");
-  console.log(render(dir));
+  try { console.log(render(dir)); } catch (e) { die(e.message); }
   console.log(`${base()}/${arg}/`);
+} else if (cmd === "render" && arg === "--all") {
+  let failed = 0;
+  const all = boards();
+  for (const { slug, dir } of all) {
+    try { console.log(render(dir)); } catch (e) { failed++; console.error(`board: ${slug}: ${e.message}`); }
+  }
+  console.log(`render: ${all.length - failed} of ${all.length} board(s) rendered`);
+  process.exit(failed ? 1 : 0);
 } else if (cmd === "render") {
-  console.log(render(boardDir(arg)));
+  try { console.log(render(boardDir(arg))); } catch (e) { die(e.message); }
 } else if (cmd === "login") {
   boardDir(arg);
   const tokenFile = path.join(root, ".board-token");
@@ -83,8 +170,7 @@ if (cmd === "init") {
   const data = JSON.parse(fs.readFileSync(path.join(dir, "board.json"), "utf8"));
   const roles = new Set(["ours", "provider", "person", "store", "legacy", "risk", "done"]);
   const peleDir = process.env.PELE_DIR || path.join(os.homedir(), ".cache", "openrig-boards");
-  let pele = null;
-  try { pele = require(require.resolve("pele", { paths: [peleDir, __dirname] })); } catch { /* optional */ }
+  const pele = loadPele();
   let problems = 0;
   const placed = new Set((data.sections || []).flatMap(s => [...(s.html || "").matchAll(/data-diagram="([^"]+)"/g)].map(m => m[1])));
   for (const [id, src] of Object.entries(data.diagrams || {})) {
@@ -101,14 +187,10 @@ if (cmd === "init") {
   console.log(problems ? `check: ${problems} problem(s)` : "check: ok");
   process.exit(problems ? 1 : 0);
 } else if (cmd === "list") {
-  if (!fs.existsSync(root)) process.exit(0);
-  for (const org of fs.readdirSync(root)) for (const project of fs.readdirSync(path.join(root, org)))
-    for (const slug of fs.readdirSync(path.join(root, org, project))) {
-      const file = path.join(root, org, project, slug, "board.json");
-      if (!fs.existsSync(file)) continue;
-      const data = JSON.parse(fs.readFileSync(file, "utf8"));
-      console.log(`${org}/${project}/${slug}\t${data.updated || "?"}\t${data.headline || data.title}`);
-    }
+  for (const { slug, dir } of boards()) {
+    const data = JSON.parse(fs.readFileSync(path.join(dir, "board.json"), "utf8"));
+    console.log(`${slug}\t${data.updated || "?"}\t${data.headline || data.title}`);
+  }
 } else {
-  die("usage: board.cjs init|render|url|login|check <org>/<project>/<slug> [--title \"...\"] | list");
+  die("usage: board.cjs init|render|url|login|check <org>/<project>/<slug> [--title \"...\"] | render --all | list");
 }

@@ -1,0 +1,431 @@
+{
+  "title": "Sample initiative",
+  "org": "demo",
+  "project": "audit",
+  "slug": "sample",
+  "owner_seat": "lead-human@demo-rig",
+  "updated": "2026-11-08 10:30",
+  "headline": "Building: 9/19 slices done, 3 doing, 2 blocked; 3 decisions open, waits on 2 operator asks",
+  "phase": "Build",
+  "needs": [
+    {
+      "text": "Approve the retry-budget recommendation in Q1 (3 attempts, 30 s backoff) so M2.3 can leave the blocked column.",
+      "href": "#dec-Q1",
+      "link": "Decide Q1"
+    },
+    {
+      "text": "Provide the sandbox credentials for the sample provider account through the usual secret channel; M2.4 cannot start without them and the staging window closes on Friday.",
+      "href": "#M2.4",
+      "link": "Blocks M2.4"
+    }
+  ],
+  "sections": [
+    {
+      "id": "design",
+      "title": "Intent and design",
+      "nav": "Design",
+      "html": "<p>One streaming path replaces the batch job. Each record is validated, deduplicated and routed in a single handler, and every outbound notice goes through the provider wrapper with a signed receipt coming back.</p>\n<div class=\"two\"><div><h3>In scope</h3><ul><li>Streaming validator and routing rules</li><li>Provider client, receipts, retry policy</li><li>Operator console with queue, failures and approvals</li></ul></div>\n<div><h3>Out of scope</h3><ul><li>Customer-facing status page</li><li>Historical analytics beyond 90 days</li><li>Replacing the ticketing system</li></ul></div></div>\n<h3>Flow</h3><div data-diagram=\"flow\"></div>",
+      "place": "after"
+    },
+    {
+      "id": "risks",
+      "title": "Risks",
+      "nav": "Risks",
+      "place": "bottom",
+      "html": "<table><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr>\n<tr><td>Provider outage longer than 10 minutes</td><td>Medium</td><td>High</td><td>Fallback provider decision R1, quarterly drill</td></tr>\n<tr><td>Dedup store fills faster than the TTL sweep</td><td>Low</td><td>Medium</td><td>Alert at 80% capacity; sweep runs every minute</td></tr>\n<tr><td>Sandbox credentials arrive late</td><td>High</td><td>Medium</td><td>Mock receipts locally; escalate through the needs list</td></tr></table>\n<h3>Rollback</h3><pre>feature flag: intake.streaming = off   # falls back to the batch job within one cycle\nrestore routing rules: rules-loader --revision previous</pre>"
+    }
+  ],
+  "diagrams": {
+    "flow": "flowchart LR\n  C[\"Caller\"]:::person --> G[\"Intake gateway\"]:::ours\n  O[\"Old batch job\"]:::legacy -.-> G\n  G --> V[\"Validator and dedup\"]:::ours\n  V ==> P[\"Provider API\"]:::provider\n  P -.->|receipt webhook| V\n  V --> L[(\"Delivery ledger\")]:::store\n  V --> D[\"Shipped schema contract\"]:::done\n  P --> T[\"Timeout and retry path\"]:::risk"
+  },
+  "missions": [
+    {
+      "id": "M0",
+      "name": "Discovery and scoping",
+      "goal": "Agree what the streaming intake has to do, and measure the batch job it replaces.",
+      "status": "done",
+      "slices": [
+        {
+          "id": "M0.1",
+          "name": "Measure the batch job",
+          "owner": "analyst-1@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Runs every 15 minutes, 3 to 6 minutes each; 18% of records missed the window last month.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/90"
+        },
+        {
+          "id": "M0.2",
+          "name": "Scope and success measures",
+          "owner": "lead-human@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Scope signed off; success is p95 under five seconds end to end."
+        },
+        {
+          "id": "M0.3",
+          "name": "Provider shortlist",
+          "owner": "analyst-1@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Three providers compared on cost, limits and receipt support."
+        }
+      ]
+    },
+    {
+      "id": "M1",
+      "name": "Intake pipeline v2",
+      "goal": "Replace the batch intake job with a streaming handler that validates, deduplicates and routes each record within five seconds.",
+      "status": "doing",
+      "slices": [
+        {
+          "id": "M1.1",
+          "name": "Schema contract for intake events",
+          "owner": "builder-1@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Contract merged, consumers pinned to v2.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/101"
+        },
+        {
+          "id": "M1.2",
+          "name": "Streaming validator",
+          "owner": "builder-1@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "p95 under 40 ms on the replay set.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/104"
+        },
+        {
+          "id": "M1.3",
+          "name": "Deduplication store and TTL sweep",
+          "owner": "builder-2@demo-rig",
+          "status": "doing",
+          "progress": 65,
+          "note": "Sweep job passes; waiting on load test against the larger fixture with 2M keys.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/109"
+        },
+        {
+          "id": "M1.4",
+          "name": "Routing rules loader",
+          "owner": "builder-2@demo-rig",
+          "status": "doing",
+          "progress": 30,
+          "note": "Hot reload works, rollback path untested."
+        },
+        {
+          "id": "M1.5",
+          "name": "Backfill of the last 90 days",
+          "owner": "qa-1@demo-rig",
+          "status": "planned",
+          "progress": 0,
+          "note": "Starts after M1.3 merges."
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "name": "Provider integration",
+      "goal": "Connect the sample messaging provider for outbound notices with delivery receipts and a safe retry policy.",
+      "status": "blocked",
+      "slices": [
+        {
+          "id": "M2.1",
+          "name": "Provider client wrapper",
+          "owner": "builder-3@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Typed client, timeouts at 8 s.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/112"
+        },
+        {
+          "id": "M2.2",
+          "name": "Delivery receipt webhook",
+          "owner": "builder-3@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Signature check and replay guard in place.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/115"
+        },
+        {
+          "id": "M2.3",
+          "name": "Retry and backoff policy",
+          "owner": "builder-3@demo-rig",
+          "status": "blocked",
+          "progress": 40,
+          "note": "Blocked on Q1: how many attempts before we page a human.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/118"
+        },
+        {
+          "id": "M2.4",
+          "name": "Sandbox end-to-end run",
+          "owner": "qa-1@demo-rig",
+          "status": "blocked",
+          "progress": 10,
+          "note": "Needs sandbox credentials from the operator."
+        },
+        {
+          "id": "M2.5",
+          "name": "Choose fallback provider",
+          "owner": "lead-human@demo-rig",
+          "status": "decide",
+          "progress": 0,
+          "note": "Options and cost table are in the decision log under R1."
+        },
+        {
+          "id": "M2.6",
+          "name": "Cost dashboard",
+          "owner": "builder-4@demo-rig",
+          "status": "planned",
+          "progress": 0,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "name": "Operator console",
+      "goal": "Give the operator one screen to see queue depth, failed deliveries and pending approvals, with no raw logs needed.",
+      "status": "doing",
+      "slices": [
+        {
+          "id": "M3.1",
+          "name": "Queue depth panel",
+          "owner": "builder-4@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Refreshes every 10 s.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/121"
+        },
+        {
+          "id": "M3.2",
+          "name": "Failed delivery table with filters",
+          "owner": "builder-4@demo-rig",
+          "status": "doing",
+          "progress": 80,
+          "note": "Filter by provider, age and error class; export is a follow-up.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/124"
+        },
+        {
+          "id": "M3.3",
+          "name": "Approval inbox",
+          "owner": "builder-1@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Keyboard shortcuts for approve and reject.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/126"
+        },
+        {
+          "id": "M3.4",
+          "name": "Accessibility pass",
+          "owner": "reviewer@demo-rig",
+          "status": "planned",
+          "progress": 0,
+          "note": "Contrast, focus order, screen reader labels."
+        },
+        {
+          "id": "M3.5",
+          "name": "Empty and error states",
+          "owner": "builder-4@demo-rig",
+          "status": "decide",
+          "progress": 0,
+          "note": "Waiting on Q2 about copy tone."
+        }
+      ]
+    }
+  ],
+  "log": [
+    [
+      "2026-11-08 09:58",
+      "Merged the failed delivery table filters into the console branch",
+      "https://git.example.test/demo-org/demo-repo/pull/124"
+    ],
+    [
+      "2026-11-08 09:12",
+      "Dispatched M1.4 routing rules loader to builder-2",
+      "slice M1.4 PROGRESS.md"
+    ],
+    [
+      "2026-11-07 17:40",
+      "Provider sandbox returned 401 on the first receipt test",
+      "M2.4 note, sandbox log excerpt"
+    ],
+    [
+      "2026-11-07 15:05",
+      "Opened the retry policy PR as draft",
+      "https://git.example.test/demo-org/demo-repo/pull/118"
+    ],
+    [
+      "2026-11-07 11:30",
+      "Accepted C3, signed webhooks",
+      "mission M2 NOTES.md"
+    ],
+    [
+      "2026-11-06 16:20",
+      "Merged the approval inbox",
+      "https://git.example.test/demo-org/demo-repo/pull/126"
+    ],
+    [
+      "2026-11-06 10:02",
+      "Load test of the dedup store: 2M keys, p99 12 ms",
+      "https://ci.example.test/demo-org/demo-repo/runs/88412"
+    ],
+    [
+      "2026-11-05 14:45",
+      "Ticket DEMO-214 moved to In Review",
+      "https://tickets.example.test/browse/DEMO-214"
+    ],
+    [
+      "2026-11-04 09:00",
+      "Created the board and linked it in the mission SPEC.md",
+      "mission M1 SPEC.md"
+    ],
+    [
+      "2026-11-03 18:10",
+      "Provider B and C quotes received",
+      "R1 evidence table"
+    ],
+    [
+      "2026-11-02 15:30",
+      "Agreed the five-second budget with the console team",
+      "mission M1 NOTES.md"
+    ],
+    [
+      "2026-11-02 11:05",
+      "Accepted C2, keyed dedup store with a 24 h TTL",
+      "mission M1 NOTES.md"
+    ],
+    [
+      "2026-10-30 17:20",
+      "Replay harness merged; 1.2M records from last month",
+      "https://git.example.test/demo-org/demo-repo/pull/97"
+    ],
+    [
+      "2026-10-29 10:00",
+      "Accepted C1, stream instead of batch",
+      "mission M1 NOTES.md"
+    ],
+    [
+      "2026-10-28 16:45",
+      "Measured the batch job: 18% of records missed the window",
+      "https://git.example.test/demo-org/demo-repo/pull/90"
+    ],
+    [
+      "2026-10-27 09:30",
+      "Kick-off with the three providers on the shortlist",
+      "provider calls, notes in M0.3"
+    ]
+  ],
+  "decisions": [
+    {
+      "id": "C1",
+      "q": "Stream or batch for intake?",
+      "rec": "Stream, one record at a time, with a 5 s budget.",
+      "status": "accepted",
+      "why": "Batch windows delayed notices by up to 15 minutes, which broke the promised response time for the largest customer segment.",
+      "evidence": "Replay of last month: 18% of records missed the old window; the streaming prototype met the budget on all of them.",
+      "decided": "2026-10-27"
+    },
+    {
+      "id": "C2",
+      "q": "Where does deduplication state live?",
+      "rec": "A keyed store with a 24 h TTL, not in the handler memory.",
+      "status": "accepted",
+      "why": "Handlers restart during deploys and in-memory state would let duplicates through for a few minutes each time.",
+      "evidence": "Deploy log shows 9 restarts in two weeks; the memory approach produced 31 duplicates in the replay.",
+      "decided": "2026-10-29"
+    },
+    {
+      "id": "C3",
+      "q": "Signed webhooks or IP allow-list?",
+      "rec": "Signed webhooks with a replay window of 5 minutes.",
+      "status": "accepted",
+      "why": "The provider rotates source addresses without notice; signatures survive that and cost one header check.",
+      "evidence": "Provider docs section on delivery security; address list changed twice in the last quarter.",
+      "decided": "2026-11-02"
+    },
+    {
+      "id": "Q1",
+      "q": "How many retry attempts before paging a human?",
+      "rec": "3 attempts with 30 s exponential backoff, then page.",
+      "status": "decide",
+      "why": "",
+      "evidence": "",
+      "decided": ""
+    },
+    {
+      "id": "Q2",
+      "q": "Tone of empty and error states in the console?",
+      "rec": "Plain and short, no apologies; state what happened and the next action.",
+      "status": "decide",
+      "why": "",
+      "evidence": "",
+      "decided": ""
+    },
+    {
+      "id": "R1",
+      "q": "Fallback provider if the primary has an outage longer than 10 minutes?",
+      "rec": "Provider B for cost, Provider C for coverage; recommend B with a quarterly drill.",
+      "status": "decide",
+      "why": "",
+      "evidence": "",
+      "decided": ""
+    }
+  ],
+  "facts": [
+    [
+      "Intake volume averages 41 records per second with peaks of 190",
+      "metrics dashboard, 7-day view"
+    ],
+    [
+      "Old batch job runs every 15 minutes and takes 3 to 6 minutes",
+      "scheduler config, intake job"
+    ],
+    [
+      "Provider rate limit is 50 requests per second per account",
+      "provider docs, limits page"
+    ],
+    [
+      "Sandbox accounts expire after 14 days of inactivity",
+      "provider docs, sandbox page"
+    ],
+    [
+      "Dedup store holds 1.9M keys at steady state",
+      "store console, key count"
+    ],
+    [
+      "Largest customer segment is 22% of traffic",
+      "billing export, October"
+    ],
+    [
+      "Console is used by 6 operators on weekdays",
+      "access log, last 30 days"
+    ],
+    [
+      "Failed deliveries last week: 214, of which 180 were invalid destinations",
+      "console failed delivery table"
+    ]
+  ],
+  "links": [
+    [
+      "Mission M1 SPEC",
+      "https://docs.example.test/demo-org/missions/m1-intake-v2/SPEC.md"
+    ],
+    [
+      "Mission M2 SPEC",
+      "https://docs.example.test/demo-org/missions/m2-provider/SPEC.md"
+    ],
+    [
+      "CI dashboard",
+      "https://ci.example.test/demo-org/demo-repo"
+    ],
+    [
+      "Ticket DEMO-214",
+      "https://tickets.example.test/browse/DEMO-214"
+    ],
+    [
+      "Provider docs",
+      "https://provider.example.test/docs/messaging/delivery-receipts-and-retries"
+    ]
+  ]
+}
