@@ -2,7 +2,7 @@
 title: "Skills"
 ---
 
-The catalog contains 96 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
+The catalog contains 90 skills under `skills/`. Each one starts with `SKILL.md`; any scripts, references, and assets stay in that directory. Claude Code, Codex, and Pi all install from this catalog.
 
 Count source: `find skills -mindepth 1 -maxdepth 1 -type d`. Validation: `scripts/validate.sh`.
 
@@ -19,10 +19,9 @@ Use `vd:guide` when several skills fit. The full delivery path is on [Getting st
 | Plan | `vd:plan` (`--audit`), `vd:scenario` |
 | Execute | `vd:cook`, `vd:fix`, `vd:debug`, `vd:codex-workflow` |
 | Review and ship | `vd:code-review` (`--refactor`), `vd:miucr`, `vd:simplify` (`--aggressive`), `vd:security`, `vd:ship`, `vd:git` |
-| Iterate | `vd:auto-loop`, `vd:optimize-loop` |
-| Orchestrate | `vd:ultracook` |
+| Iterate | `vd:optimize-loop` |
 
-`vd:interview` confirms the outcome and constraints. `--grill` tests an existing plan or idea. `--wayfinder` maps decisions that will take more than one session. After the outcome is clear, use `vd:brainstorm` to choose an approach. Use `vd:plan --audit` for an independent plan check; `--deep` runs it automatically. `vd:ultracook` chains these skills with explicit completion checks.
+`vd:interview` confirms the outcome and constraints. `--grill` tests an existing plan or idea. `--wayfinder` maps decisions that will take more than one session. After the outcome is clear, use `vd:brainstorm` to choose an approach. Use `vd:plan --audit` for an independent plan check; `--deep` runs it automatically.
 
 ## Interview and decision
 
@@ -49,7 +48,7 @@ Use `vd:guide` when several skills fit. The full delivery path is on [Getting st
 
 ## Browser and web
 
-Start with a local browser. Use `vd:browser` only when the site blocks local automation:
+Start with a local browser:
 
 | Rung | Skill |
 | --- | --- |
@@ -58,7 +57,6 @@ Start with a local browser. Use `vd:browser` only when the site blocks local aut
 | Logged-in browsing with tab borrow + human help | `vd:browser-skill` |
 | Persistent local Chrome / CDP | `vd:agent-browser`, `vd:browser-profile` |
 | Vendor-free raw-CDP traces | `vd:browser-trace` |
-| CAPTCHA / anti-bot / proxy | `vd:browser` (Browserbase) |
 | Logged-in end-to-end | `vd:web-e2e` |
 | Performance | `vd:web-perf` |
 
@@ -77,8 +75,6 @@ Start with a local browser. Use `vd:browser` only when the site blocks local aut
 | Canonical internal docs and ADRs; public site via `site` | `vd:docs` |
 | Cheap in-chat visual for the current topic | `vd:show-me` |
 | ASCII sketch | `vd:text-diagram` |
-| General SVG or raster | `vd:diagram` |
-| Editable whiteboard | `vd:excalidraw` |
 | Polished, accessible HTML/SVG | `vd:diagram-design` |
 
 ## Languages and migration
@@ -87,7 +83,6 @@ Start with a local browser. Use `vd:browser` only when the site blocks local aut
 | --- | --- |
 | `vd:golang` | Idiomatic Go; topic notes under `skills/golang/references/` |
 | `vd:gostack` | Sam Berthe's Go libraries (`lo`, `oops`, `do`, `mo`, `slog`, `hot`, `ro`) |
-| `vd:py2go` | Python-to-Go migrations with six project-type playbooks |
 | `vd:cli-ts` | Production TypeScript CLI architecture and packaging |
 
 ## Infra and ops
@@ -141,7 +136,7 @@ For reviews, `vd:code-review` posts PR findings and `vd:code-review --refactor` 
 
 Use `vd:docs` for internal project docs and ADRs. Its `site` subcommand manages a public documentation site.
 
-Use `vd:show-me` for a quick in-chat visual. Use `vd:diagram-design` for accessible HTML/SVG, `vd:text-diagram` for ASCII, `vd:diagram` for SVG or raster output, and `vd:excalidraw` for editable whiteboards. Use `vd:uiuxdesign` to design or build a product UI, `vd:better-ui` for exact polish values (concentric radius, surface shadows, press scale, icon motion), and `vd:design-eng` to decide whether motion should exist and how easing, popovers, and drags behave. Use `vd:asciinema` to record a scripted CLI or TUI demo on sample data, check every scene from the cast, and publish a README GIF linked to asciinema.org.
+Use `vd:show-me` for a quick in-chat visual. Use `vd:diagram-design` for accessible HTML/SVG and `vd:text-diagram` for ASCII. Use `vd:uiuxdesign` to design or build a product UI, `vd:better-ui` for exact polish values (concentric radius, surface shadows, press scale, icon motion), and `vd:design-eng` to decide whether motion should exist and how easing, popovers, and drags behave. Use `vd:asciinema` to record a scripted CLI or TUI demo on sample data, check every scene from the cast, and publish a README GIF linked to asciinema.org.
 
 Use `vd:superwhisper` to search local dictation history, prepare standups, and diagnose recognition errors. Use `vd:alter` to audit Alter's macOS global hotkeys and change them without reading meeting data. Use `vd:jump-desktop` to check Jump Desktop Connect remote access, manage `.jump` viewer entries, and drive hosts through the `jump-cli` MCP server. Use `vd:braze` for Braze CLI reads and explicit opt-in changes. Use `vd:smartsheet` for bounded sheet reads and authorized row updates. Use `vd:voice-agent` to operate Retell through `vac`. Use `vd:structured` to read Structured days and the inbox, show a plan as a text timeline, and make authorized task and subtask changes through the `structured` CLI. Use `vd:gopass` for the local GPG password store and `vd:onepassword` for 1Password CLI (`op` / `op://` references). Use `vd:obsidian-vault` to capture ideas into the personal Obsidian PARA vault, and `vd:para` for the PARA method itself: classify by actionability, plan and run a reorganization, run the weekly and monthly reviews, or design an agent knowledge base on PARA.
 

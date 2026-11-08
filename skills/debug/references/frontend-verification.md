@@ -1,6 +1,6 @@
 # Frontend Verification
 
-Visual verification of frontend changes via Chrome MCP (Claude Chrome Extension) or the `vd:browser` / `vd:web-e2e` stack as fallback.
+Visual verification of frontend changes via Chrome MCP (Claude Chrome Extension) or `vd:agent-browser` / `vd:web-e2e` as fallback.
 
 ## Applicability check
 
@@ -17,7 +17,7 @@ If none match, skip this technique.
 Check via `ListMcpResourcesTool` for tools prefixed `chrome__` (e.g. `chrome__navigate`, `chrome__screenshot`).
 
 - **Available** → Step 2A (Chrome MCP)
-- **Not available** → Step 2B (`vd:browser` fallback)
+- **Not available** → Step 2B (`vd:agent-browser` fallback)
 
 ## Step 2A - Chrome MCP available
 
@@ -51,14 +51,14 @@ chrome__get_content → DOM/text dump to verify rendered output matches expectat
 
 ## Step 2B - Chrome MCP not available
 
-Fall back to the `vd:browser` stack (`browse` CLI; against an authed app, attach to a `vd:browser-profile` profile first - see `vd:web-e2e`):
+Fall back to `vd:agent-browser` (against an authed app, attach to a `vd:browser-profile` profile first - see `vd:web-e2e`):
 
 ```bash
-browse open http://localhost:3000 --local
-browse screenshot -o ./verification-screenshot.png
-browse snapshot                       # rendered structure
-browse eval "JSON.stringify(window.__consoleErrors || [])"
-browse stop
+agent-browser open http://localhost:3000
+agent-browser screenshot "$PWD/verification-screenshot.png"   # positional, absolute path
+agent-browser snapshot -i                 # rendered structure
+agent-browser errors --json               # console errors; [] when clean
+agent-browser close
 ```
 
 For console/network evidence over a whole session, capture with `vd:browser-trace` instead of polling.

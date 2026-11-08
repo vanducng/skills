@@ -4,7 +4,7 @@ description: Create polished, accessible, self-contained HTML/SVG diagrams for a
 license: MIT
 metadata:
   author: local-catalog
-  version: "1.1.0"
+  version: "1.1.1"
   upstream: cathrynlavery/diagram-design@57148ac6
 ---
 
@@ -50,8 +50,6 @@ Use for any of the 41 visual types (§3) when a reader will learn more from a vi
 **Don't use for:**
 
 - Quick unicode or ASCII diagrams → use `vd:text-diagram`.
-- Generated raster or general-purpose SVG diagrams → use `vd:diagram`.
-- Editable whiteboard canvases → use `vd:excalidraw`.
 - Lists of things → table or bullets.
 - Simple before/after → table.
 - One-shape "diagrams" → just write the sentence.

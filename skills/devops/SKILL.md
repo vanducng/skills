@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[platform] [task]"
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # DevOps

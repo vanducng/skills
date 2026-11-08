@@ -61,7 +61,7 @@ flowchart TD
   review --> ship[ship]
 ```
 
-`--wayfinder` stays on interview until one chunk is clear, then that chunk joins at `plan` and ships like anything else. `vd:ultracook` runs the smallest slice of this same path.
+`--wayfinder` stays on interview until one chunk is clear, then that chunk joins at `plan` and ships like anything else.
 
 ## Edit A Skill
 
@@ -77,7 +77,7 @@ Skill directory names are kebab-case and must match the `name` field in `SKILL.m
 
 ## Sync Vendored Skills
 
-`browser` and `browser-trace` are tracked from `browserbase/skills`, and `ego-browser` from `citrolabs/ego-lite`, in `skills.toml`. Use `vd` to inspect and update tracked sources:
+`browser-trace` is tracked from `browserbase/skills`, and `ego-browser` from `citrolabs/ego-lite`, in `skills.toml`. Use `vd` to inspect and update tracked sources:
 
 ```sh
 vd list

@@ -1,6 +1,6 @@
 # Deploy verify - image and rollout checks
 
-Use these when a pipeline's `done_when` is "the new image is live", not as a closed ultracook vocabulary. Confirm the exact flags against current tool docs before running.
+Use these when a pipeline's `done_when` is "the new image is live", not as a closed vocabulary. Confirm the exact flags against current tool docs before running.
 
 ## Bind evidence to the deployed revision
 
