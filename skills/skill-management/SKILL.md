@@ -1,6 +1,6 @@
 ---
 name: skill-management
-description: "Manage the lifecycle of agent skills in this repo - create new skills via skill-creator, pull/sync upstream skills with the `vd` CLI, validate frontmatter, bump versions, and ship releases through conventional commits. Use when the user says 'create a skill', 'add a skill', 'sync skills', 'release vd', 'bump version', 'update tracked skills', 'validate skills', or asks how to publish a new vd version. The underlying `vd` CLI reference (incl. `vd obs` observability) is vd:vd-cli."
+description: "Manage the lifecycle of agent skills in this repo - create new skills via create-skill, pull/sync upstream skills with the `vd` CLI, validate frontmatter, bump versions, and ship releases through conventional commits. Use when the user says 'create a skill', 'add a skill', 'sync skills', 'release vd', 'bump version', 'update tracked skills', 'validate skills', or asks how to publish a new vd version. The underlying `vd` CLI reference (incl. `vd obs` observability) is vd:vd-cli."
 license: MIT
 argument-hint: "[--create <name> | --add <src> | --list | --sync | --update | --remove <name> | --diff <name> | --doctor | --validate | --release [patch|minor|major]]"
 metadata:
@@ -11,7 +11,7 @@ metadata:
 # skill-management
 
 One entry point for everything skill-lifecycle in `vanducng/skills`:
-authoring (delegates to `skill-creator`), vendoring (delegates to the
+authoring (delegates to `create-skill`), vendoring (delegates to the
 `vd` CLI), and releases (driven by conventional commits + release-please).
 
 Use canonical skill IDs in docs and handoffs: write
@@ -19,13 +19,13 @@ Use canonical skill IDs in docs and handoffs: write
 runtime prefix when invoking it: slash in Claude Code, dollar in Codex.
 
 Pick the flag that matches user intent. Never re-implement what
-`skill-creator` or `vd` already does - orchestrate them.
+`create-skill` or `vd` already does - orchestrate them.
 
 ## Modes
 
 | Flag | What it does | Underlying tool |
 |---|---|---|
-| `--create [name]` | Author a new skill (eval-driven loop) | `skill-creator` Skill |
+| `--create [name]` | Author a new skill (eval-driven loop) | `create-skill` Skill |
 | `--list` | Show tracked skills from `skills.toml` | `vd list` |
 | `--add <src>` | Track a new upstream skill | `vd add` |
 | `--sync` | Vendor tracked skills into `skills/` | `vd sync` |
@@ -55,16 +55,16 @@ If no flag is given, ask the user which lifecycle stage they want
 
 ## --create
 
-Delegate (Claude Code only - the `skill-creator` Skill tool is
-unavailable on Codex; there, use the `new-skill.sh` scaffold below).
-Invoke the `skill-creator` skill via the Skill tool with
-the user's name/description as args:
+Delegate to the `create-skill` skill: with the Skill tool where the
+runtime has one, else load it by name or path (on a runtime that cannot,
+use the `new-skill.sh` scaffold below). Pass the user's name/description
+as args:
 
 ```
-Skill(skill="skill-creator", args="<name-or-description>")
+Skill(skill="create-skill", args="<name-or-description>")
 ```
 
-skill-creator resolves the target root itself and a project-local root
+create-skill resolves the target root itself and a project-local root
 wins, so in this repo it writes directly into `skills/<name>/`. After the
 creator finishes its eval-driven loop:
 
@@ -85,7 +85,7 @@ $EDITOR skills/<name>/SKILL.md
 bash scripts/validate.sh
 ```
 
-Prefer `skill-creator` whenever the skill is non-trivial (has
+Prefer `create-skill` whenever the skill is non-trivial (has
 scripts, references, or needs description tuning).
 
 ## --add / --list / --sync / --update / --remove / --diff / --doctor
