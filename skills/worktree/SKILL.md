@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[feature-description] | [project] [feature] | status | list | ports | clean | repair | remove <name>"
 metadata:
   author: vanducng
-  version: "2.8.1"
+  version: "2.8.2"
 ---
 
 # Worktree
@@ -130,7 +130,7 @@ After every successful non-dry-run create that returns `worktreePath`, if `REX_S
 
 `create` does the session-setup work automatically:
 
-1. Copies untracked `.env*` files from the source checkout - **including nested ones** (`backend/.env`, `frontend/.env.local`, up to 3 levels). Disable with `--no-copy-env`. When the repo's own setup creates `.env` from `.env.example` (a `cp .env.example .env` in `scripts/`, `bin/`, a Makefile, justfile, Taskfile or mise config), the checkout's root `.env` is **not** copied, so its keys and stack settings stay behind; `envFromTemplate: true` reports it.
+1. Copies untracked `.env*` files from the source checkout - **including nested ones** (`backend/.env`, `frontend/.env.local`, up to 3 levels). `create` reports every copied file by relative path, ahead of the next steps in its text summary and as `envFilesCopied` in `--json` (names only; a value is never printed). Disable with `--no-copy-env`. When the repo's own setup creates `.env` from `.env.example` (a `cp .env.example .env` in `scripts/`, `bin/`, a Makefile, justfile, Taskfile or mise config), the checkout's root `.env` is **not** copied, so its keys and stack settings stay behind; `envFromTemplate: true` reports it.
 2. Copies `.env*.example` templates for any env name not already copied.
 3. Copies `.worktreeinclude` entries (see below).
 4. Assigns a deterministic 10-port block and writes `.env.worktree`.
