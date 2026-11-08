@@ -23,7 +23,9 @@ jobs:
       - name: Run git skill helper tests
         run: bash skills/git/scripts/wait-for-checks.test.sh
       - name: Run openrig-workspace helper tests
-        run: bash skills/openrig-workspace/scripts/slice-names.test.sh
+        run: |
+          bash skills/openrig-workspace/scripts/slice-names.test.sh
+          bash skills/openrig-workspace/scripts/check-resources.test.sh
       - name: Check release version consistency
         run: bash scripts/check-release-versions.sh
       - name: Check release tag does not collide
