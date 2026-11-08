@@ -287,6 +287,20 @@ class Pi(unittest.TestCase):
         self.root = pathlib.Path(self.tmp.name)
         self.addCleanup(self.tmp.cleanup)
 
+    def test_discover_reads_openrig_pi_seat_sessions_beside_the_default_root(self):
+        home = self.root / "pi-home"
+        seats = self.root / "pi-tui"
+        own = write(home / "proj" / "2026-01-01T00-00-00-000Z_a.jsonl", [pi_user("t01", "/scout")])
+        seat = write(seats / "dev-impl@rig" / "sessions" / "2026-01-02T00-00-00-000Z_b.jsonl", [pi_user("t01", "/scout")])
+        write(seats / "dev-impl@rig" / "sessions" / "2026-01-02T00-00-00-000Z_b" / "run-0" / "session.jsonl", [])  # subagent
+        write(seats / "dev-impl@rig" / "agent" / "notes.jsonl", [])  # not a session
+        self.addCleanup(setattr, m, "PI_SESSIONS", m.PI_SESSIONS)
+        self.addCleanup(setattr, m, "PI_SEAT_SESSIONS", m.PI_SEAT_SESSIONS)
+        m.PI_SESSIONS, m.PI_SEAT_SESSIONS = str(home), str(seats)
+        self.assertEqual(m.discover("pi", 0), sorted([str(own), str(seat)]))
+        m.PI_SESSIONS = str(self.root / "nope")
+        self.assertEqual(m.discover("pi", 0), [str(seat)])  # a host with seats only
+
     def test_slash_invocation_attributes_errors_tokens_and_skips_non_skills(self):
         path = write(self.root / "proj" / "2026-01-01T00-00-00-000Z_a.jsonl", [
             {"type": "session", "timestamp": "t00", "id": "a", "cwd": "/repo"},
@@ -350,7 +364,8 @@ class Pi(unittest.TestCase):
         out = self.root / "out"
         out.mkdir()
         self.addCleanup(setattr, m, "PI_SESSIONS", m.PI_SESSIONS)
-        m.PI_SESSIONS = str(self.root / "pi")
+        self.addCleanup(setattr, m, "PI_SEAT_SESSIONS", m.PI_SEAT_SESSIONS)
+        m.PI_SESSIONS, m.PI_SEAT_SESSIONS = str(self.root / "pi"), str(self.root / "no-seats")
 
         rows = m.run("pi", REGISTRY, str(out), 7)
 
