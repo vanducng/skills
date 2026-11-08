@@ -25,6 +25,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 DEFAULT_TIMEOUT = 600
+CHECK_ENV = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL")  # all a checks.sh inherits; it is not sandboxed
 PI_FLAGS = [
     "-p", "--no-session", "--no-skills", "--no-context-files", "--no-extensions", "--no-mcp",
     "--no-prompt-templates", "--no-themes", "--offline",
@@ -41,13 +42,25 @@ def pi_argv(binary: str, model: str, skill: Path | None, prompt: str) -> list[st
 ADAPTERS = {"pi": pi_argv}
 
 
+def usage_error(message: str) -> SystemExit:
+    print(f"run_evals.py: {message}", file=sys.stderr)
+    return SystemExit(2)
+
+
 def find_scenarios(evals_dir: Path, only: list[str]) -> list[dict]:
+    """Scenario directories (prompt.md and checks.sh). Other directories are skipped unless named with --scenario."""
     found = []
-    for path in sorted(p for p in evals_dir.iterdir() if p.is_dir()):
+    dirs = sorted(p for p in evals_dir.iterdir() if p.is_dir())
+    unknown = [name for name in only if name not in {p.name for p in dirs}]
+    if unknown:
+        raise usage_error(f"no scenario named {', '.join(unknown)} in {evals_dir}")
+    for path in dirs:
         if only and path.name not in only:
             continue
         if not (path / "prompt.md").is_file() or not (path / "checks.sh").is_file():
-            raise SystemExit(f"{path}: a scenario needs prompt.md and checks.sh")
+            if only:
+                raise usage_error(f"{path.name} is not a scenario: it needs prompt.md and checks.sh")
+            continue
         meta = json.loads((path / "scenario.json").read_text()) if (path / "scenario.json").is_file() else {}
         found.append({
             "name": path.name,
@@ -88,7 +101,8 @@ def run_one(job: dict, adapter, binary: str, out_dir: Path) -> dict:
         if record["error"] is None and record["returncode"] != 0:
             record["error"] = f"agent exited {record['returncode']}"
         if record["error"] is None:
-            env = {**os.environ, "EVAL_OUTPUT": str(output_file), "EVAL_ORIG": str(orig)}
+            env = {k: os.environ[k] for k in CHECK_ENV if k in os.environ}
+            env.update({"EVAL_OUTPUT": str(output_file), "EVAL_ORIG": str(orig)})
             check = subprocess.run(["bash", str(scenario["dir"] / "checks.sh")], cwd=work, env=env, capture_output=True, text=True, timeout=120, check=False)
             record["passed"] = check.returncode == 0
             (out_dir / f"{tag}.checks.txt").write_text((check.stdout + check.stderr)[-4000:])
@@ -194,8 +208,10 @@ def main(argv: list[str] | None = None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     adapter, binary = ADAPTERS[args.runtime], args.binary or args.runtime
 
+    extra: dict = {}
     if args.before:
-        key = blind_labels(random.Random(args.seed))
+        seed = args.seed if args.seed is not None else random.SystemRandom().randrange(2**32)
+        key = blind_labels(random.Random(seed))
         variants = [
             {"label": key["before"], "tag": key["before"], "skill": args.before.resolve()},
             {"label": key["after"], "tag": key["after"], "skill": args.after.resolve()},
@@ -203,13 +219,18 @@ def main(argv: list[str] | None = None) -> int:
         records = execute(scenarios, args.model, variants, args.runs, args.jobs, adapter, binary, out_dir)
         lines, wins = compare(records, scenarios, key, args.margin)
         code = 0 if wins else 3
+        extra = {
+            "mode": "before-after", "key": key, "seed": seed, "margin": args.margin,
+            "before": str(args.before.resolve()), "after": str(args.after.resolve()),
+            "verdict": lines[-1].removeprefix("verdict: "),
+        }  # fmt: skip
     else:
         variants = [{"label": "with", "tag": "with", "skill": skill}, {"label": "without", "tag": "without", "skill": None}]
         records = execute(scenarios, args.model, variants, args.runs, args.jobs, adapter, binary, out_dir)
         lines, failing = baseline_table(records, scenarios, args.model, args.runs)
         lines.append(f"{len(failing)} failing with the skill" + (": " + ", ".join(failing) if failing else ""))
         code = 3 if failing else 0
-    result = {"skill": str(skill), "models": args.model, "runs": args.runs, "runtime": args.runtime, "records": records}
+    result = {"skill": str(skill), "models": args.model, "runs": args.runs, "runtime": args.runtime, **extra, "records": records}
     (out_dir / "results.json").write_text(json.dumps(result, indent=1) + "\n")
     print("\n".join(lines))
     print(f"results: {out_dir / 'results.json'}")

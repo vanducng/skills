@@ -5,6 +5,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 import pathlib
 import random
 import stat
@@ -116,6 +117,27 @@ class Runner(unittest.TestCase):
         _, result = self.run_main(skill, fake, "--runs", "1")
         self.assertTrue(all(r["error"] == "timeout" for r in result["records"] if r["variant"] == "with"))
 
+    def test_a_non_scenario_directory_is_skipped_and_selecting_it_is_a_usage_error(self):
+        skill, fake = build(self.root, STANDARD)
+        (skill / "evals" / "helpers").mkdir()
+        (skill / "evals" / "helpers" / "notes.txt").write_text("not a scenario\n")
+        code, result = self.run_main(skill, fake)
+        self.assertEqual({r["scenario"] for r in result["records"]}, set(STANDARD))
+        with self.assertRaises(SystemExit) as picked:
+            self.run_main(skill, fake, "--scenario", "helpers")
+        self.assertEqual(picked.exception.code, 2)
+        with self.assertRaises(SystemExit) as unknown:
+            self.run_main(skill, fake, "--scenario", "no-such")
+        self.assertEqual(unknown.exception.code, 2)
+
+    def test_checks_run_with_a_scrubbed_environment(self):
+        probe = '#!/usr/bin/env bash\n[ -z "${EVAL_SECRET:-}" ] && [ -n "${EVAL_OUTPUT:-}" ] && [ -n "${EVAL_ORIG:-}" ] && [ -n "${PATH:-}" ] && [ -n "${HOME:-}" ]\n'
+        skill, fake = build(self.root, {"01-a": (probe, None), "02-b": (probe, None), "03-c": (probe, {"clean": True})})
+        os.environ["EVAL_SECRET"] = "leaked"
+        self.addCleanup(os.environ.pop, "EVAL_SECRET", None)
+        _, result = self.run_main(skill, fake, "--runs", "1")
+        self.assertTrue(all(r["passed"] for r in result["records"] if r["variant"] == "with"))
+
     def test_a_skill_needs_three_scenarios_and_a_clean_case(self):
         skill, fake = build(self.root, {"01-a": (CHECK_DONE, None), "02-b": (CHECK_DONE, None)})
         with self.assertRaises(SystemExit) as raised:
@@ -165,6 +187,25 @@ class Blind(unittest.TestCase):
         skill, fake, old, new = self.versions("done.txt", "other.txt")
         _, result = self.run_compare(skill, fake, old, new)
         self.assertEqual({r["variant"] for r in result["records"]}, {"X", "Y"})
+
+    def test_results_json_resolves_the_blind_labels_without_stdout(self):
+        skill, fake, old, new = self.versions("other.txt", "done.txt")
+        _, result = self.run_compare(skill, fake, old, new, seed=7, margin=3)
+        self.assertEqual(result["mode"], "before-after")
+        self.assertEqual(result["key"], {"before": result["key"]["before"], "after": result["key"]["after"]})
+        self.assertEqual(sorted(result["key"].values()), ["X", "Y"])
+        self.assertEqual((result["before"], result["after"]), (str(old.resolve()), str(new.resolve())))
+        self.assertEqual((result["margin"], result["seed"]), (3, 7))
+        self.assertTrue(result["verdict"].startswith("after is better"))
+        self.assertEqual(result["key"], m.blind_labels(random.Random(7)))  # the recorded seed reproduces the key
+
+    def test_an_unseeded_run_records_the_seed_it_drew(self):
+        skill, fake, old, new = self.versions("other.txt", "done.txt")
+        out = self.root / "out"
+        m.main([str(skill), "--binary", str(fake), "--model", "p/m", "--runs", "1", "--before", str(old), "--after", str(new), "--out-dir", str(out)])
+        result = json.loads((out / "results.json").read_text())
+        self.assertIsInstance(result["seed"], int)
+        self.assertEqual(result["key"], m.blind_labels(random.Random(result["seed"])))
 
     def test_the_better_version_wins_by_the_margin(self):
         skill, fake, old, new = self.versions("other.txt", "done.txt")  # after writes the file the checks want

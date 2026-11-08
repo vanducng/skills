@@ -14,10 +14,10 @@ if not m:
 front, body = m.group(1), m.group(2)
 if not re.search(rf"^name:\s*{re.escape(skill.name)}\s*$", front, re.M):
     sys.exit("name does not equal the directory")
-desc = re.search(r"^description:\s*(.+?)(?=^\w[\w-]*:|\Z)", front, re.M | re.S).group(1).lower()
+desc = re.search(r"^description:\s*(.+?)(?=^\w[\w-]*:|\Z)", front, re.M | re.S).group(1).strip().strip('"').lower()
 if "release notes" not in desc or "draft release notes" not in desc:
     sys.exit("description lacks the literal trigger phrases")
-if len(desc) > 1100:
+if len(desc) > 1024:
     sys.exit("description too long")
 words = len(body.split())
 if words > 800:
