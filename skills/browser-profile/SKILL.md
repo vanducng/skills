@@ -5,7 +5,7 @@ license: MIT
 allowed-tools: Bash, Read
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # browser-profile
@@ -24,7 +24,7 @@ Why not Playwright `launchPersistentContext`? Because that path requires Playwri
 - Long-lived debugging sessions where you want to come back tomorrow and have the same logged-in dashboards.
 - Hand-off flows: you log in manually, then ask Claude to drive the rest.
 
-**Not for:** cloud-only / anti-bot use cases (use Browserbase contexts via `vd:browser` `--context-id` instead) or one-shot ephemeral scraping (just use `agent-browser` directly, no profile needed).
+**Not for:** cloud-only / anti-bot use cases or one-shot ephemeral scraping (just use `agent-browser` directly, no profile needed).
 
 ## Prerequisites
 

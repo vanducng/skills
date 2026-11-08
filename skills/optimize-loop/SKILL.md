@@ -6,14 +6,14 @@ argument-hint: "[Goal/Metric description] or inline config block (Goal/Scope/Ver
 metadata:
   author: vanducng
   attribution: "Modify→Verify→Keep/Discard pattern from autoresearch by Udit Goenka (MIT)"
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
 # optimize-loop
 
 > Constraint + mechanical metric + fast verification = autonomous improvement.
 
-`vd:optimize-loop` **optimizes a number** over N bounded iterations (default 10), git-committing each attempt. It does not pursue subjective goals (`vd:auto-loop` / `vd:cook`) and does not poll on a clock (`/loop`). Each iteration makes one atomic change, commits it, measures, and keeps or reverts on the metric. Use it for coverage, bundle size, lint/type errors, latency, or LOC - anything with a consistent numeric evaluator; a known-root-cause bug goes to `vd:fix` / `vd:debug` instead.
+`vd:optimize-loop` **optimizes a number** over N bounded iterations (default 10), git-committing each attempt. It does not pursue subjective goals (`vd:cook`) and does not poll on a clock (`/loop`). Each iteration makes one atomic change, commits it, measures, and keeps or reverts on the metric. Use it for coverage, bundle size, lint/type errors, latency, or LOC - anything with a consistent numeric evaluator; a known-root-cause bug goes to `vd:fix` / `vd:debug` instead.
 
 ## Configuration
 

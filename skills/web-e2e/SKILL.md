@@ -7,7 +7,7 @@ compatibility: Requires Node 18+, the agent-browser CLI (`npm install -g agent-b
 argument-hint: "[status|--wait|flow-name] (run from the app repo; reads .e2e/config.json)"
 metadata:
   author: vanducng
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
 # web-e2e
@@ -16,7 +16,7 @@ The orchestration layer for browser e2e against locally running web apps. Three 
 
 Why this composition works: `agent-browser` joins in **connect mode** (`agent-browser connect <port>`), verified live to coexist with the persistent session, the human-shareable window, and a read-only trace observer on the same port. Its `--profile` mode launches a separate Playwright-owned browser with none of those properties - avoid it. `profile-attach.sh` is the only sanctioned attach path (it strips `AGENT_BROWSER_PROFILE` and verifies the UA - see Workflow step 4 and Troubleshooting).
 
-**Not for:** server-side test suites (Pest/pytest/vitest - run them directly), cloud/anti-bot scraping (`vd:browser --remote`), or one-shot page checks with no auth (plain `agent-browser`).
+**Not for:** server-side test suites (Pest/pytest/vitest - run them directly), cloud/anti-bot scraping, or one-shot page checks with no auth (plain `agent-browser`).
 
 ## Prerequisites
 

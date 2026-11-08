@@ -1,11 +1,11 @@
 ---
 name: herdr
-description: "Control Herdr, the terminal multiplexer for coding agents. Use when the user mentions Herdr or another skill delegates pane control, including concise pane naming, inspection, commands, and agents. Integrates with vd:worktree, vd:codex-workflow, and vd:ultracook. Requires HERDR_ENV=1."
+description: "Control Herdr, the terminal multiplexer for coding agents. Use when the user mentions Herdr or another skill delegates pane control, including concise pane naming, inspection, commands, and agents. Integrates with vd:worktree and vd:codex-workflow. Requires HERDR_ENV=1."
 license: Apache-2.0
 argument-hint: "[inspect | rename <project> <intent> | start agent | run command | wait | read]"
 metadata:
   author: vanducng
-  version: "1.3.1"
+  version: "1.3.2"
 ---
 
 # Herdr
@@ -21,7 +21,6 @@ This skill adapts the [official Herdr agent skill](https://github.com/herdrdev/h
 | Inspect or control persistent visible panes, processes, output, and agent state | `vd:herdr` |
 | Create an isolated checkout with copied env, ports, installs, and lifecycle hooks | `vd:worktree` |
 | Run a deterministic structured fan-out or pipeline without needing visible panes | `vd:codex-workflow` |
-| Conduct an end-to-end build, review, and ship workflow | `vd:ultracook` |
 
 Mentioning Herdr authorizes control of the requested Herdr session. It does not authorize spawning agents, parallel work, new worktrees, merges, deployments, or destructive cleanup. Require the user's explicit request for those actions.
 

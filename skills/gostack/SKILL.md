@@ -4,7 +4,7 @@ description: "My curated Go stack reference - opinionated guide to Sam Berthe's 
 license: MIT
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.1.1"
   upstream-author: "Sam Berthe (samber)"
   upstreams:
     lo: "https://github.com/samber/lo @ v1.53.0 (2026-03-02) - stable, MIT, 21.2k stars"
@@ -78,7 +78,6 @@ If a Go service is going to adopt this ecosystem, the order I'd introduce librar
 
 ## Where this skill plugs into the rest
 
-- `vd:py2go` (Python→Go migration) - defaults to `slog` over zap/zerolog, mentions `samber/oops` for error context, `samber/do` for DI when the graph grows. See py2go's translation rules table for the cross-reference.
 - `vd:cook` / `vd:ship` - the lint and review steps benefit from understanding why a PR pulls in `samber/lo` over stdlib (`lo.Contains` vs `slices.Contains` is a code-review smell I want to catch).
 - `vd:debug` / `vd:fix` - `samber/oops` error chains preserve the context that makes debugging much faster; this skill is the place to confirm best practices.
 
