@@ -38,7 +38,7 @@ Use `vd:guide` when several skills fit. The full delivery path is on [Getting st
 
 | Skill | Question |
 | --- | --- |
-| `vd:code-review` | Ready to land? (posts on a PR) |
+| `vd:code-review` | Ready to land? (verdict file; posts on a PR with `--post`) |
 | `vd:code-review --refactor` | Does this fit the codebase, or is it slop? (local) |
 | `vd:simplify` | Can this read easier with behavior frozen? |
 | `vd:simplify --aggressive` | What shape should this have had from day one? |
@@ -132,7 +132,7 @@ Utilities for recurring work:
 
 Use `vd:guide` when the next step is unclear. Use `vd:interview` for an underspecified request, `--grill` to test an existing idea, and `--wayfinder` to map decisions across sessions. Use `vd:scout` to map the repository and `vd:debug` to trace a failure. Once the outcome is clear, use `vd:brainstorm`, then `vd:plan` and `vd:cook` as needed. `vd:git` handles one commit, push, PR, or merge; exit 8 from `gh pr checks` means checks are pending. Use `vd:ship` when tested work is ready for a remote branch and PR.
 
-For reviews, `vd:code-review` posts PR findings and `vd:code-review --refactor` stays local. `vd:simplify` reduces complexity without changing behavior. `--aggressive` may remove compatibility paths after proving they are dead. Use `vd:miucr` when the review must be reproducible.
+For reviews, `vd:code-review` writes a two-axis verdict file bound to the diff and posts PR findings only with `--post`; `vd:code-review --refactor` stays local. `vd:simplify` reduces complexity without changing behavior. `--aggressive` may remove compatibility paths after proving they are dead. Use `vd:miucr` when the review must be reproducible.
 
 Use `vd:docs` for internal project docs and ADRs. Its `site` subcommand manages a public documentation site.
 
