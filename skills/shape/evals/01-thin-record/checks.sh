@@ -12,6 +12,7 @@ grep -Eiq '^- \[ \] .*(`[^`]+`|test "[^"]+"|\$[0-9]+)' "$s" || { echo "no concre
 grep -Eiq "(one|two)[- ]way|reversible" "$s" || { echo "no door type (one-way or two-way) in the contract"; exit 1; }
 grep -Eiq "undo|revert|roll ?back" "$s" || { echo "no undo step"; exit 1; }
 grep -Eiq "out of scope" "$s" || { echo "no out-of-scope line"; exit 1; }
+grep -Eq '^depends_on:' "$s" || { echo "no depends_on in the frontmatter"; exit 1; }
 extra=$(diff -rq . "$EVAL_ORIG" | grep -v "cart-coupon")
 [ -z "$extra" ] || { echo "files written outside the record: $extra"; exit 1; }
 echo ok

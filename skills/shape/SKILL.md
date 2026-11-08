@@ -10,7 +10,7 @@ metadata:
 
 # shape
 
-The second gate. A record leaves it with an intent, mini-requirements and a proof contract that a reviewer can check without asking you. It does not build.
+The second gate. A record leaves it with an intent, mini-requirements and a proof contract a reviewer can check without asking you. It does not build.
 
 **The record:** in an OpenRig rig, the slice folder. Elsewhere, the bench record the workbench skill resolves (`records.cjs resolve`).
 
@@ -26,13 +26,15 @@ The second gate. A record leaves it with an intent, mini-requirements and a proo
 
 1. **Read the record.** If `SPEC.md` already meets steps 2 to 5, change nothing: say it is ready and name the next gate (build, then `vd:code-review` and `vd:verify`).
 2. **Intent:** one or two sentences in plain words: who gets what, and why.
-3. **Mini-requirements:** numbered, observable, testable outcomes ("`total()` counts a repeated coupon once"), not tasks ("refactor cart"). Each one maps to a contract line.
+3. **Mini-requirements:** numbered, observable, testable outcomes ("`total()` counts a repeated coupon once"), not tasks ("refactor cart"). Each one maps to a contract line, its success check.
 4. **Proof contract:**
-   - keep what intake wrote;
+   - keep what intake wrote; none there, build the lines from the single source: `node <intake>/scripts/contract.cjs <type>`;
    - make every line concrete: name the test, the surface or the number;
    - add the door type (one-way: hard to undo, such as data or a public API; two-way: a revert undoes it), the blast radius and the undo step if missing.
 5. **Out of scope:** one line, so the reviewer knows what not to ask for.
-6. **Check:** no `TODO` is left. The record must pass `rig scope audit` in a rig, or the workbench `check` elsewhere.
+6. **Frontmatter, when intake left none:** `id`, `type`, `intent`, `depends_on` (the slices this waits on).
+7. **Territories:** when the build spans repos, one worktree per repo and one PR by default. Name them here.
+8. **Check:** no `TODO` is left. The record must pass `rig scope audit` in a rig, or the workbench `check` elsewhere.
 
 ## Rules
 

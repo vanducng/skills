@@ -1,6 +1,6 @@
 ---
 name: intake
-description: "Turns an incoming ask into a work item before anyone builds: names its work type (greenfield, brownfield entry, feature, bug fix, triage, investigation, refactor, SOP, data engineering, data analysis), restates the intent, and writes the record's SPEC.md with that type's proof contract. Use when a new request, ticket, bug report or question arrives: 'take this', 'new task', 'triage this', 'what kind of work is this', 'start a record for', 'open a slice for'. Not for sharpening a record that already has its intent and contract (vd:shape)."
+description: "Turns an incoming ask into a work item before anyone builds: names its work type (bug fix, investigation, refactor, SOP and the rest; single source: `contract.cjs --list`), restates the intent, and writes the record's SPEC.md with that type's proof contract. Use when a new request, ticket, bug report or question arrives: 'take this', 'new task', 'triage this', 'what kind of work is this', 'start a record for', 'open a slice for'. Not for sharpening a record that already has its intent and contract (vd:shape)."
 license: MIT
 argument-hint: "<the ask, a ticket, or a bug report>"
 metadata:
@@ -29,8 +29,9 @@ The first gate. It decides what kind of work this is and what will prove it done
    - `## Proof contract`: the lines from `node "$C" <type>`, made concrete for this ask (name the test, surface or number);
    - one more contract line: door type (one-way or two-way), blast radius, and the undo step.
    No `TODO` lines are left behind.
-5. **Rig kind** (only in an OpenRig workspace): feature, bug fix or SOP maps to a rig template through the workspace skill's `rig-kind.cjs`. Name it; the lead launches.
-6. **Report:** the work type, the record path, and the open question if there is one. The next gate is `vd:shape`.
+5. **Rig kind** (only in an OpenRig workspace): feature, bug fix or SOP maps to a rig template through the workspace skill's `rig-kind.cjs`. Name it.
+6. **Hand off:** a queue row to the seat that owns the build: `--tags project:<org>.<project>`, `--mission <mission> --slice <slice>` when a slice exists; not the owner seat, hand the row's text to the lead. After every create, `rig queue show <id>`.
+7. **Report:** the work type, the record path, and the open question if there is one. The next gate is `vd:shape`.
 
 ## Rules
 
