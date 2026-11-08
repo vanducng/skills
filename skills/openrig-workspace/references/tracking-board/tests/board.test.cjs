@@ -176,6 +176,69 @@ test("check keeps its diagram lint and roles", () => {
   assert.match(bad.out, /sets colors/);
 });
 
+// A chart as the statechart skill writes it (upstream corpus CounterDeadlock, cursor/plugins pstack/skills/statechart,
+// MIT), plus phase colors from its view module: groups are color classes, broken states have a classDef.
+const STATECHART = `stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Intake
+    lg1: Delivery
+    lg2: Breaks NoDeadlock or NotThree
+    lg3: Path to the NoDeadlock or NotThree bug
+  }
+  class lg0 blue
+  class lg1 teal
+  class lg2 breaks
+  class lg3 bugPath
+  s0: 0
+  s1: 1
+  s2: 3
+  s3: 2
+  [*] --> s0
+  s0 --> s1: Inc
+  s0 --> s2: Jump
+  s1 --> s3: Inc
+  s3 --> s2: Inc
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  classDef mayBreak fill:#fff3e6,stroke:#e8730c,stroke-width:2.5px,color:#b85a06
+  class s0 blue
+  class s0 bugPath
+  class s1 bugPath
+  class s2 breaks
+  class s2 bugPath
+  class s3 teal
+  class s3 mayBreak
+  class s3 repeats`;
+
+test("a statechart passes check: phase colors map to roles, breaks and mayBreak to risk, and it can sit on a slice", () => {
+  const root = tmp();
+  const env = { OPENRIG_BOARDS_ROOT: root, PELE_DIR: path.join(root, "none") };
+  const missions = structuredClone(fixture.missions);
+  missions[0].slices[0].diagram = "chart";
+  put(root, "demo/audit/sc", { ...fixture, missions, diagrams: { ...fixture.diagrams, chart: STATECHART } });
+  const r = run(["check", "demo/audit/sc"], env);
+  assert.equal(r.code, 0, r.out);
+  put(root, "demo/audit/sc2", { ...fixture, diagrams: { ...fixture.diagrams, chart: `${STATECHART}\n  classDef extra fill:#000` } });
+  const bad = run(["check", "demo/audit/sc2"], env);
+  assert.equal(bad.code, 1, "only the statechart's own breaks and mayBreak classDefs are dropped");
+  assert.match(bad.out, /chart: sets colors/);
+  assert.match(bad.out, /chart: not placed/);
+});
+
+test("render draws a statechart in the role palette: no inline colors reach pele", () => {
+  const root = tmp();
+  const seen = path.join(root, "seen.txt");
+  const pele = fakePele(path.join(root, "pele"), `
+    exports.render = src => { require("fs").appendFileSync(${JSON.stringify(seen)}, src + "\\n---\\n"); return { svg: '<svg class="pele"></svg>' }; };`);
+  const d = put(root, "demo/audit/sc", { ...fixture, diagrams: { chart: STATECHART, flow: "flowchart LR\n A:::ours-->B" } });
+  const r = run(["render", d], { OPENRIG_BOARDS_ROOT: root, PELE_DIR: pele });
+  assert.equal(r.code, 0, r.err);
+  const src = fs.readFileSync(seen, "utf8").split("\n---\n")[0];
+  assert.doesNotMatch(src, /classDef|fill:/);
+  for (const line of ["class s0 ours", "class s0 bugPath", "class s2 risk", "class s3 done", "class s3 risk", "class s3 repeats", "class lg0 ours", "class lg2 risk"])
+    assert.match(src, new RegExp(`^\\s*${line}$`, "m"), line);
+  assert.equal(embedded(fs.readFileSync(path.join(d, "index.html"), "utf8")).diagrams.chart, STATECHART, "board.json keeps the chart as written");
+});
+
 // ---- the page's pure helpers --------------------------------------------------------------------------------------
 
 const helperSrc = /\/\* tb:helpers:start[^\n]*\n([\s\S]*?)\/\* tb:helpers:end \*\//.exec(templateText)[1];
@@ -352,7 +415,8 @@ test("the fixture is a synthetic board that covers every state the page draws", 
   assert.equal(fixture.decisions.length, 6);
   assert.ok(fixture.decisions.some(d => d.status === "accepted") && fixture.decisions.some(d => d.status === "decide"));
   assert.ok(fixture.needs.some(n => typeof n === "object" && n.href) && fixture.log.length && fixture.facts.length && fixture.links.length);
-  assert.ok(Object.keys(fixture.diagrams).length >= 1);
+  assert.ok(Object.keys(fixture.diagrams).length >= 2);
+  assert.ok(fixture.missions.some(m => m.slices.some(x => x.diagram && /^stateDiagram/.test(fixture.diagrams[x.diagram]))), "a slice shows a statechart");
   const text = JSON.stringify(fixture);
   assert.doesNotMatch(text, /@(?!demo-rig)\w+\.\w+/, "no real mail or seat domains");
   assert.doesNotMatch(text, /https?:\/\/(?!\w+\.example\.test)/, "only example.test URLs");
