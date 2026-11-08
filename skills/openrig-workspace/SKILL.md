@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.18.0"
+  version: "0.18.1"
 ---
 
 # OpenRig workspace
@@ -60,7 +60,7 @@ node "$HOME/skills/skills/openrig-workspace/scripts/slice-names.cjs" <slice dir>
 | Worktree | `$PROJECTS_ROOT/.worktrees/<repo>-<slice-id>/`; also the repo's compose project and local host name | `.worktrees/api-m2-s04/` |
 | Branch | repo convention first; else `<type>/<TICKET>-<slice-id>-<slug>`; each follow-up PR adds `-2`, `-3` | `fix/ABC-123-m2-s04-login-fix` |
 | PR title | `<TICKET>: <what shipped, in plain words>`; no bracket tag, milestone or conventional prefix | `ABC-123: fixed login redirect loop` |
-| PR body `## Scope` | `Milestone: M<n>, <mission name>`, `Slice: S<n>, <slice name>`, `Mission: <mission>/<slice>` | `Slice: S4, Login fix` |
+| PR body `## Scope` | `Milestone: M<n>, <mission name>` (a free-text `milestone:` prints as `Milestone: <text>`), `Slice: S<n>, <slice name>`, `Mission: <mission>/<slice>` | `Slice: S4, Login fix` |
 | Per-slice task dir and rig | `tasks/<slice-id>/`, rig name the same | `tasks/m2-s04/` |
 
 The mission `code` must be unique among projects that share a repo, because their worktrees share one `.worktrees/`. vd:workbench derives the feature id from a `<type>/<TICKET>-<slug>` branch (here `abc-123-m2-s04-login-fix`; not `feature/`). With a bare-ticket branch convention, claim the id once with `workbench new <TICKET>-<slug>`.

@@ -71,6 +71,8 @@ assert_fails "unknown option" "Unknown option --verbose" "$S" --verbose
 spec q3-billing '---\ncode: m7\nticket: "ABC-9" # main\nmilestone: 7 # q3\n---\n'
 assert_field "trailing comment dropped from quoted and unquoted values" prTitlePrefix "ABC-9: " "$S"
 assert_field "trailing comment dropped from milestone" scope '["Milestone: M7, q3-billing","Slice: S7, Refund flow","Mission: q3-billing/07-refunds"]' "$S"
+spec q3-billing '---\ncode: m7\nmilestone: "11/6 dashboard feedback"\n---\n'
+assert_field "free-text milestone printed as written, no number invented" scope '["Milestone: 11/6 dashboard feedback","Slice: S7, Refund flow","Mission: q3-billing/07-refunds"]' "$S"
 
 echo
 echo "$pass passed, $fail failed"
