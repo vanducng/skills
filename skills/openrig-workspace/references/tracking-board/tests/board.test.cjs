@@ -359,3 +359,57 @@ test("the fixture is a synthetic board that covers every state the page draws", 
   const empty = JSON.parse(fs.readFileSync(path.join(dir, "fixtures", "empty.json"), "utf8"));
   assert.deepEqual([empty.missions, empty.decisions, empty.needs, empty.log], [[], [], [], []]);
 });
+
+// ---- server sign-in ----------------------------------------------------------------------------------------------
+
+// Start server.cjs on a scratch root with one synthetic board; owners (if given) is the .board-owners text.
+async function server(owners, mode = 0o600) {
+  const root = tmp();
+  put(root, "demo/audit/sample", { title: "Sample", org: "demo", project: "audit", slug: "sample" });
+  if (owners !== undefined) fs.writeFileSync(path.join(root, ".board-owners"), owners, { mode });
+  if (owners !== undefined) fs.chmodSync(path.join(root, ".board-owners"), mode);
+  const port = 47900 + Math.floor(Math.random() * 900);
+  const child = require("node:child_process").spawn(process.execPath, [path.join(dir, "server.cjs")], { env: { PATH: process.env.PATH, OPENRIG_BOARDS_ROOT: root, OPENRIG_BOARDS_PORT: String(port) }, stdio: ["ignore", "pipe", "inherit"] });
+  await new Promise(ok => child.stdout.once("data", ok));
+  const base = `http://127.0.0.1:${port}/demo/audit/sample`;
+  const post = headers => fetch(`${base}/feedback`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ notes: [{ id: "n1", kind: "change", anchor: "M1", text: "x" }] }) });
+  const hello = async headers => {
+    const ac = new AbortController(); const r = await fetch(`${base}/events`, { headers, signal: ac.signal });
+    const reader = r.body.getReader(); let text = "";
+    while (!/\n\n/.test(text)) text += new TextDecoder().decode((await reader.read()).value);
+    ac.abort(); return JSON.parse(/data: (.*)/.exec(text)[1]);
+  };
+  const token = fs.readFileSync(path.join(root, ".board-token"), "utf8").trim();
+  return { root, post, hello, token, stop: () => child.kill() };
+}
+
+test("sign-in: an allowlisted Tailscale login sends feedback, and hello names the person", async () => {
+  const s = await server("# owners\nowner@example.com\n");
+  try {
+    const r = await s.post({ "tailscale-user-login": "Owner@Example.com", "tailscale-user-name": "Sample Owner" });
+    assert.equal(r.status, 202);
+    assert.equal(fs.readdirSync(path.join(s.root, "demo/audit/sample/feedback/inbox")).length, 1);
+    assert.deepEqual(await s.hello({ "tailscale-user-login": "owner@example.com", "tailscale-user-name": "Sample Owner" }), { auth: true, who: "Sample Owner" });
+  } finally { s.stop(); }
+});
+
+test("sign-in: refused for an unlisted login, for no header and no cookie, and for a header with an empty or missing list", async () => {
+  for (const owners of ["owner@example.com\n", "", undefined]) {
+    const s = await server(owners);
+    try {
+      if (owners) assert.equal((await s.post({ "tailscale-user-login": "other@example.com" })).status, 401);
+      else assert.equal((await s.post({ "tailscale-user-login": "owner@example.com" })).status, 401, `owners ${JSON.stringify(owners)}`);
+      assert.equal((await s.post({})).status, 401);
+      assert.deepEqual(await s.hello({ "tailscale-user-login": "other@example.com" }), { auth: false });
+    } finally { s.stop(); }
+  }
+});
+
+test("sign-in: an allowlist others can read or write is ignored, and the token cookie still works", async () => {
+  const s = await server("owner@example.com\n", 0o644);
+  try {
+    assert.equal((await s.post({ "tailscale-user-login": "owner@example.com" })).status, 401);
+    assert.equal((await s.post({ cookie: `board_k=${s.token}` })).status, 202);
+    assert.deepEqual(await s.hello({ cookie: `board_k=${s.token}` }), { auth: true });
+  } finally { s.stop(); }
+});
