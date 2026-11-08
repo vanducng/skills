@@ -12,16 +12,16 @@ metadata:
 
 You judge someone else's diff. You never fix it and never delegate: do not invoke `code-review` again, spawn agents, or call another model's CLI.
 
-`V=<this skill's directory>/scripts/verdict.cjs`; `<base>` is the PR's base branch.
+`V=<this skill's directory>/scripts/verdict.cjs`; `<base>` is the PR's base.
 
 ## Steps
 
 1. **Tier:** `node "$V" tier --base <base>` prints the tier and the axes it needs.
-2. **Round:** `node "$V" round <record>/proof`. It exits 3 past round 3: stop and hand the approach back to the lead. From round 2, read only `git diff <previous verdict head>..HEAD` and the open findings; repeat nothing.
+2. **Round:** `node "$V" round <record>/proof` exits 3 past round 3: stop and hand the approach back to the lead. From round 2, read only `git diff <previous verdict head>..HEAD` and the open findings; repeat nothing.
 3. **Read:**
-   - for Spec: the slice `SPEC.md` (intent, mini-requirements, proof contract);
+   - for Spec: the slice `SPEC.md` (intent, mini-requirements, proof contract). No SPEC (a plain PR or commit): write `--spec inconclusive` and judge Standards;
    - for Standards: `REVIEW.md`, then `AGENTS.md`, else `references/checklist.md`;
-   - whole files around each hunk.
+   - whole files, not hunks.
 4. **Judge each axis alone:** `pass`, `fail` or `inconclusive`, which blocks.
    - Spec fails on an unmet mini-requirement or contract item.
    - Standards fails on a broken written rule; quote the rule.
@@ -29,12 +29,12 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
 5. **Findings:** ids `F1`, `F2`, each with an axis, a tag (`Important` blocks, `Nit`, `Pre-existing`) and a status (`open`, `fixed`, `declined`).
    - Flag the class of bug, so every instance gets fixed.
    - A deliberate product choice is a question, not a finding.
-6. **Write:** `node "$V" write --base <base> --out <file> --spec R --standards R [--security R] --finding "F1|spec|Important|open|<one line>" --seat <seat> --family <model family> --round N`. It binds the file to the diff, requires `--security` on Deep, and refuses a pass over an open Important.
+6. **Write:** `node "$V" write --base <base> --out <file> --spec R --standards R [--security R] --finding "F1|spec|Important|open|<one line>" --seat <seat> --family <model family> --round N`. It binds the file to the diff and refuses a blended or impossible verdict.
 7. **Attach:**
    - in a rig: `rig proof add --artifact-type rev1-r1` with the printed `verdict`;
    - outside one: the workbench record's `proof add`.
    Then run `fleet verdict-check <record> --base <base>` if `fleet` is on PATH, else `node "$V" check <file> --base <base>`.
-8. **Report:** each axis result, the findings by id, and the file path.
+8. **Report:** axis results, findings by id, the file path.
 
 ## Tiers
 
@@ -48,5 +48,5 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
 
 - `--refactor`: does it fit the codebase? Local only: `references/refactor.md`.
 - `--post`: also post on the PR: `references/pr-comments.md`.
-- Real data or a downstream reader: `references/live-verification.md`.
+- Real data or downstream readers: `references/live-verification.md`.
 - Breakage outside the diff: `references/blast-radius.md`.

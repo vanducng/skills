@@ -2,6 +2,17 @@
 
 The verdict file is the record, and `**Critical:**` is an Important finding whose failure mode is an incident; this is how to also post it on the PR when the seat's role or the user asks for it (`--post`). One review per push, findings inline, the severity prefix mapped from the verdict tags: Important -> `**Important - <topic>**:`, Nit -> `**Nit:**`, Pre-existing -> `**Suggestion:**` naming it pre-existing. Keep the finding ids (F1, F2) in each comment so the outcome counts join.
 
+## Targets without a slice
+
+| Target | `--base` / `--head` for `verdict.cjs` | Spec axis |
+|---|---|---|
+| A PR | `--base origin/<baseRefName>` (from `gh pr view --json baseRefName`) | `inconclusive` unless the PR names its spec |
+| A commit | `--base <sha>^ --head <sha>` | as above |
+| Uncommitted changes | none: nothing is committed to bind, so report findings without a verdict file | n/a |
+| A whole codebase | not a diff review: use `vd:security` or `--refactor` | n/a |
+
+The old `--dry-run` is the default now (nothing posts without `--post`); `--auto` is gone because there are no prompts; `--ultra` and `--cross-model` are gone because they spawn agents, and a second family's verdict is a second reviewer seat, not this one.
+
 ## Review voice (the style guide)
 
 These are the conventions for **every** comment this skill writes. 

@@ -43,6 +43,7 @@ function tier(base, head, k = keys(base, head)) {
   const rows = git(["diff", "--numstat", `${k.base}..${k.head}`]).trim().split("\n").filter(Boolean).map(l => l.split("\t"));
   const files = rows.map(r => r[2]);
   const lines = rows.reduce((n, r) => n + (Number(r[0]) || 0) + (Number(r[1]) || 0), 0);
+  if (!files.length) throw new Fail(`${k.base.slice(0, 12)}..${k.head.slice(0, 12)} changes nothing: there is no diff to judge`);
   const deep = files.filter(f => DEEP.test(f));
   if (deep.length) return { tier: "Deep", axes: ["spec", "standards", "security"], why: `risky paths: ${deep.join(", ")}`, files: files.length, lines };
   if (files.every(f => DOCS.test(f))) return { tier: "Quick", axes: ["spec", "standards"], why: "docs only", files: files.length, lines };
@@ -50,9 +51,18 @@ function tier(base, head, k = keys(base, head)) {
   return { tier: "Standard", axes: ["spec", "standards"], why: `${lines} changed lines, no risky path`, files: files.length, lines };
 }
 
+// The leading `---` blocks of a file (the C1 header, then the verdict's own), as fleet's verdict check reads them.
+function blocks(text) {
+  const found = [];
+  const block = /^\s*---\n([\s\S]*?)\n---[ \t]*(?:\n|$)/;
+  for (let m; found.length < 3 && (m = text.match(block)); text = text.slice(m[0].length)) found.push(m[1]);
+  return found;
+}
+const isVerdict = text => blocks(text).some(b => /^axes:\s*\{/m.test(b));
+
 function priorVerdicts(dir) {
   if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir).filter(n => n.endsWith(".md")).filter(n => /^axes:/m.test(fs.readFileSync(path.join(dir, n), "utf8")));
+  return fs.readdirSync(dir).filter(n => n.endsWith(".md") && isVerdict(fs.readFileSync(path.join(dir, n), "utf8")));
 }
 
 function parseFinding(s) {
@@ -75,6 +85,7 @@ function write(o) {
   const k = keys(o["--base"], o["--head"] || "HEAD");
   const t = tier(o["--base"], o["--head"] || "HEAD", k);
   if (t.tier === "Deep" && !axes.security) throw new Fail(`this change is Deep (${t.why}): --security is required`);
+  if (t.tier !== "Deep" && axes.security) throw new Fail(`--security is the Deep axis and this change is ${t.tier} (${t.why}): put a security finding on the standards axis`);
   const findings = (o["--finding"] || []).map(parseFinding);
   for (const f of findings) if (!axes[f.axis]) throw new Fail(`finding ${f.id} is on the ${f.axis} axis, which has no result`);
   for (const [axis, r] of Object.entries(axes))
@@ -98,8 +109,9 @@ function write(o) {
 }
 
 function check(file, base, head) {
-  const text = fs.readFileSync(file, "utf8");
-  const field = n => (text.match(new RegExp(`^${n}: "?([^"\\n]+)"?$`, "m")) || [])[1];
+  const block = blocks(fs.readFileSync(file, "utf8")).find(b => /^axes:\s*\{/m.test(b));
+  if (!block) throw new Fail(`${file} has no verdict block (a leading --- block with axes)`);
+  const field = n => (block.match(new RegExp(`^${n}: "?([^"\\n]+)"?$`, "m")) || [])[1];
   const k = keys(base, head);
   const stale = ["patch_id", "diff_digest"].filter(n => field(n) !== k[n]);
   return { file, bound: stale.length === 0, stale, ...k };

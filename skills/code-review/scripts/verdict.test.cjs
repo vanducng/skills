@@ -22,7 +22,7 @@ function repo(files) {
   git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "base");
   git(dir, "checkout", "-q", "-b", "feat");
   for (const [f, body] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), body); }
-  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "change");
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "--allow-empty", "-m", "change");
   return dir;
 }
 
@@ -83,4 +83,20 @@ test("round counts prior verdicts and stops past round 3", () => {
   const r = run(dir, "round", "proof");
   assert.equal(r.code, 3);
   assert.match(r.out, /round cap/);
+});
+
+test("round counts only files whose leading block is a verdict, as the workspace check reads them", () => {
+  const dir = repo({ "a.js": "x\n" });
+  run(dir, "write", "--base", "main", "--out", "proof/r1.md", "--spec", "fail", "--standards", "pass", "--finding", "F1|spec|Important|open|x");
+  fs.writeFileSync(path.join(dir, "proof", "example.md"), "# How to write one\n\naxes: {spec: pass, standards: pass}\n");
+  fs.writeFileSync(path.join(dir, "proof", "c1.md"), "---\nslice: s\nverdict: PASS\n---\n---\naxes: {spec: pass, standards: pass}\n---\nbody\n");
+  assert.equal(run(dir, "round", "proof").json().round, 3);
+});
+
+test("the security axis is Deep only, and an empty diff has nothing to judge", () => {
+  const dir = repo({ "a.js": "x\n" });
+  assert.match(run(dir, "write", "--base", "main", "--out", "v.md", "--spec", "pass", "--standards", "pass", "--security", "fail").err, /Deep axis and this change is Quick/);
+  const empty = repo({});
+  assert.match(run(empty, "tier", "--base", "main").err, /changes nothing/);
+  assert.equal(run(empty, "write", "--base", "main", "--out", "v.md", "--spec", "pass", "--standards", "pass").code, 2);
 });
