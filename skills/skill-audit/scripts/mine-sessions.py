@@ -24,6 +24,8 @@ HOME = os.path.expanduser("~")
 CLAUDE_PROJECTS = os.path.join(HOME, ".claude", "projects")
 CODEX_SESSIONS = os.path.join(HOME, ".codex", "sessions")
 PI_SESSIONS = os.path.join(HOME, ".pi", "agent", "sessions")
+# OpenRig pi-tui seats keep their own agent dir: <seat>/sessions/<ts>_<uuid>.jsonl.
+PI_SEAT_SESSIONS = os.path.join(HOME, ".openrig", "state", "pi-tui")
 CURSOR_PROJECTS = os.path.join(HOME, ".cursor", "projects")
 RUNTIMES = ("claude", "codex", "pi", "cursor")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -703,9 +705,10 @@ def scan_cursor_agent(path, cutoff_epoch=0):
     return first_ts, window_first, window_last, calls, 0, 0, bad
 
 
-def runtime_root(runtime):
-    return {"claude": CLAUDE_PROJECTS, "codex": CODEX_SESSIONS,
-            "pi": PI_SESSIONS, "cursor": CURSOR_PROJECTS}[runtime]
+def runtime_roots(runtime):
+    if runtime == "pi":
+        return [PI_SESSIONS, PI_SEAT_SESSIONS]
+    return [{"claude": CLAUDE_PROJECTS, "codex": CODEX_SESSIONS, "cursor": CURSOR_PROJECTS}[runtime]]
 
 
 def agent_root(runtime, path):
@@ -722,8 +725,9 @@ def is_session_path(runtime, root, path):
         # <project>/<uuid>.jsonl - subagents/ sits one level deeper.
         return len(rel) == 2
     if runtime == "pi":
-        # <project>/<ts>_<uuid>.jsonl - forks/, run-N/ and subagent-artifacts/ sit deeper.
-        return len(rel) == 2
+        # <project>/<ts>_<uuid>.jsonl, or a seat's <seat>/sessions/<ts>_<uuid>.jsonl - forks/, run-N/ and
+        # subagent-artifacts/ sit deeper.
+        return len(rel) == 2 or (len(rel) == 3 and rel[1] == "sessions")
     if runtime == "cursor":
         # <project>/agent-transcripts/<id>/<id>.jsonl - subagents/ sits one level deeper.
         return len(rel) == 4 and rel[1] == "agent-transcripts"
@@ -731,9 +735,9 @@ def is_session_path(runtime, root, path):
 
 
 def discover(runtime, since_days, root=None, cutoff_epoch=None):
-    root = root or runtime_root(runtime)
-    if not os.path.isdir(root):
-        print(f"note: no {runtime} transcripts at {root}", file=sys.stderr)
+    roots = [d for d in ([root] if root else runtime_roots(runtime)) if os.path.isdir(d)]
+    if not roots:
+        print(f"note: no {runtime} transcripts at {root or ', '.join(runtime_roots(runtime))}", file=sys.stderr)
         return []
     cutoff = cutoff_epoch if cutoff_epoch is not None else (time.time() - since_days * 86400 if since_days else 0)
 
@@ -754,11 +758,12 @@ def discover(runtime, since_days, root=None, cutoff_epoch=None):
                    for name in files if name.endswith(".jsonl"))
 
     paths = []
-    for base, _, files in os.walk(root):
-        for f in files:
-            path = os.path.join(base, f)
-            if f.endswith(".jsonl") and is_session_path(runtime, root, path) and fresh_tree(path):
-                paths.append(path)
+    for top in roots:
+        for base, _, files in os.walk(top):
+            for f in files:
+                path = os.path.join(base, f)
+                if f.endswith(".jsonl") and is_session_path(runtime, top, path) and fresh_tree(path):
+                    paths.append(path)
     return sorted(paths)
 
 

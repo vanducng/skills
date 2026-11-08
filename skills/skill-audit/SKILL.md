@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[--since DAYS] [--runtime claude|codex|pi|cursor|all]"
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # Skill Audit
@@ -58,7 +58,7 @@ The rule is a coarse heuristic and each row says so. Counters cover the main ses
 |---|---|---|
 | Claude Code | `~/.claude/projects/<sanitized-cwd>/<session>.jsonl`, subagents at `<session>/subagents/**.jsonl` | `Skill` tool_use input, `<command-name>` in user text |
 | Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | `$`-prefixed skill ID in `user_message` |
-| pi | `~/.pi/agent/sessions/<slug>/<ts>_<uuid>.jsonl`, subagents at `<session>/<run-id>/run-N/session.jsonl` | `/`-prefixed skill ID in user text, `SKILL.md` reads |
+| pi | `~/.pi/agent/sessions/<slug>/<ts>_<uuid>.jsonl`, and each OpenRig pi-tui seat's `~/.openrig/state/pi-tui/<seat>/sessions/<ts>_<uuid>.jsonl`; subagents at `<session>/<run-id>/run-N/session.jsonl` | `/`-prefixed skill ID in user text, `SKILL.md` reads |
 | Cursor | `~/.cursor/projects/<slug>/agent-transcripts/<id>/<id>.jsonl`, subagents at `<id>/subagents/*.jsonl` | `/` or `$` skill ID inside `<user_query>`, `SKILL.md` reads |
 
 IDs normalize by stripping the runtime prefix and validating against `~/.claude/skills`, `~/.agents/skills`, and this repo's catalog.
