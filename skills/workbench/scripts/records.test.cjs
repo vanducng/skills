@@ -161,9 +161,37 @@ test("outside a git repository the folder is under the cwd", () => {
   assert.equal(run(["resolve", "--id", "loose", "--json"], { cwd: dir }).json().dir, path.join(dir, ".workbench", "loose"));
 });
 
-test("OPENRIG_SESSION_NAME without a findable workspace is bench mode", () => {
+test("OPENRIG_SESSION_NAME without a findable workspace exits 2: a rig never degrades to bench mode", () => {
   const dir = repo("proj", "feat/PROJ-2-x");
-  assert.equal(run(["resolve", "--json"], { cwd: dir, env: RIG }).json().mode, "bench");
+  const r = run(["resolve"], { cwd: dir, env: RIG });
+  assert.equal(r.code, 2);
+  assert.match(r.err, /workspace\.yaml/);
+  assert.equal(fs.existsSync(path.join(dir, ".workbench")), false);
+});
+
+test("a stale PROJECTS_ROOT or --root falls through to the cwd walk-up, so a rig seat stays in rig mode", () => {
+  const w = workspace(), stale = tmp();
+  const viaEnv = run(["resolve", "--slice", "01-board", "--json"], { cwd: w.slice1, env: { ...RIG, PROJECTS_ROOT: stale } });
+  assert.equal(viaEnv.code, 0, viaEnv.err);
+  assert.equal(viaEnv.json().mode, "rig");
+  assert.equal(viaEnv.json().dir, w.slice1);
+  const viaFlag = run(["resolve", "--root", stale, "--slice", "01-board", "--json"], { cwd: w.slice1, env: RIG });
+  assert.equal(viaFlag.json().mode, "rig");
+  const none = run(["resolve", "--slice", "01-board"], { cwd: stale, env: { ...RIG, PROJECTS_ROOT: stale } });
+  assert.equal(none.code, 2);
+});
+
+test("--slice with an arbitrary directory is refused unless it sits under missions/<m>/(slices|closed)/", () => {
+  const w = workspace(), env = { ...RIG, PROJECTS_ROOT: w.root };
+  const stray = tmp();
+  write(path.join(stray, "SPEC.md"), "---\nid: x\n---\n");
+  const r = run(["resolve", "--slice", stray], { cwd: w.root, env });
+  assert.equal(r.code, 2);
+  assert.match(r.err, /missions/);
+  assert.equal(run(["resolve", "--slice", w.slice1, "--json"], { cwd: w.root, env }).json().dir, w.slice1);
+  const closed = path.join(w.mission, "closed", "00-old");
+  write(path.join(closed, "SPEC.md"), "---\nid: o\n---\n");
+  assert.equal(run(["resolve", "--slice", closed, "--json"], { cwd: w.root, env }).json().dir, closed);
 });
 
 test("--print gives just the directory", () => {
@@ -316,6 +344,67 @@ test("proof add lists the artifact in PROOF.md, once", () => {
   run([...args, "--replace"]);
   const proof = fs.readFileSync(path.join(d, "PROOF.md"), "utf8");
   assert.equal(proof.split("proof/g.md").length - 1, 1);
+});
+
+const GOOD = d => ["proof", "add", d, "--artifact-type", "qa", "--verdict", "PASS", "--candidate-sha", "abc1234", "--money-evidence", "m", "--body", "b", "--name", "a.md"];
+
+test("proof add --media mirrors the rig writer: relative to proof/, contained in the record, absolute refused", () => {
+  const { d } = benchDir();
+  const abs = run([...GOOD(d), "--media", path.join(d, "proof", "shot.png")]);
+  assert.equal(abs.code, 2);
+  assert.match(abs.err, /absolute/);
+  const out = run([...GOOD(d), "--media", "../../escape.png"]);
+  assert.equal(out.code, 2);
+  assert.match(out.err, /outside/);
+  assert.equal(fs.existsSync(path.join(d, "proof", "a.md")), false, "nothing is written on a refused ref");
+  write(path.join(d, "proof", "shot.png"), "png");
+  write(path.join(d, "proof", "clip.mp4"), "mp4");
+  const ok = run([...GOOD(d), "--media", "shot.png,clip.mp4,missing.png", "--replace"]);
+  assert.equal(ok.code, 0, ok.err);
+  assert.match(ok.err, /missing\.png.*does not exist/);
+  const text = fs.readFileSync(path.join(d, "proof", "a.md"), "utf8");
+  assert.match(text, /\n## Media\n/);
+  assert.match(text, /!\[shot\.png\]\(shot\.png\)/);
+  assert.match(text, /<video src="clip\.mp4"><\/video>/);
+});
+
+test("proof add --replace never writes through a symlink or hardlink", () => {
+  const { d, dir } = benchDir();
+  const victim = path.join(dir, "victim.txt");
+  write(victim, "keep me\n");
+  fs.mkdirSync(path.join(d, "proof"), { recursive: true });
+  fs.symlinkSync(victim, path.join(d, "proof", "a.md"));
+  assert.equal(run([...GOOD(d), "--replace"]).code, 0);
+  assert.equal(fs.readFileSync(victim, "utf8"), "keep me\n", "the link target is untouched");
+  assert.equal(fs.lstatSync(path.join(d, "proof", "a.md")).isSymbolicLink(), false, "the link was replaced, not followed");
+  fs.rmSync(path.join(d, "proof", "a.md"));
+  fs.linkSync(victim, path.join(d, "proof", "a.md"));
+  assert.equal(run([...GOOD(d), "--replace"]).code, 0);
+  assert.equal(fs.readFileSync(victim, "utf8"), "keep me\n", "the hardlinked file is untouched");
+  assert.ok(!ls(path.join(d, "proof")).some(n => n.endsWith(".replace-tmp")), "no staging file left behind");
+});
+function ls(p) { return fs.readdirSync(p); }
+
+test("proof add --file rejects binary content the way the rig writer does", () => {
+  const { d, dir } = benchDir();
+  write(path.join(dir, "shot.png"), "not really a png");
+  const byExt = run(["proof", "add", d, "--artifact-type", "qa", "--verdict", "PASS", "--candidate-sha", "a", "--money-evidence", "m", "--file", path.join(dir, "shot.png")]);
+  assert.equal(byExt.code, 2);
+  assert.match(byExt.err, /binary/i);
+  fs.writeFileSync(path.join(dir, "nul.md"), Buffer.from([0x68, 0x69, 0x00, 0x21]));
+  const byNul = run(["proof", "add", d, "--artifact-type", "qa", "--verdict", "PASS", "--candidate-sha", "a", "--money-evidence", "m", "--file", path.join(dir, "nul.md")]);
+  assert.equal(byNul.code, 2);
+  assert.match(byNul.err, /binary/i);
+  assert.deepEqual(fs.existsSync(path.join(d, "proof")) ? ls(path.join(d, "proof")) : [], []);
+});
+
+test("the PROOF.md index line is one line however the evidence is written", () => {
+  const { d } = benchDir();
+  run(["proof", "add", d, "--artifact-type", "qa", "--verdict", "PASS", "--candidate-sha", "abc1234", "--money-evidence", "line one\nline two\n\n  - injected bullet", "--body", "b", "--name", "n.md"]);
+  const line = fs.readFileSync(path.join(d, "PROOF.md"), "utf8").split("\n").filter(l => l.includes("proof/n.md"));
+  assert.equal(line.length, 1);
+  assert.match(line[0], /line one line two - injected bullet$/);
+  assert.equal(fs.readFileSync(path.join(d, "PROOF.md"), "utf8").split("\n").filter(l => /injected/.test(l)).length, 1);
 });
 
 test("the enums and required fields are the daemon's (skipped when the OpenRig package is not installed)", { skip: !(() => { try { return !!findAudit(); } catch { return false; } })() }, () => {

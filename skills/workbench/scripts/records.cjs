@@ -18,6 +18,9 @@ const C1_ARTIFACT_TYPES = ["guard", "qa", "rev1-r1", "rev1-r2", "adjudication"];
 const C1_VERDICTS = ["CLEAR", "BLOCKING", "CONCERNING", "PASS", "NOT-CLEAR"];
 const RETRO = /^\s*[-*]\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}Z)\b[^\n]*?\bretro:[ \t]*(\S[^\n]*)$/im;
 const ID = /^[a-z0-9][a-z0-9._-]*$/;
+const SLICE_PATH = /[\\/]missions[\\/][^\\/]+[\\/](slices|closed)[\\/][^\\/]+$/;
+const VIDEO_EXT = new Set([".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv"]);
+const BINARY_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".pdf", ".mp3", ".wav", ".ogg", ".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv", ".zip", ".gz", ".7z", ".exe"]);
 
 class Fail extends Error { constructor(msg, code = 2) { super(msg); this.code = code; } }
 
@@ -70,9 +73,13 @@ const scalar = s => (/^[A-Za-z][A-Za-z0-9_./ -]*$/.test(s) && !/^(true|false|nul
 
 // ---- where the workspace and the git roots are ----------------------------------------------------------------------
 
+// --root, then $PROJECTS_ROOT, then the nearest parent of the cwd: a stale or wrong explicit root falls through.
 function workspaceRoot(opts, cwd) {
-  const start = opts["--root"] || process.env.PROJECTS_ROOT;
-  if (start) { const r = path.resolve(start); return exists(path.join(r, "workspace.yaml")) ? r : null; }
+  for (const given of [opts["--root"], process.env.PROJECTS_ROOT]) {
+    if (!given) continue;
+    const r = path.resolve(given);
+    if (exists(path.join(r, "workspace.yaml"))) return r;
+  }
   for (let d = cwd; ; d = path.dirname(d)) {
     if (exists(path.join(d, "workspace.yaml"))) return d;
     if (path.dirname(d) === d) return null;
@@ -112,7 +119,12 @@ function findSlice(ws, opts, cwd) {
   const flag = opts["--slice"];
   if (flag) {
     const asPath = path.resolve(cwd, flag);
-    if (isDir(asPath) && exists(path.join(asPath, "SPEC.md"))) return all.find(s => s.dir === asPath) || { dir: asPath, slice: path.basename(asPath), mission: path.basename(path.dirname(path.dirname(asPath))) };
+    if (isDir(asPath)) {
+      const known = all.find(s => s.dir === asPath);
+      if (known) return known;
+      if (SLICE_PATH.test(asPath) && exists(path.join(asPath, "SPEC.md"))) return { dir: asPath, slice: path.basename(asPath), mission: path.basename(path.dirname(path.dirname(asPath))) };
+      throw new Fail(`${asPath} is not a slice folder: a path must sit under missions/<mission>/(slices|closed)/<slice>/ and hold a SPEC.md`);
+    }
     if (flag.includes("/")) { const [m, s] = flag.split("/"); return pick(all.filter(x => x.mission === m && x.slice === s), flag); }
     return pick(all.filter(x => x.slice === flag), `slice '${flag}'`);
   }
@@ -142,7 +154,9 @@ function shape(dir, mode, extra) {
   return { mode, dir, spec: path.join(dir, "SPEC.md"), progress: path.join(dir, "PROGRESS.md"), proofFile: path.join(dir, "PROOF.md"), proofDir: path.join(dir, "proof"), reports: path.join(dir, "reports"), ...extra };
 }
 function resolve(opts, cwd) {
-  const ws = process.env.OPENRIG_SESSION_NAME ? workspaceRoot(opts, cwd) : null;
+  const inRig = !!process.env.OPENRIG_SESSION_NAME;
+  const ws = inRig ? workspaceRoot(opts, cwd) : null;
+  if (inRig && !ws) throw new Fail(`in a rig (OPENRIG_SESSION_NAME=${process.env.OPENRIG_SESSION_NAME}) but no workspace.yaml found from --root, $PROJECTS_ROOT or the current directory; a rig does not write a .workbench record`);
   if (ws) {
     const s = findSlice(ws, opts, cwd);
     return shape(s.dir, "rig", { workspace: ws, mission: s.mission, slice: s.slice, proofAdd: `rig proof --workspace ${ws} add ${s.dir}` });
@@ -205,6 +219,15 @@ function check(dir, stage) {
   return findings;
 }
 
+const lexists = p => { try { fs.lstatSync(p); return true; } catch { return false; } };
+// Writes through a staging file and a rename, so an existing symlink or hardlink at the name is replaced, never written through.
+function replaceFile(target, text) {
+  const staging = path.join(path.dirname(target), `.${path.basename(target)}.${process.pid}.replace-tmp`);
+  const prior = fs.lstatSync(target, { throwIfNoEntry: false });
+  fs.writeFileSync(staging, text, { flag: "wx", mode: prior && prior.isFile() ? prior.mode & 0o777 : 0o666 });
+  try { fs.renameSync(staging, target); } catch (e) { fs.rmSync(staging, { force: true }); throw e; }
+}
+
 // ---- proof add (no rig) --------------------------------------------------------------------------------------------------
 
 function proofAdd(dir, opts) {
@@ -217,27 +240,40 @@ function proofAdd(dir, opts) {
   if (!C1_VERDICTS.includes(opts["--verdict"])) throw new Fail(`--verdict must be one of: ${C1_VERDICTS.join(" | ")}`);
   if (opts["--file"] && opts["--body"] !== undefined) throw new Fail("--file and --body are mutually exclusive");
   if (!opts["--file"] && opts["--body"] === undefined) throw new Fail("give the artifact body with --file or --body");
-  const body = opts["--file"] ? readText(path.resolve(opts["--file"])) : opts["--body"];
+  let body = opts["--body"];
+  if (opts["--file"]) {
+    const raw = fs.readFileSync(path.resolve(opts["--file"]));
+    if (BINARY_EXT.has(path.extname(opts["--file"]).toLowerCase()) || raw.includes(0)) throw new Fail(`--file ${opts["--file"]} is binary: an artifact body is text; put captures under proof/ and pass them with --media`);
+    body = raw.toString("utf8");
+  }
   const slice = opts["--slice-id"] || frontmatter(path.join(dir, "SPEC.md")).id;
   if (!slice) throw new Fail("no slice id: SPEC.md has no `id:`; pass --slice-id");
   const name = opts["--name"] || (opts["--file"] ? path.basename(opts["--file"]).replace(/\.[^.]*$/, "") + ".md" : `${opts["--artifact-type"]}-${opts["--verdict"]}-${new Date().toISOString().replace(/[-:]|\.\d+/g, "")}.md`);
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\.md$/.test(name)) throw new Fail(`invalid --name '${name}'`);
   const target = path.join(dir, "proof", name);
-  if (exists(target) && !opts["--replace"]) throw new Fail(`${target} exists; pass --replace to overwrite it`);
+  if (lexists(target) && !opts["--replace"]) throw new Fail(`${target} exists; pass --replace to overwrite it`);
+  // Media refs are relative to proof/ and must stay inside the record folder, as in the rig writer.
+  const mediaLines = [];
+  for (const ref of (opts["--media"] || "").split(",").map(x => x.trim()).filter(Boolean)) {
+    if (path.isAbsolute(ref)) throw new Fail(`--media ref '${ref}' is absolute: copy the file under proof/ and pass its relative name`);
+    const resolved = path.resolve(dir, "proof", ref);
+    if (!resolved.startsWith(path.resolve(dir) + path.sep)) throw new Fail(`--media ref '${ref}' resolves outside the record folder`);
+    if (!exists(resolved)) process.stderr.write(`warning: --media ref '${ref}' does not exist yet (${resolved})\n`);
+    mediaLines.push(VIDEO_EXT.has(path.extname(ref).toLowerCase()) ? `<video src="${ref}"></video>` : `![${ref}](${ref})`);
+  }
+  if (mediaLines.length) body = `${body.replace(/\s*$/, "")}\n\n## Media\n\n${mediaLines.join("\n")}\n`;
   const lines = ["---", `slice: ${scalar(slice)}`, `candidate_sha: ${scalar(opts["--candidate-sha"])}`, `artifact_type: ${opts["--artifact-type"]}`, `verdict: ${opts["--verdict"]}`, `money_evidence: ${scalar(opts["--money-evidence"])}`];
   if (opts["--evidences"]) { lines.push("evidences:"); for (const e of opts["--evidences"].split(",").map(s => s.trim()).filter(Boolean)) lines.push(`  - ${quote(e)}`); }
   if (opts["--self-check"]) lines.push(`self_check: ${scalar(opts["--self-check"])}`);
   lines.push("---", "");
-  const media = (opts["--media"] || "").split(",").map(s => s.trim()).filter(Boolean);
-  const text = lines.join("\n") + body.replace(/\s*$/, "\n") + (media.length ? `\n${media.map(m => `![${m}](${m})`).join("\n")}\n` : "");
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, text);
-  const proofFile = path.join(dir, "PROOF.md"), entry = `- proof/${name}: ${opts["--artifact-type"]} ${opts["--verdict"]}, ${opts["--money-evidence"]}`;
+  replaceFile(target, lines.join("\n") + body.replace(/\s*$/, "\n"));
+  const proofFile = path.join(dir, "PROOF.md"), entry = `- proof/${name}: ${opts["--artifact-type"]} ${opts["--verdict"]}, ${opts["--money-evidence"]}`.replace(/\s+/g, " ");
   let proof = exists(proofFile) ? readText(proofFile) : PROOF_TEMPLATE(slice);
   const re = new RegExp(`^- proof/${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:.*$`, "m");
   if (re.test(proof)) proof = proof.replace(re, entry);
   else { if (!/^## Artifacts\s*$/m.test(proof)) proof = proof.replace(/\s*$/, "\n\n## Artifacts\n"); proof = proof.replace(/\s*$/, "\n") + entry + "\n"; }
-  fs.writeFileSync(proofFile, proof);
+  replaceFile(proofFile, proof);
   return { file: target, header: { slice, candidate_sha: opts["--candidate-sha"], artifact_type: opts["--artifact-type"], verdict: opts["--verdict"], money_evidence: opts["--money-evidence"] } };
 }
 
