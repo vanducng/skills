@@ -33,6 +33,16 @@ Answers "which skills earn their keep, and which are quietly failing?" from tran
 
 **Per-invocation attribution** is the core of it. The miner walks each transcript in order, tracks the active skill (set at each invocation, window runs until the next invocation or end of session), and attributes each error, correction, interrupt and token to the window that contains it. Claude tool errors land on the skill that made the *call*, not the one active when the result came back. Subagent transcripts roll up into the window they were spawned in. Events before any invocation go to `(none)` - a large `(none)` bucket means most work happens without skills, which is itself a finding.
 
+## Outcome rows (`--outcomes`)
+
+`python3 scripts/mine-sessions.py --outcomes [DIR]` also writes one row per invocation window to `DIR/<host>.jsonl` (default `~/.share/openrig/skill-outcomes/`, local, never a repo path), merged by key so a rerun updates rows in place. A row holds the skill, runtime, session, window start and end, the window's counters, the session's `SKILL.md` read count for that skill, evidence (session and window) and an `outcome`:
+
+- `failed`: an abort, or at least 2 tool errors on at least half the window's calls;
+- `corrected`: a correction or an interrupt;
+- `pass`: neither.
+
+The rule is a coarse heuristic and each row says so. Only explicit invocations open a window: a skill the model loaded by reading its `SKILL.md` leaves no row (its reads show in `skillmd_reads`). `create-skill` and the weekly retro read these rows.
+
 ## How to interpret
 
 1. **Never broadcast session counters to every skill in the session.** Attributing a session's totals to each skill it touched measures *co-occurrence*, not quality: marathon sessions touching 12+ skills smear their counters across all of them (measured: interrupts inflated 4.7×, corrections 3.6× over a full corpus; 8× and 4.5× over a 7-day one). This miner attributes per invocation. When comparing skills, prefer `solo_sessions` - a skill that was the only one in the session has nothing to hide behind.

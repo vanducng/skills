@@ -9,6 +9,7 @@ import glob
 import json
 import os
 import re
+import socket
 import sys
 import time
 from collections import Counter, defaultdict
@@ -60,6 +61,15 @@ COUNTER_KEYS = (
 )
 
 
+# Per invocation window counters, kept beside the per-skill ones so one outcome row can be written per window.
+WINDOW_KEYS = ("tool_calls", "tool_errors", "probes", "corrections", "interrupts", "aborts", "tokens")
+# Outcome of a window (a coarse, labelled heuristic): failed on any abort, or on at least this many tool errors at
+# this error rate; corrected on any correction or interrupt; else pass.
+FAILED_MIN_ERRORS = 2
+FAILED_ERROR_RATE = 0.5
+OUTCOMES_DIR = os.path.join(HOME, ".share", "openrig", "skill-outcomes")
+
+
 def load_registry(dirs=REGISTRY_DIRS):
     names = set()
     for root in dirs:
@@ -96,14 +106,30 @@ def new_row(runtime, path):
         "errors_by_tool": Counter(),
         "usage_by_tool": Counter(),
         "attr": defaultdict(lambda: defaultdict(int)),
+        "windows": [],
         "user_msgs": 0,
         "malformed_lines": 0,
     }
 
 
+def begin_window(row, skill, ts):
+    row["windows"].append({"skill": skill, "start": ts or "", "end": None, "counts": dict.fromkeys(WINDOW_KEYS, 0)})
+
+
+def end_window(row, ts):
+    if row["windows"] and row["windows"][-1]["end"] is None:
+        row["windows"][-1]["end"] = ts or ""
+
+
+def last_window(row, skill):
+    return next((w for w in reversed(row["windows"]) if w["skill"] == skill), None)
+
+
 def bump(row, skill, key, n=1):
     if n:
         row["attr"][skill][key] += n
+        if key in WINDOW_KEYS and (window := last_window(row, skill)) is not None:
+            window["counts"][key] += n
 
 
 def iter_lines(path):
@@ -168,12 +194,14 @@ def mine_claude_session(path, registry, cutoff_epoch=0):
             if reset_unknown:
                 cur = NONE
                 marks.append((ts or "", NONE))
+                end_window(row, ts)
             return
         cur = skill
         marks.append((ts or "", skill))
         if included:
             row["skills"][skill] += 1
             bump(row, skill, "invocations")
+            begin_window(row, skill, ts)
 
     in_scope = not cutoff_epoch
     for d in iter_lines(path):
@@ -351,6 +379,7 @@ def mine_codex_session(path, registry, cutoff_epoch=0):
                         if included:
                             row["skills"][skill] += 1
                             bump(row, skill, "invocations")
+                            begin_window(row, skill, ts)
                 stripped = text.strip()
                 if included and CORRECTION_RE.match(stripped) and stripped[:120] not in corrections_seen:
                     corrections_seen.add(stripped[:120])
@@ -393,6 +422,7 @@ def open_window(row, marks, registry, name, ts, included):
     if included:
         row["skills"][skill] += 1
         bump(row, skill, "invocations")
+        begin_window(row, skill, ts)
     return skill
 
 
@@ -724,6 +754,64 @@ def baseline(rows):
     }
 
 
+def classify(counts):
+    """pass | corrected | failed for one window's counters. A coarse heuristic, labelled as such in the row."""
+    calls, errors = counts["tool_calls"], counts["tool_errors"]
+    if counts["aborts"] or (errors >= FAILED_MIN_ERRORS and calls and errors / calls >= FAILED_ERROR_RATE):
+        return "failed"
+    if counts["corrections"] or counts["interrupts"]:
+        return "corrected"
+    return "pass"
+
+
+def outcome_rows(row):
+    """One row per invocation window of a session: skill, runtime, session, window, outcome, counters, evidence."""
+    out = []
+    windows = row["windows"]
+    for index, window in enumerate(windows):
+        end = window["end"] or (windows[index + 1]["start"] if index + 1 < len(windows) else row["last_ts"]) or ""
+        out.append({
+            "runtime": row["runtime"],
+            "session": row["session"],
+            "project": row["project"],
+            "skill": window["skill"],
+            "window": {"start": window["start"], "end": end, "index": index},
+            "outcome": classify(window["counts"]),
+            "counts": window["counts"],
+            "reads": row["skillmd_reads"].get(window["skill"], 0),
+            "evidence": {"session": row["session"], "runtime": row["runtime"], "window_start": window["start"], "window_end": end},
+            "method": "heuristic: failed = abort, or >= %d tool errors at >= %d%% of calls; corrected = correction or interrupt; else pass"
+            % (FAILED_MIN_ERRORS, FAILED_ERROR_RATE * 100),
+        })  # fmt: skip
+    return out
+
+
+def outcome_key(r):
+    return (r["runtime"], r["session"], r["skill"], r["window"]["index"], r["window"]["start"])
+
+
+def write_outcomes(path, new_rows):
+    """Merge `new_rows` into the JSONL at `path` by key (a rerun, or a longer window, updates rows in place)."""
+    merged = {}
+    if os.path.isfile(path):
+        with open(path) as fh:
+            for line in fh:
+                try:
+                    r = json.loads(line)
+                    merged[outcome_key(r)] = r
+                except (ValueError, KeyError, TypeError):
+                    continue
+    for r in new_rows:
+        merged[outcome_key(r)] = r
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as fh:
+        for r in sorted(merged.values(), key=lambda r: (r["window"]["start"], r["runtime"], r["session"], r["window"]["index"])):
+            fh.write(json.dumps(r, sort_keys=True) + "\n")
+    os.replace(tmp, path)
+    return len(merged)
+
+
 def session_json(row):
     out = dict(row)
     out["models"] = sorted(row["models"])
@@ -779,6 +867,9 @@ def main(argv=None):
     ap.add_argument("--runtime", choices=RUNTIMES + ("all", "both"), default="all",
                     help="'both' is a legacy alias for claude+codex")
     ap.add_argument("--out", default=".", metavar="DIR", help="output directory for aggregates + session rows")
+    ap.add_argument("--outcomes", nargs="?", const=OUTCOMES_DIR, default=None, metavar="DIR",
+                    help="also write one outcome row per invocation window to DIR/<host>.jsonl "
+                         "(default DIR: ~/.share/openrig/skill-outcomes; local, never a repo path)")
     args = ap.parse_args(argv)
     if args.since < 0:
         ap.error("--since must be >= 0")
@@ -799,8 +890,11 @@ def main(argv=None):
         "runtimes": {},
     }
     used = set()
+    outcomes = []
     for runtime in runtimes:
         rows = run(runtime, registry, args.out, args.since, cutoff_epoch)
+        for session_row in rows:
+            outcomes += outcome_rows(session_row)
         skills = aggregate(rows)
         base = baseline(rows)
         used.update(k for k in skills if k != NONE)
@@ -820,6 +914,10 @@ def main(argv=None):
     print(f"\ncoverage: {cov['used']}/{cov['installed']} installed skills used "
           f"({'-' if cov['activation_rate'] is None else round(cov['activation_rate'] * 100)}%)")
     print(f"wrote {agg_path}")
+    if args.outcomes is not None:
+        host = socket.gethostname().split(".")[0] or "host"
+        total = write_outcomes(os.path.join(args.outcomes, f"{host}.jsonl"), outcomes)
+        print(f"outcomes: {len(outcomes)} rows from this scan, {total} in {os.path.join(args.outcomes, host + '.jsonl')}")
     return 0
 
 
