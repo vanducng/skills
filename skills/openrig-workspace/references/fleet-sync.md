@@ -17,6 +17,7 @@ Known traps:
 - `Cannot rebase onto multiple branches` on a pull: another pull ran at the same moment. Retry with `git fetch origin && git rebase --autostash origin/main`.
 - An autostash that fails to apply leaves unmerged paths and keeps the stash. Copy each conflicted file aside (the workspace's gitignored scratch dir) before resolving, check every other stashed file made it into the working tree, then drop that stash by its hash. Never a bare `git stash pop`, never another stash.
 - Records not committing on a host: read the workspace-sync log there. A secret-scanner hit blocks every record commit on that host until the allowlist or the record is fixed.
+- `FAIL: fetch/integrate` with `PULL_CONFLICT` in the workspace-sync log: a local commit and the remote changed the same paths, and the error names them. A conflict on records alone resolves on its own (an append log keeps both sides, any other record keeps the newer side), so a named path is code, a spec, a doc or kb, and a person resolves it. The usual cause is a record committed from a worktree; see hard rule 11 in `SKILL.md`.
 - A host behind on skills after a skills commit: hosts that install from releases get it only after the next release.
 - Every host reporting the default machine as `(local)`, or `unknown host id '<openrig id>'` on a rig probe for the host you run from: the tool picked the local machine from a registry flag such as `access: local` instead of the hostname. The default machine was never reached. Apply step 5 to it.
 

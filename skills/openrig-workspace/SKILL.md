@@ -77,6 +77,8 @@ The mission `code` must be unique among projects that share a repo, because thei
 8. One machine per project: `host:` in the project's `repos.yaml`. Run `fleet/bin/project-host <project path>` (exit 1 on the wrong machine) before creating a task dir, worktree or rig.
 9. An operator session (outside any rig) plans, investigates read-only and drafts. Code, PRs, merges and deploys are dispatched to the project's rig (`fleet/policy.yaml`, `operator_session`).
 10. Messages from the operator or an operator session to a rig are signed `captain@global` (see Talk to it). Seats never sign as captain.
+11. Records (`SPEC.md`, `PROGRESS.md`, `PROOF.md`, `NOTES.md`, `reports/`) are written in the live checkout and committed only by `workspace-sync`. Never commit a record from a worktree: worktrees carry code, specs and docs. If the sync still meets a conflict on a record, an append log (`PROGRESS.md`, `NOTES.md`, `desks/*.md`) keeps both sides and any other record keeps the side committed later, with the older side named in the sync log. Any other conflict stops the round for a person.
+12. Commits to the workspace repo use the subject `<type>(<org>.<project>): <what happened> · <host>/<rig>`, at most 72 characters, with scope `workspace` for the workspace's own tooling. The body ends with the trailers `Host:`, `Rig:`, `Seat:`, `Slice:` (when one applies) and `Files:`. `workspace-sync` writes one commit per project per round and names it after the newest PROGRESS line, so start each PROGRESS line with `<seat>:`.
 
 ## Choose the kind
 
