@@ -151,7 +151,7 @@ test("a linked worktree resolves to the main worktree's .workbench", () => {
   const main = repo("main-checkout", "feat/PROJ-7-thing");
   git(main, "checkout", "-q", "main");
   const wt = path.join(tmp(), "linked");
-  git(main, "worktree", "add", "-q", "-b", "feat/PROJ-7-thing", wt);
+  git(main, "worktree", "add", "-q", wt, "feat/PROJ-7-thing");
   const r = run(["resolve", "--json"], { cwd: wt });
   assert.equal(r.json().dir, path.join(main, ".workbench", "proj-7-thing"));
 });
