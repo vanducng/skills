@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "<the ask, a ticket, or a bug report>"
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # intake
@@ -25,13 +25,14 @@ The first gate. It decides what kind of work this is and what will prove it done
    - If the ask is too thin to tell, ask one question with your best guess, and write nothing.
 4. **Write `SPEC.md`:**
    - frontmatter: `id`, `type` (the work type), and `intent` (the ask restated in one or two plain sentences);
+   - `lenses: [statechart]` in the frontmatter only when the work has three or more states, or a rule about events over time (their order, a duplicate or late event, a retry). A pure calculation or a one-shot request gets no lens;
    - `## Mini-requirements`: numbered, observable outcomes taken from the ask, nothing invented;
    - `## Proof contract`: the lines from `node "$C" <type>`, made concrete for this ask (name the test, surface or number);
    - one more contract line: door type (one-way or two-way), blast radius, and the undo step.
    No `TODO` lines are left behind.
 5. **Rig kind** (only in an OpenRig workspace): feature, bug fix or SOP maps to a rig template through the workspace skill's `rig-kind.cjs`. Name it.
 6. **Hand off:** a queue row to the seat that owns the build: `--tags project:<org>.<project>`, `--mission <mission> --slice <slice>` when a slice exists; not the owner seat, hand the row's text to the lead. After every create, `rig queue show <id>`.
-7. **Report:** the work type, the record path, and the open question if there is one. The next gate is `vd:shape`.
+7. **Report:** the work type, the record path, the lens if you named one, and the open question if there is one. The next gate is `vd:shape`, which draws the lens's charts.
 
 ## Rules
 
