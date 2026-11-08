@@ -2,8 +2,8 @@
 // The review verdict, bound to the exact diff it judged.
 //
 //   verdict.cjs tier  --base <ref> [--head <ref>]           Quick | Standard | Deep, the axes it needs, and why
-//   verdict.cjs round <proof-dir> [--seat S]                 this review's round number (prior verdicts by this seat + 1)
-//                                                          and the proof artifact type (rev1-rN); exit 3 past round 3
+//   verdict.cjs round <proof-dir> [--seat S]                 this review's round number (prior verdicts by this seat + 1),
+//                                                          the proof artifact type and file name; exit 3 past round 3
 //   verdict.cjs write --base <ref> [--head <ref>] --out <file> --spec R --standards R [--security R]
 //                     [--finding "F1|spec|Important|open|one line"]... [--seat S] [--family F] [--round N]
 //   verdict.cjs check <file> --base <ref> [--head <ref>]    does the file still bind to <base>..<head>?
@@ -146,10 +146,12 @@ function main(argv) {
   switch (cmd) {
     case "tier": need(); return tier(o["--base"], o["--head"] || "HEAD");
     case "round": {
-      const vs = priorVerdicts(o._[0] || "proof", o["--seat"]);
-      const n = vs.length + 1;
+      const dir = o._[0] || "proof";
+      const n = priorVerdicts(dir, o["--seat"]).length + 1;
       if (n > 3) { process.stdout.write(JSON.stringify({ round: n, stop: "round cap: hand the approach back to the lead, do not review again" }) + "\n"); process.exit(3); }
-      return { round: n, artifact_type: `rev1-r${n}` };
+      // rig proof add takes rev1-r1 and rev1-r2 only: every later round is rev1-r2, and the name keeps rounds apart in proof/.
+      const slice = path.basename(path.dirname(path.resolve(dir)));
+      return { round: n, artifact_type: n === 1 ? "rev1-r1" : "rev1-r2", proof_name: `${slice}-rev1-round${n}.md` };
     }
     case "write": need(); return write(o);
     case "check": { need(); if (!o._[0]) throw new Fail("check <verdict file>"); const r = check(o._[0], o["--base"], o["--head"] || "HEAD"); if (!r.bound) { process.stdout.write(JSON.stringify(r) + "\n"); process.exit(1); } return r; }

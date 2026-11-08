@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[--base <ref>] [--post] [--refactor]"
 metadata:
   author: vanducng
-  version: "2.0.0"
+  version: "2.0.1"
 ---
 
 # code-review
@@ -31,7 +31,7 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
    - A deliberate product choice is a question, not a finding.
 6. **Write:** `node "$V" write --base <base> --out <file> --spec R --standards R [--security R] --finding "F1|spec|Important|open|<one line>" --seat <seat> --family <model family> --round N`. It binds the file to the diff and refuses a blended or impossible verdict.
 7. **Attach:**
-   - in a rig: `rig proof add --artifact-type rev1-r<N>` with the printed `verdict`;
+   - in a rig: `rig proof add --artifact-type <artifact_type> --name <proof_name>` from step 2's output (round 1 is `rev1-r1`, every later round `rev1-r2`, the only types `rig proof` accepts; the name keeps each round's file) with the printed `verdict`;
    - outside one: the workbench record's `proof add`.
    Then run `fleet verdict-check <record> --base <base>` if `fleet` is on PATH, else `node "$V" check <file> --base <base>`.
 8. **Report:** axis results, findings by id, the file path.

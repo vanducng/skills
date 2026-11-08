@@ -109,3 +109,17 @@ test("round filters by seat, so another seat's verdict is not this seat's round"
   run(dir, "write", "--base", "main", "--out", "proof/mine.md", "--spec", "pass", "--standards", "pass", "--seat", "me.review");
   assert.equal(run(dir, "round", "proof", "--seat", "me.review").json().round, 2);
 });
+
+test("round 2 and later map to rev1-r2, the last type rig proof accepts, with the round in the file name", () => {
+  const dir = repo({ "a.js": "x\n" });
+  const slice = path.join(dir, "07-thing");
+  fs.mkdirSync(path.join(slice, "proof"), { recursive: true });
+  const proof = path.join("07-thing", "proof");
+  for (const n of [1, 2, 3]) {
+    const r = run(dir, "round", proof).json();
+    assert.equal(r.round, n);
+    assert.equal(r.artifact_type, n === 1 ? "rev1-r1" : "rev1-r2");
+    assert.equal(r.proof_name, `07-thing-rev1-round${n}.md`);
+    run(dir, "write", "--base", "main", "--out", path.join(proof, r.proof_name), "--spec", "fail", "--standards", "pass", "--finding", "F1|spec|Important|open|x");
+  }
+});
