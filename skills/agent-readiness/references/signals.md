@@ -284,7 +284,7 @@ into `services/billing` has no local map.
 
 **`skills_or_prompt_library`** - repo scope, **skippable**. Fix: propose - a stub `SKILL.md` cannot be
 filled from repo evidence (its value is authored judgement about when to load it), so it fails the stub rule
-and SKILL.md rule 5. Hand it to `vd:skill-creator`. Condition 4 is not the reason: an agent loader only
+and SKILL.md rule 5. Hand it to `vd:create-skill`. Condition 4 is not the reason: an agent loader only
 reads it.
 Skip when the repo declares no skill/prompt library and none of the paths below exist. Do not skip merely
 because the library is small.

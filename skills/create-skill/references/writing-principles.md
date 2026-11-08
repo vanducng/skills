@@ -23,11 +23,11 @@ Write the behavior you want. "Update plan status after each phase" beats a long 
 
 ## Completion criteria
 
-Prefer "Done when…" that a later session can check (file exists, command exits 0, user said yes) over step ceremony. Ultracook stages are this idea as data: `skill` + `done_when`.
+Prefer "Done when…" that a later session can check (file exists, command exits 0, user said yes) over step ceremony.
 
 ## Anti-staleness
 
-Do not snapshot inventories that will rot (file lists, version tables copied from today's tree). Point at the live environment or the command that discovers it. Long-lived plans use `vd:plan`'s anti-staleness rule; skills should too.
+Do not snapshot inventories that will rot (file lists, version tables copied from today's tree). Point at the live environment or the command that discovers it. Skills follow the same rule.
 
 ## Length tracks failure risk
 
