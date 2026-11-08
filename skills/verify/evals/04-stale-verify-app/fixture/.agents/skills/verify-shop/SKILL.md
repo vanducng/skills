@@ -12,5 +12,6 @@ metadata:
 |---|---|---|
 | install | `npm ci` | package-lock.json |
 | boot | `npm start` | package.json scripts.start |
+| seed | `make seed` | Makefile target seed |
 | test | `npm test` | package.json scripts.test |
 | e2e | `npm run e2e` | package.json scripts.e2e |
