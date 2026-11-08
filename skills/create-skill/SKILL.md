@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[capability | fix <skill>] [--dir <skills-root>]"
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # create-skill
