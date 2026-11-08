@@ -18,7 +18,7 @@ The first gate. It decides what kind of work this is and what will prove it done
 
 1. **Find the record.**
    - In an OpenRig rig, the record is the slice folder from `rig scope slice create`, created by the lead.
-   - Elsewhere, ask the workbench resolver (`records.cjs resolve`) for it. Without that skill, use `.workbench/<id>/`, where `<id>` is a short kebab name for the task.
+   - Elsewhere, the bench record the workbench skill resolves (`records.cjs resolve --id <id>`), where `<id>` is a short kebab name for the task.
 2. **Already shaped?** If its `SPEC.md` already has an authored intent and a proof contract, change nothing. Say it is shaped and stop.
 3. **Classify:** pick one work type from `node "$C" --list`.
    - If two types fit, choose by what would prove the work done.

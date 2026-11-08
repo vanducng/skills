@@ -12,7 +12,7 @@ metadata:
 
 The second gate. A record leaves it with an intent, mini-requirements and a proof contract that a reviewer can check without asking you. It does not build.
 
-**The record:** in an OpenRig rig, the slice folder. Elsewhere, ask the workbench resolver (`records.cjs resolve`), or use `.workbench/<id>/` when that skill is absent.
+**The record:** in an OpenRig rig, the slice folder. Elsewhere, the bench record the workbench skill resolves (`records.cjs resolve`).
 
 ## Modes
 
@@ -30,7 +30,7 @@ The second gate. A record leaves it with an intent, mini-requirements and a proo
 4. **Proof contract:**
    - keep what intake wrote;
    - make every line concrete: name the test, the surface or the number;
-   - add the door type, the blast radius and the undo step if they are missing.
+   - add the door type (one-way: hard to undo, such as data or a public API; two-way: a revert undoes it), the blast radius and the undo step if missing.
 5. **Out of scope:** one line, so the reviewer knows what not to ask for.
 6. **Check:** no `TODO` is left. The record must pass `rig scope audit` in a rig, or the workbench `check` elsewhere.
 
