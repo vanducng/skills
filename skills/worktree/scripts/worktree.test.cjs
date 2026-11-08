@@ -1105,6 +1105,31 @@ test('integration: --no-copy-env skips env copying', () => {
   assert(json.envFilesCopied.length === 0, 'no env files copied');
 });
 
+test('integration: create names each copied env file first, in text and --json, and never prints a value', () => {
+  assert(integration, 'create must have succeeded');
+  const secrets = ['SENTINEL_root_7f3a91', 'SENTINEL_nested_c20be4'];
+  fs.writeFileSync(path.join(TMP_REPO, '.env.local'), `TOKEN=${secrets[0]}\n`);
+  fs.writeFileSync(path.join(TMP_REPO, 'backend', '.env.local'), `DB=${secrets[1]}\n`);
+
+  const text = run('create "env names text" --no-enter', { cwd: TMP_REPO });
+  assert(text.success, `text create failed: ${text.output} ${text.stderr}`);
+  const copied = text.output.indexOf('Environment files copied:');
+  assert(copied !== -1 && copied < text.output.indexOf('Next Steps:'), 'copied files are listed before Next Steps');
+  ['.env.local', 'backend/.env.local'].forEach(name => assert(text.output.includes(`✓ ${name}`), `text names ${name}`));
+  assert(text.output.includes('.env.worktree (generated, not copied)'), 'the generated file is marked as not copied');
+
+  const json = run('create "env names json" --no-enter --json', { cwd: TMP_REPO });
+  assert(json.success, `json create failed: ${json.output} ${json.stderr}`);
+  const names = assertJSON(json.output).envFilesCopied;
+  ['.env.local', 'backend/.env.local'].forEach(name => assert(names.includes(name), `envFilesCopied has ${name}`));
+
+  [text, json].forEach(r => secrets.forEach(s => {
+    assert(!r.output.includes(s) && !(r.stderr || '').includes(s), `output leaks the value ${s}`);
+  }));
+  fs.rmSync(path.join(TMP_REPO, '.env.local'));
+  fs.rmSync(path.join(TMP_REPO, 'backend', '.env.local'));
+});
+
 test('integration: clean --yes removes merged worktree and reclaims disk', () => {
   // Create a worktree whose branch is already merged into main (points at HEAD)
   const created = assertJSON(run('create "to-be-cleaned" --json', { cwd: TMP_REPO }).output);

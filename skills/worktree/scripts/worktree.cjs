@@ -258,6 +258,12 @@ function output(data) {
   } else {
     if (data.success) {
       console.log(`\n✅ ${data.message}`);
+      // Names only, never values; first, so a truncated view still shows what was copied.
+      if (data.envFilesCopied && data.envFilesCopied.length > 0) {
+        console.log(`\n📄 Environment files copied:`);
+        data.envFilesCopied.forEach(f => console.log(`   ✓ ${f}`));
+        if (data.portBase) console.log(`   + ${data.envWorktreeFile} (generated, not copied)`);
+      }
       if (data.worktreePath) {
         const sw = data.sessionSwitch;
         console.log(`\n📋 Next Steps:`);
@@ -279,10 +285,6 @@ function output(data) {
         console.log(`   node ${path.relative(process.cwd(), __filename) || __filename} remove ${data.worktreePath}`);
         console.log(`   # or manually:`);
         console.log(`   git worktree remove ${data.worktreePath} && git branch -d ${data.branch}`);
-      }
-      if (data.envFilesCopied && data.envFilesCopied.length > 0) {
-        console.log(`\n📄 Environment files copied:`);
-        data.envFilesCopied.forEach(f => console.log(`   ✓ ${f}`));
       }
       if (data.includeCopied && data.includeCopied.length > 0) {
         console.log(`\n📄 .worktreeinclude entries copied:`);
