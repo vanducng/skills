@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[--base <ref>] [--post] [--refactor]"
 metadata:
   author: vanducng
-  version: "2.0.3"
+  version: "2.1.0"
 ---
 
 # code-review
@@ -17,7 +17,7 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
 ## Steps
 
 1. **Tier:** `node "$V" tier --base <base>` prints the tier and the axes it needs.
-2. **Round:** `node "$V" round <record>/proof --seat <seat>` (your verdicts count; another seat's do not) exits 3 past round 3: stop and hand the approach to the lead. From round 2, read only `git diff <previous verdict head>..HEAD` and the open findings; repeat nothing.
+2. **Round:** `node "$V" round <record>/proof --pr <n>` (that PR's verdicts count, whatever seat wrote them; without a PR, `--seat <seat>` counts yours) exits 3 past round 3: stop and hand the approach to the lead. From round 2, read only `git diff <previous verdict head>..HEAD` and the open findings; repeat nothing.
 3. **Read:**
    - for Spec: the slice `SPEC.md` (intent, mini-requirements, proof contract). No SPEC (a plain PR or commit): write `--spec inconclusive` and judge Standards;
    - for Standards: `REVIEW.md`, then `AGENTS.md`, else `references/checklist.md`;
@@ -26,10 +26,11 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
    - Spec fails on an unmet mini-requirement or contract item.
    - Standards fails on a broken written rule; quote the rule.
    - Security (Deep) covers injection, secrets, auth scope and migrations.
+   - Prove a `.gitignore` or config change (`git check-ignore`, a config read) in a checkout of the PR head, never the base.
 5. **Findings:** ids `F1`, `F2`, each with an axis, a tag (`Important` blocks, `Nit`, `Pre-existing`) and a status (`open`, `fixed`, `declined`).
    - Flag the class of bug, so every instance gets fixed.
    - A deliberate product choice is a question, not a finding.
-6. **Write:** `node "$V" write --base <base> --out <file> --spec R --standards R [--security R] --finding "F1|spec|Important|open|<one line>" --seat <seat> --family <vendor family> --round N`. `--family` takes the vendor family (`claude`, `gpt`, `glm`), not the model name (`opus`). It binds the file to the diff and refuses a blended or impossible verdict.
+6. **Write:** `node "$V" write --base <base> --out <file> --spec R --standards R [--security R] --finding "F1|spec|Important|open|<one line>" --seat <seat> --family <vendor family> --round N --pr <n>`. `--family` takes the vendor family (`claude`, `gpt`, `glm`), not the model name (`opus`). It binds the file to the diff and refuses a blended or impossible verdict.
 7. **Attach:**
    - in a rig: `rig proof add --file <step 6's --out file> --artifact-type <artifact_type> --name <proof_name>` from step 2's output (round 1 is `rev1-r1`, every later round `rev1-r2`, the only types `rig proof` accepts; the name keeps each round's file) with the printed `verdict`;
    - outside one: the workbench record's `proof add` with that file.
@@ -43,7 +44,9 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
 |---|---|---|
 | Quick | docs only, or under 50 lines with no risky path | diff and touched files |
 | Standard | anything else | lenses by path (schema, API, UI) |
-| Deep | auth, secrets, migrations, CI, money, infra | `security` axis; run the failing case for each finding |
+| Deep | auth, secrets, migrations, CI, money, infra, API routes and controllers, OpenAPI specs | `security` axis; run the failing case for each finding |
+
+A `REVIEW.md` line `Security axis: always`, at the base or the head, adds the `security` axis at every tier.
 
 ## Other modes
 
