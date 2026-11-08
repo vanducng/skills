@@ -126,7 +126,7 @@ node $HOME/skills/skills/worktree/scripts/worktree.cjs create "<PROJECT>" "<SLUG
 
 The script parses arguments once, left to right, before any subcommand runs. It refuses (exit 2, usage on stderr, no git call, no file written, nothing removed) an unknown `-` argument, a name starting with `-`, and a value flag (`--prefix`, `--env`, `--worktree-root`, `--name`, `--base`, `--post-create-hook`) whose value is missing or starts with `-`. A mistyped flag such as `create --help` or `remove --base --help x` therefore never creates or removes a worktree or copies env files.
 
-After every successful non-dry-run create that returns `worktreePath`, if `HERDR_ENV=1`, invoke `vd:herdr rename <project> <intent>` for the current pane. Pass the repository or selected monorepo project and the original feature description or ticket. Outside Herdr, skip the handoff. A rename failure does not invalidate the created worktree.
+After every successful non-dry-run create that returns `worktreePath`, if `REX_SESSION` and `REX_BLOCK` are both set (the shell is inside a Rex pane), name the current pane with `rex block rename -s "$REX_SESSION" "$REX_BLOCK" "<project> <intent>"`. Use the repository or selected monorepo project and a short label from the original feature description or ticket. The rex skill (Pi: `/skill:rex`) covers targeting and `rex whoami --json`. Outside Rex, skip the rename. A rename failure is reported and does not invalidate the created worktree.
 
 `create` does the session-setup work automatically:
 
