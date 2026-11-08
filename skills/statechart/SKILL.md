@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "<the flow, its rules, or the code to chart>"
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.1.1"
   upstream: "https://github.com/cursor/plugins/tree/main/pstack/skills/statechart"
   upstream_commit: "6b0300214a09fd6029cfb7077043125758cd1fd2"
   upstream_license: "MIT, Copyright (c) 2026 Lauren Tan (LICENSE.txt)"
@@ -43,7 +43,7 @@ Draw two charts: **today**, modeled from the code, and **intended**, from the re
 
 The command needs Node 22.18 or later (or Bun 1.1.5, Deno 2). It finds TLC in this order: `TLA2TOOLS` (path to `tla2tools.jar`) with `JAVA`; the pinned mise installs (`http:tla2tools` 1.7.4 and `java@temurin-25`), which work offline once installed; otherwise it installs them with mise, which needs the network. Set both `TLA2TOOLS` and `JAVA` when the `java` on `PATH` is not Java 11 or later.
 
-Render an image only when the user asks for one: `references/render.md`.
+Render an image only when the user asks for one, or when the chart is too large to read as text: `references/render.md`.
 
 ## Rules
 
