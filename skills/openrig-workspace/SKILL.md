@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.16.0"
+  version: "0.16.1"
 ---
 
 # OpenRig workspace
@@ -100,7 +100,7 @@ node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind sop
 
 Each seat's `PI_TUI_ROLE` is its member name (`lead`, `build`, `qa`, `review`, `design`, `pm`, `advisor`), and `rig-to-pi convert` picks its model from that role. A `factory` slice that needs a second reviewer adds `review.r2` with `rig add`; the template carries one.
 
-These flags do not select `team` or `squad`. They also do not select the upstream starters `first-project`, `first-project-claude`, or `first-project-mixed`. Those are two-seat recipes for a repository with no org layout.
+The flags select only these three templates. They do not select the upstream starters `first-project`, `first-project-claude`, or `first-project-mixed`. Those are two-seat recipes for a repository with no org layout.
 
 Every template is a pi-tui rig. A seat's model comes from its role (`PI_TUI_ROLE`) in one profile under `pi.profiles` in `fleet/routing.yaml`; `pi.default_profile` applies unless the operator or the project names another. Routing wins over model strings baked into the template.
 

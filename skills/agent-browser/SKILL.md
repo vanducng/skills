@@ -6,13 +6,13 @@ compatibility: Requires agent-browser pinned at 0.27.2 (`npm install -g agent-br
 argument-hint: "[url or flow description]"
 metadata:
   author: vanducng
-  version: "0.2.0"
+  version: "0.2.1"
   attribution: wraps vercel-labs/agent-browser; command-surface notes adapted from claudekit agent-browser (Apache-2.0)
 ---
 
 # agent-browser
 
-The primary local browser driver in this catalog. In **connect mode** it attaches over CDP to the real Chrome launched by `vd:browser-profile` - persistent human-shared login, Google OAuth in a real browser, and `vd:browser-trace` observing the same session as a second CDP client (verified coexisting). That combination is the hands of `vd:web-e2e`. Its own **`--profile` mode** remains for standalone tasks that want isolation from the shared Chrome. `vd:browser` (Browserbase) is the remote escalation for CAPTCHA/anti-bot/proxy walls, not the default driver.
+The primary local browser driver in this catalog. In **connect mode** it attaches over CDP to the real Chrome launched by `vd:browser-profile` - persistent human-shared login, Google OAuth in a real browser, and `vd:browser-trace` observing the same session as a second CDP client (verified coexisting). That combination is the hands of `vd:web-e2e`. Its own **`--profile` mode** remains for standalone tasks that want isolation from the shared Chrome.
 
 | Need | Use |
 |---|---|
@@ -221,5 +221,4 @@ agent-browser screenshot /abs/path/drawer.png      # positional, ABSOLUTE path
 - **`vd:web-e2e`** - this skill in connect mode is its hands: agent-executed flows plus deterministic `.batch` replays.
 - **`vd:browser-profile`** - launches the shared Chrome and owns `profile-attach.sh`, the canonical env-sanitized connect + UA verification.
 - **`vd:browser-trace`** - raw-CDP observer that coexists with this driver on the same Chrome; use it when trace evidence is required.
-- **`vd:browser`** - Browserbase remote escalation when a local run hits CAPTCHA/anti-bot walls; not the default driver.
 - **`vd:gopass`** - credential source for scripted logins.

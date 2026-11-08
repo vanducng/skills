@@ -34,10 +34,7 @@ docs/dist/
 .mcp.json
 skills/twitter/.pytest_cache/
 
-# vd:auto-loop runtime state (per-workspace, never committed)
-.auto-loop/
-
-# Generated diagram artifacts (vd:diagram)
+# Generated diagram artifacts
 docs/content/diagrams/
 
 # Employer-specific skill: local-only, never published (see AGENTS.md Reusable Skill Privacy)

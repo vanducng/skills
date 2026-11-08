@@ -4,12 +4,12 @@ description: "Design and review production database schemas, data models, ERDs, 
 license: MIT
 metadata:
   author: vanducng
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # DB Design
 
-Design database schemas from requirements, existing data, and query patterns. This skill covers modeling decisions and review quality; use `vd:miudb` or the `sqlit` CLI to inspect live databases, `vd:diagram` for ERDs, and `vd:cnpg` for CloudNativePG provisioning.
+Design database schemas from requirements, existing data, and query patterns. This skill covers modeling decisions and review quality; use `vd:miudb` or the `sqlit` CLI to inspect live databases, `vd:diagram-design` for ERDs, and `vd:cnpg` for CloudNativePG provisioning.
 
 ## Reference Router
 

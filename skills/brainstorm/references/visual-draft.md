@@ -64,7 +64,6 @@ Once the user picks a direction, the visual draft has served its purpose - it bo
 | Pick shape | Hand off to |
 |---|---|
 | Polished UI page (landing, dashboard, marketing) | `vd:opendesign` |
-| Rendered system / data-flow / sequence diagram | `vd:diagram` |
-| Editable whiteboard / architecture sketch | `vd:excalidraw` |
+| Rendered system / data-flow / sequence diagram | `vd:diagram-design` |
 
 The brainstorm's job is to pick the direction. Materializing it is downstream.

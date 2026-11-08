@@ -17,7 +17,7 @@ This is a mode of `vd:interview`, not a separate skill. Default interview still 
 5. **The map is an index, not a store.** A decision lives in exactly one place - its ticket. The map gists and links; it never restates.
 6. **Don't chart what you can't see.** Ticket only questions you can state precisely *now*; the rest stays in the fog (below).
 
-**Plan, don't do.** Each ticket resolves a decision; the map is done when nothing is left to decide before someone goes and builds. The pull to just do the work is usually the signal you've reached the edge of the map - hand off to `vd:plan` (then `vd:cook` or `vd:ultracook`) for that chunk instead.
+**Plan, don't do.** Each ticket resolves a decision; the map is done when nothing is left to decide before someone goes and builds. The pull to just do the work is usually the signal you've reached the edge of the map - hand off to `vd:plan` (then `vd:cook`) for that chunk instead.
 
 ## The map
 
@@ -89,9 +89,7 @@ Write dim upcoming decisions into **Not yet specified**. Sharp-but-blocked → t
 
 ### Hand off (the map is done)
 
-When the frontier is empty and no fog remains, the way is clear. Per buildable chunk: `vd:plan` (link the relevant tickets from the map's "## Decisions so far" section), then `vd:cook` or `vd:ultracook`.
-
-If `vd:ultracook` is already conducting a goal and the deciding will not fit one session, **stop the pipeline** and switch this skill to `--wayfinder`.
+When the frontier is empty and no fog remains, the way is clear. Per buildable chunk: `vd:plan` (link the relevant tickets from the map's "## Decisions so far" section), then `vd:cook`.
 
 ## Verification
 
