@@ -32,7 +32,7 @@ One path: **interview → brainstorm → plan → cook → ship**.
 | `vd:cook --quick` | Tight, no plan, one surface. You will still verify and test. |
 | `vd:fix` | Known bug, narrow blast radius. `--quick` on cook covers similar ground. |
 
-If two apply, prefer `vd:fix` for failures, and `vd:cook --quick` for small builds.
+If two apply, prefer `vd:fix` for failures and `vd:cook --quick` for small builds.
 
 ## Review lenses
 
