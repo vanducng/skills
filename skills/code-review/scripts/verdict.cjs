@@ -39,8 +39,7 @@ function keys(base, head) {
   return { base: mergeBase, head: headSha, patch_id: patch, diff_digest: `sha256:${digest}` };
 }
 
-function tier(base, head) {
-  const k = keys(base, head);
+function tier(base, head, k = keys(base, head)) {
   const rows = git(["diff", "--numstat", `${k.base}..${k.head}`]).trim().split("\n").filter(Boolean).map(l => l.split("\t"));
   const files = rows.map(r => r[2]);
   const lines = rows.reduce((n, r) => n + (Number(r[0]) || 0) + (Number(r[1]) || 0), 0);
@@ -74,7 +73,7 @@ function write(o) {
   }
   for (const axis of ["spec", "standards"]) if (!axes[axis]) throw new Fail(`--${axis} is required: the axes are never blended`);
   const k = keys(o["--base"], o["--head"] || "HEAD");
-  const t = tier(o["--base"], o["--head"] || "HEAD");
+  const t = tier(o["--base"], o["--head"] || "HEAD", k);
   if (t.tier === "Deep" && !axes.security) throw new Fail(`this change is Deep (${t.why}): --security is required`);
   const findings = (o["--finding"] || []).map(parseFinding);
   for (const f of findings) if (!axes[f.axis]) throw new Fail(`finding ${f.id} is on the ${f.axis} axis, which has no result`);
