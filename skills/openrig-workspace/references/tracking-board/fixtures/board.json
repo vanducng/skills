@@ -36,7 +36,8 @@
     }
   ],
   "diagrams": {
-    "flow": "flowchart LR\n  C[\"Caller\"]:::person --> G[\"Intake gateway\"]:::ours\n  O[\"Old batch job\"]:::legacy -.-> G\n  G --> V[\"Validator and dedup\"]:::ours\n  V ==> P[\"Provider API\"]:::provider\n  P -.->|receipt webhook| V\n  V --> L[(\"Delivery ledger\")]:::store\n  V --> D[\"Shipped schema contract\"]:::done\n  P --> T[\"Timeout and retry path\"]:::risk"
+    "flow": "flowchart LR\n  C[\"Caller\"]:::person --> G[\"Intake gateway\"]:::ours\n  O[\"Old batch job\"]:::legacy -.-> G\n  G --> V[\"Validator and dedup\"]:::ours\n  V ==> P[\"Provider API\"]:::provider\n  P -.->|receipt webhook| V\n  V --> L[(\"Delivery ledger\")]:::store\n  V --> D[\"Shipped schema contract\"]:::done\n  P --> T[\"Timeout and retry path\"]:::risk",
+    "retry": "stateDiagram-v2\n  state \"Legend\" as legend {\n    lg0: Sending\n    lg1: Settled\n    lg2: Breaks PageOnce\n    lg3: Path to the PageOnce bug\n  }\n  class lg0 blue\n  class lg1 teal\n  class lg2 breaks\n  class lg3 bugPath\n  s0: Queued\n  s1: Sent, waiting for the receipt\n  s2: Retrying after backoff\n  s3: Delivered\n  s4: Paged a human\n  s5: Paged twice\n  [*] --> s0\n  s0 --> s1: Send\n  s1 --> s3: Receipt\n  s1 --> s2: Timeout\n  s2 --> s1: Backoff ends\n  s2 --> s4: Third failure\n  s4 --> s5: Late timeout\n  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834\n  class s0 blue\n  class s0 bugPath\n  class s1 blue\n  class s1 bugPath\n  class s2 blue\n  class s2 bugPath\n  class s3 teal\n  class s4 teal\n  class s4 bugPath\n  class s5 breaks\n  class s5 bugPath"
   },
   "missions": [
     {
@@ -154,7 +155,8 @@
           "status": "blocked",
           "progress": 40,
           "note": "Blocked on Q1: how many attempts before we page a human.",
-          "pr": "https://git.example.test/demo-org/demo-repo/pull/118"
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/118",
+          "diagram": "retry"
         },
         {
           "id": "M2.4",

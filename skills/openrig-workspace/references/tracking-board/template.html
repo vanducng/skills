@@ -186,11 +186,12 @@
   .declist { padding: var(--tb-sp-2) 20px; } .declist > h2, .listcard > h2 { padding: var(--tb-sp-3) 0 var(--tb-sp-1); }
   .drow { border-top: 1px solid var(--tb-line); } .drow:first-child { border-top: 0; }
   summary { list-style: none; cursor: pointer; } summary::-webkit-details-marker { display: none; }
-  .drow summary, .drow .dsum { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: var(--tb-sp-2); min-height: 56px; padding: var(--tb-sp-2) 0; }
-  .drow .dsum { grid-template-columns: auto 1fr auto; }
-  .dq { font-weight: 600; min-width: 0; } .dq small { display: block; font-weight: 400; color: var(--tb-muted); font-size: var(--tb-fs-meta); margin-top: 2px; }
+  /* a decision: one compact top line (id, small badge, chevron), the question at full width under it */
+  .drow summary, .drow .dsum { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "id badge chv" "q q q"; align-items: center; column-gap: var(--tb-sp-2); row-gap: 2px; min-height: var(--tb-tap); padding: var(--tb-sp-2) 0; }
+  .drow .did { grid-area: id; } .drow .pill { grid-area: badge; justify-self: start; height: 20px; padding: 0 8px; gap: 4px; } .drow .pill::before { width: 6px; height: 6px; } .drow .chv { grid-area: chv; }
+  .dq { grid-area: q; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
   .did { font-family: var(--tb-mono); font-weight: 700; font-size: var(--tb-fs-sm); color: var(--tb-muted); min-width: 28px; }
-  .dbody { display: grid; gap: var(--tb-sp-2); padding: 0 0 var(--tb-sp-4) 36px; } .dbody p { max-width: 70ch; }
+  .dbody { display: grid; gap: var(--tb-sp-2); padding: 0 0 var(--tb-sp-4); } .dbody p { max-width: 70ch; }
   details[open] > summary .chv svg, .smain[aria-expanded="true"] .chv svg { transform: rotate(180deg); }
   .emptycard { padding: var(--tb-sp-4); color: var(--tb-muted); display: grid; gap: var(--tb-sp-2); }
   .emptycard b { color: var(--tb-text); font-size: var(--tb-fs-lg); }
@@ -214,7 +215,7 @@
   .prchip { position: absolute; right: var(--tb-sp-3); bottom: 6px; width: var(--tb-prw); height: var(--tb-tap); justify-content: center; padding: 0 var(--tb-sp-2); font-size: var(--tb-fs-sm); }
   .prchip span { overflow: hidden; text-overflow: ellipsis; }
   .snote { display: none; padding: 0 var(--tb-sp-4) var(--tb-sp-3) calc(20px + 2.7em + var(--tb-sp-2)); }
-  .srow.open .snote { display: block; }
+  .srow.open .snote { display: block; } .snote .diagram { margin-top: var(--tb-sp-3); }
   @media (min-width: 700px) { .sprog .bartrack { width: 96px; } .srow .sline { padding-right: calc(var(--tb-prw) + var(--tb-sp-2)); min-height: var(--tb-tap); } }
   .srow.noted, .drow.noted, .lrow.noted, .frow.noted, .mission.noted > summary, tr.noted { box-shadow: inset 4px 0 0 var(--tb-new); background: color-mix(in srgb, var(--tb-new) 8%, var(--tb-surface)); }
   .card.noted { box-shadow: inset 4px 0 0 var(--tb-new), var(--tb-shadow); }
@@ -275,6 +276,8 @@
   .pele .risk, .pele .pele-frame-critical { --_s: var(--role-risk-fill); --_b: var(--role-risk-line); }
   .pele .done { --_s: var(--role-done-fill); --_b: var(--role-done-line); }
   .pele-cluster.ours, .pele-cluster.provider, .pele-cluster.store, .pele-cluster.legacy { --_a: var(--_s); }
+  /* statechart marks (board.cjs maps phases and broken states to roles): a state on the path to a bug, and one that repeats forever */
+  .pele .bugPath, .pele .repeats { --_b: var(--role-risk-line); } .pele :is(.bugPath, .repeats) > :is(rect, path, polygon) { stroke-width: 2.5px; } .pele .repeats > :is(rect, path, polygon) { stroke-dasharray: 6 3; }
   .dgsrc { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: var(--tb-fs-sm)/1.5 var(--tb-mono); background: var(--tb-surface-2); padding: var(--tb-sp-3); border-radius: var(--tb-r-sm); }
   details.srcwrap > summary { display: inline-flex; align-items: center; min-height: var(--tb-tap); color: var(--tb-accent); font-weight: 600; font-size: var(--tb-fs-sm); }
   .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--tb-fs-sm); color: var(--tb-muted); } .legend span::before { content: ""; display: inline-block; width: 22px; height: 13px; margin-right: 6px; vertical-align: -2px; border-radius: 4px; border: 2px solid var(--l); background: var(--f); box-shadow: inset 0 0 0 2px var(--f); }
@@ -357,7 +360,6 @@
     .prchip { position: static; width: auto; margin-right: var(--tb-sp-3); }
     .snote { padding-left: calc(20px + 56px + var(--tb-sp-2)); }
     .mission > summary { grid-template-columns: auto minmax(0, 1fr) auto 220px auto; grid-template-areas: "id name pill prog chv"; }
-    .drow summary { grid-template-columns: 40px 1fr auto auto; }
   }
 
   /* two-column lead (needs on the left, open decisions on the right) only where each column has room */
@@ -610,20 +612,20 @@ function needsHtml() {
 function decRow(d) {
   const open = d.status !== "accepted", id = A.dec(d.id), ch = changedDec.has(d.id);
   const text = `${d.id} ${d.q} ${d.rec} ${d.why || ""}`.toLowerCase();
-  const head = `<span class="did">${ch ? DOT : ""}${esc(d.id)}</span><span class="dq">${esc(d.q)}<small>${esc(d.rec)}</small></span>${pill(open ? "decide" : "accepted").replace(label("decide"), "Decide")}`;
-  const more = [d.why && `<p><b>Why.</b> ${esc(d.why)}</p>`, d.evidence && `<p><b>Evidence.</b> ${esc(d.evidence)}</p>`, d.decided && `<p class="meta">Decided ${esc(d.decided)}</p>`].filter(Boolean).join("");
+  const head = `<span class="did">${ch ? DOT : ""}${esc(d.id)}</span>${pill(open ? "decide" : "accepted").replace(label("decide"), "Decide")}<span class="dq">${esc(d.q)}</span>`;
+  const more = [d.rec && `<p><b>Recommendation.</b> ${esc(d.rec)}</p>`, d.why && `<p><b>Why.</b> ${esc(d.why)}</p>`, d.evidence && `<p><b>Evidence.</b> ${esc(d.evidence)}</p>`, d.decided && `<p class="meta">Decided ${esc(d.decided)}</p>`].filter(Boolean).join("");
   return `<li class="drow" id="${esc(id)}" data-text="${esc(text)}" data-akey="d:${esc(d.id)}" data-label="Decisions › ${esc(d.id)}"${ch ? ' data-changed="1"' : ""}>
     ${more ? `<details><summary>${head}<span class="chv">${I.chev}</span></summary><div class="dbody">${more}</div></details>` : `<div class="dsum">${head}</div>`}</li>`;
 }
 function sliceRow(m, s) {
   const id = sliceDomId(m, s), ch = changedSlice.has(s.id), p = Math.max(0, Math.min(100, Number(s.progress) || 0));
   const href = s.pr ? safeHref(s.pr) : "", ext = /^https?:/i.test(href);
-  const hasNote = !!String(s.note || "").trim();
+  const hasNote = !!String(s.note || "").trim(), dg = s.diagram && diagrams[s.diagram] ? String(s.diagram) : "", more = hasNote || !!dg;
   const main = `<span class="sid">${ch ? DOT : ""}${esc(s.id)}</span><span class="sname">${esc(s.name)}</span>${pill(s.status)}<span class="sline"><span class="sown" title="${esc(s.owner || "")}">${esc(s.owner || "no owner")}</span><span class="sprog"><span class="bartrack" aria-hidden="true"><i style="width:${p}%"></i></span><span class="pct">${p}%</span></span></span>`;
   const prchip = s.pr ? (href ? `<a class="chip prchip" href="${esc(href)}"${ext ? ' rel="noopener"' : ""} title="${esc(s.pr)}"><span>${esc(prLabel(s.pr))}</span>${ext ? I.ext : ""}</a>` : `<span class="meta prchip">${esc(String(s.pr).slice(0, 40))}</span>`) : "";
-  return `<li class="srow${s.pr ? " haspr" : ""}${wide() && hasNote ? " open" : ""}" id="${esc(id)}" data-status="${esc(s.status)}" data-text="${esc(`${s.id} ${s.name} ${s.owner || ""} ${s.note || ""}`.toLowerCase())}" data-akey="s:${esc(m.id)}/${esc(s.id)}" data-label="${esc(`${m.id}: ${m.name} › ${s.id}`)}"${ch ? ' data-changed="1"' : ""}>
-    <div class="stop">${hasNote ? `<button class="smain" type="button" aria-expanded="${wide()}" aria-controls="n-${esc(id)}">${main}<span class="chv">${I.chev}</span></button>` : `<div class="smain">${main}</div>`}${prchip}</div>
-    ${hasNote ? `<div class="snote" id="n-${esc(id)}">${esc(s.note)}</div>` : ""}</li>`;
+  return `<li class="srow${s.pr ? " haspr" : ""}${wide() && more ? " open" : ""}" id="${esc(id)}" data-status="${esc(s.status)}" data-text="${esc(`${s.id} ${s.name} ${s.owner || ""} ${s.note || ""}`.toLowerCase())}" data-akey="s:${esc(m.id)}/${esc(s.id)}" data-label="${esc(`${m.id}: ${m.name} › ${s.id}`)}"${ch ? ' data-changed="1"' : ""}>
+    <div class="stop">${more ? `<button class="smain" type="button" aria-expanded="${wide()}" aria-controls="n-${esc(id)}">${main}<span class="chv">${I.chev}</span></button>` : `<div class="smain">${main}</div>`}${prchip}</div>
+    ${more ? `<div class="snote" id="n-${esc(id)}">${esc(s.note || "")}${dg ? safeRun(`Diagram ${dg}`, () => diagramHtml(dg)) : ""}</div>` : ""}</li>`;
 }
 function missionHtml(m, i) {
   const sl = m.slices || [], done = sl.filter(s => s.status === "done").length, pct = sl.length ? Math.round(done / sl.length * 100) : 0;
