@@ -2,6 +2,29 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.76.0](https://github.com/vanducng/skills/compare/v1.75.0...v1.76.0) (2026-11-08)
+
+
+### Features
+
+* **code-review:** two-axis verdict bound to the diff ([#575](https://github.com/vanducng/skills/issues/575)) ([38e750b](https://github.com/vanducng/skills/commit/38e750b0a4506a6e6a5a62aeedb3b7801b069711))
+* **openrig-workspace:** one-step new-project scaffold ([#561](https://github.com/vanducng/skills/issues/561)) ([5f09f3d](https://github.com/vanducng/skills/commit/5f09f3d90738bfa6e442305c213468c41e73ca79))
+* **openrig-workspace:** resources check refuses a watch entry that can post ([#563](https://github.com/vanducng/skills/issues/563)) ([62520cc](https://github.com/vanducng/skills/commit/62520cc35d790a0acce0bcc2263c78e1ce81389b))
+* **openrig-workspace:** rig-kind maps kinds to the solo, workshop and factory templates ([#572](https://github.com/vanducng/skills/issues/572)) ([8f413c3](https://github.com/vanducng/skills/commit/8f413c3bd0885c96b00ee58d2ad828f0ae7ea9ca))
+* **skill-audit:** write one outcome row per invocation window ([#566](https://github.com/vanducng/skills/issues/566)) ([d0e0c3c](https://github.com/vanducng/skills/commit/d0e0c3ca30186ca8eb84cdcb313c92f056a1f2e4))
+* **skills:** add create-skill and remove skill-creator, which it replaces ([#564](https://github.com/vanducng/skills/issues/564)) ([b8e012b](https://github.com/vanducng/skills/commit/b8e012b1a5f2ce2c2fa95ef74cc7caa3d46fa788))
+* **skills:** delete six unused skills and bring the catalog page up to date ([#574](https://github.com/vanducng/skills/issues/574)) ([979cc86](https://github.com/vanducng/skills/commit/979cc8676b63fe529e6c08c0ca87400184646d40))
+* **workbench:** one records layout, workbench.py shim, migrate, evals ([#571](https://github.com/vanducng/skills/issues/571)) ([74313d8](https://github.com/vanducng/skills/commit/74313d8343f98cfb047b7143f8006ad73fe174f2))
+* **workbench:** records resolver for slice folders and .workbench ([#565](https://github.com/vanducng/skills/issues/565)) ([bcdb800](https://github.com/vanducng/skills/commit/bcdb800efea67e50e39c834402180005b55a2d8b))
+* **worktree:** create copies no secret file and prints the run-time secrets line ([#573](https://github.com/vanducng/skills/issues/573)) ([5c22982](https://github.com/vanducng/skills/commit/5c2298281b3ecdbcca1e60d0544067f7c0cf78ee))
+
+
+### Bug Fixes
+
+* **miucr:** make the review.timeout row follow the named limit ([#570](https://github.com/vanducng/skills/issues/570)) ([373f8fc](https://github.com/vanducng/skills/commit/373f8fccdab2d205ad91c923f115a4026d3ab0f1))
+* **skill-audit,openrig-workspace:** count no-match probes apart from errors and stagger org watch intervals ([#562](https://github.com/vanducng/skills/issues/562)) ([d78e3ff](https://github.com/vanducng/skills/commit/d78e3ffde3b435d2563306903f7bf8fec6f1b60e))
+* **skill-audit:** mine OpenRig pi-tui seat sessions too ([#576](https://github.com/vanducng/skills/issues/576)) ([736b361](https://github.com/vanducng/skills/commit/736b361138e48e93175ca67f28c61c826b924ac4))
+
 ## [1.75.0](https://github.com/vanducng/skills/compare/v1.74.0...v1.75.0) (2026-11-08)
 
 
