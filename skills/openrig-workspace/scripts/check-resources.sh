@@ -38,6 +38,16 @@ for c in $(yq '.threads[]?.conversation' "$res"); do
   grep -qx -- "$c" <<<"$convs" || report "thread conversation '$c' is not a conversation id in $res"
 done
 
+# Radar read-only guard: every aside entry in a watch_access must say post: never.
+for f in "$res" "$org_res"; do
+  [[ -f "$f" ]] || continue
+  while IFS=$'\t' read -r acct post; do
+    [[ -n "$acct" ]] || continue
+    [[ -z "$post" || "$post" == null ]] && post=unset
+    report "watch_access.aside (account $acct) in $f must have post: never, has '$post'"
+  done < <(yq '.watch_access.aside // [] | (select(tag == "!!seq") // [.]) | .[] | select((.post | tostring) != "never") | (.account // "?") + "\t" + (.post | tostring)' "$f")
+done
+
 for f in "$res" "$contacts"; do
   [[ -f "$f" ]] || continue
   # E.164 or formatted numbers; bare 10-digit runs are usually ids (page, tool, node) and pass

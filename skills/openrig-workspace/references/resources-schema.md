@@ -79,7 +79,7 @@ Rules:
 
 ## Validation
 
-`scripts/check-resources.sh <project dir>` checks: every `contacts[].ref` exists in the org `contacts.yaml`, every `with:` key exists, every thread's `conversation` exists, and no file holds a full phone number, a home path, or a key-like value.
+`scripts/check-resources.sh <project dir>` checks: every `contacts[].ref` exists in the org `contacts.yaml`, every `with:` key exists, every thread's `conversation` exists, and no file holds a full phone number, a home path, or a key-like value. It also fails when an `aside` entry under `watch_access` (org or project file) lacks `post: never`: a watch seat reads, it never posts.
 
 ## Migration
 
