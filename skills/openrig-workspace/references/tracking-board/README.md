@@ -81,7 +81,7 @@ browser ──POST feedback──► server.cjs ──► feedback/inbox/<id>.js
 
 ## Diagram conventions
 
-Every board uses one palette, defined once in `template.html`. A diagram names roles, never colors, so the same thing looks the same on every board and the colors can change in one place. `board.cjs check` rejects `classDef`, `style`, `linkStyle`, `fill:` and `rgb(...)` in diagrams, and any role not in this table (a statechart's own marks are mapped first, below).
+Every board uses one palette, defined once in `template.html`. A diagram names roles, never colors, so the same thing looks the same on every board and the colors can change in one place. `board.cjs check` rejects `classDef`, `style`, `linkStyle`, `fill:`, `rgb(...)` and `click` in diagrams, any role not in this table, and a slice `diagram` that names no diagram (a statechart's own marks are mapped first, below).
 
 | Role | Color | Flowchart | Sequence participant |
 |---|---|---|---|

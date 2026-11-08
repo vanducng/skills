@@ -185,11 +185,16 @@ if (cmd === "init") {
   const pele = loadPele();
   let problems = 0;
   const placed = new Set((data.sections || []).flatMap(s => [...(s.html || "").matchAll(/data-diagram="([^"]+)"/g)].map(m => m[1])));
-  for (const m of data.missions || []) for (const sl of m.slices || []) if (sl.diagram) placed.add(sl.diagram);
+  for (const m of data.missions || []) for (const sl of m.slices || []) {
+    if (!sl.diagram) continue;
+    placed.add(sl.diagram);
+    if (!(sl.diagram in (data.diagrams || {}))) { console.log(`slice ${sl.id} names unknown diagram ${sl.diagram}`); problems++; }
+  }
   for (const [id, raw] of Object.entries(data.diagrams || {})) {
     const issues = [], src = boardSource(String(raw)), marks = isStatechart(src) ? STATE_MARKS : [];
     if (!placed.has(id)) issues.push("not placed in any section (<div data-diagram=\"" + id + "\"></div>) or slice (\"diagram\": \"" + id + "\")");
     if (/^\s*(classDef|style|linkStyle)\b|\bfill:|rgb\(/m.test(src)) issues.push("sets colors; use a role class (:::ours, class <subgraph> provider) or a participant type instead");
+    if (/^\s*click\b/m.test(src)) issues.push("click adds a link or handler to a node; put links in a section or in links instead");
     for (const m of src.matchAll(/:::(\w+)|^\s*class\s+[\w,]+\s+(\w+)/gm)) if (!roles.has(m[1] || m[2]) && !marks.includes(m[1] || m[2])) issues.push(`unknown role ${m[1] || m[2]}`);
     if (/^sequenceDiagram/.test(src.trim()) && /^\s*(Note|[\w]+\s*-[->x)]+)[^\n]*;/m.test(src)) issues.push("';' inside a sequence note or message ends the statement");
     if (pele) { try { pele.render(src); } catch (e) { issues.push(`pele: ${String(e.message).split("\n")[0]}`); } }

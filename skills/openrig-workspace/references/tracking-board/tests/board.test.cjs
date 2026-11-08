@@ -174,6 +174,10 @@ test("check keeps its diagram lint and roles", () => {
   assert.equal(bad.code, 1);
   assert.match(bad.out, /unknown role nonsense/);
   assert.match(bad.out, /sets colors/);
+  put(root, "demo/audit/click", { ...fixture, diagrams: { flow: "flowchart LR\n A-->B\n click A \"https://x.example.test\"" } });
+  const click = run(["check", "demo/audit/click"], env);
+  assert.equal(click.code, 1);
+  assert.match(click.out, /flow: click/);
 });
 
 // A chart as the statechart skill writes it (upstream corpus CounterDeadlock, cursor/plugins pstack/skills/statechart,
@@ -222,6 +226,12 @@ test("a statechart passes check: phase colors map to roles, breaks and mayBreak 
   assert.equal(bad.code, 1, "only the statechart's own breaks and mayBreak classDefs are dropped");
   assert.match(bad.out, /chart: sets colors/);
   assert.match(bad.out, /chart: not placed/);
+  const ghost = structuredClone(fixture.missions);
+  ghost[0].slices[0].diagram = "nope";
+  put(root, "demo/audit/sc3", { ...fixture, missions: ghost });
+  const missing = run(["check", "demo/audit/sc3"], env);
+  assert.equal(missing.code, 1, "a slice naming a missing diagram fails check");
+  assert.match(missing.out, new RegExp(`slice ${ghost[0].slices[0].id.replace(".", "\\.")} names unknown diagram nope`));
 });
 
 test("render draws a statechart in the role palette: no inline colors reach pele", () => {
