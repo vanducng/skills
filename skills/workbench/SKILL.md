@@ -9,6 +9,8 @@ metadata:
 
 # Workbench
 
+> **Records layout (workflow foundation, slice 07).** A unit of work's records now live in one shape: the slice folder in an OpenRig rig, and `.workbench/<id>/{SPEC.md,PROGRESS.md,PROOF.md,proof/,reports/}` elsewhere. `scripts/records.cjs` resolves the folder (`resolve`), creates and checks a bench folder (`init`, `check`), writes proof artifacts without a rig (`proof add`) and moves old trees (`migrate`). It replaces the feature folders below (`features/<id>/{plans,reports,visuals,journals,state}/`, `feature.json`, `INDEX.md`). Until the hook layout follows and `workbench.py` is replaced (the next change), the commands below still describe what the hooks and `workbench.py` read and write: do not run `records.cjs migrate --apply` before then, or the next producer write recreates `features/<id>/`.
+
 Lifecycle owner for the **feature-first** `.workbench/` umbrella. One folder per feature - `features/{ticket}-{slug}/{plans,reports,visuals,journals,state}/` - so a ticket's artifacts stay together instead of scattering across type-first sibling dirs.
 
 This skill owns the **write path** (create / archive / gc). The control-plane hooks own read-path resolution, so `workbench new` computes the exact id the hooks resolve - they never diverge (it reuses the deployed hooks lib - `~/.claude` or `~/.codex/hooks/lib`).
