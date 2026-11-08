@@ -2,6 +2,18 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.81.0](https://github.com/vanducng/skills/compare/v1.80.0...v1.81.0) (2026-11-08)
+
+
+### Features
+
+* **openrig-workspace:** board chat with the human seat on tracking boards ([#602](https://github.com/vanducng/skills/issues/602)) ([34e3c17](https://github.com/vanducng/skills/commit/34e3c179cc5dccf780cfbb4c6ce57e51b67bf114))
+
+
+### Bug Fixes
+
+* **code-review,ship:** review rounds per PR, API paths Deep, PR body lint at open ([#601](https://github.com/vanducng/skills/issues/601)) ([839e428](https://github.com/vanducng/skills/commit/839e428141c12b322f3a1e71618030933ed682bd))
+
 ## [1.80.0](https://github.com/vanducng/skills/compare/v1.79.0...v1.80.0) (2026-11-08)
 
 
