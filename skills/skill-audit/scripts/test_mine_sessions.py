@@ -602,5 +602,196 @@ class Probes(unittest.TestCase):
         self.assertTrue(m.is_probe_exit("bash", "grep x f", [{"type": "text", "text": PI_PROBE}]))
 
 
+class Outcomes(unittest.TestCase):
+    """One outcome row per invocation window: pass, corrected or failed, with counters and evidence."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        self.addCleanup(self.tmp.cleanup)
+
+    def check(self, rows):
+        self.assertEqual([(r["skill"], r["outcome"]) for r in rows], [("scout", "corrected"), ("cook", "failed"), ("ship", "pass")])
+        scout, cook, ship = rows
+        self.assertEqual(scout["window"]["start"], "t01")
+        self.assertEqual(scout["window"]["end"], cook["window"]["start"])  # a window ends where the next begins
+        self.assertEqual(ship["window"]["end"], ship["evidence"]["window_end"])
+        self.assertEqual([r["window"]["index"] for r in rows], [0, 1, 2])
+        self.assertEqual(scout["counts"]["corrections"], 1)
+        self.assertTrue(all(r["session"] and r["evidence"]["session"] == r["session"] for r in rows))
+        self.assertIn("heuristic", scout["method"])
+
+    def test_claude_windows_become_rows(self):
+        path = write(self.root / "proj" / "s.jsonl", [
+            cc_text("t01", "<command-name>/scout</command-name>"),
+            cc_assistant("t02", "Bash", "a1"), cc_result("t03", "a1", False),
+            cc_text("t04", "no, that is wrong"),
+            cc_text("t05", "<command-name>/cook</command-name>"),
+            cc_assistant("t06", "Bash", "b1"), cc_result("t07", "b1", True),
+            cc_assistant("t08", "Bash", "b2"), cc_result("t09", "b2", True),
+            cc_text("t10", "<command-name>/ship</command-name>"),
+            cc_assistant("t11", "Read", "c1"), cc_result("t12", "c1", False),
+        ])
+        row = m.mine_claude_session(path, REGISTRY)
+        rows = m.outcome_rows(row)
+        self.check(rows)
+        self.assertEqual(rows[1]["counts"]["tool_errors"], 2)
+        self.assertEqual(rows[1]["counts"]["tool_calls"], 2)
+
+    def test_pi_windows_become_rows(self):
+        path = write(self.root / "pi" / "2026_a.jsonl", [
+            {"type": "session", "timestamp": "t00", "id": "a", "cwd": "/repo"},
+            pi_user("t01", "/scout the repo"), pi_assistant("t02", "bash", "x0"), pi_result("t03", "x0", "bash", False),
+            pi_user("t04", "no, try again"),
+            pi_user("t05", "/cook it"),
+            pi_assistant("t06", "bash", "x1"), pi_result("t07", "x1", "bash", True),
+            pi_assistant("t08", "bash", "x3"), pi_result("t09", "x3", "bash", True),
+            pi_assistant("t09b", "edit", "x4", stop="aborted"),
+            pi_user("t10", "/ship it"), pi_assistant("t11", "read", "x2"), pi_result("t12", "x2", "read", False),
+        ])
+        rows = m.outcome_rows(m.mine_pi_session(path, REGISTRY))
+        self.check(rows)
+        self.assertEqual(rows[1]["counts"]["interrupts"], 1)  # pi's aborted turn is counted as an interrupt
+        self.assertEqual(rows[0]["project"], "/repo")
+
+    def test_codex_windows_become_rows(self):
+        def call(ts):
+            return {"type": "response_item", "timestamp": ts, "payload": {"type": "function_call", "name": "shell", "arguments": "{}"}}
+
+        def msg(ts, text):
+            return {"type": "event_msg", "timestamp": ts, "payload": {"type": "user_message", "message": text}}
+
+        path = write(self.root / "codex" / "rollout-o.jsonl", [
+            {"type": "session_meta", "timestamp": "t00", "payload": {"cwd": "/repo"}},
+            msg("t01", "$scout the repo"), call("t02"),
+            msg("t04", "no, try again"),
+            msg("t05", "$cook it"), call("t06"),
+            {"type": "event_msg", "timestamp": "t07", "payload": {"type": "turn_aborted", "reason": "error"}},
+            msg("t10", PREFIXED_INVOKE), call("t11"),
+        ])
+        self.check(m.outcome_rows(m.mine_codex_session(path, REGISTRY)))
+
+    def test_events_before_any_invocation_and_unknown_skills_make_no_row(self):
+        path = write(self.root / "proj" / "n.jsonl", [
+            cc_assistant("t01", "Bash", "a1"), cc_result("t02", "a1", True),
+            cc_text("t03", "<command-name>/model</command-name>"),
+        ])
+        self.assertEqual(m.outcome_rows(m.mine_claude_session(path, REGISTRY)), [])
+
+    def test_an_unknown_skill_call_ends_the_window(self):
+        path = write(self.root / "proj" / "e.jsonl", [
+            cc_text("t01", "<command-name>/scout</command-name>"),
+            cc_assistant("t02", "Skill", "k1", skill="not-installed"),
+            cc_assistant("t03", "Bash", "a1"), cc_result("t04", "a1", True),
+        ])
+        rows = m.outcome_rows(m.mine_claude_session(path, REGISTRY))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["window"]["end"], "t02")
+        self.assertEqual(rows[0]["counts"]["tool_errors"], 0)  # the later error belongs to no skill
+
+    def test_the_cutoff_keeps_only_windows_inside_it(self):
+        path = write(self.root / "proj" / "c.jsonl", [
+            cc_text("2000-01-01T00:00:00Z", "<command-name>/scout</command-name>"),
+            cc_text("2999-01-01T00:00:00Z", "<command-name>/ship</command-name>"),
+        ])
+        rows = m.outcome_rows(m.mine_claude_session(path, REGISTRY, cutoff_epoch=4_000_000_000 - 3_000_000_000))
+        self.assertEqual([r["skill"] for r in rows], ["ship"])
+
+    def test_classify_thresholds(self):
+        base = dict.fromkeys(m.WINDOW_KEYS, 0)
+        self.assertEqual(m.classify(base), "pass")
+        self.assertEqual(m.classify({**base, "tool_calls": 10, "tool_errors": 1}), "pass")  # one error is not failure
+        self.assertEqual(m.classify({**base, "tool_calls": 10, "tool_errors": 2}), "pass")  # 20% is under the rate
+        self.assertEqual(m.classify({**base, "tool_calls": 4, "tool_errors": 2}), "failed")
+        self.assertEqual(m.classify({**base, "tool_calls": 1, "tool_errors": 1}), "pass")  # a single error is under the minimum
+        self.assertEqual(m.classify({**base, "aborts": 1}), "failed")
+        self.assertEqual(m.classify({**base, "corrections": 1}), "corrected")
+        self.assertEqual(m.classify({**base, "interrupts": 1, "tool_errors": 1, "tool_calls": 3}), "corrected")
+
+    def test_a_codex_interrupt_is_corrected_like_a_pi_interrupt_and_any_other_abort_is_failed(self):
+        def run(reason):
+            path = write(self.root / "codex" / f"rollout-{reason}.jsonl", [
+                {"type": "event_msg", "timestamp": "t01", "payload": {"type": "user_message", "message": "$scout it"}},
+                {"type": "event_msg", "timestamp": "t02", "payload": {"type": "turn_aborted", "reason": reason}},
+            ])
+            row = m.mine_codex_session(path, REGISTRY)
+            return row, m.outcome_rows(row)[0]
+
+        row, interrupted = run("interrupted")
+        self.assertEqual(interrupted["outcome"], "corrected")
+        self.assertEqual((interrupted["counts"]["interrupts"], interrupted["counts"]["aborts"]), (1, 0))
+        self.assertEqual(row["attr"]["scout"]["aborts"], 1)  # the per-skill aggregate keeps its meaning
+        self.assertEqual(run("error")[1]["outcome"], "failed")
+        self.assertEqual(run("unknown")[1]["outcome"], "failed")
+
+    def test_concurrent_writers_lose_no_rows_and_leave_no_temp_files(self):
+        import threading
+
+        path = str(self.root / "shared" / "host.jsonl")
+
+        def row(i):
+            return {"runtime": "pi", "session": f"s{i}", "project": None, "skill": "scout", "outcome": "pass", "counts": {},
+                    "window": {"start": f"t{i:03d}", "end": "", "index": 0, "tie": 0}}
+
+        def writer(n):
+            for i in range(10):
+                m.write_outcomes(path, [row(n * 100 + i)])
+
+        threads = [threading.Thread(target=writer, args=(n,)) for n in range(6)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        with open(path) as fh:
+            rows = [json.loads(line) for line in fh]  # every line parses
+        self.assertEqual(len(rows), 60)
+        self.assertEqual([f for f in os.listdir(os.path.dirname(path)) if f.endswith(".tmp")], [])
+
+    def test_a_wider_scan_does_not_duplicate_rows_whose_index_shifted(self):
+        sess = [
+            cc_text("t01", "<command-name>/scout</command-name>"),
+            cc_text("t02", "<command-name>/cook</command-name>"),
+        ]
+        path = write(self.root / "proj" / "w.jsonl", sess)
+        narrow = [r for r in m.outcome_rows(m.mine_claude_session(path, REGISTRY)) if r["skill"] == "cook"]
+        wide = m.outcome_rows(m.mine_claude_session(path, REGISTRY))
+        shifted = [dict(r, window=dict(r["window"], index=r["window"]["index"] + 5)) for r in narrow]
+        out = str(self.root / "o" / "h.jsonl")
+        m.write_outcomes(out, shifted)
+        self.assertEqual(m.write_outcomes(out, wide), 2)  # cook once (same session, skill, start), plus scout
+
+    def test_same_timestamp_windows_get_distinct_keys(self):
+        path = write(self.root / "proj" / "d.jsonl", [
+            cc_text("t01", "<command-name>/scout</command-name>"),
+            cc_text("t01", "<command-name>/scout</command-name>"),
+        ])
+        rows = m.outcome_rows(m.mine_claude_session(path, REGISTRY))
+        self.assertEqual(len({m.outcome_key(r) for r in rows}), 2)
+
+    def test_an_empty_outcomes_path_is_a_usage_error(self):
+        with self.assertRaises(SystemExit) as raised:
+            m.main(["--runtime", "pi", "--out", str(self.root / "x"), "--outcomes", ""])
+        self.assertEqual(raised.exception.code, 2)
+
+    def test_write_outcomes_merges_by_key_and_is_idempotent(self):
+        path = str(self.root / "out" / "host.jsonl")
+        row = m.outcome_rows(m.mine_claude_session(write(self.root / "proj" / "s.jsonl", [
+            cc_text("t01", "<command-name>/scout</command-name>"), cc_assistant("t02", "Bash", "a1"), cc_result("t03", "a1", False),
+        ]), REGISTRY))
+        self.assertEqual(m.write_outcomes(path, row), 1)
+        self.assertEqual(m.write_outcomes(path, row), 1)  # a rerun does not duplicate
+        changed = [{**row[0], "outcome": "failed"}]
+        self.assertEqual(m.write_outcomes(path, changed), 1)
+        other = [{**row[0], "skill": "cook", "window": {**row[0]["window"], "index": 1}}]
+        self.assertEqual(m.write_outcomes(path, other), 2)
+        with open(path) as fh:
+            rows = [json.loads(line) for line in fh]
+        self.assertEqual(sorted((r["skill"], r["outcome"]) for r in rows), [("cook", "pass"), ("scout", "failed")])
+        with open(path, "a") as fh:
+            fh.write("not json\n")
+        self.assertEqual(m.write_outcomes(path, []), 2)  # a bad line is dropped, the rest kept
+        self.assertFalse(os.path.exists(path + ".tmp"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
