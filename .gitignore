@@ -10,6 +10,7 @@ node_modules/
 
 # Runtime artifacts produced by skills (brainstorm/plan/preview etc.)
 .workbench/
+!skills/*/evals/*/fixture/.workbench/
 docs/journals/
 
 # Python bytecode cache (skills with Python scripts)
