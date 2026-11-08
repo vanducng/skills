@@ -25,7 +25,7 @@
     --tb-fs-meta: 14px;
     --tb-sp-1: 4px; --tb-sp-2: 8px; --tb-sp-3: 12px; --tb-sp-4: 16px; --tb-sp-5: 24px; --tb-sp-6: 32px; --tb-sp-7: 48px;
     --tb-r-sm: 8px; --tb-r-md: 12px; --tb-r-lg: 16px; --tb-r-pill: 999px;
-    --tb-tap: 44px; --tb-bar-h: 56px; --tb-rail-w: 232px; --tb-sheet-w: 340px;
+    --tb-tap: 44px; --tb-bar-h: 56px; --tb-rail-w: 232px; --tb-sheet-w: 340px; --tb-chat-w: 400px;
     --tb-bg: #f4f6f9; --tb-surface: #ffffff; --tb-surface-2: #eef1f5; --tb-line: #d3d9e1; --tb-line-strong: #7a8496;
     --tb-text: #131820; --tb-muted: #465163; --tb-accent: #0b5cc7; --tb-accent-ink: #ffffff; --tb-accent-soft: #e2eeff;
     --tb-focus: #0b5cc7; --tb-scrim: rgba(12, 16, 22, .48);
@@ -306,7 +306,6 @@
   .nrow blockquote, .quote { margin: 0; padding-left: var(--tb-sp-3); border-left: 3px solid var(--tb-line-strong); color: var(--tb-muted); font-size: var(--tb-fs-sm); max-height: 4.6em; overflow: hidden; }
   .status { display: flex; align-items: flex-start; gap: 8px; font-size: var(--tb-fs-sm); color: var(--tb-muted); min-height: 20px; } .status i { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--tb-planned); flex: none; }
   .status.ok i { background: var(--tb-ok-bar); } .status.err { color: var(--tb-blocked); } .status.err i { background: var(--tb-blocked); }
-  .reply { white-space: pre-wrap; background: var(--tb-surface-2); border-radius: var(--tb-r-sm); padding: var(--tb-sp-3); max-height: 240px; overflow: auto; font-size: var(--tb-fs-sm); }
   .composer textarea { width: 100%; min-height: 96px; padding: var(--tb-sp-3); border: 1px solid var(--tb-line-strong); border-radius: var(--tb-r-md); background: var(--tb-surface); color: var(--tb-text); font-size: 16px; line-height: 1.4; resize: vertical; }
   .composer .btns { display: grid; grid-template-columns: 1fr 1.4fr; gap: var(--tb-sp-2); }
   .annobar { position: fixed; left: var(--tb-sp-3); right: var(--tb-sp-3); bottom: calc(var(--tb-sp-3) + env(safe-area-inset-bottom)); z-index: 45; display: none; align-items: center; gap: var(--tb-sp-2); background: var(--tb-text); color: var(--tb-bg); border-radius: var(--tb-r-md); padding: 6px 6px 6px var(--tb-sp-4); box-shadow: var(--tb-shadow-up); }
@@ -343,6 +342,52 @@
     body.has-side .page { padding-right: calc(var(--tb-sheet-w) + var(--tb-sp-4) + var(--tb-sp-3)); }
   }
 
+  /* Board chat: one thread of sent notes and chat messages with the human seat's replies. Full screen over the visual
+     viewport below 1024 (header, thread, composer docked on the keyboard); a right sidebar from 1024, widened to half
+     or full width with its expand button. */
+  .chat { position: fixed; z-index: 62; display: none; flex-direction: column; background: var(--tb-bg); }
+  .chat.on { display: flex; }
+  .chat header { display: flex; align-items: center; gap: var(--tb-sp-2); padding: 6px var(--tb-sp-3); min-height: 48px; border-bottom: 1px solid var(--tb-line); background: var(--tb-surface); flex: none; }
+  .chat header h2 { flex: 1; min-width: 0; font-size: var(--tb-fs-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat header h2 small { font-weight: 500; color: var(--tb-muted); font-size: var(--tb-fs-sm); }
+  .chat header .ibtn { min-height: 36px; height: 36px; position: relative; } .chat header .ibtn::after { content: ""; position: absolute; inset: -4px 0; }
+  .thread { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--tb-sp-3); display: flex; flex-direction: column; gap: var(--tb-sp-3); }
+  .thread > .hint { margin: auto; text-align: center; max-width: 32ch; }
+  .msg { max-width: min(88%, 72ch); display: grid; gap: 2px; min-width: 0; } .msg.me { align-self: flex-end; } .msg.seat { align-self: flex-start; }
+  .chat[data-size="full"] .msg { max-width: min(80%, 90ch); }
+  .bubble { border-radius: var(--tb-r-md); padding: var(--tb-sp-2) var(--tb-sp-3); overflow-wrap: anywhere; font-size: var(--tb-fs-md); line-height: 1.5; min-width: 0; }
+  .me .bubble { background: var(--tb-accent-soft); border-bottom-right-radius: 4px; } .seat .bubble { background: var(--tb-surface); border: 1px solid var(--tb-line); border-bottom-left-radius: 4px; }
+  .bubble > * + * { margin-top: var(--tb-sp-2); } .bubble ul, .bubble ol { padding-left: 22px; list-style: revert; } .bubble li + li { margin-top: 2px; }
+  .bubble code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; background: var(--tb-surface-2); padding: 1px 5px; border-radius: 5px; }
+  .bubble pre { background: var(--tb-surface-2); padding: var(--tb-sp-2) var(--tb-sp-3); border-radius: var(--tb-r-sm); overflow: auto; white-space: pre; } .bubble pre code { background: none; padding: 0; }
+  .bubble a { color: var(--tb-accent); text-decoration: underline; } .bubble .ctxline { font-size: var(--tb-fs-sm); color: var(--tb-muted); font-weight: 600; }
+  .bubble .nlist { list-style: none; padding: 0; display: grid; gap: var(--tb-sp-2); } .bubble .nlist li { padding-left: var(--tb-sp-2); border-left: 2px solid var(--tb-line-strong); }
+  .bubble .nlist b { font-size: var(--tb-fs-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--tb-accent); }
+  .meta { display: flex; align-items: center; gap: var(--tb-sp-2); font-size: var(--tb-fs-xs); color: var(--tb-muted); min-height: 28px; } .me .meta { justify-content: flex-end; }
+  .meta i { width: 8px; height: 8px; border-radius: 50%; background: var(--tb-planned); flex: none; } .meta i.done { background: var(--tb-ok-bar); } .meta i.aborted { background: var(--tb-blocked); }
+  .meta i.working, .meta i.delivered { background: var(--tb-accent); }
+  .copy { position: relative; border: 0; background: none; color: var(--tb-muted); font: inherit; font-weight: 600; padding: 4px 6px; cursor: pointer; border-radius: 6px; }
+  .copy::after { content: ""; position: absolute; inset: -8px -2px; } .copy:hover { color: var(--tb-text); background: var(--tb-surface-2); }
+  .chatform { flex: none; border-top: 1px solid var(--tb-line); background: var(--tb-surface); padding: var(--tb-sp-2) var(--tb-sp-3) calc(var(--tb-sp-2) + env(safe-area-inset-bottom)); display: grid; gap: 6px; }
+  .chatform .ctx { display: flex; align-items: center; gap: var(--tb-sp-2); font-size: var(--tb-fs-sm); color: var(--tb-muted); min-width: 0; } .chatform .ctx span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chatform .crow { display: flex; align-items: flex-end; gap: var(--tb-sp-2); }
+  .chatform textarea { flex: 1; min-width: 0; resize: none; font-size: 16px; line-height: 1.4; padding: 7px 12px; border: 1px solid var(--tb-line-strong); border-radius: 18px; background: var(--tb-surface); color: var(--tb-text); overflow-y: auto; height: calc(1.4em + 16px); }
+  #chatsend { min-height: 36px; height: 36px; padding: 0 var(--tb-sp-4); font-size: var(--tb-fs-sm); border-radius: 18px; position: relative; flex: none; } #chatsend::after, #chatctxx::after { content: ""; position: absolute; inset: -4px 0; }
+  #chatctxx { position: relative; min-height: 28px; }
+  @media (max-width: 1023.98px) { .chat { left: 0; right: 0; top: var(--tb-vv-top, 0px); height: var(--tb-vv-h, 100%); } #chatsize { display: none; } }
+  @media (min-width: 1024px) {
+    .chat { top: var(--tb-bar-h); right: 0; bottom: 0; width: var(--tb-chat-w); z-index: 35; border-left: 1px solid var(--tb-line); box-shadow: var(--tb-shadow); }
+    .chat[data-size="half"] { width: 50vw; } .chat[data-size="full"] { width: auto; left: 0; }
+    .chat[data-size="full"] .thread, .chat[data-size="full"] .chatform { padding-inline: max(var(--tb-sp-3), calc((100% - 960px) / 2)); }
+    body.chatting { --tb-chat-cur: var(--tb-chat-w); } body.chatting.chat-half { --tb-chat-cur: 50vw; } body.chatting.chat-full { --tb-chat-cur: 0px; }
+    body.chatting .page { padding-right: calc(var(--tb-chat-cur) + var(--tb-sp-4)); }
+    body.chatting .sheet, body.chatting .annobar { right: var(--tb-chat-cur); }
+  }
+  @media (min-width: 1280px) {
+    body.chatting .sheet { right: calc(var(--tb-chat-cur) + var(--tb-sp-4)); }
+    body.chatting.has-side .page { padding-right: calc(var(--tb-chat-cur) + var(--tb-sheet-w) + var(--tb-sp-4) + var(--tb-sp-3)); }
+  }
+
   @media (min-width: 700px) {
     .lead .stats { grid-template-columns: repeat(3, 1fr); }
     .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tb-sp-2) var(--tb-sp-3); }
@@ -364,17 +409,17 @@
 
   /* two-column lead (needs on the left, open decisions on the right) only where each column has room */
   @media (min-width: 1200px) {
-    body:not(.has-side) .lead { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; gap: var(--tb-sp-4) var(--tb-sp-5); grid-template-areas: "hero hero" "needs dec" "stats dec"; }
-    body:not(.has-side) .lead.nodec { grid-template-areas: "hero hero" "needs stats"; }
-    body:not(.has-side) .lead .hero { grid-area: hero; } body:not(.has-side) .lead .needscard { grid-area: needs; } body:not(.has-side) .lead .stats { grid-area: stats; }
-    body:not(.has-side) .lead .declist, body:not(.has-side) .lead .emptycard { grid-area: dec; align-self: start; }
+    body:not(.has-side):not(.chatting.chat-half) .lead { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; gap: var(--tb-sp-4) var(--tb-sp-5); grid-template-areas: "hero hero" "needs dec" "stats dec"; }
+    body:not(.has-side):not(.chatting.chat-half) .lead.nodec { grid-template-areas: "hero hero" "needs stats"; }
+    body:not(.has-side):not(.chatting.chat-half) .lead .hero { grid-area: hero; } body:not(.has-side):not(.chatting.chat-half) .lead .needscard { grid-area: needs; } body:not(.has-side):not(.chatting.chat-half) .lead .stats { grid-area: stats; }
+    body:not(.has-side):not(.chatting.chat-half) .lead .declist, body:not(.has-side):not(.chatting.chat-half) .lead .emptycard { grid-area: dec; align-self: start; }
   }
 
   .plain { padding: var(--tb-sp-4); } .plain > * + * { margin-top: var(--tb-sp-2); } .plain h2 { font-size: var(--tb-fs-lg); margin-top: var(--tb-sp-5); } .plain h1 { font-size: var(--tb-fs-2xl); line-height: var(--tb-lh-tight); } .plain ol, .plain ul { padding-left: 22px; list-style: revert; } .plain li + li { margin-top: var(--tb-sp-1); }
 
   /* print: everything open, no chrome, always light */
   @media print {
-    .bar, .rail, .sheet, .scrim, .menu, .filters, .search, .annobar, .toolbar, .skip, .changed, .chv, .dgfoot button, .morebtn { display: none !important; }
+    .bar, .rail, .sheet, .chat, .scrim, .menu, .filters, .search, .annobar, .toolbar, .skip, .changed, .chv, .dgfoot button, .morebtn { display: none !important; }
     body { display: block; background: #fff; color: #000; padding: 0; } .page { padding: 0; max-width: none; display: block; } .page > * { margin-bottom: 14px; }
     .card { box-shadow: none; break-inside: avoid; } .snote { display: block !important; } .lead { display: block; } .lead > * { margin-bottom: 14px; }
     .twocol { display: block; } .dgbox { overflow: visible; }
@@ -392,6 +437,7 @@
   <button class="ibtn menubtn" id="menubtn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Sections"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   <div class="title" id="bartitle">Tracking board</div>
   <button class="ibtn" id="theme" type="button" aria-pressed="false"><span id="themeicon"></span><span class="lbl">Dark</span></button>
+  <button class="ibtn" id="chatbtn" type="button" aria-label="Chat with the human seat" aria-expanded="false" aria-controls="chat" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></svg><span class="lbl">Chat</span><span class="badge" id="chatbadge">0</span></button>
   <button class="ibtn" id="annot" type="button" aria-label="Annotate and changes" aria-expanded="false" aria-controls="sheet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg><span class="lbl">Annotate</span><span class="badge" id="annotbadge">0</span></button>
 </header>
 <nav class="menu" id="menu" aria-label="Sections"></nav>
@@ -409,7 +455,6 @@
     <div class="seg" id="seg" role="group" aria-label="Annotate mode"><button type="button" data-v="off" aria-pressed="true">Annotate off</button><button type="button" data-v="on" aria-pressed="false">Annotate on</button></div>
     <p class="hint">With Annotate on, click or tap a slice, decision or log row to add a note, or select text in it first to quote it. On a touch screen, pressing and holding a row does the same.</p>
     <div id="notelist" style="display:grid;grid-template-columns:minmax(0,1fr);gap:var(--tb-sp-2)"></div>
-    <div class="reply" id="reply" hidden tabindex="0" aria-label="Reply from the seat"></div>
   </div>
   <footer><button class="primary" id="send" type="button" disabled>Send feedback</button><div class="status" id="fbstatus" role="status" aria-live="polite"><i></i><span></span></div></footer>
 </aside>
@@ -419,12 +464,21 @@
   <div class="body">
     <p class="hint">On <b id="cmp-anchor"></b></p>
     <blockquote class="quote" id="cmp-quote" hidden></blockquote>
-    <div class="seg" id="cmp-kind" role="group" aria-label="Kind of note"><button type="button" data-k="change" aria-pressed="true">Change</button><button type="button" data-k="comment" aria-pressed="false">Comment</button><button type="button" data-k="question" aria-pressed="false">Question</button></div>
+    <div class="seg" id="cmp-kind" role="group" aria-label="Kind of note"><button type="button" data-k="change" aria-pressed="true">Change</button><button type="button" data-k="comment" aria-pressed="false">Comment</button><button type="button" data-k="question" aria-pressed="false">Question</button><button type="button" data-k="chat" aria-pressed="false" hidden>Chat</button></div>
     <label class="sr" for="cmp-text">Your note</label>
     <textarea id="cmp-text" rows="3" autocomplete="off" placeholder="What should change, or what do you want to know?"></textarea>
   </div>
   <footer><div class="btns"><button class="secondary" type="button" id="cmpcancel">Cancel</button><button class="primary" type="submit" id="cmpsave" disabled>Add note</button></div></footer>
 </form>
+<aside class="chat" id="chat" role="dialog" aria-labelledby="chat-h" tabindex="-1">
+  <header><h2 id="chat-h">Chat</h2><button class="ibtn" id="chatsize" type="button">Expand</button><button class="ibtn" id="chatclose" type="button" aria-label="Close chat">Close</button></header>
+  <div class="thread" id="thread" role="log" aria-label="Thread with the human seat"></div>
+  <form class="chatform" id="chatform" novalidate autocomplete="off">
+    <div class="ctx" id="chatctx" hidden><span id="chatctx-t"></span><button class="copy" type="button" id="chatctxx" aria-label="Remove the row from this message">Remove</button></div>
+    <div class="crow"><label class="sr" for="chat-text">Message to the human seat</label><textarea id="chat-text" rows="1" autocomplete="off" placeholder="Message the human seat"></textarea><button class="primary" id="chatsend" type="submit" disabled>Send</button></div>
+    <div class="status" id="chatstatus" role="status" aria-live="polite"><i></i><span></span></div>
+  </form>
+</aside>
 <div class="annobar" id="annobar" role="group" aria-label="Annotate mode"><span id="annotext" role="status">Annotate on. Tap a row to add a note.</span><button type="button" id="annonotes">Notes</button><button type="button" id="annodone">Done</button></div>
 <dialog class="dgfull" id="dgfull" aria-label="Diagram, full size"><header><b id="dgfull-t">Diagram</b><span class="dgbtns"><button class="ibtn" type="button" id="dgfull-zoom" aria-pressed="false">Actual size</button><button class="ibtn" type="button" id="dgfull-x">Close</button></span></header><div class="dgpan" id="dgfull-body"></div></dialog>
 
@@ -498,6 +552,48 @@ function idOf(s, used) {
   while (used.has(id)) id = `${base}-${n++}`;
   used.add(id);
   return id;
+}
+// Safe markdown for chat messages: paragraphs, **bold**, *italic*, `code`, ``` blocks, - and 1. lists, # lines as bold,
+// and http(s) links. Everything else is escaped text: no raw HTML, no other link scheme.
+function md(src) {
+  const link = (u, t) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(t)}</a>`;
+  const inline = s => {
+    // Code spans and links become placeholders first, so emphasis never reaches inside them.
+    const keep = [], hold = h => `\u0000${keep.push(h) - 1}\u0000`;
+    s = s.replace(/`([^`\n]+)`/g, (_, c) => hold(`<code>${esc(c)}</code>`))
+      .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s()<>"']+)\)/gi, (_, t, u) => hold(link(u, t)))
+      .replace(/\bhttps?:\/\/[^\s()<>"']*[^\s()<>"'.,;:!?]/gi, u => hold(link(u, u)));
+    return esc(s).replace(/\*\*(?=\S)([^*\n]*?\S)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^\w*])\*(?=\S)([^*\n]*?\S)\*(?![\w*])/g, "$1<em>$2</em>")
+      .replace(/(^|[^\w])_(?=\S)([^_\n]*?\S)_(?!\w)/g, "$1<em>$2</em>")
+      .replace(/\u0000(\d+)\u0000/g, (_, i) => keep[i]);
+  };
+  const item = /^\s*(?:([-*+])|(\d{1,9})[.)])\s+(.*)$/, fence = /^\s*```/;
+  const lines = String(src ?? "").replace(/\u0000/g, "").replace(/\r\n?/g, "\n").split("\n"), out = [];
+  for (let i = 0; i < lines.length;) {
+    const l = lines[i], li = item.exec(l), h = /^#{1,6}\s+(.*)$/.exec(l);
+    if (fence.test(l)) {
+      const buf = []; i++;
+      while (i < lines.length && !fence.test(lines[i])) buf.push(lines[i++]);
+      i++; out.push(`<pre><code>${esc(buf.join("\n"))}</code></pre>`);
+    } else if (!l.trim()) i++;
+    else if (h) { out.push(`<p><strong>${inline(h[1])}</strong></p>`); i++; }
+    else if (li) {
+      const ol = !li[1], items = [];
+      for (let m; i < lines.length; i++) {
+        if ((m = item.exec(lines[i])) && !m[1] === ol) items.push(m[3]);
+        else if (!m && /^\s{2,}\S/.test(lines[i])) items[items.length - 1] += ` ${lines[i].trim()}`;
+        else break;
+      }
+      const start = ol && +li[2] !== 1 ? ` start="${+li[2]}"` : "";
+      out.push(`<${ol ? "ol" : "ul"}${start}>${items.map(t => `<li>${inline(t)}</li>`).join("")}</${ol ? "ol" : "ul"}>`);
+    } else {
+      const para = [];
+      while (i < lines.length && lines[i].trim() && !fence.test(lines[i]) && !item.test(lines[i]) && !/^#{1,6}\s/.test(lines[i])) para.push(lines[i++]);
+      out.push(`<p>${para.map(inline).join("<br>")}</p>`);
+    }
+  }
+  return out.join("");
 }
 /* tb:helpers:end */
 
@@ -822,6 +918,8 @@ addEventListener("hashchange", openHash);
 let notes = []; try { notes = JSON.parse(ls.get(store) || "[]"); if (!Array.isArray(notes)) notes = []; } catch { notes = []; }
 let authed = false, online = false, pending = null, draft = null, lastFocus = null;
 const sheet = $("#sheet"), scrim = $("#scrim"), composer = $("#composer"), annotBtn = $("#annot"), cmpText = $("#cmp-text");
+const chat = $("#chat"), chatBtn = $("#chatbtn"), chatText = $("#chat-text"), threadEl = $("#thread");
+let thread = [], chatFocus = null, chatCtx = null, refetchT = 0, pinned = true;
 const SEL = ".srow, .drow, .lrow, .mission > summary, .frow, .sect tr[data-akey], .sect[data-akey]";
 const byKey = k => $$("[data-akey]").find(x => x.dataset.akey === k);
 let targetEl = null, cmpFocus = null;
@@ -870,9 +968,9 @@ function layoutPanel() {
   else { st.removeProperty("--tb-comp-top"); st.removeProperty("--tb-comp-bottom"); }
 }
 function syncModal() {
-  const sh = MODAL() && sheet.classList.contains("on"), cm = MODAL() && composer.classList.contains("on");
-  inertPage(sh || cm); scrim.classList.toggle("on", sh);
-  sheet.setAttribute("aria-modal", String(sh)); composer.setAttribute("aria-modal", String(cm));
+  const sh = MODAL() && sheet.classList.contains("on"), cm = MODAL() && composer.classList.contains("on"), ch = phoneBox() && chat.classList.contains("on");
+  inertPage(sh || cm || ch); scrim.classList.toggle("on", sh);
+  sheet.setAttribute("aria-modal", String(sh)); composer.setAttribute("aria-modal", String(cm)); chat.setAttribute("aria-modal", String(ch));
   layoutPanel();
 }
 function openSheet(o, quiet) {
@@ -905,7 +1003,10 @@ function fit() {
 }
 if (window.visualViewport) { visualViewport.addEventListener("resize", onViewport); visualViewport.addEventListener("scroll", onViewport); }
 function persistDraft() { if (draft) ls.set(`${store}:draft`, JSON.stringify({ ...draft, text: cmpText.value })); else ls.del(`${store}:draft`); }
-function setKind(k) { draft.kind = k; $$("#cmp-kind button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.k === k))); }
+function setKind(k) {
+  draft.kind = k; $$("#cmp-kind button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.k === k)));
+  $("#cmpsave").textContent = k === "chat" ? "To chat" : "Add note";
+}
 function openComposer(d, focus) {
   draft = { akey: d.akey, label: d.label, quote: d.quote || "", kind: d.kind || "change" };
   $("#cmp-anchor").textContent = d.label; $("#cmp-h").dataset.anchor = String(d.label).split(" › ").pop(); const q = $("#cmp-quote"); q.hidden = !d.quote; q.textContent = d.quote || "";
@@ -931,6 +1032,8 @@ $("#cmpcancel").addEventListener("click", closeComposer);
 cmpText.addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); composer.requestSubmit(); } });
 composer.addEventListener("submit", e => {
   e.preventDefault(); const text = cmpText.value.trim(); if (!text || !draft) return;
+  // Chat: the row goes along as context and the message waits in the chat composer for Send.
+  if (draft.kind === "chat") { const ctx = { anchor: draft.label, quote: draft.quote }; closeComposer(); toChat(text, ctx); return; }
   notes.push({ id: `n${Date.now().toString(36)}`, kind: draft.kind, anchor: draft.label, akey: draft.akey, quote: draft.quote, text });
   closeComposer(); saveNotes();
   if (panelMode()) openSheet(true);
@@ -981,6 +1084,7 @@ document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
   if (composer.classList.contains("on")) { closeComposer(); return; }
   if ($("#dgfull").open) return;
+  if (chat.classList.contains("on")) { openChat(false); return; }
   if (sheet.classList.contains("on")) openSheet(false); else if (document.body.classList.contains("annotating")) setAnno(false);
 });
 // Keep Tab inside a modal sheet or note box.
@@ -990,17 +1094,152 @@ const trapTab = box => e => {
   const first = f[0], last = f[f.length - 1];
   if (e.shiftKey && (document.activeElement === first || document.activeElement === box)) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 };
-sheet.addEventListener("keydown", trapTab(sheet)); composer.addEventListener("keydown", trapTab(composer));
+sheet.addEventListener("keydown", trapTab(sheet)); composer.addEventListener("keydown", trapTab(composer)); chat.addEventListener("keydown", e => { if (phoneBox()) trapTab(chat)(e); });
+
+// ---- Board chat: one thread per board of sent notes and chat messages, each with the human seat's reply ----
+// Only a signed-in browser loads the thread (GET thread) or sends (POST chat); the server refuses everyone else.
+const chatSeenKey = `${store}:seen`, chatDraftKey = `${store}:chatdraft`;
+const seatState = { queued: "Queued", delivered: "Delivered", working: "Working…", done: "Done", aborted: "Stopped" };
+function hhmm(iso) {
+  const d = new Date(iso); if (Number.isNaN(d.getTime())) return "";
+  const t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return d.toDateString() === new Date().toDateString() ? t : `${d.toLocaleDateString([], { month: "short", day: "numeric" })}, ${t}`;
+}
+const plainOf = it => it.kind === "chat" ? it.text : (it.notes || []).map(n => `${n.kind} on ${n.anchor}: ${n.text}`).join("\n\n");
+function paintThread(stick) {
+  const end = stick || pinned;
+  threadEl.innerHTML = thread.map((it, i) => {
+    const mine = it.kind === "chat"
+      ? `${it.anchor ? `<p class="ctxline">On ${esc(it.anchor)}</p>` : ""}${it.quote ? `<blockquote class="quote">${esc(it.quote)}</blockquote>` : ""}${md(it.text)}`
+      : `<p class="ctxline">${(it.notes || []).length} note${(it.notes || []).length === 1 ? "" : "s"}</p><ul class="nlist">${(it.notes || []).map(n => `<li><b>${esc(n.kind)}</b> · ${esc(n.anchor)}${n.quote ? `<blockquote class="quote">${esc(n.quote)}</blockquote>` : ""}${md(n.text)}</li>`).join("")}</ul>`;
+    const state = `<i class="${esc(it.state)}"></i><span>Human seat · ${esc(seatState[it.state] || it.state)} · ${esc(hhmm(it.reply_at || it.state_at))}</span>`;
+    const seat = it.reply != null
+      ? `<div class="msg seat"><div class="bubble">${md(it.reply) || "<p><em>(no reply text)</em></p>"}</div><div class="meta">${state}<button class="copy" type="button" data-copy="r${i}">Copy</button></div></div>`
+      : `<div class="msg seat"><div class="meta">${state}</div></div>`;
+    return `<div class="msg me"><div class="bubble">${mine}</div><div class="meta"><span>You · ${esc(hhmm(it.at))}</span><button class="copy" type="button" data-copy="m${i}">Copy</button></div></div>${seat}`;
+  }).join("") || `<p class="hint">No messages yet. Notes you send and chat messages show here, with the human seat's replies.</p>`;
+  if (end) threadEl.scrollTop = threadEl.scrollHeight;
+}
+threadEl.addEventListener("scroll", () => { pinned = threadEl.scrollHeight - threadEl.scrollTop - threadEl.clientHeight < 24; }, { passive: true });
+// The keyboard, the composer growing or the sidebar widening resize the thread: keep the newest message in view.
+if ("ResizeObserver" in window) new ResizeObserver(() => { if (pinned) threadEl.scrollTop = threadEl.scrollHeight; }).observe(threadEl);
+threadEl.addEventListener("click", async e => {
+  const b = e.target.closest("[data-copy]"); if (!b) return;
+  const it = thread[+b.dataset.copy.slice(1)]; if (!it) return;
+  const text = b.dataset.copy[0] === "r" ? it.reply : plainOf(it);
+  try { await navigator.clipboard.writeText(text); } catch {
+    const t = document.createElement("textarea"); t.value = text; t.style.cssText = "position:fixed;opacity:0"; document.body.append(t); t.select(); document.execCommand("copy"); t.remove();
+  }
+  b.textContent = "Copied"; setTimeout(() => { b.textContent = "Copy"; }, 1500);
+});
+const lastReply = () => thread.reduce((m, it) => (it.reply_at && it.reply_at > m ? it.reply_at : m), "");
+function paintBadge() {
+  const seen = ls.get(chatSeenKey) || "", n = chat.classList.contains("on") ? 0 : thread.filter(it => it.reply != null && (it.reply_at || "") > seen).length, bd = $("#chatbadge");
+  bd.textContent = n; bd.classList.toggle("on", n > 0); chatBtn.setAttribute("aria-label", n ? `Chat with the human seat, ${n} unread` : "Chat with the human seat");
+}
+function markSeen() { const last = lastReply(); if (last > (ls.get(chatSeenKey) || "")) ls.set(chatSeenKey, last); paintBadge(); }
+async function loadThread() {
+  try {
+    const r = await fetch("thread?limit=50", { credentials: "same-origin", cache: "no-store" }); if (!r.ok) return;
+    thread = (await r.json()).items || [];
+    if (ls.get(chatSeenKey) == null) ls.set(chatSeenKey, lastReply()); // a first visit starts with nothing unread
+    paintThread(); if (chat.classList.contains("on") && !document.hidden) markSeen(); else paintBadge();
+  } catch { /* offline: the thread stays as it was */ }
+}
+// A live status or reply: update its message, or reload the thread for one sent from another device.
+function onThread(d, change) {
+  if (!authed) return;
+  const it = thread.find(x => x.id === d.id);
+  if (!it) { clearTimeout(refetchT); refetchT = setTimeout(loadThread, 300); return; }
+  Object.assign(it, change); paintThread();
+  if (chat.classList.contains("on") && !document.hidden) markSeen(); else paintBadge();
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && chat.classList.contains("on")) markSeen(); });
+function chatAuth() {
+  chatBtn.hidden = !authed; $('#cmp-kind [data-k="chat"]').hidden = !authed;
+  if (!authed) { thread = []; if (chat.classList.contains("on")) openChat(false); return; }
+  loadThread();
+  if (ss.get(`${store}:chat`)) { ss.del(`${store}:chat`); openChat(true, true); }
+}
+const setChatStatus = (t, cls) => { const el = $("#chatstatus"); el.hidden = !t; el.className = `status${cls ? ` ${cls}` : ""}`; $("span", el).textContent = t || ""; el.setAttribute("role", cls === "err" ? "alert" : "status"); };
+// The textarea grows with its text up to about 6 lines, then scrolls. It is measured on an off-screen copy, so the
+// real one changes height only when a line is added or removed, and nothing else on screen moves while typing.
+let mirror = null;
+function grow() {
+  if (!mirror) { mirror = chatText.cloneNode(); mirror.removeAttribute("id"); mirror.setAttribute("aria-hidden", "true"); mirror.tabIndex = -1; mirror.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden;height:0;min-height:0;overflow:hidden"; chatText.after(mirror); }
+  const cs = getComputedStyle(chatText), line = parseFloat(cs.lineHeight) || 22, frame = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+  mirror.style.width = `${chatText.offsetWidth}px`; mirror.value = chatText.value || " ";
+  const h = `${Math.round(Math.min(Math.max(mirror.scrollHeight + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth), line + frame), 6 * line + frame))}px`;
+  if (chatText.style.height !== h) chatText.style.height = h;
+}
+function paintCtx() { const c = $("#chatctx"); c.hidden = !chatCtx; $("#chatctx-t").textContent = chatCtx ? `On ${chatCtx.anchor}${chatCtx.quote ? ` · “${chatCtx.quote}”` : ""}` : ""; }
+function persistChat() { if (chatText.value || chatCtx) ls.set(chatDraftKey, JSON.stringify({ text: chatText.value, ctx: chatCtx })); else ls.del(chatDraftKey); }
+function chatInput() { $("#chatsend").disabled = !chatText.value.trim() || !authed; grow(); persistChat(); }
+function openChat(o, quiet) {
+  if (o === chat.classList.contains("on")) return;
+  if (o) {
+    chatFocus = document.activeElement; setMenu(false);
+    if (sheet.classList.contains("on") && (MODAL() || !notes.length)) openSheet(false);
+  }
+  chat.classList.toggle("on", o); document.body.classList.toggle("chatting", o); chatBtn.setAttribute("aria-expanded", String(o));
+  placeBox(); syncModal(); paintNotes();
+  if (o) {
+    paintThread(true); grow(); markSeen(); loadThread();
+    if (!quiet) (phoneBox() ? chat : chatText).focus({ preventScroll: true });
+  } else { paintBadge(); if (chatFocus && chatFocus !== document.body && document.contains(chatFocus)) chatFocus.focus({ preventScroll: true }); chatFocus = null; }
+}
+// From a row's note box: the row goes along as context; focus moves inside the same tap, so a phone keeps its keyboard.
+function toChat(text, ctx) {
+  chatCtx = ctx; chatText.value = chatText.value.trim() ? `${chatText.value.trim()}\n\n${text}` : text; paintCtx();
+  openChat(true, true); chatInput(); chatText.focus({ preventScroll: true });
+}
+const chatSizes = ["", "half", "full"], chatSizeLabel = { "": "Expand", half: "Full width", full: "Collapse" };
+function setChatSize(v) {
+  chat.dataset.size = v; document.body.classList.toggle("chat-half", v === "half"); document.body.classList.toggle("chat-full", v === "full");
+  $("#chatsize").textContent = chatSizeLabel[v]; $("#chatsize").setAttribute("aria-label", { "": "Widen the chat to half the screen", half: "Widen the chat to full width", full: "Collapse the chat to a sidebar" }[v]);
+  ls.set(`${store}:chatsize`, v); layoutPanel();
+}
+$("#chatsize").addEventListener("click", () => setChatSize(chatSizes[(chatSizes.indexOf(chat.dataset.size || "") + 1) % 3]));
+chatBtn.addEventListener("click", () => openChat(!chat.classList.contains("on")));
+$("#chatclose").addEventListener("click", () => openChat(false));
+$("#chatctxx").addEventListener("click", () => { chatCtx = null; paintCtx(); persistChat(); chatText.focus({ preventScroll: true }); });
+chatText.addEventListener("input", chatInput);
+chatText.addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $("#chatform").requestSubmit(); } });
+// Tapping Send keeps the focus (and a phone's keyboard) in the textarea.
+$("#chatsend").addEventListener("pointerdown", e => e.preventDefault());
+$("#chatform").addEventListener("submit", async e => {
+  e.preventDefault(); const text = chatText.value.trim(); if (!text || !authed) return;
+  const ctx = chatCtx ? { anchor: chatCtx.anchor, quote: chatCtx.quote || undefined } : {};
+  $("#chatsend").disabled = true; setChatStatus("Sending…");
+  try {
+    const r = await fetch("chat", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, ...ctx }) });
+    const body = await r.text();
+    if (r.status !== 202) throw new Error(`${r.status}: ${body}`);
+    const id = JSON.parse(body).id, now = new Date().toISOString();
+    if (!thread.some(x => x.id === id)) thread.push({ id, kind: "chat", text, ...ctx, at: now, state: "queued", state_at: now });
+    chatText.value = ""; chatCtx = null; paintCtx(); setChatStatus(""); paintThread(true);
+  } catch (err) { setChatStatus(`Not sent (${err.message}). Your message is kept; try again.`, "err"); }
+  chatInput();
+});
+function restoreChat() {
+  setChatSize(chatSizes.includes(ls.get(`${store}:chatsize`)) ? ls.get(`${store}:chatsize`) : "");
+  $("#chat-h").innerHTML = `${esc(b.title || "Tracking board")} <small>· chat</small>`;
+  let d = null; try { d = JSON.parse(ls.get(chatDraftKey) || "null"); } catch { d = null; }
+  if (d) { chatText.value = d.text || ""; chatCtx = d.ctx || null; paintCtx(); }
+  setChatStatus(""); paintThread(true); paintBadge();
+}
 $("#send").addEventListener("click", async () => {
   const send = $("#send"); send.disabled = true; setStatus("Sending…");
   try {
     const r = await fetch("feedback", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: notes.map(({ id, kind, anchor, quote, text }) => ({ id, kind, anchor, quote, text })) }) });
     const body = await r.text();
     if (r.status !== 202) { setStatus(`Not sent (${r.status}): ${body}. Your notes are kept; try again.`, "err"); send.disabled = false; return; }
-    pending = JSON.parse(body).id; notes = []; saveNotes(); $("#reply").hidden = true; setStatus("Queued for the human seat…", "ok");
+    pending = JSON.parse(body).id; const now = new Date().toISOString();
+    thread.push({ id: pending, kind: "notes", notes: notes.map(({ kind, anchor, quote, text }) => ({ kind, anchor, quote, text })), at: now, state: "queued", state_at: now }); paintThread(true);
+    notes = []; saveNotes(); setStatus("Sent. The human seat's reply shows in the chat.", "ok");
   } catch (err) { setStatus(`Not sent: ${err.message}. Your notes are kept; try again.`, "err"); send.disabled = false; }
 });
-const stateText = { queued: "Queued for the human seat…", delivered: "Delivered to the human seat…", working: "The seat is working on it…", done: "Done. Reply below.", aborted: "The run was stopped." };
+const stateText = { queued: "Queued for the human seat…", delivered: "Delivered to the human seat…", working: "The seat is working on it…", done: "Done. The reply is in the chat.", aborted: "The run was stopped." };
 if ("EventSource" in window && location.protocol.startsWith("http")) {
   const es = new EventSource("events");
   addEventListener("pagehide", () => es.close());
@@ -1008,12 +1247,15 @@ if ("EventSource" in window && location.protocol.startsWith("http")) {
     const h = JSON.parse(e.data); online = true; authed = !!h.auth;
     setStatus(!authed ? "Read-only. To send feedback, open this board through its tailnet address as a listed owner, or open the login link from the human seat (board.cjs login)."
       : h.who ? `Connected as ${h.who}. Notes go to the human seat.` : "Connected. Notes go to the human seat.", authed ? "ok" : "");
-    paintNotes();
+    paintNotes(); chatAuth();
   });
-  es.addEventListener("status", e => { const d = JSON.parse(e.data); if (!pending || d.id === pending) setStatus(stateText[d.state] || d.state, "ok"); });
-  es.addEventListener("reply", e => { const d = JSON.parse(e.data); if (pending && d.id !== pending) return; const r = $("#reply"); r.hidden = false; r.textContent = d.reply || "(no reply text)"; pending = null; openSheet(true); });
+  es.addEventListener("status", e => { const d = JSON.parse(e.data); if (!pending || d.id === pending) setStatus(stateText[d.state] || d.state, "ok"); onThread(d, { state: d.state, state_at: d.at }); });
+  es.addEventListener("reply", e => {
+    const d = JSON.parse(e.data); onThread(d, { reply: String(d.reply || ""), reply_at: d.at });
+    if (pending && d.id === pending) { pending = null; paintNotes(); if (!composer.classList.contains("on")) openChat(true); }
+  });
   es.addEventListener("reload", () => {
-    ss.set(`${store}:y`, String(scrollY)); ss.set(`${store}:reply`, $("#reply").hidden ? "" : $("#reply").textContent);
+    ss.set(`${store}:y`, String(scrollY)); ss.set(`${store}:chat`, chat.classList.contains("on") ? "1" : ""); persistChat();
     ss.set(`${store}:open`, sheet.classList.contains("on") ? "1" : ""); ss.set(`${store}:focus`, composer.classList.contains("on") ? "1" : ""); persistDraft(); location.reload();
   });
   es.onerror = () => { if (!online) setStatus("Feedback server offline: notes stay in this browser.", "err"); };
@@ -1042,7 +1284,7 @@ document.title = `${b.title || "Tracking board"} · Tracking board`;
 $("#bartitle").textContent = b.title || "Tracking board";
 apply(); paintNotes();
 const y = ss.get(`${store}:y`); if (y) { ss.del(`${store}:y`); setTimeout(() => scrollTo({ top: +y, behavior: "instant" }), 200); }
-const keptReply = ss.get(`${store}:reply`); if (keptReply) { ss.del(`${store}:reply`); $("#reply").hidden = false; $("#reply").textContent = keptReply; }
+restoreChat();
 if (ss.get(`${store}:open`)) { ss.del(`${store}:open`); openSheet(true); }
 let savedDraft = null; try { savedDraft = JSON.parse(ls.get(`${store}:draft`) || "null"); } catch { savedDraft = null; }
 if (savedDraft && savedDraft.akey) { const refocus = ss.get(`${store}:focus`) === "1"; ss.del(`${store}:focus`); openComposer(savedDraft, refocus); }
