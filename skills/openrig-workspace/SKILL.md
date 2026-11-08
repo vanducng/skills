@@ -1,10 +1,10 @@
 ---
 name: openrig-workspace
-description: Work inside the org/project/task projects workspace (`$PROJECTS_ROOT`) across harnesses and fleet hosts. Use whenever the cwd is under it or a task touches a project, mission, slice, task dir, worktree, rig or seat there, such as rig kind (`--kind feature --profile low|medium|high`, `--kind bugfix`, `--kind sop`), slice and worktree names, starting or finishing a task, restarting or moving a rig, seat effort and quota, captain-signed messages, a seat treating a one-turn classifier refusal as a ban, Rex server upgrades on rig hosts, and workspace sync across macOS and Linux ('sync fleet', 'fleet sync'). Also owns resources.yaml and contacts.yaml ('update resources.yaml', 'collect resources for <project>', 'add this channel/thread/person', 'refresh contacts', 'who do we talk to about <topic>') and tracking boards ('track this on a board'). Defers OpenRig itself to `rig context get openrig-skills`, worktrees to the repo's command or vd:worktree, artifacts to vd:workbench, panes to Rex's rex skill.
+description: Work inside the org/project/task projects workspace (`$PROJECTS_ROOT`) across harnesses and fleet hosts. Use whenever the cwd is under it or a task touches a project, mission, slice, task dir, worktree, rig or seat there, such as rig kind (`--kind feature --profile low|medium|high`, `--kind bugfix|sop|content`), slice and worktree names, starting or finishing a task, restarting or moving a rig, seat effort and quota, captain-signed messages, a seat treating a one-turn classifier refusal as a ban, Rex server upgrades on rig hosts, and workspace sync across macOS and Linux ('sync fleet', 'fleet sync'). Also owns resources.yaml and contacts.yaml ('update resources.yaml', 'collect resources for <project>', 'add this channel/thread/person', 'refresh contacts', 'who do we talk to about <topic>') and tracking boards ('track this on a board'). Defers OpenRig itself to `rig context get openrig-skills`, worktrees to the repo's command or vd:worktree, artifacts to vd:workbench, panes to Rex's rex skill.
 license: MIT
 metadata:
   author: vanducng
-  version: "0.16.1"
+  version: "0.17.0"
 ---
 
 # OpenRig workspace
@@ -88,6 +88,7 @@ node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind feature
 node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind feature --profile high
 node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind bugfix
 node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind sop
+node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind content
 ```
 
 | Kind | Profile | When | Template | Seats |
@@ -96,9 +97,10 @@ node "$HOME/skills/skills/openrig-workspace/scripts/rig-kind.cjs" --kind sop
 | `feature` | `medium` | Needs a reviewer who did not write the code. Still one writer | `workshop` | `orch.human`, `orch.lead`, `dev.build`, `dev.qa`, `dev.review` |
 | `feature` | `high` | More than one repo, a new user-visible flow, or a plan the operator must accept before code | `factory` | `orch.human`, `orch.lead`, `orch.advisor`, `orch.pm`, `dev.build`, `dev.qa`, `dev.design`, `review.r1` |
 | `bugfix` | none | Something is failing. Prove it, then fix it | `workshop` | as `feature` `medium` |
+| `content` | none | Research-and-writing for a reader: research a trip, write and check a plan, publish a post, small site feature with it | `studio` | `research.writer` |
 | `sop` | none | The org or project already has the steps. Execute them | `solo` | `dev.build` |
 
-Each seat's `PI_TUI_ROLE` is its member name (`lead`, `build`, `qa`, `review`, `design`, `pm`, `advisor`), and `rig-to-pi convert` picks its model from that role. A `factory` slice that needs a second reviewer adds `review.r2` with `rig add`; the template carries one.
+Each seat's `PI_TUI_ROLE` is its member name (`lead`, `build`, `qa`, `review`, `design`, `pm`, `advisor`, `writer`), and `rig-to-pi convert` picks its model from that role. A `factory` slice that needs a second reviewer adds `review.r2` with `rig add`; the template carries one.
 
 The flags select only these three templates. They do not select the upstream starters `first-project`, `first-project-claude`, or `first-project-mixed`. Those are two-seat recipes for a repository with no org layout.
 
@@ -109,6 +111,8 @@ Put the choice on the first line of the task `AGENTS.md`: `Kind: feature medium`
 **Feature.** Low is `solo`: `dev.build` writes alone. Medium is `workshop`: `orch.lead` coordinates and does not edit the worktree; `dev.build` writes, `dev.qa` runs the change, and `dev.review` reviews it. High is `factory`: the workshop seats (with `review.r1` in place of `dev.review`) plus `orch.advisor`, `orch.pm` and `dev.design`, with `review.r2` added by `rig add` when a second reviewer is needed. High does not start implementation until the operator has accepted the plan. `orch.pm` writes the briefs and docs, and `dev.design` the mockups for user-visible behavior.
 
 **Bug fix.** No code until a check is red or the cause is proven from evidence. Same seats as a medium feature. Create the slice with `--template bug-fix`.
+
+**Content.** One writer seat researches and drafts (`research.writer`, role `writer`). Sources with checked-on dates for every fact a reader acts on; the named reader gets the operator's voice; private details of people never go in. Small site changes are in scope; publishing, deploys and messages to people wait for the operator. A `research.review` fact-check seat can be added later with `rig add`.
 
 **SOP.** Read the procedure in this order: a path the user named, then the project `AGENTS.md`, then the org `AGENTS.md`. Copy its steps into the slice mini-requirements and do them in that order. One seat. If no procedure exists, stop and ask. Do not promote it to a feature rig.
 
