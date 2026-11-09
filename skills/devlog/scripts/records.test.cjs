@@ -37,6 +37,8 @@ function workspace() {
   put(boards, "northwind/ledger/m1/board.json", JSON.stringify({ decisions: [
     { id: "C1", q: "Retry budget?", rec: "5 tries", status: "accepted", decided: "2026-03-02" },
     { id: "Q2", q: "Open one", status: "open" },
+    { id: "C3", q: "Old answer", status: "superseded", decided: "2026-03-02" },
+    { id: "C4", q: "Short form", status: "C", decided: "2026-03-03" },
   ] }));
   return { root, boards };
 }
@@ -49,7 +51,7 @@ test("week gathers retro lines, verdicts, decisions and commit trailers since a 
   assert.deepEqual(w.retros.map(x => x.text), ["none escaped; the export retries now stop after 5 tries", "the CLI prints JSON envelopes"]);
   assert.equal(w.retros[0].project, "northwind/ledger");
   assert.deepEqual(w.verdicts.map(v => [v.slice, v.axes]), [["03-export", "spec: pass, standards: pass"]]);
-  assert.deepEqual(w.decisions.map(d => d.id), ["C1"]);
+  assert.deepEqual(w.decisions.map(d => d.id), ["C1", "C4"]); // accepted only: not open, not superseded
   assert.deepEqual(w.commits.map(c => [c.host, c.rig, c.seat]), [["lab-mini", "ledger-team", "dev@ledger-team"]]);
 });
 
@@ -95,4 +97,40 @@ test("a week too large for one pipe buffer still arrives whole", () => {
   const r = run({ PROJECTS_ROOT: root, OPENRIG_BOARDS_ROOT: boards }, "week", "--since", "2026-03-01");
   assert.equal(r.code, 0, r.err);
   assert.equal(r.json().retros.length, 3002);
+});
+
+test("a lone surname from a contact's name is a hit", () => {
+  const { root } = workspace();
+  const draft = path.join(root, "draft.txt");
+  fs.writeFileSync(draft, "thanks to Raman for the review\n");
+  const r = run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss" }, "scrub", draft);
+  assert.equal(r.code, 1, r.out);
+  assert.deepEqual(r.json().hits.map(h => h.name), ["Raman"]);
+});
+
+test("a name inside a hyphenated identifier is a hit", () => {
+  const { root } = workspace();
+  const draft = path.join(root, "draft.txt");
+  fs.writeFileSync(draft, "merged northwind-ds-export#12, then ledger-v2\n");
+  const r = run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss" }, "scrub", draft);
+  assert.equal(r.code, 1, r.out);
+  assert.deepEqual(r.json().hits.map(h => h.name).sort(), ["ledger", "northwind"]);
+});
+
+test("scrub with no records exits 2: no names to check is not clean", () => {
+  const draft = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "devlog-")), "draft.txt");
+  fs.writeFileSync(draft, "anything\n");
+  assert.equal(run({}, "scrub", draft).code, 2);
+});
+
+test("DEVLOG_ALLOW takes only org and project names from the records, and the scrub reports what it allowed", () => {
+  const { root } = workspace();
+  const draft = path.join(root, "draft.txt");
+  fs.writeFileSync(draft, "the toolkit shipped; thanks priya\n");
+  const r = run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss,priya,nosuch" }, "scrub", draft);
+  assert.equal(r.code, 1, r.out);
+  const out = r.json();
+  assert.deepEqual(out.hits.map(h => h.name), ["priya"]); // a person is never allowed
+  assert.deepEqual(out.allowed, ["oss"]);
+  assert.deepEqual(out.ignored_allow, ["nosuch", "priya"]);
 });

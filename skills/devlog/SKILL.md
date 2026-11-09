@@ -210,12 +210,18 @@ For every draft:
 **Scrub gate, before any draft is shown, saved or posted** (text, vault post,
 blog post or thread): write the draft to a file and run `node "$R" scrub <file>`.
 
-- Exit 1 lists each hit: an org, project, host or person from the records, or a
-  private path, tailnet host or email. Refuse that draft. Rewrite it without
+- Exit 1 lists each hit: an org, project, host or person from the records
+  (a surname alone counts; so does a name inside `name-repo#12`), or a private
+  path, tailnet host or email. Refuse that draft. Rewrite it without
   those names ("a client", "a build host"), and scrub again until it exits 0.
 - Never show, save or post a draft that has not passed.
-- Orgs and words that are public go in `DEVLOG_ALLOW` (comma list), and only on
-  the user's word. An allowed org adds none of its names.
+- Exit 2 means there are no records to check names against (no
+  `$PROJECTS_ROOT`). Check the draft by hand against hard rule 3 and say the
+  gate did not run.
+- Public orgs and projects go in `DEVLOG_ALLOW` (comma list), and only on the
+  user's word. It accepts org and project names from the records, never a
+  person or a host. The scrub's JSON lists what it allowed (`allowed`) and what
+  it ignored (`ignored_allow`).
 
 ### 7. Materialize vault artifacts in the same turn
 

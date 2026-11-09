@@ -4,11 +4,12 @@
 //   records.cjs week [--since YYYY-MM-DD] [--root <dir>]   JSON: retro lines, review verdicts, board decisions and commit
 //                                                         trailers (Host, Rig, Seat) across <root>/orgs/*/projects/*
 //   records.cjs scrub <draft-file> [--root <dir>]          exit 0 clean; exit 1 with the hits: an org, a project, a host
-//                                                         or a person named in the records, or a private path
+//                                                         or a person named in the records, or a private path; exit 2
+//                                                         with no records
 //
 // <root> is $PROJECTS_ROOT; without one, `week` exits 2 (use plain git log). Boards come from $OPENRIG_BOARDS_ROOT
-// (default ~/.share/openrig/boards). $DEVLOG_ALLOW (comma list) names public orgs and words the scrub lets through:
-// an allowed org adds none of its own names.
+// (default ~/.share/openrig/boards). $DEVLOG_ALLOW (comma list) names public orgs and projects from the records; the
+// scrub lets those names through, reports them, and ignores every other value.
 "use strict";
 const fs = require("node:fs");
 const os = require("node:os");
@@ -57,7 +58,7 @@ function week(root, since) {
   for (const org of dirs(boards)) for (const project of dirs(path.join(boards, org))) for (const slug of dirs(path.join(boards, org, project))) {
     let board; try { board = JSON.parse(read(path.join(boards, org, project, slug, "board.json"))); } catch { continue; }
     for (const d of board.decisions || [])
-      if (d.decided && after(day(d.decided))) w.decisions.push({ board: `${org}/${project}/${slug}`, id: d.id, q: d.q, rec: d.rec, decided: day(d.decided) });
+      if (/^(accepted|c)$/i.test(String(d.status || "")) && d.decided && after(day(d.decided))) w.decisions.push({ board: `${org}/${project}/${slug}`, id: d.id, q: d.q, rec: d.rec, decided: day(d.decided) });
   }
   const log = spawnSync("git", ["-C", root, "log", ...(since ? [`--since=${since}`] : ["-n", "200"]),
     "--format=%H%x1f%cs%x1f%s%x1f%(trailers:key=Host,valueonly,separator=%x2c)%x1f%(trailers:key=Rig,valueonly,separator=%x2c)%x1f%(trailers:key=Seat,valueonly,separator=%x2c)%x1e"], { encoding: "utf8" });
@@ -69,26 +70,35 @@ function week(root, since) {
   return w;
 }
 
-// Every private name the records hold, with its kind; an allowed org adds none, an allowed word is dropped.
+// Every private name the records hold, with its kind. DEVLOG_ALLOW may name orgs and projects from the records only:
+// an allowed org drops its own name and its projects' names, never its people or hosts. Other values are ignored.
 function names(root) {
-  const allow = new Set((process.env.DEVLOG_ALLOW || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
+  const asked = [...new Set((process.env.DEVLOG_ALLOW || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean))].sort();
+  const orgs = dirs(path.join(root, "orgs")).map(org => ({ org, projects: dirs(path.join(root, "orgs", org, "projects")) }));
+  const public_ = new Set(orgs.flatMap(o => [o.org, ...o.projects]).map(n => n.toLowerCase()));
+  const allowed = asked.filter(n => public_.has(n));
   const found = new Map();
-  const add = (kind, name) => {
+  const add = (kind, name, allowable = false) => {
     const n = String(name || "").trim().replace(/^["']|["']$/g, "");
-    if (n.length >= 3 && !allow.has(n.toLowerCase()) && !found.has(n.toLowerCase())) found.set(n.toLowerCase(), { kind, name: n });
+    if (n.length < 3 || found.has(n.toLowerCase()) || (allowable && allowed.includes(n.toLowerCase()))) return;
+    found.set(n.toLowerCase(), { kind, name: n });
   };
-  for (const org of dirs(path.join(root, "orgs"))) {
-    if (allow.has(org.toLowerCase())) continue;
-    add("org", org);
-    for (const project of dirs(path.join(root, "orgs", org, "projects"))) add("project", project);
+  for (const { org, projects } of orgs) {
+    if (!allowed.includes(org.toLowerCase())) {
+      add("org", org, true);
+      for (const project of projects) add("project", project, true);
+    }
     const contacts = read(path.join(root, "orgs", org, "contacts.yaml"));
     for (const m of contacts.matchAll(/^ {2}([A-Za-z][\w.-]*):\s*$/gm)) add("person", m[1]);
-    for (const m of contacts.matchAll(/^\s+name:\s*(.+)$/gm)) add("person", m[1]);
+    for (const m of contacts.matchAll(/^\s+name:\s*(.+)$/gm)) {
+      add("person", m[1]);
+      for (const token of m[1].replace(/^["']|["']$/g, "").split(/\s+/)) add("person", token); // a surname alone still names them
+    }
     for (const m of read(path.join(root, "orgs", org, "repos.yaml")).matchAll(/^\s*host:\s*(\S+)/gm)) add("host", m[1]);
   }
   const log = spawnSync("git", ["-C", root, "log", "-n", "2000", "--format=%(trailers:key=Host,valueonly,separator=%x0a)"], { encoding: "utf8" });
   if (log.status === 0) for (const h of log.stdout.split("\n")) add("host", h);
-  return [...found.values()];
+  return { names: [...found.values()], allowed, ignored_allow: asked.filter(n => !allowed.includes(n)) };
 }
 
 // Private by shape, whatever the records say; a hit is reported by its label, never by the user or host it names.
@@ -102,8 +112,10 @@ function scrub(file, root) {
   const hits = [];
   const first = re => lines.findIndex(l => re.test(l)) + 1; // 0 when no line matches
   const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  for (const { kind, name } of root ? names(root) : []) {
-    const re = new RegExp(`(^|[^\\p{L}\\p{N}_-])${esc(name)}(?![\\p{L}\\p{N}_]|-[\\p{L}\\p{N}])`, "iu");
+  const known = names(root);
+  for (const { kind, name } of known.names) {
+    // A hyphen is a boundary: an org inside `org-repo#12` is still the org. A longer word (`ledgers`) is not a hit.
+    const re = new RegExp(`(^|[^\\p{L}\\p{N}_])${esc(name)}(?![\\p{L}\\p{N}_])`, "iu");
     const line = first(re);
     if (line) hits.push({ kind, name, line });
   }
@@ -111,7 +123,7 @@ function scrub(file, root) {
     const line = first(re);
     if (line) hits.push({ kind: "path", name, line });
   }
-  return { file, clean: hits.length === 0, hits };
+  return { file, clean: hits.length === 0, hits, allowed: known.allowed, ignored_allow: known.ignored_allow };
 }
 
 function main(argv) {
@@ -130,7 +142,9 @@ function main(argv) {
   }
   if (cmd === "scrub") {
     if (!o._[0]) throw new Usage("scrub <draft-file>");
-    const r = scrub(o._[0], root && fs.existsSync(path.join(root, "orgs")) ? root : "");
+    // No records means no names to check: that is not a clean draft.
+    if (!root || !fs.existsSync(path.join(root, "orgs"))) throw new Usage("no workspace records ($PROJECTS_ROOT unset or without orgs/): the scrub cannot check names");
+    const r = scrub(o._[0], root);
     return { code: r.clean ? 0 : 1, out: r };
   }
   throw new Usage("usage: records.cjs week|scrub (see the header of this file)");
