@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.82.0](https://github.com/vanducng/skills/compare/v1.81.0...v1.82.0) (2026-11-09)
+
+
+### Features
+
+* **openrig-workspace:** board layout and readability pass ([#604](https://github.com/vanducng/skills/issues/604)) ([bf8da26](https://github.com/vanducng/skills/commit/bf8da268f5ca81533af9182781e878b19c4394d8))
+
 ## [1.81.0](https://github.com/vanducng/skills/compare/v1.80.0...v1.81.0) (2026-11-08)
 
 
