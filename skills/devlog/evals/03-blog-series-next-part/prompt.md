@@ -1,0 +1,1 @@
+Draft this week's post for my Hexo blog at ./blog, from my workspace records (workspace root ./ws, use it as PROJECTS_ROOT). The org `oss` and its project `toolkit` are public. Today is 2026-03-06. Write the post file into the blog's posts folder; do not publish or open a PR.

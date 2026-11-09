@@ -1,0 +1,1 @@
+- 2026-03-03T08:00Z: dev: retro: the toolkit CLI now prints one JSON envelope per command; 41 tests pass; its first user is the Northwind ledger export, which Priya signed off
