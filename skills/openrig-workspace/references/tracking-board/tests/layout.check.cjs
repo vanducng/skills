@@ -5,7 +5,8 @@
 //
 // For fixtures/board.json and fixtures/long.json (9 open decisions, 8 dated updates, long section titles):
 //   lead      no card in .lead sits more than 24px below the card above it (nothing floats in a stretched row);
-//   waiting   one "Waiting on you" card holds the asks, then the open decisions, with one count; the Open decisions
+//   waiting   one "Waiting on you" card holds the asks, then the open decisions, with one count of unique items (an ask
+//             that links to an open decision is not counted again); the Open decisions
 //             stat links to that card's decision list;
 //   decisions every decision starts collapsed with its recommendation on one line; one opened stays open on reload;
 //   measure   inside a section, paragraphs, tables, code and lists share one width;
@@ -65,8 +66,13 @@ const PROBE = `(() => {
   if (!wait || !/Waiting on you/.test(wait.querySelector("h2")?.textContent || "")) bad.push("waiting: no card titled Waiting on you");
   else {
     if (openDec.length && !(list && wait.contains(list))) bad.push("waiting: the open decisions are not inside the Waiting on you card");
+    // One count of unique items: an ask that links to an open decision (#dec-<id>) is that decision, not a second item.
+    const decHrefs = new Set(openDec.map(d => "#" + document.querySelector(\`.drow[data-akey="d:\${CSS.escape(d.id)}"]\`)?.id));
+    const want = openDec.length + needs.filter(x => !(x && typeof x === "object" && decHrefs.has(x.href))).length;
     const cnt = wait.querySelector(".cnt")?.textContent.trim();
-    if (cnt !== String(needs.length + openDec.length)) bad.push(\`waiting: count \${cnt}, want \${needs.length + openDec.length}\`);
+    if (cnt !== String(want)) bad.push(\`waiting: count \${cnt}, want \${want} unique items\`);
+    const nav = document.querySelector('#rail a[href="#needs"] .n')?.textContent.trim();
+    if (nav != null && nav !== String(want)) bad.push(\`waiting: rail count \${nav}, want \${want}\`);
     const asks = wait.querySelector("ol"), first = asks && list && (asks.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING);
     if (needs.length && openDec.length && !first) bad.push("waiting: the asks do not come before the decisions");
     if ($$(".lead .card").filter(c => /Open decisions/.test(c.querySelector("h2")?.textContent || "") && c !== wait && !wait.contains(c)).length) bad.push("waiting: a separate Open decisions card is still shown");

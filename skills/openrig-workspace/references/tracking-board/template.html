@@ -677,6 +677,10 @@ const pill = s => `<span class="pill ${pillClass(s)}">${esc(label(s))}</span>`;
 const safeRun = (name, fn) => { try { return fn(); } catch (e) { return `<section class="card emptycard" role="alert"><b>${esc(name)} could not be drawn</b><p class="meta mono">${esc(e.message || e)}</p></section>`; } };
 const DOT = '<span class="newdot" role="img" aria-label="Changed since your last visit"></span>';
 const A = { dec: id => `dec-${idOf(id, new Set())}` };
+// Waiting on you counts unique items: an ask that links to an open decision (#dec-<id>) is that decision, so it keeps
+// its row but is not counted twice.
+const openDecHrefs = new Set(openDec.map(d => `#${A.dec(d.id)}`));
+const waitingN = openDec.length + needs.filter(x => !(x && typeof x === "object" && openDecHrefs.has(x.href))).length;
 const mIds = new Map(missions.map(m => [m, idOf(`m-${m.id}`, used)]));
 const secIds = new Map(sections.map(s => [s, idOf(s.id, used)]));
 
@@ -703,7 +707,7 @@ const sliceDomId = (m, s) => { const key = `${m.id}/${s.id}`; if (!sliceIds.has(
 
 // Waiting on you: the asks first, then the open decisions, under one count.
 function waitingHtml() {
-  const n = needs.length + openDec.length;
+  const n = waitingN;
   if (!n) return `<section class="card needscard clear" id="needs" aria-labelledby="needs-h"><header><h2 id="needs-h">Waiting on you</h2><span class="cnt" style="background:var(--tb-ok-bar)" aria-label="0 items">0</span></header><p>Nothing is waiting on you.</p></section>`;
   const items = needs.map((x, i) => {
     const o = typeof x === "string" ? { text: x } : (x || {}), href = o.href ? safeHref(o.href) : "";
@@ -780,7 +784,7 @@ function sectionHtml(s) {
 const ordered = orderMissions(missions);
 const before = sections.filter(s => s.place !== "after" && s.place !== "bottom"), upper = sections.filter(s => s.place === "after"), lower = sections.filter(s => s.place === "bottom");
 const secNav = s => [secIds.get(s), s.nav || s.title, null, false, s.title];
-const navItems = [["needs", "Waiting on you", needs.length + openDec.length],
+const navItems = [["needs", "Waiting on you", waitingN],
   ...before.map(secNav),
   ["missions", "Missions", missions.length], ...ordered.map(m => [mIds.get(m), `${m.id} ${m.name}`, null, true]),
   ...upper.map(secNav),
