@@ -1,0 +1,489 @@
+{
+  "title": "Sample long board: release assistant and secrets (M0-M3)",
+  "org": "demo",
+  "project": "audit",
+  "slug": "long",
+  "owner_seat": "lead-human@demo-rig",
+  "updated": "2026-11-08 10:30",
+  "headline": "GREEN · M4 5/17 slices; message formats decided; dogfood run with the whole team 21:00-23:00 · 11:55 (GMT+7)",
+  "phase": "Build",
+  "needs": [
+    {
+      "text": "Posting permission text: an exact-text yes when the lead sends it",
+      "href": "#dec-RA1",
+      "link": "Decide RA1"
+    }
+  ],
+  "sections": [
+    {
+      "id": "plan",
+      "title": "Plan: secrets and delivery together",
+      "nav": "Plan",
+      "html": "<p><b>One plan for both designs.</b> Org secrets come only from the parameter store; workspace secrets stay in the app database, and a workspace may use an org secret only when it is shared to it. Delivery uses one reply per request, with media inline and no duplicates.</p>\n<table><tr><th>#</th><th>Slice</th><th>Outcome</th><th>Depends on</th></tr><tr><td>S1</td><td>Secret inventory</td><td>A table of every secret name (no values): scope, where stored, which agents use it, proposed home.</td><td>-</td></tr><tr><td>S2</td><td>Close the fallback</td><td>Stored org values no longer reach every agent and agent-less session.</td><td>-</td></tr><tr><td>S3</td><td>Org catalog</td><td><code>configs/org.yaml</code> secrets with <code>source: store</code> and <code>share</code>.</td><td>S1</td></tr><tr><td>S4</td><td>Code owners</td><td>Every PR requests the owner's review; no required-review rule.</td><td>-</td></tr><tr><td>S5</td><td>Move org secrets</td><td>Approved names move to the store (a person writes values).</td><td>S3, S4</td></tr></table>\n<p><b>Runs in parallel:</b> S1, S2 and S4 start now; the chat and tracker adapters do not wait on secrets; only the code-host adapter waits for S5.</p>\n<p><b>Status (2026-11-07, 02:40Z, product-pm):</b> the lead relayed answer 1: the gate stays as agreed, slice 3 moves to review once its proof is recorded, and the dry run on the private channel repeats before the next release. Nothing else changes in the plan; the owner seat keeps the records in the slice progress files.</p>\n<p><b>Status (2026-11-07, 03:15Z, product-pm):</b> the lead relayed answer 2: the gate stays as agreed, slice 4 moves to review once its proof is recorded, and the dry run on the private channel repeats before the next release. Nothing else changes in the plan; the owner seat keeps the records in the slice progress files.</p>\n<p><b>Status (2026-11-07, 03:30Z, product-pm):</b> the lead relayed answer 3: the gate stays as agreed, slice 5 moves to review once its proof is recorded, and the dry run on the private channel repeats before the next release. Nothing else changes in the plan; the owner seat keeps the records in the slice progress files.</p>\n<p><b>Update (2026-11-07, 03:35Z, product-pm):</b> the lead relayed answer 4: the gate stays as agreed, slice 6 moves to review once its proof is recorded, and the dry run on the private channel repeats before the next release. Nothing else changes in the plan; the owner seat keeps the records in the slice progress files.</p>\n<p><b>Update (2026-11-07, 04:20Z, product-pm):</b> the lead relayed answer 5: the gate stays as agreed, slice 7 moves to review once its proof is recorded, and the dry run on the private channel repeats before the next release. Nothing else changes in the plan; the owner seat keeps the records in the slice progress files.</p>\n<p><b>Correction (2026-11-07, 05:05Z, product-pm):</b> the lead relayed answer 6: the gate stays as agreed, slice 8 moves to review once its proof is recorded, and the dry run on the private channel repeats before the next release. Nothing else changes in the plan; the owner seat keeps the records in the slice progress files.</p>\n<p><b>Status update (2026-11-07, 05:41Z, product-pm):</b> the lead relayed answer 7: the gate stays as agreed, slice 9 moves to review once its proof is recorded, and the dry run on the private channel repeats before the next release. Nothing else changes in the plan; the owner seat keeps the records in the slice progress files.</p>\n<p><b>Status update (2026-11-08, 04:05Z, product-pm):</b> the lead relayed answer 8: the gate stays as agreed, slice 10 moves to review once its proof is recorded, and the dry run on the private channel repeats before the next release. Nothing else changes in the plan; the owner seat keeps the records in the slice progress files.</p>"
+    },
+    {
+      "id": "release-flow",
+      "title": "Release assistant: agreed flow and the gates it checks before it posts",
+      "html": "<p>The assistant checks the gate at 09:00, posts the pre-release note, reminds assignees in the thread, and posts the go message once every box is ticked by a person.</p><ol><li>Gate check</li><li>Pre-release note</li><li>Reminder in the thread</li><li>Go message</li></ol>"
+    },
+    {
+      "id": "release-messages",
+      "title": "Release assistant: message formats (agreed: styled, 1a-5a)",
+      "html": "<h3>Format 1a</h3><p>The pre-release note keeps one header line, the release name and the owner, then the changes as a short list. Long lists fold after five rows with a count of the rest.</p>\n<pre><code>:rocket: Release 2026.11.10 · owner @release-owner\n- PRJ-120: export retries with backoff\n- PRJ-130: console filters for failed deliveries\n- PRJ-140: intake schema v3\n… and 3 more</code></pre>\n<h3>Format 2a</h3><p>The reminder keeps one header line, the release name and the owner, then the changes as a short list. Long lists fold after five rows with a count of the rest.</p>\n<pre><code>:rocket: Release 2026.11.11 · owner @release-owner\n- PRJ-121: export retries with backoff\n- PRJ-131: console filters for failed deliveries\n- PRJ-141: intake schema v3\n… and 4 more</code></pre>\n<h3>Format 3a</h3><p>The go message keeps one header line, the release name and the owner, then the changes as a short list. Long lists fold after five rows with a count of the rest.</p>\n<pre><code>:rocket: Release 2026.11.12 · owner @release-owner\n- PRJ-122: export retries with backoff\n- PRJ-132: console filters for failed deliveries\n- PRJ-142: intake schema v3\n… and 5 more</code></pre>\n<h3>Format 4a</h3><p>The done message keeps one header line, the release name and the owner, then the changes as a short list. Long lists fold after five rows with a count of the rest.</p>\n<pre><code>:rocket: Release 2026.11.13 · owner @release-owner\n- PRJ-123: export retries with backoff\n- PRJ-133: console filters for failed deliveries\n- PRJ-143: intake schema v3\n… and 6 more</code></pre>\n<h3>Format 5a</h3><p>The rollback note keeps one header line, the release name and the owner, then the changes as a short list. Long lists fold after five rows with a count of the rest.</p>\n<pre><code>:rocket: Release 2026.11.14 · owner @release-owner\n- PRJ-124: export retries with backoff\n- PRJ-134: console filters for failed deliveries\n- PRJ-144: intake schema v3\n… and 7 more</code></pre>\n<h3>Format 6a</h3><p>The summary keeps one header line, the release name and the owner, then the changes as a short list. Long lists fold after five rows with a count of the rest.</p>\n<pre><code>:rocket: Release 2026.11.15 · owner @release-owner\n- PRJ-125: export retries with backoff\n- PRJ-135: console filters for failed deliveries\n- PRJ-145: intake schema v3\n… and 8 more</code></pre>\n<h3>Format 7a</h3><p>The hotfix note keeps one header line, the release name and the owner, then the changes as a short list. Long lists fold after five rows with a count of the rest.</p>\n<pre><code>:rocket: Release 2026.11.16 · owner @release-owner\n- PRJ-126: export retries with backoff\n- PRJ-136: console filters for failed deliveries\n- PRJ-146: intake schema v3\n… and 9 more</code></pre>\n<h3>Format 8a</h3><p>The skip note keeps one header line, the release name and the owner, then the changes as a short list. Long lists fold after five rows with a count of the rest.</p>\n<pre><code>:rocket: Release 2026.11.17 · owner @release-owner\n- PRJ-127: export retries with backoff\n- PRJ-137: console filters for failed deliveries\n- PRJ-147: intake schema v3\n… and 10 more</code></pre>\n<h3>Format 9a</h3><p>The weekly digest keeps one header line, the release name and the owner, then the changes as a short list. Long lists fold after five rows with a count of the rest.</p>\n<pre><code>:rocket: Release 2026.11.18 · owner @release-owner\n- PRJ-128: export retries with backoff\n- PRJ-138: console filters for failed deliveries\n- PRJ-148: intake schema v3\n… and 11 more</code></pre>\n<h3>Format 10a</h3><p>The owner handover keeps one header line, the release name and the owner, then the changes as a short list. Long lists fold after five rows with a count of the rest.</p>\n<pre><code>:rocket: Release 2026.11.19 · owner @release-owner\n- PRJ-129: export retries with backoff\n- PRJ-139: console filters for failed deliveries\n- PRJ-149: intake schema v3\n… and 12 more</code></pre>"
+    },
+    {
+      "id": "design",
+      "title": "Intent and design",
+      "nav": "Design",
+      "html": "<p>One streaming path replaces the batch job. Each record is validated, deduplicated and routed in a single handler, and every outbound notice goes through the provider wrapper with a signed receipt coming back.</p>\n<div class=\"two\"><div><h3>In scope</h3><ul><li>Streaming validator and routing rules</li><li>Provider client, receipts, retry policy</li><li>Operator console with queue, failures and approvals</li></ul></div>\n<div><h3>Out of scope</h3><ul><li>Customer-facing status page</li><li>Historical analytics beyond 90 days</li><li>Replacing the ticketing system</li></ul></div></div>\n<h3>Flow</h3><div data-diagram=\"flow\"></div>",
+      "place": "after"
+    },
+    {
+      "id": "risks",
+      "title": "Risks",
+      "nav": "Risks",
+      "place": "bottom",
+      "html": "<table><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr>\n<tr><td>Provider outage longer than 10 minutes</td><td>Medium</td><td>High</td><td>Fallback provider decision R1, quarterly drill</td></tr>\n<tr><td>Dedup store fills faster than the TTL sweep</td><td>Low</td><td>Medium</td><td>Alert at 80% capacity; sweep runs every minute</td></tr>\n<tr><td>Sandbox credentials arrive late</td><td>High</td><td>Medium</td><td>Mock receipts locally; escalate through the needs list</td></tr></table>\n<h3>Rollback</h3><pre>feature flag: intake.streaming = off   # falls back to the batch job within one cycle\nrestore routing rules: rules-loader --revision previous</pre>"
+    }
+  ],
+  "diagrams": {
+    "flow": "flowchart LR\n  C[\"Caller\"]:::person --> G[\"Intake gateway\"]:::ours\n  O[\"Old batch job\"]:::legacy -.-> G\n  G --> V[\"Validator and dedup\"]:::ours\n  V ==> P[\"Provider API\"]:::provider\n  P -.->|receipt webhook| V\n  V --> L[(\"Delivery ledger\")]:::store\n  V --> D[\"Shipped schema contract\"]:::done\n  P --> T[\"Timeout and retry path\"]:::risk",
+    "retry": "stateDiagram-v2\n  state \"Legend\" as legend {\n    lg0: Sending\n    lg1: Settled\n    lg2: Breaks PageOnce\n    lg3: Path to the PageOnce bug\n  }\n  class lg0 blue\n  class lg1 teal\n  class lg2 breaks\n  class lg3 bugPath\n  s0: Queued\n  s1: Sent, waiting for the receipt\n  s2: Retrying after backoff\n  s3: Delivered\n  s4: Paged a human\n  s5: Paged twice\n  [*] --> s0\n  s0 --> s1: Send\n  s1 --> s3: Receipt\n  s1 --> s2: Timeout\n  s2 --> s1: Backoff ends\n  s2 --> s4: Third failure\n  s4 --> s5: Late timeout\n  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834\n  class s0 blue\n  class s0 bugPath\n  class s1 blue\n  class s1 bugPath\n  class s2 blue\n  class s2 bugPath\n  class s3 teal\n  class s4 teal\n  class s4 bugPath\n  class s5 breaks\n  class s5 bugPath"
+  },
+  "missions": [
+    {
+      "id": "M0",
+      "name": "Discovery and scoping",
+      "goal": "Agree what the streaming intake has to do, and measure the batch job it replaces.",
+      "status": "done",
+      "slices": [
+        {
+          "id": "M0.1",
+          "name": "Measure the batch job",
+          "owner": "analyst-1@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Runs every 15 minutes, 3 to 6 minutes each; 18% of records missed the window last month.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/90"
+        },
+        {
+          "id": "M0.2",
+          "name": "Scope and success measures",
+          "owner": "lead-human@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Scope signed off; success is p95 under five seconds end to end."
+        },
+        {
+          "id": "M0.3",
+          "name": "Provider shortlist",
+          "owner": "analyst-1@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Three providers compared on cost, limits and receipt support."
+        }
+      ]
+    },
+    {
+      "id": "M1",
+      "name": "Intake pipeline v2",
+      "goal": "Replace the batch intake job with a streaming handler that validates, deduplicates and routes each record within five seconds.",
+      "status": "doing",
+      "slices": [
+        {
+          "id": "M1.1",
+          "name": "Schema contract for intake events",
+          "owner": "builder-1@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Contract merged, consumers pinned to v2.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/101"
+        },
+        {
+          "id": "M1.2",
+          "name": "Streaming validator",
+          "owner": "builder-1@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "p95 under 40 ms on the replay set.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/104"
+        },
+        {
+          "id": "M1.3",
+          "name": "Deduplication store and TTL sweep",
+          "owner": "builder-2@demo-rig",
+          "status": "doing",
+          "progress": 65,
+          "note": "Sweep job passes; waiting on load test against the larger fixture with 2M keys.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/109"
+        },
+        {
+          "id": "M1.4",
+          "name": "Routing rules loader",
+          "owner": "builder-2@demo-rig",
+          "status": "doing",
+          "progress": 30,
+          "note": "Hot reload works, rollback path untested."
+        },
+        {
+          "id": "M1.5",
+          "name": "Backfill of the last 90 days",
+          "owner": "qa-1@demo-rig",
+          "status": "planned",
+          "progress": 0,
+          "note": "Starts after M1.3 merges."
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "name": "Provider integration",
+      "goal": "Connect the sample messaging provider for outbound notices with delivery receipts and a safe retry policy.",
+      "status": "blocked",
+      "slices": [
+        {
+          "id": "M2.1",
+          "name": "Provider client wrapper",
+          "owner": "builder-3@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Typed client, timeouts at 8 s.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/112"
+        },
+        {
+          "id": "M2.2",
+          "name": "Delivery receipt webhook",
+          "owner": "builder-3@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Signature check and replay guard in place.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/115"
+        },
+        {
+          "id": "M2.3",
+          "name": "Retry and backoff policy",
+          "owner": "builder-3@demo-rig",
+          "status": "blocked",
+          "progress": 40,
+          "note": "Blocked on Q1: how many attempts before we page a human.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/118",
+          "diagram": "retry"
+        },
+        {
+          "id": "M2.4",
+          "name": "Sandbox end-to-end run",
+          "owner": "qa-1@demo-rig",
+          "status": "blocked",
+          "progress": 10,
+          "note": "Needs sandbox credentials from the operator."
+        },
+        {
+          "id": "M2.5",
+          "name": "Choose fallback provider",
+          "owner": "lead-human@demo-rig",
+          "status": "decide",
+          "progress": 0,
+          "note": "Options and cost table are in the decision log under R1."
+        },
+        {
+          "id": "M2.6",
+          "name": "Cost dashboard",
+          "owner": "builder-4@demo-rig",
+          "status": "planned",
+          "progress": 0,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "name": "Operator console",
+      "goal": "Give the operator one screen to see queue depth, failed deliveries and pending approvals, with no raw logs needed.",
+      "status": "doing",
+      "slices": [
+        {
+          "id": "M3.1",
+          "name": "Queue depth panel",
+          "owner": "builder-4@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Refreshes every 10 s.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/121"
+        },
+        {
+          "id": "M3.2",
+          "name": "Failed delivery table with filters",
+          "owner": "builder-4@demo-rig",
+          "status": "doing",
+          "progress": 80,
+          "note": "Filter by provider, age and error class; export is a follow-up.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/124"
+        },
+        {
+          "id": "M3.3",
+          "name": "Approval inbox",
+          "owner": "builder-1@demo-rig",
+          "status": "done",
+          "progress": 100,
+          "note": "Keyboard shortcuts for approve and reject.",
+          "pr": "https://git.example.test/demo-org/demo-repo/pull/126"
+        },
+        {
+          "id": "M3.4",
+          "name": "Accessibility pass",
+          "owner": "reviewer@demo-rig",
+          "status": "planned",
+          "progress": 0,
+          "note": "Contrast, focus order, screen reader labels."
+        },
+        {
+          "id": "M3.5",
+          "name": "Empty and error states",
+          "owner": "builder-4@demo-rig",
+          "status": "decide",
+          "progress": 0,
+          "note": "Waiting on Q2 about copy tone."
+        }
+      ]
+    }
+  ],
+  "log": [
+    [
+      "2026-11-08 09:58",
+      "Merged the failed delivery table filters into the console branch",
+      "https://git.example.test/demo-org/demo-repo/pull/124"
+    ],
+    [
+      "2026-11-08 09:12",
+      "Dispatched M1.4 routing rules loader to builder-2",
+      "slice M1.4 PROGRESS.md"
+    ],
+    [
+      "2026-11-07 17:40",
+      "Provider sandbox returned 401 on the first receipt test",
+      "M2.4 note, sandbox log excerpt"
+    ],
+    [
+      "2026-11-07 15:05",
+      "Opened the retry policy PR as draft",
+      "https://git.example.test/demo-org/demo-repo/pull/118"
+    ],
+    [
+      "2026-11-07 11:30",
+      "Accepted C3, signed webhooks",
+      "mission M2 NOTES.md"
+    ],
+    [
+      "2026-11-06 16:20",
+      "Merged the approval inbox",
+      "https://git.example.test/demo-org/demo-repo/pull/126"
+    ],
+    [
+      "2026-11-06 10:02",
+      "Load test of the dedup store: 2M keys, p99 12 ms",
+      "https://ci.example.test/demo-org/demo-repo/runs/88412"
+    ],
+    [
+      "2026-11-05 14:45",
+      "Ticket DEMO-214 moved to In Review",
+      "https://tickets.example.test/browse/DEMO-214"
+    ],
+    [
+      "2026-11-04 09:00",
+      "Created the board and linked it in the mission SPEC.md",
+      "mission M1 SPEC.md"
+    ],
+    [
+      "2026-11-03 18:10",
+      "Provider B and C quotes received",
+      "R1 evidence table"
+    ],
+    [
+      "2026-11-02 15:30",
+      "Agreed the five-second budget with the console team",
+      "mission M1 NOTES.md"
+    ],
+    [
+      "2026-11-02 11:05",
+      "Accepted C2, keyed dedup store with a 24 h TTL",
+      "mission M1 NOTES.md"
+    ],
+    [
+      "2026-10-30 17:20",
+      "Replay harness merged; 1.2M records from last month",
+      "https://git.example.test/demo-org/demo-repo/pull/97"
+    ],
+    [
+      "2026-10-29 10:00",
+      "Accepted C1, stream instead of batch",
+      "mission M1 NOTES.md"
+    ],
+    [
+      "2026-10-28 16:45",
+      "Measured the batch job: 18% of records missed the window",
+      "https://git.example.test/demo-org/demo-repo/pull/90"
+    ],
+    [
+      "2026-10-27 09:30",
+      "Kick-off with the three providers on the shortlist",
+      "provider calls, notes in M0.3"
+    ]
+  ],
+  "decisions": [
+    {
+      "id": "RA1",
+      "q": "Release-day gate: active sprint ends today, plus latest release at least 12 days old",
+      "rec": "Gate on both: the sprint end date and the release age, checked at 09:00.",
+      "status": "decide",
+      "why": "The first runs are watched by a person anyway, and a wrong gate costs a release day; the simpler rule is easier to check by hand.",
+      "evidence": "Dry run on the last four releases: the simpler rule matched the person's call each time; the full rule needs a field nobody fills yet."
+    },
+    {
+      "id": "RA2",
+      "q": "Ticket reminder: in the pre-release note (A) or as a thread reply (B)",
+      "rec": "B, a thread reply, so the note stays short.",
+      "status": "decide",
+      "why": "The first runs are watched by a person anyway, and a wrong gate costs a release day; the simpler rule is easier to check by hand.",
+      "evidence": "Dry run on the last four releases: the simpler rule matched the person's call each time; the full rule needs a field nobody fills yet."
+    },
+    {
+      "id": "RA4",
+      "q": "The bot never ticks a checklist box for a person",
+      "rec": "Agree: the bot only reports; people tick their own boxes.",
+      "status": "decide",
+      "why": "The first runs are watched by a person anyway, and a wrong gate costs a release day; the simpler rule is easier to check by hand.",
+      "evidence": "Dry run on the last four releases: the simpler rule matched the person's call each time; the full rule needs a field nobody fills yet."
+    },
+    {
+      "id": "RA5",
+      "q": "Mentions: only assignees whose ticket has a PR in this release and is not yet ready",
+      "rec": "Mention only those assignees, once, in the reminder.",
+      "status": "decide",
+      "why": "The first runs are watched by a person anyway, and a wrong gate costs a release day; the simpler rule is easier to check by hand.",
+      "evidence": "Dry run on the last four releases: the simpler rule matched the person's call each time; the full rule needs a field nobody fills yet."
+    },
+    {
+      "id": "RA9",
+      "q": "When does the release note say complete: at tag and deploy (about 20 minutes), or after the snapshot deploy and rebuild (hours)?",
+      "rec": "After the snapshot deploy and rebuild, with the tag time shown as a step.",
+      "status": "decide",
+      "why": "The first runs are watched by a person anyway, and a wrong gate costs a release day; the simpler rule is easier to check by hand.",
+      "evidence": "Dry run on the last four releases: the simpler rule matched the person's call each time; the full rule needs a field nobody fills yet."
+    },
+    {
+      "id": "RA10",
+      "q": "Keep the channel-wide mention in the release note",
+      "rec": "Drop it; mention the release owner only.",
+      "status": "decide",
+      "why": "The first runs are watched by a person anyway, and a wrong gate costs a release day; the simpler rule is easier to check by hand.",
+      "evidence": "Dry run on the last four releases: the simpler rule matched the person's call each time; the full rule needs a field nobody fills yet."
+    },
+    {
+      "id": "RA11",
+      "q": "Gate source: add the sprint end date to the tracker tool, or cadence only for the first runs",
+      "rec": "Cadence only for the first three runs, then the tracker field.",
+      "status": "decide",
+      "why": "The first runs are watched by a person anyway, and a wrong gate costs a release day; the simpler rule is easier to check by hand.",
+      "evidence": "Dry run on the last four releases: the simpler rule matched the person's call each time; the full rule needs a field nobody fills yet."
+    },
+    {
+      "id": "RA12",
+      "q": "How to order the biggest changes when the tool cannot read story points",
+      "rec": "By the number of changed files, largest first, with a note saying so.",
+      "status": "decide",
+      "why": "The first runs are watched by a person anyway, and a wrong gate costs a release day; the simpler rule is easier to check by hand.",
+      "evidence": "Dry run on the last four releases: the simpler rule matched the person's call each time; the full rule needs a field nobody fills yet."
+    },
+    {
+      "id": "RA13",
+      "q": "Where the dry-run output goes before the first real release",
+      "rec": "A private channel the release owner reads, for two releases.",
+      "status": "decide",
+      "why": "The first runs are watched by a person anyway, and a wrong gate costs a release day; the simpler rule is easier to check by hand.",
+      "evidence": "Dry run on the last four releases: the simpler rule matched the person's call each time; the full rule needs a field nobody fills yet."
+    },
+    {
+      "id": "C1",
+      "q": "Stream or batch for intake?",
+      "rec": "Stream, one record at a time, with a 5 s budget.",
+      "status": "accepted",
+      "why": "Batch windows delayed notices by up to 15 minutes, which broke the promised response time for the largest customer segment.",
+      "evidence": "Replay of last month: 18% of records missed the old window; the streaming prototype met the budget on all of them.",
+      "decided": "2026-10-27"
+    },
+    {
+      "id": "C2",
+      "q": "Where does deduplication state live?",
+      "rec": "A keyed store with a 24 h TTL, not in the handler memory.",
+      "status": "accepted",
+      "why": "Handlers restart during deploys and in-memory state would let duplicates through for a few minutes each time.",
+      "evidence": "Deploy log shows 9 restarts in two weeks; the memory approach produced 31 duplicates in the replay.",
+      "decided": "2026-10-29"
+    },
+    {
+      "id": "C3",
+      "q": "Signed webhooks or IP allow-list?",
+      "rec": "Signed webhooks with a replay window of 5 minutes.",
+      "status": "accepted",
+      "why": "The provider rotates source addresses without notice; signatures survive that and cost one header check.",
+      "evidence": "Provider docs section on delivery security; address list changed twice in the last quarter.",
+      "decided": "2026-11-02"
+    }
+  ],
+  "facts": [
+    [
+      "Intake volume averages 41 records per second with peaks of 190",
+      "metrics dashboard, 7-day view"
+    ],
+    [
+      "Old batch job runs every 15 minutes and takes 3 to 6 minutes",
+      "scheduler config, intake job"
+    ],
+    [
+      "Provider rate limit is 50 requests per second per account",
+      "provider docs, limits page"
+    ],
+    [
+      "Sandbox accounts expire after 14 days of inactivity",
+      "provider docs, sandbox page"
+    ],
+    [
+      "Dedup store holds 1.9M keys at steady state",
+      "store console, key count"
+    ],
+    [
+      "Largest customer segment is 22% of traffic",
+      "billing export, October"
+    ],
+    [
+      "Console is used by 6 operators on weekdays",
+      "access log, last 30 days"
+    ],
+    [
+      "Failed deliveries last week: 214, of which 180 were invalid destinations",
+      "console failed delivery table"
+    ]
+  ],
+  "links": [
+    [
+      "Mission M1 SPEC",
+      "https://docs.example.test/demo-org/missions/m1-intake-v2/SPEC.md"
+    ],
+    [
+      "Mission M2 SPEC",
+      "https://docs.example.test/demo-org/missions/m2-provider/SPEC.md"
+    ],
+    [
+      "CI dashboard",
+      "https://ci.example.test/demo-org/demo-repo"
+    ],
+    [
+      "Ticket DEMO-214",
+      "https://tickets.example.test/browse/DEMO-214"
+    ],
+    [
+      "Provider docs",
+      "https://provider.example.test/docs/messaging/delivery-receipts-and-retries"
+    ]
+  ]
+}

@@ -133,6 +133,7 @@
     .rail { display: block; position: sticky; top: var(--tb-bar-h); align-self: start; height: calc(100vh - var(--tb-bar-h)); overflow: auto; padding: var(--tb-sp-4) var(--tb-sp-3); border-right: 1px solid var(--tb-line); }
     .rail h2 { font-size: var(--tb-fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--tb-muted); padding: var(--tb-sp-2) var(--tb-sp-3); }
     .rail a[aria-current="true"] { background: var(--tb-accent-soft); color: var(--tb-accent); font-weight: 650; }
+    .rail a > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* the full title is the link's tooltip */
     .page { padding: var(--tb-sp-5) var(--tb-sp-6) var(--tb-sp-7); gap: var(--tb-sp-5); }
     .menubtn { display: none; }
   }
@@ -164,9 +165,11 @@
   .hero { display: grid; gap: var(--tb-sp-2); }
   .crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; color: var(--tb-muted); font-size: var(--tb-fs-meta); }
   .hero h1 { font-size: var(--tb-fs-2xl); line-height: var(--tb-lh-tight); letter-spacing: -.01em; }
-  .hero .headline { font-size: var(--tb-fs-md); max-width: 70ch; }
+  .hero .headline { font-size: var(--tb-fs-md); text-wrap: pretty; } /* the hero is as wide as the column: a headline is one or two lines */
   .changed { display: inline-flex; align-items: center; min-height: var(--tb-tap); padding: 0 var(--tb-sp-3); border-radius: var(--tb-r-pill); border: 1px solid var(--tb-new); color: var(--tb-new); font-weight: 650; font-size: var(--tb-fs-sm); background: transparent; cursor: pointer; text-align: left; }
-  .needscard { border-color: var(--tb-decide); border-width: 1px 1px 1px 5px; padding: var(--tb-sp-4); display: grid; gap: var(--tb-sp-3); background: color-mix(in srgb, var(--tb-decide-soft) 55%, var(--tb-surface)); }
+  .needscard { border-color: var(--tb-decide); border-width: 1px 1px 1px 5px; padding: var(--tb-sp-4); display: grid; gap: var(--tb-sp-3); background: var(--tb-surface); }
+  .needscard ol { padding: var(--tb-sp-3); margin: 0 calc(-1 * var(--tb-sp-1)); border-radius: var(--tb-r-md); background: color-mix(in srgb, var(--tb-decide-soft) 55%, var(--tb-surface)); display: grid; gap: var(--tb-sp-3); }
+  .waitdec > h3 { font-size: var(--tb-fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--tb-muted); padding-top: var(--tb-sp-1); }
   .needscard.clear { border-color: var(--tb-ok-bar); background: color-mix(in srgb, var(--tb-ok-soft) 55%, var(--tb-surface)); }
   .needscard header { display: flex; align-items: center; gap: var(--tb-sp-2); } .needscard h2 { font-size: var(--tb-fs-lg); }
   .needscard .cnt { background: var(--tb-decide); color: var(--tb-surface); min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: var(--tb-fs-sm); }
@@ -180,18 +183,19 @@
   .stat.blocked.hot { background: var(--tb-blocked-soft); border-color: var(--tb-blocked); } .stat.blocked.hot b, .stat.blocked.hot span { color: var(--tb-blocked); }
   .stat.decide.hot { background: var(--tb-decide-soft); border-color: var(--tb-decide); } .stat.decide.hot b, .stat.decide.hot span { color: var(--tb-decide); }
   .overall { grid-column: 1 / -1; display: grid; gap: 6px; } .overall .row { display: flex; justify-content: space-between; font-size: var(--tb-fs-meta); color: var(--tb-muted); } .overall .row b { color: var(--tb-text); }
-  .lead { display: grid; gap: var(--tb-sp-4); } .side { display: contents; }
+  .lead { display: grid; gap: var(--tb-sp-4); } /* hero, the stats strip, then Waiting on you: one column, so no card floats in a stretched row */
   .toolbar { display: grid; gap: var(--tb-sp-2); } .tcount { font-size: var(--tb-fs-meta); color: var(--tb-muted); }
 
-  .declist { padding: var(--tb-sp-2) 20px; } .declist > h2, .listcard > h2 { padding: var(--tb-sp-3) 0 var(--tb-sp-1); }
+  .listcard > h2 { padding: var(--tb-sp-3) 0 var(--tb-sp-1); }
   .drow { border-top: 1px solid var(--tb-line); } .drow:first-child { border-top: 0; }
   summary { list-style: none; cursor: pointer; } summary::-webkit-details-marker { display: none; }
   /* a decision: one compact top line (id, small badge, chevron), the question at full width under it */
-  .drow summary, .drow .dsum { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "id badge chv" "q q q"; align-items: center; column-gap: var(--tb-sp-2); row-gap: 2px; min-height: var(--tb-tap); padding: var(--tb-sp-2) 0; }
+  .drow summary, .drow .dsum { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "id badge chv" "q q q" "rec rec rec"; align-items: center; column-gap: var(--tb-sp-2); row-gap: 2px; min-height: var(--tb-tap); padding: var(--tb-sp-2) 0; }
   .drow .did { grid-area: id; } .drow .pill { grid-area: badge; justify-self: start; height: 20px; padding: 0 8px; gap: 4px; } .drow .pill::before { width: 6px; height: 6px; } .drow .chv { grid-area: chv; }
   .dq { grid-area: q; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+  .drec { grid-area: rec; min-width: 0; color: var(--tb-muted); font-size: var(--tb-fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } details[open] > summary .drec { display: none; }
   .did { font-family: var(--tb-mono); font-weight: 700; font-size: var(--tb-fs-sm); color: var(--tb-muted); min-width: 28px; }
-  .dbody { display: grid; gap: var(--tb-sp-2); padding: 0 0 var(--tb-sp-4); } .dbody p { max-width: 70ch; }
+  .dbody { display: grid; gap: var(--tb-sp-2); padding: 0 0 var(--tb-sp-4); } .dbody p { max-width: 80ch; }
   details[open] > summary .chv svg, .smain[aria-expanded="true"] .chv svg { transform: rotate(180deg); }
   .emptycard { padding: var(--tb-sp-4); color: var(--tb-muted); display: grid; gap: var(--tb-sp-2); }
   .emptycard b { color: var(--tb-text); font-size: var(--tb-fs-lg); }
@@ -226,7 +230,7 @@
   .did { position: relative; }
 
   .listcard { padding: var(--tb-sp-2) 20px; }
-  .declist .drow, .listcard .lrow, .listcard .frow, .listcard .drow { margin: 0 -20px; padding-left: 20px; padding-right: 20px; }
+  .listcard .lrow, .listcard .frow, .listcard .drow { margin: 0 -20px; padding-left: 20px; padding-right: 20px; }
   .lrow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px var(--tb-sp-3); padding: var(--tb-sp-3) 0; border-top: 1px solid var(--tb-line); }
   .lrow .meta a { display: inline-flex; align-items: center; min-height: var(--tb-tap); max-width: 100%; overflow-wrap: anywhere; }
   .lrow time { color: var(--tb-muted); font-size: var(--tb-fs-meta); font-variant-numeric: tabular-nums; }
@@ -241,7 +245,10 @@
 
   /* hand-written section cards */
   .sect { padding: var(--tb-sp-4); display: grid; gap: var(--tb-sp-3); align-content: start; }
-  .sect > div:not([class]), .sect p { max-width: 80ch; }
+  .sect { --tb-measure: 54rem; } /* one measure for a section's prose, tables, code and lists, so their edges line up */
+  .sect > :not(h2):not(figure):not(.diagram), .sect > details > :not(summary):not(figure):not(.diagram) { max-width: var(--tb-measure); }
+  .sect details.fold { display: grid; gap: var(--tb-sp-3); } .sect details.fold > summary { display: inline-flex; align-items: center; gap: 6px; min-height: var(--tb-tap); width: fit-content; padding: 0 var(--tb-sp-3); border: 1px solid var(--tb-line-strong); border-radius: var(--tb-r-pill); font-weight: 650; font-size: var(--tb-fs-sm); color: var(--tb-accent); }
+  .sect details.fold[open] > summary .closed, .sect details.fold:not([open]) > summary .opened { display: none; }
   .sect .sub { color: var(--tb-muted); font-size: var(--tb-fs-sm); }
   .sect h3 { font-size: var(--tb-fs-md); margin: var(--tb-sp-2) 0 4px; }
   .sect ul { list-style: disc; padding-left: 20px; display: grid; gap: 2px; } .sect ol { list-style: decimal; padding-left: 20px; }
@@ -407,13 +414,8 @@
     .mission > summary { grid-template-columns: auto minmax(0, 1fr) auto 220px auto; grid-template-areas: "id name pill prog chv"; }
   }
 
-  /* two-column lead (needs on the left, open decisions on the right) only where each column has room */
-  @media (min-width: 1200px) {
-    body:not(.has-side):not(.chatting.chat-half) .lead { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; gap: var(--tb-sp-4) var(--tb-sp-5); grid-template-areas: "hero hero" "needs dec" "stats dec"; }
-    body:not(.has-side):not(.chatting.chat-half) .lead.nodec { grid-template-areas: "hero hero" "needs stats"; }
-    body:not(.has-side):not(.chatting.chat-half) .lead .hero { grid-area: hero; } body:not(.has-side):not(.chatting.chat-half) .lead .needscard { grid-area: needs; } body:not(.has-side):not(.chatting.chat-half) .lead .stats { grid-area: stats; }
-    body:not(.has-side):not(.chatting.chat-half) .lead .declist, body:not(.has-side):not(.chatting.chat-half) .lead .emptycard { grid-area: dec; align-self: start; }
-  }
+  /* the stats strip on one row where it has room: three counts, then the overall bar */
+  @media (min-width: 1024px) { .lead .stats { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.6fr); align-items: stretch; } .lead .overall { grid-column: auto; align-content: center; padding: 0 var(--tb-sp-2); } }
 
   .plain { padding: var(--tb-sp-4); } .plain > * + * { margin-top: var(--tb-sp-2); } .plain h2 { font-size: var(--tb-fs-lg); margin-top: var(--tb-sp-5); } .plain h1 { font-size: var(--tb-fs-2xl); line-height: var(--tb-lh-tight); } .plain ol, .plain ul { padding-left: 22px; list-style: revert; } .plain li + li { margin-top: var(--tb-sp-1); }
 
@@ -675,6 +677,10 @@ const pill = s => `<span class="pill ${pillClass(s)}">${esc(label(s))}</span>`;
 const safeRun = (name, fn) => { try { return fn(); } catch (e) { return `<section class="card emptycard" role="alert"><b>${esc(name)} could not be drawn</b><p class="meta mono">${esc(e.message || e)}</p></section>`; } };
 const DOT = '<span class="newdot" role="img" aria-label="Changed since your last visit"></span>';
 const A = { dec: id => `dec-${idOf(id, new Set())}` };
+// Waiting on you counts unique items: an ask that links to an open decision (#dec-<id>) is that decision, so it keeps
+// its row but is not counted twice.
+const openDecHrefs = new Set(openDec.map(d => `#${A.dec(d.id)}`));
+const waitingN = openDec.length + needs.filter(x => !(x && typeof x === "object" && openDecHrefs.has(x.href))).length;
 const mIds = new Map(missions.map(m => [m, idOf(`m-${m.id}`, used)]));
 const secIds = new Map(sections.map(s => [s, idOf(s.id, used)]));
 
@@ -694,24 +700,30 @@ const changedN = changes.slices.length + changes.decisions.length + changes.log.
 
 // ---- Markup ----
 const sliceIds = new Map();
+// Decisions start closed; the ones a person opened stay open on this board in this browser.
+const openKey = `board-open:${location.pathname}`;
+let openRows; try { openRows = new Set(JSON.parse(ls.get(openKey) || "[]")); } catch { openRows = new Set(); }
 const sliceDomId = (m, s) => { const key = `${m.id}/${s.id}`; if (!sliceIds.has(key)) sliceIds.set(key, idOf(s.id, used)); return sliceIds.get(key); };
 
-function needsHtml() {
-  if (!needs.length) return `<section class="card needscard clear" id="needs" aria-labelledby="needs-h"><header><h2 id="needs-h">Needs you</h2><span class="cnt" style="background:var(--tb-ok-bar)" aria-label="0 items">0</span></header><p>Nothing is waiting on you.</p></section>`;
-  const items = needs.map((n, i) => {
-    const o = typeof n === "string" ? { text: n } : (n || {}), href = o.href ? safeHref(o.href) : "";
+// Waiting on you: the asks first, then the open decisions, under one count.
+function waitingHtml() {
+  const n = waitingN;
+  if (!n) return `<section class="card needscard clear" id="needs" aria-labelledby="needs-h"><header><h2 id="needs-h">Waiting on you</h2><span class="cnt" style="background:var(--tb-ok-bar)" aria-label="0 items">0</span></header><p>Nothing is waiting on you.</p></section>`;
+  const items = needs.map((x, i) => {
+    const o = typeof x === "string" ? { text: x } : (x || {}), href = o.href ? safeHref(o.href) : "";
     const ext = /^https?:/i.test(href);
     return `<li class="need"><span class="nno" aria-hidden="true">${i + 1}</span><div><p class="ntext" id="nt${i}">${esc(o.text)}</p><div class="nact">${href ? `<a class="chip" href="${esc(href)}"${ext ? ' rel="noopener"' : ""}>${esc(o.link || "Details")}${ext ? I.ext : I.right}</a>` : ""}<button class="chip nmore" type="button" aria-expanded="false" aria-controls="nt${i}" hidden>Show more</button></div></div></li>`;
   }).join("");
-  return `<section class="card needscard" id="needs" aria-labelledby="needs-h"><header><h2 id="needs-h">Needs you</h2><span class="cnt" aria-label="${needs.length} items">${needs.length}</span></header><ol>${items}</ol></section>`;
+  const dec = openDec.length ? `<div class="waitdec" id="decisions" data-listbox><h3 id="dec-h">Open decisions · ${openDec.length}</h3><ul data-list aria-labelledby="dec-h">${openDec.map(decRow).join("")}</ul></div>` : "";
+  return `<section class="card needscard" id="needs" aria-labelledby="needs-h"><header><h2 id="needs-h">Waiting on you</h2><span class="cnt" aria-label="${n} item${n === 1 ? "" : "s"}">${n}</span></header>${items ? `<ol aria-label="Asks">${items}</ol>` : ""}${dec}</section>`;
 }
 function decRow(d) {
   const open = d.status !== "accepted", id = A.dec(d.id), ch = changedDec.has(d.id);
   const text = `${d.id} ${d.q} ${d.rec} ${d.why || ""}`.toLowerCase();
-  const head = `<span class="did">${ch ? DOT : ""}${esc(d.id)}</span>${pill(open ? "decide" : "accepted").replace(label("decide"), "Decide")}<span class="dq">${esc(d.q)}</span>`;
+  const head = `<span class="did">${ch ? DOT : ""}${esc(d.id)}</span>${pill(open ? "decide" : "accepted").replace(label("decide"), "Decide")}<span class="dq">${esc(d.q)}</span>${d.rec ? `<span class="drec">Recommended: ${esc(d.rec)}</span>` : ""}`;
   const more = [d.rec && `<p><b>Recommendation.</b> ${esc(d.rec)}</p>`, d.why && `<p><b>Why.</b> ${esc(d.why)}</p>`, d.evidence && `<p><b>Evidence.</b> ${esc(d.evidence)}</p>`, d.decided && `<p class="meta">Decided ${esc(d.decided)}</p>`].filter(Boolean).join("");
   return `<li class="drow" id="${esc(id)}" data-text="${esc(text)}" data-akey="d:${esc(d.id)}" data-label="Decisions › ${esc(d.id)}"${ch ? ' data-changed="1"' : ""}>
-    ${more ? `<details><summary>${head}<span class="chv">${I.chev}</span></summary><div class="dbody">${more}</div></details>` : `<div class="dsum">${head}</div>`}</li>`;
+    ${more ? `<details${openRows.has(`d:${d.id}`) ? " open" : ""}><summary>${head}<span class="chv">${I.chev}</span></summary><div class="dbody">${more}</div></details>` : `<div class="dsum">${head}</div>`}</li>`;
 }
 function sliceRow(m, s) {
   const id = sliceDomId(m, s), ch = changedSlice.has(s.id), p = Math.max(0, Math.min(100, Number(s.progress) || 0));
@@ -771,11 +783,12 @@ function sectionHtml(s) {
 // Sections: no place = before the missions, "after" = right after them, "bottom" = after the decision log.
 const ordered = orderMissions(missions);
 const before = sections.filter(s => s.place !== "after" && s.place !== "bottom"), upper = sections.filter(s => s.place === "after"), lower = sections.filter(s => s.place === "bottom");
-const navItems = [["needs", "Needs you", needs.length], ["decisions", "Open decisions", openDec.length],
-  ...before.map(s => [secIds.get(s), s.nav || s.title]),
+const secNav = s => [secIds.get(s), s.nav || s.title, null, false, s.title];
+const navItems = [["needs", "Waiting on you", waitingN],
+  ...before.map(secNav),
   ["missions", "Missions", missions.length], ...ordered.map(m => [mIds.get(m), `${m.id} ${m.name}`, null, true]),
-  ...upper.map(s => [secIds.get(s), s.nav || s.title]),
-  ["done-log", "Done log", logRows.length], ["decision-log", "Decision log", accDec.length], ...lower.map(s => [secIds.get(s), s.nav || s.title]),
+  ...upper.map(secNav),
+  ["done-log", "Done log", logRows.length], ["decision-log", "Decision log", accDec.length], ...lower.map(secNav),
   ["facts", "Facts", facts.length], ["links", "Links", links.length]];
 
 function build() {
@@ -783,20 +796,16 @@ function build() {
   const org = [b.org, b.project].filter(Boolean).join(" / ");
   const t = parseWhen(b.updated), rel = Number.isNaN(t) ? "" : relTime(nowMs() - t);
   const sinceT = baselineAt ? relTime(nowMs() - baselineAt) : "";
-  const decCard = () => openDec.length
-    ? `<section class="card declist" id="decisions" aria-labelledby="dec-h"><h2 id="dec-h">Open decisions · ${openDec.length}</h2><ul data-list>${openDec.map(decRow).join("")}</ul></section>`
-    : `<section class="card emptycard" id="decisions" aria-labelledby="dec-h"><b id="dec-h">No open decisions</b><p>Nothing is waiting for a yes or no.</p></section>`;
-  const lead = `<div class="lead${openDec.length ? "" : " nodec"}">
+  const lead = `<div class="lead">
     <section class="hero" aria-labelledby="h1"><div class="crumb">${phase}${org ? `<span>${esc(org)}</span>` : ""}${b.updated ? `<span title="Updated ${esc(b.updated)}">Updated ${rel ? esc(rel) : esc(b.updated)}</span>` : ""}</div>
       <h1 id="h1">${esc(b.title || "Untitled board")}</h1>${b.headline ? `<p class="headline">${esc(b.headline)}</p>` : ""}
       ${changedN ? `<p><button class="changed" type="button" id="changedbtn"><span class="newdot"></span>${changedN} changed since your last visit${sinceT ? ` · ${esc(sinceT)}` : ""}</button></p>` : ""}</section>
-    ${safeRun("Needs you", needsHtml)}
-    <div class="side"><section class="stats" aria-label="Counts">
+    <section class="stats" aria-label="Counts">
       <a class="stat blocked${count("blocked") ? " hot" : ""}" href="#missions" data-f="blocked"><b>${count("blocked")}</b><span>Blocked</span></a>
-      <a class="stat decide${openDec.length ? " hot" : ""}" href="#decisions"><b>${openDec.length}</b><span>Open decisions</span></a>
+      <a class="stat decide${openDec.length ? " hot" : ""}" href="${openDec.length ? "#decisions" : "#needs"}"><b>${openDec.length}</b><span>Open decisions</span></a>
       <a class="stat" href="#missions" data-f="doing"><b>${count("doing")}</b><span>In progress</span></a>
       <div class="overall"><div class="row"><span><b>${doneN} of ${total}</b> slices done</span><span>${total ? Math.round(doneN / total * 100) : 0}%</span></div>${total ? `<div class="bartrack" role="progressbar" aria-valuenow="${doneN}" aria-valuemin="0" aria-valuemax="${total}" aria-label="Slices done"><i style="width:${doneN / total * 100}%"></i></div>` : ""}</div></section>
-    ${safeRun("Open decisions", decCard)}</div></div>`;
+    ${safeRun("Waiting on you", waitingHtml)}</div>`;
   const chip = (f, t2, n) => `<button class="chip" type="button" data-f="${f}" aria-pressed="${f === "all"}">${t2} <span class="n">${n}</span></button>`;
   const toolbar = !total ? "" : `<div class="toolbar" id="toolbar"><div class="search" role="search"><label class="sr" for="q">Search slices, decisions, log and facts</label>${I.search}<input id="q" type="search" placeholder="Search slices, decisions, log, facts" autocomplete="off" enterkeyhint="search"></div>
     <div class="filters" role="group" aria-label="Filter slices by status">${chip("all", "All", total)}${chip("doing", "Doing", count("doing"))}${chip("blocked", "Blocked", count("blocked"))}${chip("decide", "Decide", count("decide"))}${chip("done", "Done", doneN)}${changedN ? chip("changed", "Changed", changedN) : ""}</div>
@@ -814,7 +823,7 @@ function build() {
 
 // ---- Nav: top-bar menu on phones, sticky rail from 1024 ----
 function buildNav() {
-  const html = navItems.map(([id, t, n, sub]) => `<a href="#${esc(id)}"${sub ? ' class="sub"' : ""}><span>${esc(t)}</span>${n != null ? `<span class="n">${n}</span>` : ""}</a>`).join("");
+  const html = navItems.map(([id, t, n, sub, full]) => `<a href="#${esc(id)}"${sub ? ' class="sub"' : ""} title="${esc(full || t)}"><span>${esc(t)}</span>${n != null ? `<span class="n">${n}</span>` : ""}</a>`).join("");
   $("#menu").innerHTML = `<button class="ibtn menuclose" type="button">Close menu</button>${html}<button class="ibtn menuclose" type="button">Close menu</button>`; $("#rail").innerHTML = `<h2>On this board</h2>${html}`;
   const secs = $$("#rail a").map(a => [a, document.getElementById(decodeURIComponent(a.getAttribute("href").slice(1)))]).filter(p => p[1]);
   let tick = false;
@@ -837,8 +846,32 @@ function stackTables() {
     (b.tests || []).map(c => `<tr><td>${esc(c.id)}</td><td>${esc(c.what)}</td><td>${esc(c.operator)}</td><td>${esc(c.pass)}</td><td>${pill(c.status)}</td><td>${esc(c.evidence || "")}</td></tr>`).join("") + `</table>`;
 }
 
+// ---- Long sections fold, with native details (no script needed to open them) ----
+// Dated "Status / Update / Correction (...)" paragraphs: the newest (the last written) moves to the top of the section,
+// with the rest under "Earlier updates (n)" after it, so the current state reads first. Then a section still taller
+// than about two screens keeps one screen and folds the rest.
+const DATED = /^(status update|status|update|correction)\b[^:]*\(/i;
+function fold(cls, label, nodes) {
+  const d = document.createElement("details"); d.className = `fold ${cls}`;
+  d.innerHTML = `<summary>${label}</summary>`; nodes[0].before(d); d.append(...nodes); return d;
+}
+function foldSections() {
+  for (const s of $$(".sect")) {
+    const ps = [...s.children].filter(p => p.tagName === "P" && p.firstChild && p.firstChild === p.firstElementChild && p.firstElementChild.tagName === "B" && DATED.test(p.firstElementChild.textContent));
+    if (ps.length >= 3) { const newest = ps.pop(); s.firstElementChild.after(newest); newest.after(fold("earlier", `Earlier updates (${ps.length})`, ps)); }
+    const top = s.getBoundingClientRect().top, kids = [...s.children].slice(1);
+    if (s.getBoundingClientRect().height <= innerHeight * 2 || kids.length < 2) continue;
+    const cut = kids.findIndex((k, i) => i > 0 && k.getBoundingClientRect().bottom - top > innerHeight);
+    if (cut > 0) fold("rest", `<span class="closed">Show all</span><span class="opened">Show less</span>`, kids.slice(cut));
+  }
+}
+page.addEventListener("toggle", e => {
+  const row = e.target.matches && e.target.matches(".drow > details") && e.target.closest(".drow"); if (!row) return;
+  const k = row.dataset.akey; if (e.target.open) openRows.add(k); else openRows.delete(k); ls.set(openKey, JSON.stringify([...openRows]));
+}, true);
+
 // ---- Draw the page (the handlers below attach to what this creates) ----
-for (const [name, fn] of [["The board", build], ["The navigation", buildNav], ["Tables", stackTables], ["Lists", limitLists], ["Asks", clampNeeds]]) { try { fn(); } catch (e) { fail(`${name} could not be drawn.`, e); } }
+for (const [name, fn] of [["The board", build], ["The navigation", buildNav], ["Tables", stackTables], ["Sections", foldSections], ["Lists", limitLists], ["Asks", clampNeeds]]) { try { fn(); } catch (e) { fail(`${name} could not be drawn.`, e); } }
 addEventListener("resize", clampNeeds); addEventListener("resize", () => { layoutPanel(); syncModal(); }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(clampNeeds);
 
 // ---- Menu ----
@@ -874,7 +907,7 @@ function apply() {
     if (filtering && !any && hasRows) m.open = false; else if (filtering && any) m.open = true;
     m.hidden = filtering && !any && hasRows;
   });
-  $$("[data-list]").forEach(u => { u.closest(".card").hidden = filtering && !$$("li:not([hidden])", u).length; });
+  $$("[data-list]").forEach(u => { (u.closest("[data-listbox]") || u.closest(".card")).hidden = filtering && !$$("li:not([hidden])", u).length; });
   $$("ul.limited").forEach(u => { const b = u.nextElementSibling; if (filtering) { u.classList.add("all"); if (b) b.hidden = true; } else if (b && b.classList.contains("morebtn")) { b.hidden = false; const open = b.getAttribute("aria-expanded") === "true"; u.classList.toggle("all", open); } });
   const nomatch = $("#nomatch"); if (nomatch) nomatch.hidden = !(filtering && shown === 0 && rows === 0);
   const tc = $("#tcount"); if (tc) tc.textContent = filtering ? `${shown} of ${total} slices match${term ? `, ${rows} other rows` : ""}` : `${total} slices · ${decisions.length} decisions · ${logRows.length} log entries`;
