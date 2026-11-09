@@ -134,3 +134,14 @@ test("DEVLOG_ALLOW takes only org and project names from the records, and the sc
   assert.deepEqual(out.allowed, ["oss"]);
   assert.deepEqual(out.ignored_allow, ["nosuch", "priya"]);
 });
+
+test("an underscore is a boundary too: schema and table names carry the org", () => {
+  const { root } = workspace();
+  const draft = path.join(root, "draft.txt");
+  fs.writeFileSync(draft, "loaded northwind_ledger into MYSQL__NORTHWIND_STAGE\n");
+  const r = run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss" }, "scrub", draft);
+  assert.equal(r.code, 1, r.out);
+  assert.deepEqual(r.json().hits.map(h => h.name).sort(), ["ledger", "northwind"]);
+  fs.writeFileSync(draft, "ledgers_total and northwinds_x stay words\n");
+  assert.equal(run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss" }, "scrub", draft).code, 0);
+});

@@ -211,7 +211,7 @@ For every draft:
 blog post or thread): write the draft to a file and run `node "$R" scrub <file>`.
 
 - Exit 1 lists each hit: an org, project, host or person from the records
-  (a surname alone counts; so does a name inside `name-repo#12`), or a private
+  (a surname alone counts; so does a name inside `name-repo#12` or `DB__NAME_TABLE`), or a private
   path, tailnet host or email. Refuse that draft. Rewrite it without
   those names ("a client", "a build host"), and scrub again until it exits 0.
 - Never show, save or post a draft that has not passed.

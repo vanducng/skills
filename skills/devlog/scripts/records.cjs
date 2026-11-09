@@ -114,8 +114,9 @@ function scrub(file, root) {
   const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const known = names(root);
   for (const { kind, name } of known.names) {
-    // A hyphen is a boundary: an org inside `org-repo#12` is still the org. A longer word (`ledgers`) is not a hit.
-    const re = new RegExp(`(^|[^\\p{L}\\p{N}_])${esc(name)}(?![\\p{L}\\p{N}_])`, "iu");
+    // Hyphens and underscores are boundaries: an org inside `org-repo#12` or `DB__ORG_TABLE` is still the org. A
+    // longer word (`ledgers`) is not a hit.
+    const re = new RegExp(`(^|[^\\p{L}\\p{N}])${esc(name)}(?![\\p{L}\\p{N}])`, "iu");
     const line = first(re);
     if (line) hits.push({ kind, name, line });
   }
