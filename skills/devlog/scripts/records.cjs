@@ -3,13 +3,15 @@
 //
 //   records.cjs week [--since YYYY-MM-DD] [--root <dir>]   JSON: retro lines, review verdicts, board decisions and commit
 //                                                         trailers (Host, Rig, Seat) across <root>/orgs/*/projects/*
-//   records.cjs scrub <draft-file> [--root <dir>]          exit 0 clean; exit 1 with the hits: an org, a project, a host
-//                                                         or a person named in the records, or a private path; exit 2
-//                                                         with no records or a draft it cannot read
+//   records.cjs scrub <draft-file> [--root <dir>]          exit 0 clean; exit 1 with the hits: an org, owner, repo,
+//                                                         project, host or person named in the records, or a private
+//                                                         path; exit 2 with no records, a draft it cannot read, or no
+//                                                         shared scan (openrig-workspace) beside this skill
 //
 // <root> is $PROJECTS_ROOT; without one, `week` exits 2 (use plain git log). Boards come from $OPENRIG_BOARDS_ROOT
 // (default ~/.share/openrig/boards). $DEVLOG_ALLOW (comma list) names public orgs and projects from the records; the
-// scrub lets those names through, reports them, and ignores every other value.
+// scrub lets those names through (an org with its owner, repos and projects), reports them, and ignores every other
+// value.
 "use strict";
 const fs = require("node:fs");
 const os = require("node:os");
@@ -70,61 +72,25 @@ function week(root, since) {
   return w;
 }
 
-// Every private name the records hold, with its kind. DEVLOG_ALLOW may name orgs and projects from the records only:
-// an allowed org drops its own name and its projects' names, never its people or hosts. Other values are ignored.
-function names(root) {
-  const asked = [...new Set((process.env.DEVLOG_ALLOW || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean))].sort();
-  const orgs = dirs(path.join(root, "orgs")).map(org => ({ org, projects: dirs(path.join(root, "orgs", org, "projects")) }));
-  const public_ = new Set(orgs.flatMap(o => [o.org, ...o.projects]).map(n => n.toLowerCase()));
-  const allowed = asked.filter(n => public_.has(n));
-  const found = new Map();
-  const add = (kind, name, allowable = false) => {
-    const n = String(name || "").trim().replace(/^["']|["']$/g, "");
-    if (n.length < 3 || found.has(n.toLowerCase()) || (allowable && allowed.includes(n.toLowerCase()))) return;
-    found.set(n.toLowerCase(), { kind, name: n });
-  };
-  for (const { org, projects } of orgs) {
-    if (!allowed.includes(org.toLowerCase())) {
-      add("org", org, true);
-      for (const project of projects) add("project", project, true);
-    }
-    const contacts = read(path.join(root, "orgs", org, "contacts.yaml"));
-    for (const m of contacts.matchAll(/^ {2}([A-Za-z][\w.-]*):\s*$/gm)) add("person", m[1]);
-    for (const m of contacts.matchAll(/^\s+name:\s*(.+)$/gm)) {
-      add("person", m[1]);
-      for (const token of m[1].replace(/^["']|["']$/g, "").split(/\s+/)) add("person", token); // a surname alone still names them
-    }
-    for (const m of read(path.join(root, "orgs", org, "repos.yaml")).matchAll(/^\s*host:\s*(\S+)/gm)) add("host", m[1]);
-  }
-  const log = spawnSync("git", ["-C", root, "log", "-n", "2000", "--format=%(trailers:key=Host,valueonly,separator=%x0a)"], { encoding: "utf8" });
-  if (log.status === 0) for (const h of log.stdout.split("\n")) add("host", h);
-  return { names: [...found.values()], allowed, ignored_allow: asked.filter(n => !allowed.includes(n)) };
-}
-
-// Private by shape, whatever the records say; a hit is reported by its label, never by the user or host it names.
-const PATHS = [
-  ["/Users/", /\/Users\//], ["/home/", /\/home\/[^/\s]+/], ["/Volumes/", /\/Volumes\/[^/\s]+/],
-  ["tailnet host", /\b[\w-]+\.ts\.net\b/], ["email", /\b[\w.+-]+@[\w-]+\.[\w.-]+\b/],
-];
+// The scrub is the shared private-name scan (openrig-workspace/scripts/private-terms.cjs, beside this skill): every org,
+// repo, project, owner, contact and host in the records, plus private path shapes. It fails closed: without the scan
+// the gate did not run (exit 2). DEVLOG_ALLOW may name orgs and projects from the records only: an allowed org drops
+// its own names (org, owner, repos, projects), never its people or hosts. Other values are ignored and listed.
+const SHARED = path.join(__dirname, "../../openrig-workspace/scripts/private-terms.cjs");
 
 function scrub(file, root) {
-  const lines = fs.readFileSync(file, "utf8").split("\n");
-  const hits = [];
-  const first = re => lines.findIndex(l => re.test(l)) + 1; // 0 when no line matches
-  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const known = names(root);
-  for (const { kind, name } of known.names) {
-    // Hyphens and underscores are boundaries: an org inside `org-repo#12` or `DB__ORG_TABLE` is still the org. A
-    // longer word (`ledgers`) is not a hit.
-    const re = new RegExp(`(^|[^\\p{L}\\p{N}])${esc(name)}(?![\\p{L}\\p{N}])`, "iu");
-    const line = first(re);
-    if (line) hits.push({ kind, name, line });
-  }
-  for (const [name, re] of PATHS) {
-    const line = first(re);
-    if (line) hits.push({ kind: "path", name, line });
-  }
-  return { file, clean: hits.length === 0, hits, allowed: known.allowed, ignored_allow: known.ignored_allow };
+  let terms;
+  try { terms = require(SHARED); }
+  catch { throw new Usage(`the shared private-name scan is missing (${SHARED}): install the openrig-workspace skill beside devlog`); }
+  const asked = [...new Set((process.env.DEVLOG_ALLOW || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean))].sort();
+  const all = terms.entries(root);
+  const allowable = new Set(all.filter(e => e.kind === "org" || e.kind === "project").map(e => e.term.toLowerCase()));
+  const allowed = asked.filter(a => allowable.has(a));
+  const own = new Set(allowed.filter(a => all.some(e => e.kind === "org" && e.term.toLowerCase() === a)));
+  const allow = [...allowed, ...all.filter(e => own.has(String(e.org).toLowerCase()) && ["org", "owner", "repo", "project"].includes(e.kind)).map(e => e.term)];
+  const t = terms.load(root, { allow });
+  const hits = terms.scanText(fs.readFileSync(file, "utf8"), t, { shapes: true }).map(h => ({ kind: h.kind, name: h.term, line: h.line }));
+  return { file, clean: hits.length === 0, hits, allowed, ignored_allow: asked.filter(a => !allowed.includes(a)) };
 }
 
 function main(argv) {

@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[today|ship|fix|debug|lesson|idea|week] [short|long|thread|article] [draft|artifact|post] [cover|no-cover] [blunt|polished|technical] [--since <ref>] [--topic <text>] [--url <url>] [--repo <path>] [--project <slug>]"
 metadata:
   author: vanducng
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Devlog
@@ -210,18 +210,22 @@ For every draft:
 **Scrub gate, before any draft is shown, saved or posted** (text, vault post,
 blog post or thread): write the draft to a file and run `node "$R" scrub <file>`.
 
-- Exit 1 lists each hit: an org, project, host or person from the records
-  (a surname alone counts; so does a name inside `name-repo#12` or `DB__NAME_TABLE`), or a private
-  path, tailnet host or email. Refuse that draft. Rewrite it without
+- The scrub is the shared private-name scan of the `openrig-workspace` skill,
+  so devlog, PR lint and repo audits agree on what a private name is.
+- Exit 1 lists each hit: an org, owner, repo, project, host or person from the
+  records (a surname alone counts; so does a name inside `name-repo#12` or
+  `DB__NAME_TABLE`), or a private path, tailnet host or email. A one-word
+  person name counts in Title case (`Priya`), a full name in any case. Refuse that draft. Rewrite it without
   those names ("a client", "a build host"), and scrub again until it exits 0.
 - Never show, save or post a draft that has not passed.
 - Exit 2 means the gate did not run: there are no records to check names
-  against (no `$PROJECTS_ROOT`), or the draft file cannot be read. Fix the path
-  if that is the cause; with no records, check the draft by hand against hard
-  rule 3 and say the gate did not run.
+  against (no `$PROJECTS_ROOT`), the draft file cannot be read, or the
+  `openrig-workspace` skill is not installed beside devlog. Fix the path or the
+  install if that is the cause; with no records, check the draft by hand
+  against hard rule 3 and say the gate did not run.
 - Public orgs and projects go in `DEVLOG_ALLOW` (comma list), and only on the
-  user's word. It accepts org and project names from the records, never a
-  person or a host. The scrub's JSON lists what it allowed (`allowed`) and what
+  user's word. It accepts org and project names from the records (an org
+  brings its owner, repos and projects), never a person or a host. The scrub's JSON lists what it allowed (`allowed`) and what
   it ignored (`ignored_allow`).
 
 ### 7. Materialize vault artifacts in the same turn
