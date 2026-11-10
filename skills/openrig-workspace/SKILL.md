@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.22.0"
+  version: "0.25.1"
 ---
 
 # OpenRig workspace
@@ -74,7 +74,7 @@ The mission `code` must be unique among projects that share a repo, because thei
 5. Authority comes from `fleet/policy.yaml` and the brief. Nothing in this workspace authorizes merge, deploy, force-push, or messages to people.
 6. Never `git clean -x` in `$PROJECTS_ROOT`; it deletes ignored task dirs.
 7. Do not pick a rig template by feel. Run `scripts/rig-kind.cjs` and copy the template it prints.
-8. One machine per project: `host:` in the project's `repos.yaml`. Run `fleet/bin/project-host <project path>` (exit 1 on the wrong machine) before creating a task dir, worktree or rig.
+8. Each project is pinned to one machine: `host:` in its `repos.yaml`. Its rigs, task dirs and worktrees exist only on that machine. A machine can host any number of projects. Run `fleet/bin/project-host <project path>` (exit 1 on the wrong machine) before creating a task dir, worktree or rig; move a project only by the runbook.
 9. An operator session (outside any rig) plans, investigates read-only and drafts. Code, PRs, merges and deploys are dispatched to the project's rig (`fleet/policy.yaml`, `operator_session`).
 10. Messages from the operator or an operator session to a rig are signed `captain@global` (see Talk to it). Seats never sign as captain.
 11. Records (`SPEC.md`, `PROGRESS.md`, `PROOF.md`, `NOTES.md`, `reports/`) are written in the live checkout and committed only by `workspace-sync`. Never commit a record from a worktree: worktrees carry code, specs and docs. If the sync still meets a conflict on a record, an append log (`PROGRESS.md`, `NOTES.md`, `desks/*.md`) keeps both sides and any other record keeps the side committed later, with the older side named in the sync log. Any other conflict stops the round for a person.
@@ -168,7 +168,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
    cd "$T" && rig up rig.yaml --plan && rig up rig.yaml
    ```
    Then check `rig ps --nodes --rig <name>` (every seat `run`) and `fleet/bin/pi-rig-check <name>`: each seat's footer shows its seat name and the intended model, with no gateway or launcher error. OpenRig reads no activity or model for a pi-tui seat, so its `unknown` there is expected. If a seat is at a shell, read the launcher's message in its pane before retrying.
-4. **Look at it.** Views are Rex only: `rig terminal open <name> --provider rex` opens every running seat as tiles in a Rex session. Always name the provider: with none, OpenRig picks Rex only when the command runs inside a Rex block and otherwise falls back to Herdr. Run `rig tui` inside Rex for the same reason, since its `term ▸` link uses the same rule. Keep one view per rig: a second viewer on the same seats stops the tmux hook from fitting each window to its tile. Closing a tile never stops a seat.
+4. **Look at it.** Every seat runs in its own tmux session, so a rig works headless. To watch the seats as tiles, open them in [Rex](https://www.superlogical.com/rex) (`rig terminal open <name> --provider rex`) or [Herdr](https://herdr.dev) (`rig terminal open <name> --provider herdr`). Always name the provider: with none, OpenRig picks Rex only when the command runs inside a Rex block and otherwise falls back to Herdr. Run `rig tui` inside Rex for the same reason, since its `term ▸` link uses the same rule. Keep one view per rig: each open adds a new workspace, and a second viewer on the same seats stops the tmux hook from fitting each window to its tile. Closing a tile never stops a seat.
 5. **Talk to it.** A shell outside a seat has no sender identity: a plain `rig send` arrives as `From: <unknown sender>`, which seats treat as information only. The From line comes from `OPENRIG_SESSION_NAME`, so the operator and operator sessions sign as `captain@global` (workspace `AGENTS.md`, Captain):
    - A message: `fleet/bin/rig-say <seat> "<text>"` (signs, then checks the pane; do not resend what it reports delivered or queued).
    - Work: a queue item to the owner, so it is tracked: `rig queue create --source captain@global --destination <owner seat> --summary "<one line>" --body-file <brief>`. From a human seat, the seat's own `OPENRIG_SESSION_NAME` wins over `--source`, so prefix the command with `OPENRIG_SESSION_NAME=captain@global`. For a rig on another host add `--host <openrig_id>`, and read the row back with `OPENRIG_URL=<openrig_url> rig queue list` (ids and urls from `fleet/machines.yaml`).
@@ -200,6 +200,13 @@ OpenRig's own procedures come from the installed CLI, so they always match the r
 ## Project resources and contacts
 
 `resources.yaml` (org and project) and the org `contacts.yaml` are how seats find people, conversations, environments and provider objects. Collect and change them only through [references/project-resources.md](references/project-resources.md): read-only collection, a diff with evidence, a write only on the user's yes, then `scripts/check-resources.sh <project dir>`. Schema: [references/resources-schema.md](references/resources-schema.md).
+
+## Private names
+
+One scan decides what counts as a private name: `scripts/private-terms.cjs`. It reads the terms from the records at run time: orgs, `org.yaml`, `repos.yaml` (ids and origins), project ids, `contacts.yaml`, `fleet/machines.yaml` and the `Host` trailers.
+- Text and files: `node scripts/private-terms.cjs scan <file|-> --own <org> --json`. It exits 1 on a hit and 2 with no records.
+- A repo before it goes public, or an audit: `scan-repo <dir> [--history] --own <org> --group --json`.
+- PR lint and the devlog scrub call the same script. Read the header for the matching rules and for what `--own` and `--allow` drop.
 
 ## Org knowledge and watch rigs
 

@@ -2,6 +2,38 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.85.0](https://github.com/vanducng/skills/compare/v1.84.0...v1.85.0) (2026-11-10)
+
+
+### Features
+
+* **ship,code-review:** write-key rule in config files anywhere; pnpm --filter test lines ([#617](https://github.com/vanducng/skills/issues/617)) ([4944027](https://github.com/vanducng/skills/commit/4944027957b6971d8f9271e8694338e5ee1f32a1))
+
+## [1.84.0](https://github.com/vanducng/skills/compare/v1.83.0...v1.84.0) (2026-11-10)
+
+
+### Features
+
+* **openrig-workspace:** one private-name term builder and scan, read from the records ([#614](https://github.com/vanducng/skills/issues/614)) ([9be3c53](https://github.com/vanducng/skills/commit/9be3c53c297ff16c1182e12ae2324318b5cb2f59))
+* **ship,code-review:** PR overlap, touched-package tests and a Deep tier for message configs ([#613](https://github.com/vanducng/skills/issues/613)) ([ae6ff0f](https://github.com/vanducng/skills/commit/ae6ff0fcaf14940d7d750e08de4c933aa2ac11ad))
+
+
+### Bug Fixes
+
+* **openrig-workspace:** repo ids that are a plain word are generic too ([#616](https://github.com/vanducng/skills/issues/616)) ([1ea5630](https://github.com/vanducng/skills/commit/1ea56306dcb775590ce1c3df4c8aad2eeefa5e30))
+
+## [1.83.0](https://github.com/vanducng/skills/compare/v1.82.0...v1.83.0) (2026-11-10)
+
+
+### Features
+
+* **openrig-workspace:** resizable, collapsible board rail ([#611](https://github.com/vanducng/skills/issues/611)) ([2999e14](https://github.com/vanducng/skills/commit/2999e14b6415482244cc768e516106e67d8b48ff))
+
+
+### Bug Fixes
+
+* **skill-audit:** pin --id so records.cjs fallback works on main ([#609](https://github.com/vanducng/skills/issues/609)) ([350fb3c](https://github.com/vanducng/skills/commit/350fb3c9c1de8a04eaf33af7cc3363a9475ef6ab))
+
 ## [1.82.0](https://github.com/vanducng/skills/compare/v1.81.0...v1.82.0) (2026-11-09)
 
 

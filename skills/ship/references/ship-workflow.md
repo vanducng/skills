@@ -33,7 +33,8 @@
      - *Abort* - stop the pipeline.
    - **Never** offer direct-push in `--auto`. The flow is binary: branch + continue, or stop on safety violation.
 5. Fetch the target, then inspect `git diff origin/<target>...HEAD --stat` and `git log origin/<target>..HEAD --oneline`. For an individual promotion, exclude unrelated staging commits. If the named branch carries them, stop and propose a clean target-based branch with only the intended commits; do not silently switch heads, rebase a shared branch, or merge the aggregate release branch into it.
-6. If `--dry-run`: print every step's intent, change nothing, stop here.
+6. **Overlapping PRs.** Run `node scripts/preflight.cjs overlap --base origin/<target> --repo <owner>/<repo>` (path relative to this skill). It lists every other open PR that touches the same files. Carry each `warn:` line into the ship summary and the PR body, so both authors see the clash before review. It warns and never blocks.
+7. If `--dry-run`: print every step's intent, change nothing, stop here.
 
 ### Step 1b: Ticket branch guard
 
@@ -110,9 +111,10 @@ git fetch origin <target> && git merge origin/<target> --no-edit
 
 **Skip if** `--skip-tests`.
 
-1. Auto-detect test command (see `auto-detect.md`).
-2. Delegate to `tester` subagent - pass detected command. Don't inline run.
-3. Read pass/fail from agent result.
+1. List the touched packages' test commands: `node scripts/preflight.cjs tests --base origin/<target>`. Each changed file (docs aside) belongs to the nearest directory with a test command (see `auto-detect.md`); a repo with one test command gets one line. In a pnpm workspace (`pnpm-workspace.yaml`) a package's line is `pnpm --filter <name> test`, with the name from its `package.json`.
+2. Run each one locally before the PR opens: `preflight.cjs tests --base origin/<target> --run`, or hand the list to the `tester` subagent. CI is the second check, not the first.
+3. Put the printed lines, one per command with its result, in the PR body's verification block. A merge gate may check that the body names each touched package's command.
+4. Read pass/fail.
    - Any failure → **STOP**, show failures.
    - All pass → log counts, continue.
    - No runner detected → `AskUserQuestion`: skip / provide command.
@@ -253,6 +255,7 @@ Full recipe: `references/before-after.md`. Upload helper: `../git/references/gh-
 3. **Embed in the PR** - replace `<!-- SCREENSHOTS -->` with the before/after table referencing `./before.png` / `./after.png`, then `gh pr edit --body-file ... --attach` each file (fallback: `gh_upload_image` + HTML table). Never commit the images. Verify the rendered images (private-repo 404 unauthenticated / 200 authenticated).
 4. **Ticket** - when Step 1b **confirmed** a key (not a regex guess alone), mirror via `vd:jira` (or a GitHub-issue comment). Follow `vd:jira`'s show-before-execute approval for the comment body + images - **`--auto` does not suppress this prompt**; if declined, skip the ticket post and continue the ship. One-line result + PR URL.
 5. Ship summary line: `✓ Before/after: embedded` or `✓ Before/after: skipped - <reason>`.
+6. **Text or layout a person sees (operator, 2026-11-10).** When the PR changes what a person reads or sees outside the app too (a chat post, an email, a notification, a ticket comment, a report), the PR carries a live capture of the real output, or a dry run on real data, for the owner's yes before anything switches it on. A config change that switches it on waits for that yes. `--skip-screenshots` does not skip this step.
 
 Never block the pipeline on capture failure - note why and continue to Step 13.
 

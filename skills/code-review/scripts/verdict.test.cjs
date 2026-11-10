@@ -141,6 +141,33 @@ test("round --pr counts only that PR's verdicts, across seat names, and names th
   assert.throws(() => run(dir, "round", proof, "--pr", "x").json(), SyntaxError);
 });
 
+test("tier: a configs/ change that switches on a message write is Deep, even in a markdown file", () => {
+  // The shape of a real escape: one added key in an automation's markdown config turned on an automatic chat post.
+  const on = run(repo({ "configs/workspaces/team/automations/release-watch/automation.md": "---\nname: release-watch\nslack_start_failure_thread: team-alerts\n---\n" }), "tier", "--base", "main").json();
+  assert.equal(on.tier, "Deep");
+  assert.match(on.why, /message-writing config.*slack_start_failure_thread/);
+  for (const key of ["post_to: releases", "send_email: true", "notify: on", "  webhook_url: x"]) {
+    assert.equal(run(repo({ "configs/jobs/nightly.yaml": `${key}\n` }), "tier", "--base", "main").json().tier, "Deep", key);
+  }
+  for (const [f, body] of [["configs/jobs/nightly.yaml", "schedule: daily\n"], ["src/notify.js", "const notify = 1;\n"],
+    ["configs/jobs/nightly.yaml", "message_format_docs: docs/messages.md\n"], ["configs/jobs/nightly.yaml", "posted_at: 2026-01-01\n"],
+    ["configs/jobs/nightly.yaml", "sender_name: Release bot\n"]]) {
+    assert.notEqual(run(repo({ [f]: body }), "tier", "--base", "main").json().tier, "Deep", f);
+  }
+});
+
+test("tier: the write-key rule reads config-shaped files anywhere, not tests, fixtures, docs, lockfiles or manifests", () => {
+  const key = "slack_start_failure_thread: team-alerts\n";
+  for (const f of ["workspaces/demo/automations/post-release.yaml", "deploy/alerts.toml", "ops/notify.json", "svc/.env.production"]) {
+    const body = f.endsWith(".json") ? '{"slack_start_failure_thread": "team-alerts"}\n' : f.includes(".env") ? "SLACK_START_FAILURE_THREAD=team-alerts\n" : key;
+    assert.equal(run(repo({ [f]: body }), "tier", "--base", "main").json().tier, "Deep", f);
+  }
+  for (const [f, body] of [["docs/examples/post-release.yaml", key], ["tests/fixtures/post-release.yaml", key], ["src/__tests__/cfg.yaml", key],
+    ["pnpm-lock.yaml", "packages:\n  send: 0.18.0\n"], ["package.json", '{"dependencies": {"send": "^0.18.0"}}\n']]) {
+    assert.notEqual(run(repo({ [f]: body }), "tier", "--base", "main").json().tier, "Deep", f);
+  }
+});
+
 test("tier: a new API route, API controller or OpenAPI spec is Deep", () => {
   for (const f of ["routes/api.php", "app/Http/Controllers/Api/TransferController.php", "src/api/v1/routes.ts",
     "services/api/handlers/user_handler.go", "openapi.yaml", "docs/api/swagger.json"]) {

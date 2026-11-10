@@ -13,6 +13,15 @@
   t = t || saved;
   if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
 })();
+// Rail width and collapsed state before first paint too, so a wide page never moves on load. One value for every
+// board in this browser. Widest: 480px, 40% of the window, or what leaves the main column 560px, whichever is least.
+function tbRailMax() { return Math.max(200, Math.min(480, Math.floor(innerWidth * 0.4), innerWidth - 560)); }
+(function () {
+  var r = document.documentElement, w = null, off = null;
+  try { w = parseInt(localStorage.getItem("tb-rail-w"), 10); off = localStorage.getItem("tb-rail-off"); } catch (e) { /* private mode */ }
+  if (w >= 200) { r.style.setProperty("--tb-rail-w", Math.min(w, tbRailMax()) + "px"); if (w >= tbRailMax()) r.classList.add("rail-max"); }
+  if (off === "1") r.classList.add("rail-off");
+})();
 </script>
 <style>
   /* ===== Design tokens (shared with the board index page: keep the names) ===== */
@@ -121,7 +130,7 @@
   .menu a .n, .rail a .n { color: var(--tb-muted); font-size: var(--tb-fs-sm); font-variant-numeric: tabular-nums; }
   .menu a.sub, .rail a.sub { padding-left: var(--tb-sp-6); color: var(--tb-muted); }
   .menu a > span:first-child, .rail a > span:first-child { min-width: 0; overflow-wrap: anywhere; line-height: 1.3; }
-  .rail { display: none; }
+  .rail, .railgrip { display: none; }
   .menu .menuclose { width: 100%; justify-content: center; margin-bottom: var(--tb-sp-1); } .menu .menuclose:last-child { margin: var(--tb-sp-1) 0 0; }
 
   .page { padding: var(--tb-sp-4) var(--tb-sp-4) calc(var(--tb-sp-7) + env(safe-area-inset-bottom)); display: grid; gap: var(--tb-sp-4); align-content: start; min-width: 0; }
@@ -134,6 +143,20 @@
     .rail h2 { font-size: var(--tb-fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--tb-muted); padding: var(--tb-sp-2) var(--tb-sp-3); }
     .rail a[aria-current="true"] { background: var(--tb-accent-soft); color: var(--tb-accent); font-weight: 650; }
     .rail a > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* the full title is the link's tooltip */
+    .rail { padding-top: var(--tb-sp-2); }
+    .railhead { display: flex; align-items: center; justify-content: space-between; gap: var(--tb-sp-2); }
+    .railtog, .railtog[aria-expanded] { border-color: transparent; background: none; color: var(--tb-muted); padding: 0; }
+    html.rail-max .rail a > span:first-child { white-space: normal; overflow: visible; } /* at the widest, wrap rather than cut */
+    .railgrip { display: block; position: fixed; z-index: 20; top: var(--tb-bar-h); bottom: 0; left: calc(var(--tb-rail-w) - 5px); width: 10px; cursor: col-resize; touch-action: none; }
+    .railgrip::after { content: ""; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent; transition: background-color .15s; }
+    .railgrip:hover::after, .railgrip:focus-visible::after, html.rail-drag .railgrip::after { background: var(--tb-accent); }
+    .railgrip:focus-visible { outline: none; }
+    html.rail-drag, html.rail-drag * { cursor: col-resize !important; -webkit-user-select: none; user-select: none; }
+    html.rail-off body { --tb-rail-w: 54px; }
+    html.rail-off .rail { padding: var(--tb-sp-2) 4px; overflow: hidden; }
+    html.rail-off .rail > a, html.rail-off .railhead h2, html.rail-off .railgrip { display: none; }
+    html.rail-off .railtog svg { transform: scaleX(-1); }
+    html.rail-off .menubtn { display: inline-flex; }
     .page { padding: var(--tb-sp-5) var(--tb-sp-6) var(--tb-sp-7); gap: var(--tb-sp-5); }
     .menubtn { display: none; }
   }
@@ -421,7 +444,7 @@
 
   /* print: everything open, no chrome, always light */
   @media print {
-    .bar, .rail, .sheet, .chat, .scrim, .menu, .filters, .search, .annobar, .toolbar, .skip, .changed, .chv, .dgfoot button, .morebtn { display: none !important; }
+    .bar, .rail, .railgrip, .sheet, .chat, .scrim, .menu, .filters, .search, .annobar, .toolbar, .skip, .changed, .chv, .dgfoot button, .morebtn { display: none !important; }
     body { display: block; background: #fff; color: #000; padding: 0; } .page { padding: 0; max-width: none; display: block; } .page > * { margin-bottom: 14px; }
     .card { box-shadow: none; break-inside: avoid; } .snote { display: block !important; } .lead { display: block; } .lead > * { margin-bottom: 14px; }
     .twocol { display: block; } .dgbox { overflow: visible; }
@@ -431,7 +454,7 @@
   }
   @media (forced-colors: active) { .pill, .chip, .ibtn, .stat, .card { border: 1px solid CanvasText; } .bartrack i { background: Highlight; } .pill::before { background: CanvasText; } }
 </style>
-<noscript><style>.bar .ibtn, .menubtn, .rail, .menu { display: none !important; } .page { max-width: 80ch; }</style></noscript>
+<noscript><style>.bar .ibtn, .menubtn, .rail, .railgrip, .menu { display: none !important; } .page { max-width: 80ch; }</style></noscript>
 </head>
 <body>
 <a class="skip" href="#needs">Skip to what needs you</a>
@@ -444,6 +467,7 @@
 </header>
 <nav class="menu" id="menu" aria-label="Sections"></nav>
 <nav class="rail" id="rail" aria-label="Sections"></nav>
+<div class="railgrip" id="railgrip" role="separator" aria-orientation="vertical" aria-controls="rail" aria-label="Resize the section rail (arrow keys; Enter resets)" tabindex="0"></div>
 <main class="page" id="page">
 <!-- board.cjs render fills this with a plain-text summary for readers without JavaScript. -->
 <noscript id="summary"><p class="card plain">This board needs JavaScript. Open board.json beside this file for the data.</p></noscript>
@@ -824,7 +848,7 @@ function build() {
 // ---- Nav: top-bar menu on phones, sticky rail from 1024 ----
 function buildNav() {
   const html = navItems.map(([id, t, n, sub, full]) => `<a href="#${esc(id)}"${sub ? ' class="sub"' : ""} title="${esc(full || t)}"><span>${esc(t)}</span>${n != null ? `<span class="n">${n}</span>` : ""}</a>`).join("");
-  $("#menu").innerHTML = `<button class="ibtn menuclose" type="button">Close menu</button>${html}<button class="ibtn menuclose" type="button">Close menu</button>`; $("#rail").innerHTML = `<h2>On this board</h2>${html}`;
+  $("#menu").innerHTML = `<button class="ibtn menuclose" type="button">Close menu</button>${html}<button class="ibtn menuclose" type="button">Close menu</button>`; $("#rail").innerHTML = `<div class="railhead"><h2>On this board</h2><button class="ibtn railtog" type="button" aria-controls="rail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button></div>${html}`; railTog();
   const secs = $$("#rail a").map(a => [a, document.getElementById(decodeURIComponent(a.getAttribute("href").slice(1)))]).filter(p => p[1]);
   let tick = false;
   const spy = () => { tick = false; let cur = secs[0]; for (const p of secs) if (p[1].getBoundingClientRect().top <= 140) cur = p; for (const p of secs) { if (p === cur) p[0].setAttribute("aria-current", "true"); else p[0].removeAttribute("aria-current"); } };
@@ -881,6 +905,40 @@ menuBtn.addEventListener("click", () => setMenu(!menu.classList.contains("open")
 menu.addEventListener("click", e => { if (e.target.closest("a")) setMenu(false); else if (e.target.closest(".menuclose")) { setMenu(false); menuBtn.focus(); } });
 document.addEventListener("click", e => { if (menu.classList.contains("open") && !menu.contains(e.target) && !menuBtn.contains(e.target)) setMenu(false); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && menu.classList.contains("open")) { setMenu(false); menuBtn.focus(); } });
+
+// ---- Rail width (1024px and wider): drag or arrow keys on the handle, Enter or a double-click resets ----
+const RAIL_DEF = 232, RAIL_MIN = 200, docEl = document.documentElement, grip = $("#railgrip");
+let railPref = Number.parseInt(ls.get("tb-rail-w"), 10) || RAIL_DEF;
+const railW = () => Number.parseFloat(docEl.style.getPropertyValue("--tb-rail-w")) || RAIL_DEF;
+function setRail(w, save) {
+  const max = tbRailMax(), v = Math.round(Math.min(Math.max(w, RAIL_MIN), max));
+  docEl.style.setProperty("--tb-rail-w", `${v}px`); docEl.classList.toggle("rail-max", v >= max);
+  grip.setAttribute("aria-valuemin", RAIL_MIN); grip.setAttribute("aria-valuemax", max); grip.setAttribute("aria-valuenow", v);
+  if (save) { railPref = v; ls.set("tb-rail-w", String(v)); }
+}
+function resetRail() { railPref = RAIL_DEF; ls.del("tb-rail-w"); setRail(RAIL_DEF, false); }
+setRail(railPref, false);
+addEventListener("resize", () => setRail(railPref, false));
+grip.addEventListener("pointerdown", e => { if (e.button) return; e.preventDefault(); grip.setPointerCapture(e.pointerId); docEl.classList.add("rail-drag"); });
+grip.addEventListener("pointermove", e => { if (grip.hasPointerCapture(e.pointerId)) setRail(e.clientX, false); });
+grip.addEventListener("lostpointercapture", () => { docEl.classList.remove("rail-drag"); setRail(railW(), true); });
+grip.addEventListener("dblclick", resetRail);
+grip.addEventListener("keydown", e => {
+  const step = e.shiftKey ? 64 : 16, to = { ArrowLeft: railW() - step, ArrowRight: railW() + step, Home: RAIL_MIN, End: Infinity }[e.key];
+  if (e.key === "Enter") resetRail(); else if (to != null) setRail(to, true); else return;
+  e.preventDefault();
+});
+// Collapse to a slim strip; the bar's menu button then opens the full menu.
+function railTog() {
+  const off = document.documentElement.classList.contains("rail-off"), b = $(".railtog"); // runs from buildNav, before docEl exists
+  if (b) { b.setAttribute("aria-expanded", String(!off)); b.setAttribute("aria-label", off ? "Show the section rail" : "Hide the section rail"); }
+}
+$("#rail").addEventListener("click", e => {
+  if (!e.target.closest(".railtog")) return;
+  const off = docEl.classList.toggle("rail-off");
+  if (off) ls.set("tb-rail-off", "1"); else ls.del("tb-rail-off");
+  railTog();
+});
 
 // ---- Filter and search ----
 let status = "all", term = "", wasFiltering = false;
@@ -983,7 +1041,7 @@ function setAnno(on) {
   $("#annotext").textContent = on ? "Annotate on. Tap a row to add a note." : "";
 }
 const MODAL = () => !panelMode();
-function inertPage(on) { for (const el of [$(".bar"), $("#rail"), $("#menu"), page]) { if (on) el.setAttribute("inert", ""); else el.removeAttribute("inert"); } }
+function inertPage(on) { for (const el of [$(".bar"), $("#rail"), grip, $("#menu"), page]) { if (on) el.setAttribute("inert", ""); else el.removeAttribute("inert"); } }
 // Below 1280 the Changes sheet and the note box are modal: the page behind them is inert and they say so.
 // At 1280 and up the note box sits directly under the Changes panel, which is only as tall as its notes.
 function layoutPanel() {
