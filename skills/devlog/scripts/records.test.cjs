@@ -28,7 +28,7 @@ function workspace() {
     "---\naxes: {spec: pass, standards: pass}\ntier: Standard\nreviewed_at: 2026-03-02T09:00:00Z\n---\n");
   put(root, "orgs/oss/projects/toolkit/missions/m2/slices/01-cli/PROGRESS.md", "- 2026-03-03T08:00Z: retro: the CLI prints JSON envelopes\n");
   put(root, "orgs/northwind/contacts.yaml", "schema: x\norg: northwind\ncontacts:\n  priya:\n    name: Priya Raman\n    role: buyer\n");
-  put(root, "orgs/northwind/repos.yaml", "repos:\n  ledger:\n    host: build-box-7\n");
+  put(root, "orgs/northwind/projects/ledger/repos.yaml", "host: build-box-7\nrepos: [ledger]\n"); // a project's host, as in the real records
   spawnSync("git", ["init", "-q", "-b", "main"], { cwd: root, env: ENV });
   spawnSync("git", ["add", "-A"], { cwd: root, env: ENV });
   spawnSync("git", ["commit", "-q", "-m", "feat(northwind.ledger): export retries\n\nHost: lab-mini\nRig: ledger-team\nSeat: dev@ledger-team"],
@@ -126,7 +126,7 @@ test("scrub with no records exits 2: no names to check is not clean", () => {
 test("DEVLOG_ALLOW takes only org and project names from the records, and the scrub reports what it allowed", () => {
   const { root } = workspace();
   const draft = path.join(root, "draft.txt");
-  fs.writeFileSync(draft, "the toolkit shipped; thanks priya\n");
+  fs.writeFileSync(draft, "the toolkit shipped; thanks Priya\n");
   const r = run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss,priya,nosuch" }, "scrub", draft);
   assert.equal(r.code, 1, r.out);
   const out = r.json();
@@ -169,4 +169,36 @@ test("eval 01's check works with TMPDIR unset: it passes a clean post and refuse
   const bad = check("shipped the Northwind ledger export JSON envelopes\n");
   assert.notEqual(bad.status, 0);
   assert.match(bad.stdout, /fails the scrub/);
+});
+
+test("scrub runs the shared private-name scan: names only it reads (machines, org owners) are hits", () => {
+  const { root } = workspace();
+  put(root, "fleet/machines.yaml", "machines:\n  tower-9:\n    hostname: tower-9.lan\n");
+  put(root, "orgs/northwind/org.yaml", "id: northwind\nname: Northwind\ngithub_owner: nw-traders\n");
+  const draft = path.join(root, "draft.txt");
+  fs.writeFileSync(draft, "ran the build on tower-9 and pushed to nw-traders\n");
+  const r = run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss" }, "scrub", draft);
+  assert.equal(r.code, 1, r.out);
+  assert.deepEqual(r.json().hits.map(h => `${h.kind}:${h.name}`).sort(), ["host:tower-9", "owner:nw-traders"]);
+});
+
+test("a one-word person name matches in Title case only (the shared rule); a full name in any case", () => {
+  const { root } = workspace();
+  const draft = path.join(root, "draft.txt");
+  fs.writeFileSync(draft, "the priya_mode flag; PRIYA mode\n");
+  assert.equal(run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss" }, "scrub", draft).code, 0);
+  fs.writeFileSync(draft, "thanks priya raman\n");
+  assert.equal(run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss" }, "scrub", draft).code, 1);
+});
+
+test("scrub fails closed (exit 2) when the shared scan is not installed beside devlog", () => {
+  const { root } = workspace();
+  const alone = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "devlog-alone-")), "devlog/scripts");
+  fs.mkdirSync(alone, { recursive: true });
+  fs.copyFileSync(R, path.join(alone, "records.cjs"));
+  const draft = path.join(root, "draft.txt");
+  fs.writeFileSync(draft, "anything\n");
+  const r = spawnSync(process.execPath, [path.join(alone, "records.cjs"), "scrub", draft], { env: { ...ENV, PROJECTS_ROOT: root }, encoding: "utf8" });
+  assert.equal(r.status, 2, r.stdout + r.stderr);
+  assert.match(r.stderr, /openrig-workspace/);
 });
