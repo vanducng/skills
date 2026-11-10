@@ -2,6 +2,14 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.86.0](https://github.com/vanducng/skills/compare/v1.85.0...v1.86.0) (2026-11-10)
+
+
+### Features
+
+* **devlog:** the scrub runs the shared private-name scan ([#620](https://github.com/vanducng/skills/issues/620)) ([896f9ee](https://github.com/vanducng/skills/commit/896f9ee8c6851cff631e4a44851ebca6fea95f2a))
+* **devlog:** week mode reads the workspace records, and a scrub gate guards every draft ([#607](https://github.com/vanducng/skills/issues/607)) ([d6fc96a](https://github.com/vanducng/skills/commit/d6fc96a07c079d96abfc956a9cc45eee4718a5b2))
+
 ## [1.85.0](https://github.com/vanducng/skills/compare/v1.84.0...v1.85.0) (2026-11-10)
 
 
