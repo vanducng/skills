@@ -2,6 +2,8 @@
 
 Hooks for coding agents (Claude Code, Codex, Grok, pi), managed in this repo.
 
+The shared hook library reads `~/.claude/.vd.json`, then `<git-root>/.vd.json`. Under the opt-in `feature-first` layout, the ticket in a branch name is found only for the prefixes in `plan.ticketPrefixes` (default `["PRJ", "GH", "PROJ"]`); a repo with other ticket keys lists its own prefixes there, for example `{"plan": {"ticketPrefixes": ["KEY"]}}`.
+
 ## langfuse-trace.py — Langfuse session tracing
 
 Ships **Claude Code** and **Codex** sessions to [Langfuse](https://langfuse.com)
