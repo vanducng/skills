@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.25.2"
+  version: "0.26.0"
 ---
 
 # OpenRig workspace
@@ -111,6 +111,8 @@ Every template is a pi-tui rig. A seat's model comes from its role (`PI_TUI_ROLE
 Put the choice on the first line of the task `AGENTS.md`: `Kind: feature medium`.
 
 **Feature.** Low is `solo`: `dev.build` writes alone. Medium is `workshop`: `orch.lead` coordinates and does not edit the worktree; `dev.build` writes, `dev.qa` runs the change, and `dev.review` reviews it. High is `factory`: the workshop seats (with `review.r1` in place of `dev.review`) plus `orch.advisor`, `orch.pm` and `dev.design`, with `review.r2` added by `rig add` when a second reviewer is needed. High does not start implementation until the operator has accepted the plan. `orch.pm` writes the briefs and docs, and `dev.design` the mockups for user-visible behavior.
+
+**BI dashboard.** A feature medium (`workshop`), with the `bi-dashboard` work type and the `bi-dash` skill. Seat map: `dev.design` draws the HTML mockup on synthetic data (add the seat with `rig add`, or `dev.build` draws it); `dev.build` writes the field map, reconciliation, models and dashboard; `dev.qa` runs UAT on real data; `dev.review` reads the diff; `orch.lead` gets the asker's sign-off on the question sheet and mockup, both linked from the slice card on the board (`signoff`).
 
 **Bug fix.** No code until a check is red or the cause is proven from evidence. Same seats as a medium feature. Create the slice with `--template bug-fix`.
 

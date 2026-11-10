@@ -1,0 +1,1 @@
+Here is the approved mockup for our weekly sales dashboard (`mockup.html`) and our warehouse (`warehouse.db`, SQLite). Before anyone builds it: do we have the data for every chart? Work in this directory.

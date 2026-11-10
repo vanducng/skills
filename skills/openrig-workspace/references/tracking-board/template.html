@@ -242,7 +242,7 @@ function tbRailMax() { return Math.max(200, Math.min(480, Math.floor(innerWidth 
   .prchip { position: absolute; right: var(--tb-sp-3); bottom: 6px; width: var(--tb-prw); height: var(--tb-tap); justify-content: center; padding: 0 var(--tb-sp-2); font-size: var(--tb-fs-sm); }
   .prchip span { overflow: hidden; text-overflow: ellipsis; }
   .snote { display: none; padding: 0 var(--tb-sp-4) var(--tb-sp-3) calc(20px + 2.7em + var(--tb-sp-2)); }
-  .srow.open .snote { display: block; } .snote .diagram { margin-top: var(--tb-sp-3); }
+  .srow.open .snote { display: block; } .snote .diagram, .snote .signoff { margin-top: var(--tb-sp-3); }
   @media (min-width: 700px) { .sprog .bartrack { width: 96px; } .srow .sline { padding-right: calc(var(--tb-prw) + var(--tb-sp-2)); min-height: var(--tb-tap); } }
   .srow.noted, .drow.noted, .lrow.noted, .frow.noted, .mission.noted > summary, tr.noted { box-shadow: inset 4px 0 0 var(--tb-new); background: color-mix(in srgb, var(--tb-new) 8%, var(--tb-surface)); }
   .card.noted { box-shadow: inset 4px 0 0 var(--tb-new), var(--tb-shadow); }
@@ -549,9 +549,16 @@ function prLabel(u) {
   const s = String(u ?? ""), m = /\/(?:pull|pulls|merge_requests|issues)\/(\d+)\/?(?:[?#].*)?$/.exec(s) || /#(\d+)$/.exec(s);
   return m ? `PR #${m[1]}` : "PR";
 }
+// What the asker signs off on this slice (a question sheet, a mockup): [[title, url]], shown under the slice note.
+function signoffHtml(s) {
+  const rows = Array.isArray(s.signoff) ? s.signoff.filter(r => Array.isArray(r) && r[0]) : [];
+  if (!rows.length) return "";
+  const link = ([title, url]) => { const h = safeHref(url); return h ? `<a href="${esc(h)}"${/^https?:/i.test(h) ? ' rel="noopener"' : ""}>${esc(title)}</a>` : `<span>${esc(title)}</span>`; };
+  return `<p class="signoff"><span class="meta">For sign-off:</span> ${rows.map(link).join(" · ")}</p>`;
+}
 const STATUSES = { done: "Done", doing: "In progress", planned: "Planned", blocked: "Blocked", decide: "Needs decision", accepted: "Accepted", pass: "Pass", fail: "Fail" };
 const pillClass = s => (s in STATUSES ? s : "planned");
-const sliceSig = s => [s.name, s.owner, s.status, s.progress, s.note, s.pr].map(v => String(v ?? "")).join("|");
+const sliceSig = s => [s.name, s.owner, s.status, s.progress, s.note, s.pr, JSON.stringify(s.signoff || [])].map(v => String(v ?? "")).join("|");
 const decSig = d => [d.q, d.rec, d.status, d.why, d.evidence, d.decided].map(v => String(v ?? "")).join("|");
 // What changed since the baseline a visit started from: ids of slices and decisions that are new or different, and new log rows.
 function diffBoard(base, now) {
@@ -752,12 +759,12 @@ function decRow(d) {
 function sliceRow(m, s) {
   const id = sliceDomId(m, s), ch = changedSlice.has(s.id), p = Math.max(0, Math.min(100, Number(s.progress) || 0));
   const href = s.pr ? safeHref(s.pr) : "", ext = /^https?:/i.test(href);
-  const hasNote = !!String(s.note || "").trim(), dg = s.diagram && diagrams[s.diagram] ? String(s.diagram) : "", more = hasNote || !!dg;
+  const so = signoffHtml(s), hasNote = !!String(s.note || "").trim(), dg = s.diagram && diagrams[s.diagram] ? String(s.diagram) : "", more = hasNote || !!dg || !!so;
   const main = `<span class="sid">${ch ? DOT : ""}${esc(s.id)}</span><span class="sname">${esc(s.name)}</span>${pill(s.status)}<span class="sline"><span class="sown" title="${esc(s.owner || "")}">${esc(s.owner || "no owner")}</span><span class="sprog"><span class="bartrack" aria-hidden="true"><i style="width:${p}%"></i></span><span class="pct">${p}%</span></span></span>`;
   const prchip = s.pr ? (href ? `<a class="chip prchip" href="${esc(href)}"${ext ? ' rel="noopener"' : ""} title="${esc(s.pr)}"><span>${esc(prLabel(s.pr))}</span>${ext ? I.ext : ""}</a>` : `<span class="meta prchip">${esc(String(s.pr).slice(0, 40))}</span>`) : "";
   return `<li class="srow${s.pr ? " haspr" : ""}${wide() && more ? " open" : ""}" id="${esc(id)}" data-status="${esc(s.status)}" data-text="${esc(`${s.id} ${s.name} ${s.owner || ""} ${s.note || ""}`.toLowerCase())}" data-akey="s:${esc(m.id)}/${esc(s.id)}" data-label="${esc(`${m.id}: ${m.name} › ${s.id}`)}"${ch ? ' data-changed="1"' : ""}>
     <div class="stop">${more ? `<button class="smain" type="button" aria-expanded="${wide()}" aria-controls="n-${esc(id)}">${main}<span class="chv">${I.chev}</span></button>` : `<div class="smain">${main}</div>`}${prchip}</div>
-    ${more ? `<div class="snote" id="n-${esc(id)}">${esc(s.note || "")}${dg ? safeRun(`Diagram ${dg}`, () => diagramHtml(dg)) : ""}</div>` : ""}</li>`;
+    ${more ? `<div class="snote" id="n-${esc(id)}">${esc(s.note || "")}${so}${dg ? safeRun(`Diagram ${dg}`, () => diagramHtml(dg)) : ""}</div>` : ""}</li>`;
 }
 function missionHtml(m, i) {
   const sl = m.slices || [], done = sl.filter(s => s.status === "done").length, pct = sl.length ? Math.round(done / sl.length * 100) : 0;

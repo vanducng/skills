@@ -259,7 +259,7 @@ test("render draws a statechart in the role palette: no inline colors reach pele
 // ---- the page's pure helpers --------------------------------------------------------------------------------------
 
 const helperSrc = /\/\* tb:helpers:start[^\n]*\n([\s\S]*?)\/\* tb:helpers:end \*\//.exec(templateText)[1];
-const H = new Function(`${helperSrc}\nreturn { esc, md, safeHref, parseWhen, relTime, prLabel, pillClass, sliceSig, decSig, diffBoard, snapshot, idOf, orderMissions, STATUSES };`)();
+const H = new Function(`${helperSrc}\nreturn { esc, md, safeHref, parseWhen, relTime, prLabel, signoffHtml, pillClass, sliceSig, decSig, diffBoard, snapshot, idOf, orderMissions, STATUSES };`)();
 
 test("esc escapes the five HTML characters", () => {
   assert.equal(H.esc(`<a href="x" onclick='y'>&</a>`), "&lt;a href=&quot;x&quot; onclick=&#39;y&#39;&gt;&amp;&lt;/a&gt;");
@@ -298,6 +298,19 @@ test("prLabel names the pull request number and falls back to PR", () => {
   assert.equal(H.prLabel("owner/repo#55"), "PR #55");
   assert.equal(H.prLabel("https://example.test/anything"), "PR");
   assert.equal(H.prLabel(undefined), "PR");
+});
+
+test("a slice's sign-off links (a question sheet, a mockup) render as safe links under one label", () => {
+  assert.equal(H.signoffHtml({}), "");
+  assert.equal(H.signoffHtml({ signoff: [] }), "");
+  const html = H.signoffHtml({ signoff: [["Question sheet", "question-sheet.html"], ["Mockup <v2>", "https://boards.example.test/mockup.html"], ["Bad", "javascript:alert(1)"]] });
+  assert.match(html, /^<p class="signoff"><span class="meta">For sign-off:<\/span> /);
+  assert.match(html, /<a href="question-sheet.html">Question sheet<\/a>/);
+  assert.match(html, /<a href="https:\/\/boards.example.test\/mockup.html" rel="noopener">Mockup &lt;v2&gt;<\/a>/);
+  assert.match(html, /<span>Bad<\/span>/, "an unsafe link is shown as text");
+  assert.doesNotMatch(html, /javascript:/);
+  const base = { id: "S1", name: "x", status: "decide" };
+  assert.notEqual(H.sliceSig(base), H.sliceSig({ ...base, signoff: [["Mockup", "m.html"]] }), "a new sign-off link counts as a change");
 });
 
 test("status pills: known statuses keep their class, unknown ones are shown as planned", () => {
@@ -434,6 +447,7 @@ test("the fixture is a synthetic board that covers every state the page draws", 
   assert.ok(fixture.needs.some(n => typeof n === "object" && n.href) && fixture.log.length && fixture.facts.length && fixture.links.length);
   assert.ok(Object.keys(fixture.diagrams).length >= 2);
   assert.ok(fixture.missions.some(m => m.slices.some(x => x.diagram && /^stateDiagram/.test(fixture.diagrams[x.diagram]))), "a slice shows a statechart");
+  assert.ok(fixture.missions.some(m => m.slices.some(x => (x.signoff || []).length)), "a slice carries sign-off links");
   const text = JSON.stringify(fixture);
   assert.doesNotMatch(text, /@(?!demo-rig)\w+\.\w+/, "no real mail or seat domains");
   assert.doesNotMatch(text, /https?:\/\/(?!\w+\.example\.test)/, "only example.test URLs");

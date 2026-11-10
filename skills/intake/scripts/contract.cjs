@@ -13,6 +13,12 @@ const TYPES = {
   "sop": ["Each step's output is captured."],
   "data-engineering": ["Built in a dev schema, audited (tests, row counts, diff against prod), then published.", "The proof says whether the audited schema was promoted or rebuilt."],
   "data-analysis": ["The metric is defined in one sentence.", "The number is reconciled against a known reference.", "The uncertainty is stated."],
+  "bi-dashboard": ["A question sheet: each row has its audience, the decision it supports and a one-sentence metric definition, answered by the asker (vd:bi-dash).",
+    "An HTML mockup on synthetic data, each chart tracing to a sheet row, with the asker's sign-off recorded.",
+    "A field map: every mockup field mapped to a model column as exists, variant (with the choice) or missing, with nulls, outliers and duplicate spellings profiled.",
+    "Every KPI reconciled to a reference (source-system count or prior report) within a stated tolerance.",
+    "UAT on real data: a screenshot answers each sheet row inside its time-to-read budget, and design fidelity is 9 or more against the mockup.",
+    "A metric glossary: definition, source, logic, owner and refresh cadence."],
 };
 const arg = process.argv[2];
 if (!arg || arg === "--help") { process.stderr.write("usage: contract.cjs --list | <type>\n"); process.exit(2); }

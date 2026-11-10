@@ -1,0 +1,1 @@
+The KPI tiles for our March sales dashboard are built: `dashboard/tiles.sql` runs against `warehouse.db` (SQLite). The finance team's monthly report is in `reference/`. Is the dashboard ready to publish to the team? Work in this directory.
