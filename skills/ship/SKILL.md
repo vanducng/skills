@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[official|staging|beta] [--auto] [--merge] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-screenshots] [--skip-journal] [--skip-docs] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.6.0"
+  version: "1.7.0"
 ---
 
 # Ship
@@ -140,10 +140,10 @@ Repository deployment policy and an explicitly named source/target branch take p
 ## Pipeline
 
 ```
-1.  Pre-flight    → branch check, mode detect, status, diff/log summary
+1.  Pre-flight    → branch check, mode detect, status, diff/log summary, other open PRs on the same files (warn)
 2.  Link issues   → find related GH issues; optionally create one if none
 3.  Merge target  → fetch + merge origin/<target>
-4.  Tests         → delegate to tester subagent
+4.  Tests         → run each touched package's test command (`scripts/preflight.cjs tests --run`); list each in the PR body
 5.  Review        → delegate to code-reviewer subagent (two-pass)
 6.  Version bump  → auto-detect version file, patch by default
 7.  Changelog     → auto-generate from commits + diff
@@ -152,7 +152,7 @@ Repository deployment policy and an explicitly named source/target branch take p
 10. Commit        → conventional commit, secret scan + portability scan (Rules 7 / 7b)
 11. Push          → git push -u origin <branch>
 12. PR            → gh -R <owner>/<repo> pr create --draft (or edit the existing PR) using repo template or canonical fallback
-12b. Before/after → for user-visible UI: embed before/after in PR (+ ticket comment when linked); skip for non-visual / `--skip-screenshots` - see `references/before-after.md`
+12b. Before/after → for user-visible UI: embed before/after in PR (+ ticket comment when linked); skip for non-visual / `--skip-screenshots` - see `references/before-after.md`; a change to text or a layout a person sees (post, email, notification, report) carries a live capture or real-data dry run for the owner's yes before switch-on
 13. PR comments   → fetch review threads + human/bot reviews + top-level comments; triage, fix/reply/resolve (re-run Step 4 after any fix); repair silently-resolved threads; re-trigger bot re-reviews and loop until 0 unresolved - see `references/bot-reviewers.md`
 14. Release       → `--release` only: detect auto-release tool; tag + push if manual
 15. CI watch      → wait for PR checks; on failure prompt user (every mode)

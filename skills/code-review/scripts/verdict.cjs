@@ -32,6 +32,10 @@ const API = [
   /(^|\/)controllers?\/api\//i,
   /(^|\/)(openapi|swagger)[^/]*\.(ya?ml|json)$/i,
 ];
+// A configs/ change that sets a key which writes to people (post, send, notify, a chat, email or webhook target) is
+// Deep, whatever the file type: one added key can switch on an automatic message.
+const CONFIG = /(^|\/)configs?\//i;
+const MESSAGE_KEY = /^\+[ \t]*(?:[-*][ \t]+)?["']?([\w.-]*(?:post|posting|send|sending|notify|notification|slack|email|webhook|message|reply)[\w.-]*)["']?[ \t]*[:=]/gim;
 const DOCS = /\.(md|mdx|txt|rst)$|(^|\/)docs\//i;
 // A REVIEW.md line "Security axis: always" asks for the security axis on every change, whatever the tier. Read at the
 // base and the head: a PR that deletes the line still needs the axis it would drop.
@@ -60,6 +64,9 @@ function tier(base, head, k = keys(base, head)) {
   if (!files.length) throw new Fail(`${k.base.slice(0, 12)}..${k.head.slice(0, 12)} changes nothing: there is no diff to judge`);
   const deep = files.filter(f => DEEP.test(f) || API.some(re => re.test(f)));
   if (deep.length) return { tier: "Deep", axes: ["spec", "standards", "security"], why: `risky paths: ${deep.join(", ")}`, files: files.length, lines };
+  const configs = files.filter(f => CONFIG.test(f));
+  const msgKeys = configs.length ? [...git(["diff", "-U0", `${k.base}..${k.head}`, "--", ...configs]).matchAll(MESSAGE_KEY)].map(m => m[1]) : [];
+  if (msgKeys.length) return { tier: "Deep", axes: ["spec", "standards", "security"], why: `message-writing config: ${[...new Set(msgKeys)].join(", ")}`, files: files.length, lines };
   const t = files.every(f => DOCS.test(f)) ? { tier: "Quick", why: "docs only" }
     : { tier: lines < 50 ? "Quick" : "Standard", why: `${lines} changed lines, no risky path` };
   if (asksSecurity(k.base) || asksSecurity(k.head)) return { ...t, axes: ["spec", "standards", "security"], why: `${t.why}; REVIEW.md asks for the security axis`, files: files.length, lines };
