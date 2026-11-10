@@ -111,7 +111,7 @@ git fetch origin <target> && git merge origin/<target> --no-edit
 
 **Skip if** `--skip-tests`.
 
-1. List the touched packages' test commands: `node scripts/preflight.cjs tests --base origin/<target>`. Each changed file (docs aside) belongs to the nearest directory with a test command (see `auto-detect.md`); a repo with one test command gets one line.
+1. List the touched packages' test commands: `node scripts/preflight.cjs tests --base origin/<target>`. Each changed file (docs aside) belongs to the nearest directory with a test command (see `auto-detect.md`); a repo with one test command gets one line. In a pnpm workspace (`pnpm-workspace.yaml`) a package's line is `pnpm --filter <name> test`, with the name from its `package.json`.
 2. Run each one locally before the PR opens: `preflight.cjs tests --base origin/<target> --run`, or hand the list to the `tester` subagent. CI is the second check, not the first.
 3. Put the printed lines, one per command with its result, in the PR body's verification block. A merge gate may check that the body names each touched package's command.
 4. Read pass/fail.

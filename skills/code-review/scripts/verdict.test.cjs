@@ -156,6 +156,18 @@ test("tier: a configs/ change that switches on a message write is Deep, even in 
   }
 });
 
+test("tier: the write-key rule reads config-shaped files anywhere, not tests, fixtures, docs, lockfiles or manifests", () => {
+  const key = "slack_start_failure_thread: team-alerts\n";
+  for (const f of ["workspaces/demo/automations/post-release.yaml", "deploy/alerts.toml", "ops/notify.json", "svc/.env.production"]) {
+    const body = f.endsWith(".json") ? '{"slack_start_failure_thread": "team-alerts"}\n' : f.includes(".env") ? "SLACK_START_FAILURE_THREAD=team-alerts\n" : key;
+    assert.equal(run(repo({ [f]: body }), "tier", "--base", "main").json().tier, "Deep", f);
+  }
+  for (const [f, body] of [["docs/examples/post-release.yaml", key], ["tests/fixtures/post-release.yaml", key], ["src/__tests__/cfg.yaml", key],
+    ["pnpm-lock.yaml", "packages:\n  send: 0.18.0\n"], ["package.json", '{"dependencies": {"send": "^0.18.0"}}\n']]) {
+    assert.notEqual(run(repo({ [f]: body }), "tier", "--base", "main").json().tier, "Deep", f);
+  }
+});
+
 test("tier: a new API route, API controller or OpenAPI spec is Deep", () => {
   for (const f of ["routes/api.php", "app/Http/Controllers/Api/TransferController.php", "src/api/v1/routes.ts",
     "services/api/handlers/user_handler.go", "openapi.yaml", "docs/api/swagger.json"]) {
