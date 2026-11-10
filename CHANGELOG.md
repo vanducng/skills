@@ -2,6 +2,19 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.84.0](https://github.com/vanducng/skills/compare/v1.83.0...v1.84.0) (2026-11-10)
+
+
+### Features
+
+* **openrig-workspace:** one private-name term builder and scan, read from the records ([#614](https://github.com/vanducng/skills/issues/614)) ([9be3c53](https://github.com/vanducng/skills/commit/9be3c53c297ff16c1182e12ae2324318b5cb2f59))
+* **ship,code-review:** PR overlap, touched-package tests and a Deep tier for message configs ([#613](https://github.com/vanducng/skills/issues/613)) ([ae6ff0f](https://github.com/vanducng/skills/commit/ae6ff0fcaf14940d7d750e08de4c933aa2ac11ad))
+
+
+### Bug Fixes
+
+* **openrig-workspace:** repo ids that are a plain word are generic too ([#616](https://github.com/vanducng/skills/issues/616)) ([1ea5630](https://github.com/vanducng/skills/commit/1ea56306dcb775590ce1c3df4c8aad2eeefa5e30))
+
 ## [1.83.0](https://github.com/vanducng/skills/compare/v1.82.0...v1.83.0) (2026-11-10)
 
 
