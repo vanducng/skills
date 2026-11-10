@@ -4,7 +4,7 @@
 //   preflight.cjs overlap --base <ref> [--repo <owner/name>]   other open PRs that touch the same files (warns, exit 0)
 //   preflight.cjs tests --base <ref> [--run]                   the touched packages' test commands, one PR-body line each
 //
-// tests: each changed file (docs aside) belongs to the nearest directory that has a test command, by the table in
+// tests: each changed file (docs and repo config aside, see REPO_CONFIG) belongs to the nearest directory that has a test command, by the table in
 // references/auto-detect.md. Prints "- `<command>`" for the repository root and "- `cd <dir> && <command>`" for a
 // package below it; in a pnpm workspace a package's line is "- `pnpm --filter <package.json name> test`". --run runs each and appends ": pass" or ": failed (exit n)"; any failure exits 1.
 "use strict";
@@ -13,6 +13,11 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const DOCS = /\.(md|mdx|txt|rst)$|(^|\/)docs\//i;
+// Repo config with no package source: anything under .github/ (CI runs the workflows itself) and a short named list.
+// The same rule as the workspace's fleet merge-gate; both tests pin the same examples.
+const REPO_CONFIG = /^\.github\/|(^|\/)(CODEOWNERS|\.gitignore|\.gitattributes|\.editorconfig)$|^(renovate\.json5?|\.renovaterc(\.json)?)$/;
+// --run never installs: pnpm stops instead of installing, cargo and go do not fetch.
+const NO_INSTALL = { npm_config_verify_deps_before_run: "error", CARGO_NET_OFFLINE: "true", GOPROXY: "off" };
 const a = process.argv.slice(2), opt = k => (a.includes(k) ? a[a.indexOf(k) + 1] : null);
 const die = (msg, code = 2) => { process.stderr.write(`preflight: ${msg}\n`); process.exit(code); };
 const sh = (cmd, args) => { const r = spawnSync(cmd, args, { encoding: "utf8", maxBuffer: 1 << 26 }); if (r.status !== 0) die(`${cmd} ${args[0]} failed: ${String(r.stderr || r.error).trim().slice(0, 200)}`); return r.stdout; };
@@ -39,9 +44,17 @@ function testCommand(dir) {
   return null;
 }
 
+// Whether `name` exists in `dir` or a parent up to the repository root (npm workspaces install at the root).
+function hasUp(dir, name) {
+  for (let d = dir; ; d = path.dirname(d)) {
+    if (fs.existsSync(path.join(d, name))) return true;
+    if (d === top || d === path.dirname(d)) return false;
+  }
+}
+
 function tests() {
-  const code = changed.filter(f => !DOCS.test(f));
-  if (!code.length) { console.log("docs only: no test command needed"); return; }
+  const code = changed.filter(f => !DOCS.test(f) && !REPO_CONFIG.test(f));
+  if (!code.length) { console.log(`${changed.every(f => DOCS.test(f)) ? "docs only" : "docs and repo config only"}: no test command needed`); return; }
   const found = new Map(), missing = new Set();
   for (const f of code) {
     let dir = path.dirname(f);
@@ -57,7 +70,9 @@ function tests() {
     const cmd = found.get(dir), shown = cmd.pnpm || (dir === "." ? cmd : `cd ${dir} && ${cmd}`);
     const [line, cwd] = cmd.pnpm ? [cmd.pnpm, top] : [cmd, path.join(top, dir)];
     if (!a.includes("--run")) { console.log(`- \`${shown}\``); continue; }
-    const r = spawnSync("sh", ["-c", line], { cwd, stdio: ["ignore", "ignore", "inherit"] });
+    const deps = cmd.pnpm || cmd === "npm test" ? "node_modules" : cmd === "composer test" ? "vendor" : null;
+    if (deps && !hasUp(cwd, deps)) { failed++; console.log(`- \`${shown}\`: not run: ${deps} is missing; install the dependencies, then run it again`); continue; }
+    const r = spawnSync("sh", ["-c", line], { cwd, env: { ...process.env, ...NO_INSTALL }, stdio: ["ignore", "ignore", "inherit"] });
     if (r.status !== 0) failed++;
     console.log(`- \`${shown}\`: ${r.status === 0 ? "pass" : `failed (exit ${r.status})`}`);
   }
