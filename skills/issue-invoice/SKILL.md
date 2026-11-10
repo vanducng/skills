@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[client] [YYYY-MM] | rollover | --list"
 metadata:
   author: vanducng
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
 # issue-invoice
