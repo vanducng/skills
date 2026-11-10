@@ -594,7 +594,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 * **miucr:** document review -v/-q progress flags ([7748674](https://github.com/vanducng/skills/commit/7748674daf12a31094059e2dcb16cf676c75fb19))
 * **miucr:** init OAuth auth method + cleaner UX ([1880206](https://github.com/vanducng/skills/commit/1880206d940265a054a2a25d7acde9ce5a6e9149))
 * **skill-creator:** add skill for authoring agent-ready skills ([#379](https://github.com/vanducng/skills/issues/379)) ([1b41dd1](https://github.com/vanducng/skills/commit/1b41dd117a5f4abedb76f908e55728cb4eee9cbd))
-* **skill:** add cnb ds eda ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
+* **skill:** add a local data-science EDA skill ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
 * **skill:** improve Retell mutation guidance ([#358](https://github.com/vanducng/skills/issues/358)) ([15eca14](https://github.com/vanducng/skills/commit/15eca14388468a4365bc3b805b86e59fc1c5c5a9))
 * **skills:** add cli-ts and voice-agent skills ([#316](https://github.com/vanducng/skills/issues/316)) ([11f0ab2](https://github.com/vanducng/skills/commit/11f0ab2681447f05c32a31a829e826596ae833e6))
 * **skills:** add tech-docs skill ([#349](https://github.com/vanducng/skills/issues/349)) ([e18fd00](https://github.com/vanducng/skills/commit/e18fd00b02fdbe8533900417b51782ccdb4746e8))
@@ -697,7 +697,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 * **miucr:** document review -v/-q progress flags ([7748674](https://github.com/vanducng/skills/commit/7748674daf12a31094059e2dcb16cf676c75fb19))
 * **miucr:** init OAuth auth method + cleaner UX ([1880206](https://github.com/vanducng/skills/commit/1880206d940265a054a2a25d7acde9ce5a6e9149))
 * **skill-creator:** add skill for authoring agent-ready skills ([#379](https://github.com/vanducng/skills/issues/379)) ([1b41dd1](https://github.com/vanducng/skills/commit/1b41dd117a5f4abedb76f908e55728cb4eee9cbd))
-* **skill:** add cnb ds eda ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
+* **skill:** add a local data-science EDA skill ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
 * **skill:** improve Retell mutation guidance ([#358](https://github.com/vanducng/skills/issues/358)) ([15eca14](https://github.com/vanducng/skills/commit/15eca14388468a4365bc3b805b86e59fc1c5c5a9))
 * **skills:** add cli-ts and voice-agent skills ([#316](https://github.com/vanducng/skills/issues/316)) ([11f0ab2](https://github.com/vanducng/skills/commit/11f0ab2681447f05c32a31a829e826596ae833e6))
 * **skills:** add tech-docs skill ([#349](https://github.com/vanducng/skills/issues/349)) ([e18fd00](https://github.com/vanducng/skills/commit/e18fd00b02fdbe8533900417b51782ccdb4746e8))
@@ -802,7 +802,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 * **miucr:** document review -v/-q progress flags ([7748674](https://github.com/vanducng/skills/commit/7748674daf12a31094059e2dcb16cf676c75fb19))
 * **miucr:** init OAuth auth method + cleaner UX ([1880206](https://github.com/vanducng/skills/commit/1880206d940265a054a2a25d7acde9ce5a6e9149))
 * **skill-creator:** add skill for authoring agent-ready skills ([#379](https://github.com/vanducng/skills/issues/379)) ([1b41dd1](https://github.com/vanducng/skills/commit/1b41dd117a5f4abedb76f908e55728cb4eee9cbd))
-* **skill:** add cnb ds eda ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
+* **skill:** add a local data-science EDA skill ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
 * **skill:** improve Retell mutation guidance ([#358](https://github.com/vanducng/skills/issues/358)) ([15eca14](https://github.com/vanducng/skills/commit/15eca14388468a4365bc3b805b86e59fc1c5c5a9))
 * **skills:** add cli-ts and voice-agent skills ([#316](https://github.com/vanducng/skills/issues/316)) ([11f0ab2](https://github.com/vanducng/skills/commit/11f0ab2681447f05c32a31a829e826596ae833e6))
 * **skills:** add tech-docs skill ([#349](https://github.com/vanducng/skills/issues/349)) ([e18fd00](https://github.com/vanducng/skills/commit/e18fd00b02fdbe8533900417b51782ccdb4746e8))
@@ -906,7 +906,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 * **miucr:** document review -v/-q progress flags ([7748674](https://github.com/vanducng/skills/commit/7748674daf12a31094059e2dcb16cf676c75fb19))
 * **miucr:** init OAuth auth method + cleaner UX ([1880206](https://github.com/vanducng/skills/commit/1880206d940265a054a2a25d7acde9ce5a6e9149))
 * **skill-creator:** add skill for authoring agent-ready skills ([#379](https://github.com/vanducng/skills/issues/379)) ([1b41dd1](https://github.com/vanducng/skills/commit/1b41dd117a5f4abedb76f908e55728cb4eee9cbd))
-* **skill:** add cnb ds eda ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
+* **skill:** add a local data-science EDA skill ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
 * **skill:** improve Retell mutation guidance ([#358](https://github.com/vanducng/skills/issues/358)) ([15eca14](https://github.com/vanducng/skills/commit/15eca14388468a4365bc3b805b86e59fc1c5c5a9))
 * **skills:** add cli-ts and voice-agent skills ([#316](https://github.com/vanducng/skills/issues/316)) ([11f0ab2](https://github.com/vanducng/skills/commit/11f0ab2681447f05c32a31a829e826596ae833e6))
 * **skills:** add tech-docs skill ([#349](https://github.com/vanducng/skills/issues/349)) ([e18fd00](https://github.com/vanducng/skills/commit/e18fd00b02fdbe8533900417b51782ccdb4746e8))
@@ -1013,7 +1013,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 * **miucr:** document review -v/-q progress flags ([7748674](https://github.com/vanducng/skills/commit/7748674daf12a31094059e2dcb16cf676c75fb19))
 * **miucr:** init OAuth auth method + cleaner UX ([1880206](https://github.com/vanducng/skills/commit/1880206d940265a054a2a25d7acde9ce5a6e9149))
 * **skill-creator:** add skill for authoring agent-ready skills ([#379](https://github.com/vanducng/skills/issues/379)) ([1b41dd1](https://github.com/vanducng/skills/commit/1b41dd117a5f4abedb76f908e55728cb4eee9cbd))
-* **skill:** add cnb ds eda ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
+* **skill:** add a local data-science EDA skill ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
 * **skill:** improve Retell mutation guidance ([#358](https://github.com/vanducng/skills/issues/358)) ([15eca14](https://github.com/vanducng/skills/commit/15eca14388468a4365bc3b805b86e59fc1c5c5a9))
 * **skills:** add cli-ts and voice-agent skills ([#316](https://github.com/vanducng/skills/issues/316)) ([11f0ab2](https://github.com/vanducng/skills/commit/11f0ab2681447f05c32a31a829e826596ae833e6))
 * **skills:** add tech-docs skill ([#349](https://github.com/vanducng/skills/issues/349)) ([e18fd00](https://github.com/vanducng/skills/commit/e18fd00b02fdbe8533900417b51782ccdb4746e8))
@@ -1119,7 +1119,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 * **miucr:** document review -v/-q progress flags ([7748674](https://github.com/vanducng/skills/commit/7748674daf12a31094059e2dcb16cf676c75fb19))
 * **miucr:** init OAuth auth method + cleaner UX ([1880206](https://github.com/vanducng/skills/commit/1880206d940265a054a2a25d7acde9ce5a6e9149))
 * **skill-creator:** add skill for authoring agent-ready skills ([#379](https://github.com/vanducng/skills/issues/379)) ([1b41dd1](https://github.com/vanducng/skills/commit/1b41dd117a5f4abedb76f908e55728cb4eee9cbd))
-* **skill:** add cnb ds eda ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
+* **skill:** add a local data-science EDA skill ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
 * **skill:** improve Retell mutation guidance ([#358](https://github.com/vanducng/skills/issues/358)) ([15eca14](https://github.com/vanducng/skills/commit/15eca14388468a4365bc3b805b86e59fc1c5c5a9))
 * **skills:** add cli-ts and voice-agent skills ([#316](https://github.com/vanducng/skills/issues/316)) ([11f0ab2](https://github.com/vanducng/skills/commit/11f0ab2681447f05c32a31a829e826596ae833e6))
 * **skills:** add tech-docs skill ([#349](https://github.com/vanducng/skills/issues/349)) ([e18fd00](https://github.com/vanducng/skills/commit/e18fd00b02fdbe8533900417b51782ccdb4746e8))
@@ -1227,7 +1227,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 * **miucr:** document review -v/-q progress flags ([7748674](https://github.com/vanducng/skills/commit/7748674daf12a31094059e2dcb16cf676c75fb19))
 * **miucr:** init OAuth auth method + cleaner UX ([1880206](https://github.com/vanducng/skills/commit/1880206d940265a054a2a25d7acde9ce5a6e9149))
 * **skill-creator:** add skill for authoring agent-ready skills ([#379](https://github.com/vanducng/skills/issues/379)) ([1b41dd1](https://github.com/vanducng/skills/commit/1b41dd117a5f4abedb76f908e55728cb4eee9cbd))
-* **skill:** add cnb ds eda ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
+* **skill:** add a local data-science EDA skill ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
 * **skill:** improve Retell mutation guidance ([#358](https://github.com/vanducng/skills/issues/358)) ([15eca14](https://github.com/vanducng/skills/commit/15eca14388468a4365bc3b805b86e59fc1c5c5a9))
 * **skills:** add cli-ts and voice-agent skills ([#316](https://github.com/vanducng/skills/issues/316)) ([11f0ab2](https://github.com/vanducng/skills/commit/11f0ab2681447f05c32a31a829e826596ae833e6))
 * **skills:** add tech-docs skill ([#349](https://github.com/vanducng/skills/issues/349)) ([e18fd00](https://github.com/vanducng/skills/commit/e18fd00b02fdbe8533900417b51782ccdb4746e8))
@@ -1358,7 +1358,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 * **ship:** flag non-releasing commit types + Release-As force ([#171](https://github.com/vanducng/skills/issues/171)) ([620a914](https://github.com/vanducng/skills/commit/620a9142757a1b6220eb0d52cc5b1b1ab0f4af4f))
 * **skill-creator:** add skill for authoring agent-ready skills ([#379](https://github.com/vanducng/skills/issues/379)) ([1b41dd1](https://github.com/vanducng/skills/commit/1b41dd117a5f4abedb76f908e55728cb4eee9cbd))
 * **skill-evolve:** add session-driven skill-improvement skill ([3192fb6](https://github.com/vanducng/skills/commit/3192fb6438fbf46fb5011cccbcc542271cbd15b1))
-* **skill:** add cnb ds eda ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
+* **skill:** add a local data-science EDA skill ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
 * **skill:** improve Retell mutation guidance ([#358](https://github.com/vanducng/skills/issues/358)) ([15eca14](https://github.com/vanducng/skills/commit/15eca14388468a4365bc3b805b86e59fc1c5c5a9))
 * **skills:** add cli-ts and voice-agent skills ([#316](https://github.com/vanducng/skills/issues/316)) ([11f0ab2](https://github.com/vanducng/skills/commit/11f0ab2681447f05c32a31a829e826596ae833e6))
 * **skills:** add tech-docs skill ([#349](https://github.com/vanducng/skills/issues/349)) ([e18fd00](https://github.com/vanducng/skills/commit/e18fd00b02fdbe8533900417b51782ccdb4746e8))
@@ -1542,7 +1542,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 * **ship:** flag non-releasing commit types + Release-As force ([#171](https://github.com/vanducng/skills/issues/171)) ([620a914](https://github.com/vanducng/skills/commit/620a9142757a1b6220eb0d52cc5b1b1ab0f4af4f))
 * **skill-creator:** add skill for authoring agent-ready skills ([#379](https://github.com/vanducng/skills/issues/379)) ([1b41dd1](https://github.com/vanducng/skills/commit/1b41dd117a5f4abedb76f908e55728cb4eee9cbd))
 * **skill-evolve:** add session-driven skill-improvement skill ([3192fb6](https://github.com/vanducng/skills/commit/3192fb6438fbf46fb5011cccbcc542271cbd15b1))
-* **skill:** add cnb ds eda ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
+* **skill:** add a local data-science EDA skill ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
 * **skill:** improve Retell mutation guidance ([#358](https://github.com/vanducng/skills/issues/358)) ([15eca14](https://github.com/vanducng/skills/commit/15eca14388468a4365bc3b805b86e59fc1c5c5a9))
 * **skill:** miudb ERD agentic recipe + ER viewer UX upgrades ([#108](https://github.com/vanducng/skills/issues/108)) ([8a5967e](https://github.com/vanducng/skills/commit/8a5967e9362ebd365c5ec828b13c852ca4dfd0a1))
 * **skills/ship:** handle PR review comments in pipeline ([#40](https://github.com/vanducng/skills/issues/40)) ([cb1fd3a](https://github.com/vanducng/skills/commit/cb1fd3a4f2a30a0f87f52db76475ab2eb7e1326c))
@@ -2097,7 +2097,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 
 ### Features
 
-* **skill:** add cnb ds eda ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
+* **skill:** add a local data-science EDA skill ([#274](https://github.com/vanducng/skills/issues/274)) ([d462536](https://github.com/vanducng/skills/commit/d4625366f5e3cf98283e7af96ebe092737c79a1e))
 
 ## [1.22.0](https://github.com/vanducng/skills/compare/v1.21.0...v1.22.0) (2026-06-28)
 
@@ -2857,7 +2857,7 @@ All notable changes to this repo are documented here. Format: [Keep a Changelog]
 ## [0.12.0] - 2026-05-21
 
 ### Added
-- `skills/code-review/` — personalized PR review skill. Borrows the inline-comment posting workflow from upstream `review-pr` and folds it into a vd: skill with a personal review voice. PR mode is the polished path: a single `gh api POST /pulls/:n/reviews` call builds the entire review payload (top-level summary + inline comments anchored to the PR head SHA). Severity prefixes (`Critical / Important - <topic> / Suggestion / Question / Nit`), comment shape (problem-first, evidence, concrete alternative), and tone calibration (encouraging when earned, direct on real problems, never condescending). Reference example shape: `careernowbrands/cnb-data-contract#124`. Other modes (`--pending`, commit hash, codebase) kept lean. Project-specific rules deferred to `CLAUDE.md` / `docs/code-standards.md` so the skill stays repo-agnostic.
+- `skills/code-review/` — personalized PR review skill. Borrows the inline-comment posting workflow from upstream `review-pr` and folds it into a vd: skill with a personal review voice. PR mode is the polished path: a single `gh api POST /pulls/:n/reviews` call builds the entire review payload (top-level summary + inline comments anchored to the PR head SHA). Severity prefixes (`Critical / Important - <topic> / Suggestion / Question / Nit`), comment shape (problem-first, evidence, concrete alternative), and tone calibration (encouraging when earned, direct on real problems, never condescending). Reference example shape: `owner/repo#124`. Other modes (`--pending`, commit hash, codebase) kept lean. Project-specific rules deferred to `CLAUDE.md` / `docs/code-standards.md` so the skill stays repo-agnostic.
 - `skills/browser-profile/` — named persistent Chrome profile registry on top of `--user-data-dir` + `--remote-debugging-port`. Lets the user and Claude both attach to the *same* Chrome window across runs without `--user-data-dir` collisions. Six verbs: `profile-list`, `profile-open`, `profile-attach`, `profile-close`, `profile-export`, `profile-reset`. Pairs with `vd:browser` (`browse env local --auto-connect`) for the CDP attach step.
 
 ### Changed
