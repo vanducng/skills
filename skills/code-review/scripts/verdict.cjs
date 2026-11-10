@@ -32,10 +32,13 @@ const API = [
   /(^|\/)controllers?\/api\//i,
   /(^|\/)(openapi|swagger)[^/]*\.(ya?ml|json)$/i,
 ];
-// A configs/ change that sets a key which writes to people (post, send, notify, a chat, email or webhook target) is
-// Deep, whatever the file type: one added key can switch on an automatic message.
+// A configs/ change that sets a key which writes to people is Deep, whatever the file type: one added key can switch
+// on an automatic message. Write semantics only: the key starts with a write verb (post_to, send_email, notify) or
+// names where a message goes (a channel, thread, webhook or recipients); message_format_docs, posted_at or
+// sender_name do not.
 const CONFIG = /(^|\/)configs?\//i;
-const MESSAGE_KEY = /^\+[ \t]*(?:[-*][ \t]+)?["']?([\w.-]*(?:post|posting|send|sending|notify|notification|slack|email|webhook|message|reply)[\w.-]*)["']?[ \t]*[:=]/gim;
+const CONFIG_KEY = /^\+[ \t]*(?:[-*][ \t]+)?["']?([\w.-]+)["']?[ \t]*[:=]/gm;
+const WRITE_KEY = /^(post|send|notify|notification|publish)s?([_.-]|$)|(^|[_.-])(channel|thread|webhook|webhook_url|recipients?)s?$/i;
 const DOCS = /\.(md|mdx|txt|rst)$|(^|\/)docs\//i;
 // A REVIEW.md line "Security axis: always" asks for the security axis on every change, whatever the tier. Read at the
 // base and the head: a PR that deletes the line still needs the axis it would drop.
@@ -65,7 +68,7 @@ function tier(base, head, k = keys(base, head)) {
   const deep = files.filter(f => DEEP.test(f) || API.some(re => re.test(f)));
   if (deep.length) return { tier: "Deep", axes: ["spec", "standards", "security"], why: `risky paths: ${deep.join(", ")}`, files: files.length, lines };
   const configs = files.filter(f => CONFIG.test(f));
-  const msgKeys = configs.length ? [...git(["diff", "-U0", `${k.base}..${k.head}`, "--", ...configs]).matchAll(MESSAGE_KEY)].map(m => m[1]) : [];
+  const msgKeys = configs.length ? [...git(["diff", "-U0", `${k.base}..${k.head}`, "--", ...configs]).matchAll(CONFIG_KEY)].map(m => m[1]).filter(key => WRITE_KEY.test(key)) : [];
   if (msgKeys.length) return { tier: "Deep", axes: ["spec", "standards", "security"], why: `message-writing config: ${[...new Set(msgKeys)].join(", ")}`, files: files.length, lines };
   const t = files.every(f => DOCS.test(f)) ? { tier: "Quick", why: "docs only" }
     : { tier: lines < 50 ? "Quick" : "Standard", why: `${lines} changed lines, no risky path` };

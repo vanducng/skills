@@ -149,7 +149,9 @@ test("tier: a configs/ change that switches on a message write is Deep, even in 
   for (const key of ["post_to: releases", "send_email: true", "notify: on", "  webhook_url: x"]) {
     assert.equal(run(repo({ "configs/jobs/nightly.yaml": `${key}\n` }), "tier", "--base", "main").json().tier, "Deep", key);
   }
-  for (const [f, body] of [["configs/jobs/nightly.yaml", "schedule: daily\n"], ["src/notify.js", "const notify = 1;\n"]]) {
+  for (const [f, body] of [["configs/jobs/nightly.yaml", "schedule: daily\n"], ["src/notify.js", "const notify = 1;\n"],
+    ["configs/jobs/nightly.yaml", "message_format_docs: docs/messages.md\n"], ["configs/jobs/nightly.yaml", "posted_at: 2026-01-01\n"],
+    ["configs/jobs/nightly.yaml", "sender_name: Release bot\n"]]) {
     assert.notEqual(run(repo({ [f]: body }), "tier", "--base", "main").json().tier, "Deep", f);
   }
 });

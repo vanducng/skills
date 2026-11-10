@@ -63,7 +63,14 @@ function tests() {
 function overlap() {
   const branch = sh("git", ["branch", "--show-current"]).trim(), mine = new Set(changed);
   const repo = opt("--repo") ? ["-R", opt("--repo")] : [];
-  const prs = JSON.parse(sh("gh", ["pr", "list", ...repo, "--state", "open", "--limit", "100", "--json", "number,title,headRefName,files"]));
+  // A warning only: when gh cannot list the open PRs, say so and carry on.
+  const r = spawnSync("gh", ["pr", "list", ...repo, "--state", "open", "--limit", "100", "--json", "number,title,headRefName,files"], { encoding: "utf8", maxBuffer: 1 << 26 });
+  let prs = null;
+  try { prs = r.status === 0 ? JSON.parse(r.stdout) : null; } catch { /* not JSON */ }
+  if (!Array.isArray(prs)) {
+    const why = r.status === 0 ? "gh pr list did not return a JSON list" : `gh pr list failed: ${String(r.stderr || r.error || `exit ${r.status}`).trim().slice(0, 160)}`;
+    console.log(`warn: overlap unchecked: ${why}`); return;
+  }
   const hits = prs.filter(p => p.headRefName !== branch)
     .map(p => [p, (p.files || []).map(f => f.path).filter(f => mine.has(f))]).filter(([, same]) => same.length);
   if (!hits.length) { console.log("no other open PR touches these files"); return; }

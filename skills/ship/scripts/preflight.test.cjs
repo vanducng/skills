@@ -14,13 +14,13 @@ const git = (cwd, ...a) => { const r = spawnSync("git", a, { cwd, env: { ...ENV,
 const write = (dir, files) => { for (const [f, body] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), body); } };
 
 // A repo whose base has `base` files and whose branch `feat` adds `change`. A fake `gh` on PATH prints `prs` for `pr list`.
-function repo(base, change, prs = []) {
+function repo(base, change, prs = [], gh = null) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "preflight-")), bin = path.join(dir, ".bin");
   git(dir, "init", "-q", "-b", "main"); write(dir, { "README.md": "base\n", ...base });
   git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "base"); git(dir, "checkout", "-q", "-b", "feat");
   write(dir, change); git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "change");
   fs.appendFileSync(path.join(dir, ".git", "info", "exclude"), ".bin/\n");
-  fs.mkdirSync(bin); fs.writeFileSync(path.join(bin, "gh"), `#!/bin/sh\ncat <<'EOF'\n${JSON.stringify(prs)}\nEOF\n`, { mode: 0o755 });
+  fs.mkdirSync(bin); fs.writeFileSync(path.join(bin, "gh"), gh || `#!/bin/sh\ncat <<'EOF'\n${JSON.stringify(prs)}\nEOF\n`, { mode: 0o755 });
   return dir;
 }
 const run = (cwd, ...a) => { const r = spawnSync(process.execPath, [P, ...a], { cwd, env: { ...ENV, PATH: `${path.join(cwd, ".bin")}:${process.env.PATH}` }, encoding: "utf8" }); return { code: r.status, out: r.stdout, err: r.stderr }; };
@@ -66,4 +66,12 @@ test("tests: a docs-only change needs no test command; an untested package is na
   assert.match(run(repo({}, { "docs/a.md": "x\n" }), "tests", "--base", "main").out, /docs only/);
   const r = run(repo({}, { "src/a.js": "x\n" }), "tests", "--base", "main");
   assert.equal(r.code, 0); assert.match(r.out, /no test command found for: src/);
+});
+
+test("overlap: a gh failure or output that is not a JSON list is a warning, never a stop", () => {
+  for (const gh of ["#!/bin/sh\necho 'HTTP 401' >&2\nexit 1\n", "#!/bin/sh\necho 'not json'\n", "#!/bin/sh\necho '{}'\n"]) {
+    const r = run(repo({}, { "src/a.js": "x\n" }, [], gh), "overlap", "--base", "main", "--repo", "o/r");
+    assert.equal(r.code, 0, gh);
+    assert.match(r.out, /^warn: overlap unchecked: /m, gh);
+  }
 });
