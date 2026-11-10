@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[today|ship|fix|debug|lesson|idea|week] [short|long|thread|article] [draft|artifact|post] [cover|no-cover] [blunt|polished|technical] [--since <ref>] [--topic <text>] [--url <url>] [--repo <path>] [--project <slug>]"
 metadata:
   author: vanducng
-  version: "1.1.1"
+  version: "1.2.0"
 ---
 
 # Devlog
@@ -37,7 +37,7 @@ Parse free-form args additively. If args conflict, later/more specific args win.
 | `fix` / `debug` | Bug hunt or incident: symptom, root cause, lesson | no |
 | `lesson` | Extract a reusable principle from recent work | no |
 | `idea` | Turn a raw thought into a devlog seed | no |
-| `week` | Weekly wrap from commits/journals/posts | no |
+| `week` | Weekly wrap from the workspace records (else commits/journals/posts) | no |
 | `short` | Single post, <= 280 chars | no |
 | `long` | Single X post, 600-1500 chars | yes |
 | `thread` | 3-7 tweets, each <= 280 chars | no |
@@ -109,6 +109,28 @@ Also inspect likely context files when present:
 
 If a PR likely exists, use `gh pr view --json number,title,url,state,mergedAt`
 when available. Do not block if GitHub CLI is unavailable.
+
+**Workspace records (week, and any scope wider than one repo).** With
+`$PROJECTS_ROOT` set, read the records first:
+
+```bash
+R=<this skill's directory>/scripts/records.cjs
+node "$R" week --since <first day of the week>
+```
+
+It prints the slice `PROGRESS.md` `retro:` lines, the review verdicts in
+`proof/`, the accepted board decisions, and the commits with `Host`, `Rig` and
+`Seat` trailers, across `orgs/*/projects/*`. Build the week from those. The
+trailers show where work ran; they are context, never post text. Exit 2 means
+there are no records: fall back to plain `git log` as above.
+
+**Blog.** A Hexo blog (`_config.yml` plus `source/_posts/`) keeps series in
+front matter. Read the recent posts' `series:` values first. A post that
+continues a series reuses the same `series:` value and front-matter keys, and
+follows `new_post_name` for its file name. A blog draft PR and the X thread that
+links it are one output, in the week's list and in what you report. The post file
+is a draft: it passes the scrub gate (step 6) before it is written into
+`source/_posts/`.
 
 ### 3. Load taste
 
@@ -184,6 +206,23 @@ For every draft:
 - Scan for obvious secrets with local judgment and, if posting from a diff,
   inspect `git diff --cached`/`git diff` for accidental key material.
 - Prefer draft-only if the post depends on missing facts.
+
+**Scrub gate, before any draft is shown, saved or posted** (text, vault post,
+blog post or thread): write the draft to a file and run `node "$R" scrub <file>`.
+
+- Exit 1 lists each hit: an org, project, host or person from the records
+  (a surname alone counts; so does a name inside `name-repo#12` or `DB__NAME_TABLE`), or a private
+  path, tailnet host or email. Refuse that draft. Rewrite it without
+  those names ("a client", "a build host"), and scrub again until it exits 0.
+- Never show, save or post a draft that has not passed.
+- Exit 2 means the gate did not run: there are no records to check names
+  against (no `$PROJECTS_ROOT`), or the draft file cannot be read. Fix the path
+  if that is the cause; with no records, check the draft by hand against hard
+  rule 3 and say the gate did not run.
+- Public orgs and projects go in `DEVLOG_ALLOW` (comma list), and only on the
+  user's word. It accepts org and project names from the records, never a
+  person or a host. The scrub's JSON lists what it allowed (`allowed`) and what
+  it ignored (`ignored_allow`).
 
 ### 7. Materialize vault artifacts in the same turn
 
