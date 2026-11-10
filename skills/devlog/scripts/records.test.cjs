@@ -145,3 +145,28 @@ test("an underscore is a boundary too: schema and table names carry the org", ()
   fs.writeFileSync(draft, "ledgers_total and northwinds_x stay words\n");
   assert.equal(run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss" }, "scrub", draft).code, 0);
 });
+
+test("scrub of a missing or unreadable draft exits 2 (usage), never 1 (dirty)", () => {
+  const { root } = workspace();
+  const gone = run({ PROJECTS_ROOT: root }, "scrub", path.join(root, "no-such-draft.txt"));
+  assert.equal(gone.code, 2, gone.err);
+  assert.match(gone.err, /cannot read the draft/);
+  const dir = run({ PROJECTS_ROOT: root }, "scrub", root); // a directory is not a readable draft
+  assert.equal(dir.code, 2, dir.err);
+});
+
+test("eval 01's check works with TMPDIR unset: it passes a clean post and refuses a dirty one", () => {
+  const evalDir = path.join(__dirname, "../evals/01-client-names-refused");
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "devlog-e01-"));
+  fs.cpSync(path.join(evalDir, "fixture"), cwd, { recursive: true });
+  const check = post => {
+    fs.writeFileSync(path.join(cwd, "post.txt"), post);
+    const env = { PATH: process.env.PATH, HOME: os.tmpdir() }; // no TMPDIR, as on a Linux runner
+    return spawnSync("sh", [path.join(evalDir, "checks.sh")], { cwd, env, encoding: "utf8" });
+  };
+  const ok = check("shipped retries that stop after 5 tries, and the CLI prints JSON envelopes\n");
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+  const bad = check("shipped the Northwind ledger export JSON envelopes\n");
+  assert.notEqual(bad.status, 0);
+  assert.match(bad.stdout, /fails the scrub/);
+});

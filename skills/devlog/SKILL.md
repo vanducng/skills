@@ -215,9 +215,10 @@ blog post or thread): write the draft to a file and run `node "$R" scrub <file>`
   path, tailnet host or email. Refuse that draft. Rewrite it without
   those names ("a client", "a build host"), and scrub again until it exits 0.
 - Never show, save or post a draft that has not passed.
-- Exit 2 means there are no records to check names against (no
-  `$PROJECTS_ROOT`). Check the draft by hand against hard rule 3 and say the
-  gate did not run.
+- Exit 2 means the gate did not run: there are no records to check names
+  against (no `$PROJECTS_ROOT`), or the draft file cannot be read. Fix the path
+  if that is the cause; with no records, check the draft by hand against hard
+  rule 3 and say the gate did not run.
 - Public orgs and projects go in `DEVLOG_ALLOW` (comma list), and only on the
   user's word. It accepts org and project names from the records, never a
   person or a host. The scrub's JSON lists what it allowed (`allowed`) and what

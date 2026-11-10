@@ -5,7 +5,7 @@
 //                                                         trailers (Host, Rig, Seat) across <root>/orgs/*/projects/*
 //   records.cjs scrub <draft-file> [--root <dir>]          exit 0 clean; exit 1 with the hits: an org, a project, a host
 //                                                         or a person named in the records, or a private path; exit 2
-//                                                         with no records
+//                                                         with no records or a draft it cannot read
 //
 // <root> is $PROJECTS_ROOT; without one, `week` exits 2 (use plain git log). Boards come from $OPENRIG_BOARDS_ROOT
 // (default ~/.share/openrig/boards). $DEVLOG_ALLOW (comma list) names public orgs and projects from the records; the
@@ -143,6 +143,9 @@ function main(argv) {
   }
   if (cmd === "scrub") {
     if (!o._[0]) throw new Usage("scrub <draft-file>");
+    // A draft that cannot be read is a usage error (exit 2): exit 1 means "dirty, hits listed".
+    try { fs.accessSync(o._[0], fs.constants.R_OK); if (!fs.statSync(o._[0]).isFile()) throw new Error("not a file"); }
+    catch (e) { throw new Usage(`cannot read the draft ${o._[0]}: ${e.code || e.message}`); }
     // No records means no names to check: that is not a clean draft.
     if (!root || !fs.existsSync(path.join(root, "orgs"))) throw new Usage("no workspace records ($PROJECTS_ROOT unset or without orgs/): the scrub cannot check names");
     const r = scrub(o._[0], root);
