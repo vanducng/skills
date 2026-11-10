@@ -874,15 +874,15 @@ raise SystemExit(int(os.environ.get('HERDR_TEST_EXIT', '0')))
         self.assertEqual(len(self.calls()), 2)
 
     def test_claude_and_codex_payloads_produce_same_label(self):
-        claude = self.payload(session_id='claude-session', prompt='Fix ELT-3267 call routing')
-        codex = self.payload(session_id='codex-session', prompt='Fix ELT-3267 call routing')
+        claude = self.payload(session_id='claude-session', prompt='Fix PRJ-3267 call routing')
+        codex = self.payload(session_id='codex-session', prompt='Fix PRJ-3267 call routing')
         codex['turn_id'] = 'turn-1'
         self.run_hook(claude)
         self.run_hook(codex)
         labels = [call[3] for call in self.calls()]
         self.assertEqual(len(labels), 2)
         self.assertEqual(labels[0], labels[1])
-        self.assertTrue(labels[0].endswith(':ELT-3267'))
+        self.assertTrue(labels[0].endswith(':PRJ-3267'))
 
     def test_untrusted_prompt_cannot_escape_into_label(self):
         cases = [
@@ -921,14 +921,14 @@ raise SystemExit(int(os.environ.get('HERDR_TEST_EXIT', '0')))
 
     def test_api_prompts_keep_normal_intent_and_ticket(self):
         api_intent = self.payload(session_id='api-intent', prompt='Fix API response serialization')
-        api_ticket = self.payload(session_id='api-ticket', prompt='Fix API ELT-3267 call routing')
+        api_ticket = self.payload(session_id='api-ticket', prompt='Fix API PRJ-3267 call routing')
         api_intent['cwd'] = os.path.dirname(HOOKS_DIR)
         api_ticket['cwd'] = os.path.dirname(HOOKS_DIR)
         self.run_hook(api_intent)
         self.run_hook(api_ticket)
         labels = [call[3] for call in self.calls()]
         self.assertTrue(labels[0].endswith(':api-response-serialization'))
-        self.assertTrue(labels[1].endswith(':ELT-3267'))
+        self.assertTrue(labels[1].endswith(':PRJ-3267'))
 
     def test_skill_only_prompt_uses_full_invocation_name(self):
         self.run_hook(self.payload(prompt='$vd:code-review'))

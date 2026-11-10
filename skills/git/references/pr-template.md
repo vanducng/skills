@@ -104,12 +104,12 @@ PR titles flip to **past tense (v-ed)** - they narrate what the branch did, not 
 - **Scope:** dominant top-level changed dir
 - **Workspace task (ticket + milestone + slice known):** the title is
   `type(scope): [KEY|M<n>|S<n>] <description>`, e.g.
-  `feat(intake): [ELT-3624|M1|S5] derive the test flag from the Retell nickname`.
+  `feat(intake): [PRJ-3624|M1|S5] derive the test flag from the Retell nickname`.
   `KEY` is the ticket, `M<n>` the milestone from the task brief, `S<n>` the
   slice number (the `<nn>-` prefix of the slice folder, without leading zeros).
   This form overrides the two ticket defaults above; the verb form follows the
   repo's existing PR titles. Omit a part only when the workspace has none, e.g.
-  `[ELT-3624|S5]`. Commit subjects stay plain conventional commits; the tag is
+  `[PRJ-3624|S5]`. Commit subjects stay plain conventional commits; the tag is
   for PR titles only.
 
 ### Ticket branch/title invariant

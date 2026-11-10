@@ -183,8 +183,8 @@ class PathsTest(unittest.TestCase):
             paths.compute_feature_id('PROJ-SUB-123', 'proj-sub-123-manual-upload'),
             'proj-sub-123-manual-upload')
         self.assertEqual(
-            paths.compute_feature_id('ELT-3316', '3316-manual-upload'),
-            'elt-3316-manual-upload')
+            paths.compute_feature_id('PRJ-3316', '3316-manual-upload'),
+            'prj-3316-manual-upload')
 
     def test_branch_plan_resolution_scans_session_feature_plans_dir(self):
         repo = mkdtemp('vd-branch-plan-')
@@ -270,7 +270,7 @@ class PathsTest(unittest.TestCase):
     def test_regexes_are_ascii_like_js(self):
         self.assertEqual(paths.clean_slug('café-fix'), 'caf-fix')
         self.assertIsNone(paths.extract_issue_from_branch('gh٠١'))
-        self.assertEqual(paths.extract_ticket_from_branch('feat/ELT-123-x', ['ELT']), 'ELT-123')
+        self.assertEqual(paths.extract_ticket_from_branch('feat/PRJ-123-x', ['PRJ']), 'PRJ-123')
 
 
 if __name__ == '__main__':

@@ -407,10 +407,10 @@ def extract_task_list_id(resolved):
 # ── feature-first resolution (gated on config.paths.layout == 'feature-first') ──
 
 def extract_ticket_from_branch(branch, prefixes=None):
-    """Prefix-preserving ticket extractor: `feat/ELT-3316-x` → `ELT-3316`; `gh3251` → `GH-3251`."""
+    """Prefix-preserving ticket extractor: `feat/PRJ-3316-x` → `PRJ-3316`; `gh3251` → `GH-3251`."""
     if not branch:
         return None
-    lst = prefixes if (isinstance(prefixes, list) and prefixes) else ['ELT', 'GH', 'PROJ']
+    lst = prefixes if (isinstance(prefixes, list) and prefixes) else ['PRJ', 'GH', 'PROJ']
     pattern = r'\b(' + '|'.join(escape_re(p) for p in lst) + r')-?(\d+)\b'
     m = re.search(pattern, branch, re.IGNORECASE | re.ASCII)
     return '%s-%s' % (m.group(1).upper(), m.group(2)) if m else None

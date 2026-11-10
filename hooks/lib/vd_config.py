@@ -21,7 +21,7 @@ DEFAULT_CONFIG = {
         'namingFormat': '{date}-{issue}-{slug}',
         'dateFormat': 'YYMMDD-HHmm',
         'issuePrefix': None,
-        'ticketPrefixes': ['ELT', 'GH', 'PROJ'],
+        'ticketPrefixes': ['PRJ', 'GH', 'PROJ'],
         'reportsDir': 'reports',
         'resolution': {
             'order': ['session', 'branch'],
