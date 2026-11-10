@@ -171,3 +171,49 @@ test("--group lists each term once with its count and its first three places", (
   assert.equal(r.code, 1);
   assert.deepEqual(r.json().groups, [{ term: "acme", kind: "org", count: 4, first: ["a.md:1", "a.md:2", "a.md:4"] }]);
 });
+
+test("scan-repo reads untracked files too (not ignored ones), and --history scans the working tree as well", () => {
+  const root = workspace();
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "terms-repo-"));
+  git(repo, "init", "-q", "-b", "main");
+  put(repo, ".gitignore", "build/\n");
+  put(repo, "README.md", "public\n");
+  git(repo, "add", "-A"); git(repo, "commit", "-q", "-m", "first");
+  put(repo, "new.md", "for acme-ds-astro\n");      // untracked, not ignored
+  put(repo, "build/out.md", "ledgerline\n");       // ignored
+  const tree = run(["scan-repo", repo, "--own", "mine", "--json"], { env: { PROJECTS_ROOT: root } });
+  assert.equal(tree.code, 1, tree.out);
+  assert.deepEqual(tree.json().hits.map(h => `${h.file}:${h.term}`), ["new.md:acme-ds-astro"]);
+  const hist = run(["scan-repo", repo, "--own", "mine", "--history", "--json"], { env: { PROJECTS_ROOT: root } });
+  assert.equal(hist.code, 1, hist.out);
+  assert.deepEqual(hist.json().hits.map(h => `${h.file}:${h.term}`), ["new.md:acme-ds-astro"]);
+});
+
+test("an unknown flag is a usage error, never a silent default", () => {
+  const root = workspace();
+  for (const a of [["scan-repo", root, "--histroy"], ["scan", "-", "--shaps"], ["terms", "--alow", "x"]])
+    assert.equal(run(a, { env: { PROJECTS_ROOT: root }, input: "x\n" }).code, 2, a.join(" "));
+});
+
+test("a person word stored in capitals still matches its Title case form", () => {
+  const root = workspace();
+  fs.writeFileSync(path.join(root, "orgs/acme/contacts.yaml"), "contacts:\n  ines:\n    name: Ines OKAFOR\n  rua:\n    name: Rua McDonald\n");
+  assert.deepEqual(hitTerms(scan(root, "thanks Okafor\n", "--own", "mine")), ["okafor"]);             // stored in capitals
+  assert.deepEqual(hitTerms(scan(root, "McDonald, Mcdonald\n", "--own", "mine")), ["mcdonald"]);      // as written and canonical
+  assert.equal(scan(root, "okafor_mode OKAFOR\n", "--own", "mine").code, 0);
+});
+
+test("a source that could not be read is reported, not silently dropped", () => {
+  const root = workspace();
+  fs.rmSync(path.join(root, ".git"), { recursive: true });
+  const t = run(["terms", "--json"], { env: { PROJECTS_ROOT: root } }).json();
+  assert.deepEqual(t.warnings, ["git log Host trailers: not read (not a git repository?)"]);
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "terms-repo-"));
+  git(repo, "init", "-q", "-b", "main");
+  put(repo, "a.md", "x\n"); put(repo, "b.md", "y\n");
+  git(repo, "add", "-A"); git(repo, "commit", "-q", "-m", "a");
+  fs.rmSync(path.join(repo, "b.md"));
+  fs.mkdirSync(path.join(repo, "b.md"));            // tracked path now unreadable as a file
+  const r = run(["scan-repo", repo, "--json"], { env: { PROJECTS_ROOT: root } }).json();
+  assert.deepEqual(r.skipped, ["b.md"]);
+});

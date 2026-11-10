@@ -5,6 +5,7 @@
 //   private-terms.cjs terms [--own <org>] [--allow a,b] --json        the terms, what was allowed, what was dropped
 //   private-terms.cjs scan <file|->... [--own <org>] [--allow a,b] [--shapes] --json
 //   private-terms.cjs scan-repo <git dir> [--history] [--own <org>] [--allow a,b] [--shapes] [--group] --json
+//                     the working tree (tracked and untracked, not ignored); --history adds every commit
 //
 // Exit 0 clean, 1 hits, 2 no records or a usage error (it fails closed).
 // Sources: orgs/<org>/ (dir, org.yaml id, name, github_owner); repos.yaml (repo ids, the owner and repo of each origin,
@@ -30,7 +31,8 @@ const ALLOWABLE = new Set(["org", "project", "repo", "owner"]);
 const PLACEHOLDER_HOSTS = new Set(["local", "localhost", "127.0.0.1"]);
 // A one-word person term (a key or one word of a name) matches only in Title case: "Raman", never raman_mode.
 const titleOnly = e => e.kind === "person" && !/[\s_-]/.test(e.term);
-const title = t => (/[A-Z]/.test(t) ? t : t[0].toUpperCase() + t.slice(1));
+// The forms a one-word person term matches: canonical Title case, plus the stored form when that is mixed case (McDonald).
+const titles = t => [...new Set([t[0].toUpperCase() + t.slice(1).toLowerCase(), ...(/[a-z]/.test(t) && /[A-Z]/.test(t.slice(1)) ? [t] : [])])];
 const SHAPES = [
   ["/Users/", /\/Users\/[^/\s"'`]+/], ["/home/", /\/home\/[^/\s"'`]+/], ["/Volumes/", /\/Volumes\/[^/\s"'`]+/],
   ["tailnet host", /\b[\w-]+\.ts\.net\b/], ["email", /\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b/],
@@ -119,7 +121,7 @@ function origin(url) {
 }
 
 // Every term entry the records hold: {term, kind, org, source}. One term may come from several sources.
-function entries(root) {
+function entries(root, warnings = []) {
   const out = [];
   const add = (term, kind, org, source) => {
     const t = String(term || "").trim();
@@ -171,6 +173,7 @@ function entries(root) {
   }
   const log = spawnSync("git", ["-C", root, "log", "-n", "5000", "--format=%(trailers:key=Host,valueonly,separator=%x0a)"], { encoding: "utf8" });
   if (log.status === 0) for (const h of log.stdout.split("\n")) add(h, "host", null, "git log Host trailers");
+  else warnings.push("git log Host trailers: not read (not a git repository?)");
   return out;
 }
 
@@ -179,7 +182,8 @@ const norm = t => t.toLowerCase().replace(/[\s_-]+/g, "");
 // The term set for one caller: kept terms, masked (own or allowed) terms, and the lists that make each drop visible.
 function load(root, { own = "", allow = [] } = {}) {
   if (!root || !fs.existsSync(path.join(root, "orgs"))) throw new Usage("no workspace records ($PROJECTS_ROOT unset or without orgs/): nothing to check against");
-  const all = entries(root);
+  const warnings = [];
+  const all = entries(root, warnings);
   const asked = [...new Set(allow.map(a => a.trim().toLowerCase()).filter(Boolean))].sort();
   const allowable = new Set(all.filter(e => ALLOWABLE.has(e.kind)).map(e => e.term.toLowerCase()));
   const allowed = asked.filter(a => allowable.has(a));
@@ -197,7 +201,7 @@ function load(root, { own = "", allow = [] } = {}) {
   for (const k of keep.keys()) mask.delete(norm(keep.get(k).term)); // a name kept by any source is reported
   for (const k of keep.keys()) dropped.delete(k);
   return { root, terms: [...keep.values()], masked: [...mask.values()], allowed, ignored_allow: asked.filter(a => !allowed.includes(a)),
-    dropped: [...dropped.values()], ...matcher([...keep.values()], [...mask.values()]) };
+    dropped: [...dropped.values()], warnings, ...matcher([...keep.values()], [...mask.values()]) };
 }
 
 // Two regexes: any case for most terms, exact Title case for one-word person terms. Matches from both are resolved by
@@ -205,7 +209,10 @@ function load(root, { own = "", allow = [] } = {}) {
 function matcher(keep, mask) {
   const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const any = new Map(), exact = new Map();
-  for (const e of keep) (titleOnly(e) ? exact.set(title(e.term), { entry: e, report: true }) : any.set(norm(e.term), { entry: e, report: true }));
+  for (const e of keep) {
+    if (titleOnly(e)) for (const f of titles(e.term)) exact.set(f, { entry: e, report: true });
+    else any.set(norm(e.term), { entry: e, report: true });
+  }
   for (const e of mask) if (!any.has(norm(e.term))) any.set(norm(e.term), { entry: e, report: false });
   const build = (terms, flags) => {
     const alts = terms.sort((a, b) => b.length - a.length).map(t => t.split(/[\s_-]+/).filter(Boolean).map(esc).join("[\\s_-]*"));
@@ -236,12 +243,13 @@ function scanText(text, t, { shapes = false } = {}) {
   return hits;
 }
 
-function treeHits(repo, t, opts) {
-  const ls = spawnSync("git", ["-C", repo, "ls-files", "-z"], { encoding: "utf8", maxBuffer: 1 << 28 });
+// The working tree: tracked and untracked files, not ignored ones. A file that cannot be read is listed in `skipped`.
+function treeHits(repo, t, opts, skipped) {
+  const ls = spawnSync("git", ["-C", repo, "ls-files", "-z", "--cached", "--others", "--exclude-standard"], { encoding: "utf8", maxBuffer: 1 << 28 });
   if (ls.status !== 0) throw new Usage(`${repo} is not a git repository`);
   const hits = [];
-  for (const file of ls.stdout.split("\0").filter(Boolean)) {
-    let buf; try { buf = fs.readFileSync(path.join(repo, file)); } catch { continue; }
+  for (const file of [...new Set(ls.stdout.split("\0").filter(Boolean))]) {
+    let buf; try { buf = fs.readFileSync(path.join(repo, file)); } catch { skipped.push(file); continue; }
     if (buf.includes(0)) continue; // binary
     for (const h of scanText(buf.toString("utf8"), t, opts)) hits.push({ ...h, file });
     for (const h of scanText(file, t, opts)) hits.push({ ...h, file, line: 0 }); // the path itself
@@ -289,10 +297,12 @@ function group(hits) {
 function args(argv) {
   const o = { _: [], "--allow": "" };
   const flags = new Set(["--json", "--history", "--shapes", "--group"]);
+  const valued = new Set(["--own", "--allow", "--root"]);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (flags.has(a)) o[a] = true;
-    else if (a.startsWith("--")) { if (argv[i + 1] === undefined) throw new Usage(`${a} needs a value`); o[a] = argv[++i]; }
+    else if (valued.has(a)) { if (argv[i + 1] === undefined) throw new Usage(`${a} needs a value`); o[a] = argv[++i]; }
+    else if (a.startsWith("--")) throw new Usage(`unknown flag ${a}`);
     else o._.push(a);
   }
   return o;
@@ -303,7 +313,7 @@ async function main(argv) {
   const o = args(rest);
   const t = () => load(o["--root"] || process.env.PROJECTS_ROOT || "", { own: o["--own"] || "", allow: o["--allow"].split(",") });
   const opts = { shapes: !!o["--shapes"] };
-  const meta = x => ({ allowed: x.allowed, ignored_allow: x.ignored_allow, dropped: x.dropped });
+  const meta = x => ({ allowed: x.allowed, ignored_allow: x.ignored_allow, dropped: x.dropped, warnings: x.warnings });
   if (cmd === "terms") { const x = t(); return { code: 0, out: { terms: x.terms, masked: x.masked, ...meta(x) } }; }
   if (cmd === "scan") {
     if (!o._.length) throw new Usage("scan <file|->...");
@@ -317,8 +327,10 @@ async function main(argv) {
   if (cmd === "scan-repo") {
     if (!o._[0]) throw new Usage("scan-repo <git dir>");
     const x = t();
-    const hits = o["--history"] ? await historyHits(o._[0], x, opts) : treeHits(o._[0], x, opts);
-    const out = { repo: o._[0], history: !!o["--history"], clean: !hits.length, ...meta(x) };
+    // --history covers every commit and the working tree as it is now.
+    const skipped = [];
+    const hits = [...(o["--history"] ? await historyHits(o._[0], x, opts) : []), ...treeHits(o._[0], x, opts, skipped)];
+    const out = { repo: o._[0], history: !!o["--history"], clean: !hits.length, skipped, ...meta(x) };
     return { code: hits.length ? 1 : 0, out: o["--group"] ? { ...out, groups: group(hits) } : { ...out, hits } };
   }
   throw new Usage("usage: private-terms.cjs terms|scan|scan-repo (see the header of this file)");
