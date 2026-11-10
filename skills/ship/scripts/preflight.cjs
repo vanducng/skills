@@ -6,7 +6,7 @@
 //
 // tests: each changed file (docs aside) belongs to the nearest directory that has a test command, by the table in
 // references/auto-detect.md. Prints "- `<command>`" for the repository root and "- `cd <dir> && <command>`" for a
-// package below it. --run runs each and appends ": pass" or ": failed (exit n)"; any failure exits 1.
+// package below it; in a pnpm workspace a package's line is "- `pnpm --filter <package.json name> test`". --run runs each and appends ": pass" or ": failed (exit n)"; any failure exits 1.
 "use strict";
 const fs = require("node:fs");
 const path = require("node:path");
@@ -26,7 +26,11 @@ const changed = [...new Set([...sh("git", ["diff", "--name-only", fork]).split("
 function testCommand(dir) {
   const read = f => { try { return fs.readFileSync(path.join(top, dir, f), "utf8"); } catch { return null; } };
   const scripts = f => { try { return (JSON.parse(read(f) || "{}").scripts || {}).test; } catch { return null; } };
-  if (scripts("package.json")) return "npm test";
+  if (scripts("package.json")) {
+    // A pnpm workspace runs a package's tests from the root by name.
+    const name = dir !== "." && fs.existsSync(path.join(top, "pnpm-workspace.yaml")) && JSON.parse(read("package.json")).name;
+    return name ? { pnpm: `pnpm --filter ${name} test` } : "npm test";
+  }
   if (/^test:/m.test(read("Makefile") || "")) return "make test";
   if (read("pytest.ini") != null || /\[tool\.pytest/.test(read("pyproject.toml") || "")) return "pytest";
   if (read("Cargo.toml") != null) return "cargo test";
@@ -50,9 +54,10 @@ function tests() {
   }
   let failed = 0;
   for (const dir of [...found.keys()].sort((x, y) => (x === "." ? -1 : y === "." ? 1 : x.localeCompare(y)))) {
-    const cmd = found.get(dir), shown = dir === "." ? cmd : `cd ${dir} && ${cmd}`;
+    const cmd = found.get(dir), shown = cmd.pnpm || (dir === "." ? cmd : `cd ${dir} && ${cmd}`);
+    const [line, cwd] = cmd.pnpm ? [cmd.pnpm, top] : [cmd, path.join(top, dir)];
     if (!a.includes("--run")) { console.log(`- \`${shown}\``); continue; }
-    const r = spawnSync("sh", ["-c", cmd], { cwd: path.join(top, dir), stdio: ["ignore", "ignore", "inherit"] });
+    const r = spawnSync("sh", ["-c", line], { cwd, stdio: ["ignore", "ignore", "inherit"] });
     if (r.status !== 0) failed++;
     console.log(`- \`${shown}\`: ${r.status === 0 ? "pass" : `failed (exit ${r.status})`}`);
   }

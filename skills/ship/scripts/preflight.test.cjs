@@ -54,6 +54,12 @@ test("tests: one line per touched package with its test command; a root-only rep
   assert.equal(one.out.trim(), "- `npm test`");
 });
 
+test("tests: in a pnpm workspace a package's line is the pnpm --filter form, named from its package.json", () => {
+  const r = run(repo({ "pnpm-workspace.yaml": "packages:\n  - packages/*\n", "packages/web/package.json": JSON.stringify({ name: "@demo/web", scripts: { test: "vitest" } }) },
+    { "packages/web/src/a.ts": "x\n" }), "tests", "--base", "main");
+  assert.equal(r.out.trim(), "- `pnpm --filter @demo/web test`");
+});
+
 test("tests --run: runs each command and marks it pass or failed; a failure exits 1", () => {
   const dir = repo({ "Makefile": "test:\n\t@true\n", "bad/Makefile": "test:\n\t@false\n" }, { "x.js": "x\n", "bad/y.js": "y\n" });
   const r = run(dir, "tests", "--base", "main", "--run");
