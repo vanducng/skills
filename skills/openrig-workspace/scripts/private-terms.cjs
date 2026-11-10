@@ -25,8 +25,10 @@ const { spawn, spawnSync } = require("node:child_process");
 const readline = require("node:readline");
 
 class Usage extends Error {}
-// Project ids that are plain words: dropped as terms (only project ids, and every drop is listed).
-const GENERIC_PROJECT_WORDS = new Set(["api", "app", "conductor", "dashboard", "data", "devlog", "docs", "infra", "ops", "platform", "products", "web", "workspace"]);
+// Project and repo ids that are exactly a plain word: dropped as terms, and every drop is listed. Org names, owners,
+// people and hosts are never dropped this way; neither is a longer id that contains one of these words.
+const GENERIC_WORDS = new Set(["api", "app", "conductor", "dashboard", "data", "devlog", "docs", "http", "infra", "ops", "platform", "products", "projects", "skills", "web", "workspace"]);
+const GENERIC_KINDS = new Set(["project", "repo"]);
 const ALLOWABLE = new Set(["org", "project", "repo", "owner"]);
 const PLACEHOLDER_HOSTS = new Set(["local", "localhost", "127.0.0.1"]);
 // A one-word person term (a key or one word of a name) matches only in Title case: "Raman", never raman_mode.
@@ -192,7 +194,7 @@ function load(root, { own = "", allow = [] } = {}) {
   const keep = new Map(), mask = new Map(), dropped = new Map();
   for (const e of all) {
     const k = e.term.toLowerCase();
-    if (e.kind === "project" && GENERIC_PROJECT_WORDS.has(k)) { if (!dropped.has(k)) dropped.set(k, { ...e, why: "generic word" }); continue; }
+    if (GENERIC_KINDS.has(e.kind) && GENERIC_WORDS.has(k)) { if (!dropped.has(k)) dropped.set(k, { ...e, why: "generic word" }); continue; }
     const ownName = own && e.org === own && ALLOWABLE.has(e.kind);
     if (ownName || ownExact.has(k) || (ALLOWABLE.has(e.kind) && allowed.includes(k))) { mask.set(norm(e.term), e); continue; }
     // One term, several sources: the any-case match wins over the Title-case-only person match.
@@ -347,4 +349,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { GENERIC_PROJECT_WORDS, load, scanText, entries, yaml };
+module.exports = { GENERIC_WORDS, load, scanText, entries, yaml };

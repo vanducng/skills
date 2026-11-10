@@ -85,13 +85,13 @@ test("--allow takes only org, project, repo and owner names from the records, an
   assert.deepEqual(r.json().ignored_allow, ["nosuch", "priya"]);
 });
 
-test("generic words drop only project ids, and every drop is listed", () => {
+test("generic words drop only project and repo ids, and every drop is listed", () => {
   const r = run(["terms", "--json"], { env: { PROJECTS_ROOT: workspace() } });
   const out = r.json();
   assert.ok(!out.terms.some(t => t.term === "ops"));
   assert.deepEqual(out.dropped, [{ term: "ops", kind: "project", org: "acme", source: "orgs/acme/projects/ops", why: "generic word" }]);
-  const { GENERIC_PROJECT_WORDS } = require(P);
-  assert.deepEqual([...GENERIC_PROJECT_WORDS].sort(), ["api", "app", "conductor", "dashboard", "data", "devlog", "docs", "infra", "ops", "platform", "products", "web", "workspace"]);
+  const { GENERIC_WORDS } = require(P);
+  assert.deepEqual([...GENERIC_WORDS].sort(), ["api", "app", "conductor", "dashboard", "data", "devlog", "docs", "http", "infra", "ops", "platform", "products", "projects", "skills", "web", "workspace"]);
 });
 
 test("no records fails closed: exit 2", () => {
@@ -216,4 +216,15 @@ test("a source that could not be read is reported, not silently dropped", () => 
   fs.mkdirSync(path.join(repo, "b.md"));            // tracked path now unreadable as a file
   const r = run(["scan-repo", repo, "--json"], { env: { PROJECTS_ROOT: root } }).json();
   assert.deepEqual(r.skipped, ["b.md"]);
+});
+
+test("a repo id that is exactly a generic word is dropped and listed; a longer one and an org name are kept", () => {
+  const root = workspace();
+  fs.appendFileSync(path.join(root, "orgs/mine/repos.yaml"), "  - id: skills\n    origin: git@github.com:mine-dev/skills.git\n  - id: skills-hub\n");
+  put(root, "orgs/http/org.yaml", "id: http\n");
+  const out = run(["terms", "--json"], { env: { PROJECTS_ROOT: root } }).json();
+  const terms = out.terms.map(t => `${t.kind}:${t.term}`);
+  assert.ok(!terms.includes("repo:skills") && terms.includes("repo:skills-hub") && terms.includes("org:http"), terms.join(" "));
+  assert.deepEqual(out.dropped.filter(d => d.term === "skills").map(d => [d.kind, d.why]), [["repo", "generic word"]]);
+  assert.equal(scan(root, "the skills folder\n").code, 0);
 });
