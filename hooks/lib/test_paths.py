@@ -272,6 +272,11 @@ class PathsTest(unittest.TestCase):
         self.assertIsNone(paths.extract_issue_from_branch('gh٠١'))
         self.assertEqual(paths.extract_ticket_from_branch('feat/PRJ-123-x', ['PRJ']), 'PRJ-123')
 
+    def test_default_ticket_prefixes(self):
+        self.assertEqual(paths.extract_ticket_from_branch('feat/PRJ-42-x'), 'PRJ-42')
+        self.assertEqual(paths.extract_ticket_from_branch('feat/prj42-x'), 'PRJ-42')
+        self.assertIsNone(paths.extract_ticket_from_branch('feat/KEY-42-x'))
+
 
 if __name__ == '__main__':
     unittest.main()
