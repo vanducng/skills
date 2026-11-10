@@ -2,6 +2,18 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.83.0](https://github.com/vanducng/skills/compare/v1.82.0...v1.83.0) (2026-11-10)
+
+
+### Features
+
+* **openrig-workspace:** resizable, collapsible board rail ([#611](https://github.com/vanducng/skills/issues/611)) ([2999e14](https://github.com/vanducng/skills/commit/2999e14b6415482244cc768e516106e67d8b48ff))
+
+
+### Bug Fixes
+
+* **skill-audit:** pin --id so records.cjs fallback works on main ([#609](https://github.com/vanducng/skills/issues/609)) ([350fb3c](https://github.com/vanducng/skills/commit/350fb3c9c1de8a04eaf33af7cc3363a9475ef6ab))
+
 ## [1.82.0](https://github.com/vanducng/skills/compare/v1.81.0...v1.82.0) (2026-11-09)
 
 
