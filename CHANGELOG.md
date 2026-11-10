@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.85.0](https://github.com/vanducng/skills/compare/v1.84.0...v1.85.0) (2026-11-10)
+
+
+### Features
+
+* **ship,code-review:** write-key rule in config files anywhere; pnpm --filter test lines ([#617](https://github.com/vanducng/skills/issues/617)) ([4944027](https://github.com/vanducng/skills/commit/4944027957b6971d8f9271e8694338e5ee1f32a1))
+
 ## [1.84.0](https://github.com/vanducng/skills/compare/v1.83.0...v1.84.0) (2026-11-10)
 
 
