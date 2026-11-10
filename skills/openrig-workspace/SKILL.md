@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.24.0"
+  version: "0.25.0"
 ---
 
 # OpenRig workspace
@@ -200,6 +200,13 @@ OpenRig's own procedures come from the installed CLI, so they always match the r
 ## Project resources and contacts
 
 `resources.yaml` (org and project) and the org `contacts.yaml` are how seats find people, conversations, environments and provider objects. Collect and change them only through [references/project-resources.md](references/project-resources.md): read-only collection, a diff with evidence, a write only on the user's yes, then `scripts/check-resources.sh <project dir>`. Schema: [references/resources-schema.md](references/resources-schema.md).
+
+## Private names
+
+One scan decides what counts as a private name: `scripts/private-terms.cjs`. It reads the terms from the records at run time: orgs, `org.yaml`, `repos.yaml` (ids and origins), project ids, `contacts.yaml`, `fleet/machines.yaml` and the `Host` trailers.
+- Text and files: `node scripts/private-terms.cjs scan <file|-> --own <org> --json`. It exits 1 on a hit and 2 with no records.
+- A repo before it goes public, or an audit: `scan-repo <dir> [--history] --own <org> --group --json`.
+- PR lint and the devlog scrub call the same script. Read the header for the matching rules and for what `--own` and `--allow` drop.
 
 ## Org knowledge and watch rigs
 
