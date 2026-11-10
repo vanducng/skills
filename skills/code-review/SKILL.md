@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[--base <ref>] [--post] [--refactor]"
 metadata:
   author: vanducng
-  version: "2.2.0"
+  version: "2.3.0"
 ---
 
 # code-review
@@ -44,7 +44,7 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
 |---|---|---|
 | Quick | docs only, or under 50 lines with no risky path | diff and touched files |
 | Standard | anything else | lenses by path (schema, API, UI) |
-| Deep | auth, secrets, migrations, CI, money, infra, API routes and controllers, OpenAPI specs, a `configs/` change that sets a message-writing key (one that starts with post, send or notify, or names a channel, thread, webhook or recipients) | `security` axis; run the failing case for each finding |
+| Deep | auth, secrets, migrations, CI, money, infra, API routes and controllers, OpenAPI specs, a config change (any file under `configs/`, or a YAML, JSON, TOML, INI or .env file outside docs, tests, fixtures, lockfiles and manifests) that sets a message-writing key (one that starts with post, send or notify, or names a channel, thread, webhook or recipients) | `security` axis; run the failing case for each finding |
 
 A `REVIEW.md` line `Security axis: always`, at the base or the head, adds the `security` axis at every tier.
 
