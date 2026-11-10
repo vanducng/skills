@@ -1,0 +1,1 @@
+Write this week's devlog as one short X post (at most 280 characters), from my workspace records. The workspace root is ./ws (use it as PROJECTS_ROOT). The org `oss` and its project `toolkit` are public. Today is 2026-03-06. Save the post text, and nothing else, to `post.txt`.

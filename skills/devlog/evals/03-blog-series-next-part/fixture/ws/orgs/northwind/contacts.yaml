@@ -1,0 +1,6 @@
+schema: contacts/v1
+org: northwind
+contacts:
+  priya:
+    name: Priya Raman
+    role: finance lead at the client
