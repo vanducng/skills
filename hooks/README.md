@@ -9,7 +9,7 @@ as observation trees: one trace per session, a span per turn, a nested generatio
 per turn (model + token usage + cost), and a child span per tool call.
 
 ```
-trace  claude-code: cnb-polaris          session=<session id>  tags=[claude-code, vd-langfuse]
+trace  claude-code: shop-app          session=<session id>  tags=[claude-code, vd-langfuse]
 ├─ span        turn 1
 │  ├─ generation  claude-opus-5   in=10 out=20 cache_read=5
 │  ├─ span        tool: Bash
@@ -101,9 +101,9 @@ tidy.
 ```
 🟠 CLAUDE · ✅ turn complete          🔵 CODEX · 🔔 needs approval
 🕒 14:42 · Mon 15 Jun  💻 host         🕒 …  💻 host
-📂 vd-cli                             📂 cnb-polaris
-📁 ~/git/personal/agents/vd-cli       📁 ~/git/work/cnb/products/cnb-polaris
-🖥 vendor:vdcli:0  (session:window:pane) 🖥 cnb:astro:2
+📂 vd-cli                             📂 shop-app
+📁 ~/git/personal/agents/vd-cli       📁 ~/git/work/acme/products/shop-app
+🖥 vendor:vdcli:0  (session:window:pane) 🖥 work:api:2
 ❝ expandable preview of the last     ❝ expandable preview… ❞
   assistant message… ❞
 ```

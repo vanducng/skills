@@ -98,7 +98,7 @@ Every board uses one palette, defined once in `template.html`. A diagram names r
 
 | Role | Color | Flowchart | Sequence participant |
 |---|---|---|---|
-| `ours` | blue | `A["Polaris"]:::ours`, or `class A,B ours` | `participant P@{ "type": "control" } as Polaris` |
+| `ours` | blue | `A["Checkout"]:::ours`, or `class A,B ours` | `participant P@{ "type": "control" } as Checkout` |
 | `provider` | purple | third-party platform: `:::provider` | `participant R@{ "type": "boundary" } as Retell` |
 | `person` | amber | a phone or a person: `:::person` | `actor L as Lead` |
 | `store` | gray | database, bucket, ledger: `:::store` | `participant D@{ "type": "database" } as DB` (also `queue`) |

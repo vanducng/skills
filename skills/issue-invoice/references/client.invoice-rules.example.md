@@ -3,7 +3,7 @@ client: Example
 timezone: UTC
 github_author: <github-login>
 spreadsheet: <google-sheets-file-id>
-gog_account: dpl
+gog_account: acme
 gog_user: person
 rate: 100
 invoice_prefix: INV-EXAMPLE
