@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.87.2](https://github.com/vanducng/skills/compare/v1.87.1...v1.87.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **bi-dash:** eval 01 accepts a decision asked as 'what would they do' ([#627](https://github.com/vanducng/skills/issues/627)) ([7ab1a21](https://github.com/vanducng/skills/commit/7ab1a2109726ebaeb1375cd992129492f2625047))
+
 ## [1.87.1](https://github.com/vanducng/skills/compare/v1.87.0...v1.87.1) (2026-11-11)
 
 
