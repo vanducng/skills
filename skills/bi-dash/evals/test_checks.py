@@ -59,6 +59,13 @@ class Checks(unittest.TestCase):
         self.bad(check("01-dashboard-ask", ask), "no question sheet")
         self.ok(check("01-dashboard-ask", "1. Who reads this dashboard, and how often?\n2. What will they decide when the rate drops?", {"question-sheet.md": SHEET}))
         self.ok(check("01-dashboard-ask", "1. Who reads this dashboard?\n2. What will they do differently when the rate is high or low?", {"question-sheet.md": SHEET}))
+        # Seen in a with-skill run (Opus): the decision asked as "what do they do when ...".
+        self.ok(check("01-dashboard-ask", "1. Who reads this and how often, and what do they do when the number is high or low?", {"question-sheet.md": SHEET}))
+        self.ok(check("01-dashboard-ask", "Who reads it, and what would they do if repeat buyers fell?", {"question-sheet.md": SHEET}))
+        # Broad words alone are not a decision question.
+        self.bad(check("01-dashboard-ask", "Who reads this? Which colours do you like?", {"question-sheet.md": SHEET}), "does not ask")
+        self.bad(check("01-dashboard-ask", "Who reads this? Any action items for me? What do you think?", {"question-sheet.md": SHEET}), "does not ask")
+        self.bad(check("01-dashboard-ask", "Who reads this? I will do it when the data loads.", {"question-sheet.md": SHEET}), "does not ask")
         self.bad(check("01-dashboard-ask", "Done.", {"question-sheet.md": SHEET}), "does not ask")
 
     def test_02_field_map_flags_the_missing_and_the_variant_field(self):
