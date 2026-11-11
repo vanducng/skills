@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "<the ask, a ticket, or a bug report>"
 metadata:
   author: vanducng
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
 # intake

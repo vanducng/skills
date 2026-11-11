@@ -26,6 +26,8 @@ jobs:
           node --test skills/ship/scripts/preflight.test.cjs
           node --test skills/openrig-workspace/references/tracking-board/tests/board.test.cjs
           python3 skills/create-skill/scripts/test_run_evals.py
+          node --test skills/intake/scripts/contract.test.cjs
+          python3 skills/bi-dash/evals/test_checks.py
       - name: Run git skill helper tests
         run: bash skills/git/scripts/wait-for-checks.test.sh
       - name: Run openrig-workspace helper tests

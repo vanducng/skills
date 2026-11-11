@@ -231,7 +231,11 @@
           "owner": "builder-4@demo-rig",
           "status": "decide",
           "progress": 0,
-          "note": "Waiting on Q2 about copy tone."
+          "note": "Waiting on Q2 about copy tone.",
+          "signoff": [
+            ["Question sheet", "https://docs.example.test/empty-states/question-sheet"],
+            ["Mockup", "mockup-empty-states.html"]
+          ]
         }
       ]
     }
