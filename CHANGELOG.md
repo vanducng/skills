@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.86.1](https://github.com/vanducng/skills/compare/v1.86.0...v1.86.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ship:** no test command for repo-config diffs, and --run never installs ([#624](https://github.com/vanducng/skills/issues/624)) ([6058384](https://github.com/vanducng/skills/commit/6058384dc16f18145aeab147b0cc7af3f768ffea))
+
 ## [1.86.0](https://github.com/vanducng/skills/compare/v1.85.0...v1.86.0) (2026-11-10)
 
 
