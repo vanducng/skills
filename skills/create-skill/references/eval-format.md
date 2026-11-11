@@ -19,7 +19,7 @@ Write checks that fail on the base model's usual behavior and pass only when the
 ## Running
 
 ```bash
-python3 scripts/run_evals.py <skill-dir> --model cpa/glm-5.3 --model cpa/muse-spark-1.3-contributor --runs 3
+python3 scripts/run_evals.py <skill-dir> --model cpa/grok-4.7 --model cpa/claude-sonnet-5-5 --runs 3
 python3 scripts/run_evals.py <skill-dir> --before <old-skill-dir> --after <new-skill-dir> --model <m> --runs 3
 ```
 
