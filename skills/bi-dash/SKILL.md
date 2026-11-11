@@ -4,7 +4,7 @@ description: "Builds a BI dashboard the way it gets trusted: a question sheet be
 license: MIT
 metadata:
   author: vanducng
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # bi-dash
