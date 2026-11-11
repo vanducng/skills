@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.27.0"
+  version: "0.28.0"
 ---
 
 # OpenRig workspace
@@ -167,6 +167,7 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 
 1. **Rig spec.** Copy `$PROJECTS_ROOT/specs/rigs/<template>/rig.yaml` to `$T/rig.yaml`, using the template from `rig-kind.cjs`. Set `name: <slice-id>` and every member's `cwd: "."`, and rewrite each `agent_ref` to `local:../../../../../../specs/agents/pi-seat` (the path relative to the task dir), keeping each member's `env.PI_TUI_ROLE`: the pi-tui launcher reads that role's skills and startup files from `specs/agents/<role>`. Keep `managed_blocks: { claude-code: CLAUDE.local.md }` so OpenRig never writes a `CLAUDE.md` (hard rule 1). For more than one repo, add a `workspace:` block (`workspace_root`, `repos[]` of `{name, path, kind: project}`, `default_repo`). A missing template is a stop, not a guess. Keep the human seat that every template with more than two seats carries: a `runtime: terminal` member `human`, listed first in the first pod so it is the first tile in every view, whose startup action types `pi`, so the operator has a Pi shell inside the rig to talk to the team. When you build a spec with more than two seats by hand, add it the same way.
 2. **Models.** Run `fleet/bin/rig-to-pi convert "$T/rig.yaml" [profile]`: it sets every agent seat's model from the profile and the seat's role. Check quota with `cpq` and that each id is live on the gateway (`/v1/models`) and in the operator's Pi `models.json` first. Each seat's Pi folder (`$OPENRIG_HOME/state/pi-tui/<seat>/agent`) is provisioned by the launcher at every launch from the operator's own Pi setup: models, footer with the seat name, title, board hook, workspace trust, role skills and startup files. Nothing is written by hand. A running rig still on Claude Code or Codex moves with `rig-to-pi recap <rig>`, then `rig-to-pi switch <rig.yaml> [profile]`, which keeps addresses, queue rows and claims and briefs each successor with its recap and previous conversation.
+   - **Seat profile.** To add a lens to some seats only, such as a dashboard skill, set `env.PI_TUI_PROFILE: <profile>` on those members. The launcher adds that profile's skills and startup files from the role's `agent.yaml` (`profiles.<profile>`) to its `profiles.default`, each once. A profile the role does not define prints one line and keeps the default, and `fleet rig-lint` fails it. Relaunch an idle seat to pick up the change.
 3. **Launch.**
    ```bash
    cd "$T" && rig up rig.yaml --plan && rig up rig.yaml
