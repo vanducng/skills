@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.26.0"
+  version: "0.27.0"
 ---
 
 # OpenRig workspace
@@ -142,7 +142,9 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
 2. **Record.** If the ticket has no slice yet:
    ```bash
    rig scope slice create <mission> <slug> --template <sliceTemplate> --workspace "$PROJECTS_ROOT/orgs/<org>/projects/<project>"
+   node "$HOME/skills/skills/openrig-workspace/scripts/slice-judges.cjs" <slice dir> [--builder <owner seat>]
    ```
+   The second line writes `proofPolicy.judges` into the new `slice.yaml`: the rig's review and QA seats outside the builder's model family (from `rig ps --nodes --json`), so the first `rig proof judge` does not stop on `policy_required`. It writes nothing when the mission or slice already has a `proofPolicy`, or when it cannot tell a family (exit 1, with the reason); then set the judges by hand.
    Fill `SPEC.md`: intent, mini-requirements, proof contract, repos, territory. Print its names with `slice-names.cjs <slice dir> --repo <repo>`. Check with `rig scope audit --workspace … --mission <mission>`. Read that project's execution view with `rig view show execution --project <org>.<project> --mission <mission> --json`. Omitting `--project` reads only the default workspace.
 3. **Workdir.** A per-slice rig: `T="$PROJECTS_ROOT/orgs/<org>/projects/<project>/tasks/<slice-id>"; mkdir -p "$T"`. A team rig already has its task dir.
 4. **Worktrees.** One per repo, under `$PROJECTS_ROOT/.worktrees/`, named `<repo>-<slice-id>` from the helper.
