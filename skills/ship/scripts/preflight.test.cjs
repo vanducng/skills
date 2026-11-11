@@ -91,6 +91,8 @@ test("tests: a repo-config-only change needs no test command; beside package sou
   const change = Object.fromEntries([...REPO_CONFIG, "docs/a.md"].map(f => [f, "x\n"]));
   const r = run(repo(NPM_ROOT, change), "tests", "--base", "main");
   assert.equal(r.code, 0, r.err); assert.equal(r.out.trim(), "docs and repo config only: no test command needed");
+  const cfg = run(repo(NPM_ROOT, { ".gitignore": "x\n", "renovate.json": "{}\n" }), "tests", "--base", "main");
+  assert.equal(cfg.out.trim(), "repo config only: no test command needed");
   for (const source of ["src/a.js", ".npmrc", "github/a.js"]) {
     const mixed = run(repo(NPM_ROOT, { ".github/CODEOWNERS": "x\n", [source]: "x\n" }), "tests", "--base", "main");
     assert.equal(mixed.out.trim(), "- `npm test`", source);
