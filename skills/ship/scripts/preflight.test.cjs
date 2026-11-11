@@ -81,3 +81,31 @@ test("overlap: a gh failure or output that is not a JSON list is a warning, neve
     assert.match(r.out, /^warn: overlap unchecked: /m, gh);
   }
 });
+
+// The repo-config rule, pinned with the same examples in the workspace merge-gate tests: these need no test command.
+const REPO_CONFIG = [".github/CODEOWNERS", ".github/workflows/ci.yml", ".github/dependabot.yml", "CODEOWNERS", ".gitignore",
+  "packages/web/.gitignore", ".gitattributes", ".editorconfig", "renovate.json"];
+const NPM_ROOT = { "package.json": JSON.stringify({ scripts: { test: "node --test" } }) };
+
+test("tests: a repo-config-only change needs no test command; beside package source the command is still named", () => {
+  const change = Object.fromEntries([...REPO_CONFIG, "docs/a.md"].map(f => [f, "x\n"]));
+  const r = run(repo(NPM_ROOT, change), "tests", "--base", "main");
+  assert.equal(r.code, 0, r.err); assert.equal(r.out.trim(), "docs and repo config only: no test command needed");
+  const cfg = run(repo(NPM_ROOT, { ".gitignore": "x\n", "renovate.json": "{}\n" }), "tests", "--base", "main");
+  assert.equal(cfg.out.trim(), "repo config only: no test command needed");
+  for (const source of ["src/a.js", ".npmrc", "github/a.js"]) {
+    const mixed = run(repo(NPM_ROOT, { ".github/CODEOWNERS": "x\n", [source]: "x\n" }), "tests", "--base", "main");
+    assert.equal(mixed.out.trim(), "- `npm test`", source);
+  }
+});
+
+test("tests --run: never installs; a node package without node_modules is not run and exits 1", () => {
+  const dir = repo({ "package.json": JSON.stringify({ scripts: { test: "touch ran" } }) }, { "a.js": "x\n" });
+  const r = run(dir, "tests", "--base", "main", "--run");
+  assert.equal(r.code, 1);
+  assert.match(r.out, /- `npm test`: not run: node_modules is missing; install the dependencies, then run it again/);
+  assert.ok(!fs.existsSync(path.join(dir, "ran")) && !fs.existsSync(path.join(dir, "node_modules")), "nothing ran or installed");
+  fs.mkdirSync(path.join(dir, "node_modules"));
+  const ok = run(dir, "tests", "--base", "main", "--run");
+  assert.equal(ok.code, 0, ok.err); assert.match(ok.out, /- `npm test`: pass/);
+});
