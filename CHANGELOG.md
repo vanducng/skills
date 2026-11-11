@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.87.1](https://github.com/vanducng/skills/compare/v1.87.0...v1.87.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **openrig-workspace:** new slices get proofPolicy judges from the rig ([#628](https://github.com/vanducng/skills/issues/628)) ([9b7879d](https://github.com/vanducng/skills/commit/9b7879d2d7201efef698a8ec4b9ddbd2f0de1c88))
+
 ## [1.87.0](https://github.com/vanducng/skills/compare/v1.86.1...v1.87.0) (2026-11-11)
 
 
