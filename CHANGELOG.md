@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.87.0](https://github.com/vanducng/skills/compare/v1.86.1...v1.87.0) (2026-11-11)
+
+
+### Features
+
+* **bi-dash:** a tool-neutral BI dashboard skill, evals first ([#623](https://github.com/vanducng/skills/issues/623)) ([35bd4cc](https://github.com/vanducng/skills/commit/35bd4cc6644a691f24bfc204f61dff5a313398f0))
+
 ## [1.86.1](https://github.com/vanducng/skills/compare/v1.86.0...v1.86.1) (2026-11-11)
 
 
