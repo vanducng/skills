@@ -6,7 +6,9 @@
 //
 // tests: each changed file (docs and repo config aside, see REPO_CONFIG) belongs to the nearest directory that has a test command, by the table in
 // references/auto-detect.md. Prints "- `<command>`" for the repository root and "- `cd <dir> && <command>`" for a
-// package below it; in a pnpm workspace a package's line is "- `pnpm --filter <package.json name> test`". --run runs each and appends ": pass" or ": failed (exit n)"; any failure exits 1.
+// package below it; in a pnpm workspace a package's line is "- `pnpm --filter <package.json name> test`". --run runs each and appends ": pass" or ": failed (exit n)",
+// or ": not run: node_modules is missing; ..." when a node or composer package has no node_modules or vendor (it never
+// installs); a failure or a not-run line exits 1. A change of only docs or repo config prints "<kind> only: no test command needed".
 "use strict";
 const fs = require("node:fs");
 const path = require("node:path");
@@ -54,7 +56,11 @@ function hasUp(dir, name) {
 
 function tests() {
   const code = changed.filter(f => !DOCS.test(f) && !REPO_CONFIG.test(f));
-  if (!code.length) { console.log(`${changed.every(f => DOCS.test(f)) ? "docs only" : "docs and repo config only"}: no test command needed`); return; }
+  if (!code.length) {
+    const label = changed.every(f => DOCS.test(f)) ? "docs" : changed.every(f => REPO_CONFIG.test(f)) ? "repo config" : "docs and repo config";
+    console.log(`${label} only: no test command needed`);
+    return;
+  }
   const found = new Map(), missing = new Set();
   for (const f of code) {
     let dir = path.dirname(f);
