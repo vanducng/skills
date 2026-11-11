@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.87.3](https://github.com/vanducng/skills/compare/v1.87.2...v1.87.3) (2026-11-11)
+
+
+### Bug Fixes
+
+* **code-review:** name grok as the non-Claude reviewer family ([#632](https://github.com/vanducng/skills/issues/632)) ([bf5c4ec](https://github.com/vanducng/skills/commit/bf5c4ec212a782d17b9246f8d6d459f437da5cef))
+
 ## [1.87.2](https://github.com/vanducng/skills/compare/v1.87.1...v1.87.2) (2026-11-11)
 
 
