@@ -19,7 +19,7 @@ The conductor is a workspace project (`<operator-org>.conductor`) whose one rig 
 
 Every machine in the machines file has `openrig_id` and `openrig_url`. Every host carries a route to every *other* machine's `openrig_id`. It never carries a route to itself or an alias: `rig tui` lists every registry entry as a host, so a self route or an alias shows the same rigs twice.
 
-- A desk passes `--host <openrig_id>` for `rig ps` and `rig queue create`, and `OPENRIG_URL=<openrig_url>` for the queue verbs that have no `--host` (`list`, `show`, `handoff`). Both are dropped when the project's machine is the conductor's own.
+- A desk passes `--host <openrig_id>` for `rig ps` and the queue verbs (`create`, `list`, `show`, `handoff` take it since 0.7.11). It is dropped when the project's machine is the conductor's own.
 - A project lead escalates with `rig queue create --host "$(fleet/bin/conductor where)" --destination desk-<org>@conductor ...`. `where` reads the pin from git, so no brief names a machine, and it prints nothing on the conductor's own host.
 
 `conductor routes` keeps every machine's registry in this shape over ssh, and removes self routes and old aliases.
