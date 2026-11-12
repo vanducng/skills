@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.88.1](https://github.com/vanducng/skills/compare/v1.88.0...v1.88.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **openrig-workspace:** quota overflow goes to the routing fallback, not grok ([#637](https://github.com/vanducng/skills/issues/637)) ([23147a8](https://github.com/vanducng/skills/commit/23147a852e563ff45272333a2975414ec69bf943))
+
 ## [1.88.0](https://github.com/vanducng/skills/compare/v1.87.3...v1.88.0) (2026-11-12)
 
 
