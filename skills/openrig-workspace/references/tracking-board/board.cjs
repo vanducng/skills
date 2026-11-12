@@ -11,7 +11,8 @@
 //   board.cjs audit <org>/<project>/<slug> | --all [--json] check a board is kept: owner_seat set, no feedback stuck over
 //                                                            30 min, updated within 24h while its rig runs, section words
 //                                                            under the cap, open decisions equal to the project's open
-//                                                            operator rows. Exit 1 on a failure. render warns, never blocks.
+//                                                            operator rows. Exit 1 on a failure. render warns on the
+//                                                            local three (no rig call) and never blocks.
 // render draws each diagram with pele into the page (no CDN at view time); without pele the page shows the diagram source.
 // Root: $OPENRIG_BOARDS_ROOT (default ~/.share/openrig/boards). URL base: $OPENRIG_BOARDS_URL, else the
 // tailnet name from `tailscale status --json` plus /boards (see serve.sh).
@@ -140,11 +141,12 @@ function rigState() {
 const words = html => String(html || "").replace(/<[^>]*>/g, " ").replace(/&[#\w]+;/g, " ").split(/\s+/).filter(Boolean).length;
 const escRe = t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-function auditBoard(slug, dir) {
+// withRig false (render): only the local checks, no rig call, so a hung daemon never slows a render.
+function auditBoard(slug, dir, withRig = true) {
   const data = JSON.parse(fs.readFileSync(path.join(dir, "board.json"), "utf8"));
   const [org, project] = [data.org || slug.split("/")[0], data.project || slug.split("/")[1]];
   const out = [], fail = (check, message) => out.push({ board: slug, check, message });
-  const now = clock(), facts = rigState();
+  const now = clock(), facts = withRig ? rigState() : {};
   if (!String(data.owner_seat || "").trim()) fail("owner_seat", "no owner_seat: feedback from this board reaches no seat");
   const fb = path.join(dir, "feedback");
   for (const sub of ["inbox", "processing"]) {
@@ -202,7 +204,7 @@ function render(dir) {
   const json = JSON.stringify(embedded, null, 2).replace(/</g, "\\u003c");
   const html = fs.readFileSync(template, "utf8").replace("__BOARD_JSON__", () => json).replace(/<noscript id="summary">[\s\S]*?<\/noscript>/, () => summary(data));
   fs.writeFileSync(path.join(dir, "index.html"), html);
-  try { for (const f of auditBoard(slugOf(dir), dir)) console.error(`board: audit: ${f.board}: ${f.check}: ${f.message}`); } catch { /* the audit never blocks a render */ }
+  try { for (const f of auditBoard(slugOf(dir), dir, false)) console.error(`board: audit: ${f.board}: ${f.check}: ${f.message}`); } catch { /* the audit never blocks a render */ }
   return path.join(dir, "index.html");
 }
 

@@ -745,3 +745,14 @@ test("audit --all covers every board; render warns on a failure and still writes
   assert.match(r.err, /audit: o\/q\/t: owner_seat/);
   assert.ok(fs.existsSync(path.join(root, "o", "q", "t", "index.html")));
 });
+
+test("render warns on the local checks only and never calls rig", () => {
+  const root = tmp(), d = put(root, "o/p/s", { ...fresh, owner_seat: "", updated: "2026-11-01 09:00", decisions: [{ id: "Q1", status: "decide" }] });
+  const env = { OPENRIG_BOARDS_ROOT: root, OPENRIG_BOARDS_NOW: NOW, PATH: fakeRig(root, { rigs: [{ name: "prig", status: "running" }], fail: true }) };
+  const r = run(["render", "o/p/s"], env);
+  assert.equal(r.code, 0, r.err);
+  assert.equal(fs.readFileSync(path.join(root, "rig-args.log"), "utf8"), "", "render made no rig call");
+  assert.match(r.err, /audit: o\/p\/s: owner_seat/);
+  assert.doesNotMatch(r.err, /stale|decisions|rig.*skipped/);
+  assert.ok(fs.existsSync(path.join(d, "index.html")));
+});

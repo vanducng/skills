@@ -34,11 +34,11 @@ bash "$B/status.sh" --rig <rig> --project-dir <project dir> --missions <m8-x,m9-
   --repo <owner/repo> --search "<TICKET-1> OR <TICKET-2> in:title"       # data for a periodic brief
 ```
 
-`audit` fails a board on each of these; `render` prints the same failures as warnings and still writes the page:
+`audit` fails a board on each of these. `render` warns on the first three only, so it never calls `rig`, and it still writes the page:
 - no `owner_seat`;
 - feedback in `inbox`, or unfinished in `processing` (no `done` reply, status not done or aborted), for over 30 minutes;
-- `updated` over 24 hours old while the owner seat's rig is running (`rig ps --json`);
 - section text over `section_words_max` words, set in `<root>/.board-config.json` (default 3000);
+- `updated` over 24 hours old while the owner seat's rig is running (`rig ps --json`);
 - open decisions (`decide`) that differ in number from the project's open rows to a person (`*@external` in `rig queue list -A --json`). A row is the project's when it has the tag `project:<org>.<project>` or its summary starts with `<project>` or `<org>.<project>`. Set `OPENRIG_OPERATOR_QUEUE_HOST` to the host whose daemon holds those rows when it is not this one.
 
 When `rig` can't answer, the two checks that need it are skipped and the output says so.
