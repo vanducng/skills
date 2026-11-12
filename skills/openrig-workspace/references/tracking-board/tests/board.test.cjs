@@ -635,3 +635,113 @@ test("events: status and reply reach signed-in browsers only, reload reaches eve
     assert.deepEqual(out.seen.filter(e => e !== "hello"), ["reload"]);
   } finally { s.stop(); }
 });
+
+// ---- audit ---------------------------------------------------------------------------------------------------------
+
+// A stand-in `rig` on PATH: `ps --json` lists the running rigs, `queue list` the queue rows given here.
+function fakeRig(root, { rigs = [], rows = [], fail = false } = {}) {
+  const bin = path.join(root, "bin");
+  fs.mkdirSync(bin, { recursive: true });
+  fs.writeFileSync(path.join(root, "rigs.json"), JSON.stringify(rigs));
+  fs.writeFileSync(path.join(root, "rows.json"), JSON.stringify(rows));
+  fs.writeFileSync(path.join(root, "rig-args.log"), "");
+  fs.writeFileSync(path.join(bin, "rig"), `#!/bin/sh\necho "$*" >> "${root}/rig-args.log"\n${fail ? "exit 1\n" : ""}case "$1 $2" in\n  "ps --json") cat "${root}/rigs.json" ;;\n  "queue list") cat "${root}/rows.json" ;;\n  *) exit 1 ;;\nesac\n`);
+  fs.chmodSync(path.join(bin, "rig"), 0o755);
+  return `${bin}:${process.env.PATH}`;
+}
+const NOW = "2026-11-12T10:00:00";
+const fresh = { title: "T", org: "o", project: "p", slug: "s", owner_seat: "lead-human@prig", updated: "2026-11-12 09:00",
+  missions: [], decisions: [], sections: [] };
+function audit(root, args, env = {}) {
+  return run(["audit", ...args, "--json"], { OPENRIG_BOARDS_ROOT: root, OPENRIG_BOARDS_NOW: NOW, ...env });
+}
+const checks = r => JSON.parse(r.out).failures.map(f => f.check).sort();
+
+test("audit: a fresh, owned, small board that matches the queue passes", () => {
+  const root = tmp(); put(root, "o/p/s", fresh);
+  const r = audit(root, ["o/p/s"], { PATH: fakeRig(root, { rigs: [{ name: "prig", status: "running" }] }) });
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual(JSON.parse(r.out).failures, []);
+});
+
+test("audit: a missing owner_seat fails", () => {
+  const root = tmp(); put(root, "o/p/s", { ...fresh, owner_seat: "" });
+  const r = audit(root, ["o/p/s"], { PATH: fakeRig(root) });
+  assert.equal(r.code, 1);
+  assert.deepEqual(checks(r), ["owner_seat"]);
+});
+
+test("audit: feedback left in inbox or unfinished in processing over 30 minutes fails; finished or recent passes", () => {
+  const root = tmp(), d = put(root, "o/p/s", fresh), fb = path.join(d, "feedback");
+  for (const sub of ["inbox", "processing", "status", "done"]) fs.mkdirSync(path.join(fb, sub), { recursive: true });
+  const item = (sub, id, at) => fs.writeFileSync(path.join(fb, sub, `${id}.json`), JSON.stringify({ id, received_at: at }));
+  item("inbox", "a-old", "2026-11-12T09:00:00");
+  item("inbox", "b-new", "2026-11-12T09:50:00");
+  item("processing", "c-stuck", "2026-11-09T09:00:00");
+  item("processing", "d-done", "2026-11-09T09:00:00");
+  fs.writeFileSync(path.join(fb, "done", "d-done.json"), JSON.stringify({ id: "d-done", reply: "ok" }));
+  item("processing", "e-aborted", "2026-11-09T09:00:00");
+  fs.writeFileSync(path.join(fb, "status", "e-aborted.json"), JSON.stringify({ id: "e-aborted", state: "aborted" }));
+  const r = audit(root, ["o/p/s"], { PATH: fakeRig(root, { rigs: [{ name: "prig", status: "running" }] }) });
+  assert.equal(r.code, 1);
+  const msgs = JSON.parse(r.out).failures.filter(f => f.check === "feedback").map(f => f.message).join("\n");
+  assert.match(msgs, /a-old/); assert.match(msgs, /c-stuck/);
+  assert.doesNotMatch(msgs, /b-new|d-done|e-aborted/);
+});
+
+test("audit: updated over 24h fails only while the owner's rig is running", () => {
+  const root = tmp(); put(root, "o/p/s", { ...fresh, updated: "2026-11-10 09:00" });
+  assert.deepEqual(checks(audit(root, ["o/p/s"], { PATH: fakeRig(root, { rigs: [{ name: "prig", status: "running" }] }) })), ["stale"]);
+  assert.equal(audit(root, ["o/p/s"], { PATH: fakeRig(root, { rigs: [{ name: "prig", status: "stopped" }] }) }).code, 0);
+  assert.equal(audit(root, ["o/p/s"], { PATH: fakeRig(root, { rigs: [] }) }).code, 0);
+});
+
+test("audit: section words over the cap in the boards root config fail; the default cap is 3000", () => {
+  const root = tmp();
+  put(root, "o/p/s", { ...fresh, sections: [{ id: "a", title: "A", html: `<p>${"word ".repeat(40)}</p>` }, { id: "b", title: "B", html: "<b>ten more</b> words here" }] });
+  const path_ = fakeRig(root);
+  assert.equal(audit(root, ["o/p/s"], { PATH: path_ }).code, 0, "44 words, default cap");
+  fs.writeFileSync(path.join(root, ".board-config.json"), JSON.stringify({ section_words_max: 40 }));
+  const r = audit(root, ["o/p/s"], { PATH: path_ });
+  assert.deepEqual(checks(r), ["section_words"]);
+  assert.match(JSON.parse(r.out).failures[0].message, /44 words.*cap 40/);
+});
+
+test("audit: open decisions must match the project's open operator rows, by project tag or summary prefix", () => {
+  const root = tmp();
+  put(root, "o/p/s", { ...fresh, decisions: [{ id: "Q1", status: "decide" }, { id: "C1", status: "accepted" }, { id: "Q0", status: "superseded" }] });
+  const rows = [
+    { qitemId: "q1", destinationSession: "op@external", state: "pending", tags: ["project:o.p"], summary: "anything" },
+    { qitemId: "q2", destinationSession: "op@external", state: "pending", tags: [], summary: "P S3: pick one" },
+    { qitemId: "q3", destinationSession: "op@external", state: "pending", tags: [], summary: "p-other: not this project" },
+    { qitemId: "q4", destinationSession: "lead-owner@prig", state: "pending", tags: ["project:o.p"], summary: "a seat row" },
+    { qitemId: "q5", destinationSession: "op@external", state: "done", tags: ["project:o.p"], summary: "closed" },
+  ];
+  const r = audit(root, ["o/p/s"], { PATH: fakeRig(root, { rows }) });
+  assert.deepEqual(checks(r), ["decisions"]);
+  assert.match(JSON.parse(r.out).failures[0].message, /1 open decision.*2 open operator row.*q1.*q2/);
+  const match = rows.slice(0, 1);
+  assert.equal(audit(root, ["o/p/s"], { PATH: fakeRig(root, { rows: match }) }).code, 0);
+});
+
+test("audit: the operator rows come from the queue host given, and a rig failure skips the rig checks with a note", () => {
+  const root = tmp(); put(root, "o/p/s", fresh);
+  const p = fakeRig(root);
+  audit(root, ["o/p/s"], { PATH: p, OPENRIG_OPERATOR_QUEUE_HOST: "host-q" });
+  assert.match(fs.readFileSync(path.join(root, "rig-args.log"), "utf8"), /queue list -A --json --host host-q/);
+  const r = audit(root, ["o/p/s"], { PATH: fakeRig(root, { fail: true }) });
+  assert.equal(r.code, 0);
+  assert.match(JSON.parse(r.out).notes.join("\n"), /rig.*skipped/);
+});
+
+test("audit --all covers every board; render warns on a failure and still writes the page", () => {
+  const root = tmp(); put(root, "o/p/s", fresh); put(root, "o/q/t", { ...fresh, project: "q", owner_seat: "" });
+  const env = { OPENRIG_BOARDS_ROOT: root, OPENRIG_BOARDS_NOW: NOW, PATH: fakeRig(root) };
+  const all = run(["audit", "--all", "--json"], env);
+  assert.equal(all.code, 1);
+  assert.deepEqual(JSON.parse(all.out).failures.map(f => f.board), ["o/q/t"]);
+  const r = run(["render", "o/q/t"], env);
+  assert.equal(r.code, 0);
+  assert.match(r.err, /audit: o\/q\/t: owner_seat/);
+  assert.ok(fs.existsSync(path.join(root, "o", "q", "t", "index.html")));
+});

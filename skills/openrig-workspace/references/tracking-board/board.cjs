@@ -8,6 +8,10 @@
 //   board.cjs list                                           list boards with their headline
 //   board.cjs check <org>/<project>/<slug>                   lint diagrams against the conventions; parse them with pele
 //                                                            when it is installed ($PELE_DIR, default ~/.cache/openrig-boards)
+//   board.cjs audit <org>/<project>/<slug> | --all [--json] check a board is kept: owner_seat set, no feedback stuck over
+//                                                            30 min, updated within 24h while its rig runs, section words
+//                                                            under the cap, open decisions equal to the project's open
+//                                                            operator rows. Exit 1 on a failure. render warns, never blocks.
 // render draws each diagram with pele into the page (no CDN at view time); without pele the page shows the diagram source.
 // Root: $OPENRIG_BOARDS_ROOT (default ~/.share/openrig/boards). URL base: $OPENRIG_BOARDS_URL, else the
 // tailnet name from `tailscale status --json` plus /boards (see serve.sh).
@@ -110,6 +114,82 @@ function summary(data) {
   return `<noscript id="summary"><div class="card plain">${lines.join("")}</div></noscript>`;
 }
 
+// ---- audit: is the board kept? -----------------------------------------------------------------------------------
+// Rig facts come from the rig CLI: `rig ps --json` (running rigs) and `rig queue list -A --json` (open rows to a person,
+// `*@external`), read once per run. $OPENRIG_OPERATOR_QUEUE_HOST names the host whose daemon holds the operator's rows
+// (where the desks run); unset reads this host. If rig cannot answer, the two checks that need it are skipped, with a note.
+// The section-word cap is `section_words_max` in <root>/.board-config.json (default 3000).
+const FEEDBACK_MAX_MIN = 30, STALE_MAX_H = 24, SECTION_WORDS_DEFAULT = 3000;
+const clock = () => (process.env.OPENRIG_BOARDS_NOW ? new Date(process.env.OPENRIG_BOARDS_NOW) : new Date());
+const readJson = f => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
+let rigFacts;
+function rigState() {
+  if (rigFacts) return rigFacts;
+  const rig = args => JSON.parse(execFileSync("rig", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 30000 }));
+  rigFacts = { notes: [] };
+  try {
+    rigFacts.running = new Set(rig(["ps", "--json"]).filter(r => r.status === "running").map(r => r.name));
+  } catch { rigFacts.notes.push("rig ps failed: the stale check is skipped"); }
+  const host = process.env.OPENRIG_OPERATOR_QUEUE_HOST;
+  try {
+    rigFacts.rows = rig(["queue", "list", "-A", "--json", ...(host ? ["--host", host] : [])])
+      .filter(q => /@external$/.test(q.destinationSession || "") && ["pending", "in-progress", "blocked"].includes(q.state));
+  } catch { rigFacts.notes.push(`rig queue list${host ? ` --host ${host}` : ""} failed: the decisions check is skipped`); }
+  return rigFacts;
+}
+const words = html => String(html || "").replace(/<[^>]*>/g, " ").replace(/&[#\w]+;/g, " ").split(/\s+/).filter(Boolean).length;
+const escRe = t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function auditBoard(slug, dir) {
+  const data = JSON.parse(fs.readFileSync(path.join(dir, "board.json"), "utf8"));
+  const [org, project] = [data.org || slug.split("/")[0], data.project || slug.split("/")[1]];
+  const out = [], fail = (check, message) => out.push({ board: slug, check, message });
+  const now = clock(), facts = rigState();
+  if (!String(data.owner_seat || "").trim()) fail("owner_seat", "no owner_seat: feedback from this board reaches no seat");
+  const fb = path.join(dir, "feedback");
+  for (const sub of ["inbox", "processing"]) {
+    const d = path.join(fb, sub);
+    if (!fs.existsSync(d)) continue;
+    for (const f of fs.readdirSync(d).filter(n => n.endsWith(".json"))) {
+      const item = readJson(path.join(d, f)) || {};
+      const state = (readJson(path.join(fb, "status", f)) || {}).state;
+      if (sub === "processing" && (fs.existsSync(path.join(fb, "done", f)) || ["done", "aborted"].includes(state))) continue;
+      const at = new Date(item.received_at || fs.statSync(path.join(d, f)).mtime);
+      const min = Math.round((now - at) / 60000);
+      if (min > FEEDBACK_MAX_MIN) fail("feedback", `${sub}/${f} unfinished for ${min} min (over ${FEEDBACK_MAX_MIN})`);
+    }
+  }
+  const rig = String(data.owner_seat || "").split("@")[1];
+  if (facts.running && rig && facts.running.has(rig) && /^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(data.updated || "")) {
+    const h = (now - new Date(`${data.updated.replace(" ", "T")}:00`)) / 3600000;
+    if (h > STALE_MAX_H) fail("stale", `updated ${data.updated}, ${Math.round(h)}h ago, while rig ${rig} is running`);
+  }
+  const cap = Number((readJson(path.join(root, ".board-config.json")) || {}).section_words_max) || SECTION_WORDS_DEFAULT;
+  const n = (data.sections || []).reduce((sum, s) => sum + words(s.html), 0);
+  if (n > cap) fail("section_words", `sections hold ${n} words, over the cap ${cap}`);
+  if (facts.rows) {
+    const prefix = new RegExp(`^(?:${escRe(org)}\\.)?${escRe(project)}(?![a-z0-9._-])`, "i");
+    const mine = facts.rows.filter(q => (q.tags || []).includes(`project:${org}.${project}`) || prefix.test(q.summary || ""));
+    const open = (data.decisions || []).filter(d => d.status === "decide").length; // README: Q/R open is "decide"
+    if (open !== mine.length) fail("decisions", `${open} open decision(s) on the board, ${mine.length} open operator row(s) for ${org}.${project}${mine.length ? `: ${mine.map(q => q.qitemId).join(", ")}` : ""}`);
+  }
+  return out;
+}
+
+function audit(list, json) {
+  const failures = list.flatMap(({ slug, dir }) => { try { return auditBoard(slug, dir); } catch (e) { return [{ board: slug, check: "read", message: e.message }]; } });
+  const notes = rigState().notes;
+  if (json) console.log(JSON.stringify({ boards: list.length, failures, notes }, null, 2));
+  else {
+    for (const f of failures) console.log(`FAIL ${f.board} ${f.check}: ${f.message}`);
+    for (const nt of notes) console.log(`note: ${nt}`);
+    console.log(`audit: ${list.length} board(s), ${failures.length} failure(s)`);
+  }
+  process.exit(failures.length ? 1 : 0);
+}
+
+const slugOf = dir => path.relative(root, dir).split(path.sep).join("/");
+
 function render(dir) {
   const file = path.join(dir, "board.json");
   const data = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -122,6 +202,7 @@ function render(dir) {
   const json = JSON.stringify(embedded, null, 2).replace(/</g, "\\u003c");
   const html = fs.readFileSync(template, "utf8").replace("__BOARD_JSON__", () => json).replace(/<noscript id="summary">[\s\S]*?<\/noscript>/, () => summary(data));
   fs.writeFileSync(path.join(dir, "index.html"), html);
+  try { for (const f of auditBoard(slugOf(dir), dir)) console.error(`board: audit: ${f.board}: ${f.check}: ${f.message}`); } catch { /* the audit never blocks a render */ }
   return path.join(dir, "index.html");
 }
 
@@ -207,11 +288,14 @@ if (cmd === "init") {
   if (!pele) console.log(`check: pele not installed, parse skipped (npm install --prefix ${peleDir} pele@1.13.0)`);
   console.log(problems ? `check: ${problems} problem(s)` : "check: ok");
   process.exit(problems ? 1 : 0);
+} else if (cmd === "audit") {
+  const dir = arg === "--all" ? null : boardDir(arg);
+  audit(dir ? [{ slug: slugRe.test(arg) ? arg : slugOf(dir), dir }] : boards(), rest.includes("--json"));
 } else if (cmd === "list") {
   for (const { slug, dir } of boards()) {
     const data = JSON.parse(fs.readFileSync(path.join(dir, "board.json"), "utf8"));
     console.log(`${slug}\t${data.updated || "?"}\t${data.headline || data.title}`);
   }
 } else {
-  die("usage: board.cjs init|render|url|login|check <org>/<project>/<slug> [--title \"...\"] | render --all | list");
+  die("usage: board.cjs init|render|url|login|check|audit <org>/<project>/<slug> [--title \"...\"] | render --all | audit --all [--json] | list");
 }
