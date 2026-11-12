@@ -47,7 +47,7 @@ When `rig` can't answer, the two checks that need it are skipped and the output 
 
 | Key | Shape | Notes |
 |---|---|---|
-| `owner_seat` | string | the human seat that receives this board's feedback, e.g. `lead-human@<rig>`; `init` fills it from `OPENRIG_SESSION_NAME` |
+| `owner_seat` | string | the one seat that receives this board's feedback: the rig's human seat, e.g. `lead-human@<rig>`, or its only seat when the rig has no human seat; `init` fills it from `OPENRIG_SESSION_NAME` |
 | `title`, `headline`, `phase`, `updated` | strings | `updated` in the operator's zone; headline in the brief's form (state, done/total, what waits) |
 | `needs` | `[string \| {text, href, link?}]` | open asks for the operator; empty when none. An object adds a link to the detail (`#dec-<id>` for a decision row, a section `#<id>`, or a URL); `link` is the link text, default `details` |
 | `missions` | `[{id, name, goal, status, slices: [{id, name, owner, status, progress, note, pr?, diagram?, signoff?}]}]` | status: `planned`, `doing`, `blocked`, `done`, `decide`; progress 0-100; `diagram` names a `diagrams` id drawn under the slice's note (a statechart, for example); `signoff` is `[[title, url]]`, what the asker approves on this slice (a question sheet, a mockup), shown as links under the note |
@@ -92,7 +92,7 @@ browser ──POST feedback|chat─► server.cjs ──► feedback/inbox/<id>.
    └──── events: status, reply, reload ◄── feedback/status, feedback/done, index.html ◄── the seat applies, renders, replies
 ```
 
-- **Install once per machine:** the `board-bridge` Pi extension ships with the operator's dotfiles (`pi/.pi/agent/extensions/board-bridge.js`, linked by `make stow-pi`); `/reload` in the human seat to load it. It runs only in a seat named `*-human@*`, serves only boards whose `owner_seat` is that seat, and finds `board.cjs` through `$OPENRIG_BOARD_CLI`, `~/skills`, or the installed skill.
+- **Install once per machine:** the `board-bridge` Pi extension ships with the operator's dotfiles (`pi/.pi/agent/extensions/board-bridge.js`, linked by `make stow-pi`); `/reload` in the owner seat to load it. It serves only boards whose `owner_seat` is its seat, in a seat named `*-human@*`, or in any seat whose rig has no human seat (read from `rig ps` every few minutes; if that read fails, it serves nothing), and finds `board.cjs` through `$OPENRIG_BOARD_CLI`, `~/skills`, or the installed skill.
 - **Two ways to sign in** (without one, the page is read-only):
   - **Tailnet identity:** open the board through its tailnet address. `tailscale serve` adds `Tailscale-User-Login` to each request; a login listed in `<root>/.board-owners` (one per line, `#` comments, mode 600) is signed in, and the page says "Connected as <name>". The operator adds his own login to that file on each host; no login is ever written into this skill. A missing or empty list, or one that others can read or write, means token only.
   - **Token link, once per browser:** open the URL from `board.cjs login`. The server sets an HttpOnly, SameSite=Strict cookie and drops the token from the address. The token is `<root>/.board-token` (mode 600); deleting it and restarting the server logs every browser out.
