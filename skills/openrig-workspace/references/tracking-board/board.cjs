@@ -117,7 +117,7 @@ function summary(data) {
 
 // ---- audit: is the board kept? -----------------------------------------------------------------------------------
 // Rig facts come from the rig CLI: `rig ps --json` (running rigs) and `rig queue list -A --json` (open rows to a person,
-// `*@external`), read once per run. $OPENRIG_OPERATOR_QUEUE_HOST names the host whose daemon holds the operator's rows
+// `*@external`; --limit, as the default is 100 rows), read once per run. $OPENRIG_OPERATOR_QUEUE_HOST names the host whose daemon holds the operator's rows
 // (where the desks run); unset reads this host. If rig cannot answer, the two checks that need it are skipped, with a note.
 // The section-word cap is `section_words_max` in <root>/.board-config.json (default 3000).
 const FEEDBACK_MAX_MIN = 30, STALE_MAX_H = 24, SECTION_WORDS_DEFAULT = 3000;
@@ -133,7 +133,7 @@ function rigState() {
   } catch { rigFacts.notes.push("rig ps failed: the stale check is skipped"); }
   const host = process.env.OPENRIG_OPERATOR_QUEUE_HOST;
   try {
-    rigFacts.rows = rig(["queue", "list", "-A", "--json", ...(host ? ["--host", host] : [])])
+    rigFacts.rows = rig(["queue", "list", "-A", "--json", "--limit", "100000", ...(host ? ["--host", host] : [])])
       .filter(q => /@external$/.test(q.destinationSession || "") && ["pending", "in-progress", "blocked"].includes(q.state));
   } catch { rigFacts.notes.push(`rig queue list${host ? ` --host ${host}` : ""} failed: the decisions check is skipped`); }
   return rigFacts;
@@ -153,10 +153,10 @@ function auditBoard(slug, dir, withRig = true) {
     const d = path.join(fb, sub);
     if (!fs.existsSync(d)) continue;
     for (const f of fs.readdirSync(d).filter(n => n.endsWith(".json"))) {
-      const item = readJson(path.join(d, f)) || {};
+      let at; // the bridge moves files out of inbox/ while this runs: one gone since readdir is skipped, not counted
+      try { at = new Date((readJson(path.join(d, f)) || {}).received_at || fs.statSync(path.join(d, f)).mtime); } catch { continue; }
       const state = (readJson(path.join(fb, "status", f)) || {}).state;
       if (sub === "processing" && (fs.existsSync(path.join(fb, "done", f)) || ["done", "aborted"].includes(state))) continue;
-      const at = new Date(item.received_at || fs.statSync(path.join(d, f)).mtime);
       const min = Math.round((now - at) / 60000);
       if (min > FEEDBACK_MAX_MIN) fail("feedback", `${sub}/${f} unfinished for ${min} min (over ${FEEDBACK_MAX_MIN})`);
     }

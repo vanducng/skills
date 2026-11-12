@@ -728,7 +728,7 @@ test("audit: the operator rows come from the queue host given, and a rig failure
   const root = tmp(); put(root, "o/p/s", fresh);
   const p = fakeRig(root);
   audit(root, ["o/p/s"], { PATH: p, OPENRIG_OPERATOR_QUEUE_HOST: "host-q" });
-  assert.match(fs.readFileSync(path.join(root, "rig-args.log"), "utf8"), /queue list -A --json --host host-q/);
+  assert.match(fs.readFileSync(path.join(root, "rig-args.log"), "utf8"), /queue list -A --json --limit \d+ --host host-q/);
   const r = audit(root, ["o/p/s"], { PATH: fakeRig(root, { fail: true }) });
   assert.equal(r.code, 0);
   assert.match(JSON.parse(r.out).notes.join("\n"), /rig.*skipped/);
@@ -755,4 +755,18 @@ test("render warns on the local checks only and never calls rig", () => {
   assert.match(r.err, /audit: o\/p\/s: owner_seat/);
   assert.doesNotMatch(r.err, /stale|decisions|rig.*skipped/);
   assert.ok(fs.existsSync(path.join(d, "index.html")));
+});
+
+test("audit: a feedback file gone between listing and reading is skipped, and the other checks still run", () => {
+  const root = tmp(), d = put(root, "o/p/s", { ...fresh, owner_seat: "" }), inbox = path.join(d, "feedback", "inbox");
+  fs.mkdirSync(inbox, { recursive: true });
+  fs.symlinkSync(path.join(inbox, "moved-away.json.gone"), path.join(inbox, "vanished.json")); // readdir lists it; read and stat find nothing
+  const r = audit(root, ["o/p/s"], { PATH: fakeRig(root) });
+  assert.deepEqual(checks(r), ["owner_seat"], r.out);
+});
+
+test("audit: the queue listing asks for every row, not the CLI's default 100", () => {
+  const root = tmp(); put(root, "o/p/s", fresh);
+  audit(root, ["o/p/s"], { PATH: fakeRig(root) });
+  assert.match(fs.readFileSync(path.join(root, "rig-args.log"), "utf8"), /queue list -A --json --limit \d{4,}/);
 });
