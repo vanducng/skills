@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.88.0](https://github.com/vanducng/skills/compare/v1.87.3...v1.88.0) (2026-11-12)
+
+
+### Features
+
+* **openrig-workspace:** board.cjs audit checks a board is kept ([#634](https://github.com/vanducng/skills/issues/634)) ([87f7d27](https://github.com/vanducng/skills/commit/87f7d2733c77aa3554342368c0b8c57548ffc0df))
+
 ## [1.87.3](https://github.com/vanducng/skills/compare/v1.87.2...v1.87.3) (2026-11-11)
 
 
