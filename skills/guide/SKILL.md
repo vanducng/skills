@@ -71,6 +71,7 @@ If two apply, prefer `vd:fix` for failures and `vd:cook --quick` for small build
 | Design, build, or review a product UI | `vd:uiuxdesign` |
 | Exact polish values: radius, shadows, press scale, icon motion | `vd:better-ui` |
 | Whether motion should exist, easing, springs, popovers, drag | `vd:design-eng` |
+| Which modern HTML/CSS/browser API to use, legacy-pattern scan | `vd:modern-web-guidance` |
 
 ## Discover / decide / iterate
 

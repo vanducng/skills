@@ -77,7 +77,7 @@ Skill directory names are kebab-case and must match the `name` field in `SKILL.m
 
 ## Sync Vendored Skills
 
-`browser-trace` is tracked from `browserbase/skills`, and `ego-browser` from `citrolabs/ego-lite`, in `skills.toml`. Use `vd` to inspect and update tracked sources:
+`browser-trace` is tracked from `browserbase/skills`, `ego-browser` from `citrolabs/ego-lite`, and `modern-web-guidance` from `GoogleChrome/modern-web-guidance`, in `skills.toml`. Use `vd` to inspect and update tracked sources:
 
 ```sh
 vd list
