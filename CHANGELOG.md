@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.89.0](https://github.com/vanducng/skills/compare/v1.88.1...v1.89.0) (2026-11-13)
+
+
+### Features
+
+* **skills:** track modern-web-guidance from GoogleChrome ([#639](https://github.com/vanducng/skills/issues/639)) ([28b8983](https://github.com/vanducng/skills/commit/28b8983dac8c449308a4bb2c2c25205c33724b35))
+
 ## [1.88.1](https://github.com/vanducng/skills/compare/v1.88.0...v1.88.1) (2026-11-12)
 
 
