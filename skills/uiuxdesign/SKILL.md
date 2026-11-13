@@ -15,7 +15,7 @@ Design quality is the top identity; web implementation is how it lands.
 
 Read only what the task needs:
 
-- `references/design-quality.md`: visual design, UX review, accessibility, responsive layout, typography, forms, charts, and polish checks. For exact polish values (concentric radius, surface shadows, a 0.96 press scale, icon cross-fades), load `vd:better-ui` and use the numbers written there. For whether motion should exist, easing, springs, popover origin, and drag, load `vd:design-eng`.
+- `references/design-quality.md`: visual design, UX review, accessibility, responsive layout, typography, forms, charts, and polish checks. For exact polish values (concentric radius, surface shadows, a 0.96 press scale, icon cross-fades), load `vd:better-ui` and use the numbers written there. For whether motion should exist, easing, springs, popover origin, and drag, load `vd:design-eng`. Before writing HTML, CSS or client-side JS for a UI pattern, search `vd:modern-web-guidance` for the platform-native approach and its fallback.
 - `references/style-taxonomy.md`: 40+ named styles with best-for/avoid guidance, dashboard sub-styles, and the product → style → tokens selection workflow.
 - `references/palettes-and-fonts.md`: semantic-token color palettes by product type and Google-Font pairings by mood (with CJK/RTL coverage).
 - `references/tailwind-shadcn.md`: shadcn/ui + Tailwind idioms - setup, CSS-variable theming, dark mode, responsive, component/form/table patterns, and the Web Interface Guidelines review pass.
