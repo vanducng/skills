@@ -34,6 +34,12 @@ If either names the Rex unit, `rig down <rig>` first and `rig up <rig> --existin
 the daemon and tmux from their own unit (`systemd-run --user --unit=<name> ...`). On macOS the app's
 server does not take tmux down with it.
 
+## Debian and Ubuntu: the distro's `rex` is a different tool
+
+The distro package `rex` is a Perl deployment tool that owns `/usr/bin/rex`. An unattended upgrade or a software updater can install it over the Rex multiplexer even with an apt pin. Symptoms: `rex ls` prints "No Rexfile found", `rig terminal open --provider rex` says Rex is unavailable, and the running server's `/proc/<pid>/exe` ends in `(deleted)`. The server keeps running; the next restart or reboot would not bring it back.
+
+Fix without touching the server: install the cached `.deb` that matches the running server (`dpkg -i /var/cache/apt/archives/rex_<server version>_amd64.deb`, versions from `rex server status`), then `apt-mark hold rex`. Upgrade later on purpose: `apt-mark unhold rex`, then the procedure below. A stray `Rexfile.lock` in a repo is the Perl tool's, safe to delete.
+
 ## Procedure
 
 1. Check the server version and the seats: `rex -S <host> server status`, `rig ps --nodes`.
