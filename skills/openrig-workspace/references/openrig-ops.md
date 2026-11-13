@@ -18,6 +18,9 @@ Fleet-specific OpenRig knowledge, observed on the workspace's rigs. Generic Open
 - In `rig tui`, `graph` is a tab of a selected rig: type `rig <name>`, then `graph`. `:` only jumps between sections.
 - The daemon binds the Tailscale address too. Start it with `--host 127.0.0.1` unless you mean to expose it.
 
+- A 1Password item whose title contains `/` (repo secrets are titled by path, as documents) cannot be addressed as `op://<vault>/<item>/<field>`. Read documents with `op document get`, and give an API-credential item a slash-free title so seats can `op read` it.
+- `op item create` and `op item edit` run over `ssh` take stdin as a JSON template: pipe the JSON into `op item create` without `--template` (it refuses both), and close stdin for an edit (`</dev/null`). To move a secret between vaults without printing it, build the JSON with `jq` from `env.X` and pipe it straight in; never put the value in argv.
+
 ## Restart or move a team rig
 
 OpenRig restores seats from the snapshot taken at `rig down`, which still holds the old cwd, and a seat stopped on its own stays stopped. So:
