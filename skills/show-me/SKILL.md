@@ -1,13 +1,13 @@
 ---
 name: show-me
-description: "Explain the current topic with the cheapest in-chat visual. Skip the preamble and pick the smallest view that makes the point: pseudocode, call tree, component tree, shallow file tree, Mermaid, topic-shaped diffs, or one throwaway HTML file. Use when a visual would clarify the current question, decision, cook phase, or review comment, or when the user says 'show me', 'visualize this', 'draw that', or 'make this visual'. Keepable diagrams, whiteboards, and showcase pages belong to other skills."
+description: "Explain the current topic with the cheapest in-chat visual. Skip the preamble and pick the smallest view that makes the point: pseudocode, call tree, component tree, shallow file tree, Mermaid (rendered to text in a terminal chat), bar charts, topic-shaped diffs, or one throwaway HTML file. Use when a visual would clarify the current question, decision, cook phase, or review comment, or when the user says 'show me', 'visualize this', 'draw that', or 'make this visual'. Keepable diagrams, whiteboards, and showcase pages belong to other skills."
 license: MIT
 category: visuals
 keywords: [visual, explainer, mermaid, call-tree, component-tree, file-tree, infographic, throwaway]
 argument-hint: "[topic or question]"
 metadata:
   author: vanducng
-  version: "0.1.1"
+  version: "0.2.0"
   source: "adapted from humanlayer/skills plugins/show-me (MIT)"
 ---
 
@@ -37,6 +37,18 @@ HTML from this skill is a throwaway focused view (diagram, infographic, or short
 3. Place each visual next to the short text it supports.
 4. Keep only the calls, files, props, states, and boundaries needed for the current question.
 5. Use one pattern, or a few. Do not use all of them.
+6. **In a terminal chat** (Pi, Claude Code, Codex), a Mermaid block shows as source. Render it to text and paste that in a `text` block; give the Mermaid source only when the reader views markdown. Numbers go out as bars, not a table of digits.
+
+## Terminal rendering
+
+`SM=<this skill's directory>`
+
+| Visual | Command | Notes |
+|---|---|---|
+| Mermaid flowchart, state, sequence, class, ER | `"$SM/scripts/mmd2txt" file.mmd` (or `-` for stdin) | Strips front matter, `class`/`style` lines and a statechart legend. Needs `npx`. Keep to about 12 nodes and `TD`; a render wider than 100 columns means split the diagram. |
+| Bar chart | `printf 'Chesterfield\t5000\n' \| "$SM/scripts/bars" --width 40` | `label<TAB>value` lines, stdlib only. Pipe query output straight in. |
+
+If `mmd2txt` fails (no network for `npx`, an unsupported diagram type), draw the view as a call tree or with `vd:text-diagram` instead of shipping raw Mermaid.
 
 ### Pseudocode
 
