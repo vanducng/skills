@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""bars [file|-] [--width N]: horizontal bar chart from 'label<TAB>value' lines (stdlib only).
+
+Negative values are drawn as empty bars with the number shown. Run with --test for the self-check.
+"""
+import sys
+
+
+def render(rows, width=40):
+    if not rows:
+        return ""
+    top = max(max(v for _, v in rows), 0) or 1
+    pad = max(len(k) for k, _ in rows)
+    out = []
+    for k, v in rows:
+        n = max(v, 0) / top * width
+        full, frac = int(n), n - int(n)
+        bar = "█" * full + (" ▏▎▍▌▋▊▉"[int(frac * 8)] if frac * 8 >= 1 else "")
+        num = f"{v:,.0f}" if float(v).is_integer() else f"{v:,.1f}"
+        out.append(f"{k.ljust(pad)}  {bar.ljust(width + 1)} {num}")
+    return "\n".join(out)
+
+
+def parse(text):
+    rows = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        k, _, v = line.rpartition("\t")
+        rows.append((k.strip(), float(v.replace(",", ""))))
+    return rows
+
+
+def _test():
+    r = render([("a", 10), ("bb", 5), ("c", 0)], width=10).splitlines()
+    assert r[0].startswith("a   ██████████") and r[0].endswith(" 10"), r[0]
+    assert r[1].startswith("bb  █████ ") and r[1].endswith(" 5"), r[1]
+    assert r[2].endswith(" 0") and "█" not in r[2], r[2]
+    assert parse("x\t1,234\n\n") == [("x", 1234.0)]
+    print("ok")
+
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+    if "--test" in args:
+        _test()
+        sys.exit(0)
+    width = 40
+    if "--width" in args:
+        i = args.index("--width")
+        width = int(args[i + 1])
+        del args[i:i + 2]
+    src = open(args[0]).read() if args and args[0] != "-" else sys.stdin.read()
+    print(render(parse(src), width))

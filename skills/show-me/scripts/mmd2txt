@@ -1,0 +1,16 @@
+#!/bin/sh
+# mmd2txt [file|-]: render Mermaid as Unicode text for terminals that show Mermaid as source.
+# Strips front matter, class/style lines and a statechart "Legend" block, then renders with
+# beautiful-mermaid-cli (flowchart, stateDiagram-v2, sequenceDiagram, classDiagram, erDiagram).
+set -e
+awk '
+  NR==1 && /^---$/ {fm=1; next}
+  fm && /^---$/    {fm=0; next}
+  fm               {next}
+  /state "Legend" as / {skip=1; next}
+  skip && /^[[:space:]]*}/ {skip=0; next}
+  skip             {next}
+  /^[[:space:]]*(class|classDef|style|linkStyle)[[:space:]]/ {next}
+  {print}
+' "${1:--}" |
+npx -y beautiful-mermaid-cli@0.2.4 ascii --padding-x 2 --padding-y 1 --box-padding 0 --color-mode none
