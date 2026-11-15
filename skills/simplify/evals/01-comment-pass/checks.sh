@@ -7,5 +7,5 @@ grep -qi "in cents" "$f" && { echo "the stale 'in cents' comment is still there"
 grep -qi "loop over the items" "$f" && { echo "the restating 'loop over the items' comment is still there"; exit 1; }
 grep -qi "price times the quantity" "$f" && { echo "the restating 'price times the quantity' comment is still there"; exit 1; }
 grep -qi "2 decimals" "$f" || { echo "the payment-API comment (an outside constraint) was removed"; exit 1; }
-grep -qiE '\bkeep' "$EVAL_OUTPUT" || { echo "the reply lists no keep"; exit 1; }
+grep -qiE '\bkeep|\bkept' "$EVAL_OUTPUT" || { echo "the reply lists no keep"; exit 1; }
 echo ok
