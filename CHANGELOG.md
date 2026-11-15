@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.91.0](https://github.com/vanducng/skills/compare/v1.90.0...v1.91.0) (2026-11-15)
+
+
+### Features
+
+* **shape:** design it twice and a red-flag screen in --options ([#646](https://github.com/vanducng/skills/issues/646)) ([fcb279e](https://github.com/vanducng/skills/commit/fcb279e19bc9dcf27522b51978633d2a41a4da4b))
+
 ## [1.90.0](https://github.com/vanducng/skills/compare/v1.89.0...v1.90.0) (2026-11-15)
 
 

@@ -20,7 +20,7 @@ The second gate. A record leaves it with an intent, mini-requirements and a proo
 |---|---|---|---|
 | default | the record exists, and its requirements or contract are thin or missing | `references/sequencing.md` when the build takes more than one sitting | `SPEC.md`, plus `PROGRESS.md` `## Plan` if sequenced |
 | `--grill` | a plan or idea exists and has to be stress-tested | `references/grill.md` | nothing until the answers are in, then `SPEC.md` |
-| `--options` | the approach is not obvious | `references/options.md` | `reports/options.md` |
+| `--options` | the approach is not obvious | `references/options.md`, `references/red-flags.md` | `reports/options.md` |
 
 ## Default steps
 
