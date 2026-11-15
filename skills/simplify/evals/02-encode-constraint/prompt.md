@@ -1,0 +1,1 @@
+Simplify `src/pipeline.js` in this directory. Its behaviour must stay the same: `node --test` passes before and after. You may add tests under `test/`. Leave your changes in the working tree, and end your reply with the list of comments you looked at and what you did with each.

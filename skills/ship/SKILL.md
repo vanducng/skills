@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[official|staging|beta] [--auto] [--merge] [--release] [--skip-tests] [--skip-review] [--skip-pr-comments] [--skip-screenshots] [--skip-journal] [--skip-docs] [--dry-run]"
 metadata:
   author: vanducng
-  version: "1.8.0"
+  version: "1.9.0"
 ---
 
 # Ship
@@ -59,6 +59,7 @@ Repository deployment policy and an explicitly named source/target branch take p
    - **Private identifiers** - employer/org names, internal repo or host names, customer names, connection names, ticket contents, personal emails. Replace with `<org>/<repo>`, `<connection>`, `<internal-host>`. Discover the real values at runtime from the repo/env instead of hardcoding.
    - **Stale model ids** - model names pinned in prose/examples that no longer match what the tool actually uses. Verify against the source of truth (`~/.codex/config.toml`, the CLI binary's own default, provider docs) before changing one; a doc that correctly records an older default the tool still writes is **not** stale.
    Findings block the commit the same way Rule 7 does. Fix, or state out loud why the literal is required.
+7c. **Changed-behaviour sweep before push.** For each name, flag, default, message or behaviour the diff renames, removes or changes, search the whole repo, not only the diff (`rg -n -F -- '<old term>'`, so a term that starts with `-` is not read as a flag), including code comments, docstrings, `README`s, `docs/` and skill text. Update every line that still describes the old behaviour in the same commit, or say why it stays (a changelog entry, a migration note). A hit left as it was is a finding, as in Rule 7.
 8. **`--auto` has a safety floor.** Even in auto mode, **abort** on: critical review issues, **unresolved PR review comments**, secret-scan hits, test failures, merge conflicts, push rejections, ambiguous mode (no branch-name match). **Still prompt (do not silent-post)** for tracker writes that need `vd:jira` (or equivalent) show-before-execute (Step 12b ticket mirror) - if declined, skip the ticket post and continue the ship. Auto suppresses *judgement-call* prompts (issue creation, version bump level, no-test-runner, journal/docs skip) **and recoverable preflight conditions** (on-target-branch → auto-create feature branch per Rule 1). Auto NEVER suppresses safety violations or direct-push-to-target.
 9. **Ticket branch/title invariant.** Use the repository's ticket naming convention
    and title `KEY-123: <past-tense description>`. In a workspace task with a

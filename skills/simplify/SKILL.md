@@ -6,7 +6,7 @@ argument-hint: "[path or scope] [--aggressive | --scan] (defaults to recently ch
 metadata:
   author: vanducng
   attribution: "Adapted from addyosmani/agent-skills code-simplification and the Claude code-simplifier plugin"
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # simplify
@@ -60,11 +60,16 @@ Can't answer? You're not ready. Read more context first.
 | Pattern | Signal | Simplification |
 |---|---|---|
 | Generic names (`data`, `tmp`, `result`) | Says nothing about content | Rename to the content (`validationErrors`) |
-| "What" comments (`// increment` over `i++`) | Restates the code | Delete - the code is the comment |
-| "Why" comments (`// retry: API flakes under load`) | Carries intent code can't | **Keep** |
+| Comments | See the comment pass below | Kill or keep, one line each |
 | Duplicated logic (5+ lines, 2+ places) | - | Extract a shared function (Rule of Three) |
 | Dead code (unreachable, unused, commented-out) | - | Remove after confirming it's truly dead |
 | Wrong abstraction (factory-for-a-factory, 1-impl strategy) | Indirection with no payoff | Inline to the direct form |
+
+**Comment pass.** List every comment in scope as `kill` or `keep`, with the reason, before changing any:
+
+- **Kill** a comment that restates the code (`// increment` over `i++`), names an old behaviour the code no longer has, or narrates history ("was X", "added for Y"). The code and git carry those.
+- **Keep** only a comment about what the code cannot change or show: an outside constraint (an API's quirk, a spec clause, a platform bug) or a non-obvious why. Rewrite a keep that drifted from the code.
+- **Encode, then delete,** a "do not remove/change/reorder" comment when a test, type or lint can hold the rule cheaply: write that check, see it fail on the forbidden change, then drop the comment. When no cheap check exists, keep it as a keep.
 
 ### 3. Apply incrementally
 

@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[--base <ref>] [--post] [--refactor]"
 metadata:
   author: vanducng
-  version: "2.3.1"
+  version: "2.4.0"
 ---
 
 # code-review
@@ -24,7 +24,7 @@ You judge someone else's diff. You never fix it and never delegate: do not invok
    - whole files, not hunks.
 4. **Judge each axis alone:** `pass`, `fail` or `inconclusive`, which blocks.
    - Spec fails on an unmet mini-requirement or contract item.
-   - Standards fails on a broken written rule; quote the rule.
+   - Standards fails on a broken written rule; quote the rule. Without one, a comment the diff adds that restates the code, or one it leaves stale (it still describes the old behaviour), is a Standards finding.
    - Security (Deep) covers injection, secrets, auth scope and migrations.
    - Prove a `.gitignore` or config change (`git check-ignore`, a config read) in a checkout of the PR head, never the base.
 5. **Findings:** ids `F1`, `F2`, each with an axis, a tag (`Important` blocks, `Nit`, `Pre-existing`) and a status (`open`, `fixed`, `declined`).
