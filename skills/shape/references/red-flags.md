@@ -13,16 +13,16 @@ Screen each `--options` candidate against these. The reader is the next contribu
 | Hidden coupling | Two files must change together and nothing says so | Put them in one file or make the link explicit |
 | Needs a map | A new contributor cannot place the change from one file | Name and co-locate the parts |
 
-## Worked example: where to cache price lookups
+## Worked example: where to retry failed webhook sends
 
-Grounded on: `lookup.py` (callers: 3), `config.yaml`, the record's SPEC.
+Grounded on: `send.py` (callers: 3), `config.yaml`, the record's SPEC.
 
-- **A, cache inside `lookup()`:** one call, the cache and its expiry live in `lookup.py`. Flags: none; the interface stays one function.
-- **B, a separate `PriceCache` the callers use:** each caller gets, checks and fills. Flags: shallow module (callers know the steps), spread change (three callers edit on any expiry change).
+- **A, retry inside `send()`:** one call; the backoff and the give-up rule live in `send.py`. Flags: none; the interface stays one function.
+- **B, a separate `Retrier` the callers wrap around `send()`:** each caller loops, waits and gives up. Flags: shallow module (callers know the steps), spread change (three callers edit on any backoff change).
 
-`Red flags: A none; B shallow module, spread change (fix would be to fold it into lookup(), which is A).`
-`Pick: Option A.` Deeper interface, one home for the rule.
+`Red flags: A none; B shallow module, spread change (fix would be to fold it into send(), which is A).`
+`Pick: Option A.` Deeper interface, one home for the retry rule.
 
 ## Credit
 
-The design-twice and red-flag steps adapt the architect pass of the pstack plugin, https://github.com/cursor/plugins/tree/main/pstack (MIT, Copyright (c) 2026 Lauren Tan), as `statechart` adapts its statechart skill. The list and the example here are rewritten for this repository.
+The design-twice and red-flag steps adapt the architect pass of the pstack plugin, https://github.com/cursor/plugins/tree/main/pstack/skills/architect (MIT, Copyright (c) 2026 Lauren Tan), as `statechart` adapts its statechart skill. The list and the example here are rewritten for this repository.
