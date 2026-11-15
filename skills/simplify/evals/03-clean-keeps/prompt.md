@@ -1,0 +1,1 @@
+Simplify `src/slug.js` in this directory if it needs it. Its behaviour must stay the same: `node --test` passes before and after. Leave any changes in the working tree, and end your reply with the list of comments you looked at and what you did with each.
