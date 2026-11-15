@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.90.0](https://github.com/vanducng/skills/compare/v1.89.0...v1.90.0) (2026-11-15)
+
+
+### Features
+
+* **show-me:** render Mermaid and bar charts as text in terminal chats ([#643](https://github.com/vanducng/skills/issues/643)) ([c1de752](https://github.com/vanducng/skills/commit/c1de7524ee80a58097ffb545426e4c1ddc0aee85))
+
 ## [1.89.0](https://github.com/vanducng/skills/compare/v1.88.1...v1.89.0) (2026-11-13)
 
 
