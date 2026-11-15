@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.92.0](https://github.com/vanducng/skills/compare/v1.91.0...v1.92.0) (2026-11-15)
+
+
+### Features
+
+* **simplify:** a kill-or-keep comment pass; review and ship catch stale comments ([#648](https://github.com/vanducng/skills/issues/648)) ([7e11129](https://github.com/vanducng/skills/commit/7e1112930f9536efc3e6d84cd774e33fe3ca35e2))
+
 ## [1.91.0](https://github.com/vanducng/skills/compare/v1.90.0...v1.91.0) (2026-11-15)
 
 
