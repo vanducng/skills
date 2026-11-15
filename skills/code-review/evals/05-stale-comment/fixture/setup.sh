@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sourced by each fixture's setup.sh: a repo with main (the base) and feat (the change), fixed dates so shas repeat.
+# Run by the prompt (`bash setup.sh`): builds a repo with main (the base) and feat (the change), fixed dates so shas repeat.
 set -eu
 export GIT_AUTHOR_NAME=dev GIT_AUTHOR_EMAIL=dev@example.test GIT_COMMITTER_NAME=dev GIT_COMMITTER_EMAIL=dev@example.test
 export GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z
