@@ -100,7 +100,7 @@ Then verify:
 5. The centered profile passes the geometry contract above at desktop widths.
 6. Wide and mobile screenshots look intentional, not merely technically valid.
 
-Use `vd:ego-browser` when available for rendered DOM measurements and screenshots. Otherwise use the repository's existing browser test stack. Do not accept build success as layout proof.
+Use `vd:aside-browser` when available for rendered DOM measurements and screenshots. Otherwise use the repository's existing browser test stack. Do not accept build success as layout proof.
 
 ### 6. Ship only to the authorized endpoint
 
