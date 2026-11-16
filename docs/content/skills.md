@@ -52,7 +52,6 @@ Start with a local browser:
 
 | Rung | Skill |
 | --- | --- |
-| Isolated logged-in browsing | `vd:ego-browser` |
 | Signed-in Aside browser | `vd:aside-browser` |
 | Logged-in browsing with tab borrow + human help | `vd:browser-skill` |
 | Persistent local Chrome / CDP | `vd:agent-browser`, `vd:browser-profile` |

@@ -50,7 +50,7 @@ If two apply, prefer `vd:fix` for failures and `vd:cook --quick` for small build
 
 | Rung | Skill |
 |---|---|
-| Logged-in browsing in an isolated ego space | `vd:ego-browser` |
+| Signed-in browsing in the user's own browser | `vd:aside-browser` |
 | Persistent local Chrome, CDP, video, network mocks | `vd:agent-browser` (+ `vd:browser-profile` to launch) |
 | Vendor-free raw-CDP traces | `vd:browser-trace` |
 | Logged-in end-to-end flows | `vd:web-e2e` |
