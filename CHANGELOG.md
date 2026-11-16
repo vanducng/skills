@@ -2,6 +2,19 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.93.0](https://github.com/vanducng/skills/compare/v1.92.1...v1.93.0) (2026-11-16)
+
+
+### Features
+
+* add rpass skill for RPass notes through Aside ([#656](https://github.com/vanducng/skills/issues/656)) ([62924c1](https://github.com/vanducng/skills/commit/62924c13a9d9469f3a5de80da4a9463b2f57c52c))
+
+
+### Bug Fixes
+
+* **mac-resource-triage:** rank memory by footprint, not RSS ([#653](https://github.com/vanducng/skills/issues/653)) ([af18fe1](https://github.com/vanducng/skills/commit/af18fe1392a9ead2e70e191ff174e0f0a8ae4b1e))
+* **openrig-workspace:** sign in a board viewer on its own machine ([#655](https://github.com/vanducng/skills/issues/655)) ([2384223](https://github.com/vanducng/skills/commit/23842234fb5530186ca7bac7558f2b14d9a3fc20))
+
 ## [1.92.1](https://github.com/vanducng/skills/compare/v1.92.0...v1.92.1) (2026-11-16)
 
 
