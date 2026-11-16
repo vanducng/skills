@@ -509,6 +509,24 @@ test("sign-in: an allowlist others can read or write is ignored, and the token c
   } finally { s.stop(); }
 });
 
+test("sign-in: a same-origin browser on this machine is signed in; cross-site, proxied or a rebound name is not", async () => {
+  const s = await server();
+  try {
+    const local = { "sec-fetch-site": "same-origin" };
+    assert.equal((await s.post(local)).status, 202);
+    assert.deepEqual(await s.hello({ "sec-fetch-site": "none" }), { auth: true, who: "this machine" });
+    assert.equal((await s.post({ "sec-fetch-site": "cross-site" })).status, 401, "another site's page");
+    assert.equal((await s.post({ ...local, "x-forwarded-for": "100.64.0.9" })).status, 401, "proxied through tailscale serve");
+    assert.equal((await s.post({ ...local, "tailscale-user-login": "other@example.com" })).status, 401, "a tailnet request");
+    const port = new URL(s.base).port;
+    const rebound = await new Promise((ok, no) => {
+      const req = require("node:http").request({ host: "127.0.0.1", port, path: "/demo/audit/sample/feedback", method: "POST", headers: { host: `evil.example:${port}`, "sec-fetch-site": "same-origin", "content-type": "application/json" } }, r => { r.resume(); ok(r.statusCode); });
+      req.on("error", no); req.end(JSON.stringify({ notes: [{ id: "n1", text: "x" }] }));
+    });
+    assert.equal(rebound, 401, "a DNS-rebound name");
+  } finally { s.stop(); }
+});
+
 // ---- board chat: POST /chat and GET /thread --------------------------------------------------------------------
 
 const chatOf = (s, headers, body) => fetch(`${s.base}/chat`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
