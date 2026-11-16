@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.92.1](https://github.com/vanducng/skills/compare/v1.92.0...v1.92.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **devlog:** scrub passes a host spelled like an allowed org's public name ([#650](https://github.com/vanducng/skills/issues/650)) ([18d97eb](https://github.com/vanducng/skills/commit/18d97ebc1bf3b89583d1704bf63555a429bb038e))
+
 ## [1.92.0](https://github.com/vanducng/skills/compare/v1.91.0...v1.92.0) (2026-11-15)
 
 
