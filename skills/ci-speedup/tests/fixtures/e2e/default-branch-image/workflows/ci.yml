@@ -1,0 +1,15 @@
+name: Publish image
+on:
+  push:
+    branches: [main]
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/build-push-action@v6
+        with:
+          platforms: linux/arm64
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: make verify

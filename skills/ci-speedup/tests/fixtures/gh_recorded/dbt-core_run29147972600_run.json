@@ -1,0 +1,14 @@
+{
+  "conclusion": "failure",
+  "created_at": "2026-07-11T09:35:22Z",
+  "event": "schedule",
+  "head_branch": "main",
+  "head_sha": "84ebdaf74d12c7fd5bc2e79a5fc682263be01bb8",
+  "id": 29147972600,
+  "name": "Nightly Test Release to GitHub and PyPI",
+  "path": ".github/workflows/nightly-release.yml",
+  "run_attempt": 3,
+  "run_started_at": "2026-07-11T14:14:30Z",
+  "status": "completed",
+  "updated_at": "2026-07-11T14:15:39Z"
+}

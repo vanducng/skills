@@ -1,0 +1,9729 @@
+#!/usr/bin/env python3
+"""ci-speedup static scanner.
+
+Parses the catalog at `references/patterns/` (one file per pattern), applies each
+declared static detector against every workflow YAML in the target repo's
+`.github/workflows/`, and emits a JSON document describing the matches. The
+data-driven patterns (METADATA `class: data-driven`, `detector: manual`)
+are skipped here — they're fired by `collect_runs.py` against real gh
+run/job timings + logs.
+
+Output contract: a finding dict with these required keys:
+    id, pattern, severity, title, workflow_file, line, affected_jobs,
+    workflow_activity, evidence, subject, fix_strategy, fix_recipe_anchor
+
+`pattern` MUST be an OPT-id declared in the catalog. The scanner refuses to
+emit anything else.
+
+CLI:
+    scan.py --root <repo-root> [--out <path>] [--catalog <path>]
+            [--skill-commit-sha <sha>] [--commit-sha <sha>] [--repo OWNER/NAME]
+
+Exit codes:
+    0  success (zero or more findings emitted)
+    1  scanner error (missing workflows dir, catalog parse failure, …)
+    2  invalid arguments
+"""
+from __future__ import annotations
+
+import argparse
+import functools
+import json
+import logging
+import os
+import re
+import shlex
+import subprocess
+import sys
+import time
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger("scan")
+
+# Stable machine vocabulary for coverage gaps. Human-readable ``reason`` text
+# can contain exception messages and counts; consumers must compare ``kind``.
+SCAN_INCOMPLETE_KINDS = frozenset({
+    "workflow-unreadable", "workflow-unparseable", "workflow-not-mapping",
+    "parallel-group-unread", "symlink-out-of-tree", "no-workflows-dir",
+    "opt19-file-cap", "opt19-source-unreadable", "turbo-unreadable",
+})
+
+# Detectors proven by cardinality tests to emit one finding per physical
+# occurrence. ci-speedup-guard refuses to enforce a pattern absent from here.
+INSTANCE_GRANULAR = frozenset({"OPT23"})
+
+_SCAN_ROOT: Path | None = None
+
+
+def _confine_scan_reads(fn):
+    """Set the active repository root only for one top-level scan call."""
+    @functools.wraps(fn)
+    def wrapped(root: Path, catalog_path: Path,
+                default_branch: str | None = None) -> dict[str, Any]:
+        global _SCAN_ROOT
+        previous_root = _SCAN_ROOT
+        _SCAN_ROOT = root.resolve()
+        try:
+            return fn(root, catalog_path, default_branch)
+        finally:
+            _SCAN_ROOT = previous_root
+    return wrapped
+
+
+def _inside_scan_root(path: Path) -> bool:
+    """Return whether an existing path resolves inside the current scan root."""
+    if _SCAN_ROOT is None:
+        return True
+    try:
+        path.resolve(strict=True).relative_to(_SCAN_ROOT.resolve(strict=True))
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _out_of_tree_symlinks(root: Path) -> list[dict[str, str]]:
+    """Find symlinks that scanner readers must never follow."""
+    records: list[dict[str, str]] = []
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        dirnames[:] = [d for d in dirnames
+                       if d not in {".git", "node_modules", "dist", "build",
+                                    "out", "coverage", "vendor", "target",
+                                    "__pycache__"}]
+        for name in [*dirnames, *filenames]:
+            path = Path(dirpath, name)
+            if path.is_symlink() and not _inside_scan_root(path):
+                records.append({
+                    "path": path.relative_to(root).as_posix(),
+                    "kind": "symlink-out-of-tree",
+                    "reason": "symlink resolves outside the scanned tree",
+                })
+        # Never descend through a symlinked directory, including an in-tree one.
+        dirnames[:] = [d for d in dirnames if not Path(dirpath, d).is_symlink()]
+    return records
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover — surfaced loudly if missing
+    print("ERROR: PyYAML is required — install it with "
+          "`python3 -m pip install pyyaml` (or `pip install pyyaml`)",
+          file=sys.stderr)
+    sys.exit(1)
+
+# The ONE reader for a job's `steps:` list (descends `parallel:` groups, skips
+# `wait:`/`wait-all:`/`cancel:` control steps). This directory goes first on
+# sys.path so `workflow_steps` imports even when scan.py is itself loaded by
+# file path (the repo-root parity test).
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+from workflow_steps import (  # noqa: E402
+    effective_if,
+    job_leaf_steps,
+    job_walk,
+    MALFORMED_KINDS,
+    parallel_steps_stats,
+    parallel_steps_used,
+)
+from shell_prefix import SHELL_PREFIX_SRC  # noqa: E402  (one source for three detectors)
+
+
+# =============================================================================
+# Catalog parsing
+# =============================================================================
+
+_HEADING_RE = re.compile(r"^### (OPT\d+) — (.+?)$", re.M)
+_METADATA_RE = re.compile(r"<!-- METADATA\n(.*?)\n-->", re.S)
+
+
+@dataclass(frozen=True)
+class CatalogEntry:
+    pattern: str            # e.g. "OPT23"
+    impact: str             # HIGH / MEDIUM / LOW
+    finding_class: str      # static | data-driven | structural
+    detector: str           # yaml-path | yaml-path-absent | regex | … | manual
+    affected_files: str     # glob pattern
+    fix_strategy: str       # kebab-case slug
+    title_template: str     # human-readable; may contain {basename} / {job}
+    anchor: str             # link target in the rendered catalog
+    # Declarative detection params (ci-secure model). A pattern whose
+    # detection is a single condition carries its spec here instead of a
+    # bespoke handler: `match` (regex), `yaml_path` (+ optional `yaml_value`
+    # filter), or `regex_in_workflow` (a workflow-filter regex so a pattern
+    # only fires in release / publish workflows, etc.). Correlated patterns
+    # ("X present AND Y absent") still use a bespoke handler keyed by OPT-id.
+    match: str = ""
+    yaml_path: str = ""
+    yaml_value: str = ""
+    wf_name_filter: str = ""   # only fire when the workflow filename matches this regex
+    wf_name_exclude: str = ""  # skip when the workflow filename matches this regex
+
+
+def _slug_anchor(opt_id: str, title: str) -> str:
+    """Mirror GitHub's REAL GFM heading-anchor rule: lowercase, DELETE punctuation
+    (GitHub removes it — it never hyphenates it), then each space becomes one
+    hyphen. The old non-word→`-` rule diverged on every heading containing `/`,
+    backticks, `.`, `:`, or `≫` (15 catalog headings), so the rendered report's
+    catalog deep-links landed at the top of the file instead of the pattern.
+    Keep in lockstep with collect_runs._catalog_anchor."""
+    raw = f"{opt_id.lower()}--{title.lower()}"
+    raw = re.sub(r"[^\w\s-]", "", raw)
+    return re.sub(r"\s", "-", raw)
+
+
+# The catalog's source form: one file per pattern under `references/patterns/`
+# (`opt<N>-<slug>.md`: YAML frontmatter, then `# OPT<N> — Title` and the body),
+# listed in `INDEX.md`, whose order is the catalog order. The single file
+# `references/optimization-patterns.md` is compiled from them
+# (maintainers/ci-speedup/scripts/build_catalog.py) and still parses here.
+_PATTERN_H1_RE = re.compile(r"^# (OPT\d+) — (.+?)$", re.M)
+_FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.S)
+_INDEX_LINE_RE = re.compile(r"^- (OPT\d+) — ", re.M)
+# Frontmatter keys that describe the source file, not the pattern's METADATA.
+PATTERN_FILE_KEYS = ("category", "status", "aliases", "alias_note")
+
+
+def parse_pattern_file(path: Path) -> tuple[dict, str, str, str]:
+    """(frontmatter, opt_id, title, body after the H1 line) of one pattern file.
+    Raises ValueError on a file without frontmatter or an `# OPT<n> — ` title."""
+    text = path.read_text(encoding="utf-8")
+    fm = _FRONTMATTER_RE.match(text)
+    if not fm:
+        raise ValueError(f"{path}: no YAML frontmatter")
+    meta = yaml.safe_load(fm.group(1))
+    if not isinstance(meta, dict):
+        raise ValueError(f"{path}: frontmatter is not a mapping")
+    rest = text[fm.end():]
+    h1 = _PATTERN_H1_RE.search(rest)
+    if not h1 or rest[:h1.start()].strip():
+        raise ValueError(f"{path}: the first line after the frontmatter is not `# OPT<n> — Title`")
+    return meta, h1.group(1), h1.group(2).strip(), rest[h1.end():]
+
+
+def pattern_files(directory: Path) -> list[Path]:
+    """The pattern files of `directory` in catalog order: INDEX.md's order, then
+    any `opt<N>-*.md` file INDEX.md does not list, by number (never dropped;
+    the build's check fails on it). Other names are not patterns."""
+    index = directory / "INDEX.md"
+    ids = _INDEX_LINE_RE.findall(index.read_text(encoding="utf-8")) if index.is_file() else []
+    listed = [p for i in ids for p in sorted(directory.glob(f"{i.lower()}-*.md"))[:1]]
+    listed = list(dict.fromkeys(listed))
+    rest = sorted((p for p in directory.glob("opt*.md")
+                   if p not in listed and re.match(r"opt\d+-", p.name)),
+                  key=lambda p: int(re.match(r"opt(\d+)", p.name).group(1)))
+    return listed + rest
+
+
+def _entry(opt_id: str, title: str, meta: dict) -> CatalogEntry:
+    return CatalogEntry(
+        pattern=meta.get("pattern", opt_id),
+        impact=meta.get("impact", "MEDIUM").upper(),
+        finding_class=meta.get("class", "static"),
+        detector=meta.get("detector", "manual"),
+        affected_files=meta.get("affected_files", ""),
+        fix_strategy=meta.get("fix_strategy", ""),
+        title_template=meta.get("title_template", title),
+        anchor=_slug_anchor(opt_id, title),
+        match=meta.get("match", ""),
+        yaml_path=meta.get("yaml_path", ""),
+        yaml_value=meta.get("yaml_value", ""),
+        wf_name_filter=meta.get("wf_name_filter", ""),
+        wf_name_exclude=meta.get("wf_name_exclude", ""),
+    )
+
+
+def load_catalog(path: Path) -> list[CatalogEntry]:
+    """The catalog entries, from `references/patterns/` (a directory) or from
+    the compiled single file (the original parser, kept for `--catalog` callers
+    and the build's equality check). Both yield the same entries."""
+    if path.is_dir():
+        entries = []
+        for p in pattern_files(path):
+            fm, opt_id, title, _ = parse_pattern_file(p)
+            meta = {k: str(v) for k, v in fm.items()
+                    if k not in PATTERN_FILE_KEYS and v is not None}
+            entries.append(_entry(opt_id, title, meta))
+        return entries
+    text = path.read_text(encoding="utf-8")
+    entries: list[CatalogEntry] = []
+    heads = list(_HEADING_RE.finditer(text))
+    for i, h in enumerate(heads):
+        opt_id, title = h.group(1), h.group(2).strip()
+        block_end = heads[i + 1].start() if i + 1 < len(heads) else len(text)
+        block = text[h.end():block_end]
+        m = _METADATA_RE.search(block)
+        if not m:
+            continue
+        meta = dict(
+            (k.strip(), v.strip().strip('"'))
+            for k, v in (
+                line.split(":", 1)
+                for line in m.group(1).splitlines() if ":" in line
+            )
+        )
+        entries.append(_entry(opt_id, title, meta))
+    return entries
+
+
+# =============================================================================
+# Detector dispatch
+# =============================================================================
+
+@dataclass
+class Hit:
+    """One detector match within a single workflow file."""
+    line: int = 0
+    affected_jobs: list[str] = field(default_factory=list)
+    evidence: str = ""
+    match_text: str = ""    # short identifier (e.g. the matched value)
+    # The VERBATIM workflow text that proves the finding — the matched line(s)
+    # or, for an absence finding, the relevant context block (e.g. the `on:`
+    # trigger block that lacks a `paths:` filter). Rendered as a real code
+    # snippet in the report so a reviewer sees the actual code, not prose.
+    # When empty, the report falls back to the raw line at `line`.
+    snippet: str = ""
+    facts: dict[str, Any] = field(default_factory=dict)
+
+
+def _raw_line(raw: str, line: int) -> str:
+    """The 1-based `line` of `raw`, right-stripped. Empty for out-of-range."""
+    if line and line > 0:
+        lines = raw.splitlines()
+        if line <= len(lines):
+            return lines[line - 1].rstrip()
+    return ""
+
+
+def _block_lines(raw: str, start_line: int, max_lines: int = 12) -> str:
+    """The indented block beginning at `start_line` (the key line plus the
+    lines more-indented than it) — used to show an `on:` trigger block as
+    context for an absence finding. Capped at `max_lines`."""
+    lines = raw.splitlines()
+    if not (start_line and 0 < start_line <= len(lines)):
+        return ""
+    head = lines[start_line - 1]
+    base_indent = len(head) - len(head.lstrip())
+    out = [head.rstrip()]
+    for ln in lines[start_line:]:
+        if not ln.strip():
+            continue
+        if (len(ln) - len(ln.lstrip())) <= base_indent:
+            break
+        out.append(ln.rstrip())
+        if len(out) >= max_lines:
+            break
+    return "\n".join(out)
+
+
+# The dispatch table is intentionally tiny right now. Each handler takes the
+# parsed YAML, the raw text (for line-number anchoring), and returns a list of
+# Hits. Detectors return [] when the pattern does not fire on this file.
+#
+# Adding a new pattern is a two-step move:
+#   1. Author references/patterns/opt<N>-<slug>.md + its INDEX.md line, then run
+#      maintainers/ci-speedup/scripts/build_catalog.py.
+#   2. Add a handler keyed by OPT-id below.
+#
+# A pattern declared in the catalog but missing a handler is logged once and
+# skipped — the scanner doesn't fabricate findings to fill the gap.
+
+def _line_of(raw: str, needle: str) -> int:
+    """First 1-based line number whose content contains `needle`."""
+    for i, ln in enumerate(raw.splitlines(), 1):
+        if needle in ln:
+            return i
+    return 0
+
+
+def _line_of_in_job(raw: str, job_name: str, needle: str) -> int:
+    """1-based line of `needle` WITHIN the `job_name:` block, not the file-global
+    first match. A per-job finding must point at its OWN line: prebuild.yml has
+    `fetch-depth: 0` in several jobs, and the file-global `_line_of` returns the
+    first (the `changes` job, which genuinely needs full history and must never
+    be shallowed) regardless of which job the hit is for. We bound the search to
+    the job's text span (from its header under `jobs:` to the next job header at
+    the same indent) so the diff lands on the job we actually flagged. The header
+    indent is detected from the first job key under `jobs:` — commonly two spaces,
+    but four-space indentation is valid YAML and used in the wild, so a non-2-space
+    file is anchored correctly instead of silently falling back to the file-global
+    match. When the job block — or the needle within it — can't be located, returns
+    0 (the report renders that as filename-only, no snippet) rather than a
+    file-global match: that could anchor the finding on a DIFFERENT job and paste
+    that job's YAML as the evidence snippet — the very wrong-job hazard this exists
+    to prevent. The needle can be missing in-block when the job writes a quoted/
+    differently-spaced variant the substring search doesn't match."""
+    lines = raw.splitlines()
+    jobs_at = next(
+        (i for i, ln in enumerate(lines) if re.match(r"^jobs:\s*(#.*)?$", ln)), None)
+    if jobs_at is None:
+        return 0
+    # Job keys all sit at one indent — read it off the first non-blank, non-comment
+    # line after `jobs:` rather than assuming two spaces.
+    indent = None
+    for i in range(jobs_at + 1, len(lines)):
+        ln = lines[i]
+        if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        m = re.match(r"^(\s+)\S", ln)
+        indent = len(m.group(1)) if m else None
+        break
+    if not indent:
+        return 0
+    header = re.compile(rf"^\s{{{indent}}}([A-Za-z0-9_.-]+):\s*(#.*)?$")
+    start = None
+    for i in range(jobs_at + 1, len(lines)):
+        m = header.match(lines[i])
+        if m and m.group(1) == job_name:
+            start = i
+            break
+    if start is None:
+        return 0
+    end = len(lines)
+    for j in range(start + 1, len(lines)):
+        if header.match(lines[j]):
+            end = j
+            break
+    for k in range(start, end):
+        if needle in lines[k]:
+            return k + 1
+    # Needle provably not in the target job's block → a file-global match would be
+    # in a DIFFERENT job. Return 0 (filename-only) rather than cite the wrong job.
+    return 0
+
+
+def _line_of_nth_in_job(raw: str, job_name: str, needle: str, occurrence: int) -> int:
+    """1-based line of the Nth occurrence of `needle` within the `job_name:` block.
+    Used when multiple steps in a job contain the same needle (e.g., multiple
+    `fetch-depth: 0` lines). occurrence is 1-based. Returns 0 if not enough
+    occurrences are found."""
+    lines = raw.splitlines()
+    jobs_at = next(
+        (i for i, ln in enumerate(lines) if re.match(r"^jobs:\s*(#.*)?$", ln)), None)
+    if jobs_at is None:
+        return 0
+    indent = None
+    for i in range(jobs_at + 1, len(lines)):
+        ln = lines[i]
+        if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        m = re.match(r"^(\s+)\S", ln)
+        indent = len(m.group(1)) if m else None
+        break
+    if not indent:
+        return 0
+    header = re.compile(rf"^\s{{{indent}}}([A-Za-z0-9_.-]+):\s*(#.*)?$")
+    start = None
+    for i in range(jobs_at + 1, len(lines)):
+        m = header.match(lines[i])
+        if m and m.group(1) == job_name:
+            start = i
+            break
+    if start is None:
+        return 0
+    end = len(lines)
+    for j in range(start + 1, len(lines)):
+        if header.match(lines[j]):
+            end = j
+            break
+    count = 0
+    for k in range(start, end):
+        # A comment that quotes the needle ("TODO: drop fetch-depth: 0") is
+        # prose, not a configuration key. Counting it shifts every later
+        # occurrence's line by one and leaves the LAST one unreachable — the
+        # caller then loses that finding entirely. Full-line comments only:
+        # a trailing comment sits on a real key line, which does count.
+        if lines[k].lstrip().startswith("#"):
+            continue
+        if needle in lines[k]:
+            count += 1
+            if count == occurrence:
+                return k + 1
+    return 0  # Not enough occurrences
+
+
+def _jobs_from_doc(doc: dict) -> dict[str, dict]:
+    jobs = doc.get("jobs") or {}
+    return jobs if isinstance(jobs, dict) else {}
+
+
+# ---- OPT28 — Full Git History Checkout (P5.4) --------------------------------
+
+# `fetch-depth: 0` is LOAD-BEARING for any job that walks git history. Removing
+# it would break these — so OPT28 must not flag them (catalog's own carve-out:
+# "unless the job needs git history — changelogs, blame"). Covers changeset
+# versioning/publishing, changelog generation, merge-base diffs
+# (`git diff <ref>...HEAD`), tag/describe, and affected-since-ref tooling.
+_GIT_HISTORY_RE = re.compile(
+    r"auto-?changeset|changeset(s)?[ -](version|publish|cli)|changesets/action|"
+    r"changelog|release-please|"
+    r"git\s+(fetch|show|log|describe|rev-list|rev-parse|tag)|"
+    # History-walking ops a bot commit-back / sync job needs: `git pull --rebase`,
+    # `git rebase`, `git merge`, `git cherry-pick` all require base history, so a
+    # job running them genuinely needs `fetch-depth: 0` (mastra `regenerate`).
+    r"git\s+(pull|rebase|merge|cherry-pick)\b|"
+    r"git\s+diff\b.*(\.\.\.|origin/)|"
+    # Two-SHA / two-ref diff: `git diff <base.sha> <head.sha>` (PR change
+    # detection). A shallow checkout doesn't contain base.sha, so this needs
+    # full history just like a `...` merge-base diff — but it has neither `...`
+    # nor `origin/`. Match a `git diff` line that references a `.sha` expression.
+    r"git\s+diff\b[^\n|]*\.sha\b|"
+    # Diff against a base ref held in a shell variable: `git diff --name-only
+    # "$base" HEAD` or as a positional parameter like `git diff "$1" HEAD`. The
+    # base commit is just as absent from a shallow clone as a literal
+    # `<sha>...HEAD` is — it simply carries no `...`, no `origin/` and no
+    # `.sha` for the clauses above to see.
+    #
+    # The variable only counts where a REF operand can stand. Two positions on
+    # the command line can never hold a ref, and a `$` reached through either
+    # one says nothing about history:
+    #   * past a redirection arrow — `git diff --stat >> $GITHUB_STEP_SUMMARY`
+    #     and `git diff > $OUT` name the FILE the diff is written to;
+    #   * past a bare `--` separator — everything after it is a pathspec, so
+    #     `git diff --exit-code -- "$FILE"` names a path, not a base commit.
+    # Option flags such as `--name-only` are not the separator (no trailing
+    # space), so `git diff --no-renames --name-only "$base" HEAD` still counts.
+    r"git\s+diff\b(?:(?!\s--\s|>)[^\n|])*\$[({]?[A-Za-z_0-9]|"
+    # Object-reachability probe: `git cat-file -e "${base}^{commit}"` succeeds
+    # only when the object is present in the clone, which is exactly what full
+    # history buys. A cat-file whose operand is anchored at HEAD is the
+    # opposite case — `git cat-file -p HEAD:package.json` reads a blob at the
+    # checked-out commit, which every clone depth already has — so a HEAD
+    # operand (but not `HEAD~1` / `HEAD^`, which do reach back) disqualifies
+    # the clause. The lookahead stops at a command separator so a later,
+    # unrelated HEAD read cannot cancel a genuine probe.
+    r"git\s+cat-file\b(?![^\n|;&]*\bHEAD(?![~^]))|"
+    r"fetch-tags|--tags|"
+    # Change-detection actions that diff the head against a BASE ref need base
+    # history: `dorny/paths-filter` with `base:` set, and `tj-actions/changed-files`
+    # both run `git diff` against the base branch under the hood, so a shallow
+    # checkout breaks them. Treating them as history ops (fail-closed) avoids the
+    # OPT28 false positive of "shallow this, no git-history op found" on a
+    # change-gate job (e.g. mastra `prebuild.yml` *-check-changes jobs).
+    r"dorny/paths-filter|tj-actions/changed-files|"
+    r"nx\s+affected|--affected|lerna\b.*--since|\[origin/|\.\.\.[A-Za-z]",
+    re.I)
+# A job whose NAME signals history work (the actual git op is often hidden in a
+# repo script the YAML invokes, e.g. `node .github/scripts/auto-changeset.ts`).
+_HISTORY_JOB_NAME_RE = re.compile(
+    r"changeset|changelog|release|version|snapshot|publish", re.I)
+
+# Local composite actions (`uses: ./.github/actions/foo` or the self-repository
+# `uses: $/.github/actions/foo`) whose action.yml runs a git-history op, directly
+# or through a nested local reference. A job that invokes one needs
+# `fetch-depth: 0` even though no git op appears in the WORKFLOW yaml — the op
+# is hidden in the action (mastra's `./.github/actions/turbo-changed` runs
+# `git checkout origin/main`). An action that cannot be read, or a chain deeper
+# than `_MAX_LOCAL_ACTION_DEPTH`, is included too (fail closed). Populated once
+# per scan() from the referenced action files; consulted by
+# `_job_needs_git_history` so OPT28 never recommends shallowing such a job.
+_GIT_HISTORY_LOCAL_ACTIONS: set[str] = set()
+_GIT_HISTORY_LOCAL_SCRIPTS: set[str] = set()
+_GIT_PARENT_DEPTH_LOCAL_SCRIPTS: dict[str, int] = {}
+
+# A `uses:` naming THIS repository: `./path`, or the self-repository prefix
+# `$/path` GitHub shipped 2026-07-30 (same commit, same files, no checkout
+# needed). Both resolve to `<repo root>/path`, so `ref[2:]` strips either.
+_LOCAL_USES_PREFIXES = ("./", "$/")
+
+
+def _is_local_uses(uses: str) -> bool:
+    """True for a `uses:` that names an action or reusable workflow in this
+    repository (`./…` or the self-repository `$/…`)."""
+    return uses.startswith(_LOCAL_USES_PREFIXES)
+
+
+# A `run:` block routinely breaks ONE shell command across several lines with a
+# trailing backslash, and every clause of `_GIT_HISTORY_RE` is line-scoped. Join
+# the continuations back together before matching, so a git command whose
+# history-revealing operand sits on the next line is still seen as one command.
+_LINE_CONTINUATION_RE = re.compile(r"\\\n[ \t]*")
+_INLINE_TOOL_PREFIX = (
+    r"(?:^|[\n;&|])\s*(?:(?:env|sudo|time)\s+)*"
+    r"(?:(?:npx|bunx|yarn|pnpm\s+exec)\s+)?"
+)
+_INLINE_HISTORY_OPERAND_RE = re.compile(
+    _INLINE_TOOL_PREFIX
+    + r"(?:pnpm|turbo)\b[^\n;&|]*--filter(?:=|\s+)[^\n;&|]*\.\.\.\[[^\]\n]+\]|"
+    + _INLINE_TOOL_PREFIX
+    + r"(?:jest|vitest|eslint|nx|lerna|turbo)\b[^\n;&|]*"
+      r"--(?:changedSince|changed|diffBase|base|since)(?:=|\s+)['\"]?[^\s'\"]+",
+    re.I,
+)
+_INLINE_PARENT_ONLY_OPERAND_RE = re.compile(
+    _INLINE_TOOL_PREFIX
+    + r"(?:pnpm|turbo)\b[^\n;&|]*--filter(?:=|\s+)"
+      r"['\"]?\.\.\.\[\s*HEAD(?:~\d+|\^\d*)+\s*\]['\"]?|"
+    + _INLINE_TOOL_PREFIX
+    + r"(?:jest|vitest|eslint|nx|lerna|turbo)\b[^\n;&|]*"
+      r"--(?:changedSince|changed|diffBase|base|since)(?:=|\s+)"
+      r"['\"]?HEAD(?:~\d+|\^\d*)+['\"]?",
+    re.I,
+)
+
+
+def _has_git_history_op(text: str) -> bool:
+    """True when `text` runs a git operation that needs full history. Applied to
+    every surface `_GIT_HISTORY_RE` is matched against, so line continuations are
+    joined in exactly one place."""
+    joined = _LINE_CONTINUATION_RE.sub(" ", text)
+    # A parent-only operand has a safe finite checkout depth. Leave it for
+    # `_job_parent_checkout_depth` instead of classifying it as full history.
+    joined = _INLINE_PARENT_ONLY_OPERAND_RE.sub("", joined)
+    return bool(_GIT_HISTORY_RE.search(joined)
+                or _INLINE_HISTORY_OPERAND_RE.search(joined))
+
+
+# One deliberately bounded hop into a first-party script invoked directly by a
+# workflow run step. This is narrower than `_GIT_HISTORY_RE`: prose and
+# working-tree-only commands inside a general-purpose script must not make a
+# full-history checkout look load-bearing.
+_FIRST_PARTY_SCRIPT_RE = re.compile(
+    r"(?:^|[\n;&|])\s*(?:(?:if|then|while|until|!|exec|time|sudo|env)\s+|"
+    r"[A-Za-z_][A-Za-z_0-9]*=[^\s;&|]+\s+)*(?:"
+    r"(?P<direct>(?:\./|\$GITHUB_WORKSPACE/|\$\{\{\s*github\.workspace\s*\}\}/)[^\s;&|]+)|"
+    r"(?:bash|sh|python(?:\d+(?:\.\d+)?)?|node)"
+    r"(?!\s+-(?:m|c)\b)(?:\s+-(?!-?(?:m|c)\b)\S+)*\s+"
+    r"(?P<interpreter>(?!-)(?:\./)?[^\s;&|]+)"
+    r")(?=[\s;&|]|$)",
+    re.M,
+)
+_SCRIPT_GIT_HISTORY_RE = re.compile(
+    r"(?:^|[\n;&|(`]|\b(?:if|then|while|until)\s+)\s*[@+-]?\s*(?:shell\s+)?(?:"
+    r"git\s+(?:rev-list|describe|merge-base)\b|"
+    r"git\s+log\b[^\n|;&]*\.\.\.?|"
+    r"git\s+diff\b(?:(?!\s--\s|>)[^\n|;&])*(?:\.\.\.?|\borigin/|\brefs/|HEAD[~^]|\.sha\b|\$[({]?[A-Za-z_0-9])|"
+    r"git\s+fetch\b[^\n|;&]*(?:--unshallow\b|--depth(?:=|\s)|--tags\b)|"
+    r"(?:npx\s+|pnpm\s+|yarn\s+)?changesets?\b|"
+    r"(?:dorny/paths-filter|tj-actions/changed-files)\b"
+    r")",
+    re.I | re.M,
+)
+_SCRIPT_SHELL_CALL_RE = re.compile(
+    r"(?:execSync|exec|os\.system|subprocess\.(?:run|call|check_call|"
+    r"check_output|Popen))\s*\(\s*(['\"])(?P<command>git\s+.*?)\1",
+    re.I,
+)
+_SCRIPT_LITERAL_CALL_RE = re.compile(
+    r"subprocess\.(?:run|call|check_call|check_output|Popen)\s*\(\s*\[(?P<python>[^\]\n]*)\]|"
+    r"(?:spawn|spawnSync|execFile|execFileSync)\s*\(\s*['\"]git['\"]\s*,\s*\[(?P<node>[^\]\n]*)\]",
+    re.I,
+)
+_SCRIPT_LITERAL_ARG_RE = re.compile(r"(['\"])(.*?)\1")
+_SCRIPT_COMMENT_LINE_RE = re.compile(r"^\s*(?:#|//).*$", re.M)
+_SCRIPT_GIT_ARGS_RE = re.compile(
+    r"^git\s+(?:rev-list|describe|merge-base)\b|"
+    r"^git\s+log\b.*\.\.\.?|"
+    r"^git\s+diff\b(?:(?!\s--\s|>).)*(?:\.\.\.?|\borigin/|\brefs/|HEAD[~^]|\.sha\b|\$[({]?[A-Za-z_0-9])|"
+    r"^git\s+fetch\b.*(?:--unshallow\b|--depth(?:=|\s)|--tags\b)",
+    re.I,
+)
+_SCRIPT_MAX_BYTES = 1024 * 1024
+_MAKE_CALL_RE = re.compile(r"(?:^|[\n;&|])\s*(?:env\s+)?make(?:\s|$)", re.M)
+_SNAPCRAFT_CALL_RE = re.compile(r"(?:^|[\n;&|])\s*snapcraft(?:\s|$)", re.M)
+_BUILD_TOOL_SCRIPT_REFS = {"Makefile", "snap/snapcraft.yaml"}
+_SCRIPT_PARENT_REF_RE = re.compile(
+    r"(?<![A-Za-z0-9_])(?:HEAD|[A-Za-z0-9_./-]+)"
+    r"(?P<chain>(?:~\d+|\^\d*)+)",
+    re.I,
+)
+_SCRIPT_PARENT_PART_RE = re.compile(r"~(\d+)|\^(\d*)")
+
+
+def _first_party_script_refs(text: str) -> set[str]:
+    """Return direct, relative script operands from a workflow `run:` block."""
+    joined = _LINE_CONTINUATION_RE.sub(" ", text)
+    refs = {ref.strip("'\"") for match in _FIRST_PARTY_SCRIPT_RE.finditer(joined)
+            if (ref := (match.group("direct") or match.group("interpreter")))}
+    normalized = set()
+    for ref in refs:
+        ref = re.sub(r"^\$GITHUB_WORKSPACE/", "$/", ref)
+        ref = re.sub(r"^\$\{\{\s*github\.workspace\s*\}\}/", "$/", ref)
+        normalized.add(ref)
+    if _MAKE_CALL_RE.search(joined):
+        normalized.add("Makefile")
+    if _SNAPCRAFT_CALL_RE.search(joined):
+        normalized.add("snap/snapcraft.yaml")
+    return normalized
+
+
+def _script_working_directory(job: dict, step: dict,
+                              workflow: dict | None = None) -> str:
+    """The step's effective Actions working directory, relative to root."""
+    defaults = job.get("defaults")
+    run_defaults = defaults.get("run") if isinstance(defaults, dict) else None
+    workflow_defaults = workflow.get("defaults") if isinstance(workflow, dict) else None
+    workflow_run = (workflow_defaults.get("run")
+                    if isinstance(workflow_defaults, dict) else None)
+    workflow_inherited = (workflow_run.get("working-directory")
+                          if isinstance(workflow_run, dict) else None)
+    inherited = (run_defaults.get("working-directory")
+                 if isinstance(run_defaults, dict) else workflow_inherited)
+    value = step.get("working-directory", inherited)
+    return str(value).strip() if value not in (None, "") else "."
+
+
+def _script_ref_key(ref: str, working_directory: str) -> str:
+    if ref.startswith("$/"):
+        return ref
+    return ref if working_directory in ("", ".") else f"{working_directory}\0{ref}"
+
+
+def _script_key_parts(key: str) -> tuple[str, str]:
+    working_directory, separator, ref = key.partition("\0")
+    return (working_directory, ref) if separator else (".", working_directory)
+
+
+def _local_script_path(root: Path, key: str) -> "Path | None":
+    """Resolve a relative script ref only when its real path stays in root."""
+    working_directory, ref = _script_key_parts(key)
+    root_relative = ref.startswith("$/")
+    candidate = root / (ref[2:] if ref.startswith(("./", "$/")) else ref)
+    if working_directory != "." and not root_relative:
+        candidate = root / working_directory / (ref[2:] if ref.startswith("./") else ref)
+    try:
+        root_n = os.path.realpath(root)
+        candidate_n = os.path.realpath(candidate)
+        if os.path.commonpath([root_n, candidate_n]) != root_n:
+            return None
+    except ValueError:
+        return None
+    return candidate
+
+
+def _read_local_script(root: Path, key: str) -> "str | None":
+    path = _local_script_path(root, key)
+    if path is None:
+        return None
+    try:
+        if path.stat().st_size > _SCRIPT_MAX_BYTES:
+            return None
+        return path.read_text(encoding="utf-8", errors="replace")
+    except (OSError, ValueError):
+        return None
+
+
+def _has_script_git_history_op(text: str) -> bool:
+    without_comments = _SCRIPT_COMMENT_LINE_RE.sub("", text)
+    joined = _LINE_CONTINUATION_RE.sub(" ", without_comments)
+    if _SCRIPT_GIT_HISTORY_RE.search(joined):
+        return True
+    for match in _SCRIPT_SHELL_CALL_RE.finditer(joined):
+        if _SCRIPT_GIT_ARGS_RE.search(match.group("command")):
+            return True
+    for match in _SCRIPT_LITERAL_CALL_RE.finditer(joined):
+        raw = match.group("python") or match.group("node") or ""
+        args = [value for _quote, value in _SCRIPT_LITERAL_ARG_RE.findall(raw)]
+        if match.group("python") is not None:
+            if not args or args.pop(0).lower() != "git":
+                continue
+        command = "git " + " ".join(args)
+        if _SCRIPT_GIT_ARGS_RE.search(command):
+            return True
+    return False
+
+
+def _script_parent_depth(text: str) -> int:
+    """Smallest checkout depth that contains every parent-only operand."""
+    without_comments = _SCRIPT_COMMENT_LINE_RE.sub("", text)
+    distances = []
+    for match in _SCRIPT_PARENT_REF_RE.finditer(without_comments):
+        distance = 0
+        for tilde, caret in _SCRIPT_PARENT_PART_RE.findall(match.group("chain")):
+            distance += int(tilde or caret or "1")
+        distances.append(distance)
+    return max(distances, default=0) + 1 if distances else 0
+
+
+def _inline_parent_operand_depth(text: str) -> int:
+    """Finite depth required by a recognized tool revision operand."""
+    return max(
+        (_script_parent_depth(match.group(0))
+         for match in _INLINE_PARENT_ONLY_OPERAND_RE.finditer(text)),
+        default=0,
+    )
+
+
+def _local_script_needs_history(root: Path, key: str) -> bool:
+    """Read exactly one invoked script; unreadable or external refs fail closed."""
+    text = _read_local_script(root, key)
+    return text is None or _has_script_git_history_op(text)
+
+
+def _index_local_git_scripts(root: Path,
+                             parsed: list[tuple[str, dict, str]]) -> set[str]:
+    """Index invoked first-party scripts that directly need git history."""
+    refs: set[str] = set()
+    for _rel, doc, _raw in parsed:
+        for job in _jobs_from_doc(doc).values():
+            if not isinstance(job, dict):
+                continue
+            for step in _steps(job):
+                working_directory = _script_working_directory(job, step, doc)
+                for ref in _first_party_script_refs(str(step.get("run") or "")):
+                    refs.add(_script_ref_key(ref, working_directory))
+    refs = {ref for ref in refs
+            if (_script_key_parts(ref)[1] not in _BUILD_TOOL_SCRIPT_REFS
+                or ((_local_script_path(root, ref) or Path()).is_file()))}
+    global _GIT_PARENT_DEPTH_LOCAL_SCRIPTS
+    history_refs = {ref for ref in refs if _local_script_needs_history(root, ref)}
+    parent_depths: dict[str, int] = {}
+    for ref in refs - history_refs:
+        text = _read_local_script(root, ref)
+        depth = _script_parent_depth(text or "")
+        if depth:
+            parent_depths[ref] = depth
+    _GIT_PARENT_DEPTH_LOCAL_SCRIPTS = parent_depths
+    return history_refs
+
+
+def _job_parent_checkout_depth(job: dict, workflow: dict | None = None) -> int:
+    depth = _inline_parent_operand_depth(_job_run_blob(job))
+    for step in _steps(job):
+        working_directory = _script_working_directory(job, step, workflow)
+        for ref in _first_party_script_refs(str(step.get("run") or "")):
+            key = _script_ref_key(ref, working_directory)
+            depth = max(depth, _GIT_PARENT_DEPTH_LOCAL_SCRIPTS.get(key, 0))
+    return depth
+
+
+# A local `uses:` reference written inside an action or reusable-workflow file
+# (`./…` or the self-repository `$/…`), quoted or bare.
+_NESTED_LOCAL_USES_RE = re.compile(r"['\"]?uses['\"]?:\s*['\"]?((?:\./|\$/)[^\s'\"#]+)")
+# How many local references deep the history read follows a chain before it
+# gives up. Past the cap the chain is unproven, so it fails CLOSED.
+_MAX_LOCAL_ACTION_DEPTH = 16
+
+
+def _local_ref_path(root: Path, ref: str) -> "Path | None":
+    """`<root>/<ref[2:]>` for a local ref (`./…` or `$/…`), or None when that
+    path resolves outside the repository root (including symlinks): a file there
+    is not this repository's, so the caller fails CLOSED on it."""
+    base = root / ref[2:]  # strip leading "./" or "$/"
+    try:
+        root_n = os.path.realpath(root)
+        base_n = os.path.realpath(base)
+        if os.path.commonpath([root_n, base_n]) != root_n:
+            return None
+    except ValueError:
+        return None
+    return base
+
+
+def _read_local_history_file(root: Path, ref: str) -> "str | None":
+    """Text of the file a local ref names: `<root>/<ref[2:]>` itself when it is
+    a `.yml`/`.yaml` (a reusable workflow), else that directory's `action.yml`
+    or `action.yaml`. None when no candidate file is readable, or when the
+    ref resolves outside the repository root."""
+    base = _local_ref_path(root, ref)
+    if base is None:
+        return None
+    candidates = [base] if base.suffix in (".yml", ".yaml") else [
+        base / "action.yml", base / "action.yaml"]
+    for cand in candidates:
+        try:
+            return cand.read_text(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):   # ValueError: an embedded NUL byte
+            continue
+    return None
+
+
+def _local_action_needs_history(root: Path, ref: str) -> bool:
+    """True when the local action `ref` names, or any local action or reusable
+    workflow it reaches through nested `uses:` references, runs a git-history
+    op. A composite action routinely delegates to another local action, and the
+    inner one can be the step that walks history. Any link that cannot be read
+    (or a chain deeper than `_MAX_LOCAL_ACTION_DEPTH`) fails CLOSED: it cannot
+    be PROVEN history-free. A cycle terminates on the visited set."""
+    seen: set[str] = set()
+    queue: list[tuple[str, int]] = [(ref, 0)]
+    while queue:
+        cur, depth = queue.pop()
+        if cur in seen:
+            continue
+        seen.add(cur)
+        if depth > _MAX_LOCAL_ACTION_DEPTH:
+            return True
+        text = _read_local_history_file(root, cur)
+        if (text is None or _has_git_history_op(text)
+                or _inline_parent_operand_depth(text)):
+            return True
+        queue += [(m.split("@")[0].strip(), depth + 1)
+                  for m in _NESTED_LOCAL_USES_RE.findall(text)]
+    return False
+
+
+def _index_local_git_actions(root: Path, parsed: list[tuple[str, dict, str]]) -> set[str]:
+    """Return the set of local `uses:` refs (e.g. `./.github/actions/turbo-changed`,
+    or the self-repository `$/.github/actions/turbo-changed`) whose
+    composite-action file performs a git-history op, directly or through a
+    nested local reference (`_local_action_needs_history`)."""
+    refs: set[str] = set()
+    for _rel, doc, _raw in parsed:
+        for job in _jobs_from_doc(doc).values():
+            if not isinstance(job, dict):
+                continue
+            for s in _steps(job):
+                u = _uses(s).split("@")[0].strip()
+                if _is_local_uses(u):
+                    refs.add(u)
+    # Fail CLOSED on anything unproven (see `_local_action_needs_history`):
+    # the cost is at most a missed finding, never advice that breaks a job.
+    return {ref for ref in refs if _local_action_needs_history(root, ref)}
+
+
+def _job_needs_git_history(job: dict, job_name: str = "",
+                           workflow: dict | None = None) -> bool:
+    blob = _job_run_blob(job)
+    uses_blob = "\n".join(_uses(s) for s in _steps(job))
+    if _has_git_history_op(blob) or _has_git_history_op(uses_blob):
+        return True
+    # A local composite action the job invokes may run the git op internally
+    # (the workflow yaml shows only `uses: ./…` or `uses: $/…`). Consult the
+    # per-scan index.
+    if _GIT_HISTORY_LOCAL_ACTIONS:
+        for s in _steps(job):
+            if _uses(s).split("@")[0].strip() in _GIT_HISTORY_LOCAL_ACTIONS:
+                return True
+    if _GIT_HISTORY_LOCAL_SCRIPTS:
+        for step in _steps(job):
+            working_directory = _script_working_directory(job, step, workflow)
+            for ref in _first_party_script_refs(str(step.get("run") or "")):
+                if _script_ref_key(ref, working_directory) in _GIT_HISTORY_LOCAL_SCRIPTS:
+                    return True
+    # Name-based fallback: a changeset/release/version job almost always needs
+    # history even when the op lives in an invoked script. Conservative on
+    # purpose — never recommend shallowing one of these.
+    return bool(_HISTORY_JOB_NAME_RE.search(job_name))
+
+
+# When `fetch-depth: 0` is load-bearing, maintainers routinely say so in a YAML
+# comment right above it — and comments are dropped at parse time, so the one
+# artifact that settles the question is invisible to the detector. Read it back
+# out of the raw text and treat it as a carve-out: a nearby comment that names a
+# history operation means "do not recommend shallowing this step".
+#
+# The bound is six lines above the matched `fetch-depth: 0`, and a blank line
+# ends the region. Six is what it takes to reach a comment written above the
+# step itself — `- uses:` and `with:` sit between — with room for a two- or
+# three-line comment block; beyond that the comment belongs to an earlier step
+# and is not a justification for this one.
+_OPT28_JUSTIFY_LOOKBACK = 6
+
+# Deliberately tight. `depth` is NOT in the vocabulary: "fetch-depth: 0 is
+# unnecessary here" must not read as a justification — hence also the
+# `fetch(?!-depth)` guard, so the key's own name never counts as `git fetch`.
+_OPT28_JUSTIFY_RE = re.compile(
+    r"\b(?:rev-list|rev-parse|merge-base|describe|blame|history|ancestors?|"
+    r"changelog|tags?|log)\b|"
+    r"\bfetch(?!-depth)\b|"
+    r"\bshallow\s+clone\b",
+    re.I)
+
+
+def _opt28_history_justification(raw: str, line: int | None) -> str | None:
+    """The nearby comment that documents why this `fetch-depth: 0` is needed, or
+    None. Suppressor only: it can remove an OPT28 finding, never create one.
+
+    The region is the `_OPT28_JUSTIFY_LOOKBACK` lines directly above the key,
+    closed early by a blank line. Within it, a comment counts only when it
+    belongs to THIS step: the step's own body qualifies, and so does a comment
+    written above the step marker at the step's own indentation. A comment
+    above the marker but indented deeper is inside the preceding step (the tail
+    of its `run: |` block), and ordinary YAML above the marker ends the region —
+    neither is a justification for this checkout."""
+    if not line:
+        return None
+    lines = raw.splitlines()
+    idx = line - 1  # 0-based index of the matched `fetch-depth: 0` line
+    if idx < 0 or idx >= len(lines):
+        return None
+    # The step this key belongs to — the nearest `- ` marker at or above it.
+    step_marker_idx = None
+    for i in range(idx, -1, -1):
+        text = lines[i]
+        if not text.strip():
+            continue
+        if re.match(r"^\s*-\s", text):
+            step_marker_idx = i
+            break
+    if step_marker_idx is None:
+        return None
+    marker = lines[step_marker_idx]
+    marker_indent = len(marker) - len(marker.lstrip())
+
+    # Walk up from the key, no further than the documented bound.
+    for i in range(idx - 1, max(0, idx - _OPT28_JUSTIFY_LOOKBACK) - 1, -1):
+        text = lines[i]
+        stripped = text.strip()
+
+        if not stripped:
+            break  # a blank line ends the region
+
+        if not stripped.startswith("#"):
+            # Inside this step, the non-comment lines are its own scaffolding
+            # (`- uses:`, `with:`) and a comment may sit among them. Above the
+            # step marker, ordinary YAML ends the region.
+            if i >= step_marker_idx:
+                continue
+            break
+
+        if i < step_marker_idx and len(text) - len(text.lstrip()) > marker_indent:
+            # A comment above the step marker but indented DEEPER than it is
+            # inside the preceding step — the tail of a `run: |` block, say.
+            # That is the preceding step's shell text, not this step's
+            # justification.
+            break
+
+        if _OPT28_JUSTIFY_RE.search(stripped):
+            return stripped.lstrip("#").strip()
+
+    return None
+
+
+def _detect_opt28(doc: dict, raw: str) -> list[Hit]:
+    """`actions/checkout@v?` with `fetch-depth: 0` — but ONLY when the job does
+    not actually need full history. A job running changeset versioning/publish,
+    `git fetch/show/log`, a merge-base `git diff <ref>...HEAD`, or affected-
+    since-ref tooling genuinely needs the history; shallowing it would break the
+    job, so it is not an OPT28 finding."""
+    # A manually/cron-triggered helper (mastra `vitest-all`: workflow_dispatch
+    # only) isn't dev-facing CI — it runs ~0×/mo, so a fetch-depth saving there
+    # is noise, not a ranked optimization. Scope OPT28 to workflows that
+    # actually run on a PR/push (directly or as a workflow_call child invoked by
+    # one). Dispatch-/schedule-only workflows are out of scope.
+    on = doc.get("on") or doc.get(True)
+    if not _on_includes(on, ("pull_request", "push", "workflow_call")):
+        return []
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        if _job_needs_git_history(job, job_name, doc):
+            continue  # depth:0 is load-bearing here — removing it breaks the job
+        checkout_index = 0  # Track which checkout step this is (1-based)
+        for step in _steps(job):
+            uses = str(step.get("uses") or "")
+            if not uses.startswith("actions/checkout"):
+                continue
+            depth = (step.get("with") or {}).get("fetch-depth")
+            if str(depth) == "0":
+                checkout_index += 1
+                # Find the line for THIS checkout (the Nth occurrence of "fetch-depth: 0"
+                # in the job block), not the first one.
+                line = _line_of_nth_in_job(raw, job_name, "fetch-depth: 0", checkout_index)
+                # A documented justification above the line settles it: the
+                # depth is load-bearing, so stay silent for this step. A comment
+                # can be stale or wrong, and this trades a possible missed
+                # finding for never recommending a fix that breaks a job — the
+                # direction this pattern already chose.
+                if _opt28_history_justification(raw, line):
+                    continue
+                parent_depth = _job_parent_checkout_depth(job, doc)
+                detail = (f"parent-only history reads need `fetch-depth: {parent_depth}`"
+                          if parent_depth else "no git-history operation found in the job")
+                hits.append(Hit(
+                    line=line,
+                    affected_jobs=[job_name],
+                    evidence=f"job `{job_name}` uses `{uses}` with `fetch-depth: 0` "
+                             f"({detail})",
+                    match_text=job_name,
+                ))
+    return hits
+
+
+# ---- OPT76 — Submodule / Git LFS Checkout Payload (P5.5) ---------------------
+
+# Two checkout-time payloads OPT28 does NOT cover: the submodule clone
+# (`submodules: true|recursive`) and the LFS object download (`lfs: true`, or a
+# `git lfs pull|fetch` run step). Both are paid on every run of every job that
+# asks for them, whether or not the job reads a byte of the payload.
+#
+# The finding needs THREE facts, all read from the repo — never assumed:
+#   1. the repo DECLARES a payload path (`.gitmodules` paths / `.gitattributes`
+#      `filter=lfs` patterns). No declaration → no finding: with nothing declared
+#      we cannot name a path the job fails to read, and asserting unread payload
+#      we never saw is exactly the evidence-claim class the guards forbid.
+#   2. a job PULLS it (the checkout `with:` key, or a `git lfs` run step).
+#   3. NO step in that job references any declared path — searched across the
+#      job's run blocks, working-directory, matrix values, step `if:`/`name:`,
+#      `with:` values, `uses:` refs, and the body of any LOCAL composite action
+#      it invokes (transitively).
+# When a local composite action can't be read we fail CLOSED (skip the job), the
+# same stance OPT28 takes: the cost is a missed finding, never a breaking fix.
+#
+# `git lfs checkout` is deliberately NOT here: it populates the working tree from
+# objects that are ALREADY local, so it downloads nothing and flagging it would
+# assert a network payload we never established.
+_LFS_RUN_RE = re.compile(r"git\s+lfs\s+(pull|fetch)\b", re.I)
+_LOCAL_USES_RE = re.compile(r"['\"]?uses['\"]?:\s*['\"]?((?:\./|\$/)[^\s'\"#]+)")
+
+# Populated once per scan() from the repo root (see the scan() wiring below).
+_SUBMODULE_PATHS: list[str] = []
+_LFS_PATH_HINTS: list[str] = []
+# Local `uses: ./…` / `uses: $/…` ref → its action file text (plus the text of
+# every local action it transitively invokes), or None when any link is
+# unreadable.
+_LOCAL_ACTION_TEXT: dict[str, "str | None"] = {}
+
+
+def _read_repo_file(root: Path, name: str) -> str:
+    if not _inside_scan_root(root / name):
+        return ""
+    try:
+        return (root / name).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _parse_gitmodules(text: str) -> list[str]:
+    """The `path = …` values declared in `.gitmodules`. Values may be quoted (a
+    path containing a space has to be) and may carry a trailing `#` comment;
+    dropping those silently shrinks the declared payload, which would let the
+    evidence enumerate an incomplete declaration and flag a job that does read
+    the submodule it omitted."""
+    out: list[str] = []
+    for line in text.splitlines():
+        m = re.match(r"\s*path\s*=\s*(.+?)\s*(?:#.*)?$", line)
+        if not m:
+            continue
+        val = m.group(1).strip()
+        if len(val) > 1 and val[0] == val[-1] and val[0] in "\"'":
+            val = val[1:-1]
+        val = re.sub(r"^\./", "", val).strip("/")
+        if val:
+            out.append(val)
+    return sorted(set(out))
+
+
+def _parse_lfs_attributes(text: str) -> list[str]:
+    """Searchable hints for the paths `.gitattributes` tracks with LFS. A
+    pattern like `*.psd` yields `.psd` (an extension a step would name); a path
+    pattern like `assets/**` yields its literal prefix `assets/`. Patterns that
+    reduce to nothing searchable (a bare `*`) are dropped — they would match any
+    job text and silently suppress every finding."""
+    out: list[str] = []
+    for line in text.splitlines():
+        fields = line.split()
+        # A comment line is not a declaration — and its `#` would otherwise
+        # become a hint that matches almost every run block, silently switching
+        # the whole LFS half of the pattern off. `-filter=lfs` UNSETS the
+        # attribute, and `filter=lfsfoo` is a different attribute entirely.
+        if not fields or fields[0].startswith("#"):
+            continue
+        if "filter=lfs" not in fields[1:]:
+            continue
+        pat = fields[0]
+        if pat.startswith("*.") and len(pat) > 2:
+            out.append(pat[1:])            # "*.psd" -> ".psd"
+            continue
+        literal = re.split(r"[\*\?\[]", pat)[0].strip("/")
+        if literal:
+            out.append(literal)
+    return sorted(set(out))
+
+
+def _read_local_action(root: Path, ref: str) -> "str | None":
+    """The action file's text for a local `uses: ./…` (or self-repository
+    `uses: $/…`) ref, or None when no candidate file is readable or the ref
+    resolves outside the repository root."""
+    base = _local_ref_path(root, ref)
+    if base is None:
+        return None
+    candidates = [base] if base.suffix in (".yml", ".yaml") else [
+        base / "action.yml", base / "action.yaml"]
+    for cand in candidates:
+        try:
+            if _local_ref_path(root, "./" + os.path.relpath(cand, root)) is None:
+                continue
+            return cand.read_text(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):   # ValueError: an embedded NUL byte
+            continue
+    return None
+
+
+def _index_local_action_text(root: Path,
+                             parsed: list[tuple[str, dict, str]]) -> dict[str, "str | None"]:
+    """Local `uses: ./…` / `uses: $/…` ref → its action text CONCATENATED with the text of
+    every local action it transitively invokes; None when any link in that chain
+    is unreadable. A composite action routinely delegates to another local
+    action, and that inner one can be the step that reads the payload — reading
+    only the outer body would make the job look clean and recommend a removal
+    that breaks the build. An unreadable link anywhere fails the whole chain
+    CLOSED, the same stance a directly-unreadable action takes."""
+    refs: set[str] = set()
+    for _rel, doc, _raw in parsed:
+        for job in _jobs_from_doc(doc).values():
+            if not isinstance(job, dict):
+                continue
+            for s in _steps(job):
+                u = _uses(s).split("@")[0].strip()
+                if _is_local_uses(u):
+                    refs.add(u)
+    out: dict[str, "str | None"] = {}
+    for ref in refs:
+        parts: list[str] = []
+        seen: set[str] = set()
+        queue: list[str] = [ref]
+        unreadable = False
+        while queue:
+            cur = queue.pop()
+            if cur in seen:
+                continue        # a cycle terminates instead of spinning
+            seen.add(cur)
+            text = _read_local_action(root, cur)
+            if text is None:
+                unreadable = True
+                break
+            parts.append(text)
+            queue += [m.split("@")[0].strip() for m in _LOCAL_USES_RE.findall(text)]
+        out[ref] = None if unreadable else "\n".join(parts)
+    return out
+
+
+def _job_payload_blob(job: dict, doc: dict | None = None,
+                      raw: str = "") -> "str | None":
+    """Everything in the job that could name a checked-out path: run blocks,
+    step and job-level `working-directory`, matrix values, step `if:`/`name:`,
+    `uses:` refs, `with:`/`env:` values, and the body of each local composite
+    action it invokes (transitively), plus local build contexts and COPY/ADD
+    sources from resolved Dockerfiles. None when a local action or Dockerfile
+    can't be read — the caller then skips the job (fail closed).
+
+    The blob has to cover EVERY place the job's own YAML can name a path,
+    because the finding's evidence asserts that no step in the job references a
+    declared one. A path sitting in `defaults.run.working-directory` or a matrix
+    value is in the very text the evidence claims to have searched, so missing it
+    is a false claim, not a documented blind spot."""
+    parts: list[str] = [str(job.get("name") or "")]
+    for block in ("env", "defaults", "strategy"):
+        vals = job.get(block)
+        if vals is not None:
+            parts.append(_yaml_text(vals))
+    for s, s_if in _steps_with_if(job):
+        parts.append(_run(s))
+        parts.append(str(s.get("working-directory") or ""))
+        parts.append(str(s.get("name") or ""))
+        # The step's own `if:` AND its enclosing groups' (`effective_if`), so a
+        # path named only in a group-level gate is searched too.
+        parts.append(str(s_if or ""))
+        uses = _uses(s)
+        parts.append(uses)
+        for block in ("with", "env"):
+            vals = s.get(block)
+            if isinstance(vals, dict):
+                parts += [str(v) for v in vals.values()]
+        ref = uses.split("@")[0].strip()
+        if _is_local_uses(ref):
+            text = _LOCAL_ACTION_TEXT.get(ref)
+            if text is None:
+                return None     # unreadable local action — can't prove it unread
+            # Local composite steps are flattened as text for path-name checks,
+            # but their Docker build configuration is not resolved below. A
+            # Dockerfile inside the action may read the checkout payload, so
+            # fail closed instead of claiming that it does not.
+            if (re.search(r"docker/build-push-action@", text, re.IGNORECASE)
+                    or re.search(r"\bdocker\s+(?:buildx\s+)?build\b", text,
+                                 re.IGNORECASE)):
+                return None
+            parts.append(text)
+    image_payload = (_opt102_job_image_payload(doc, raw, job)
+                     if doc is not None else [])
+    if image_payload is None:
+        return None
+    parts.extend(image_payload)
+    return "\n".join(parts)
+
+
+def _yaml_text(node: Any) -> str:
+    """Every scalar reachable from `node`, flattened — used to search nested
+    blocks (`defaults`, `strategy.matrix`) whose shape varies."""
+    if isinstance(node, dict):
+        return "\n".join(f"{k}\n{_yaml_text(v)}" for k, v in node.items())
+    if isinstance(node, (list, tuple)):
+        return "\n".join(_yaml_text(v) for v in node)
+    return str(node)
+
+
+def _payload_line(raw: str, job_name: str, key: str, accepted: tuple[str, ...]) -> int:
+    """The line inside `job_name` that writes `key: <one of accepted>`. Anchoring
+    on a bare `key:` needle would cite the FIRST such line in the job, so a job
+    with two checkouts renders `submodules: false` as the verbatim proof of a
+    `submodules: true` finding. Returning 0 when no accepted literal is written
+    also suppresses the YAML-truthy-but-runner-false values: PyYAML resolves
+    `yes`/`on` to True, while actions/checkout enables submodules only for
+    `TRUE`/`RECURSIVE`, so `submodules: yes` pulls nothing at all."""
+    for value in accepted:
+        for cased in (value, value.upper(), value.capitalize()):
+            for lit in (cased, f'"{cased}"', f"'{cased}'"):
+                line = _line_of_in_job(raw, job_name, f"{key}: {lit}")
+                if line:
+                    return line
+    return 0
+
+
+def _detect_opt76(doc: dict, raw: str) -> list[Hit]:
+    """A checkout that pulls submodules or LFS objects in a job that references
+    none of the declared submodule / LFS-tracked paths."""
+    if not (_SUBMODULE_PATHS or _LFS_PATH_HINTS):
+        return []   # nothing declared in the repo — no path to prove unread
+    on = doc.get("on") or doc.get(True)
+    # Same dev-facing scope as OPT28: a dispatch-/schedule-only helper runs
+    # ~0x/mo, so its checkout payload is noise, not a ranked optimization.
+    if not _on_includes(on, ("pull_request", "push", "workflow_call")):
+        return []
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        blob = _job_payload_blob(job, doc, raw)
+        if blob is None:
+            continue    # fail closed
+        # Git path matching is effectively case-insensitive on the macOS and
+        # Windows checkouts these workflows run against, so a step naming
+        # `assets/LOGO.PSD` really does read the `*.psd` payload.
+        blob_l = blob.lower()
+        reads_submodule = any(p.lower() in blob_l for p in _SUBMODULE_PATHS)
+        reads_lfs_path = any(h.lower() in blob_l for h in _LFS_PATH_HINTS)
+        # One payload is downloaded once, however many steps ask for it — a job
+        # with both `lfs: true` and `git lfs pull` must not double-count it.
+        flagged: set[str] = set()
+        for step in _steps(job):
+            if not _uses(step).startswith("actions/checkout"):
+                continue
+            with_ = step.get("with")
+            if not isinstance(with_, dict):
+                with_ = {}
+            # A `repository:` checkout clones SOMEONE ELSE's tree, whose
+            # submodules and LFS objects this repo's `.gitmodules` /
+            # `.gitattributes` say nothing about. Naming our declared paths as
+            # its unread payload would be a claim about data never observed.
+            if str(with_.get("repository") or "").strip():
+                continue
+            sub = str(with_.get("submodules", "")).lower()
+            line = (_payload_line(raw, job_name, "submodules", ("true", "recursive"))
+                    if sub in ("true", "recursive") else 0)
+            if (_SUBMODULE_PATHS and line and not reads_submodule
+                    and "submodule" not in flagged):
+                flagged.add("submodule")
+                paths = ", ".join(f"`{p}`" for p in _SUBMODULE_PATHS)
+                hits.append(Hit(
+                    line=line,
+                    affected_jobs=[job_name],
+                    evidence=(
+                        f"job `{job_name}` checks out with `submodules: {sub}`, and no "
+                        f"step in the job, local action, or resolved Dockerfile "
+                        f"references the submodule path(s) declared in `.gitmodules`: "
+                        f"{paths}"),
+                    match_text=job_name,
+                    snippet=_raw_line(raw, line),
+                ))
+            lfs_line = (_payload_line(raw, job_name, "lfs", ("true",))
+                        if str(with_.get("lfs", "")).lower() == "true" else 0)
+            if (_LFS_PATH_HINTS and lfs_line and not reads_lfs_path
+                    and "lfs" not in flagged):
+                flagged.add("lfs")
+                line = lfs_line
+                hints = ", ".join(f"`{h}`" for h in _LFS_PATH_HINTS)
+                hits.append(Hit(
+                    line=line,
+                    affected_jobs=[job_name],
+                    evidence=(
+                        f"job `{job_name}` checks out with `lfs: true`, and no step in "
+                        f"the job, local action, or resolved Dockerfile references "
+                        f"the LFS-tracked path(s) in `.gitattributes`: {hints}"),
+                    match_text=job_name,
+                    snippet=_raw_line(raw, line),
+                ))
+        # `git lfs pull` / `git lfs fetch` in a run block downloads the same
+        # objects the `lfs:` input would — flag it on the same evidence.
+        if _LFS_PATH_HINTS and not reads_lfs_path and "lfs" not in flagged:
+            matched = next(
+                (m.group(0) for m in (_LFS_RUN_RE.search(_run(s)) for s in _steps(job))
+                 if m),
+                None,
+            )
+            if matched:
+                flagged.add("lfs")
+                # Anchor on the `pull`/`fetch` command we actually matched, not
+                # the job's first `git lfs` line: a job commonly runs `git lfs
+                # install` (or `checkout`) first, and those download nothing —
+                # quoting one as the verbatim proof of a network payload would
+                # cite a command this detector deliberately refuses to flag.
+                line = (_line_of_in_job(raw, job_name, matched)
+                        or _line_of_in_job(raw, job_name, "git lfs"))
+                hints = ", ".join(f"`{h}`" for h in _LFS_PATH_HINTS)
+                hits.append(Hit(
+                    line=line,
+                    affected_jobs=[job_name],
+                    evidence=(
+                        f"job `{job_name}` runs `git lfs` to download LFS objects, and "
+                        f"no step in the job, local action, or resolved Dockerfile "
+                        f"references the LFS-tracked path(s) in `.gitattributes`: {hints}"),
+                    match_text=job_name,
+                    snippet=_raw_line(raw, line),
+                ))
+    return hits
+
+
+# ---- OPT23 — Single-Threaded Matrix (P4.3) -----------------------------------
+
+def _detect_opt23(doc: dict, raw: str) -> list[Hit]:
+    """A matrix job with `max-parallel: 1` (serializes the matrix needlessly)."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        strategy = job.get("strategy") or {}
+        if isinstance(strategy, dict) and str(strategy.get("max-parallel")) == "1":
+            # Anchor within THIS job's block — `max-parallel: 1` recurs across
+            # matrix jobs, so a file-global match would cite the wrong one (the
+            # OPT33/OPT29 wrong-job hazard).
+            line = _line_of_in_job(raw, job_name, "max-parallel: 1")
+            hits.append(Hit(
+                line=line,
+                affected_jobs=[job_name],
+                evidence=f"job `{job_name}` declares `strategy.max-parallel: 1`",
+                match_text=job_name,
+            ))
+    return hits
+
+
+# ---- OPT35 — Missing fail-fast on Non-Diagnostic Matrix Dimensions (P7.4) ----
+
+def _matrix_axis_keys(strategy: dict) -> list[str]:
+    """The matrix dimension keys (excludes include/exclude)."""
+    matrix = strategy.get("matrix") if isinstance(strategy, dict) else None
+    if not isinstance(matrix, dict):
+        return []
+    return [k for k in matrix if k not in ("include", "exclude")]
+
+
+_SHARD_AXIS_RE = re.compile(r"shard|chunk|split|partition", re.IGNORECASE)  # (a later module-level rebinding used to win at import time; inlined here so shard detection is byte-for-byte unchanged)
+
+
+def _matrix_is_shard_indexed(strategy: dict) -> bool:
+    """True only when a matrix axis is an explicit shard/partition INDEX —
+    `shard: [1,2,3,4]`, `partition: [...]`. A diagnostic axis (os, node-version,
+    a named package/adapter/store list) is NOT shard-indexed: for those,
+    `fail-fast: false` is the correct choice (you want every variant's result),
+    so OPT35 must not flag them."""
+    return any(_SHARD_AXIS_RE.search(k) for k in _matrix_axis_keys(strategy))
+
+
+def _detect_opt35(doc: dict, raw: str) -> list[Hit]:
+    """A matrix job with `fail-fast: false` whose axis is a shard/partition
+    INDEX. Only that case wastes compute on a doomed run where cancelling the
+    remaining identical shards is safe. Diagnostic matrices (multi-OS,
+    multi-Node, named packages/adapters/stores) legitimately keep
+    `fail-fast: false` — you want each variant's pass/fail — so they are not
+    flagged (this was a 100%-false-positive detector before the axis check)."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        strategy = job.get("strategy") or {}
+        if not (isinstance(strategy, dict) and strategy.get("fail-fast") is False):
+            continue
+        if not _matrix_is_shard_indexed(strategy):
+            continue  # diagnostic matrix → fail-fast:false is correct, not a finding
+        # Anchor within THIS job's block — `fail-fast: false` recurs across matrix
+        # jobs, so a file-global match would cite the wrong one (OPT33/OPT29).
+        line = _line_of_in_job(raw, job_name, "fail-fast: false")
+        hits.append(Hit(
+            line=line,
+            affected_jobs=[job_name],
+            evidence=(f"job `{job_name}` runs a shard-indexed matrix with "
+                      f"`strategy.fail-fast: false` — a failed shard leaves the "
+                      f"other (identical) shards running"),
+            match_text=job_name,
+        ))
+    return hits
+
+
+# ---- OPT45 — Missing Concurrency Groups (P9.3) -------------------------------
+
+_PR_PUSH_RE = re.compile(r"\b(pull_request|push)\b")
+
+
+_RELEASE_NAME_RE = re.compile(r"release|publish|deploy|version|tag|snapshot", re.I)
+_RELEASE_OP_RE = re.compile(
+    r"changeset(s)?[ -](publish|version|cli)|changesets/action|npm\s+publish|"
+    r"pnpm\s+publish|yarn\s+publish|gh\s+release|docker\s+push|"
+    r"git\s+push.*--tags|softprops/action-gh-release|pypi|twine\s+upload", re.I)
+
+
+def _is_release_like(doc: dict) -> bool:
+    """A release/publish/deploy/version workflow, where cancelling a superseded
+    run mid-flight is UNSAFE (half-applied version bump, partial publish). OPT46
+    excludes these from cancel-in-progress; OPT45 must too."""
+    if _RELEASE_NAME_RE.search(str(doc.get("name") or "")):
+        return True
+    for job in _jobs_from_doc(doc).values():
+        if not isinstance(job, dict):
+            continue
+        if _RELEASE_OP_RE.search(_job_run_blob(job)):
+            return True
+        if any(_RELEASE_OP_RE.search(_uses(s)) for s in _steps(job)):
+            return True
+    return False
+
+
+def _is_aggregator_job(job: dict) -> bool:
+    """A status-check aggregator (e.g. `re-actors/alls-green`) — it only waits
+    on `needs` and has nothing to cancel, so it doesn't need its own
+    `concurrency:` block and shouldn't drag down the all-jobs-protected check."""
+    if not isinstance(job, dict):
+        return False
+    steps = _steps(job)
+    if any("alls-green" in _uses(s) for s in steps):
+        return True
+    try:
+        text = yaml.safe_dump(job)
+    except yaml.YAMLError:
+        text = str(job)
+    if re.search(r"(?:to|from)JSON\(\s*needs\s*\)", text):
+        return True
+    # `needs:` present and no real work (≤1 trivial step).
+    return bool(job.get("needs")) and len(steps) <= 1
+
+
+def _all_jobs_have_concurrency(doc: dict) -> bool:
+    """True when every NON-aggregator job declares its own `concurrency:` block
+    — the workflow is already protected against pile-up even with no top-level
+    block (the aggregator job has nothing to cancel)."""
+    real = [j for j in _jobs_from_doc(doc).values()
+            if isinstance(j, dict) and not _is_aggregator_job(j)]
+    return bool(real) and all("concurrency" in j for j in real)
+
+
+def _detect_opt45(doc: dict, raw: str) -> list[Hit]:
+    """A PR/push-triggered workflow with no concurrency cancellation anywhere.
+
+    Without one, an in-flight run keeps running when the PR gets a new push;
+    runner-minutes and (often) wall-clock both leak. Suppressed when (a) a
+    top-level OR per-job `concurrency:` already protects it, or (b) it is a
+    release/publish/deploy workflow where cancel-in-progress is unsafe (OPT46
+    carve-out)."""
+    on = doc.get("on") or doc.get(True)  # PyYAML reads `on:` as bool True
+    triggers = [t for t in ("pull_request", "push") if _on_includes(on, (t,))]
+    if not triggers:
+        return []
+    if "concurrency" in doc or _all_jobs_have_concurrency(doc):
+        return []  # already protected (top-level or per-job)
+    if _is_release_like(doc):
+        return []  # cancelling a superseded release run is unsafe — not a finding
+    on_line, block = _on_block(raw)
+    trig = "/".join(triggers)
+    return [Hit(
+        line=on_line or 1,
+        affected_jobs=list(_jobs_from_doc(doc).keys()),
+        evidence=(f"workflow triggers on {trig} but declares no `concurrency:` "
+                  f"(top-level or per-job) — superseded runs keep occupying a "
+                  f"runner"),
+        match_text="(workflow)",
+        snippet=block,
+    )]
+
+
+# ---- OPT32 — Missing paths/paths-ignore on Expensive Workflows (P7.1) --------
+
+_ON_LINE_RE = re.compile(r"^(['\"]?on['\"]?\s*:.*)$", re.M)
+
+
+def _on_block(raw: str) -> tuple[int, str]:
+    """(line, block-text) of the workflow's top-level `on:` trigger block, so an
+    absence finding can SHOW the block that lacks the missing key rather than
+    just assert it. (line, "") if not found."""
+    m = _ON_LINE_RE.search(raw)
+    if not m:
+        return 0, ""
+    line = raw.count("\n", 0, m.start()) + 1
+    return line, _block_lines(raw, line)
+
+
+def _detect_opt32(doc: dict, raw: str) -> list[Hit]:
+    """A PR/push workflow with no `paths:` / `paths-ignore:` filter.
+
+    Expensive workflows (long test jobs, build matrices) waste cycles on PRs
+    that didn't touch their code paths.
+
+    Suppressed when the workflow ALREADY self-gates with an internal
+    change-detection job (`dorny/paths-filter`, a `changes`/`detect`/`affected`
+    job whose outputs gate the heavy jobs) — the saving is already realized and
+    adding a workflow-level filter is redundant.
+
+    DELIBERATE FALSE-NEGATIVE (narrow): a `pull_request` trigger `types:`-gated to a
+    non-lifecycle activity (labeled/review_requested/…) is drained here via
+    `_pr_trigger_runs_every_pr` (so OPT39/40/33 stay consistent). For a workflow whose
+    ONLY trigger is such an activity (no `push`), `triggers` then goes empty and OPT32
+    does not fire at all — even though GitHub WOULD evaluate a `paths:` filter against the
+    PR diff for those events. So a genuinely expensive label-only workflow that could
+    benefit from a paths filter is not flagged. Accepted: it trades a real false-positive
+    class (the activation-fidelity bug) for this rare unflagged case; revisit if a
+    label-triggered heavy workflow is observed in the wild.
+    """
+    on = doc.get("on") or doc.get(True)
+    triggers = []
+    for t in ("pull_request", "push"):
+        if not _on_includes(on, (t,)):
+            continue
+        # A `pull_request` trigger gated by `types:` to a NON-lifecycle activity
+        # (labeled / unlabeled / review_requested / …) reacts to PR metadata, not
+        # code pushes — those events carry no file diff, so a `paths:`/`paths-ignore:`
+        # filter is irrelevant (it would never change which of these events run).
+        # Route through the shared activation-fidelity predicate (same drain as
+        # OPT39/OPT40/OPT33) so this whole class stays fixed once.
+        if t == "pull_request" and not _pr_trigger_runs_every_pr(on):
+            continue
+        triggers.append(t)
+    if not triggers:
+        return []
+    if _on_has_paths_filter(on):
+        return []
+    # Already path/change-aware internally → not unfiltered in practice.
+    if "dorny/paths-filter" in raw or "tj-actions/changed-files" in raw:
+        return []
+    if re.search(r"\bhas_code\b|\bchanges\b\s*:|outputs:\s*\n.*\b(changed|affected)\b",
+                 raw):
+        # an internal change-detection job already gates the heavy work
+        if re.search(r"if:\s*.*needs\.[\w-]*(changes|detect)[\w-]*\.outputs", raw):
+            return []
+    on_line, block = _on_block(raw)
+    trig = "/".join(triggers)
+    # The REQUIRED-status-check caveat only applies to PR-triggered workflows
+    # (a `paths:` filter could strand a required check on excluded PRs). A
+    # push-only workflow never runs on PRs, so the NOTE would be meaningless.
+    note = (" NOTE: if this workflow is a REQUIRED status check, add a per-job "
+            "`dorny/paths-filter` gate that returns a neutral pass — a "
+            "workflow-level `paths:` filter would strand the required check on "
+            "excluded PRs." if "pull_request" in triggers else "")
+    return [Hit(
+        line=on_line or 1,
+        affected_jobs=list(_jobs_from_doc(doc).keys()),
+        evidence=(f"workflow triggers on {trig} but declares no "
+                  f"`paths:`/`paths-ignore:` filter (the `on:` block below has "
+                  f"no `paths:` key).{note}"),
+        match_text="(workflow)",
+        snippet=block,
+    )]
+
+
+# ---- OPT36 — Cron Schedule Too Frequent (P7.5) -------------------------------
+
+def _detect_opt36(doc: dict, raw: str) -> list[Hit]:
+    """`schedule.cron` firing more often than once an hour.
+
+    The minute field can be a step (`*/N`, `M/N`), an explicit comma list
+    (`0,15,30,45`), or a range (`5-30`). Any of these patterns that yields
+    more than one trigger per hour is an OPT36 hit.
+    """
+    on = doc.get("on") or doc.get(True)
+    schedules = _on_schedules(on)
+    hits: list[Hit] = []
+    for entry in schedules:
+        cron = (entry or {}).get("cron")
+        if not isinstance(cron, str):
+            continue
+        parts = cron.split()
+        if len(parts) < 1:
+            continue
+        minute = parts[0]
+        triggers_per_hour, why = _minute_field_frequency(minute)
+        if triggers_per_hour > 1:
+            hits.append(Hit(
+                line=_line_of(raw, cron),  # anchor:workflow-level (schedule gates ALL jobs; `cron` is the unique schedule identity)
+                affected_jobs=list(_jobs_from_doc(doc).keys()),
+                evidence=(f"`schedule.cron: '{cron}'` fires {triggers_per_hour}× "
+                          f"per hour ({why})"),
+                match_text=cron,
+            ))
+    return hits
+
+
+def _minute_field_frequency(minute: str) -> tuple[int, str]:
+    """How many times per hour does this cron minute field fire?
+
+    Handles: `*` (60×), `*/N` (60//N), `M/N` start/step (60//N from M),
+    explicit comma list (`a,b,c` → count), range (`a-b` → b-a+1),
+    range/step (`a-b/c`), single value (1×). Returns (count, prose).
+    """
+    if minute == "*":
+        return 60, "every minute"
+    # `M/N` or `*/N` (step). Bash cron also supports range-with-step.
+    m = re.fullmatch(r"(\*|\d+|\d+-\d+)/(\d+)", minute)
+    if m:
+        base, step = m.group(1), int(m.group(2))
+        if step <= 0:
+            return 0, "invalid step"
+        if base == "*":
+            return 60 // step, f"every {step} minute(s)"
+        # Count the terms of the arithmetic sequence {start, start+step, …}
+        # that fall in the valid minute range 0–59 → floor((bound-start)/step)+1.
+        # `M/N` runs from M to 59; `a-b/N` runs from a to b. (Using 60 or
+        # b-a+1 here overcounts by 1 whenever the span divides evenly — e.g.
+        # `30/30` fires only at :30, once/hour, not twice.)
+        if "-" in base:
+            a, b = (int(x) for x in base.split("-"))
+            if b < a:
+                return 0, f"empty range {a}-{b}"
+            return (b - a) // step + 1, f"every {step} min from {a}-{b}"
+        start = int(base)
+        return (59 - start) // step + 1, f"every {step} min from {start}"
+    # Comma list — count tokens.
+    if "," in minute:
+        toks = [t.strip() for t in minute.split(",") if t.strip()]
+        return len(toks), f"explicit list of {len(toks)} minute(s)"
+    # Range without step.
+    m = re.fullmatch(r"(\d+)-(\d+)", minute)
+    if m:
+        a, b = int(m.group(1)), int(m.group(2))
+        return max(b - a + 1, 0), f"range {a}-{b}"
+    # Single fixed minute → fires once per hour.
+    return 1, "fixed minute"
+
+
+# ---- OPT17 — Sleep-Based Container Readiness (P3.1) --------------------------
+
+_SLEEP_RE = re.compile(
+    r"^\s*(?:[\w./-]*\s+)?sleep\s+(\d+)",  # bash `sleep 30`, plain
+)
+
+
+_DOCKER_CONTEXT_RE = re.compile(
+    r"\b(docker\s+compose|docker\s+run|docker-compose|services:\s*$)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _detect_opt17(doc: dict, raw: str) -> list[Hit]:
+    """`run:` blocks containing a `sleep N` of 5+ seconds — classic
+    sleep-based container readiness wait.
+
+    Guardrail: the catalog pattern is specifically about waiting for a
+    service container to start. Only flag when the same job ALSO starts a
+    docker container (`docker compose up`, `docker run`) or declares a
+    `services:` block. A bare `sleep 10` in a job that's polling a GitHub
+    API or pacing release steps is a different beast and not OPT17.
+    """
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        # Job-level docker context: has `services:` block OR any step starts a
+        # container OR runs docker compose / docker run.
+        job_has_services = isinstance(job.get("services"), dict) and job.get("services")
+        steps = _steps(job)
+        run_blobs = " ".join(
+            s.get("run") for s in steps if isinstance(s.get("run"), str)
+        )
+        if not (job_has_services or _DOCKER_CONTEXT_RE.search(run_blobs)):
+            continue  # no docker context → sleep is for something else
+        for step in steps:
+            run = step.get("run")
+            if not isinstance(run, str):
+                continue
+            for ln in run.splitlines():
+                m = _SLEEP_RE.match(ln)
+                if m and int(m.group(1)) >= 5:
+                    secs = int(m.group(1))
+                    hits.append(Hit(
+                        line=_line_of_in_job(raw, job_name, ln.strip()),
+                        affected_jobs=[job_name],
+                        evidence=f"job `{job_name}` step runs `sleep {secs}` (sleep-based readiness wait for the job's docker service)",
+                        match_text=f"{job_name}#sleep{secs}",
+                    ))
+    return hits
+
+
+# ---- helpers used by trigger-based detectors ---------------------------------
+
+def _on_includes(on: Any, triggers: tuple[str, ...]) -> bool:
+    """`on:` may be a string, a list, or a dict keyed by trigger name."""
+    if isinstance(on, str):
+        return on in triggers
+    if isinstance(on, list):
+        return any(t in triggers for t in on)
+    if isinstance(on, dict):
+        return any(t in on for t in triggers)
+    return False
+
+
+def _on_has_paths_filter(on: Any) -> bool:
+    """True only when EVERY present pull_request/push trigger carries a
+    `paths:`/`paths-ignore:` filter. If `push` is filtered but `pull_request`
+    is not, PRs still run unfiltered — so the workflow is NOT fully filtered
+    and OPT32/OPT40 should still fire (returning False here)."""
+    if not isinstance(on, dict):
+        return False
+    present = [k for k in ("pull_request", "push") if k in on]
+    if not present:
+        return False
+    for key in present:
+        cfg = on.get(key)
+        if not (isinstance(cfg, dict) and ("paths" in cfg or "paths-ignore" in cfg)):
+            return False  # this trigger runs unfiltered
+    return True
+
+
+def _pr_trigger_has_paths(on: Any) -> bool:
+    """True when the `pull_request` trigger itself carries a `paths:`/
+    `paths-ignore:` filter. Unlike `_on_has_paths_filter`, this ignores the
+    state of any sibling `push` trigger — it answers ONLY "are PRs path-gated?".
+    Use this for PR-scoped detectors (e.g. OPT40), whose evidence speaks about
+    "every PR": a filtered `pull_request` alongside a bare `push` still means
+    PRs are gated, so the PR-scoped finding must not fire."""
+    if not isinstance(on, dict):
+        return False
+    cfg = on.get("pull_request")
+    return isinstance(cfg, dict) and ("paths" in cfg or "paths-ignore" in cfg)
+
+
+# `pull_request` activity types that fire on a NORMAL PR open / commit-push — EXACTLY GitHub's default
+# set when `types:` is omitted: [opened, synchronize, reopened]. A `pull_request:` trigger with an
+# explicit `types:` list that includes NONE of these runs only on a SPECIFIC activity (a label added, a
+# review requested, a draft converted to ready_for_review, a title `edited`) — NOT on "every PR" (and a
+# `draft == false` gate would be a no-op there). An absent `types:` always runs on every PR.
+_PR_LIFECYCLE_TYPES = frozenset({"opened", "synchronize", "reopened"})
+# A job-level `if:` that gates on a SPECIFIC label — `github.event.label` (the label just added, on a
+# `labeled` event) OR `github.event.pull_request.labels` (the common opt-in idiom
+# `contains(github.event.pull_request.labels.*.name, 'ci')`). Either way the job runs only on labeled
+# PRs, not every PR.
+_PR_LABEL_IF_RE = re.compile(r"github\.event\.(label\b|pull_request\.labels)", re.IGNORECASE)
+# A job-level `if:` equality on `github.event.action`, EITHER operand order — captures the gated activity
+# so a NON-lifecycle one (labeled / assigned / review_requested / ready_for_review / …) suppresses the
+# "every PR" claim, while a lifecycle one (synchronize / opened / reopened) does NOT. (Only the first
+# `action ==` is considered; `!=` is intentionally not matched — `action != 'closed'` still runs on
+# normal PRs.)
+_PR_ACTION_IF_RE = re.compile(
+    r"github\.event\.action\s*==\s*['\"]?([a-z_]+)"
+    r"|['\"]([a-z_]+)['\"]\s*==\s*github\.event\.action", re.IGNORECASE)
+
+
+def _pr_trigger_runs_every_pr(on: Any) -> bool:
+    """WORKFLOW-level activation fidelity: does the `pull_request` trigger fire on a normal PR
+    open/update, or is it gated by `types:` to a specific activity (labeled / review_requested / …)? An
+    absent `types:` defaults to the PR lifecycle (every PR); an explicit `types:` with NO lifecycle type
+    runs only on that activity. Every "every PR" detector shares this so the activation-fidelity class is
+    fixed once, not per-detector: the per-workflow OPT39/OPT40 gate on this directly; OPT33 (per-job)
+    gates on `_job_runs_on_every_pr`, which adds the job's own `if:` activity gate."""
+    if not _on_includes(on, ("pull_request",)):
+        return False
+    if isinstance(on, dict):
+        cfg = on.get("pull_request")
+        if isinstance(cfg, dict):
+            types = cfg.get("types")
+            if types is not None:
+                tset = {types} if isinstance(types, str) else set(types or [])
+                if not (tset & _PR_LIFECYCLE_TYPES):
+                    return False
+    return True
+
+
+def _job_runs_on_every_pr(on: Any, job: dict) -> bool:
+    """Does this JOB actually run on a normal PR open/update — neither the trigger's `types:` NOR the
+    job's own `if:` gating it to a specific activity (a label added, a review requested)? OPT33 gates on
+    this: it falsely flagged razorpay/blade's `interaction-tests` (trigger `pull_request: types:
+    [labeled]` + job `if: github.event.label.name == 'Run Interaction Tests'`) as running on every PR.
+    (Draft gating is a SEPARATE concern OPT33 checks on its own — a job can run on every PR yet skip
+    drafts.)"""
+    if not _pr_trigger_runs_every_pr(on):
+        return False
+    jif = job.get("if")
+    if isinstance(jif, str):
+        if _PR_LABEL_IF_RE.search(jif):
+            return False                         # gated to a specific label
+        m = _PR_ACTION_IF_RE.search(jif)
+        if m:
+            act = (m.group(1) or m.group(2) or "").lower()
+            if act and act not in _PR_LIFECYCLE_TYPES:
+                return False                     # gated to a SPECIFIC non-lifecycle activity
+    return True
+
+
+def _on_schedules(on: Any) -> list[dict]:
+    if not isinstance(on, dict):
+        return []
+    sched = on.get("schedule")
+    return sched if isinstance(sched, list) else []
+
+
+# =============================================================================
+# Job-correlated bespoke detectors (Phase 2b). Each operates within a single
+# workflow doc, correlating job steps / job config. Each operationalizes its
+# catalog body's Anti-pattern + Detection heuristic into a concrete
+# deterministic check; where the catalog prose is underspecified (e.g. OPT33's
+# "expensive job"), the detector picks an explicit, conservative threshold
+# documented in its own docstring. What is NEVER invented: the OPT-id (only
+# catalog-declared ids are emitted) and findings to fill a coverage gap
+# (un-detectored patterns are reported in catalog_patterns_without_detector).
+# =============================================================================
+
+def _steps(job: dict) -> list[dict]:
+    # Leaf steps in declaration order, children of `parallel:` groups included.
+    return job_leaf_steps(job)
+
+
+def _steps_with_if(job: dict) -> list[tuple[dict, str | None]]:
+    """Leaf steps paired with the condition each runs under: its own `if:`
+    AND any enclosing `parallel:` group's `if:` (an assumption — GitHub
+    documents no group-level `if:`; see `workflow_steps`). A hygiene rule that
+    asks "is this step unconditional?" reads this, never `step.get("if")`
+    alone. The parsed YAML is not mutated."""
+    return [(leaf.step, effective_if(leaf)) for leaf in job_walk(job).leaves]
+
+
+def _uses(step: dict) -> str:
+    return str(step.get("uses") or "")
+
+
+_OPT102_ROOT: Path | None = None
+_OPT102_COMPILE_RE = re.compile(
+    r"(?:^|&&|\|\||[;|]|\bthen\b|\bdo\b)\s*"
+    r"(?:--mount=[^\s;&|]+\s+)*"
+    + SHELL_PREFIX_SRC +  # `KEY=value` / env / sudo / time prefixes, see shell_prefix.py
+    r"(?:go\s+(?:build|install)|xx-go\b|cargo\s+(?:build|install)|"
+    r"cargo\s+chef\s+cook|xx-cargo\b|(?:npm|pnpm|yarn)\s+(?:run\s+)?build|"
+    r"cmake\s+(?:--build|-G)|ninja(?:\s|$)|meson\s+compile|node-gyp\b|"
+    r"pip\s+wheel\b|(?:\./)?mvnw?\b[^\n;&|]*\b(?:compile|package|install)\b|"
+    r"dotnet\s+(?:build|publish)|"
+    r"gradle\w*\s+.*\bbuild|make(?:\s|$))",
+    re.IGNORECASE | re.MULTILINE,
+)
+# Only a stage that runs on the build platform avoids emulation. GOOS / GOARCH /
+# --target flags inside a target-platform stage still execute under emulation.
+_OPT102_BUILDPLATFORM_RE = re.compile(
+    r"--platform=\$(?:\{BUILDPLATFORM\}|BUILDPLATFORM\b)", re.IGNORECASE)
+
+
+def _opt102_workflow_rel(root: Path, raw: str) -> str | None:
+    for path in sorted((root / ".github/workflows").glob("*.y*ml")):
+        try:
+            if not _inside_scan_root(path):
+                continue
+            if path.read_text(encoding="utf-8", errors="replace") == raw:
+                return str(path.relative_to(root))
+        except OSError:
+            continue
+    return None
+
+
+def _opt102_caller_inputs(root: Path, callee: str | None) -> dict[str, str]:
+    if not callee:
+        return {}
+    values: dict[str, set[str]] = {}
+    for path in sorted((root / ".github/workflows").glob("*.y*ml")):
+        try:
+            if not _inside_scan_root(path):
+                continue
+            caller = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+        for spec in _jobs_from_doc(caller).values():
+            if not isinstance(spec, dict):
+                continue
+            uses = str(spec.get("uses") or "").removeprefix("./")
+            if uses != callee:
+                continue
+            for key, value in (spec.get("with") or {}).items():
+                if isinstance(value, (str, int, float)) and "${{" not in str(value):
+                    values.setdefault(str(key), set()).add(str(value))
+    return {key: next(iter(found)) for key, found in values.items() if len(found) == 1}
+
+
+def _opt102_matrix_legs(job: dict) -> list[dict[str, str]]:
+    matrix = ((job.get("strategy") or {}).get("matrix")
+              if isinstance(job.get("strategy"), dict) else None)
+    if not isinstance(matrix, dict):
+        return [{}]
+    if any(isinstance(value, list) and not value for key, value in matrix.items()
+           if key not in {"include", "exclude"}):
+        return []
+    axes = [(str(key), [str(v) for v in value]) for key, value in matrix.items()
+            if key not in {"include", "exclude"} and isinstance(value, list) and value]
+    combinations = 1
+    for _key, values in axes:
+        combinations *= len(values)
+        if combinations > 256:
+            return []
+    legs = [{}] if axes else []
+    for key, values in axes:
+        legs = [{**leg, key: value} for leg in legs for value in values]
+    exclude = matrix.get("exclude")
+    if isinstance(exclude, list):
+        omitted = [{str(k): str(v) for k, v in row.items()}
+                   for row in exclude if isinstance(row, dict)]
+        legs = [leg for leg in legs
+                if not any(all(leg.get(key) == value for key, value in row.items())
+                           for row in omitted)]
+    include = matrix.get("include")
+    if isinstance(include, list):
+        if len(include) > 256:
+            return []
+        if not axes:
+            return [{str(k): str(v) for k, v in row.items()}
+                    for row in include if isinstance(row, dict)]
+        axis_keys = {key for key, _values in axes}
+        for row in include:
+            if not isinstance(row, dict):
+                continue
+            values = {str(k): str(v) for k, v in row.items()}
+            matched = [leg for leg in legs
+                       if all(key not in axis_keys or leg.get(key) == value
+                              for key, value in values.items())]
+            if matched:
+                for leg in matched:
+                    leg.update(values)
+            else:
+                legs.append(values)
+    return legs or ([{}] if not axes and not isinstance(include, list) else [])
+
+
+def _opt102_resolve(value: Any, *, env: dict[str, str], matrix: dict[str, str],
+                    inputs: dict[str, str], outputs: dict[str, str]) -> str | None:
+    text = str(value or "")
+    lookups = {**{f"matrix.{k}": v for k, v in matrix.items()},
+               **{f"inputs.{k}": v for k, v in inputs.items()},
+               **{f"env.{k}": v for k, v in env.items()}, **outputs}
+    def expr(match: re.Match[str]) -> str:
+        key = match.group(1).strip()
+        return lookups.get(key, match.group(0))
+    text = re.sub(r"\$\{\{\s*([^}]+?)\s*\}\}", expr, text)
+    text = re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}",
+                  lambda m: env.get(m.group(1), m.group(0)), text)
+    text = re.sub(r"\$([A-Za-z_][A-Za-z0-9_]*)",
+                  lambda m: env.get(m.group(1), m.group(0)), text)
+    return None if "${{" in text or re.search(r"\$[{A-Za-z_]", text) else text.strip()
+
+
+def _opt102_x64_runner(value: Any, matrix: dict[str, str]) -> tuple[bool, str]:
+    raw = str(value or "")
+    conditional = re.fullmatch(
+        r"\s*\$\{\{\s*matrix\.([\w-]+)\s*&&\s*['\"]([^'\"]+)['\"]\s*"
+        r"\|\|\s*['\"]([^'\"]+)['\"]\s*\}\}\s*", raw)
+    if conditional:
+        condition = matrix.get(conditional.group(1))
+        if condition is None:
+            return False, ""
+        truthy = str(condition).strip().lower() not in {"", "0", "false", "null"}
+        resolved = conditional.group(2) if truthy else conditional.group(3)
+        low = resolved.lower()
+        hosted = low in {"ubuntu-latest", "ubuntu-24.04", "ubuntu-22.04", "ubuntu-20.04"}
+        note = " (hosted x64 fallback of the runs-on expression)" if not truthy else ""
+        return hosted and "arm" not in low, note
+    resolved = _opt102_resolve(raw, env={}, matrix=matrix, inputs={}, outputs={})
+    if not resolved:
+        return False, ""
+    low = resolved.lower()
+    hosted = low in {"ubuntu-latest", "ubuntu-24.04", "ubuntu-22.04", "ubuntu-20.04"}
+    return hosted and "arm" not in low, ""
+
+
+_OPT102_DOCKERFILE_INSTRUCTIONS = {
+    "ADD", "ARG", "CMD", "COPY", "ENTRYPOINT", "ENV", "EXPOSE", "FROM",
+    "HEALTHCHECK", "LABEL", "MAINTAINER", "ONBUILD", "RUN", "SHELL",
+    "STOPSIGNAL", "USER", "VOLUME", "WORKDIR",
+}
+
+
+def _opt102_dockerfile_instructions(stage: str) -> list[tuple[str, str]]:
+    """Return Dockerfile instructions without mistaking heredoc lines for them."""
+    lines = stage.splitlines()[1:]
+    out: list[tuple[str, str]] = []
+    index = 0
+    while index < len(lines):
+        match = re.match(r"^\s*([A-Za-z]+)\s+(.*)$", lines[index])
+        if not match or match.group(1).upper() not in _OPT102_DOCKERFILE_INSTRUCTIONS:
+            index += 1
+            continue
+        keyword, body = match.group(1).upper(), match.group(2)
+        parts = [body]
+        delimiters = (re.findall(r"<<-?\s*['\"]?([A-Za-z_][\w.-]*)", body)
+                      if keyword == "RUN" else [])
+        index += 1
+        if delimiters:
+            pending = list(delimiters)
+            while index < len(lines):
+                line = lines[index]
+                parts.append(line)
+                index += 1
+                if pending and line.strip() == pending[0]:
+                    pending.pop(0)
+                    if not pending:
+                        break
+        else:
+            while parts[-1].rstrip().endswith("\\") and index < len(lines):
+                parts.append(lines[index])
+                index += 1
+        out.append((keyword, "\n".join(parts)))
+    return out
+
+
+def _opt102_step_build_config(
+        step: dict, job: dict, workflow: dict | None = None,
+) -> tuple[dict[str, Any], str] | None:
+    """Return a local Docker build's raw config and its workflow marker."""
+    if re.match(r"^docker/build-push-action@", _uses(step)):
+        with_ = step.get("with") or {}
+        config = ({str(key): value for key, value in with_.items()
+                   if str(key) in {"context", "file", "platforms", "target"}}
+                  if isinstance(with_, dict) else {})
+        return config, "docker/build-push-action@"
+    run = str(step.get("run") or "")
+    raw_build = re.search(r"\bdocker\s+(?:buildx\s+)?build\b", run)
+    if not raw_build:
+        return None
+    config = _opt102_raw_build_config(run, raw_build)
+    workflow_defaults = ((workflow or {}).get("defaults") or {})
+    workflow_run_defaults = (
+        workflow_defaults.get("run") or {}
+        if isinstance(workflow_defaults, dict) else {})
+    defaults = job.get("defaults") or {}
+    run_defaults = defaults.get("run") or {} if isinstance(defaults, dict) else {}
+    config["working_directory"] = (
+        step.get("working-directory")
+        or (run_defaults.get("working-directory")
+            if isinstance(run_defaults, dict) else None)
+        or (workflow_run_defaults.get("working-directory")
+            if isinstance(workflow_run_defaults, dict) else None)
+        or ".")
+    return config, "docker build"
+
+
+def _opt102_resolved_dockerfile(
+        root: Path, config: dict[str, Any], *, env: dict[str, str],
+        matrix: dict[str, str], inputs: dict[str, str], outputs: dict[str, str],
+) -> tuple[Path, Path] | None:
+    """Resolve one local build's Dockerfile and context inside ``root``."""
+    resolved = {
+        key: _opt102_resolve(config.get(key, default), env=env, matrix=matrix,
+                             inputs=inputs, outputs=outputs)
+        for key, default in (("context", "."), ("file", "Dockerfile"),
+                             ("working_directory", "."))
+    }
+    if any(value is None or not value for value in resolved.values()):
+        return None
+    context = str(resolved["context"])
+    dockerfile = str(resolved["file"])
+    working_directory = str(resolved["working_directory"])
+    if ("://" in context or any(Path(value).is_absolute()
+                                  for value in (context, dockerfile,
+                                                working_directory))):
+        return None
+    base = (root / working_directory).resolve()
+    context_path = (base / context).resolve()
+    candidate = (base / dockerfile if "file" in config
+                 else context_path / dockerfile).resolve()
+    try:
+        candidate.relative_to(root)
+        context_path.relative_to(root)
+    except ValueError:
+        return None
+    return candidate, context_path
+
+
+def _opt102_copy_sources(candidate: Path, context: Path, root: Path) -> list[str] | None:
+    """Repository-relative local sources read by Dockerfile COPY/ADD."""
+    try:
+        text = candidate.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    sources: list[str] = []
+    for keyword, body in _opt102_dockerfile_instructions("\n" + text):
+        if keyword not in {"COPY", "ADD"}:
+            continue
+        joined = re.sub(r"\\\s*\n\s*", " ", body).strip()
+        if re.search(r"(?:^|\s)--from(?:=|\s)", joined):
+            continue
+        operands = re.sub(r"^(?:--[^\s]+\s+)+", "", joined)
+        try:
+            if operands.startswith("["):
+                values = json.loads(operands)
+                raw_sources = (values[:-1] if isinstance(values, list)
+                               and len(values) >= 2
+                               and all(isinstance(value, str) for value in values)
+                               else [])
+            else:
+                tokens = shlex.split(operands)
+                values = [token for token in tokens if not token.startswith("--")]
+                raw_sources = values[:-1]
+        except (ValueError, json.JSONDecodeError):
+            return None
+        if not raw_sources:
+            return None
+        for raw_source in raw_sources:
+            source = str(raw_source).lstrip("/")
+            if (not source or "://" in source or "$" in source
+                    or any(char in source for char in "*?[")):
+                return None
+            resolved = (context / source).resolve()
+            try:
+                relative = resolved.relative_to(root)
+            except ValueError:
+                return None
+            sources.append(relative.as_posix() or ".")
+    return sources
+
+
+def _opt102_path_covers(source: str, declared: str) -> bool:
+    """Whether a local source is an equal/ancestor path, case-insensitively."""
+    source_parts = tuple(
+        part.casefold() for part in Path(source).parts if part != ".")
+    declared_parts = tuple(
+        part.casefold() for part in Path(declared.strip("/")).parts)
+    return not source_parts or declared_parts[:len(source_parts)] == source_parts
+
+
+def _opt102_source_has_lfs_hint(root: Path, source: str,
+                                hint: str) -> bool | None:
+    """Check an extension-style LFS hint inside one copied source, bounded."""
+    path = root / source
+    if path.is_file():
+        return path.name.casefold().endswith(hint.casefold())
+    if not path.is_dir():
+        return False
+    for index, candidate in enumerate(path.rglob("*")):
+        if index >= 5_000:
+            return None
+        if (candidate.is_file()
+                and candidate.name.casefold().endswith(hint.casefold())):
+            return True
+    return False
+
+
+def _opt102_job_image_payload(doc: dict, raw: str, job: dict) -> list[str] | None:
+    """Resolved image context and COPY/ADD paths read by one workflow job."""
+    if _OPT102_ROOT is None:
+        return []
+    root = _OPT102_ROOT.resolve()
+    rel = _opt102_workflow_rel(root, raw)
+    caller_inputs = _opt102_caller_inputs(root, rel)
+    raw_workflow_env = doc.get("env") or {}
+    workflow_env = ({str(k): str(v) for k, v in raw_workflow_env.items()}
+                    if isinstance(raw_workflow_env, dict) else {})
+    raw_job_env = job.get("env") or {}
+    env = {**workflow_env, **({str(k): str(v) for k, v in raw_job_env.items()}
+                             if isinstance(raw_job_env, dict) else {})}
+    payload: set[str] = set()
+    if not any(_opt102_step_build_config(step, job, doc) is not None
+               for step in _steps(job)):
+        return []
+    for matrix in _opt102_matrix_legs(job):
+        outputs: dict[str, str] = {}
+        for step in _steps(job):
+            run = str(step.get("run") or "")
+            # Parsing one command while silently ignoring a later build could
+            # make a destructive payload-removal recommendation. Named local
+            # contexts likewise need their own COPY source resolution.
+            if (len(re.findall(r"\bdocker\s+(?:buildx\s+)?build\b", run,
+                               re.IGNORECASE)) > 1
+                    or re.search(r"--build-context(?:=|\s)", run)
+                    or (isinstance(step.get("with"), dict)
+                        and "build-contexts" in step["with"])):
+                return None
+            raw_step_env = step.get("env") or {}
+            step_env = {**env, **({str(k): str(v) for k, v in raw_step_env.items()}
+                                 if isinstance(raw_step_env, dict) else {})}
+            resolved_env = {
+                key: (_opt102_resolve(value, env=step_env, matrix=matrix,
+                                      inputs=caller_inputs, outputs=outputs) or value)
+                for key, value in step_env.items()
+            }
+            build = _opt102_step_build_config(step, job, doc)
+            if build is not None:
+                config, marker = build
+                # build-push-action defaults to a Git context, which does not
+                # consume mutations made by the preceding checkout. Only an
+                # explicit local path context can make that checkout payload
+                # load-bearing.
+                if marker == "docker/build-push-action@" and "context" not in config:
+                    continue
+                paths = _opt102_resolved_dockerfile(
+                    root, config, env=resolved_env, matrix=matrix,
+                    inputs=caller_inputs, outputs=outputs)
+                if paths is None:
+                    return None
+                candidate, context = paths
+                sources = _opt102_copy_sources(candidate, context, root)
+                if sources is None:
+                    return None
+                # A source directory covers every declared checkout payload
+                # nested under it. Add only those concrete declarations: raw
+                # source strings would make `vendor/lib-generated` a substring
+                # match for the distinct payload `vendor/lib`.
+                for declared in _SUBMODULE_PATHS:
+                    if any(_opt102_path_covers(source, declared) for source in sources):
+                        payload.add(declared)
+                for hint in _LFS_PATH_HINTS:
+                    if any(source == "." for source in sources):
+                        payload.add(hint)
+                        continue
+                    if not hint.startswith("."):
+                        if any(_opt102_path_covers(source, hint) for source in sources):
+                            payload.add(hint)
+                        continue
+                    # Extension-style attributes (`*.psd` -> `.psd`) need a
+                    # real copied file, not a path-substring guess.
+                    for source in sources:
+                        matched = _opt102_source_has_lfs_hint(root, source, hint)
+                        if matched is None:
+                            return None
+                        if matched:
+                            payload.add(hint)
+                            break
+            step_id = str(step.get("id") or "")
+            if step_id:
+                run = str(step.get("run") or "")
+                for key, value in re.findall(
+                        r"echo\s+['\"]?([A-Za-z_][\w-]*)=([^'\"\s]+).*GITHUB_OUTPUT",
+                        run):
+                    resolved_value = _opt102_resolve(
+                        value, env=resolved_env, matrix=matrix,
+                        inputs=caller_inputs, outputs=outputs)
+                    if resolved_value is not None:
+                        outputs[f"steps.{step_id}.outputs.{key}"] = resolved_value
+    return sorted(payload)
+
+
+def _opt102_source_flag(text: str) -> bool | None:
+    values = re.findall(
+        r"(?i)(?:SKIP\w*PREBUILT\w*|npm_config_build_from_source)"
+        r"\s*(?:=|\s)\s*['\"]?([^\s'\"]+)", text)
+    if not values:
+        return None
+    return values[-1].lower() in {"1", "true", "yes", "on"}
+
+
+def _opt102_risky_stage(candidate: Path, target: str) -> tuple[str, str] | None:
+    try:
+        docker_text = candidate.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    raw_stages = [stage for stage in re.split(r"(?im)(?=^\s*FROM\s+)", docker_text)
+                  if re.match(r"(?i)^\s*FROM\s+", stage)]
+    stages: list[tuple[str, str, set[str]]] = []
+    aliases: dict[str, int] = {}
+    on_build_platform: list[bool] = []
+    for stage in raw_stages:
+        clean = "\n".join(line for line in stage.splitlines()
+                          if not line.lstrip().startswith("#"))
+        header = clean.splitlines()[0].strip()
+        match = re.match(r"(?i)^FROM(?:\s+--\S+)*\s+(\S+)(?:\s+AS\s+(\S+))?", header)
+        if not match:
+            continue
+        refs = {match.group(1)} | set(re.findall(
+            r"(?im)^\s*COPY\b[^\n]*?--from=([^\s]+)", clean))
+        base = aliases.get(match.group(1).lower())
+        on_build_platform.append(bool(_OPT102_BUILDPLATFORM_RE.search(header)
+                                      or (base is not None and on_build_platform[base])))
+        stages.append((header, clean, refs))
+        if match.group(2):
+            aliases[match.group(2).lower()] = len(stages) - 1
+    if not stages:
+        return None
+    selected = aliases.get(target.lower()) if target else len(stages) - 1
+    if selected is None:
+        return None
+    reachable, pending = set(), [selected]
+    while pending:
+        index = pending.pop()
+        if index in reachable or index >= len(stages):
+            continue
+        reachable.add(index)
+        for ref in stages[index][2]:
+            ref_index = (int(ref) if ref.isdigit() and int(ref) < len(stages)
+                         else aliases.get(ref.lower()))
+            if ref_index is not None:
+                pending.append(ref_index)
+    for index in sorted(reachable):
+        header, clean, _refs = stages[index]
+        source_install = False
+        risky = False
+        for keyword, body in _opt102_dockerfile_instructions(clean):
+            if keyword in {"ARG", "ENV"}:
+                flag = _opt102_source_flag(body)
+                if flag is not None:
+                    source_install = flag
+            elif keyword == "RUN":
+                inline_source = _opt102_source_flag(body) is True
+                if (_OPT102_COMPILE_RE.search(body)
+                        or ((source_install or inline_source) and re.search(
+                            r"\bnpm\s+(?:ci|install)\b", body, re.I))):
+                    risky = True
+                    break
+        if risky and not on_build_platform[index]:
+            return header, clean
+    return None
+
+
+def _opt102_raw_build_config(run: str, match: re.Match[str]) -> dict[str, Any]:
+    command = run[match.start():]
+    command = re.split(r"&&|;|(?<!\\)\n", command, maxsplit=1)[0]
+    expressions: list[str] = []
+
+    def protect(found: re.Match[str]) -> str:
+        expressions.append(found.group(0))
+        return f"__OPT102_EXPR_{len(expressions) - 1}__"
+    protected = re.sub(r"\$\{\{.*?\}\}", protect, command)
+    try:
+        tokens = shlex.split(protected)
+    except ValueError:
+        return {}
+    tokens = [re.sub(
+        r"__OPT102_EXPR_(\d+)__", lambda found: expressions[int(found.group(1))], token)
+        for token in tokens]
+    try:
+        build_at = tokens.index("build", 1)
+    except ValueError:
+        return {}
+    args = tokens[build_at + 1:]
+    config: dict[str, Any] = {"platforms": "", "context": "."}
+    value_options = {
+        "--add-host", "--annotation", "--attest", "--build-arg", "--builder",
+        "--cache-from", "--cache-to", "--file", "-f", "--iidfile", "--label",
+        "--metadata-file", "--network", "--output", "-o", "--platform",
+        "--progress", "--secret", "--ssh", "--tag", "-t", "--target", "--ulimit",
+    }
+    positional: list[str] = []
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if token.startswith("--platform="):
+            config["platforms"] = token.split("=", 1)[1]
+        elif token.startswith("--file="):
+            config["file"] = token.split("=", 1)[1]
+        elif token in value_options and index + 1 < len(args):
+            if token == "--platform":
+                config["platforms"] = args[index + 1]
+            elif token in {"--file", "-f"}:
+                config["file"] = args[index + 1]
+            elif token == "--target":
+                config["target"] = args[index + 1]
+            index += 1
+        elif not token.startswith("-"):
+            positional.append(token)
+        index += 1
+    if positional:
+        config["context"] = positional[-1]
+    return config
+
+
+def _detect_opt102(doc: dict, raw: str) -> list[Hit]:
+    """Find local foreign-platform image builds that compile under emulation."""
+    if _OPT102_ROOT is None:
+        return []
+    root = _OPT102_ROOT.resolve()
+    jobs = doc.get("jobs") or {}
+    if not isinstance(jobs, dict):
+        return []
+    rel = _opt102_workflow_rel(root, raw)
+    caller_inputs = _opt102_caller_inputs(root, rel)
+    raw_workflow_env = doc.get("env") or {}
+    workflow_env = ({str(k): str(v) for k, v in raw_workflow_env.items()}
+                    if isinstance(raw_workflow_env, dict) else {})
+    hits: list[Hit] = []
+    for job_name, job in jobs.items():
+        if not isinstance(job, dict):
+            continue
+        for matrix in _opt102_matrix_legs(job):
+            x64, runner_note = _opt102_x64_runner(job.get("runs-on"), matrix)
+            if not x64:
+                continue
+            raw_job_env = job.get("env") or {}
+            env = {**workflow_env, **({str(k): str(v) for k, v in raw_job_env.items()}
+                                     if isinstance(raw_job_env, dict) else {})}
+            outputs: dict[str, str] = {}
+            for step in _steps(job):
+                raw_step_env = step.get("env") or {}
+                step_env = {**env, **({str(k): str(v) for k, v in raw_step_env.items()}
+                                     if isinstance(raw_step_env, dict) else {})}
+                resolved_env = {k: (_opt102_resolve(v, env=step_env, matrix=matrix,
+                                                   inputs=caller_inputs, outputs=outputs) or v)
+                                for k, v in step_env.items()}
+                run = str(step.get("run") or "")
+                build = _opt102_step_build_config(step, job, doc)
+                if build is not None:
+                    config, marker = build
+                    resolved = {}
+                    for key, value in config.items():
+                        if isinstance(value, list):
+                            parts = [_opt102_resolve(item, env=resolved_env, matrix=matrix,
+                                                     inputs=caller_inputs, outputs=outputs)
+                                     for item in value]
+                            resolved[key] = (None if any(item is None for item in parts)
+                                             else ",".join(str(item) for item in parts))
+                        else:
+                            resolved[key] = _opt102_resolve(
+                                value, env=resolved_env, matrix=matrix,
+                                inputs=caller_inputs, outputs=outputs)
+                    if any(value is None for value in resolved.values()):
+                        config = None
+                    else:
+                        platforms = [p.strip().lower() for p in re.split(
+                            r"[,\n]", str(resolved.get("platforms") or "")) if p.strip()]
+                        foreign = [p for p in platforms
+                                   if p.startswith("linux/") and p != "linux/amd64"]
+                        if foreign:
+                            target = str(resolved.get("target") or "")
+                            paths = _opt102_resolved_dockerfile(
+                                root, resolved, env={}, matrix={}, inputs={}, outputs={})
+                            if paths is not None:
+                                candidate, _context = paths
+                                risky = _opt102_risky_stage(candidate, target)
+                                if risky is not None:
+                                    line = _line_of_in_job(raw, str(job_name), marker)
+                                    hits.append(Hit(
+                                        line=line, affected_jobs=[str(job_name)],
+                                        evidence=(f"job `{job_name}` builds {', '.join(foreign)} "
+                                                  f"from `{candidate.relative_to(root)}`; "
+                                                  f"compile stage `{risky[0]}` has no "
+                                                  f"build-platform signal{runner_note}"),
+                                        match_text=str(candidate.relative_to(root)),
+                                        snippet=_raw_line(raw, line)))
+                step_id = str(step.get("id") or "")
+                if step_id:
+                    for key, value in re.findall(
+                            r"echo\s+['\"]?([A-Za-z_][\w-]*)=([^'\"\s]+).*GITHUB_OUTPUT", run):
+                        resolved_value = _opt102_resolve(
+                            value, env=resolved_env, matrix=matrix,
+                            inputs=caller_inputs, outputs=outputs)
+                        if resolved_value is not None:
+                            outputs[f"steps.{step_id}.outputs.{key}"] = resolved_value
+    return hits
+
+
+_OPT89_COMPILE_RE = re.compile(
+    r"(?:^|&&|\|\||[;|]|\bthen\b|\bdo\b)\s*"
+    + SHELL_PREFIX_SRC +  # `KEY=value` / env / sudo / time prefixes, see shell_prefix.py
+    r"(?:"
+    r"(?:\./)?configure\b|make(?:\s|$)|cmake(?:\s|$)|ninja(?:\s|$)|"
+    r"cargo\s+(?:build|install)\b|go\s+(?:build|install)\b|"
+    r"(?:\./)?mvnw?\b[^\n;&|]*\b(?:compile|package|install)\b|"
+    r"(?:\./)?gradlew?\b[^\n;&|]*\b(?:build|assemble|compile\w*)\b|"
+    r"(?:gcc|g\+\+|clang|clang\+\+|cc|c\+\+)\b)",
+    re.IGNORECASE | re.MULTILINE,
+)
+_OPT89_FOREIGN_ARCH_RE = re.compile(
+    r"(?:^|[/_-])(?:aarch64|arm64|arm(?:/v\d+|v\d+)?|riscv64|s390x|ppc64le)(?:$|[/_-])",
+    re.IGNORECASE,
+)
+_OPT89_DOCKER_RUN_PLATFORM_RE = re.compile(
+    r"\bdocker\s+run\b[^\n]*?--platform(?:=|\s+)"
+    r"\s*(?P<platform>\$\{\{[^}]+\}\}|[^\s;&|]+)",
+    re.IGNORECASE,
+)
+_OPT89_CONTAINER_IMAGE_RE = re.compile(
+    r"^(?:arm64v8|arm32v\d+|aarch64|riscv64|s390x|ppc64le)/",
+    re.IGNORECASE,
+)
+
+
+def _opt89_compile_signal(command: str) -> str | None:
+    for match in _OPT89_COMPILE_RE.finditer(command):
+        segment = command[match.start():]
+        segment = re.sub(r"^(?:&&|\|\||[;|])\s*", "", segment).strip()
+        segment = re.split(r"&&|\|\||[;|]|\n", segment, maxsplit=1)[0]
+        low = segment.lower()
+        if re.search(r"\b(?:make|ninja)\b", low):
+            try:
+                tokens = shlex.split(segment)
+            except ValueError:
+                continue
+            tool_at = next((i for i, token in enumerate(tokens)
+                            if Path(token).name.lower() in {"make", "gmake", "ninja"}), None)
+            if tool_at is not None:
+                targets: list[str] = []
+                skip_value = False
+                for token in tokens[tool_at + 1:]:
+                    if skip_value:
+                        skip_value = False
+                        continue
+                    if token in {"-C", "--directory", "-f", "--file", "-j", "--jobs"}:
+                        skip_value = True
+                    elif not token.startswith("-") and "=" not in token:
+                        targets.append(token.lower())
+                test_targets = {"test", "tests", "check", "checks", "ctest", "verify"}
+                literal_targets = [
+                    target for target in targets
+                    if not re.search(r"\$(?:\{|[A-Za-z_])|\$\{\{", target)
+                ]
+                if targets and not literal_targets:
+                    continue
+                if literal_targets and all(
+                        target in test_targets for target in literal_targets):
+                    continue
+        if (re.search(r"\bcmake\b", low)
+                and re.search(r"\bcmake\s+(?:--version|--help|-e)\b", low)):
+            continue
+        if (re.search(r"\b(?:gcc|g\+\+|clang|clang\+\+|cc|c\+\+)\b", low)
+                and re.search(r"\s(?:--version|-v)\s*$", low)):
+            continue
+        if re.search(r"(?:\./)?configure\s+(?:--help|--version)\s*$", low):
+            continue
+        return re.sub(
+            r"^(?:&&|\|\||[;|])\s*", "", match.group(0)).strip()
+    return None
+
+
+def _opt89_resolve_known_expressions(
+        command: str, matrix: dict[str, str]) -> str:
+    """Substitute direct known matrix values without rejecting other variables."""
+    return re.sub(
+        r"\$\{\{\s*matrix\.([\w-]+)\s*\}\}",
+        lambda match: matrix.get(match.group(1), match.group(0)),
+        command,
+    )
+
+
+def _opt89_resolve_known_env_expressions(
+        command: str, env: dict[str, str], matrix: dict[str, str]) -> str:
+    """Resolve GitHub expressions before a command reaches its shell."""
+    command = _opt89_resolve_known_expressions(command, matrix)
+    resolved_env = {
+        key: _opt89_resolve_known_expressions(str(value), matrix)
+        for key, value in env.items()
+    }
+    command = re.sub(
+        r"\$\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}",
+        lambda match: resolved_env.get(match.group(1), match.group(0)), command)
+    return _opt89_resolve_known_expressions(command, matrix)
+
+
+def _opt89_resolve_known_shell_env(command: str, env: dict[str, str]) -> str:
+    """Resolve declared shell variables while leaving unknown values opaque."""
+    command = re.sub(
+        r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}",
+        lambda match: env.get(match.group(1), match.group(0)), command)
+    return re.sub(
+        r"\$([A-Za-z_][A-Za-z0-9_]*)",
+        lambda match: env.get(match.group(1), match.group(0)), command)
+
+
+def _opt89_resolve_host_shell_env(command: str, env: dict[str, str]) -> str:
+    """Resolve host variables except inside POSIX single-quoted spans."""
+    pieces: list[str] = []
+    index = 0
+    quote = ""
+    variable_re = re.compile(
+        r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)")
+    while index < len(command):
+        char = command[index]
+        if char == "\\" and quote != "'" and index + 1 < len(command):
+            pieces.append(command[index:index + 2])
+            index += 2
+            continue
+        if char in {"'", '"'}:
+            if not quote:
+                quote = char
+            elif quote == char:
+                quote = ""
+            pieces.append(char)
+            index += 1
+            continue
+        if char == "$" and quote != "'":
+            match = variable_re.match(command, index)
+            if match is not None:
+                name = match.group(1) or match.group(2)
+                pieces.append(env.get(name, match.group(0)))
+                index = match.end()
+                continue
+        pieces.append(char)
+        index += 1
+    return "".join(pieces)
+
+
+def _opt89_mask_host_single_quotes(command: str) -> str:
+    """Hide container-shell text from host assignment discovery."""
+    pieces: list[str] = []
+    quote = ""
+    index = 0
+    while index < len(command):
+        char = command[index]
+        if char == "\\" and quote != "'" and index + 1 < len(command):
+            pieces.append(command[index:index + 2])
+            index += 2
+            continue
+        if char in {"'", '"'}:
+            if not quote:
+                quote = char
+            elif quote == char:
+                quote = ""
+            pieces.append(char)
+        elif quote == "'":
+            pieces.append("\n" if char == "\n" else " ")
+        else:
+            pieces.append(char)
+        index += 1
+    return "".join(pieces)
+
+
+def _opt89_command_env(
+    command: str, env: dict[str, str], *, docker_options: bool = True,
+) -> dict[str, str]:
+    """Apply literal shell and Docker environment overrides in command order."""
+    effective = dict(env)
+    assignment_re = re.compile(
+        r"(?:^|[;&|]\s*|\bexport\s+)"
+        r"([A-Za-z_][A-Za-z0-9_]*)=([^\s;&|]+)\s*"
+        r"(?=;|&&|\|\||\n|$)",
+        re.MULTILINE,
+    )
+    docker_env_re = re.compile(
+        r"(?:--env(?:=|\s+)|-e(?:=|\s*)?)"
+        r"([A-Za-z_][A-Za-z0-9_]*)=([^\s;&|]+)"
+    )
+    patterns = ((assignment_re, docker_env_re) if docker_options
+                else (assignment_re,))
+    for pattern in patterns:
+        for match in pattern.finditer(command):
+            value = match.group(2)
+            if "$" in value:
+                effective.pop(match.group(1), None)
+            else:
+                effective[match.group(1)] = value.strip("'\"")
+    return effective
+
+
+def _opt89_docker_env(
+    command: str, host_env: dict[str, str],
+) -> tuple[dict[str, str], bool]:
+    """Environment propagated through Docker options and whether one is a file."""
+    propagated: dict[str, str] = {}
+    try:
+        tokens = shlex.split(_LINE_CONTINUATION_RE.sub(" ", command))
+        index = tokens.index("run", tokens.index("docker") + 1) + 1
+    except (ValueError, IndexError):
+        return propagated, False
+    value_options = {
+        "--add-host", "--cap-add", "--cpus", "--device", "--env-file",
+        "--entrypoint", "--hostname", "-h", "--memory", "-m", "--mount",
+        "--name", "--network", "--platform", "--user", "-u", "--volume",
+        "-v", "--workdir", "-w",
+    }
+    specs: list[str] = []
+    env_file = False
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "--env-file":
+            env_file = True
+            index += 2
+            continue
+        if token.startswith("--env-file="):
+            env_file = True
+            index += 1
+            continue
+        if token in {"--env", "-e"}:
+            if index + 1 >= len(tokens):
+                break
+            specs.append(tokens[index + 1])
+            index += 2
+            continue
+        if token.startswith("--env="):
+            specs.append(token.removeprefix("--env="))
+            index += 1
+            continue
+        if token.startswith("-e") and len(token) > 2:
+            specs.append(token[2:].removeprefix("="))
+            index += 1
+            continue
+        if token in value_options:
+            index += 2
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        break
+    for spec in specs:
+        match = re.fullmatch(
+            r"([A-Za-z_][A-Za-z0-9_]*)(?:=(.*))?", spec)
+        if match is None:
+            continue
+        name, value = match.group(1), match.group(2)
+        if value is None:
+            if name in host_env:
+                propagated[name] = host_env[name]
+            continue
+        resolved = _opt89_resolve_known_shell_env(value, host_env)
+        if "$" not in resolved:
+            propagated[name] = resolved.strip("'\"")
+    return propagated, env_file
+
+
+def _opt89_resolve_docker_payload_env(
+    payload: str, host_env: dict[str, str], container_env: dict[str, str], *,
+    env_file: bool = False,
+) -> str:
+    """Resolve container variables without importing the step environment."""
+    def value(name: str, original: str) -> str:
+        if name in container_env:
+            return container_env[name]
+        # An env file is read by Docker at runtime.  Its names and values are
+        # unavailable here, so an otherwise unresolved container variable must
+        # stay opaque even when a same-named host variable exists.
+        if env_file:
+            return original
+        if name in host_env:
+            return ""
+        return original
+
+    payload = re.sub(
+        r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}",
+        lambda match: value(match.group(1), match.group(0)), payload)
+    return re.sub(
+        r"\$([A-Za-z_][A-Za-z0-9_]*)",
+        lambda match: value(match.group(1), match.group(0)), payload)
+
+
+def _opt89_resolve_known_env(
+        command: str, env: dict[str, str], matrix: dict[str, str]) -> str:
+    """Resolve declared target variables while leaving unrelated values opaque."""
+    resolved_env = {
+        key: _opt89_resolve_known_env_expressions(str(value), env, matrix)
+        for key, value in env.items()
+    }
+    command = _opt89_resolve_known_env_expressions(command, env, matrix)
+    return _opt89_resolve_known_shell_env(
+        command, _opt89_command_env(command, resolved_env))
+
+
+def _opt89_action_env(value: object, env: dict[str, str],
+                      matrix: dict[str, str]) -> dict[str, str]:
+    """Read the environment explicitly propagated to run-on-arch's container."""
+    if not isinstance(value, str):
+        return {}
+    try:
+        parsed = yaml.safe_load(value)
+    except yaml.YAMLError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    return {
+        str(key): _opt89_resolve_known_env_expressions(str(item), env, matrix)
+        for key, item in parsed.items()
+        if not isinstance(item, (dict, list))
+    }
+
+
+def _opt89_collapse_expressions(command: str) -> str:
+    """Collapse each GitHub expression to one shell token.
+
+    The closing ``}}`` is recognized only outside quoted expression strings,
+    so format strings such as ``format('{0}', value)`` remain intact.
+    """
+    pieces: list[str] = []
+    cursor = 0
+    while (opening := command.find("${{", cursor)) >= 0:
+        pieces.append(command[cursor:opening])
+        index = opening + 3
+        quote = ""
+        while index < len(command) - 1:
+            char = command[index]
+            if quote:
+                if char == "\\" and index + 1 < len(command):
+                    index += 2
+                    continue
+                if char == quote:
+                    quote = ""
+            elif char in {"'", '"'}:
+                quote = char
+            elif command.startswith("}}", index):
+                pieces.append("__OPT89_EXPRESSION__")
+                cursor = index + 2
+                break
+            index += 1
+        else:
+            pieces.append(command[opening:])
+            return "".join(pieces)
+    pieces.append(command[cursor:])
+    return "".join(pieces)
+
+
+def _opt89_docker_payload(command: str) -> str:
+    """Return the command after `docker run ... IMAGE`, or fail closed."""
+    command = _LINE_CONTINUATION_RE.sub(" ", command)
+    # Expressions are opaque to this detector. Collapse them to one shell
+    # token so an expression used as an option value cannot be mistaken for
+    # the container image or payload.
+    command = _opt89_collapse_expressions(command)
+    try:
+        tokens = shlex.split(command.splitlines()[0])
+    except ValueError:
+        return ""
+    try:
+        index = tokens.index("run", tokens.index("docker") + 1) + 1
+    except (ValueError, IndexError):
+        return ""
+    value_options = {
+        "--add-host", "--cap-add", "--cpus", "--device", "--env", "-e",
+        "--env-file", "--entrypoint", "--hostname", "-h", "--memory", "-m",
+        "--mount", "--name", "--network", "--platform", "--user", "-u",
+        "--volume", "-v", "--workdir", "-w",
+    }
+    while index < len(tokens):
+        token = tokens[index]
+        if token in value_options:
+            index += 2
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        payload = tokens[index + 1:]
+        stop = next((i for i, token in enumerate(payload)
+                     if token in {"&&", "||", ";", "|"}), len(payload))
+        payload = payload[:stop]
+        if (len(payload) >= 3 and Path(payload[0]).name in {"sh", "bash", "dash"}
+                and re.fullmatch(r"-[a-z]*c[a-z]*", payload[1])):
+            payload = payload[2:]
+        return " ".join(payload)
+    return ""
+
+
+def _opt89_docker_platform(command: str, matrix: dict[str, str]) -> str | None:
+    """Resolve only the Docker platform operand, leaving other tokens opaque."""
+    match = _OPT89_DOCKER_RUN_PLATFORM_RE.search(command)
+    if match is None:
+        return None
+    platform = _opt102_resolve(
+        match.group("platform"), env={}, matrix=matrix, inputs={}, outputs={})
+    if not platform or not re.fullmatch(
+            r"linux/(?:aarch64|arm64|arm/v\d+|riscv64|s390x|ppc64le)",
+            platform, re.IGNORECASE):
+        return None
+    return platform.lower()
+
+
+def _opt89_qemu_supports(platforms: set[str], platform: str) -> bool:
+    if "all" in platforms:
+        return True
+    arch = platform.removeprefix("linux/").lower()
+    aliases = {"aarch64": "arm64"}
+    family = "arm" if arch.startswith("arm/") else aliases.get(arch, arch)
+    return arch in platforms or family in platforms
+
+
+def _opt89_foreign_container(job: dict, matrix: dict[str, str]) -> str | None:
+    container = job.get("container")
+    if isinstance(container, str):
+        image, options = container, ""
+    elif isinstance(container, dict):
+        image = str(container.get("image") or "")
+        options = str(container.get("options") or "")
+    else:
+        return None
+    image = _opt102_resolve(image, env={}, matrix=matrix, inputs={}, outputs={}) or ""
+    options = _opt102_resolve(options, env={}, matrix=matrix, inputs={}, outputs={}) or ""
+    platform = re.search(
+        r"--platform(?:=|\s+)(linux/(?:aarch64|arm64|arm/v\d+|riscv64|s390x|ppc64le))\b",
+        options,
+        re.IGNORECASE,
+    )
+    if platform:
+        return platform.group(1).lower()
+    if _OPT89_CONTAINER_IMAGE_RE.search(image):
+        return image.split("/", 1)[0].lower()
+    return None
+
+
+def _detect_opt89(doc: dict, raw: str) -> list[Hit]:
+    """Find compile commands executed in an emulated foreign container."""
+    hits: list[Hit] = []
+    workflow_env = ({str(key): str(value) for key, value in doc["env"].items()}
+                    if isinstance(doc.get("env"), dict) else {})
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        job_hit = False
+        for matrix in _opt102_matrix_legs(job):
+            if not _opt102_x64_runner(job.get("runs-on"), matrix)[0]:
+                continue
+            qemu_platforms: set[str] | None = None
+            container_arch = _opt89_foreign_container(job, matrix)
+            action_occurrence = docker_occurrence = 0
+            container_occurrences: dict[str, int] = {}
+            job_env = dict(workflow_env)
+            if isinstance(job.get("env"), dict):
+                job_env.update({str(key): str(value)
+                                for key, value in job["env"].items()})
+            for step in _steps(job):
+                uses = _uses(step)
+                run = _run(step)
+                normalized_run = _LINE_CONTINUATION_RE.sub(" ", run)
+                with_ = step.get("with") or {}
+                if uses.startswith("uraimo/run-on-arch-action@"):
+                    action_occurrence += 1
+                if re.search(r"\bdocker\s+run\b", normalized_run):
+                    docker_occurrence += 1
+                first_line = run.splitlines()[0].strip() if run else ""
+                if first_line:
+                    container_occurrences[first_line] = (
+                        container_occurrences.get(first_line, 0) + 1)
+                if uses.startswith("docker/setup-qemu-action@"):
+                    configured = (str(with_.get("platforms") or "all")
+                                  if isinstance(with_, dict) else "all")
+                    configured = _opt102_resolve(
+                        configured, env={}, matrix=matrix, inputs={}, outputs={}) or ""
+                    if configured:
+                        qemu_platforms = {
+                            value.strip().lower() for value in configured.split(",")
+                            if value.strip()
+                        }
+
+                arch = ""
+                command = ""
+                marker = ""
+                occurrence = 1
+                mechanism = ""
+                step_env = dict(job_env)
+                if isinstance(step.get("env"), dict):
+                    step_env.update({str(key): str(value)
+                                     for key, value in step["env"].items()})
+                if uses.startswith("uraimo/run-on-arch-action@") and isinstance(with_, dict):
+                    arch = (_opt102_resolve(
+                        with_.get("arch"), env={}, matrix=matrix, inputs={}, outputs={})
+                        or "").lower()
+                    command = _opt89_resolve_known_env_expressions(
+                        str(with_.get("run") or ""), step_env, matrix)
+                    action_env = _opt89_action_env(
+                        with_.get("env"), step_env, matrix)
+                    command = _opt89_resolve_known_shell_env(
+                        command, _opt89_command_env(command, action_env))
+                    marker = "uraimo/run-on-arch-action@"
+                    occurrence = action_occurrence
+                    mechanism = "run-on-arch action"
+                    if not _OPT89_FOREIGN_ARCH_RE.search(arch):
+                        continue
+                elif (qemu_platforms is not None
+                      and (platform := _opt89_docker_platform(
+                          normalized_run, matrix)) is not None
+                      and _opt89_qemu_supports(
+                          qemu_platforms, platform)):
+                    arch = platform
+                    expanded = _opt89_resolve_known_env_expressions(
+                        run, step_env, matrix)
+                    resolved_step_env = {
+                        key: _opt89_resolve_known_env_expressions(
+                            str(value), step_env, matrix)
+                        for key, value in step_env.items()
+                    }
+                    host_env = _opt89_command_env(
+                        _opt89_mask_host_single_quotes(expanded),
+                        resolved_step_env)
+                    docker_start = re.search(r"\bdocker\s+run\b", expanded, re.I)
+                    if docker_start is not None:
+                        # Preserve quoted shell assignments that execute before
+                        # Docker.  The masking above is only needed to keep
+                        # assignments inside the container payload out.
+                        host_env.update(_opt89_command_env(
+                            expanded[:docker_start.start()], resolved_step_env,
+                            docker_options=False))
+                    expanded = _opt89_resolve_host_shell_env(expanded, host_env)
+                    payload = _opt89_docker_payload(expanded)
+                    docker_env, env_file = _opt89_docker_env(expanded, host_env)
+                    container_env = _opt89_command_env(
+                        payload, docker_env,
+                        docker_options=False)
+                    command = _opt89_resolve_docker_payload_env(
+                        payload, host_env, container_env,
+                        env_file=env_file)
+                    marker = "docker run"
+                    occurrence = docker_occurrence
+                    mechanism = "QEMU-backed docker run"
+                elif container_arch and run:
+                    arch = container_arch
+                    command = _opt89_resolve_known_env(run, step_env, matrix)
+                    marker = first_line
+                    occurrence = container_occurrences[first_line]
+                    mechanism = "foreign-architecture job container"
+                else:
+                    continue
+
+                signal = _opt89_compile_signal(command)
+                if signal is None:
+                    continue
+                line = _line_of_nth_in_job(
+                    raw, str(job_name), marker, occurrence)
+                hits.append(Hit(
+                    line=line,
+                    affected_jobs=[str(job_name)],
+                    evidence=(f"job `{job_name}` compiles via `{signal}` inside a "
+                              f"{mechanism} for `{arch}` on a hosted x64 runner"),
+                    match_text=signal,
+                    snippet=_block_lines(raw, line),
+                    facts={"opt89_emulated_container": {
+                        "architecture": arch,
+                        "compile_signal": signal,
+                        "mechanism": mechanism,
+                    }},
+                ))
+                job_hit = True
+                break
+            if job_hit:
+                break
+    return hits
+
+
+def _run(step: dict) -> str:
+    r = step.get("run")
+    return r if isinstance(r, str) else ""
+
+
+def _job_run_blob(job: dict) -> str:
+    return "\n".join(_run(s) for s in _steps(job))
+
+
+def _runs_on_labels(job: dict) -> list[str]:
+    ro = job.get("runs-on")
+    if isinstance(ro, str):
+        return [ro]
+    if isinstance(ro, list):
+        return [str(x) for x in ro]
+    if isinstance(ro, dict):  # {group:, labels:}
+        labels = ro.get("labels")
+        if isinstance(labels, list):
+            return [str(x) for x in labels]
+        if isinstance(labels, str):
+            return [labels]
+    return []
+
+
+def _is_self_hosted(job: dict) -> bool:
+    """Catalog OPT62/OPT63 only apply on persistent runners (workspace
+    survives between runs). On GitHub-hosted runners the workspace is always
+    fresh, so a clean / no-cache flag costs nothing. We flag only an explicit
+    `self-hosted` label — never a GitHub-hosted label."""
+    return any("self-hosted" in label for label in _runs_on_labels(job))
+
+
+_TEST_NAME_RE = re.compile(
+    r"\b(test|tests|e2e|integration|playwright|cypress|spec)\b", re.I)
+
+
+# ---- OPT1 — Unnecessary Tool Install -----------------------------------------
+
+_PW_INSTALL_RE = re.compile(r"playwright\s+install", re.I)
+# Playwright USAGE (not the install line, which also contains "playwright").
+_PW_TEST_RE = re.compile(r"playwright\s+test|@playwright/test|playwright\.config", re.I)
+# A package-script invocation (`pnpm test:e2e`, `npm run smoke`, `pnpm exec …`)
+# whose definition lives in package.json — we can't see whether it runs
+# Playwright, so we must NOT conclude the install is unused.
+_PKG_SCRIPT_RE = re.compile(
+    r"(?:^|[\s&;|])(?:pnpm|npm|yarn|bun)\s+(?:run\s+|exec\s+|--filter[= ]\S+\s+)?"
+    r"[\w:.-]+", re.I)
+_KNOWN_NON_PW = re.compile(
+    r"^(?:pnpm|npm|yarn|bun)\s+(?:run\s+)?"
+    r"(install|i|ci|build|lint|format|typecheck|type-check|tsc)\b", re.I)
+
+
+def _detect_opt1(doc: dict, raw: str) -> list[Hit]:
+    """A job runs `playwright install` but no step uses Playwright. Suppressed
+    when the job invokes a package script (`pnpm test:e2e`, `pnpm exec …`)
+    whose body we can't see — it may run Playwright, so we cannot claim the
+    install is unused (the catalog grep can't resolve package.json scripts)."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        blob = _job_run_blob(job)
+        uses_blob = "\n".join(_uses(s) for s in _steps(job))
+        if not _PW_INSTALL_RE.search(blob):
+            continue
+        if _PW_TEST_RE.search(blob) or _PW_TEST_RE.search(uses_blob):
+            continue  # Playwright is referenced directly → used
+        # Any non-trivial package-script call could invoke Playwright.
+        runs_unknown_script = any(
+            _PKG_SCRIPT_RE.search(ln) and not _KNOWN_NON_PW.match(ln.strip())
+            for ln in blob.splitlines())
+        if runs_unknown_script:
+            continue  # can't prove the install is unused — don't flag
+        hits.append(Hit(
+            line=_line_of_in_job(raw, job_name, "playwright install"),
+            affected_jobs=[job_name],
+            evidence=(f"job `{job_name}` installs Playwright browsers but no "
+                      f"step runs `playwright test` or any package script "
+                      f"that could"),
+            match_text=job_name,
+        ))
+    return hits
+
+
+# ---- OPT2 — Uncached Large Downloads -----------------------------------------
+
+def _detect_opt2(doc: dict, raw: str) -> list[Hit]:
+    """`playwright install` with no preceding `actions/cache` step in the same
+    job (catalog OPT2 heuristic)."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        leaves = job_walk(job).leaves
+        install = next((lf for lf in leaves if _PW_INSTALL_RE.search(_run(lf.step))), None)
+        if install is None:
+            continue
+        # The claim is "no preceding cache", so it fails CLOSED: any cache
+        # declared before the install counts, `background: true` included (it is
+        # usually awaited by a `wait:` / `wait-all:` before the install, and the
+        # YAML cannot show otherwise). Only a sibling in the install's own
+        # `parallel:` group is excluded: those two run at the same time, so the
+        # restore cannot have happened first. A cache in an EARLIER group counts.
+        if any("actions/cache" in _uses(lf.step)
+               and not (install.group is not None and lf.group == install.group)
+               for lf in leaves[:install.index]):
+            continue  # cached already
+        hits.append(Hit(
+            line=_line_of_in_job(raw, job_name, "playwright install"),
+            affected_jobs=[job_name],
+            evidence=(f"job `{job_name}` runs `playwright install` with no "
+                      f"preceding `actions/cache` step keyed on the Playwright version"),
+            match_text=job_name,
+        ))
+    return hits
+
+
+# ---- OPT5 — pnpm Store Not Cached (or Wrong Setup Order) ---------------------
+
+_PNPM_INSTALL_RE = re.compile(r"\bpnpm\s+(install|i|ci)\b", re.I)
+
+
+def _detect_opt5(doc: dict, raw: str) -> list[Hit]:
+    """pnpm used but the store isn't cached, or `setup-node` runs before
+    `pnpm/action-setup` so the store path isn't available for the cache key
+    (catalog OPT5 heuristic)."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        leaves = job_walk(job).leaves
+        steps = [lf.step for lf in leaves]
+        pnpm_setup_idx = node_setup_idx = cache_idx = None
+        node_cache_val = ""
+        pnpm_setup_cache = False  # pnpm/action-setup with `cache: true`
+        for i, s in enumerate(steps):
+            u = _uses(s)
+            if u.startswith("pnpm/action-setup"):
+                pnpm_setup_idx = i
+                if (s.get("with") or {}).get("cache") in (True, "true"):
+                    pnpm_setup_cache = True
+            elif u.startswith("actions/setup-node"):
+                node_setup_idx = i
+                node_cache_val = str((s.get("with") or {}).get("cache") or "")
+            elif u.startswith("actions/cache"):
+                cache_idx = i
+        uses_pnpm = pnpm_setup_idx is not None or bool(
+            _PNPM_INSTALL_RE.search(_job_run_blob(job)))
+        if not uses_pnpm:
+            continue
+        # `pnpm/action-setup` with `cache: true` caches the store itself — a
+        # third valid mechanism the catalog's setup-node/actions-cache check
+        # would otherwise miss. The store IS cached; nothing to flag.
+        if pnpm_setup_cache:
+            continue
+        reasons: list[str] = []
+        if (node_setup_idx is not None and pnpm_setup_idx is not None
+                and node_setup_idx < pnpm_setup_idx):
+            g = leaves[node_setup_idx].group
+            if g is not None and leaves[pnpm_setup_idx].group == g:
+                # Siblings in one `parallel:` group start together: neither runs
+                # first, so pnpm is still not set up when setup-node reads it.
+                reasons.append("`actions/setup-node` and `pnpm/action-setup` run side "
+                               "by side in one `parallel:` group (store path "
+                               "unavailable for the cache key)")
+            else:
+                reasons.append("`actions/setup-node` runs before `pnpm/action-setup` "
+                               "(store path unavailable for the cache key)")
+        if (node_setup_idx is not None and node_cache_val.lower() != "pnpm"
+                and cache_idx is None):
+            reasons.append("`actions/setup-node` has no `cache: 'pnpm'` and no "
+                           "`actions/cache` wraps the pnpm store")
+        if node_setup_idx is None and cache_idx is None and pnpm_setup_idx is not None:
+            reasons.append("pnpm install with no store caching "
+                           "(no `cache: 'pnpm'`, no `actions/cache`)")
+        if reasons:
+            hits.append(Hit(
+                # Anchor within THIS job's block — `setup-node`/`pnpm` recur
+                # across jobs, so a file-global match would point at another job
+                # (OPT33/OPT29).
+                line=(_line_of_in_job(raw, job_name, "setup-node")
+                      or _line_of_in_job(raw, job_name, "pnpm/action-setup") or 1),
+                affected_jobs=[job_name],
+                evidence=f"job `{job_name}`: " + "; ".join(reasons),
+                match_text=job_name,
+            ))
+    return hits
+
+
+# ---- OPT9 — Tool-Specific Cache Flag Not Enabled -----------------------------
+
+# (tool, command-position regex, cache-flag regex). A line invoking the tool
+# WITHOUT its cache flag is a hit. Command-position guard avoids matching the
+# tool name inside a path / comment.
+_OPT9_TOOLS: tuple[tuple[str, "re.Pattern[str]", "re.Pattern[str]"], ...] = (
+    ("prettier", re.compile(r"(?:^|[\s/&;|])(?:npx |pnpm |yarn |bunx )?prettier\b"),
+     re.compile(r"--cache\b")),
+    ("eslint", re.compile(r"(?:^|[\s/&;|])(?:npx |pnpm |yarn |bunx )?eslint\b"),
+     re.compile(r"--cache\b")),
+    ("tsc", re.compile(r"(?:^|[\s/&;|])(?:npx |pnpm |yarn |bunx )?tsc\b"),
+     re.compile(r"--incremental\b|--build\b|(?:^|\s)-b\b")),
+)
+
+_OPT9_JEST_COMMAND_RE = re.compile(
+    r"(?:^|[\n;&|])\s*@?(?:npx |pnpm(?:\s+exec)? |yarn |bunx )?jest\b", re.I)
+_OPT9_MAKE_TARGET_RE = re.compile(
+    r"(?:^|[\n;&|])\s*make\s+(?!-)([A-Za-z0-9_.-]+)(?=\s|$)", re.M)
+_OPT9_JEST_CONFIG_RE = re.compile(
+    r"^(?:jest\.config\.(?:js|cjs|mjs|ts|cts|mts)|jest\.config)$", re.I)
+
+
+def _opt9_make_recipe(base: Path, command: str) -> tuple[str, Path] | None:
+    """Resolve one literal ``make target`` to its local Makefile recipe."""
+    match = _OPT9_MAKE_TARGET_RE.search(command)
+    if match is None:
+        return None
+    path = base / "Makefile"
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    target = re.escape(match.group(1))
+    header = re.search(rf"(?m)^{target}\s*:[^\n]*\n", text)
+    if header is None:
+        return None
+    recipe: list[str] = []
+    for line in text[header.end():].splitlines():
+        if line.startswith("\t"):
+            recipe.append(line[1:])
+            continue
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        break
+    return ("\n".join(recipe), path.parent) if recipe else None
+
+
+def _opt9_resolved_cache_path(root: Path, base: Path, value: str,
+                              *, actions_path: bool) -> Path | None:
+    """Resolve one literal Jest/cache-action path without guessing expressions."""
+    raw = value.strip()
+    if actions_path:
+        raw = _normalized_actions_expression(raw)
+        workspace = "${{github.workspace}}"
+        if raw == workspace:
+            raw = str(root)
+        elif raw.startswith(workspace + "/"):
+            raw = str(root / raw[len(workspace) + 1:])
+    else:
+        raw = raw.replace("<rootDir>", str(base))
+    if (not raw or "${{" in raw or raw.startswith("~")
+            or "$" in raw or any(char in raw for char in "*?[]")):
+        return None
+    path = Path(raw)
+    try:
+        return (path if path.is_absolute() else
+                (root if actions_path else base) / path).resolve()
+    except OSError:
+        return None
+
+
+def _opt9_cache_action_paths(job: dict, step: dict) -> list[str]:
+    """Literal cache paths restored before ``step``; later/disabled steps do not help it."""
+    prior: list[dict] = []
+    for candidate in _steps(job):
+        if candidate is step:
+            break
+        condition_value = candidate.get("if")
+        condition = str(condition_value or "").strip().casefold()
+        if (condition_value is False
+                or condition in {"false", "${{ false }}", "${{false}}"}):
+            continue
+        uses = _uses(candidate)
+        if (re.search(r"(?:^|/)cache/save@", uses, re.I) is None
+                and _CACHE_ACTION_RE.search(uses)):
+            prior.append(candidate)
+    paths: list[str] = []
+    for cache_step in prior:
+        values = (cache_step.get("with")
+                  if isinstance(cache_step.get("with"), dict) else {})
+        paths.extend(str(values.get("path") or "").splitlines())
+    return [path.strip() for path in paths if path.strip()]
+
+
+_OPT9_JEST_NOTES_CACHE: dict[
+    tuple[int, int, int], dict[str, list[str]]
+] = {}
+
+
+def _read_opt9_jest_notes(doc: dict, job: dict, step: dict) -> dict[str, list[str]]:
+    root = Path(_OPT102_ROOT or ".").resolve()
+    working = _script_working_directory(job, step, doc)
+    base = (root / working).resolve()
+    try:
+        base.relative_to(root)
+    except (OSError, ValueError):
+        return {}
+    command = _run(step)
+    recipe = _opt9_make_recipe(base, command)
+    expanded = recipe[0] if recipe is not None else command
+    base = recipe[1] if recipe is not None else base
+    if not _OPT9_JEST_COMMAND_RE.search(expanded):
+        return {}
+    cd = re.search(r"(?:^|[;&|])\s*cd\s+([^\s;&|]+)\s*&&", expanded)
+    if cd is not None:
+        candidate = (base / cd.group(1).strip("'\"")).resolve()
+        try:
+            if os.path.commonpath([str(root), str(candidate)]) == str(root):
+                base = candidate
+            else:
+                return {}
+        except ValueError:
+            return {}
+    paths, truncated, _manifests = _vitest_config_files(
+        root, lambda name: bool(_OPT9_JEST_CONFIG_RE.match(name)))
+    config: Path | None = None
+    cursor = base
+    while True:
+        here = [path for path in paths if path.parent == cursor]
+        if len(here) > 1:
+            return {}
+        if here:
+            config = here[0]
+            break
+        if cursor == root:
+            break
+        parent = cursor.parent
+        try:
+            parent.relative_to(root)
+        except (OSError, ValueError):
+            break
+        if parent == cursor:
+            break
+        cursor = parent
+    if truncated or config is None:
+        return {}
+    try:
+        text = _read_config_text(config)
+    except OSError:
+        return {}
+    if text is None:
+        return {}
+    text = _tal_strip_js_comments(text)
+    concurrency_notes: list[str] = []
+    max_workers = re.search(
+        r"\bmaxWorkers\s*:\s*(['\"]?)(\d+(?:\.\d+)?)(%)?\1", text)
+    if max_workers is not None and (
+            max_workers.group(3) == "%" and float(max_workers.group(2)) < 100
+            or max_workers.group(3) is None):
+        concurrency_notes.append(
+            f"Jest maxWorkers is {max_workers.group(2)}{max_workers.group(3) or ''}; "
+            "OPT88 says to measure this CPU-bound worker cap on the actual runner "
+            "before changing it, with no saving credited")
+    provider = re.search(
+        r"\bcoverageProvider\s*:\s*(['\"])(v8|babel)\1", text, re.I)
+    coverage_notes: list[str] = []
+    if provider is not None:
+        coverage_notes.append(
+            f"Jest coverage provider is `{provider.group(2).lower()}`; compare providers "
+            "on the same commit, re-baseline thresholds, and verify the consumer; "
+            "no provider-switch saving is credited without matched measurements")
+    cache_dir = re.search(
+        r"\bcacheDirectory\s*:\s*(['\"])([^'\"]+)\1", text)
+    configured = cache_dir.group(2) if cache_dir is not None else "<Jest default cache>"
+    disabled = bool(
+        re.search(r"(?:^|[\s;&|])--no-cache\b|--cache(?:=|\s+)false\b", expanded, re.I)
+        or re.search(r"\bcache\s*:\s*false\b", text, re.I)
+    )
+    root_dir = re.search(r"\brootDir\s*:\s*(['\"])([^'\"]+)\1", text)
+    config_root = (_opt9_resolved_cache_path(
+        root, config.parent, root_dir.group(2), actions_path=False)
+        if root_dir is not None else config.parent)
+    expected = (_opt9_resolved_cache_path(root, config_root or config.parent, configured,
+                                          actions_path=False)
+                if cache_dir is not None else None)
+    cached_paths = [
+        resolved
+        for path in _opt9_cache_action_paths(job, step)
+        if (resolved := _opt9_resolved_cache_path(
+            root, root, path, actions_path=True)) is not None
+    ]
+    persisted = bool(expected and any(
+        cached == expected or cached in expected.parents for cached in cached_paths))
+    cache_notes: list[str] = []
+    if disabled:
+        cache_notes.append(
+            "Jest result caching is disabled; remove `--no-cache`/`cache: false` "
+            "before persisting an explicit cacheDirectory")
+    elif not persisted:
+        cache_notes.append(
+            f"Jest cache directory is not persisted across runners (`{configured}`); "
+            "keep Jest's default cache enabled and persist a small explicit cacheDirectory "
+            "with a rolling primary key and stable restore prefix")
+    return {
+        "cache": cache_notes,
+        "concurrency": concurrency_notes,
+        "coverage": coverage_notes,
+    }
+
+
+def _opt9_jest_notes(doc: dict, job: dict, step: dict) -> dict[str, list[str]]:
+    """Read one Jest config at most once for all note-routing consumers."""
+    key = (id(doc), id(job), id(step))
+    if key not in _OPT9_JEST_NOTES_CACHE:
+        _OPT9_JEST_NOTES_CACHE[key] = _read_opt9_jest_notes(doc, job, step)
+    return _OPT9_JEST_NOTES_CACHE[key]
+
+
+def _detect_opt9(doc: dict, raw: str) -> list[Hit]:
+    """A lint/format/type-check tool invoked in a `run:` block without its own
+    cache flag (catalog OPT9 heuristic). Covers prettier / eslint / jest / tsc;
+    the catalog also names `turbo run --cache-dir` and `vitest` cache dirs,
+    which are not yet detected here (reported via catalog_patterns coverage,
+    never claimed as covered)."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        flagged: set[str] = set()
+        for s in _steps(job):
+            for line in _run(s).splitlines():
+                for tool, cmd_re, cache_re in _OPT9_TOOLS:
+                    if tool in flagged:
+                        continue
+                    if cmd_re.search(line) and not cache_re.search(line):
+                        flagged.add(tool)
+                        hits.append(Hit(
+                            line=_line_of_in_job(raw, job_name, line.strip()),
+                            affected_jobs=[job_name],
+                            evidence=(f"job `{job_name}` runs `{tool}` without its "
+                                      f"cache flag (`{line.strip()[:80]}`)"),
+                            match_text=f"{job_name}#{tool}",
+                        ))
+            jest_notes = _opt9_jest_notes(doc, job, s)
+            cache_notes = jest_notes.get("cache", [])
+            if cache_notes and "jest" not in flagged:
+                flagged.add("jest")
+                hits.append(Hit(
+                    line=_line_of_in_job(raw, job_name, _run(s).splitlines()[0].strip()),
+                    affected_jobs=[job_name],
+                    evidence=f"job `{job_name}`: " + "; ".join(cache_notes),
+                    match_text=f"{job_name}#jest",
+                    facts={"jest_static_notes": cache_notes,
+                           "static_cache_lint": True,
+                           "cache_family": "jest"},
+                ))
+    return hits
+
+
+def _detect_opt88(doc: dict, raw: str) -> list[Hit]:
+    """Route Jest worker-cap advice away from the cache detector."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        for step in _steps(job):
+            notes = _opt9_jest_notes(doc, job, step)
+            concurrency = notes.get("concurrency", [])
+            if not concurrency:
+                continue
+            command = _run(step)
+            hits.append(Hit(
+                line=_line_of_in_job(raw, job_name, command.splitlines()[0].strip()),
+                affected_jobs=[job_name],
+                evidence=f"job `{job_name}`: " + "; ".join(concurrency),
+                match_text=f"{job_name}#jest-max-workers",
+                facts={"jest_concurrency_notes": concurrency},
+            ))
+            break
+    return hits
+
+
+def _jest_coverage_notes(
+    parsed: list[tuple[str, dict, str]],
+) -> list[dict[str, str]]:
+    """Uncredited Jest provider guidance, independent of cache/concurrency findings."""
+    out: list[dict[str, str]] = []
+    for rel, doc, _raw in parsed:
+        for job_name, job in _jobs_from_doc(doc).items():
+            if not isinstance(job, dict):
+                continue
+            for step in _steps(job):
+                coverage = _opt9_jest_notes(doc, job, step).get("coverage", [])
+                if not coverage:
+                    continue
+                out.append({
+                    "workflow_file": rel,
+                    "job": job_name,
+                    "note": coverage[0],
+                })
+                break
+    return out
+
+
+# ---- Job exclusivity (shared by the cross-job duplicate detectors) -----------
+#
+# Two jobs whose job-level `if:` conditions can never both be true never co-run
+# (e.g. a same-repo `test-self` and a fork-only `test-fork`): exactly one runs
+# per workflow run, so they are not a duplicated-work pair. The check is
+# CONSERVATIVE — it understands only `==` / `!=` comparisons between context
+# paths and string literals, combined with `&&` / `||` / parentheses. Anything
+# else (a function call, `!`, a bare truthy operand, a missing `if:`) means
+# "cannot prove exclusive", so a real duplicate keeps firing.
+
+_IF_TOKEN_RE = re.compile(
+    r"\s*(?:(?P<op>&&|\|\||==|!=|\(|\))"
+    r"|(?P<str>'(?:[^']|'')*')"
+    r"|(?P<path>[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*|\[\d+\])*))")
+_IF_DNF_CAP = 64
+# Only contexts whose value is the same for every job in a run can prove two
+# jobs disjoint. `needs.*` resolves per job (a job that does not directly need
+# `build` sees null), `github.job` is each job's own id, and `matrix` /
+# `strategy` / `steps` / `env` are per job or unavailable at job level.
+_IF_RUN_WIDE_ROOTS = ("github", "inputs", "vars")
+_IF_PER_JOB_GITHUB = ("github.job", "github.action")
+
+
+def _if_path_is_run_wide(path: str) -> bool:
+    root = re.split(r"[.\[]", path, maxsplit=1)[0]
+    if root not in _IF_RUN_WIDE_ROOTS:
+        return False
+    return not any(path == p or path.startswith(p) for p in _IF_PER_JOB_GITHUB)
+
+
+def _if_literal_may_be_number(lit: str) -> bool:
+    """Actions coerces mismatched operand types to numbers, so a numeric (or
+    null / boolean) context value equals every literal that reads as the same
+    number: `'1'` and `'1.0'`, or `''` and `'0'` (both 0). Err wide: anything
+    Python reads as a number, plus empty / whitespace-only."""
+    t = lit.strip()
+    if not t:
+        return True
+    try:
+        float(t)
+        return True
+    except ValueError:
+        pass
+    try:
+        int(t, 0)
+        return True
+    except ValueError:
+        return False
+
+
+class _IfUnparsed(Exception):
+    pass
+
+
+def _if_dnf(expr: object) -> list[frozenset] | None:
+    """The job condition as a disjunction of conjunctions of comparison atoms
+    `(op, (lhs, rhs))` with operands lower-cased (Actions compares strings and
+    context names case-insensitively), or None when the shape is outside the
+    conservative grammar above."""
+    if not isinstance(expr, str):
+        return None
+    s = expr.strip()
+    # Actions uses .NET OrdinalIgnoreCase, not Python Unicode lower(): e.g.
+    # Greek sigma and final sigma compare equal there but lower differently.
+    # Only ASCII folding is shared, so leave other conditions unproven.
+    if not s.isascii():
+        return None
+    m = re.fullmatch(r"\$\{\{(.*)\}\}", s, re.S)
+    if m:
+        s = m.group(1).strip()
+    toks: list[tuple[str, str]] = []
+    pos = 0
+    while pos < len(s):
+        if s[pos:].strip() == "":
+            break
+        t = _IF_TOKEN_RE.match(s, pos)
+        if not t or t.end() == pos:
+            return None
+        kind = t.lastgroup or ""
+        toks.append((kind, t.group(kind)))
+        pos = t.end()
+    i = 0
+
+    def peek() -> tuple[str, str]:
+        return toks[i] if i < len(toks) else ("", "")
+
+    def take() -> tuple[str, str]:
+        nonlocal i
+        if i >= len(toks):
+            raise _IfUnparsed
+        i += 1
+        return toks[i - 1]
+
+    def operand() -> tuple[str, str]:
+        kind, val = take()
+        if kind == "path":
+            if peek() == ("op", "("):
+                raise _IfUnparsed  # a function call
+            if not _if_path_is_run_wide(val.lower()):
+                raise _IfUnparsed  # same text, possibly a different value per job
+            return ("path", val.lower())
+        if kind == "str":
+            return ("str", val[1:-1].replace("''", "'").lower())
+        raise _IfUnparsed
+
+    def prim() -> list[frozenset]:
+        if peek() == ("op", "("):
+            take()
+            out = disj()
+            if take() != ("op", ")"):
+                raise _IfUnparsed
+            return out
+        lhs = operand()
+        kind, op = take()
+        if kind != "op" or op not in ("==", "!="):
+            raise _IfUnparsed
+        rhs = operand()
+        if lhs[0] == rhs[0] == "str":
+            raise _IfUnparsed
+        return [frozenset({(op, tuple(sorted((lhs, rhs))))})]
+
+    def conj() -> list[frozenset]:
+        out = prim()
+        while peek() == ("op", "&&"):
+            take()
+            right = prim()
+            out = [a | b for a in out for b in right]
+            if len(out) > _IF_DNF_CAP:
+                raise _IfUnparsed
+        return out
+
+    def disj() -> list[frozenset]:
+        out = conj()
+        while peek() == ("op", "||"):
+            take()
+            out = out + conj()
+            if len(out) > _IF_DNF_CAP:
+                raise _IfUnparsed
+        return out
+
+    try:
+        dnf = disj()
+    except (_IfUnparsed, RecursionError):  # pathological nesting = cannot prove
+        return None
+    return dnf if i == len(toks) and dnf else None
+
+
+def _atoms_contradict(a: tuple, b: tuple) -> bool:
+    """`x == y` vs `x != y`, or `x == 'p'` vs `x == 'q'` with p != q."""
+    (op_a, ops_a), (op_b, ops_b) = a, b
+    if ops_a == ops_b and op_a != op_b:
+        return True
+    if op_a == op_b == "==":
+        lit_a = [o for o in ops_a if o[0] == "str"]
+        lit_b = [o for o in ops_b if o[0] == "str"]
+        path_a = [o for o in ops_a if o[0] == "path"]
+        path_b = [o for o in ops_b if o[0] == "path"]
+        return (len(lit_a) == len(lit_b) == 1 and path_a == path_b
+                and lit_a[0] != lit_b[0]
+                and not (_if_literal_may_be_number(lit_a[0][1])
+                         and _if_literal_may_be_number(lit_b[0][1])))
+    return False
+
+
+def _jobs_mutually_exclusive(job_a: dict, job_b: dict) -> bool:
+    """True only when the two jobs' `if:` conditions are PROVABLY disjoint:
+    every way A can be true contradicts every way B can be true."""
+    da = _if_dnf(job_a.get("if") if isinstance(job_a, dict) else None)
+    db = _if_dnf(job_b.get("if") if isinstance(job_b, dict) else None)
+    if not da or not db:
+        return False
+    return all(any(_atoms_contradict(x, y) for x in ca for y in cb)
+               for ca in da for cb in db)
+
+
+def _co_running(jobs: dict, names: list[str]) -> list[str]:
+    """The subset of `names` that can run alongside at least one other job in
+    `names` — a job exclusive with every other one is never a duplicate copy."""
+    return [n for n in names
+            if any(m != n and not _jobs_mutually_exclusive(jobs.get(n) or {},
+                                                           jobs.get(m) or {})
+                   for m in names)]
+
+
+# ---- OPT14 — Repeated Checkout/Setup Without Artifact Handoff ----------------
+
+_INSTALL_RE = re.compile(
+    r"\b(pnpm\s+(install|i|ci)|npm\s+(ci|install)|yarn(\s+install)?|"
+    r"bun\s+install|pip\s+install|poetry\s+install|uv\s+sync)\b", re.I)
+_MATRIX_SETUP_BUILD_RE = re.compile(
+    r"\b(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?build\b|"
+    r"\b(?:make|cmake\s+--build|cargo\s+build|go\s+build|"
+    r"gradle\w*\s+build|bazel\s+build)\b", re.I)
+
+
+def _matrix_axis_feeds_shard(job: dict, key: object) -> bool:
+    """Whether one matrix key describes the shard selected by the command."""
+    key_text = str(key)
+    if _SHARD_AXIS_RE.search(key_text):
+        return True
+    if key_text.casefold() != "index":
+        return False
+    matrix_ref = (
+        rf"matrix(?:\.{re.escape(key_text)}|"
+        rf"\[\s*['\"]{re.escape(key_text)}['\"]\s*\])"
+    )
+    return re.search(
+        rf"--shard(?:=|\s+)[\"']?[^\s\"']*"
+        rf"\$\{{\{{\s*{matrix_ref}\s*\}}\}}"
+        rf"[^\s\"']*[\"']?",
+        _job_run_blob(job),
+        re.IGNORECASE,
+    ) is not None
+
+
+def _matrix_shard_leg_count(job: dict) -> int | None:
+    """Count distinct effective shard configurations, ignoring diagnostics.
+
+    GitHub expands include/exclude against the whole matrix.  Projecting the
+    expanded legs onto shard-like keys keeps an OS or runtime-version axis from
+    inflating this guard fact while still honoring rows that add or remove real
+    shard configurations.
+    """
+    strategy = job.get("strategy") if isinstance(job.get("strategy"), dict) else {}
+    matrix = strategy.get("matrix") if isinstance(strategy, dict) else None
+    if not isinstance(matrix, dict):
+        return None
+    shard_keys = set()
+    for key in matrix:
+        key_text = str(key)
+        if key_text in {"include", "exclude"}:
+            continue
+        if _matrix_axis_feeds_shard(job, key_text):
+            shard_keys.add(key_text)
+    include = matrix.get("include")
+    if isinstance(include, list):
+        shard_keys.update(
+            str(key) for row in include if isinstance(row, dict) for key in row
+            if _matrix_axis_feeds_shard(job, key))
+    if not shard_keys:
+        return None
+    legs = _opt102_matrix_legs(job)
+    if not legs:
+        return None
+    projected = {
+        tuple((key, leg[key]) for key in sorted(shard_keys) if key in leg)
+        for leg in legs
+        if any(key in leg for key in shard_keys)
+    }
+    return len(projected) if projected else None
+
+
+def _artifact_selector(step: dict, *, upload: bool) -> tuple[str, str]:
+    """Return a literal artifact name or download pattern for one action."""
+    values = step.get("with") if isinstance(step.get("with"), dict) else {}
+    name = str(values.get("name") or ("artifact" if upload else "")).strip()
+    pattern = str(values.get("pattern") or "").strip() if not upload else ""
+    return name, pattern
+
+
+def _artifact_selector_matches(
+        upload_name: str, download_name: str, download_pattern: str) -> bool:
+    """Whether a download clearly selects an artifact another job uploads."""
+    if download_name:
+        return download_name == upload_name
+    if not download_pattern:
+        return True  # actions/download-artifact without a selector downloads all
+    pattern_re = re.escape(download_pattern).replace(r"\*", ".*").replace(r"\?", ".")
+    return re.fullmatch(pattern_re, upload_name) is not None
+
+
+_REPORT_ARTIFACT_RE = re.compile(
+    r"(?:^|[\s./_-])(?:allure|coverage|junit|reports?|results?|"
+    r"test[-_]?(?:reports?|results?))(?:$|[\s./_-])",
+    re.IGNORECASE,
+)
+
+
+def _is_report_artifact(step: dict) -> bool:
+    """Whether an upload names report/result data rather than build output."""
+    values = step.get("with") if isinstance(step.get("with"), dict) else {}
+    paths = [
+        line.strip() for line in str(values.get("path") or "").splitlines()
+        if line.strip()
+    ]
+    path_is_report = [bool(_REPORT_ARTIFACT_RE.search(path)) for path in paths]
+    if any(path_is_report):
+        # An artifact that bundles `dist` with `coverage` still carries build
+        # output, so a sharded consumer genuinely reuses another job's build.
+        return all(path_is_report)
+    identity = "\n".join((
+        str(step.get("name") or ""),
+        str(values.get("name") or ""),
+    ))
+    return _REPORT_ARTIFACT_RE.search(identity) is not None
+
+
+def _jobs_with_build_handoff(jobs: dict[str, Any]) -> set[str]:
+    """Jobs that consume a build artifact uploaded by a different job."""
+    producers: list[tuple[str, str]] = []
+    for job_name, job in jobs.items():
+        if not isinstance(job, dict) or not _MATRIX_SETUP_BUILD_RE.search(
+                _job_run_blob(job)):
+            continue
+        for step in _steps(job):
+            if "upload-artifact" not in _uses(step):
+                continue
+            if _is_report_artifact(step):
+                continue
+            upload_name, _ = _artifact_selector(step, upload=True)
+            if upload_name:
+                producers.append((job_name, upload_name))
+
+    consumers: set[str] = set()
+    for job_name, job in jobs.items():
+        if not isinstance(job, dict):
+            continue
+        for step in _steps(job):
+            if "download-artifact" not in _uses(step):
+                continue
+            download_name, download_pattern = _artifact_selector(step, upload=False)
+            matched_producers = {
+                producer for producer, upload_name in producers
+                if producer != job_name and _artifact_selector_matches(
+                    upload_name, download_name, download_pattern)
+            }
+            if matched_producers:
+                consumers.add(job_name)
+                break
+    return consumers
+
+
+def _opt14_setup_state(
+    doc: dict,
+) -> tuple[list[str], dict[str, int], dict[str, list[str]], set[str]]:
+    """Return repeated setup jobs and matrix facts for OPT14 and the guard.
+
+    Repetition can be across at least two jobs or across the effective shard
+    configurations of one matrix job. Report uploads are not setup handoffs:
+    a handoff requires a setup job to download an artifact that a different
+    job built and uploaded.
+    """
+    setup_jobs: list[str] = []
+    matrix_setup_legs: dict[str, int] = {}
+    matrix_setup_repeated: dict[str, list[str]] = {}
+    jobs = _jobs_from_doc(doc)
+    handoff_jobs = _jobs_with_build_handoff(jobs)
+    has_upload = has_download = False
+    for job_name, job in jobs.items():
+        if not isinstance(job, dict):
+            continue
+        steps = _steps(job)
+        has_upload = has_upload or any(
+            "upload-artifact" in _uses(step) for step in steps)
+        has_download = has_download or any(
+            "download-artifact" in _uses(step) for step in steps)
+        has_checkout = any(_uses(s).startswith("actions/checkout") for s in steps)
+        has_install = bool(_INSTALL_RE.search(_job_run_blob(job))) or any(
+            _uses(s).startswith("actions/setup-node") and (s.get("with") or {}).get("cache")
+            for s in steps)
+        if has_checkout and has_install:
+            setup_jobs.append(job_name)
+            conditioned_steps = _steps_with_if(job)
+            repeats_checkout = any(
+                _uses(step).startswith("actions/checkout") and cond is None
+                for step, cond in conditioned_steps)
+            repeats_install = any(
+                _INSTALL_RE.search(_run(step)) and cond is None
+                for step, cond in conditioned_steps)
+            repeats_build = any(
+                _MATRIX_SETUP_BUILD_RE.search(_run(step)) and cond is None
+                for step, cond in conditioned_steps)
+            shard_legs = _matrix_shard_leg_count(job)
+            if (shard_legs is not None and shard_legs >= 2 and repeats_checkout
+                    and (repeats_install or repeats_build)):
+                matrix_setup_legs[job_name] = shard_legs
+                repeated = ["checkout"]
+                if repeats_install:
+                    repeated.append("install")
+                if repeats_build:
+                    repeated.append("build")
+                matrix_setup_repeated[job_name] = repeated
+    # Jobs that never co-run (provably exclusive `if:`) are not repeated work
+    # with each other. A sharded job still repeats its own setup across legs,
+    # so keep it even when it is the workflow's only setup job.
+    # Keep the established workflow-wide handoff exemption for ordinary job
+    # groups. Per-job attribution is needed only for shard facts: report merge
+    # jobs must not hide a sharded job, while a shard that downloads another
+    # job's build remains exempt.
+    ordinary_setup_jobs = (
+        set() if has_upload and has_download
+        else set(_co_running(jobs, setup_jobs)))
+    setup_jobs = sorted(
+        ordinary_setup_jobs | (set(matrix_setup_legs) - handoff_jobs))
+    return setup_jobs, matrix_setup_legs, matrix_setup_repeated, handoff_jobs
+
+
+def _detect_opt14(doc: dict, raw: str) -> list[Hit]:
+    """Report repeated setup across jobs, while leaving lone-shard facts unreported."""
+    setup_jobs, matrix_setup_legs, matrix_setup_repeated, _handoff_jobs = (
+        _opt14_setup_state(doc))
+    if len(setup_jobs) >= 2:
+        evidence = (f"{len(setup_jobs)} jobs each run checkout + dependency "
+                    f"install with no `actions/upload-artifact` / "
+                    f"`download-artifact` handoff: {', '.join(setup_jobs)}")
+        return [Hit(
+            line=1,
+            affected_jobs=setup_jobs,
+            evidence=evidence,
+            match_text="(workflow)",
+            facts=({
+                "matrix_setup_legs": {
+                    job: count for job, count in matrix_setup_legs.items()
+                    if job in setup_jobs},
+                "matrix_setup_repeated": {
+                    job: repeated for job, repeated in matrix_setup_repeated.items()
+                    if job in setup_jobs},
+            } if any(job in setup_jobs for job in matrix_setup_legs) else {}),
+        )]
+    return []
+
+
+# ---- OPT16 — Within-Job Duplicate Commands -----------------------------------
+
+# The catalog body is specifically about an EXPENSIVE command (a build, install,
+# or test) re-run in a second step ("rebuild in case of stale artifacts"). Only
+# those lines count — an idempotent teardown (`docker compose down`) or a shell
+# fragment (`} >> "$GITHUB_OUTPUT"`) intentionally repeats and is not the
+# wasteful-rebuild pattern.
+_OPT16_EXPENSIVE_RE = re.compile(
+    r"\b(pnpm\s+(run\s+)?build|pnpm\s+(run\s+)?test|pnpm\s+install|"
+    r"npm\s+run\s+build|npm\s+(ci|install)|yarn\s+(build|install)|"
+    r"bun\s+install|turbo\s+run|tsc\b|make\b|cargo\s+(build|test)|"
+    r"go\s+build|gradle\b|mvn\b|webpack|vite\s+build|next\s+build)\b", re.I)
+
+
+# A step that mutates the manifests makes a SUBSEQUENT re-install legitimate
+# (not a wasteful dup) — e.g. `changeset version` rewrites every package.json,
+# so the install after it re-syncs the lockfile on purpose.
+_MANIFEST_MUTATION_RE = re.compile(
+    r"changeset(s)?[ -]?(cli\s+)?version|npm\s+version|pnpm\s+version|"
+    r"\bversion\b.*package\.json|git\s+(pull|merge|checkout|rebase)|"
+    r"apply.*patch", re.I)
+
+
+def _detect_opt16(doc: dict, raw: str) -> list[Hit]:
+    """The same EXPENSIVE `run:` command (build/install/test) appears in ≥2
+    separate steps of one job — wasteful rebuild (catalog OPT16). Two
+    suppressions avoid false positives: the dedup key includes the step's
+    `working-directory` (two installs in different dirs are different work),
+    and a re-install is NOT counted if a manifest-mutating step (e.g.
+    `changeset version`, `git pull`) sits between the two occurrences."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        steps = _steps(job)
+        # Step indices that mutate manifests (a re-install after one is OK).
+        mutation_idxs = {i for i, s in enumerate(steps)
+                         if _MANIFEST_MUTATION_RE.search(_run(s))}
+        # key = (command, working-directory) → ordered list of step indices.
+        key_to_steps: dict[tuple[str, str], list[int]] = {}
+        for i, s in enumerate(steps):
+            wd = str(s.get("working-directory") or "")
+            seen_in_step: set[str] = set()
+            for ln in _run(s).splitlines():
+                c = ln.strip()
+                if len(c) < 8 or not _OPT16_EXPENSIVE_RE.search(c):
+                    continue
+                if c in seen_in_step:
+                    continue
+                seen_in_step.add(c)
+                key_to_steps.setdefault((c, wd), []).append(i)
+        for (cmd, wd), idxs in key_to_steps.items():
+            if len(idxs) < 2:
+                continue
+            # Drop the pair if a manifest mutation happens anywhere across the
+            # span of occurrences (inclusive — the mutation and the re-build /
+            # re-install often share a single multi-line step, e.g. `changeset
+            # version` then `pnpm build`). The re-run is then an intentional
+            # re-sync, not a redundant rebuild. Conservative by design: OPT16 is
+            # LOW-impact, so we'd rather miss a true dup than flag a re-sync.
+            if any(idxs[0] <= mi <= idxs[-1] for mi in mutation_idxs):
+                continue
+            wd_note = f" (working-directory `{wd}`)" if wd else ""
+            hits.append(Hit(
+                line=_line_of_in_job(raw, job_name, cmd),
+                affected_jobs=[job_name],
+                evidence=(f"job `{job_name}` runs the same command in "
+                          f"{len(idxs)} separate steps{wd_note}: `{cmd[:80]}`"),
+                match_text=job_name,
+            ))
+            break  # one finding per job is enough
+    return hits
+
+
+# ---- OPT18 — All Containers Started for Single-Service Tests -----------------
+
+# `docker compose up` with NO positional service. Flags (`-d`, `--wait`) and
+# their numeric values (`--wait-timeout 60`) are allowed and skipped — only a
+# non-flag, non-numeric token is a real service name, which would mean the run
+# is already service-scoped (not a hit).
+_COMPOSE_UP_ALL_RE = re.compile(
+    r"docker(?:-|\s)compose\s+up((?:\s+(?:-{1,2}[\w=./-]+|\d+))*)\s*$",
+    re.I | re.M)
+
+
+def _detect_opt18(doc: dict, raw: str) -> list[Hit]:
+    """`docker compose up` with no positional service argument — starts every
+    service (catalog OPT18 heuristic)."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        if _COMPOSE_UP_ALL_RE.search(_job_run_blob(job)):
+            hits.append(Hit(
+                line=_line_of_in_job(raw, job_name, "compose up"),
+                affected_jobs=[job_name],
+                evidence=(f"job `{job_name}` runs `docker compose up` with no "
+                          f"service argument — starts every service even if the "
+                          f"test needs one"),
+                match_text=job_name,
+            ))
+    return hits
+
+
+# ---- OPT21 — Unnecessary `needs:` Dependencies -------------------------------
+
+# Check-only gate vocabulary. A job that `needs:` ONLY check-only gates (a lint /
+# pre-commit / format / type-check / lockfile-check job) is a deliberate cheap
+# gate: the expensive job never starts when the cheap check fails, so OPT21 does
+# not flag it. The test is static and fails closed: a needed job is a gate only
+# when every step is recognised setup or a recognised check, at least one
+# unconditional step is a check, no check is defused (`|| true`), nothing
+# builds / tests / deploys / publishes, every step could be read, and the job
+# has no outputs, services, container, environment, reusable `uses:` or
+# continue-on-error. Anything unrecognised keeps the finding.
+
+# Setup actions: checkout, any `setup-*` action, pnpm-style `action-setup`, cache.
+_OPT21_SETUP_USES_RE = re.compile(
+    r"^(?:actions/checkout|actions/cache(?:/restore)?|[\w-][\w.-]*/setup-[\w.-]+|"
+    r"[\w-][\w.-]*/action-setup)(?:@|$)", re.I)
+# Setup shell lines: dependency installs, fetches, step-output/env plumbing.
+_OPT21_SETUP_LINE_RE = re.compile(
+    r"^(?:(?:python3?\s+-m\s+)?pip3?\s+install\b|npm\s+(?:ci|install)\b|"
+    r"pnpm\s+install\b|yarn(?:\s+install)?\b(?!\s+\w)|bun\s+install\b|"
+    r"uv\s+(?:sync|pip\s+install)\b|poetry\s+install\b|bundle\s+install\b|"
+    r"go\s+mod\s+download\b|git\s+fetch\b|corepack\s+enable\b|"
+    r"pre-commit\s+install\b|"
+    r"echo\s.*>>\s*\"?\$\{?GITHUB_(?:OUTPUT|ENV|PATH)\b)", re.I)
+# Check shell lines: linters, formatters in check mode, type checkers,
+# lockfile checks. An optional runner prefix (`uv run`, `npx`, ...) is allowed.
+_OPT21_CHECK_LINE_RE = re.compile(
+    r"^(?:(?:uv\s+run|poetry\s+run|pipx\s+run|npx|pnpm\s+exec|yarn\s+exec|"
+    r"bunx|python3?\s+-m)\s+(?:-{1,2}\w[\w-]*(?:=\S+|\s+[^-\s]\S*)?\s+)*)?"
+    r"(?:pre-commit\s+run|prek\s+run|"
+    r"uv\s+lock\s+--(?:check|locked)|poetry\s+(?:check|lock\s+--check)|"
+    r"(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:lint|format[:-]check|fmt[:-]check|"
+    r"check[:-]format|typecheck|type-check|check[:-]types|lint:\S+)(?![\w:.-])|"
+    r"\S*scripts/lint(?![\w-])|"
+    r"make\s+(?:lint|check-format|format-check|fmt-check)(?![\w:.-])|"
+    r"eslint|ruff\s+(?:check|format\s+--check)|flake8|pylint|black\s+--check|"
+    r"isort\s+(?:--check|-c)|prettier\s+(?:--check|-c)|mypy|pyright|"
+    r"tsc\s+--noEmit|actionlint|shellcheck|yamllint|markdownlint\S*|"
+    r"golangci-lint|gofmt\s+-l|cargo\s+fmt\b.*--check|cargo\s+clippy|"
+    r"stylelint|biome\s+(?:check|lint|ci)|codespell|typos|"
+    r"git\s+diff\s+--exit-code)\b", re.I)
+# Some repositories keep their lint driver in a Go source file.  This is a
+# check command in the same sense as a direct linter invocation; a runnable
+# application under ./cmd remains ordinary work.
+_OPT21_GO_RUN_CHECK_RE = re.compile(
+    r"^(?!.*(?:\|\||&&|[|;&`]|[$<>]\())"
+    r"go\s+run\s+(?!(?:\./)?cmd/)\S+\.go\s+"
+    r"(?:lint|check(?:[-:._][\w:.-]*)?)(?:\s+\S+)*\s*$", re.I)
+# A step NAMED as a check ("Verify ...", "Check ...", "Lint ...") also counts
+# as a check when its body is a bespoke inline check (openai-python's
+# provenance check): every line is a recognised check or setup line, an inline
+# interpreter script (`python -c`, `node -e`), a shell test, an assignment, a
+# read-only git command, or `git show <file> | python -`. The name never
+# vouches for anything else: `mvn verify` or `./run_tests.sh` under a "Verify"
+# name keeps the finding.
+_OPT21_CHECK_NAME_RE = re.compile(
+    r"^(?:check(?!\s*-?\s*out)|verify|validate|lint|ensure|require|assert|audit)\b",
+    re.I)
+_OPT21_INLINE_SCRIPT_RE = re.compile(
+    r"^(?:(?:uv\s+run|poetry\s+run|pipx\s+run)\s+(?:-{1,2}\w[\w-]*(?:=\S+|\s+[^-\s]\S*)?\s+)*)?"
+    r"(?:python3?|node|ruby|perl)\s+(?:-\w+\s+)*-[ce]\s", re.I)
+_OPT21_SHELL_CHECK_RE = re.compile(
+    r"^(?:\[\[?\s.*\]\]?|test\s.*|"
+    r"[A-Za-z_]\w*=(?:\"?\$\(git\s+(?:remote|rev-parse|show|diff)\b[^`$]*\)\"?|[^$`|&;]*)|"
+    r"git\s+(?:remote|rev-parse|diff|status|ls-files)\b[^|]*|"
+    r"git\s+show\s+\S+\s*\|\s*python3?(?:\s+-\w+)*\s+-)$")
+# `|| exit 1` keeps a failing check failing; it is stripped before matching.
+_OPT21_EXIT_NONZERO_RE = re.compile(r"\s*\|\|\s*exit\s+[1-9]\d*\s*$")
+# A check that cannot fail gates nothing: `|| true`, `|| :`, `|| exit 0`.
+_OPT21_CANNOT_FAIL_RE = re.compile(r"\|\|\s*(?:true\b|:(?!\S)|exit\s+0\b)")
+# Anything that builds, tests, deploys or publishes disqualifies the job as a
+# gate, even inside a step whose name says "check".
+_OPT21_NOT_A_GATE_RE = re.compile(
+    r"\b(?:pytest|jest|vitest|mocha|playwright|cypress|tox|nox|"
+    r"(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:test|build|e2e|deploy|publish|release)|"
+    r"(?:cargo|go|dotnet|mvn|gradle|bazel|make)\s+(?:test|build|install|publish|"
+    r"deploy|run|package)|gradlew|mvnw|python3?\s+-m\s+build|"
+    r"docker\s+(?:build|push|compose)|buildx|twine|gh\s+release|kubectl|helm|"
+    r"terraform\s+apply|serverless|vercel|netlify|wrangler|deploy|publish|"
+    r"scripts/(?:build|test|deploy|release|publish))\b", re.I)
+# A dependent that runs whatever the gate's result (`always()`, `failure()`,
+# `cancelled()` in its `if:`) is not gated by it: the edge is pure ordering.
+# Negated forms (`!cancelled()`, `!failure()`) match too and keep the finding:
+# failing closed costs a finding, never a wrong silence.
+_OPT21_RUNS_REGARDLESS_RE = re.compile(r"\b(?:always|failure|cancelled)\s*\(", re.I)
+
+
+def _opt21_run_lines(run: str) -> list[str]:
+    """The command lines of a `run:` body, comments, blanks and `set -x` /
+    `set +e`-style lines dropped, `&&`- and `;`-separated commands split."""
+    out: list[str] = []
+    for ln in run.splitlines():
+        for part in re.split(r"&&|;", ln):
+            part = part.strip()
+            if part and not part.startswith("#") and not re.match(r"set\s+[-+]", part):
+                out.append(part)
+    return out
+
+
+def _opt21_step_kind(step: dict) -> str:
+    """'setup', 'check', or 'other' (unclassifiable: fail closed)."""
+    if step.get("continue-on-error") not in (None, False):
+        return "other"
+    uses = _uses(step)
+    run = _run(step)
+    if uses and not run:
+        return "setup" if _OPT21_SETUP_USES_RE.match(uses) else "other"
+    if not run or uses:
+        return "other"
+    if "shell" in step:
+        return "other"
+    # Once errexit is disabled, a later successful setup command can hide a
+    # failed check.  Such a step cannot be a gate even when every command is
+    # otherwise recognizable.
+    if re.search(r"(?m)^\s*set\s+\+(?:e\b|o\s+errexit\b)", run):
+        return "other"
+    lines = _opt21_run_lines(run)
+    # `go run` is generally work, but a source-file lint/check driver is a
+    # gate.  Remove only those complete commands before applying the broad
+    # work detector so another command in the same step can still disqualify
+    # the job.
+    work_lines = [ln for ln in lines if not _OPT21_GO_RUN_CHECK_RE.match(ln)]
+    if (_OPT21_NOT_A_GATE_RE.search("\n".join(work_lines))
+            or _OPT21_CANNOT_FAIL_RE.search(run)
+            or "--exit-zero" in run):
+        return "other"
+    if (_OPT21_CHECK_NAME_RE.match(str(step.get("name") or "").strip())
+            and _opt21_is_scripted_check(run)):
+        return "check"
+    if not lines:
+        return "other"
+    kinds = []
+    for ln in lines:
+        if "|" in ln:
+            return "other"
+        if _OPT21_CHECK_LINE_RE.match(ln) or _OPT21_GO_RUN_CHECK_RE.match(ln):
+            kinds.append("check")
+        elif _OPT21_SETUP_LINE_RE.match(ln):
+            kinds.append("setup")
+        else:
+            return "other"
+    return "check" if "check" in kinds else "setup"
+
+
+def _opt21_is_scripted_check(run: str) -> bool:
+    """True when every line of a check-named step's body is a form the name
+    may vouch for (see `_OPT21_CHECK_NAME_RE`). An inline script line is taken
+    whole: its `;` separate Python statements, not shell commands."""
+    lines = [ln.strip() for ln in run.splitlines()]
+    lines = [ln for ln in lines
+             if ln and not ln.startswith("#") and not re.match(r"set\s+[-+]", ln)]
+    if not lines:
+        return False
+    for ln in lines:
+        if _OPT21_INLINE_SCRIPT_RE.match(ln):
+            continue
+        for part in _opt21_run_lines(_OPT21_EXIT_NONZERO_RE.sub("", ln)):
+            if not (_OPT21_CHECK_LINE_RE.match(part)
+                    or _OPT21_GO_RUN_CHECK_RE.match(part)
+                    or _OPT21_SETUP_LINE_RE.match(part)
+                    or _OPT21_SHELL_CHECK_RE.match(part)):
+                return False
+    return True
+
+
+def _opt21_is_check_only_gate(job: Any) -> bool:
+    """True when `job` is a check-only gate (see the vocabulary above)."""
+    if not isinstance(job, dict):
+        return False
+    # A gate that itself `needs:` another job passes that job's time on to its
+    # dependents, so it is not cheap; `defaults` can swap every step's shell.
+    if any(k in job for k in ("outputs", "services", "container", "environment",
+                              "uses", "needs", "defaults")):
+        return False
+    if job.get("continue-on-error") not in (None, False):
+        return False
+    # A step the walker could not read (a bare string, a malformed `parallel:`
+    # group) may be anything: fail closed.
+    raw = job.get("steps")
+    if not isinstance(raw, list) or any(
+            not isinstance(s, dict) or "wait" in s or "cancel" in s for s in raw):
+        return False
+    if job_walk(job).malformed_groups:
+        return False
+    kinds = []
+    for step, cond in _steps_with_if(job):
+        kind = _opt21_step_kind(step)
+        # A conditional check may not run on the PR at hand: it cannot be the
+        # check that makes the job a gate.
+        kinds.append("setup" if kind == "check" and cond else kind)
+    return "other" not in kinds and "check" in kinds
+
+
+def _detect_opt21(doc: dict, raw: str) -> list[Hit]:
+    """A job declares `needs:` but references no `needs.*.outputs` and downloads
+    no artifact from the dependency (catalog OPT21 heuristic). Caveat in the
+    evidence: a gate the classifier cannot recognise may still be legitimate.
+    A job whose every dependency is a check-only gate (lint, pre-commit,
+    format, type or lockfile check) is not flagged: that wait is a deliberate
+    cheap gate, unless the job's own `if:` runs it whatever the gate's result
+    (`always()`, `failure()`, `cancelled()`), which leaves pure ordering and is
+    still flagged. Not flagged means not credited either; there is no held-back
+    record, since this is a verdict about the workflow, not a gap in reading
+    it. Each such verdict is logged at DEBUG (`STARSLING_LOG_LEVEL`)."""
+    hits: list[Hit] = []
+    jobs = _jobs_from_doc(doc)
+    for job_name, job in jobs.items():
+        if not isinstance(job, dict):
+            continue
+        needs = job.get("needs")
+        if isinstance(needs, str):
+            needs = [needs]
+        if not isinstance(needs, list) or not needs:
+            continue
+        try:
+            job_text = yaml.safe_dump(job)
+        except yaml.YAMLError:
+            job_text = str(job)
+        # A reference is `needs.<dep>.outputs`/`.result`, or the whole context
+        # via `toJSON(needs)` / `fromJSON(needs)` — the latter is the
+        # status-check aggregator gate (`re-actors/alls-green` etc.), which
+        # legitimately consumes every dependency's result. Plain `needs:` (the
+        # key itself) is NOT a reference, so we match on the dotted/expression
+        # forms only.
+        # A reference can be dot-form (`needs.dep.outputs`) OR bracket-indexed
+        # (`needs['dep'].outputs` — required when the dep's job key has a hyphen,
+        # which YAML dot-access can't express). Missing the bracket form caused a
+        # false positive on mastra's `complexity` job, whose gate IS
+        # `needs['issue-link-nudge'].outputs.needs_issue`.
+        uses_outputs = bool(re.search(
+            r"needs\.[\w-]+|needs\[\s*['\"][\w.-]+['\"]\s*\]|"
+            r"(?:to|from)JSON\(\s*needs\s*\)|alls-green", job_text))
+        downloads = any("download-artifact" in _uses(s) for s in _steps(job))
+        cheap_gate = (
+            not _OPT21_RUNS_REGARDLESS_RE.search(str(job.get("if") or ""))
+            and all(_opt21_is_check_only_gate(jobs.get(str(n))) for n in needs))
+        if cheap_gate and not uses_outputs and not downloads:
+            logger.debug("OPT21 not flagged: job %s needs only check-only gates %s",
+                         job_name, needs)
+        if not uses_outputs and not downloads and not cheap_gate:
+            hits.append(Hit(
+                # Anchor on THIS job's own `needs:`, not the file-global first
+                # match — a multi-job workflow has many `needs:` lines and the
+                # file-global `_line_of` would point at the wrong job (same hazard
+                # the OPT33/OPT29 fix corrected).
+                line=_line_of_in_job(raw, job_name, "needs:"),
+                affected_jobs=[job_name],
+                evidence=(f"job `{job_name}` declares `needs: {needs}` but "
+                          f"references no `needs.*.outputs` and downloads no "
+                          f"artifact from them — verify the dependency isn't a "
+                          f"required gate before removing"),
+                match_text=job_name,
+                facts={"opt21_needs": [str(need) for need in needs]},
+            ))
+    return hits
+
+
+# ---- OPT27 — Duplicate `setup-node` Calls in Same Job ------------------------
+
+def _detect_opt27(doc: dict, raw: str) -> list[Hit]:
+    """`actions/setup-node` invoked more than once in the same job (catalog
+    OPT27 heuristic)."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        n = sum(1 for s in _steps(job) if _uses(s).startswith("actions/setup-node"))
+        if n > 1:
+            hits.append(Hit(
+                # Anchor on THIS job's first `setup-node`, not the file-global
+                # first (another job's) — the OPT33/OPT29 wrong-job hazard.
+                line=_line_of_in_job(raw, job_name, "actions/setup-node"),
+                affected_jobs=[job_name],
+                evidence=f"job `{job_name}` calls `actions/setup-node` {n} times",
+                match_text=job_name,
+            ))
+    return hits
+
+
+# ---- OPT29 — Merge Queue Skip at Step Level Only -----------------------------
+
+_MERGE_GROUP_REF_RE = re.compile(r"merge_group|github\.event_name", re.I)
+
+
+def _detect_opt29(doc: dict, raw: str) -> list[Hit]:
+    """Workflow triggers on `merge_group`; a job skips its steps via step-level
+    `if:` but has no job-level `if:`, so the runner is still provisioned
+    (catalog OPT29 heuristic)."""
+    on = doc.get("on") or doc.get(True)
+    if not _on_includes(on, ("merge_group",)):
+        return []
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict) or "if" in job:
+            continue
+        step_skips = any(
+            cond is not None and _MERGE_GROUP_REF_RE.search(cond)
+            for _s, cond in _steps_with_if(job))
+        if step_skips:
+            hits.append(Hit(
+                # Anchor on the job's OWN header, not the file-global first
+                # substring match of the name (same hazard as OPT33).
+                line=_line_of_in_job(raw, job_name, f"{job_name}:"),
+                affected_jobs=[job_name],
+                evidence=(f"job `{job_name}` skips steps on `merge_group` via "
+                          f"step-level `if:` but has no job-level `if:` — the "
+                          f"runner is still provisioned"),
+                match_text=job_name,
+            ))
+    return hits
+
+
+# ---- OPT31 — Conditional Step With Unconditional Setup -----------------------
+
+_OPT31_INSTALL_RE = re.compile(
+    r"playwright\s+install|apt-get\s+install|pip\s+install|npm\s+install\s+-g|"
+    r"bunx\s+playwright\s+install", re.I)
+_OPT31_GATE_RE = re.compile(r"secrets\.|env\.", re.I)
+
+
+def _opt31_tokens(install_line: str) -> set[str]:
+    """Tool/package tokens an install line provides, used to link it to a
+    downstream consumer. `playwright install` → {playwright}; `apt-get install
+    foo bar` → {foo, bar}; `pip install pkg` → {pkg}."""
+    low = install_line.lower()
+    if "playwright" in low:
+        return {"playwright"}
+    m = re.search(r"install\s+(.+)", install_line)
+    if not m:
+        return set()
+    toks = {t for t in re.split(r"\s+", m.group(1).strip())
+            if t and not t.startswith("-")}
+    return toks
+
+
+def _detect_opt31(doc: dict, raw: str) -> list[Hit]:
+    """An unconditional install/setup step whose tool is only consumed by a
+    LATER step gated on a `secrets.`/`env.` condition (catalog OPT31)."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        steps = _steps_with_if(job)
+        for i, (s, s_if) in enumerate(steps):
+            if "if" in s or s_if is not None:
+                continue  # gated, on the step or on its enclosing group
+            run = _run(s)
+            if not _OPT31_INSTALL_RE.search(run):
+                continue
+            tokens = _opt31_tokens(run)
+            if not tokens:
+                continue
+            consumer_if = next(
+                (c_if for c, c_if in steps[i + 1:]
+                 if c_if is not None and _OPT31_GATE_RE.search(c_if)
+                 and any(tok in _run(c).lower() for tok in tokens)),
+                None)
+            if consumer_if is not None:
+                first = (run.splitlines() or [""])[0].strip()
+                hits.append(Hit(
+                    line=_line_of_in_job(raw, job_name, first),
+                    affected_jobs=[job_name],
+                    evidence=(f"job `{job_name}` runs an unconditional install "
+                              f"step (`{first[:60]}`) whose only consumer is a "
+                              f"later step gated on `{consumer_if[:50]}` — "
+                              f"the install runs even when the consumer is skipped"),
+                    match_text=job_name,
+                ))
+                break  # one finding per job is enough
+    return hits
+
+
+# ---- OPT33 — No Draft PR Gating on Expensive Jobs ----------------------------
+
+def _is_status_aggregator(job: dict) -> bool:
+    """STRICT aggregator check for OPT33: only the green-gate idioms
+    (`re-actors/alls-green`, `toJSON(needs)`/`fromJSON(needs)`). Deliberately
+    narrower than `_is_aggregator_job` (whose `needs:` + ≤1-step heuristic also
+    matches stepless reusable-workflow CALLER jobs, which ARE expensive and
+    should keep firing OPT33). Gating a green-gate on draft is wrong and it does
+    no test work despite a test-y name (e.g. better-auth's `e2e` alls-green job)."""
+    if not isinstance(job, dict):
+        return False
+    if any("alls-green" in _uses(s) for s in _steps(job)):
+        return True
+    try:
+        text = yaml.safe_dump(job)
+    except yaml.YAMLError:
+        text = str(job)
+    return bool(re.search(r"(?:to|from)JSON\(\s*needs\s*\)", text))
+
+
+_CHANGE_DETECT_USES_RE = re.compile(r"dorny/paths-filter|tj-actions/changed-files", re.I)
+
+
+def _is_change_detection_job(job: dict) -> bool:
+    """A cheap change-detection GATE (its real work is a `dorny/paths-filter` /
+    `tj-actions/changed-files` step), not an expensive test job — even if its
+    name happens to contain `e2e`/`test` (e.g. mastra's seconds-long
+    `e2e-check-changes`). Such a job typically self-gates already and costs
+    seconds, so OPT33's 'expensive job runs on drafts' claim doesn't apply."""
+    if not isinstance(job, dict):
+        return False
+    return any(_CHANGE_DETECT_USES_RE.search(_uses(s)) for s in _steps(job))
+
+
+def _detect_opt33(doc: dict, raw: str) -> list[Hit]:
+    """A PR-triggered, clearly-expensive job (matrix / services / test-named)
+    with no `if: …draft == false` gate (catalog OPT33 heuristic)."""
+    on = doc.get("on") or doc.get(True)
+    if not _on_includes(on, ("pull_request",)):
+        return []
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        strategy = job.get("strategy") or {}
+        has_matrix = isinstance(strategy, dict) and "matrix" in strategy
+        has_services = bool(isinstance(job.get("services"), dict) and job.get("services"))
+        is_test = bool(_TEST_NAME_RE.search(job_name))
+        if not (has_matrix or has_services or is_test):
+            continue
+        # Per-instance preconditions: a status aggregator (green-gate) and a
+        # cheap change-detection gate both match the test-name heuristic but are
+        # not "expensive jobs runnable on drafts" — skip them.
+        if _is_status_aggregator(job):
+            continue
+        if _is_change_detection_job(job) and not (has_matrix or has_services):
+            continue
+        # Activation fidelity (class fix): only flag a job that ACTUALLY runs on a normal PR open/update.
+        # A trigger `types:` gate (e.g. `[labeled]`) or a job `if:` activity gate (`github.event.label`)
+        # means the job runs only on that event, NOT every PR — claiming "runs on every PR including
+        # drafts" for it is a factual error (razorpay/blade `interaction-tests`). OPT33's own concern,
+        # the DRAFT gate, stays a separate check below (a job can run on every PR yet skip drafts).
+        if not _job_runs_on_every_pr(on, job):
+            continue
+        jif = job.get("if")
+        if isinstance(jif, str) and "draft" in jif:
+            continue
+        why = "matrix" if has_matrix else ("services" if has_services else "test job")
+        # Be accurate about WHICH PRs it runs on: a `paths:`-filtered workflow
+        # (mastra e2e-docs: `paths: ['docs/**']`) does NOT run on every PR, only
+        # on PRs that touch those paths. Claiming "every PR" overstates the
+        # draft-gate saving and was a flagged factual error.
+        scope = ("every PR that changes the workflow's filtered `paths:`"
+                 if _on_has_paths_filter(on) else "every PR")
+        hits.append(Hit(
+            # Anchor on the job's OWN `job_name:` header within its block — a
+            # file-global `_line_of(raw, job_name)` substring-matches the first
+            # line containing the name (e.g. `runs-on: ubuntu-latest` for a `test`
+            # job: 'la-test'), pointing the reader at the wrong job.
+            line=_line_of_in_job(raw, job_name, f"{job_name}:"),
+            affected_jobs=[job_name],
+            evidence=(f"expensive job `{job_name}` ({why}) runs on {scope} "
+                      f"including drafts — no "
+                      f"`if: github.event.pull_request.draft == false` gate"),
+            match_text=job_name,
+        ))
+    return hits
+
+
+# ---- OPT39 — Multi-Language Matrix Without Path Filter -----------------------
+
+_SCANNER_RE = re.compile(
+    r"github/codeql-action|snyk/actions|returntocorp/semgrep|semgrep-action", re.I)
+
+
+def _detect_opt39(doc: dict, raw: str) -> list[Hit]:
+    """A `language` matrix scanner (CodeQL/Snyk/Semgrep) with no
+    `dorny/paths-filter` gate and no per-leg `if:` (catalog OPT39 heuristic)."""
+    # The finding's claim is "every language leg runs on every PR" — only true if the
+    # workflow actually triggers on PRs. A push-only / schedule-only CodeQL workflow runs
+    # on ZERO PRs, so the claim would be false (the OPT33 blind spot). Gate on `on:` and
+    # scope the wording to the PR-trigger's `paths:` filter, exactly like OPT33.
+    on = doc.get("on") or doc.get(True)
+    # Activation fidelity (class fix): suppress when the `pull_request` trigger is gated by `types:` to a
+    # specific activity (e.g. `[labeled]`) — its "every language leg runs on every PR" claim is then false.
+    if not _pr_trigger_runs_every_pr(on):
+        return []
+    scope = ("every PR that changes the workflow's filtered `paths:`"
+             if _on_has_paths_filter(on) else "every PR")
+    has_paths_filter = "dorny/paths-filter" in raw
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        strategy = job.get("strategy") or {}
+        matrix = strategy.get("matrix") if isinstance(strategy, dict) else None
+        if not isinstance(matrix, dict) or "language" not in matrix:
+            continue
+        if not any(_SCANNER_RE.search(_uses(s)) for s in _steps(job)):
+            continue
+        jif = job.get("if")
+        leg_gated = isinstance(jif, str) and ("needs." in jif or "matrix.language" in jif)
+        if has_paths_filter or leg_gated:
+            continue
+        hits.append(Hit(
+            # Anchor on THIS job's `language` matrix line, not the file-global
+            # first `language` substring elsewhere in the file (the OPT33/OPT29
+            # hazard) — e.g. an earlier job's `if: matrix.language` expression.
+            line=_line_of_in_job(raw, job_name, "language"),
+            affected_jobs=[job_name],
+            evidence=(f"job `{job_name}` runs a `language` matrix scanner with no "
+                      f"`dorny/paths-filter` gate — every language leg runs on "
+                      f"{scope} regardless of which language changed"),
+            match_text=job_name,
+        ))
+    return hits
+
+
+# ---- OPT4 / OPT61 — cache configurations that cannot warm --------------------
+
+_CACHE_ACTION_RE = re.compile(r"(?:^|/)cache(?:/|@)|ccache-action|rust-cache", re.I)
+_COMPILER_CACHE_RE = re.compile(r"\b(?:ccache|sccache)\b", re.I)
+_ANALYSIS_CACHE_RE = re.compile(r"\b(?:STATICCHECK_CACHE|GOLANGCI_LINT_CACHE)\b", re.I)
+_TEMP_CACHE_RE = re.compile(
+    r"(?:RUNNER_TEMP|/tmp/)[^\s'\"]*(?:ccache|sccache|staticcheck|golangci)", re.I)
+_REMOTE_COMPILER_CACHE_RE = re.compile(
+    r"\b(?:SCCACHE_(?:BUCKET|ENDPOINT|REDIS|MEMCACHED|GCS_BUCKET|AZURE_CONNECTION_STRING|"
+    r"WEBDAV_ENDPOINT)|CCACHE_REMOTE_STORAGE)\b", re.I)
+
+
+def _cache_action_steps(job: dict) -> list[dict]:
+    return [step for step in _steps(job)
+            if isinstance(step, dict) and _CACHE_ACTION_RE.search(_uses(step))]
+
+
+def _cache_paths(steps: list[dict]) -> list[str]:
+    paths: list[str] = []
+    for step in steps:
+        values = step.get("with") if isinstance(step.get("with"), dict) else {}
+        paths.extend(str(values.get("path") or "").splitlines())
+    return [path.strip().casefold() for path in paths if path.strip()]
+
+
+_CACHE_ENV_PATH_RE = re.compile(
+    r"\$\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}", re.IGNORECASE)
+
+
+def _resolved_cache_env_path(
+    value: str, doc: dict, job: dict, step: dict,
+) -> str | None:
+    """Resolve cache-path env expressions with Actions' scope precedence.
+
+    ``None`` means an expression named an unavailable variable. Callers keep
+    that case unknown rather than turning it into an absence finding.
+    """
+    env: dict[str, str] = {}
+    for scope in (doc.get("env"), job.get("env"), step.get("env")):
+        if isinstance(scope, dict):
+            env.update({str(name): str(item) for name, item in scope.items()})
+    missing = False
+
+    def replace(match: re.Match[str]) -> str:
+        nonlocal missing
+        name = match.group(1)
+        if name not in env:
+            missing = True
+            return match.group(0)
+        return env[name]
+
+    resolved = _CACHE_ENV_PATH_RE.sub(replace, value)
+    return None if missing else resolved
+
+
+def _cache_saved_keys(docs: Iterable[dict]) -> list[str]:
+    """Normalized key families that repository cache steps can save."""
+    keys: list[str] = []
+    for doc in docs:
+        for job in _jobs_from_doc(doc).values():
+            if not isinstance(job, dict):
+                continue
+            for step in _cache_action_steps(job):
+                uses = _uses(step)
+                if re.search(r"(?:^|/)cache/restore@", uses, re.IGNORECASE):
+                    continue
+                values = step.get("with") if isinstance(step.get("with"), dict) else {}
+                key = str(values.get("key") or "").strip()
+                if key:
+                    keys.append(_normalized_actions_expression(key))
+    return keys
+
+
+def _job_env_blob(job: dict, doc: dict | None = None) -> str:
+    envs = [doc.get("env") if isinstance(doc, dict) else None,
+            job.get("env"), *(step.get("env") for step in _steps(job))]
+    return "\n".join(
+        f"{key}={value}"
+        for env in envs if isinstance(env, dict)
+        for key, value in env.items()
+    )
+
+
+def _size_mib(value: str) -> float | None:
+    match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*([kmgt])(?:i?b)?\s*", value,
+                         re.IGNORECASE)
+    if match is None:
+        return None
+    scale = {"k": 1 / 1024, "m": 1, "g": 1024, "t": 1024 ** 2}
+    return float(match.group(1)) * scale[match.group(2).casefold()]
+
+
+def _normalized_actions_expression(value: str) -> str:
+    """Ignore whitespace that GitHub ignores inside `${{ ... }}` expressions."""
+    return re.sub(
+        r"\$\{\{(.*?)\}\}",
+        lambda match: "${{" + re.sub(r"\s+", "", match.group(1)) + "}}",
+        value,
+        flags=re.DOTALL,
+    )
+
+
+def _compiler_cache_has_remote_backend(job: dict, doc: dict | None = None) -> bool:
+    envs = [doc.get("env") if isinstance(doc, dict) else None,
+            job.get("env"), *(step.get("env") for step in _steps(job))]
+    names = "\n".join(
+        str(key) for env in envs if isinstance(env, dict) for key in env
+    )
+    return bool(_REMOTE_COMPILER_CACHE_RE.search(names)
+                or _REMOTE_COMPILER_CACHE_RE.search(_job_run_blob(job)))
+
+
+def _buildkit_cache_invocations(job: dict) -> list[str]:
+    """BuildKit cache flags grouped by the build invocation that consumes them."""
+    invocations: list[str] = []
+    for step in _steps(job):
+        run = _run(step).strip()
+        if run:
+            invocations.append(run)
+        if not re.search(r"(?:^|/)build-push-action@", _uses(step), re.I):
+            continue
+        values = step.get("with") if isinstance(step.get("with"), dict) else {}
+        parts: list[str] = []
+        for key in ("cache-from", "cache-to"):
+            value = values.get(key)
+            if value is not None:
+                parts.extend(f"{key} {line.strip()}" for line in str(value).splitlines()
+                             if line.strip())
+        if parts:
+            invocations.append("\n".join(parts))
+    return invocations
+
+
+def _normalized_cache_path(value: object) -> str | None:
+    """A comparable literal cache path, or None for a dynamic/ambiguous value."""
+    path = _normalized_actions_expression(str(value).strip()).replace("\\", "/")
+    if not path or any(char in path for char in "*?[]"):
+        return None
+    while "//" in path:
+        path = path.replace("//", "/")
+    return path.rstrip("/").casefold() or "/"
+
+
+def _cache_path_covers(saved: object, source: object) -> bool:
+    saved_path = _normalized_cache_path(saved)
+    source_path = _normalized_cache_path(source)
+    return bool(saved_path and source_path
+                and (source_path == saved_path or source_path.startswith(saved_path + "/")))
+
+
+def _docker_cache_mount_targets(docker_text: str) -> set[str]:
+    targets: set[str] = set()
+    for match in re.finditer(r"--mount\s*=\s*([^\s\\]+)", docker_text, re.IGNORECASE):
+        options = match.group(1)
+        if not re.search(r"(?:^|,)type=cache(?:,|$)", options, re.IGNORECASE):
+            continue
+        target = re.search(r"(?:^|,)(?:target|dst|destination)=([^,]+)", options,
+                           re.IGNORECASE)
+        if target is not None:
+            normalized = _normalized_cache_path(target.group(1))
+            if normalized:
+                targets.add(normalized)
+    return targets
+
+
+def _literal_truthy(value: object) -> bool:
+    return isinstance(value, bool) and value or (
+        isinstance(value, str) and value.strip().casefold() in {"true", "yes", "on", "1"})
+
+
+def _buildkit_mount_persisted(
+    job: dict, root: Path, dockerfile: Path, mount_targets: set[str],
+) -> bool:
+    """Whether cache-dance persists each Dockerfile mount between hosted runs."""
+    saved_paths = _cache_paths(_cache_action_steps(job))
+    if not saved_paths or not mount_targets:
+        return False
+    for step in _steps(job):
+        if not re.search(r"(?:^|/)buildkit-cache-dance@", _uses(step), re.IGNORECASE):
+            continue
+        values = step.get("with") if isinstance(step.get("with"), dict) else {}
+        if _literal_truthy(values.get("skip-extraction")):
+            continue
+        cache_map = values.get("cache-map")
+        if cache_map is not None and str(cache_map).strip():
+            try:
+                mapping = yaml.safe_load(str(cache_map))
+            except yaml.YAMLError:
+                continue
+            if not isinstance(mapping, dict):
+                continue
+            persisted_targets: set[str] = set()
+            for source, destination in mapping.items():
+                if isinstance(destination, dict):
+                    destination = (destination.get("target") or destination.get("dst")
+                                   or destination.get("destination"))
+                target = _normalized_cache_path(destination)
+                if target in mount_targets and any(
+                        _cache_path_covers(saved, source) for saved in saved_paths):
+                    persisted_targets.add(target)
+            if mount_targets <= persisted_targets:
+                return True
+            continue
+
+        configured = str(values.get("dockerfile") or "Dockerfile").strip()
+        if "${{" in configured:
+            continue
+        configured_path = (root / configured).resolve()
+        if configured_path != dockerfile.resolve():
+            continue
+        cache_dir = str(values.get("cache-dir") or "").strip()
+        if cache_dir and any(_cache_path_covers(saved, cache_dir) for saved in saved_paths):
+            return True
+        if not cache_dir and all(
+                any(_cache_path_covers(saved, target) for saved in saved_paths)
+                for target in mount_targets):
+            return True
+    return False
+
+
+def _uses_persistent_remote_builder(job: dict) -> bool:
+    for step in _steps(job):
+        if not re.search(r"(?:^|/)setup-buildx-action@", _uses(step), re.I):
+            continue
+        values = step.get("with") if isinstance(step.get("with"), dict) else {}
+        if (str(values.get("driver") or "").strip().casefold() == "remote"
+                and str(values.get("endpoint") or "").strip()):
+            return True
+    return False
+
+
+def _static_cache_family(
+    *values: object,
+    cache_key: object = "",
+    cache_paths: object = (),
+) -> str:
+    """Return a stable cache-family token for log confirmation."""
+    key_text = str(cache_key or "").casefold()
+    key_without_expressions = re.sub(r"\$\{\{.*?\}\}", " ", key_text)
+    key_tokens = [
+        token.strip("._-")
+        for token in re.findall(r"[a-z][a-z0-9_.]*", key_without_expressions)
+    ]
+    key_tokens = [token for token in key_tokens if token]
+    if isinstance(cache_paths, (list, tuple, set)):
+        path_values = list(cache_paths)
+    else:
+        path_values = [cache_paths]
+    path_tokens = [
+        token.strip("._-")
+        for path in path_values
+        for token in re.findall(r"[a-z][a-z0-9_.]*", str(path or "").casefold())
+    ]
+    path_tokens = [token for token in path_tokens if token]
+    texts = [key_text, *(str(value or "").casefold() for value in values)]
+    for text in texts:
+        for family in (
+            "sccache", "ccache", "staticcheck", "golangci", "buildkit",
+            "jest", "playwright", "pnpm", "turbo", "cargo", "npm",
+            "maven", "go",
+        ):
+            if re.search(rf"(?<![a-z0-9]){re.escape(family)}(?![a-z0-9])", text):
+                return family
+    ignored = {
+        "build", "cache", "dependencies", "deps", "github", "home", "key",
+        "keys", "linux", "repository", "restore", "runner", "sha", "shared",
+    }
+    for token in reversed(path_tokens):
+        if token in key_tokens and token not in ignored:
+            return token
+    for token in reversed(key_tokens):
+        if (token not in ignored
+                and not re.fullmatch(r"v\d+(?:[._-]\d+)*", token)):
+            return token
+    text = " ".join(texts)
+    without_expressions = re.sub(r"\$\{\{.*?\}\}", " ", text)
+    tokens = re.findall(r"[a-z][a-z0-9_.]*", without_expressions)
+    for token in tokens:
+        token = token.strip("._-")
+        if (token and token not in ignored
+                and not re.fullmatch(r"v\d+(?:[._-]\d+)*", token)):
+            return token
+    return "declared-cache"
+
+
+def _detect_opt61(
+    doc: dict, raw: str, *, saved_keys: list[str] | None = None,
+) -> list[Hit]:
+    """Find cache declarations whose own workflow shape prevents useful reuse."""
+    hits: list[Hit] = []
+    if saved_keys is None:
+        saved_keys = _cache_saved_keys([doc])
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        cache_steps = _cache_action_steps(job)
+        cache_paths: list[str] = []
+        cache_paths_by_step: dict[int, list[str]] = {}
+        unknown_env_cache_names: set[str] = set()
+        for cache_step in cache_steps:
+            step_cache_paths: list[str] = []
+            values = (cache_step.get("with")
+                      if isinstance(cache_step.get("with"), dict) else {})
+            for raw_path in str(values.get("path") or "").splitlines():
+                if not raw_path.strip():
+                    continue
+                resolved = _resolved_cache_env_path(raw_path.strip(), doc, job, cache_step)
+                if resolved is None:
+                    # Preserve the literal suffix for family checks such as
+                    # `${{ env.CACHE_ROOT }}/ccache`.  A value written through
+                    # GITHUB_ENV is unavailable to the static YAML parser, but
+                    # the suffix still proves which cache the action saves.
+                    step_cache_paths.append(raw_path.strip().casefold())
+                    unknown_env_cache_names.update(
+                        name.casefold()
+                        for name in _CACHE_ENV_PATH_RE.findall(raw_path))
+                else:
+                    step_cache_paths.extend(
+                        line.strip().casefold()
+                        for line in resolved.splitlines() if line.strip())
+            cache_paths.extend(step_cache_paths)
+            cache_paths_by_step[id(cache_step)] = step_cache_paths
+        blob = "\n".join((_job_run_blob(job), _job_env_blob(job, doc)))
+        reasons: list[tuple[str, str, str]] = []
+
+        for step in cache_steps:
+            values = step.get("with") if isinstance(step.get("with"), dict) else {}
+            key = str(values.get("key") or "").strip()
+            restore = [line.strip() for line in
+                       str(values.get("restore-keys") or "").splitlines() if line.strip()]
+            rolling_key = re.search(r"github\.(?:sha|run_id|run_number)", key, re.I)
+            if key and restore and rolling_key and not any(
+                    saved_key.startswith(_normalized_actions_expression(prefix))
+                    for prefix in restore for saved_key in saved_keys):
+                reasons.append((
+                    "restore-keys",
+                    "none of its `restore-keys` can restore the rolling saved-key "
+                    "family on a later edit",
+                    _static_cache_family(
+                        cache_key=key,
+                        cache_paths=cache_paths_by_step.get(id(step), [])),
+                ))
+            size = values.get("max-size") or values.get("max_size")
+            mib = _size_mib(str(size)) if size is not None else None
+            if mib is not None and mib <= 64:
+                reasons.append((
+                    str(size),
+                    f"its compiler-cache size limit is only {size} and may churn before "
+                    "the next reuse",
+                    _static_cache_family(
+                        _uses(step),
+                        cache_key=key,
+                        cache_paths=cache_paths_by_step.get(id(step), [])),
+                ))
+
+        for match in re.finditer(
+                r"\bCCACHE_MAXSIZE\s*=\s*([^\s;&]+)|\bccache\s+-M\s+([^\s;&]+)",
+                blob, re.IGNORECASE):
+            value = match.group(1) or match.group(2)
+            mib = _size_mib(value)
+            if mib is not None and mib <= 64:
+                reasons.append((
+                    match.group(0),
+                    f"its compiler-cache size limit is only {value} and may churn before "
+                    "the next reuse",
+                    "ccache",
+                ))
+
+        temp = _TEMP_CACHE_RE.search(blob)
+        cache_path_text = "\n".join(cache_paths)
+        cache_dir_names = {
+            "ccache_dir", "sccache_dir", "staticcheck_cache", "golangci_lint_cache",
+        }
+        base_env: dict[str, str] = {}
+        for scope in (doc.get("env"), job.get("env")):
+            if isinstance(scope, dict):
+                base_env.update({str(name).casefold(): str(value).strip()
+                                 for name, value in scope.items()})
+        # Cache-action step env affects only the action input and must not be
+        # mistaken for the compiler process's directory.  Walk run steps in
+        # order so literal GITHUB_ENV writes affect later steps, while inline
+        # assignments remain scoped to the command that contains them.
+        assignment_re = re.compile(
+            r"\b(CCACHE_DIR|SCCACHE_DIR|STATICCHECK_CACHE|GOLANGCI_LINT_CACHE)"
+            r"\s*=\s*([^\s;&]+)", re.IGNORECASE)
+        direct_compiler_re = re.compile(
+            r"(?:^|[\s;&|])(ccache|sccache)(?=\s|$)", re.IGNORECASE)
+        compiler_cache_consumer_re = re.compile(
+            r"(?:^|[\s;&|`$(])(?:"
+            r"cargo\s+(?:\+\S+\s+)?(?:build|test|check|bench|doc|hack|"
+            r"llvm-cov|run|xtask)\b|"
+            r"cargo\s+(?:\+\S+\s+)?nextest\s+run\b|"
+            r"cargo\s+(?:\+\S+\s+)?clippy\b"
+            r"(?![^;&|]*(?:--version|-V)(?:\s|$))|"
+            r"cross\s+(?:build|test|check|bench)\b|"
+            r"cmake\s+--build\b|meson\s+compile\b|make\b|ninja\b|"
+            r"bazel(?:isk)?\s+(?:build|test)\b|"
+            r"(?:just|task)[ \t]++(?!-)\S+|"
+            r"npm\s+(?:run|exec|test|start)\b|"
+            r"(?:pnpm|yarn|bun)[ \t]++(?!-)"
+            r"(?!(?:version|help|info|list|config|cache)\b)\S+|"
+            r"rustc[ \t]++(?!(?:--version|-Vv?|--print|--explain)"
+            r"(?:[ \t]|$))|"
+            r"(?:python(?:3(?:\.\d+)?)?|bash|sh)[ \t]+"
+            r"(?:-[A-Za-z]+[ \t]+)*[^\s;&|]+\.(?:py|sh|js|ts)\b|"
+            r"(?:\./|\$GITHUB_WORKSPACE/|"
+            r"\$\{\{\s*github\.workspace\s*\}\}/|"
+            r"(?:scripts?|ci|tools?)/)\S+"
+            r")",
+            re.IGNORECASE,
+        )
+        analysis_command_re = re.compile(
+            r"(?:^|[\s;&|])(?:staticcheck|golangci-lint)(?=\s|$)", re.IGNORECASE)
+
+        def consumes_directory(name: str, command: str, env: dict[str, str]) -> bool:
+            if not command.strip() or "$GITHUB_ENV" in command:
+                return False
+            if name in {"ccache_dir", "sccache_dir"}:
+                family = name.removesuffix("_dir")
+                direct = direct_compiler_re.search(command)
+                if direct:
+                    return family == direct.group(1).casefold()
+                env_text = "\n".join(f"{key}={value}" for key, value in env.items())
+                if family not in env_text.casefold():
+                    return False
+                # Only build drivers, task runners, and first-party scripts can
+                # consume the configured compiler wrapper. File inspection,
+                # packaging, toolchain setup, and metadata probes do not make
+                # an inherited cache directory active merely by sharing a job.
+                return compiler_cache_consumer_re.search(command) is not None
+            family = "staticcheck" if name == "staticcheck_cache" else "golangci"
+            match = analysis_command_re.search(command)
+            return bool(match and family in match.group(0).casefold())
+
+        inherited_env = dict(base_env)
+        declared_dirs: list[tuple[str, str]] = []
+        for step in _steps(job):
+            run = _run(step)
+            if not run.strip():
+                continue
+            shell_env = dict(inherited_env)
+            step_env = step.get("env")
+            if isinstance(step_env, dict):
+                for name, value in step_env.items():
+                    folded = str(name).casefold()
+                    if folded in cache_dir_names and str(value).strip():
+                        shell_env[folded] = str(value).strip()
+            github_env_updates: dict[str, str] = {}
+            for command in run.splitlines():
+                matches = list(assignment_re.finditer(command))
+                if "$GITHUB_ENV" in command:
+                    github_env_updates.update(
+                        (match.group(1).casefold(), match.group(2).strip("'\""))
+                        for match in matches)
+                    continue
+                exported = bool(re.match(r"\s*export\s+", command, re.IGNORECASE))
+                if exported:
+                    shell_env.update(
+                        (match.group(1).casefold(), match.group(2).strip("'\""))
+                        for match in matches)
+                elif matches and not assignment_re.sub("", command).strip():
+                    # A bare assignment is shell state for following commands
+                    # in the same run step, unlike `NAME=value command`.
+                    shell_env.update(
+                        (match.group(1).casefold(), match.group(2).strip("'\""))
+                        for match in matches)
+                    continue
+                for name in cache_dir_names:
+                    if not consumes_directory(name, command, shell_env):
+                        continue
+                    inline = next(
+                        (match.group(2).strip("'\"") for match in matches
+                         if match.group(1).casefold() == name and not exported),
+                        None,
+                    )
+                    value = inline or shell_env.get(name)
+                    if value:
+                        declared_dirs.append((name, value))
+            inherited_env.update(github_env_updates)
+        declared_dirs = list(dict.fromkeys(declared_dirs))
+        declared_compiler_dirs = [
+            value for name, value in declared_dirs
+            if name in {"ccache_dir", "sccache_dir"}
+        ]
+        declared_analysis_dirs = [
+            value for name, value in declared_dirs
+            if name in {"staticcheck_cache", "golangci_lint_cache"}
+        ]
+
+        def persisted_dirs(directories: list[tuple[str, str]]) -> bool:
+            return bool(directories) and all(
+                name in unknown_env_cache_names
+                or any(_cache_path_covers(path, directory) for path in cache_paths)
+                for name, directory in directories
+            )
+
+        persisted_declared = persisted_dirs(declared_dirs)
+        if temp and not (persisted_declared or any(
+                _cache_path_covers(path, temp.group(0).split("=", 1)[-1])
+                for path in cache_paths)):
+            reasons.append((
+                temp.group(0),
+                "a compiler or analysis cache lives in temporary storage and is not saved",
+                _static_cache_family(temp.group(0)),
+            ))
+        uses_compiler_cache = bool(_COMPILER_CACHE_RE.search(blob))
+        supplied_by_cache_action = any(
+            re.search(r"ccache-action|rust-cache", _uses(step), re.IGNORECASE)
+            for step in cache_steps)
+        compiler_dir_entries = [
+            (name, value) for name, value in declared_dirs
+            if name in {"ccache_dir", "sccache_dir"}
+        ]
+        persisted_compiler = (persisted_dirs(compiler_dir_entries)
+                                if declared_compiler_dirs else any(
+            token in cache_path_text for token in ("ccache", "sccache", "target"))
+            or bool(unknown_env_cache_names & {"ccache_dir", "sccache_dir"}))
+        if (uses_compiler_cache and not supplied_by_cache_action and not persisted_compiler
+                and not _is_self_hosted(job)
+                and not _compiler_cache_has_remote_backend(job, doc)):
+            matched_compiler = _COMPILER_CACHE_RE.search(blob).group(0)
+            reasons.append((
+                matched_compiler,
+                "the compiler cache has no persistence step",
+                _static_cache_family(matched_compiler),
+            ))
+        analysis_dir_entries = [
+            (name, value) for name, value in declared_dirs
+            if name in {"staticcheck_cache", "golangci_lint_cache"}
+        ]
+        persisted_analysis = (persisted_dirs(analysis_dir_entries)
+                               if declared_analysis_dirs else any(
+                                   token in cache_path_text
+                                   for token in ("staticcheck", "golangci"))
+                               or bool(unknown_env_cache_names & {
+                                   "staticcheck_cache", "golangci_lint_cache"}))
+        if _ANALYSIS_CACHE_RE.search(blob) and not persisted_analysis:
+            matched_analysis = _ANALYSIS_CACHE_RE.search(blob).group(0)
+            reasons.append((
+                matched_analysis,
+                "the analysis cache has no persistence step",
+                _static_cache_family(matched_analysis),
+            ))
+        steps = _steps(job)
+        cache_indices = [i for i, step in enumerate(steps) if step in cache_steps]
+        deleted: re.Match[str] | None = None
+        deletion_unread = False
+        for index, step in enumerate(steps):
+            candidate = re.search(
+                r"(?:rm\s+-rf?|Remove-Item)[^\n]*(?:ccache|sccache|staticcheck|golangci)",
+                _run(step), re.IGNORECASE)
+            prior = [i for i in cache_indices if i < index]
+            if candidate is None or not prior:
+                continue
+            deleted = candidate
+            reasons.append((
+                candidate.group(0),
+                "a later step deletes the cache directory",
+                _static_cache_family(candidate.group(0)),
+            ))
+            restore_index = max(prior)
+            # With no command between restore and deletion, the restored path is
+            # provably unread. A wrapper command may consume it, so fail closed.
+            deletion_unread = not any(_run(s).strip()
+                                      for s in steps[restore_index + 1:index])
+            break
+
+        for matched, reason, cache_family in dict.fromkeys(reasons):
+            facts: dict[str, Any] = {
+                "static_cache_lint": True,
+                "cache_family": cache_family,
+            }
+            if deleted is not None and matched == deleted.group(0) and deletion_unread:
+                facts["cache_path_consumed"] = False
+            hits.append(Hit(
+                line=_line_of_in_job(raw, job_name, matched),
+                affected_jobs=[job_name],
+                evidence=(f"job `{job_name}` declares a cache whose workflow shape may prevent "
+                          f"useful warm reuse: {reason}; confirm with its own restore/build log before "
+                          "crediting a saving"),
+                match_text=matched,
+                facts=facts,
+            ))
+    return hits
+
+
+def _detect_opt4(doc: dict, raw: str) -> list[Hit]:
+    """Find BuildKit cache exports whose scope or local rotation defeats reuse."""
+    hits: list[Hit] = []
+    volatile = re.compile(
+        r"type=gha[^\n]*(?:scope=[^\s,]*\$\{\{\s*github\."
+        r"(?:sha|run_id|run_number)\s*\}\})",
+        re.IGNORECASE)
+    local_from = re.compile(
+        r"(?:--)?cache-from\s+type=local,src=([^\s,]+)", re.IGNORECASE)
+    local_to = re.compile(
+        r"(?:--)?cache-to\s+type=local,dest=([^\s,]+)([^\n]*)", re.IGNORECASE)
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        for blob in _buildkit_cache_invocations(job):
+            match = volatile.search(blob)
+            reason = ("a commit-scoped GHA cache cannot be restored by a later commit"
+                      if match is not None and "github.sha" in match.group(0)
+                      else "a run-scoped GHA cache cannot be restored by a fresh workflow invocation")
+            if match is None:
+                source, destination = local_from.search(blob), local_to.search(blob)
+                if source and destination and source.group(1) == destination.group(1):
+                    match = destination
+                    reason = ("the local cache exports over the directory it imports without "
+                              "rotating to a fresh destination")
+            if match is None:
+                continue
+            hits.append(Hit(
+                line=_line_of_in_job(raw, job_name, match.group(0).strip()),
+                affected_jobs=[job_name],
+                evidence=(f"job `{job_name}` configures a BuildKit cache that cannot warm "
+                          f"its intended later scope: {reason}; confirm the miss in its own build log "
+                          "before crediting a saving"),
+                match_text=match.group(0).strip(),
+                facts={"static_cache_lint": True, "cache_family": "buildkit"},
+            ))
+            break
+    return hits
+
+
+def _detect_opt4_ephemeral_mounts(
+    parsed: list[tuple[str, dict, str]], root: Path,
+) -> list[tuple[str, str, Hit]]:
+    """Find hosted builds whose Dockerfile cache mount dies with the runner."""
+    out: list[tuple[str, str, Hit]] = []
+    for rel, doc, raw in parsed:
+        for job_name, job in _jobs_from_doc(doc).items():
+            if not isinstance(job, dict) or _is_self_hosted(job):
+                continue
+            steps = _steps(job)
+            dockerfile: Path | None = None
+            matched = "RUN --mount=type=cache"
+            for step in steps:
+                config_and_kind = _opt102_step_build_config(step, job, doc)
+                if config_and_kind is None:
+                    continue
+                config, _kind = config_and_kind
+                resolved = _opt102_resolved_dockerfile(
+                    root, config, env={}, matrix={}, inputs={}, outputs={})
+                if resolved is not None:
+                    dockerfile = resolved[0]
+                    break
+            if dockerfile is None:
+                continue
+            try:
+                docker_text = dockerfile.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            mount_targets = _docker_cache_mount_targets(docker_text)
+            if not mount_targets:
+                continue
+            if (_buildkit_mount_persisted(job, root, dockerfile, mount_targets)
+                    or _uses_persistent_remote_builder(job)):
+                continue
+            out.append(("OPT4", rel, Hit(
+                line=_line_of_in_job(raw, job_name, "docker"),
+                affected_jobs=[job_name],
+                evidence=(f"job `{job_name}` uses a Dockerfile cache mount on a hosted "
+                          "runner without a persistence step, so the mount disappears "
+                          "after every run; confirm the miss in its own build log before "
+                          "crediting a saving"),
+                match_text=matched,
+                snippet=f"{dockerfile.relative_to(root)}: {matched}",
+                facts={"static_cache_lint": True, "cache_family": "buildkit"},
+            )))
+    return out
+
+
+# ---- OPT62 — Build Artifacts Destroyed Before Every Run ----------------------
+
+_CLEAN_RE = re.compile(
+    r"rm\s+-rf?\s+\S*(?:build|target|dist|node_modules)|cargo\s+clean|"
+    r"make\s+clean|gradle\s+clean|nx\s+reset", re.I)
+_GO_BUILD_CACHE_CLEAN_RE = re.compile(
+    r"\bgo\s+clean\b(?=[^\n;&]*(?:^|\s)-(?:i\s+)?(?:cache|modcache)\b)[^\n;&]*",
+    re.IGNORECASE,
+)
+
+
+def _detect_opt62(doc: dict, raw: str) -> list[Hit]:
+    """A self-hosted (persistent) runner job destroys build dirs before each run
+    (catalog OPT62 heuristic). GitHub-hosted runners are never flagged — their
+    workspace is always fresh, so the clean is a no-op there."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        blob = _job_run_blob(job)
+        go_clean = _GO_BUILD_CACHE_CLEAN_RE.search(blob)
+        m = go_clean or (_CLEAN_RE.search(blob) if _is_self_hosted(job) else None)
+        if m:
+            hits.append(Hit(
+                line=_line_of_in_job(raw, job_name, m.group(0).strip()),
+                affected_jobs=[job_name],
+                evidence=(f"job `{job_name}` "
+                          + ("clears Go's reusable build/module cache"
+                             if go_clean else "on a self-hosted (persistent) runner destroys build artifacts")
+                          + f" (`{m.group(0).strip()}`) before each run, defeating reuse"),
+                match_text=job_name,
+                facts=({"static_cache_lint": True, "cache_family": "go"}
+                       if go_clean else {}),
+            ))
+    return hits
+
+
+# ---- OPT63 — Dependency Install with Cache Disabled --------------------------
+
+_NOCACHE_RE = re.compile(
+    r"--no-cache(?:-dir)?\b|--force-reinstall\b|--cache\s+/dev/null", re.I)
+
+
+def _detect_opt63(doc: dict, raw: str) -> list[Hit]:
+    """A self-hosted runner job installs deps with a cache-defeating flag
+    (catalog OPT63 heuristic). GitHub-hosted runners are never flagged."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict) or not _is_self_hosted(job):
+            continue
+        m = _NOCACHE_RE.search(_job_run_blob(job))
+        if m:
+            hits.append(Hit(
+                line=_line_of_in_job(raw, job_name, m.group(0).strip()),
+                affected_jobs=[job_name],
+                evidence=(f"job `{job_name}` on a self-hosted runner installs deps "
+                          f"with a cache-defeating flag (`{m.group(0).strip()}`)"),
+                match_text=job_name,
+            ))
+    return hits
+
+
+# ---- OPT12 — Duplicated Setup Across Jobs (within one workflow) --------------
+
+def _step_sig(step: dict) -> str:
+    """A normalized signature for a step: the action (version-stripped) or the
+    first run command line."""
+    u = _uses(step)
+    if u:
+        return "uses:" + re.sub(r"@.*$", "", u)
+    run = _run(step)
+    if run:
+        first = next((ln.strip() for ln in run.splitlines() if ln.strip()), "")
+        return "run:" + first[:40]
+    return "step:?"
+
+
+# A shared preamble is only worth a composite action if it does real
+# dependency setup — a bare `checkout` (+ echo) repeated across trivial status
+# jobs is not the OPT12 pattern. Require a toolchain setup or an install.
+_SETUP_SIG_RE = re.compile(
+    r"setup-node|setup-python|setup-go|pnpm/action-setup|\binstall\b", re.I)
+
+
+def _detect_opt12(doc: dict, raw: str) -> list[Hit]:
+    """≥2 jobs share an identical setup preamble (first ≤4 steps) that includes
+    a real toolchain setup / dependency install — extract a composite action
+    (catalog OPT12). The fix stays within the workflow, so the cross-workflow
+    artifact-handoff guardrail does not apply."""
+    by_sig: dict[tuple, list[str]] = {}
+    for name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        # The preamble ends at the first `parallel:` group: a composite action
+        # cannot hold one, so a "shared preamble" reaching into a group is not
+        # extractable as written (and a flat read never counted its children).
+        leaves = job_walk(job).leaves
+        flat = next((i for i, lf in enumerate(leaves) if lf.in_parallel_group),
+                    len(leaves))
+        steps = [lf.step for lf in leaves[:flat]][:4]
+        if len(steps) < 2:
+            continue
+        sig = tuple(_step_sig(s) for s in steps)
+        by_sig.setdefault(sig, []).append(name)
+    all_jobs = _jobs_from_doc(doc)
+    hits: list[Hit] = []
+    for sig, names in by_sig.items():
+        names = _co_running(all_jobs, names)  # exclusive jobs never co-run
+        if len(names) < 2 or not any(_SETUP_SIG_RE.search(s) for s in sig):
+            continue
+        hits.append(Hit(
+            line=1,
+            affected_jobs=names,
+            evidence=(f"{len(names)} jobs share an identical {len(sig)}-step setup "
+                      f"preamble ({', '.join(names)}) — extract a composite action"),
+            match_text="(workflow)",
+        ))
+    return hits
+
+
+_OPT12_TEST_COMMAND_RE = re.compile(
+    r"(?:^|\s)(?:npm|pnpm|yarn)\s+(?:run\s+)?test\b|"
+    r"(?:^|\s)(?:pytest|ctest|vitest|jest|rspec)\b|"
+    r"(?:^|\s)(?:make|cmake\s+--build\s+\S+\s+--target)\s+(?:test|check)\b",
+    re.IGNORECASE,
+)
+_OPT12_COVERAGE_FLAG_RE = re.compile(
+    r"^(?:--cov(?:=.*)?|--coverage(?:=.*)?|--cov-report(?:=.*)?|"
+    r"--coverage-report(?:=.*)?|--collectCoverage(?:=.*)?)$", re.IGNORECASE)
+_OPT12_COVERAGE_VALUE_FLAGS = {"--cov", "--cov-report", "--coverage-report"}
+
+
+def _opt12_normalized_test_commands(run: str) -> tuple[tuple[str, ...], bool]:
+    """Test-command signatures and whether coverage-only flags were removed."""
+    found: list[str] = []
+    coverage = False
+    for command in re.split(r"\n|&&|;", run):
+        command = command.strip()
+        if not command or not _OPT12_TEST_COMMAND_RE.search(command):
+            continue
+        try:
+            tokens = shlex.split(command)
+        except ValueError:
+            tokens = command.split()
+        kept = []
+        skip_value = False
+        for token_index, token in enumerate(tokens):
+            if skip_value:
+                skip_value = False
+                continue
+            if _OPT12_COVERAGE_FLAG_RE.match(token):
+                coverage = True
+                if (token.lower() in _OPT12_COVERAGE_VALUE_FLAGS
+                        and token_index + 1 < len(tokens)):
+                    next_token = tokens[token_index + 1]
+                    skip_value = not next_token.startswith("-")
+                continue
+            kept.append(token)
+        while kept and kept[-1] == "--":
+            kept.pop()
+        if kept:
+            kept[0] = kept[0].lower()
+            if kept[0] in {"npm", "pnpm", "yarn"} and len(kept) > 1:
+                kept[1] = kept[1].lower()
+        normalized = " ".join(kept).strip()
+        if normalized and normalized not in found:
+            found.append(normalized)
+    return tuple(found), coverage
+
+
+def _opt12_composite_test_commands(
+    ref: str, chain: tuple[str, ...] = (),
+) -> tuple[tuple[str, ...], bool, list[str]]:
+    """Test commands in a readable local composite action, expanded in place."""
+    if _OPT102_ROOT is None or ref in chain or len(chain) >= _MAX_LOCAL_ACTION_DEPTH:
+        return (), False, []
+    text = _read_local_action(_OPT102_ROOT, ref)
+    try:
+        doc = yaml.safe_load(text) if text is not None else None
+    except yaml.YAMLError:
+        doc = None
+    runs = doc.get("runs") if isinstance(doc, dict) else None
+    if not isinstance(runs, dict) or str(runs.get("using") or "").lower() != "composite":
+        return (), False, []
+    steps = runs.get("steps")
+    if not isinstance(steps, list):
+        return (), False, []
+    commands: list[str] = []
+    coverage = False
+    refs = [ref]
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        sigs, has_coverage = _opt12_normalized_test_commands(_run(step))
+        commands.extend(sig for sig in sigs if sig not in commands)
+        coverage = coverage or has_coverage
+        nested = _uses(step).split("@", 1)[0].strip()
+        if not _is_local_uses(nested):
+            continue
+        nested_commands, nested_coverage, nested_refs = _opt12_composite_test_commands(
+            nested, chain + (ref,))
+        commands.extend(sig for sig in nested_commands if sig not in commands)
+        coverage = coverage or nested_coverage
+        refs.extend(item for item in nested_refs if item not in refs)
+    return tuple(commands), coverage, refs
+
+
+def _opt12_job_test_commands(job: dict) -> tuple[dict[str, str], bool, list[str]]:
+    commands: dict[str, str] = {}
+    coverage = False
+    local_refs: list[str] = []
+    defaults = job.get("defaults") if isinstance(job.get("defaults"), dict) else {}
+    run_defaults = defaults.get("run") if isinstance(defaults.get("run"), dict) else {}
+    default_cwd = str(run_defaults.get("working-directory") or ".")
+    job_env = job.get("env") if isinstance(job.get("env"), dict) else {}
+    container = job.get("container")
+
+    def add(signatures: tuple[str, ...], step: dict) -> None:
+        cwd = str(step.get("working-directory") or default_cwd)
+        env = dict(job_env)
+        if isinstance(step.get("env"), dict):
+            env.update(step["env"])
+        for signature in signatures:
+            key = json.dumps({
+                "command": signature,
+                "working_directory": cwd,
+                "env": env,
+                "container": container,
+            }, sort_keys=True, separators=(",", ":"), default=str)
+            commands.setdefault(key, signature)
+
+    for leaf in job_walk(job).leaves:
+        step = leaf.step
+        sigs, has_coverage = _opt12_normalized_test_commands(_run(step))
+        add(sigs, step)
+        coverage = coverage or has_coverage
+        ref = _uses(step).split("@", 1)[0].strip()
+        if not _is_local_uses(ref):
+            continue
+        sigs, has_coverage, refs = _opt12_composite_test_commands(ref)
+        add(sigs, step)
+        coverage = coverage or has_coverage
+        local_refs.extend(item for item in refs if item not in local_refs)
+    return commands, coverage, local_refs
+
+
+def _opt12_platforms(job: dict) -> set[str]:
+    """Concrete runner OS/architecture labels after bounded matrix expansion."""
+    out: set[str] = set()
+    for matrix in _opt102_matrix_legs(job):
+        raw = job.get("runs-on")
+        values = raw if isinstance(raw, list) else [raw]
+        resolved: list[str] = []
+        for value in values:
+            item = _opt102_resolve(
+                value, env={}, matrix=matrix, inputs={}, outputs={})
+            if not item:
+                return set()
+            resolved.append(item.lower())
+        labels = set(resolved)
+        joined = "+".join(sorted(labels))
+        if any(label.startswith("ubuntu-") or label == "linux" for label in labels):
+            os_name = "linux"
+        elif any(label.startswith("windows-") or label == "windows" for label in labels):
+            os_name = "windows"
+        elif any(label.startswith("macos-") or label == "macos" for label in labels):
+            os_name = "macos"
+        else:
+            out.add(joined)
+            continue
+        if any(re.search(r"(?:^|[-_+])(arm64|aarch64|arm)(?:$|[-_+])", label)
+               for label in labels):
+            arch = "arm64"
+        elif any(re.search(r"(?:^|[-_+])(x64|amd64|x86_64)(?:$|[-_+])", label)
+                 for label in labels):
+            arch = "x64"
+        elif any(label.startswith(("ubuntu-", "windows-")) for label in labels):
+            arch = "x64"
+        else:
+            out.add(joined)
+            continue
+        out.add(f"{os_name}/{arch}")
+    return out
+
+
+def _opt12_trigger_signature(doc: dict) -> str:
+    on = doc.get("on", doc.get(True))
+
+    def canonical(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {str(key): canonical(nested) for key, nested in value.items()}
+        if isinstance(value, list):
+            items = [canonical(item) for item in value]
+            return sorted(items, key=lambda item: json.dumps(
+                item, sort_keys=True, separators=(",", ":"), default=str))
+        return value
+
+    try:
+        return json.dumps(canonical(on), sort_keys=True, separators=(",", ":"))
+    except (TypeError, ValueError):
+        return ""
+
+
+def _opt12_downstream_jobs(jobs: dict[str, Any], start: str) -> list[str]:
+    reached = {start}
+    changed = True
+    while changed:
+        changed = False
+        for name, spec in jobs.items():
+            if not isinstance(spec, dict) or name in reached:
+                continue
+            needs = spec.get("needs")
+            needs = [needs] if isinstance(needs, str) else needs if isinstance(needs, list) else []
+            if any(str(need) in reached for need in needs):
+                reached.add(str(name))
+                changed = True
+    return sorted(reached - {start})
+
+
+def _opt12_run_is_shared_test_only(run: str, shared: set[str]) -> bool:
+    parts = [part.strip() for part in re.split(r"\n|&&|;", run) if part.strip()]
+    if not parts:
+        return True
+    for part in parts:
+        commands, _coverage = _opt12_normalized_test_commands(part)
+        if len(commands) != 1 or commands[0] not in shared:
+            return False
+    return True
+
+
+def _opt12_composite_is_shared_test_only(
+    ref: str, shared: set[str], chain: tuple[str, ...] = (),
+) -> bool:
+    if _OPT102_ROOT is None or ref in chain or len(chain) >= _MAX_LOCAL_ACTION_DEPTH:
+        return False
+    text = _read_local_action(_OPT102_ROOT, ref)
+    try:
+        doc = yaml.safe_load(text) if text is not None else None
+    except yaml.YAMLError:
+        return False
+    runs = doc.get("runs") if isinstance(doc, dict) else None
+    steps = runs.get("steps") if isinstance(runs, dict) else None
+    if str((runs or {}).get("using") or "").lower() != "composite" \
+            or not isinstance(steps, list):
+        return False
+    for step in steps:
+        if not isinstance(step, dict):
+            return False
+        if _run(step) and not _opt12_run_is_shared_test_only(_run(step), shared):
+            return False
+        nested = _uses(step).split("@", 1)[0].strip()
+        if nested and (not _is_local_uses(nested)
+                       or not _opt12_composite_is_shared_test_only(
+                           nested, shared, chain + (ref,))):
+            return False
+    return True
+
+
+def _opt12_job_is_replaceable(job: dict, shared: set[str]) -> bool:
+    """True when removing the job removes only the shared suite and setup."""
+    if job.get("outputs") or job.get("services"):
+        return False
+    setup_actions = (
+        "actions/checkout", "actions/setup-", "actions/cache",
+    )
+    saw_shared = False
+    for leaf in job_walk(job).leaves:
+        step = leaf.step
+        run = _run(step)
+        if run:
+            if not _opt12_run_is_shared_test_only(run, shared):
+                return False
+            saw_shared = True
+        uses = _uses(step).split("@", 1)[0].strip()
+        if not uses:
+            continue
+        if _is_local_uses(uses):
+            if not _opt12_composite_is_shared_test_only(uses, shared):
+                return False
+            saw_shared = True
+        elif not uses.lower().startswith(setup_actions):
+            return False
+    return saw_shared
+
+
+def _detect_opt12_duplicate_test_work(
+    parsed: list[tuple[str, dict, str]],
+) -> list[tuple[str, str, Hit]]:
+    """Duplicate test work on the same trigger and concrete runner platform."""
+    rows: list[dict[str, Any]] = []
+    for rel, doc, raw in parsed:
+        trigger = _opt12_trigger_signature(doc)
+        jobs = _jobs_from_doc(doc)
+        for name, job in jobs.items():
+            if not isinstance(job, dict):
+                continue
+            commands, coverage, local_refs = _opt12_job_test_commands(job)
+            platforms = _opt12_platforms(job)
+            if not commands or not platforms or not trigger:
+                continue
+            rows.append({
+                "workflow": rel,
+                "job": str(name),
+                "commands": commands,
+                "coverage": coverage or bool(re.search(r"coverage", str(name), re.I)),
+                "local_refs": local_refs,
+                "platforms": platforms,
+                "trigger": trigger,
+                "downstream": _opt12_downstream_jobs(jobs, str(name)),
+                "raw": raw,
+                "spec": job,
+                "display_name": str(job.get("name") or name),
+            })
+    hits: list[tuple[str, str, Hit]] = []
+    seen_duplicates: set[tuple[str, str]] = set()
+    ranked: list[tuple[
+        int, dict[str, Any], dict[str, Any], tuple[str, ...],
+        dict[str, Any], dict[str, Any],
+    ]] = []
+    for index, left in enumerate(rows):
+        for right in rows[index + 1:]:
+            if left["trigger"] != right["trigger"]:
+                continue
+            if _jobs_mutually_exclusive(left["spec"], right["spec"]):
+                continue
+            if not (left["platforms"] & right["platforms"]):
+                continue
+            shared = tuple(command for command in left["commands"]
+                           if command in right["commands"])
+            if not shared:
+                continue
+            same_workflow = left["workflow"] == right["workflow"]
+            left_before_right = same_workflow and right["job"] in left["downstream"]
+            right_before_left = same_workflow and left["job"] in right["downstream"]
+            if left_before_right:
+                duplicate, existing, on_path = right, left, True
+            elif right_before_left:
+                duplicate, existing, on_path = left, right, True
+            elif left["downstream"] and not right["downstream"]:
+                duplicate, existing, on_path = left, right, True
+            elif right["downstream"]:
+                duplicate, existing, on_path = right, left, True
+            elif left["coverage"] or right["coverage"]:
+                duplicate = left if left["coverage"] else right
+                existing = right if duplicate is left else left
+                on_path = False
+            else:
+                continue
+            shared_commands = {left["commands"][signature] for signature in shared}
+            if not _opt12_job_is_replaceable(duplicate["spec"], shared_commands):
+                continue
+            ranked.append((
+                0 if on_path else 1, duplicate, existing, shared, left, right))
+    for rank, duplicate, existing, shared, left, right in sorted(
+            ranked, key=lambda item: (
+                item[0], item[1]["workflow"], item[1]["job"],
+                item[2]["workflow"], item[2]["job"])):
+        duplicate_key = (duplicate["workflow"], duplicate["job"])
+        if duplicate_key in seen_duplicates:
+            continue
+        seen_duplicates.add(duplicate_key)
+        on_path = rank == 0
+        coverage = left["coverage"] or right["coverage"]
+        downstream = duplicate["downstream"]
+        shared_commands = [left["commands"][signature] for signature in shared]
+        command_text = ", ".join(f"`{command}`" for command in shared_commands)
+        refs = sorted(set(left["local_refs"] + right["local_refs"]))
+        refs_text = f" through local action(s) {', '.join(refs)}" if refs else ""
+        if coverage and not on_path:
+            fix = ("Move the coverage floor onto the existing test run; keep every gate. "
+                   "Runner-minute effect: one suite run is saved.")
+        else:
+            slow = f" before `{downstream[0]}`" if downstream else ""
+            fix = ("Keep every gate: either use `workflow_run` with a CI conclusion "
+                   "check, or put the jobs in one workflow and make the slow job `needs` "
+                   "the existing test job. Runner-minute effect: one suite run is saved; "
+                   "under same-workflow `needs`, wall-clock saving is 0s.")
+            if slow:
+                fix = f"The duplicate sits on the needs chain{slow}. " + fix
+        evidence = (
+            f"`{left['workflow']}` job `{left['job']}` and `{right['workflow']}` job "
+            f"`{right['job']}` run the same test command(s){refs_text}: {command_text}. "
+            + fix)
+        hits.append(("OPT12", duplicate["workflow"], Hit(
+            line=1,
+            affected_jobs=[duplicate["job"]],
+            evidence=evidence,
+            match_text="duplicate-test-work",
+            snippet="\n".join(shared_commands),
+            facts={"opt12_duplicate_test_work": {
+                "variant": "needs_chain" if on_path else "coverage",
+                "existing_workflow": existing["workflow"],
+                "existing_job": existing["job"],
+                "duplicate_workflow": duplicate["workflow"],
+                "duplicate_job": duplicate["job"],
+                "duplicate_job_display": duplicate["display_name"],
+                "downstream_job": downstream[0] if downstream else None,
+                "same_workflow": existing["workflow"] == duplicate["workflow"],
+                "commands": shared_commands,
+            }},
+        )))
+    return hits
+
+
+def _opt12_first_step_in_a_group(doc: dict) -> list[str]:
+    """The jobs OPT12 cannot read a preamble from because their FIRST step is
+    inside a `parallel:` group (a composite action cannot hold one). Listed
+    under the stamp's `held_back`, so the job is not silently skipped."""
+    out: list[str] = []
+    for name, job in _jobs_from_doc(doc).items():
+        leaves = job_walk(job).leaves if isinstance(job, dict) else []
+        if leaves and leaves[0].in_parallel_group:
+            out.append(str(name))
+    return out
+
+
+# ---- OPT6 — Cache Key Entropy Too High or Unstable ---------------------------
+
+_OPT6_DYNAMIC_KEY_RE = re.compile(r"github\.(sha|run_id|run_number)", re.I)
+
+
+def _detect_opt6(doc: dict, raw: str) -> list[Hit]:
+    """A cache `key:` containing a per-run token (`github.sha`/`run_id`/
+    `run_number`) AND with NO `restore-keys` fallback — only then does nothing
+    ever restore. With a `restore-keys` prefix, a primary-key miss still
+    restores the most recent entry's CONTENT (the recommended write-per-commit
+    idiom), so it is namespace hygiene at most, not a defeated cache (OPT8
+    guardrail). Bespoke handler — supersedes the catalog's blind `match` regex,
+    which flagged every dynamic key regardless of restore-keys."""
+    hits: list[Hit] = []
+    for job_name, job in _jobs_from_doc(doc).items():
+        if not isinstance(job, dict):
+            continue
+        for s in _steps(job):
+            with_ = s.get("with") or {}
+            if not isinstance(with_, dict):
+                continue
+            key = str(with_.get("key") or "")
+            if not _OPT6_DYNAMIC_KEY_RE.search(key):
+                continue
+            if with_.get("restore-keys"):
+                continue  # prefix fallback restores content — not a never-hit
+            line = (_line_of_in_job(raw, job_name, key.strip()[:40])
+                    or _line_of_in_job(raw, job_name, "key:") or 0)
+            hits.append(Hit(
+                line=line,
+                affected_jobs=[job_name],
+                evidence=(f"job `{job_name}` cache key includes a per-run token "
+                          f"(`github.sha`/`run_id`/`run_number`) and has NO "
+                          f"`restore-keys` fallback — the primary key changes "
+                          f"every run and nothing restores"),
+                match_text=job_name,
+                snippet=_raw_line(raw, line),
+            ))
+    return hits
+
+
+# Dispatch table — OPT-id → detector function. Patterns declared in the catalog
+# but missing here are logged at scan time and skipped (no fabrication).
+# Detectors whose claim rests on a step being ABSENT from the job ("no cache
+# precedes the install", "no step reads the history", "no step uses the
+# payload"). A job with a malformed `parallel:` group has steps that were never
+# read, so absence cannot be known there: these patterns' findings for that job
+# are held back, and the job's scan_incomplete record names them with the
+# reason below. Presence-based and job-config patterns (a duplicate build, a
+# missing concurrency group) stay true whatever the unread group holds.
+_ABSENCE_STEP_PATTERNS: frozenset[str] = frozenset({
+    "OPT1", "OPT2", "OPT5", "OPT14", "OPT21", "OPT28", "OPT29", "OPT31",
+    "OPT39", "OPT76"})
+UNREADABLE_GROUP_HELD_BACK_REASON = "job_has_an_unreadable_parallel_group"
+
+
+def _hold_back_unreadable(pattern: str, hits: list[Hit], rel: str,
+                          unreadable_jobs: dict[tuple[str, str], dict[str, Any]]
+                          ) -> list[Hit]:
+    """Drop the hits naming a job whose `parallel:` group could not be read,
+    recording each on that job's scan_incomplete record (never silent)."""
+    kept: list[Hit] = []
+    for hit in hits:
+        recs = [unreadable_jobs[(rel, j)] for j in hit.affected_jobs
+                if (rel, j) in unreadable_jobs]
+        if not recs:
+            kept.append(hit)
+            continue
+        for rec in recs:
+            held = rec.setdefault("held_back", [])
+            if pattern not in held:
+                held.append(pattern)
+                rec["reason"] = rec["reason"].split("; held back:")[0] + (
+                    f"; held back: {', '.join(held)} "
+                    f"({UNREADABLE_GROUP_HELD_BACK_REASON})")
+    return kept
+
+
+_DETECTORS: dict[str, Any] = {
+    "OPT1": _detect_opt1,
+    "OPT4": _detect_opt4,
+    "OPT6": _detect_opt6,
+    "OPT12": _detect_opt12,
+    "OPT2": _detect_opt2,
+    "OPT5": _detect_opt5,
+    "OPT9": _detect_opt9,
+    "OPT14": _detect_opt14,
+    "OPT16": _detect_opt16,
+    "OPT17": _detect_opt17,
+    # OPT18 is NOT auto-emitted: prescribing which services a job needs requires
+    # the docker-compose.yml + test-code mapping (a `docker compose up` job can
+    # legitimately need several services — e.g. a Prisma adapter needs both
+    # postgres AND mysql), which can't be determined from the workflow YAML.
+    # An unsafe auto-fix would drop a service the tests need. Surfaced as a
+    # manual-review checklist item instead (see report `_MANUAL_REVIEW_PATTERNS`).
+    "OPT21": _detect_opt21,
+    "OPT23": _detect_opt23,
+    "OPT27": _detect_opt27,
+    "OPT28": _detect_opt28,
+    "OPT76": _detect_opt76,
+    "OPT29": _detect_opt29,
+    "OPT31": _detect_opt31,
+    "OPT32": _detect_opt32,
+    "OPT33": _detect_opt33,
+    "OPT35": _detect_opt35,
+    "OPT36": _detect_opt36,
+    "OPT39": _detect_opt39,
+    "OPT45": _detect_opt45,
+    "OPT61": _detect_opt61,
+    "OPT62": _detect_opt62,
+    "OPT63": _detect_opt63,
+    "OPT88": _detect_opt88,
+    "OPT89": _detect_opt89,
+    "OPT102": _detect_opt102,
+}
+
+
+# =============================================================================
+# Declarative detectors (ci-secure model) — single-condition patterns whose
+# detection is a regex or a yaml-path lookup, driven entirely by METADATA
+# params so no bespoke function is needed. Correlated patterns keep a
+# bespoke handler in _DETECTORS above.
+# =============================================================================
+
+def _walk_yaml_path(node: Any, parts: list[str]):
+    """Yield every leaf reachable by a dotted path; `*` wildcards a dict's
+    values or a list's items."""
+    if not parts:
+        yield node
+        return
+    head, *rest = parts
+    if isinstance(node, dict):
+        if head == "*":
+            for v in node.values():
+                yield from _walk_yaml_path(v, rest)
+        elif head in node:
+            yield from _walk_yaml_path(node[head], rest)
+    elif isinstance(node, list) and head == "*":
+        for item in node:
+            yield from _walk_yaml_path(item, rest)
+
+
+def _declarative_hits(entry: "CatalogEntry", doc: dict, raw: str):
+    """Run a pattern's declarative detector. Two flavors:
+
+      - `match`: a MULTILINE regex over the raw YAML text. One hit per match,
+        line-anchored.
+      - `yaml_path`: a dotted path (with `*` wildcards). Fires once if the path
+        resolves; with `yaml_value`, only when a resolved leaf equals it
+        (case-insensitive). `on` is normalized for PyYAML's bool-`True` quirk.
+    """
+    if entry.match:
+        try:
+            rx = re.compile(entry.match, re.MULTILINE)
+        except re.error:
+            return
+        for m in rx.finditer(raw):
+            line = raw.count("\n", 0, m.start()) + 1
+            snippet = m.group(0).strip()[:120]
+            yield Hit(
+                line=line,
+                affected_jobs=[],
+                evidence=f"matched `{snippet}` at line {line}",
+                match_text=snippet,
+            )
+        return
+    if entry.yaml_path:
+        parts = [p for p in entry.yaml_path.split(".") if p]
+        # Normalize the `on:`→True quirk so a path starting at `on` resolves.
+        norm = doc
+        if parts and parts[0] == "on" and "on" not in doc and True in doc:
+            norm = {**doc, "on": doc[True]}
+        leaves = list(_walk_yaml_path(norm, parts))
+        if not leaves:
+            return
+        if entry.yaml_value:
+            want = entry.yaml_value.strip().lower()
+            if not any(str(v).strip().lower() == want for v in leaves):
+                return
+        yield Hit(
+            line=_line_of(raw, parts[0]) or 1,  # anchor:workflow-level (declarative yaml_path finding; affected_jobs=[])
+            affected_jobs=[],
+            evidence=f"yaml path `{entry.yaml_path}` present"
+            + (f" with value `{entry.yaml_value}`" if entry.yaml_value else ""),
+            match_text=entry.yaml_path,
+        )
+
+
+# =============================================================================
+# Cross-workflow / repo-context detectors (Phase 2c). These need every parsed
+# workflow at once (drift, cache-race) or the repo layout (monorepo). They
+# return (pattern_id, workflow_file, Hit) tuples so the central emitter can
+# attach the catalog entry's title / anchor / fix_strategy.
+# =============================================================================
+
+# OPT37 is a STRUCTURAL CANDIDATE only — the catalog body mandates log-anchored
+# cache-miss evidence before it is a confirmed race, which YAML inspection
+# cannot provide. We emit it at LOW severity, tagged for log confirmation, and
+# never claim savings (sized at 0 by collect_runs). This honors the guardrail's
+# escape hatch ("tag severity: review and route to log inspection") rather than
+# faking a confident HIGH finding.
+# OPT37 is a structural cache-race candidate (needs log confirmation). OPT45
+# (missing concurrency) is genuinely LOW-impact on most repos — superseded-run
+# cancellation saves a handful of runner-minutes, not a wall-clock lever — so it
+# should not carry HIGH visual weight.
+_SEVERITY_OVERRIDE: dict[str, str] = {"OPT37": "LOW", "OPT45": "LOW"}
+_NEEDS_LOG_CONFIRMATION: set[str] = {"OPT4", "OPT37", "OPT61", "OPT96"}
+
+# Patterns whose remedy is NOT a CI-config change ci-speedup produces — it's a
+# change in a domain the tool doesn't own (here: editing test SOURCE to remove
+# fixed sleeps). Per the admission gate, these are reliability/hygiene SIGNALS,
+# not ranked optimizations: emitted advisory (excluded from the report + the
+# savings total, kept in the findings JSON). (OPT48, the data-driven failure-rate
+# analog, is marked advisory in collect_runs the same way.)
+_ADVISORY_PATTERNS: set[str] = {"OPT19"}
+
+# Patterns handled by a cross-workflow / repo-file / source-grep pass rather
+# than the per-file dispatch — excluded from `catalog_patterns_without_detector`.
+_NON_PERFILE_PATTERNS: set[str] = {
+    "OPT7", "OPT37", "OPT40", "OPT96",   # cross-workflow
+    "OPT52", "OPT53", "OPT58", "OPT59", "OPT60",  # turbo.json repo-file
+    "OPT19",                              # source-file sleep grep
+}
+
+
+def _on_event_names(doc: dict) -> list[str]:
+    on = doc.get("on") or doc.get(True)
+    if isinstance(on, str):
+        return [on]
+    if isinstance(on, list):
+        return [str(x) for x in on]
+    if isinstance(on, dict):
+        return list(on.keys())
+    return []
+
+
+def _package_manager_pnpm(root: Path) -> str | None:
+    """The pnpm version pinned in package.json's `packageManager` field
+    (`pnpm@9.1.0` → `9.1.0`), or None."""
+    pj = root / "package.json"
+    if not pj.is_file():
+        return None
+    if not _inside_scan_root(pj):
+        return None
+    try:
+        data = json.loads(pj.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    pm = data.get("packageManager") if isinstance(data, dict) else None
+    if isinstance(pm, str) and pm.startswith("pnpm@"):
+        return pm.split("@", 1)[1]
+    return None
+
+
+def _detect_opt7(parsed: list[tuple[str, dict, str]], root: Path):
+    """Different pnpm versions pinned across workflows / package.json reduce
+    cache compatibility (catalog OPT7). Only explicit version pins count — a
+    `pnpm/action-setup` without `version:` auto-detects and never drifts."""
+    versions: dict[str, set[str]] = {}
+    for rel, doc, _raw in parsed:
+        for _name, job in _jobs_from_doc(doc).items():
+            if not isinstance(job, dict):
+                continue
+            for s in _steps(job):
+                if _uses(s).startswith("pnpm/action-setup"):
+                    v = (s.get("with") or {}).get("version")
+                    if v is not None:
+                        versions.setdefault(str(v), set()).add(rel)
+    distinct: dict[str, set[str]] = {k: set(v) for k, v in versions.items()}
+    pm = _package_manager_pnpm(root)
+    if pm:
+        distinct.setdefault(pm, set()).add("package.json")
+    if len(distinct) < 2:
+        return []
+    desc = "; ".join(f"`{v}` ({', '.join(sorted(fs))})"
+                     for v, fs in sorted(distinct.items()))
+    first = sorted({f for fs in versions.values() for f in fs})
+    wf = first[0] if first else (parsed[0][0] if parsed else "")
+    return [("OPT7", wf, Hit(
+        line=1, affected_jobs=[],
+        evidence=f"pnpm version drift across workflows: {desc}",
+        match_text="(repo)",
+    ))]
+
+
+_TURBO_RW_RE = re.compile(r"TURBO_CACHE:\s*['\"]?remote:rw", re.I)
+_TURBO_RO_RE = re.compile(r"TURBO_CACHE:\s*['\"]?remote:r(?!w)", re.I)
+
+
+def _detect_opt37(parsed: list[tuple[str, dict, str]], root: Path):
+    """A read-only-Turbo-cache reader and a read-write writer that BOTH trigger
+    on the same webhook event with no `workflow_run`/`needs` link (catalog
+    OPT37). STRUCTURAL CANDIDATE ONLY — see _SEVERITY_OVERRIDE note."""
+    # (rel, events, ro-line, ro-snippet) for readers; (rel, events, rw-line) writers.
+    writers: list[tuple[str, set[str], int]] = []
+    readers: list[tuple[str, set[str], int, str]] = []
+    for rel, doc, raw in parsed:
+        events = set(_on_event_names(doc))
+        wm = _TURBO_RW_RE.search(raw)
+        if wm:
+            writers.append((rel, events, raw.count("\n", 0, wm.start()) + 1))
+        m = _TURBO_RO_RE.search(raw)
+        if m and not wm:
+            ln = raw.count("\n", 0, m.start()) + 1
+            readers.append((rel, events, ln, _raw_line(raw, ln)))
+    out = []
+    for r_rel, r_events, r_line, r_snip in readers:
+        if "workflow_run" in r_events:
+            continue  # already linked to its writer
+        for w_rel, w_events, w_line in writers:
+            if w_rel == r_rel:
+                continue
+            shared = r_events & w_events & {"pull_request", "push"}
+            if shared:
+                out.append(("OPT37", r_rel, Hit(
+                    line=r_line, affected_jobs=[],
+                    evidence=(
+                        f"reader `{r_rel}:{r_line}` uses a read-only Turbo cache "
+                        f"(`remote:r`/`ro`) while writer `{w_rel}:{w_line}` writes "
+                        f"it (`remote:rw`); both trigger on `{sorted(shared)}` with "
+                        f"no `workflow_run`/`needs` link. STRUCTURAL CANDIDATE ONLY "
+                        f"— before treating this as a real race, open a recent "
+                        f"`{r_rel}` run's Turbo build step and read the "
+                        f"`Tasks: N successful, M total` / `Cached: K cached, M "
+                        f"total` summary: a <70% task hit rate confirms it; ≥70% "
+                        f"means the cost is elsewhere. Not sized."),
+                    match_text="(cross-workflow)",
+                    snippet=r_snip,
+                )))
+                break
+    return out
+
+
+_MONO_DIRS = ("apps", "packages", "services")
+_APP_TARGET_RE = re.compile(
+    r"cd\s+(?:apps|packages|services)/([\w.-]+)|--filter[= ]([@\w./-]+)|"
+    r"nx\s+run\s+([\w.-]+)", re.I)
+
+
+def _is_monorepo(root: Path) -> bool:
+    if any((root / d).is_dir() for d in _MONO_DIRS):
+        return True
+    return any((root / f).exists()
+               for f in ("pnpm-workspace.yaml", "turbo.json", "nx.json"))
+
+
+def _detect_opt40(parsed: list[tuple[str, dict, str]], root: Path):
+    """Monorepo job that targets a single app/package but the PR workflow has
+    no `paths:` filter and no `dorny/paths-filter` gate (catalog OPT40)."""
+    if not _is_monorepo(root):
+        return []
+    out = []
+    for rel, doc, raw in parsed:
+        on = doc.get("on") or doc.get(True)
+        # OPT40 is PR-scoped — its evidence says "every PR". Suppress only when
+        # the `pull_request` trigger itself is path-gated; a sibling unfiltered
+        # `push` is irrelevant to the PR claim (and `_on_has_paths_filter` would
+        # wrongly keep firing here because that bare `push` makes it return
+        # False).
+        # Activation fidelity (class fix): also suppress when the trigger is `types:`-gated to a specific
+        # activity — the "targets every PR" claim is false for a `types: [labeled]` workflow.
+        if not _pr_trigger_runs_every_pr(on) or _pr_trigger_has_paths(on):
+            continue
+        if "dorny/paths-filter" in raw:
+            continue
+        for name, job in _jobs_from_doc(doc).items():
+            if not isinstance(job, dict):
+                continue
+            jif = job.get("if")
+            if isinstance(jif, str) and "needs." in jif:
+                continue  # per-leg gated already
+            m = _APP_TARGET_RE.search(_job_run_blob(job))
+            if m:
+                target = next((g for g in m.groups() if g), "?")
+                # Anchor at the actual targeting command (the `cd`/`--filter`/
+                # `nx run` line) — that line IS the proof of single-app scope —
+                # not the job header.
+                matched = m.group(0)
+                # Per-instance precondition: OPT40 is the "affected APP" pattern.
+                # A target explicitly under `packages/` is a SHARED library, not
+                # an app — most PRs legitimately touch it, so a per-job paths gate
+                # both saves little and risks false-skips (catalog Risk note). That
+                # is not OPT40; skip it (e.g. mastra `--filter ./packages/server`).
+                if re.search(r"packages/", matched):
+                    continue
+                cmd_line = (_line_of_in_job(raw, name, matched)
+                            or _line_of_in_job(raw, name, name) or 0)
+                out.append(("OPT40", rel, Hit(
+                    line=cmd_line, affected_jobs=[name],
+                    evidence=(
+                        f"monorepo job `{name}` targets a single app/package via "
+                        f"`{matched.strip()}` but the workflow has no `paths:` "
+                        f"filter and no `dorny/paths-filter` gate — it runs on "
+                        f"every PR regardless of which app changed"),
+                    match_text=name,
+                    snippet=_raw_line(raw, cmd_line),
+                )))
+    return out
+
+
+# =============================================================================
+# Repo-file detectors (Phase 2d) — read turbo.json once and run the
+# Stack-Specific Turbo patterns against it. workflow_file is "turbo.json".
+# =============================================================================
+
+_UNSTABLE_ENV = {"GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "BUILD_NUMBER",
+                 "CI_BUILD_NUMBER", "GITHUB_SHA", "RUN_ID", "RUN_NUMBER"}
+_RUNTIME_ENV_RE = re.compile(r"API_KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL|AUTH", re.I)
+_COMPILE_PREFIX_RE = re.compile(r"^(NEXT_PUBLIC_|VITE_|REACT_APP_)")
+
+
+def _load_jsonc(path: Path) -> Any:
+    """Parse a JSON-with-comments file (turbo.json may carry // comments and
+    trailing commas). Best-effort; returns None on failure."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)        # block comments
+    text = re.sub(r"(^|\s)//[^\n]*", r"\1", text)            # line comments
+    text = re.sub(r",(\s*[}\]])", r"\1", text)               # trailing commas
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+def _turbo_tasks(data: dict) -> dict:
+    t = data.get("tasks")
+    if not isinstance(t, dict):
+        t = data.get("pipeline")
+    return t if isinstance(t, dict) else {}
+
+
+def _json_key_line(text: str, key: str) -> int:
+    """1-based line of the first `"key"` occurrence in the raw JSON, else 0."""
+    m = re.search(r'"' + re.escape(key) + r'"', text)
+    return text.count("\n", 0, m.start()) + 1 if m else 0
+
+
+def _names_with_lines(text: str, names: list[str]) -> str:
+    """`build (L42), lint (L55)` — each flagged name with its turbo.json line."""
+    parts = []
+    for n in sorted(names):
+        ln = _json_key_line(text, n)
+        parts.append(f"`{n}` (L{ln})" if ln else f"`{n}`")
+    return ", ".join(parts)
+
+
+_TURBO_INVOKE_RE = re.compile(
+    r"\bturbo(?:\s+run)?\s+([a-z0-9:_@./\- ]+)", re.I)
+_PNPM_SCRIPT_RE = re.compile(
+    r"\b(?:pnpm(?:\s+run)?|npm\s+run|yarn(?:\s+run)?|bun\s+run)\s+([a-z0-9:_@./-]+)", re.I)
+
+
+def _turbo_tasks_in_cmd(cmd: str) -> set[str]:
+    """Task names in a `turbo [run] <tasks…> [flags]` invocation (stop at the
+    first flag/`&&`/`|`)."""
+    out: set[str] = set()
+    for m in _TURBO_INVOKE_RE.finditer(cmd):
+        for tok in m.group(1).split():
+            if tok.startswith("-") or tok in ("&&", "||", "|", ";"):
+                break
+            out.add(tok)
+    return out
+
+
+def _ci_turbo_tasks(root: Path, parsed: list[tuple[str, dict, str]]) -> set[str]:
+    """The set of turbo task names actually INVOKED in CI — directly
+    (`turbo run build`) or via a root package.json script a workflow runs
+    (`pnpm build` → `turbo build`). A turbo task that nothing in CI runs through
+    turbo (e.g. a `lint` task when `pnpm lint` is really `biome check .`) is NOT
+    in this set, so its turbo.json config can't cost CI time → no finding."""
+    scripts: dict[str, str] = {}
+    pkg = root / "package.json"
+    if pkg.is_file() and _inside_scan_root(pkg):
+        try:
+            scripts = {str(k): str(v) for k, v in
+                       (json.loads(pkg.read_text(encoding="utf-8")).get("scripts") or {}).items()}
+        except (OSError, ValueError):
+            scripts = {}
+    tasks: set[str] = set()
+    for _rel, _doc, raw in parsed:
+        tasks |= _turbo_tasks_in_cmd(raw)            # direct `turbo …` in the workflow
+        for m in _PNPM_SCRIPT_RE.finditer(raw):      # `pnpm <script>` → resolve to root script
+            body = scripts.get(m.group(1), "")
+            if body:
+                tasks |= _turbo_tasks_in_cmd(body)
+    return tasks
+
+
+# --- Test-runner isolation (OPT78 corroboration, not a finding) --------------
+# The OPT78 lever ("per-file isolation is rebuilding shared module state") is
+# routed at DRILL time from the measured long pole's log (ARCHITECTURE §12.3),
+# but the log alone cannot say whether the repo is still PAYING for per-file
+# isolation — that is a config fact. This reader supplies it, and only it: it
+# reports what the vitest config says, never whether a finding should fire.
+# Emitted as a top-level `test_runner_isolation` block for `blocking_path.py`
+# to gate the `vitest-isolate-pool` leaf on.
+#
+# WHICH files count as config. Not a fixed list of names: an opt-out is as
+# likely to sit in `vitest.unit.config.ts`, `vitest.config.e2e.ts` or a shared
+# base (`vitest.shared.ts`, `vitest.base.mts`) pulled in by `mergeConfig` as in
+# the default `vitest.config.ts`, and a missed opt-out tells a repo that already
+# applied this HIGH-risk lever to apply it again. So every `vitest*` file with a
+# config extension is read (setup and `.d.ts` files excepted), plus any
+# `vite.*config*` file. `.json` is accepted because vitest 3.x's
+# `vitest.workspace.json` / `vitest.projects.json` carry project settings; the
+# name filter below is the only filter — a `vitest.config.json` is read too,
+# harmlessly, since vitest itself never loads one.
+_VITEST_CONFIG_EXTS = ("ts", "mts", "cts", "js", "mjs", "cjs", "json")
+
+
+def _is_vitest_config_name(name: str) -> bool:
+    stem, dot, ext = name.rpartition(".")
+    if not dot or ext not in _VITEST_CONFIG_EXTS or not stem:
+        return False
+    parts = stem.lower().split(".")
+    if any("setup" in p for p in parts) or parts[-1] == "d":
+        return False            # setup files / type declarations: never config
+    if parts[0].startswith("vitest"):
+        return True
+    return parts[0] == "vite" and any("config" in p for p in parts[1:])
+
+
+# A monorepo keeps its suites' configs under `packages/*/`, `apps/*/` etc., so a
+# root-only read would report "no config" on exactly the repos this lever is
+# about. Walk a BOUNDED slice of the tree instead — build output and local
+# copies pruned, and the walk stopped by a DEPTH bound and by a cap on how many
+# configs it will collect, so a huge checkout can't turn the scan into a deep
+# tree crawl. (Those two are the only real bounds: the cap counts MATCHED
+# configs, not directories visited, so a wide-but-shallow tree is still walked
+# in full. Depth 4 is what keeps that bounded in practice.) Whenever a bound
+# leaves plausible config ground unvisited the walk reports itself `truncated`,
+# and the consumer withholds the finding (it cannot claim "no opt-out ANYWHERE"
+# from a partial walk).
+_VITEST_CONFIG_MAX_DEPTH = 4
+# Sized for large monorepos (one real repo carries 200+ vitest/vite configs); a
+# cap hit still reports truncation rather than a clean read.
+_VITEST_CONFIG_MAX_FILES = 400
+# Relative imports a config pulls in (a `mergeConfig` base) are followed up to
+# this many extra files; past it, the rest are unresolved and the read fails
+# closed.
+_VITEST_CONFIG_MAX_FOLLOW = 20
+# Never a workspace package: pruned silently.
+_VITEST_SKIP_DIRS = {"node_modules", "dist", "coverage", "__pycache__"}
+# Dot-directories that are tool state, build output, or a local untracked copy
+# of the repo (an agent worktree) — never the committed config, so pruned
+# silently. Every OTHER dot-directory is walked like any other: `.config/` is a
+# conventional home for `vitest.config.ts`, and pruning it silently asserted
+# "no config exists" about a repo that has one.
+_VITEST_SKIP_DOT_DIRS = {".git", ".github", ".next", ".turbo", ".nuxt",
+                         ".svelte-kit", ".venv", ".claude", ".yarn", ".cache",
+                         ".idea", ".vscode", ".pytest_cache", ".gradle"}
+# Pruned as build output, but a real workspace package CAN carry one of these
+# names — so pruning one that holds a package root marks the walk truncated.
+_VITEST_PRUNE_MAYBE_WORKSPACE = {"build", "out", "vendor", "target"}
+# vitest's isolation opt-out. Two command-line spellings are documented,
+# `--no-isolate` and `--isolate=false`; vitest's `--isolate` takes no value, so
+# `--isolate false` (a space) is NOT an opt-out and is not matched.
+_VITEST_NO_ISOLATE_FLAG_RE = re.compile(r"--no-isolate\b|--isolate=false\b")
+# Every mention of an `isolate` key or identifier — quoted (`"isolate"` in a 3.x
+# workspace JSON, `['isolate']` computed), bare, shorthand (`{ isolate }`) or a
+# member (`shared.isolate`). What follows it decides, and the two outcomes are
+# reported SEPARATELY because they are different facts: the literal `: true` is
+# isolation on; the literal `: false` is a RESOLVED opt-out (`isolation_opt_out`,
+# quotable as "the repo already opts out"); anything else — a shorthand, a
+# computed value, an expression, the word in a comment — is UNRESOLVED
+# (`isolate_unresolved`). Both withhold the lever, because the lever's whole
+# claim is "you are still paying for isolation" and an unresolvable mention is
+# not evidence of that. They must not be conflated: reporting an unresolvable
+# mention as an opt-out made the report state, as a fact about the repo, that it
+# "already opts out (at vitest.config.ts:12)" when line 12 read
+# `isolate: process.env.X`. Matched over the WHOLE file, so a value on the next
+# line (`isolate:\n  false`) is read, not missed.
+_VITEST_ISOLATE_TOKEN_RE = re.compile(r"""(?<![\w$-])(["']?)isolate\1(?![\w$-])""")
+_VITEST_ISOLATE_VALUE_RE = re.compile(r"""\]?\s*:\s*(true|false)\b""")
+# vitest 3.x's `singleThread` / `singleFork` also disabled per-file isolation
+# (vitest 4's migration guide maps them to `maxWorkers: 1, isolate: false`).
+_VITEST_SINGLE_WORKER_RE = re.compile(
+    r"""(?<![\w$-])["']?single(?:Thread|Fork)["']?\s*:\s*true\b""")
+# The vm pools cannot turn isolation off at all (`isolate` has no effect on
+# `vmThreads` / `vmForks`), so the opt-in-project recipe would do nothing there.
+_VITEST_VM_POOL_RE = re.compile(
+    r"""(?<![\w$-])["']?pool["']?\s*:\s*["']vm(?:Threads|Forks)["']"""
+    r"|--pool[= ]vm(?:Threads|Forks)\b")
+# Module specifiers a config pulls in: static/dynamic import, require, and a
+# project's string `extends`.
+_VITEST_IMPORT_SPEC_RE = re.compile(
+    r"""(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*|\bextends\s*:\s*)"""
+    r"""(["'])([^"'\n]+)\1""")
+# A BARE specifier (a package, not a file in this repo) is one this read cannot
+# follow. Whether that matters is decided by HOW THE CONFIG USES IT, never by
+# what it is called:
+#   * used as a CONFIG BASE — merged (`mergeConfig(base, …)`), spread
+#     (`...base`), read (`base.test`), named by `extends:`, or re-exported whole
+#     (`export default base`) — then the package may itself set `isolate: false`
+#     and the read must fail closed;
+#   * used as anything else — a plugin (`plugins: [nuxt()]`), an environment, a
+#     mock helper, a side-effect import (`import 'dotenv/config'`) — then it
+#     cannot carry the opt-out and is ignored.
+# A name-token test was tried first and was wrong in BOTH directions: it missed
+# `@acme/tooling` (a shared base whose name says nothing) and it withheld the
+# lever forever from every repo importing `@cloudflare/vitest-pool-workers`,
+# `vitest-environment-nuxt` or `@storybook/test-runner` — ordinary plugins that
+# happen to carry "vitest" or "test" in the name.
+_VITEST_RESOLVE_EXTS = (".ts", ".mts", ".cts", ".js", ".mjs", ".cjs", ".json")
+# `import <clause> from "<spec>"` and `const <lhs> = require("<spec>")` /
+# `= await import("<spec>")` — the two shapes that BIND a module to a name.
+_VITEST_IMPORT_CLAUSE_RE = re.compile(
+    r"""\bimport\s+(?P<clause>[^;\n]*?)\s+from\s*(["'])(?P<spec>[^"'\n]+)\2""")
+_VITEST_REQUIRE_CLAUSE_RE = re.compile(
+    r"""\b(?:const|let|var)\s+(?P<clause>[^=;\n]+?)\s*=\s*(?:await\s+)?"""
+    r"""(?:require|import)\s*\(\s*(["'])(?P<spec>[^"'\n]+)\2\s*\)""")
+# A project's string `extends` names a config base outright — no binding needed.
+_VITEST_EXTENDS_SPEC_RE = re.compile(
+    r"""["']?extends["']?\s*:\s*(["'])([^"'\n]+)\1""")
+
+
+def _import_bindings(clause: str) -> list[str]:
+    """The local names an import/require clause binds (`X`, `* as ns`,
+    `{ a as b }`), so the reader can ask what the config DOES with them."""
+    names: list[str] = []
+    clause = clause.strip()
+    if clause.startswith("type "):
+        clause = clause[len("type "):]
+    star = re.search(r"\*\s*as\s+([\w$]+)", clause)
+    if star:
+        names.append(star.group(1))
+    brace = re.search(r"\{([^}]*)\}", clause)
+    if brace:
+        for part in brace.group(1).split(","):
+            name = re.split(r"\s+as\s+", part.strip())[-1].strip()
+            if re.fullmatch(r"[\w$]+", name):
+                names.append(name)
+        clause = clause[:brace.start()]
+    head = clause.split(",")[0].strip()
+    if re.fullmatch(r"[\w$]+", head):
+        names.append(head)
+    return names
+
+
+def _binding_is_config_base(text: str, name: str) -> bool:
+    """Does the config use this local binding AS A CONFIG BASE? (Merged, spread,
+    `.test`-read, `extends:`-ed, or exported as the whole config.)"""
+    n = re.escape(name)
+    # A config base is passed as a VALUE. `(?!\s*\()` everywhere is what keeps
+    # `export default defineConfig({…})` — the binding every config imports from
+    # `vitest/config` — from reading as "the config is this package".
+    for rx in (rf"\.\.\.\s*{n}(?![\w$])(?!\s*\()",
+               rf"(?<![\w$.]){n}\s*\.\s*test\b",
+               rf"""["']?extends["']?\s*:\s*{n}(?![\w$])(?!\s*\()""",
+               rf"\bexport\s+default\s+{n}(?![\w$])(?!\s*\()",
+               rf"\bmodule\.exports\s*=\s*{n}(?![\w$])(?!\s*\()"):
+        if re.search(rx, text):
+            return True
+    # `mergeConfig(base, defineConfig({…}))` — and the base can be either
+    # argument, so look across the call, not just up to the first `)`.
+    for m in re.finditer(r"\bmergeConfig\s*\(", text):
+        if re.search(rf"(?<![\w$.]){n}(?![\w$])(?!\s*\()",
+                     text[m.end():m.end() + 400]):
+            return True
+    return False
+
+
+def _unfollowable_config_bases(text: str) -> list[str]:
+    """Bare specifiers this config pulls its SETTINGS from — the ones whose
+    `isolate: false`, if any, is invisible to this read. A bare specifier the
+    config merely uses (a plugin, an environment, a side-effect import) is not
+    one of these and is ignored."""
+    out: list[str] = []
+
+    def _bare(spec: str) -> bool:
+        return not (spec.startswith("./") or spec.startswith("../"))
+
+    for rx in (_VITEST_IMPORT_CLAUSE_RE, _VITEST_REQUIRE_CLAUSE_RE):
+        for m in rx.finditer(text):
+            spec = m.group("spec").strip()
+            if not _bare(spec):
+                continue
+            if any(_binding_is_config_base(text, b)
+                   for b in _import_bindings(m.group("clause"))):
+                out.append(spec)
+    for m in _VITEST_EXTENDS_SPEC_RE.finditer(text):
+        spec = m.group(2).strip()
+        if _bare(spec):
+            out.append(spec)            # `extends` IS the base, by definition
+    return out
+
+
+def _vitest_config_files(root: Path, is_config: "Any" = None,
+                         also: "Any" = None, also_found: "list[Path] | None" = None,
+                         unlisted: "list[Path] | None" = None,
+                         ) -> "tuple[list[Path], bool, list[Path]]":
+    """Config candidates at the repo root plus a bounded walk beneath it, as
+    ``(configs, truncated, manifests)`` — ``manifests`` being the `package.json`
+    files in the directories the walk visited (their scripts can carry the CLI
+    opt-out).
+
+    ``is_config`` picks which file names count as config (default: the vitest
+    names). OPT82 reuses the same bounded walk for ESLint configs; its consumer
+    holds a lint job back when ``truncated`` is set and nothing the walk
+    recorded sits at or below the job's directory (``eslint_config_walk_incomplete``),
+    because a nearer config there may exist. A truncated walk that DID reach the
+    directory is not held back: ESLint's lookup goes upward from it.
+
+    ``truncated`` is True when the walk stopped with ground that could PLAUSIBLY
+    HOLD A CONFIG still unvisited. That matters because the vitest consumer's
+    claim is "no `isolate: false` ANYWHERE", which a partial walk cannot establish: the
+    opt-out may sit in a config the walk never reached. "Walk exhausted" and "no
+    config exists" therefore reach the SAME withheld outcome, for different
+    reasons, so both are reported.
+
+    ``also`` / ``also_found``: a second file-name predicate, whose matches the
+    same walk appends to ``also_found`` (OPT84 collects Prettier configs this
+    way, so a config with no `package.json` beside it is still seen). They do
+    not count toward the config cap.
+
+    The "plausibly" is load-bearing, and is why an unvisited directory is only
+    counted when it is a package root (a `package.json` in it) or holds one
+    ONE grouping level beneath it (`libs/x/package.json`). A vitest config sits
+    at a JS package root; ordinary source trees go far deeper than the depth
+    bound and hold no config at all. Counting every deep directory would mark
+    essentially every real repo truncated and silently retire the pattern —
+    trading a rare false finding for a permanent false silence, which is the
+    worse failure of the two. An entry the OS will not even stat is counted:
+    unreadable ground is unvisited ground.
+    """
+    found: list[Path] = []
+    manifests: list[Path] = []
+    truncated = False
+    root = root.resolve()
+    stack: list[tuple[Path, int]] = [(root, 0)]
+
+    def _may_hold_config(d: Path) -> bool:
+        try:
+            if (d / "package.json").exists():
+                return True
+            for i, child in enumerate(d.iterdir()):
+                if i >= 200:
+                    return True     # too wide to rule out — fail closed
+                if child.is_dir() and (child / "package.json").exists():
+                    return True
+            return False
+        except OSError:
+            return True     # cannot tell ⇒ assume it might, and fail closed
+
+    while stack and len(found) < _VITEST_CONFIG_MAX_FILES:
+        base, depth = stack.pop(0)
+        try:
+            entries = sorted(base.iterdir())
+        except OSError:
+            # An unreadable DIRECTORY is unvisited ground, not a clean miss.
+            # Recorded for callers that must name it (OPT84 marks it as a
+            # place whose Prettier configs could not be read).
+            truncated = True
+            if unlisted is not None:
+                unlisted.append(base)
+            continue
+        for entry in entries:
+            try:
+                is_link = entry.is_symlink()
+                is_dir = entry.is_dir()
+            except OSError:
+                # Listable but not stat-able (e.g. a `r--` directory): unvisited
+                # ground, never a crash of the whole scan.
+                truncated = True
+                if unlisted is not None:
+                    unlisted.append(entry)
+                continue
+            if is_dir:
+                if entry.name in _VITEST_SKIP_DIRS or (
+                        entry.name.startswith(".")
+                        and entry.name in _VITEST_SKIP_DOT_DIRS):
+                    continue            # never a workspace — deliberately not a gap
+                if is_link:
+                    # Bazel's `bazel-*` convenience links mirror the workspace
+                    # (root package.json included); following them is a loop, and
+                    # counting them would mark every Bazel repo truncated.
+                    if entry.name.startswith("bazel-"):
+                        continue
+                    # Pruned for loop safety; a symlinked workspace package
+                    # could still hold the opt-out.
+                    truncated = truncated or _may_hold_config(entry)
+                elif entry.name in _VITEST_PRUNE_MAYBE_WORKSPACE:
+                    truncated = truncated or _may_hold_config(entry)
+                elif depth < _VITEST_CONFIG_MAX_DEPTH:
+                    stack.append((entry, depth + 1))
+                else:
+                    truncated = truncated or _may_hold_config(entry)
+            elif entry.name == "package.json":
+                manifests.append(entry)
+            elif also is not None and also_found is not None and also(entry.name):
+                also_found.append(entry)
+            elif (is_config or _is_vitest_config_name)(entry.name):
+                found.append(entry)
+                if len(found) >= _VITEST_CONFIG_MAX_FILES:
+                    # A cap hit says there is more of exactly the thing we are
+                    # looking for — always unvisited ground that matters.
+                    truncated = True
+                    break
+    # Anything still queued when the cap broke the loop is unvisited too.
+    return found, (truncated or bool(stack)), manifests
+
+
+def _vitest_line_at(text: str, pos: int) -> "tuple[int, str]":
+    start = text.rfind("\n", 0, pos) + 1
+    end = text.find("\n", pos)
+    return text.count("\n", 0, pos) + 1, text[start:end if end >= 0 else None].strip()
+
+
+def _resolve_local_import(frm: Path, spec: str, root: Path) -> "Path | None":
+    """A relative specifier resolved the way a TS/JS toolchain would, or None."""
+    base = (frm.parent / spec)
+    cands = [base] + [Path(str(base) + e) for e in _VITEST_RESOLVE_EXTS]
+    # TS ESM writes `./x.js` for a `./x.ts` source.
+    for js, ts in ((".js", ".ts"), (".mjs", ".mts"), (".cjs", ".cts")):
+        if spec.endswith(js):
+            cands.append(Path(str(base)[: -len(js)] + ts))
+    cands += [base / f"index{e}" for e in _VITEST_RESOLVE_EXTS]
+    for c in cands:
+        try:
+            if c.is_file():
+                r = c.resolve()
+                r.relative_to(root)         # outside the repo ⇒ ValueError
+                return r
+        except (OSError, ValueError):
+            continue
+    return None
+
+
+def _read_config_text(path: Path) -> "str | None":
+    """A config's text, or None when the bytes on disk are not UTF-8 text this
+    read can search. Decoding a UTF-16 config with `errors="replace"` produced
+    garbage that matched no pattern and was then reported as a COMPLETE read
+    with no opt-out — a repo that had opted out being told to opt out again.
+    None routes the file to `unreadable`, which withholds the lever."""
+    if not _inside_scan_root(path):
+        raise PermissionError(f"refusing to read config outside scan root: {path}")
+    data = path.read_bytes()                        # OSError → caller's handler
+    for bom in (b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff", b"\xff\xfe", b"\xfe\xff"):
+        if data.startswith(bom):
+            return None                             # UTF-16 / UTF-32
+    if data.startswith(b"\xef\xbb\xbf"):
+        data = data[3:]
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def _iso_block(**overrides: Any) -> dict[str, Any]:
+    """The ONE definition of the `test_runner_isolation` block's shape, so the
+    crash fallback and the completed read cannot drift apart (a key present on
+    only one of them is a consumer default that fails OPEN). Defaults are the
+    fail-closed ones: nothing read, nothing proven, verdict unknown."""
+    block: dict[str, Any] = {
+        "runner": None,
+        "configs": [],
+        "unreadable": [],
+        "unresolved_imports": [],
+        "isolate_unresolved": [],
+        "readable": False,
+        "truncated": True,
+        "isolation_opt_out": False,
+        # The opt-out is a REPO-WIDE fact here: the lever is withheld for the
+        # whole repo when any config or package script opts out, not per project.
+        "opt_out_scope": "repo",
+        "opt_out_evidence": [],
+        "opt_out_evidence_count": 0,
+        "opt_out_configs": [],
+        "vm_pool": False,
+        "error": None,
+        "verdict": "unknown",
+        # Per-test source proof for the measured serial-test leaf. A file is
+        # listed only when every test block owns one distinct literal schema or
+        # prefix; absence is unknown, never evidence that tests are isolated.
+        "isolated_test_files": {},
+    }
+    block.update(overrides)
+    return block
+
+
+_ISOLATED_TEST_FILE_RE = re.compile(
+    r"(?:^|[._-])(?:test|spec)s?\.[cm]?[jt]sx?$", re.IGNORECASE)
+_TEST_BLOCK_RE = re.compile(
+    r"(?:^|[^\w.])(?:test|it)\s*\(\s*(?P<quote>['\"])"
+    r"(?P<name>.*?)(?P=quote)\s*,",
+    re.DOTALL,
+)
+_TEST_ISOLATION_LITERAL_RE = re.compile(
+    r"\b(?:createSchema|schemaFor|useSchema|createDatabase|createTestDatabase|"
+    r"databaseFor|prefixFor|usePrefix)\s*\(\s*(['\"])([A-Za-z0-9_.-]+)\1",
+    re.IGNORECASE,
+)
+
+
+def _js_position_is_quoted(text: str, position: int) -> bool:
+    """Whether ``position`` sits inside a JS string/template literal."""
+    quote = ""
+    index = 0
+    while index < position:
+        char = text[index]
+        if quote:
+            if char == "\\":
+                index += 2
+                continue
+            if char == quote:
+                quote = ""
+        elif char in "'\"`":
+            quote = char
+        index += 1
+    return bool(quote)
+
+
+def _isolated_test_source_facts(root: Path) -> dict[str, dict[str, str]]:
+    """Return files whose test blocks each own a distinct literal namespace.
+
+    This recognizes a deliberately small source shape. Dynamic helpers, shared
+    setup and an incomplete read stay absent, so the log leaf cannot infer
+    isolation from a naming convention the scanner did not actually read.
+    """
+    facts: dict[str, dict[str, str]] = {}
+    seen = 0
+    marker_count = 0
+    skipped = {".git", "node_modules", "vendor", "dist", "build", ".next"}
+    for directory, dirnames, filenames in os.walk(root):
+        dirnames[:] = [name for name in dirnames if name not in skipped]
+        for filename in filenames:
+            if not _ISOLATED_TEST_FILE_RE.search(filename):
+                continue
+            seen += 1
+            if seen > 500:
+                return {}
+            path = Path(directory) / filename
+            try:
+                resolved = path.resolve(strict=True)
+                resolved.relative_to(root)
+                if resolved.stat().st_size > 256_000:
+                    continue
+                source = _tal_strip_js_comments(resolved.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, ValueError):
+                continue
+            starts = [match for match in _TEST_BLOCK_RE.finditer(source)
+                      if not _js_position_is_quoted(source, match.start())]
+            if len(starts) < 4:
+                continue
+            markers: dict[str, str] = {}
+            complete = True
+            for index, match in enumerate(starts):
+                end = starts[index + 1].start() if index + 1 < len(starts) else len(source)
+                chunk = source[match.start():end]
+                close = re.search(r"(?m)^\s*}\)\s*;?\s*$", chunk)
+                if close is None:
+                    complete = False
+                    break
+                chunk = chunk[:close.end()]
+                values = {
+                    hit.group(2).casefold()
+                    for hit in _TEST_ISOLATION_LITERAL_RE.finditer(chunk)
+                    if not _js_position_is_quoted(chunk, hit.start())
+                }
+                test_name = match.group("name").strip()
+                if len(values) != 1 or not test_name or test_name in markers:
+                    complete = False
+                    break
+                markers[test_name] = next(iter(values))
+            if complete and len(set(markers.values())) == len(markers):
+                facts[str(path.relative_to(root))] = markers
+                marker_count += len(markers)
+                if len(facts) > 100 or marker_count > 1000:
+                    return {}
+    return facts
+
+
+def _isolation_verdict(block: dict[str, Any]) -> str:
+    """The block's ONE collapsed reading, computed here at the producer so no
+    consumer has to re-derive it from six booleans in the right order:
+
+      `opted_out`      resolved evidence that isolation is already off;
+      `unknown`        the read could not establish either way (fail closed);
+      `not_applicable` a vm pool, where `isolate` has no effect;
+      `isolation_on`   every config was read, completely, and none opts out.
+    """
+    if block.get("isolation_opt_out"):
+        return "opted_out"
+    if (block.get("error") or block.get("truncated") or block.get("unreadable")
+            or block.get("unresolved_imports") or block.get("isolate_unresolved")
+            or not block.get("configs")):
+        return "unknown"
+    if block.get("vm_pool"):
+        return "not_applicable"
+    return "isolation_on"
+
+
+def _read_test_runner_isolation(root: Path) -> dict[str, Any]:
+    """Read the repo's vitest config(s) and report whether per-file isolation is
+    still on. Never raises: whatever the read hits, the rest of the scan must
+    run, so an unexpected failure yields a block the consumer withholds on."""
+    try:
+        return _read_test_runner_isolation_unguarded(root)
+    except Exception as e:  # noqa: BLE001 — fail closed, never take the scan down
+        # NEVER silently: a crashed reader and a genuinely huge monorepo both
+        # withhold the lever, and without this line they are indistinguishable —
+        # a broken reader would retire the pattern with nobody the wiser.
+        print(f"ci-speedup: the vitest config reader failed "
+              f"({type(e).__name__}: {e}); the per-file-isolation lever (OPT78) "
+              "will be WITHHELD for this repo — this is a scanner failure, not a "
+              "fact about the repo.", file=sys.stderr)
+        return _iso_block(error=type(e).__name__)
+
+
+def _read_test_runner_isolation_unguarded(root: Path) -> dict[str, Any]:
+    """FAILS CLOSED in every direction that matters: no config file found, or a
+    candidate unreadable, or an import the read cannot follow, or a walk that
+    could not cover the repo, is reported as such (and the consumer withholds
+    the finding); an `isolate` mention this static read cannot resolve is
+    reported in `isolate_unresolved` — which also withholds — never as isolation
+    being on, and never as a resolved opt-out it is not."""
+    root = root.resolve()
+    configs: list[str] = []
+    unreadable: list[str] = []
+    unresolved: list[str] = []
+    unresolved_isolate: list[str] = []
+    evidence: list[str] = []
+    opt_out_configs: list[str] = []
+    vitest_signal = False
+    vm_pool = False
+    paths, truncated, manifests = _vitest_config_files(root)
+
+    def _rel(path: Path) -> str:
+        try:
+            return str(path.relative_to(root))
+        except ValueError:                                  # pragma: no cover
+            return path.name
+
+    queue = list(paths)
+    seen = {p.resolve() for p in queue}
+    followed = 0
+    while queue:
+        path = queue.pop(0)
+        name = _rel(path)
+        try:
+            text = _read_config_text(path)
+        except OSError:
+            text = None
+        if text is None:
+            unreadable.append(name)
+            continue
+        configs.append(name)
+        if "vitest" in text.lower() or Path(name).name.lower().startswith("vitest"):
+            vitest_signal = True
+        hits: dict[int, str] = {}
+        unresolved_hits: dict[int, str] = {}
+        for m in _VITEST_ISOLATE_TOKEN_RE.finditer(text):
+            v = _VITEST_ISOLATE_VALUE_RE.match(text, m.end())
+            ln, src = _vitest_line_at(text, m.start())
+            if v and v.group(1) == "true":
+                continue                    # the one reading that is isolation ON
+            if v and v.group(1) == "false":
+                hits.setdefault(ln, src)    # RESOLVED: the repo opts out
+            else:
+                unresolved_hits.setdefault(ln, src)   # cannot be read either way
+        for rx in (_VITEST_NO_ISOLATE_FLAG_RE, _VITEST_SINGLE_WORKER_RE):
+            for m in rx.finditer(text):
+                ln, src = _vitest_line_at(text, m.start())
+                hits.setdefault(ln, src)
+                unresolved_hits.pop(ln, None)
+        if hits:
+            opt_out_configs.append(name)
+        evidence += [f"{name}:{ln}: {src[:160]}" for ln, src in sorted(hits.items())]
+        unresolved_isolate += [f"{name}:{ln}: {src[:160]}"
+                               for ln, src in sorted(unresolved_hits.items())]
+        vm_pool = vm_pool or bool(_VITEST_VM_POOL_RE.search(text))
+        for m in _VITEST_IMPORT_SPEC_RE.finditer(text):
+            spec = m.group(2).strip()
+            if spec.startswith("./") or spec.startswith("../"):
+                target = _resolve_local_import(path, spec, root)
+                if target is None:
+                    unresolved.append(f"{name}: {spec}")
+                elif target not in seen:
+                    seen.add(target)
+                    followed += 1
+                    if followed > _VITEST_CONFIG_MAX_FOLLOW:
+                        unresolved.append(f"{name}: {spec} (follow cap)")
+                    else:
+                        queue.append(target)
+        # …and the bare specifiers this config takes its SETTINGS from.
+        unresolved += [f"{name}: {spec}" for spec in _unfollowable_config_bases(text)]
+    # The CLI opt-out most often lives in a package script, not in the config or
+    # the workflow line the job log echoes.
+    for path in manifests:
+        name = _rel(path)
+        try:
+            text = _read_config_text(path)
+        except OSError:
+            text = None
+        if text is None:
+            unreadable.append(name)
+            continue
+        for m in _VITEST_NO_ISOLATE_FLAG_RE.finditer(text):
+            ln, src = _vitest_line_at(text, m.start())
+            evidence.append(f"{name}:{ln}: {src[:160]}")
+            if name not in opt_out_configs:
+                opt_out_configs.append(name)
+        if re.search(r"(?<![\w-])vitest(?![\w-])", text):
+            vitest_signal = True
+        vm_pool = vm_pool or bool(_VITEST_VM_POOL_RE.search(text))
+    block = _iso_block(
+        # Only an actual vitest signal (a `vitest*` config name, the word in a
+        # config, or a `vitest` invocation in a package script) says vitest.
+        # A pure Vite app has `vite.config.ts` and no vitest at all.
+        runner=("vitest" if vitest_signal else ("vite" if configs else None)),
+        configs=sorted(configs),
+        unreadable=sorted(unreadable),
+        # A config pulls settings from a module this read could not follow (a
+        # missing file, a shared config package): its opt-out, if any, is
+        # invisible here. The consumer must fail closed on this.
+        unresolved_imports=sorted(set(unresolved)),
+        # An `isolate` mention whose value this static read cannot resolve. NOT
+        # an opt-out (saying so asserted a line as evidence of something it does
+        # not say) — but not evidence isolation is on either, so it withholds.
+        isolate_unresolved=sorted(set(unresolved_isolate)),
+        readable=bool(configs),
+        # The walk left ground unvisited, so "no opt-out was found" is NOT the
+        # same as "no opt-out exists". The consumer must fail closed on this.
+        truncated=truncated,
+        isolation_opt_out=bool(evidence),
+        opt_out_evidence=evidence[:4],
+        opt_out_evidence_count=len(evidence),
+        opt_out_configs=sorted(set(opt_out_configs)),
+        # A vm pool cannot disable isolation, so the lever cannot apply.
+        vm_pool=vm_pool,
+        isolated_test_files=(_isolated_test_source_facts(root)
+                             if vitest_signal else {}),
+    )
+    block["verdict"] = _isolation_verdict(block)
+    return block
+
+
+# --- Type-aware ESLint (OPT82 corroboration, not a finding) -----------------
+# OPT82 ("lint builds the whole type graph") is decided in `collect_runs.py`,
+# where a lint job's measured timings are in hand. Whether that job's ESLint
+# builds a TypeScript program at all is a CONFIG fact, and this reader supplies
+# it and only it: what each ESLint config in the tree says about type-aware
+# parsing, which type-aware rules it turns on, and the package scripts a
+# workflow's `npm run lint` resolves through. It never decides a finding.
+#
+# Read as TEXT, never evaluated. A literal is read; anything else — an
+# identifier, an env var, a ternary, a spread inside `parserOptions` — is
+# UNRESOLVED and the consumer withholds (fail closed), because "type-aware
+# parsing is on" is the finding's whole premise and an expression is not
+# evidence of it. Comments are blanked first, so a commented-out
+# `project: true` is not read as on.
+_TAL_RULES_PATH = (Path(__file__).resolve().parents[1] / "references"
+                   / "type-aware-lint-rules.tsv")
+_TAL_RULES_CACHE: "dict[str, dict[str, Any]] | None" = None
+_ESLINT_FLAT_NAMES = frozenset(f"eslint.config.{e}"
+                               for e in ("js", "mjs", "cjs", "ts", "mts", "cts"))
+_ESLINT_RC_NAMES = frozenset({".eslintrc", ".eslintrc.js", ".eslintrc.cjs",
+                              ".eslintrc.json", ".eslintrc.yaml", ".eslintrc.yml"})
+# Relative imports a config pulls in (a local plugin and its rule files) are
+# followed up to this many files to find CUSTOM type-aware rules.
+_TAL_MAX_FOLLOW = 40
+# A custom rule is type-aware when its source asks the parser for type
+# information. These are the two documented entry points.
+_TAL_TYPED_RULE_SOURCE_RE = re.compile(r"\bgetParserServices\b|\bgetTypeChecker\b")
+# `parserOptions` as an object key (`parserOptions: {`) or a variable
+# (`const parserOptions = {`).
+_TAL_PARSER_OPTIONS_RE = re.compile(r"""(?<![\w$.])(["']?)parserOptions\1\s*[:=]\s*""")
+_TAL_PROJECT_KEY_RE = re.compile(
+    r"""(?<![\w$.-])(["']?)(projectService|project)\1\s*:\s*""")
+_TAL_PROJECT_SHORTHAND_RE = re.compile(r"[{,]\s*(projectService|project)\s*(?=[,}])")
+# A rule entry: a quoted `<namespace>/<rule>` key and its value.
+_TAL_RULE_KEY_RE = re.compile(r"""(["'])(@?[\w.-]+/[\w./-]+)\1\s*:\s*""")
+# Type-checked presets. camelCase (flat `tseslint.configs.recommendedTypeChecked`)
+# and kebab (`plugin:@typescript-eslint/strict-type-checked`, legacy
+# `recommended-requiring-type-checking`). `disableTypeChecked` /
+# `disable-type-checked` turns type information OFF and never matches: the
+# capture group admits only recommended / strict / stylistic.
+# A preset counts only where it is REFERENCED as a config: a member of a
+# `configs` object (`configs.x`, `configs?.x`, `configs['x']`), a spread of a
+# destructured preset (`...x`), or a `<plugin>/<preset>` string
+# (`plugin:@typescript-eslint/x`, flat `extends: ['ts/x']`). The bare name in
+# an unrelated string (`const s = 'recommendedTypeChecked'`) is not a preset.
+_TAL_PRESET_REF = (r"(?:\bconfigs\s*\??\.\s*|\bconfigs\s*\[\s*['\"]|\.\.\.\s*"
+                   r"|['\"](?:plugin:)?@?[\w.-]+/)")
+_TAL_PRESET_CAMEL_RE = re.compile(
+    _TAL_PRESET_REF + r"(recommended|strict|stylistic)TypeChecked(?:Only)?(?![\w$])")
+_TAL_PRESET_KEBAB_RE = re.compile(
+    _TAL_PRESET_REF + r"(recommended|strict|stylistic)-type-checked(?:-only)?(?![\w-])")
+_TAL_PRESET_LEGACY_RE = re.compile(
+    _TAL_PRESET_REF + r"recommended-requiring-type-checking(?![\w-])")
+# typescript-eslint's `all` preset. `configs.all` is ALSO ESLint's own
+# (`js.configs.all`, no type information), so the member form counts only on
+# an object bound to typescript-eslint: an import / require of
+# `typescript-eslint` or `@typescript-eslint/eslint-plugin`, or one of the
+# conventional names for it when the binding is not in this file.
+_TAL_TSESLINT_BINDING_RE = re.compile(
+    r"""(?:\bimport\s+(?:\*\s+as\s+)?([\w$]+)\s+from\s*|"""
+    r"""\b(?:const|let|var)\s+([\w$]+)\s*=\s*require\s*\(\s*)"""
+    r"""["'](?:typescript-eslint|@typescript-eslint/eslint-plugin)["']""")
+_TAL_TSESLINT_DEFAULT_NAMES = ("tseslint", "typescriptEslint", "tsEslint",
+                               "tsPlugin", "typescriptEslintPlugin")
+_TAL_PRESET_ALL_LEGACY_RE = re.compile(r"plugin:@typescript-eslint/all(?![\w-])")
+# `import { configs } from 'typescript-eslint'` (or `configs as tsConfigs`):
+# the named `configs` export, used bare as `configs.all`.
+_TAL_TSESLINT_NAMED_IMPORT_RE = re.compile(
+    r"""\bimport\s+(?:[\w$]+\s*,\s*)?\{([^}]*)\}\s*from\s*"""
+    r"""["'](?:typescript-eslint|@typescript-eslint/eslint-plugin)["']""")
+
+
+def _tal_all_preset_match(text: str) -> "re.Match[str] | None":
+    names = {a or b for a, b in _TAL_TSESLINT_BINDING_RE.findall(text)}
+    names |= set(_TAL_TSESLINT_DEFAULT_NAMES)
+    member = re.compile(
+        r"(?:(?<=\.\.\.)|(?<![\w$.]))(?:" + "|".join(re.escape(n) for n in sorted(names))
+        + r")\s*\??\.\s*configs\s*\??\.\s*all(?![\w$])")
+    found = member.search(text) or _TAL_PRESET_ALL_LEGACY_RE.search(text)
+    if found:
+        return found
+    cfg_names = set()
+    for clause in _TAL_TSESLINT_NAMED_IMPORT_RE.findall(text):
+        for part in clause.split(","):
+            m = re.fullmatch(r"\s*configs(?:\s+as\s+([\w$]+))?\s*", part)
+            if m:
+                cfg_names.add(m.group(1) or "configs")
+    if not cfg_names:
+        return None
+    bare = re.compile(
+        r"(?:(?<=\.\.\.)|(?<![\w$.]))(?:" + "|".join(re.escape(n) for n in sorted(cfg_names))
+        + r")\s*\??\.\s*all(?![\w$])")
+    return bare.search(text)
+
+
+def _load_type_aware_rules() -> "dict[str, dict[str, Any]]":
+    """The committed type-aware rule list (references/type-aware-lint-rules.tsv):
+    rule -> {syntax_only_equivalent, presets}."""
+    global _TAL_RULES_CACHE
+    if _TAL_RULES_CACHE is None:
+        out: dict[str, dict[str, Any]] = {}
+        for line in _TAL_RULES_PATH.read_text(encoding="utf-8").splitlines():
+            if not line.strip() or line.startswith("#"):
+                continue
+            rule, base, presets = line.split("\t")
+            if rule in out:
+                # A duplicate row would silently overwrite the first; fail
+                # closed (the reader's guard turns this into a withheld block).
+                raise ValueError(f"duplicate rule row in {_TAL_RULES_PATH.name}: {rule}")
+            out[rule] = {"syntax_only_equivalent": None if base == "-" else base,
+                         "presets": [] if presets == "-" else presets.split(",")}
+        _TAL_RULES_CACHE = out
+    return _TAL_RULES_CACHE
+
+
+def _is_eslint_config_name(name: str) -> bool:
+    return name in _ESLINT_FLAT_NAMES or name in _ESLINT_RC_NAMES
+
+
+def _tal_strip_js_comments(text: str) -> str:
+    """`//` and `/* */` comments blanked to spaces (newlines kept, so line
+    numbers survive); string contents are left alone."""
+    out = list(text)
+    i, n, quote = 0, len(text), ""
+    while i < n:
+        c = text[i]
+        if quote:
+            if c == "\\":
+                i += 2
+                continue
+            if c == quote:
+                quote = ""
+            i += 1
+            continue
+        if c in "'\"`":
+            quote = c
+        elif text.startswith("//", i):
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            for k in range(i, j):
+                out[k] = " "
+            i = j
+            continue
+        elif text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            for k in range(i, j):
+                if out[k] != "\n":
+                    out[k] = " "
+            i = j
+            continue
+        i += 1
+    return "".join(out)
+
+
+def _tal_balanced(text: str, start: int) -> str:
+    """The `{...}` / `[...]` literal opening at `start` (string-aware)."""
+    pairs = {"{": "}", "[": "]"}
+    stack: list[str] = []
+    quote = ""
+    i = start
+    while i < len(text):
+        c = text[i]
+        if quote:
+            if c == "\\":
+                i += 2
+                continue
+            if c == quote:
+                quote = ""
+        elif c in "'\"`":
+            quote = c
+        elif c in pairs:
+            stack.append(pairs[c])
+        elif stack and c == stack[-1]:
+            stack.pop()
+            if not stack:
+                return text[start:i + 1]
+        i += 1
+    return text[start:]
+
+
+_TAL_LITERAL_END_RE = re.compile(r"\s*(?:[,}\]\n]|$)")
+
+
+def _tal_value(text: str, pos: int) -> "tuple[str, str]":
+    """Classify the JS value starting at `pos`: ("true" | "false" | "string" |
+    "array_of_strings" | "object" | "other", its source text)."""
+    m = re.match(r"\s*", text[pos:])
+    pos += m.end() if m else 0
+    rest = text[pos:]
+    for word in ("true", "false"):
+        if rest.startswith(word) and _TAL_LITERAL_END_RE.match(rest, len(word)) \
+                and not re.match(r"[\w$]", rest[len(word):len(word) + 1]):
+            return word, word
+    if rest[:1] in ("'", '"'):
+        end = rest.find(rest[0], 1)
+        if end > 0 and _TAL_LITERAL_END_RE.match(rest, end + 1):
+            return "string", rest[:end + 1]
+        return "other", rest.split("\n", 1)[0].strip()
+    if rest[:1] == "[":
+        lit = _tal_balanced(text, pos)
+        inner = lit[1:-1].strip()
+        if inner and re.fullmatch(r"""(\s*(['"])[^'"\n]*\2\s*,?)+""", inner):
+            return "array_of_strings", lit
+        return "other", lit.split("\n", 1)[0]
+    if rest[:1] == "{":
+        return "object", _tal_balanced(text, pos)
+    return "other", rest.split("\n", 1)[0].strip().rstrip(",")
+
+
+_TAL_SEVERITY = {"off": "off", "0": "off", "warn": "on", "error": "on",
+                 "1": "on", "2": "on"}
+
+
+def _tal_rule_state_js(text: str, pos: int) -> str:
+    """'on' | 'off' | 'unresolved' for the rule value starting at `pos`."""
+    m = re.match(r"""\s*(?:\[\s*)?(?:(['"])(\w+)\1|(\d))(?=\s*[,\]}\n])""", text[pos:])
+    if not m:
+        return "unresolved"
+    return _TAL_SEVERITY.get((m.group(2) or m.group(3) or "").lower(), "unresolved")
+
+
+def _tal_rule_state_obj(value: Any) -> str:
+    if isinstance(value, list):
+        value = value[0] if value else None
+    if isinstance(value, bool):
+        return "unresolved"
+    return _TAL_SEVERITY.get(str(value).lower(), "unresolved") \
+        if isinstance(value, (str, int)) else "unresolved"
+
+
+def _tal_presets_in(text: str) -> list[str]:
+    found = {m.group(1) for m in _TAL_PRESET_CAMEL_RE.finditer(text)}
+    found |= {m.group(1) for m in _TAL_PRESET_KEBAB_RE.finditer(text)}
+    if _TAL_PRESET_LEGACY_RE.search(text):
+        found.add("recommended")
+    if _tal_all_preset_match(text):
+        found.add("all")
+    return sorted(found)
+
+
+# A shareable config package this read does not follow. Known public configs
+# that never turn type-aware parsing on are allowlisted so they stay a verdict.
+_TAL_SHARED_ALLOWLIST = frozenset({
+    "prettier", "eslint-config-prettier", "next", "eslint-config-next",
+    "next/core-web-vitals", "next/typescript", "eslint-config-next/core-web-vitals",
+    "eslint-config-next/typescript"})
+# An imported package that IS a shareable ESLint config by its name: the
+# `eslint-config-*` convention, or a scoped package with `eslint` in its path
+# (`@acme/eslint-config`, `@repo/config/eslint`) that is not ESLint itself, a
+# plugin, or typescript-eslint.
+_TAL_SHARED_IMPORT_RE = re.compile(
+    r"^(?:eslint-config(?:-[\w.-]+)?|@(?!eslint/|typescript-eslint/)[\w.-]+/"
+    r"(?![\w./-]*eslint-plugin)[\w./-]*\beslint\b[\w./-]*)(?:/[\w./-]*)?$")
+_TAL_IMPORT_ONLY_RE = re.compile(
+    r"""(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*)(["'])([^"'\n]+)\1""")
+_TAL_EXTENDS_RE = re.compile(r"""(?<![\w$.])(["']?)extends\1\s*:\s*""")
+_TAL_ROOT_TRUE_RE = re.compile(r"""(?<![\w$.])(["']?)root\1\s*:\s*true(?![\w$])""")
+
+
+def _tal_is_relative(spec: str) -> bool:
+    return spec.startswith("./") or spec.startswith("../")
+
+
+def _tal_shared_from_extends(specs: "list[str]") -> list[str]:
+    """Legacy `extends` entries naming a shareable config package: anything
+    that is not `eslint:*`, `plugin:*`, a path, or allowlisted."""
+    return [s for s in specs
+            if s and not s.startswith(("eslint:", "plugin:", ".", "/"))
+            and s not in _TAL_SHARED_ALLOWLIST]
+
+
+_TAL_DISABLE_TYPE_CHECKED_RE = re.compile(
+    r"""\bconfigs\s*\??\.\s*disableTypeChecked(?![\w$])"""
+    r"""|["'](?:plugin:)?@?[\w.-]+/disable-type-checked["']""")
+_TAL_FILES_KEY_RE = re.compile(r"""(?<![\w$.])(["']?)files\1\s*:""")
+
+
+def _tal_objects(text: str) -> "list[tuple[int, int]]":
+    """Every `{...}` literal in `text` as (start, end) offsets (string-aware)."""
+    out: list[tuple[int, int]] = []
+    stack: list[int] = []
+    quote = ""
+    i = 0
+    while i < len(text):
+        c = text[i]
+        if quote:
+            if c == "\\":
+                i += 2
+                continue
+            if c == quote:
+                quote = ""
+        elif c in "'\"`":
+            quote = c
+        elif c == "{":
+            stack.append(i)
+        elif c == "}" and stack:
+            out.append((stack.pop(), i))
+        i += 1
+    return out
+
+
+def _tal_scoped(text: str, objs: "list[tuple[int, int]]", pos: int) -> bool:
+    """True when `pos` sits inside a config object that has its OWN `files:`
+    key: the setting there applies to some files only."""
+    for s, e in objs:
+        if not (s < pos < e):
+            continue
+        for m in _TAL_FILES_KEY_RE.finditer(text, s + 1, e):
+            if not any(s < cs < m.start() < ce for cs, ce in objs):
+                return True
+    return False
+
+
+def _tal_read_js(text: str, name: str, flat: bool = True) -> dict[str, Any]:
+    """One JS/TS config (flat `eslint.config.*` or a JS `.eslintrc`), as text."""
+    code = _tal_strip_js_comments(text)
+    evidence: list[str] = []
+    unresolved: list[str] = []
+    explicit: dict[str, set[str]] = {}
+    sets_off = False
+    extends: list[str] = []
+    for m in _TAL_EXTENDS_RE.finditer(code):
+        kind, lit = _tal_value(code, m.end())
+        if kind in ("string", "array_of_strings"):
+            extends += re.findall(r"""["']([^"'\n]+)["']""", lit)
+        elif kind == "other" and lit[:1] == "[":
+            # a mixed array (`['./base.js', require.resolve('x')]`): its literals
+            extends += re.findall(r"""["']([^"'\n]+)["']""",
+                                  _tal_balanced(code, code.index(lit, m.end())))
+    imports = [m.group(2).strip() for m in _TAL_IMPORT_ONLY_RE.finditer(code)]
+    shared = [s for s in imports if not _tal_is_relative(s)
+              and _TAL_SHARED_IMPORT_RE.match(s) and s not in _TAL_SHARED_ALLOWLIST]
+    if not flat:
+        shared += _tal_shared_from_extends(extends)
+
+    def _line(pos: int) -> str:
+        ln, src = _vitest_line_at(code, pos)
+        return f"{name}:{ln}: {src[:160]}"
+
+    for m in _TAL_PARSER_OPTIONS_RE.finditer(code):
+        kind, lit = _tal_value(code, m.end())
+        if kind != "object":
+            unresolved.append(_line(m.start()))
+            continue
+        if re.search(r"\.\.\.", lit):
+            unresolved.append(_line(m.start()))       # a spread can override anything
+        base = code.index(lit, m.end())
+        for k in _TAL_PROJECT_KEY_RE.finditer(lit):
+            vkind, _src = _tal_value(lit, k.end())
+            at = base + k.start()
+            if vkind in ("true", "string", "array_of_strings") or (
+                    vkind == "object" and k.group(2) == "projectService"):
+                evidence.append(_line(at))
+            elif vkind == "false" or (vkind == "other" and re.fullmatch(
+                    r"(?:null|undefined)\s*[,}\]]?", _src.strip())):
+                sets_off = True       # `false` / `null` / `undefined`: documented OFF
+                continue
+            else:
+                unresolved.append(_line(at))
+        for k in _TAL_PROJECT_SHORTHAND_RE.finditer(lit):
+            unresolved.append(_line(base + k.start()))
+    presets = _tal_presets_in(code)
+    for p in presets:
+        hit = (_tal_all_preset_match(code) if p == "all" else
+               (_TAL_PRESET_CAMEL_RE.search(code) or _TAL_PRESET_KEBAB_RE.search(code)
+                or _TAL_PRESET_LEGACY_RE.search(code)))
+        if hit:
+            evidence.append(_line(hit.start()))
+    objs = _tal_objects(code)
+    # `disableTypeChecked` turns type information back OFF. Scoped to some
+    # files (`{ files: ['**/*.js'], ... }`, the documented use) the rest stays
+    # on; unscoped, the outcome depends on config ORDER this read does not
+    # model, so it is unresolved rather than read as on.
+    if evidence:
+        for m in _TAL_DISABLE_TYPE_CHECKED_RE.finditer(code):
+            if not _tal_scoped(code, objs, m.start()):
+                unresolved.append(_line(m.start()))
+    for m in _TAL_RULE_KEY_RE.finditer(code):
+        state = _tal_rule_state_js(code, m.end())
+        if state == "off" and _tal_scoped(code, objs, m.start()):
+            state = "off_scoped"
+        explicit.setdefault(m.group(2), set()).add(state)
+    return {"evidence": sorted(set(evidence)), "unresolved": sorted(set(unresolved)),
+            "presets": presets, "explicit": explicit, "sets_off": sets_off,
+            "root": bool(_TAL_ROOT_TRUE_RE.search(code)),
+            "extends": [e for e in extends if _tal_is_relative(e)],
+            "shared": sorted(set(shared))}
+
+
+def _tal_read_obj(obj: Any, name: str) -> dict[str, Any]:
+    """One structured config (`.eslintrc.json/.yaml`, `package.json#eslintConfig`):
+    the top level and every `overrides[]` entry."""
+    evidence: list[str] = []
+    unresolved: list[str] = []
+    presets: set[str] = set()
+    explicit: dict[str, set[str]] = {}
+    sets_off = False
+    disable_unscoped = False
+    extends: list[str] = []
+    blocks = [obj] if isinstance(obj, dict) else []
+    if isinstance(obj, dict) and isinstance(obj.get("overrides"), list):
+        blocks += [o for o in obj["overrides"] if isinstance(o, dict)]
+    for b in blocks:
+        po = b.get("parserOptions")
+        if po is not None and not isinstance(po, dict):
+            unresolved.append(f"{name}: parserOptions is not a mapping")
+        for key in ("project", "projectService"):
+            if not isinstance(po, dict) or key not in po:
+                continue
+            v = po.get(key)
+            if v is None or v is False:
+                sets_off = True       # `false` / `null`: documented OFF
+                continue
+            if v is True or (isinstance(v, str) and v) or (
+                    isinstance(v, list) and v and all(isinstance(x, str) and x for x in v)) or (
+                    key == "projectService" and isinstance(v, dict)):
+                evidence.append(f"{name}: parserOptions.{key}: {json.dumps(v)[:120]}")
+            else:
+                unresolved.append(f"{name}: parserOptions.{key}: {json.dumps(v)[:120]}")
+        ext = b.get("extends")
+        for e in ([ext] if isinstance(ext, str) else ext if isinstance(ext, list) else []):
+            extends.append(str(e))
+            got = _tal_presets_in(json.dumps(str(e)))
+            if got:
+                presets |= set(got)
+                evidence.append(f"{name}: extends {e}")
+        scoped = b is not obj           # every `overrides[]` entry has `files`
+        for e in ([ext] if isinstance(ext, str) else ext if isinstance(ext, list) else []):
+            if not scoped and _TAL_DISABLE_TYPE_CHECKED_RE.search(json.dumps(str(e))):
+                disable_unscoped = True
+        rules = b.get("rules")
+        if isinstance(rules, dict):
+            for r, v in rules.items():
+                if "/" in str(r):
+                    state = _tal_rule_state_obj(v)
+                    if state == "off" and scoped:
+                        state = "off_scoped"
+                    explicit.setdefault(str(r), set()).add(state)
+    if disable_unscoped and evidence:
+        unresolved.append(f"{name}: extends disable-type-checked for every file")
+    return {"evidence": sorted(set(evidence)), "unresolved": sorted(set(unresolved)),
+            "presets": sorted(presets), "explicit": explicit, "sets_off": sets_off,
+            "root": bool(isinstance(obj, dict) and obj.get("root") is True),
+            "extends": [e for e in extends if _tal_is_relative(e)],
+            "shared": sorted(set(_tal_shared_from_extends(extends)))}
+
+
+def _tal_parse_obj_text(text: str) -> Any:
+    """A structured config's text (JSON, JSONC with comments or trailing
+    commas, or YAML) as an object, or None."""
+    stripped = _tal_strip_js_comments(text)
+    for cand in (stripped, re.sub(r",(\s*[}\]])", r"\1", stripped)):
+        try:
+            return json.loads(cand)
+        except ValueError:
+            continue
+    try:
+        return yaml.safe_load(text)
+    except yaml.YAMLError:
+        return None
+
+
+def _tal_is_obj_config(name: str) -> bool:
+    return name.endswith((".json", ".yaml", ".yml")) or name == ".eslintrc"
+
+
+def _tal_read_any(path: Path, text: str, name: str, flat: bool
+                  ) -> "dict[str, Any] | None":
+    """One config-shaped file, structured or JS, or None when unreadable."""
+    if _tal_is_obj_config(path.name):
+        obj = _tal_parse_obj_text(text)
+        return _tal_read_obj(obj, name) if isinstance(obj, dict) else None
+    return _tal_read_js(text, name, flat=flat)
+
+
+_TAL_IMPORT_BINDING_RE = re.compile(
+    r"""(?:\bimport\s+([\w$]+)\s*(?:,\s*\{[^}]*\})?\s+from\s*"""
+    r"""|\bimport\s+\*\s+as\s+([\w$]+)\s+from\s*"""
+    r"""|\b(?:const|let|var)\s+([\w$]+)\s*=\s*require\s*\(\s*)(["'])([^"'\n]+)\4""")
+_TAL_PLUGINS_RE = re.compile(r"""(?<![\w$.])(["']?)plugins\1\s*:\s*(?=\{)""")
+_TAL_PLUGIN_ENTRY_RE = re.compile(
+    r"""(["']?)([\w@./-]+)\1\s*:\s*([\w$]+)(?=\s*[,}])|(?<=[{,])\s*([\w$]+)\s*(?=[,}])""")
+
+
+class _TalCustomRules:
+    """Which `<namespace>/<rule>` keys are PROVEN to be custom type-aware rules.
+
+    A followed file whose code asks for type information is a typed rule
+    SOURCE. A rule key is proven typed only when (1) the plugin module that
+    imports that source maps the rule's short name to the imported binding
+    (`'no-foo': noFoo`), and (2) the config binds that plugin module under the
+    rule's namespace (`plugins: { local }` with `import local from './...'`).
+    A file-name match alone, or a mapping under an unbound namespace, is
+    UNPROVEN: the rule is reported unresolved, never named."""
+
+    def __init__(self) -> None:
+        self.typed: list[tuple[Path, str, str, str]] = []   # path, stem, source, code
+        self.importers: dict[Path, list[tuple[Path, "str | None", str]]] = {}
+        self.ns_paths: dict[str, Path] = {}
+
+    def lookup(self, ns: str, short: str) -> "tuple[str, str] | str | None":
+        key_re = re.compile(r"(?<![\w$-])(['\"]?)" + re.escape(short) + r"\1\s*:")
+        unproven = False
+        for path, stem, source, code in self.typed:
+            for imp, binding, imp_code in self.importers.get(path, []):
+                if binding and re.search(
+                        r"(?<![\w$-])(['\"]?)" + re.escape(short) + r"\1\s*:\s*"
+                        + re.escape(binding) + r"(?![\w$])", imp_code):
+                    if self.ns_paths.get(ns) == imp:
+                        return "typed", source
+                    unproven = True
+            if stem == short or key_re.search(code):
+                unproven = True
+        return "unproven" if unproven else None
+
+
+def _tal_follow(path: Path, text: str, root: Path, rel: "Any", flat: bool,
+                first_specs: "list[str]"
+                ) -> "tuple[_TalCustomRules, list[str], list[dict[str, Any]]]":
+    """Follow the config's RELATIVE imports and relative `extends` (bounded).
+
+    Returns the custom-rule evidence (`_TalCustomRules`: every followed file
+    whose code asks for type information, who imports it under which binding,
+    and which plugin namespace each config binds to which local module), the
+    specifiers that could not be followed, and the READ of every other followed
+    file: a local base config (`import base from './base.mjs'; export default
+    [...base]`, `extends: ['./eslint/base.js']`) carries parserOptions, presets
+    and rules that apply to this config exactly as if they were written in it."""
+    custom = _TalCustomRules()
+    typed_paths: list[tuple[Path, str]] = []
+    texts: dict[Path, str] = {}
+    unresolved: list[str] = []
+    reads: list[dict[str, Any]] = []
+    start = path.resolve()
+    queue: list[tuple[Path, str, list[str]]] = [(start, text, list(first_specs))]
+    seen = {start}
+    followed = 0
+    while queue:
+        cur, cur_text, specs = queue.pop(0)
+        code = "" if _tal_is_obj_config(cur.name) else _tal_strip_js_comments(cur_text)
+        texts[cur] = code
+        if cur != start:
+            if _TAL_TYPED_RULE_SOURCE_RE.search(code):
+                typed_paths.append((cur, rel(cur)))
+            else:
+                r = _tal_read_any(cur, cur_text, rel(cur), flat)
+                if r is None:
+                    unresolved.append(f"{rel(cur)} (unreadable)")
+                else:
+                    reads.append(r)
+                    specs = specs + r["extends"]
+        bindings: dict[str, str] = {}
+        for m in _TAL_IMPORT_BINDING_RE.finditer(code):
+            bindings.setdefault(m.group(5).strip(), m.group(1) or m.group(2) or m.group(3))
+        local_paths: dict[str, Path] = {}
+        all_specs = [m.group(2).strip() for m in _VITEST_IMPORT_SPEC_RE.finditer(code)]
+        for spec in all_specs + specs:
+            if not _tal_is_relative(spec):
+                continue
+            target = _resolve_local_import(cur, spec, root)
+            if target is None:
+                unresolved.append(f"{rel(cur)}: {spec}")
+                continue
+            binding = bindings.get(spec)
+            if binding:
+                local_paths[binding] = target
+            if (cur, binding, code) not in custom.importers.setdefault(target, []):
+                custom.importers[target].append((cur, binding, code))
+            if target in seen:
+                continue
+            seen.add(target)
+            followed += 1
+            if followed > _TAL_MAX_FOLLOW:
+                unresolved.append(f"{rel(cur)}: {spec} (follow cap)")
+                continue
+            try:
+                t = _read_config_text(target)
+            except OSError:
+                t = None
+            if t is None:
+                unresolved.append(f"{rel(cur)}: {spec} (unreadable)")
+                continue
+            queue.append((target, t, []))
+        # `plugins: { local }` / `plugins: { 'local': plugin }`: namespace -> module
+        for m in _TAL_PLUGINS_RE.finditer(code):
+            lit = _tal_balanced(code, m.end())
+            for e in _TAL_PLUGIN_ENTRY_RE.finditer(lit):
+                ns, binding = (e.group(2), e.group(3)) if e.group(3) else (e.group(4), e.group(4))
+                if ns and binding in local_paths:
+                    custom.ns_paths.setdefault(ns, local_paths[binding])
+    for p, source in typed_paths:
+        stem = p.name.split(".")[0]
+        if stem == "index":
+            stem = p.parent.name
+        custom.typed.append((p, stem, source, texts.get(p, "")))
+    return custom, unresolved, reads
+
+
+def _tal_merge(read: dict[str, Any], others: "list[dict[str, Any]]") -> dict[str, Any]:
+    """A config's own read plus the reads of the local files it pulls in."""
+    out = {"evidence": list(read["evidence"]), "unresolved": list(read["unresolved"]),
+           "presets": sorted(set(read["presets"]).union(
+               *(o["presets"] for o in others))),
+           "explicit": {k: set(v) for k, v in read["explicit"].items()},
+           "sets_off": read.get("sets_off", False)
+           or any(o.get("sets_off") for o in others),
+           "root": read.get("root", False),
+           "shared": sorted(set(read.get("shared") or []).union(
+               *(o.get("shared") or [] for o in others)))}
+    for o in others:
+        out["evidence"] += o["evidence"]
+        out["unresolved"] += o["unresolved"]
+        for k, v in o["explicit"].items():
+            out["explicit"].setdefault(k, set()).update(v)
+    out["evidence"] = sorted(set(out["evidence"]))
+    out["unresolved"] = sorted(set(out["unresolved"]))
+    return out
+
+
+def _tal_block(**overrides: Any) -> dict[str, Any]:
+    """The ONE definition of the `type_aware_lint` block's shape. Defaults are
+    fail-closed: nothing read, walk incomplete."""
+    block: dict[str, Any] = {
+        "configs": [],
+        "unreadable": [],
+        "truncated": True,
+        "package_scripts": {},
+        "package_scripts_unreadable": [],
+        # {package dir: the `eslint` version spec its package.json declares}.
+        # The consumer reads the major: ESLint 10 looks a flat config up from
+        # each linted file, ESLint 9 from the working directory.
+        "eslint_versions": {},
+        "rules_source": "references/type-aware-lint-rules.tsv",
+        "error": None,
+        # OPT84 (tool swap) reads every key from here down (`tool_versions`,
+        # `config_files`, `eslint_config_facts`, `pnpm_catalogs`,
+        # `pnpm_catalogs_unreadable`, `prettier_plugins`,
+        # `prettier_plugin_files`, `prettier_config_unreadable`), plus
+        # `package_scripts` and `configs` above. {package dir: {package:
+        # version spec}} for the `_TAL_TOOL_PACKAGES` its package.json declares
+        # (dependencies + devDependencies, string specs only); a dir that
+        # declares none of them is absent.
+        "tool_versions": {},
+        # {package dir: sorted names of the formatter / compiler / framework
+        # config files beside its package.json (`_TAL_CONFIG_FILE_RE`)}.
+        "config_files": {},
+        # {ESLint config path: {"plugins", "local_rules", "exhaustive_deps"}}:
+        # what the config's own text names, never evaluated. OPT84 decides
+        # whether an oxlint swap is a plain swap or a dual-run from these.
+        "eslint_config_facts": {},
+        # {catalog name: {package: version spec}} from the root
+        # `pnpm-workspace.yaml`: its `catalog:` map is "default", each
+        # `catalogs:<name>:` map is <name>. OPT84 resolves a `catalog:` /
+        # `catalog:<name>` version through it; absent or unreadable = {}.
+        "pnpm_catalogs": {},
+        # True when the root `pnpm-workspace.yaml` exists but could not be read
+        # or parsed (or a catalog in it is not a mapping): its `{}` above then
+        # means "unknown", not "no catalogs". Not added to `unreadable`, which
+        # lists ESLint configs only (OPT82 resolves configs through it).
+        "pnpm_catalogs_unreadable": False,
+        # {package dir: sorted Prettier plugin packages its package.json
+        # declares (dependencies + devDependencies): `prettier-plugin-*`,
+        # `@scope/prettier-plugin`, `@scope/prettier-plugin-*`}; a dir that
+        # declares none is absent. The three `prettier_*` maps also key a
+        # directory holding a Prettier config and no package.json read (the
+        # walk collects the configs themselves), and `prettier_config_unreadable`
+        # names a package folder that could not be listed.
+        "prettier_plugins": {},
+        # {package dir: {plugin: the repo-relative file that names it}} for a
+        # plugin `prettier_plugins` lists ONLY because a Prettier config names
+        # it (`.prettierrc`, `.prettierrc.json|json5|yaml|yml`, or the
+        # `"prettier"` key of package.json); a dependency names package.json.
+        "prettier_plugin_files": {},
+        # {package dir: [repo-relative Prettier config files this read does not
+        # open]}: a JS / TS config (`.prettierrc.js|cjs|mjs|ts|...`,
+        # `prettier.config.*`), a TOML one, one that does not parse, or a
+        # package.json `"prettier"` key naming a shared config. Any of them may
+        # load plugins, so OPT84 reads the dir as "plugins unknown".
+        "prettier_config_unreadable": {},
+    }
+    unknown = set(overrides) - set(block)
+    if unknown:
+        raise KeyError(f"_tal_block: not a type_aware_lint key: {sorted(unknown)}")
+    block.update(overrides)
+    return block
+
+
+def _tal_pnpm_catalogs(root: Path) -> dict[str, dict[str, str]]:
+    """The root `pnpm-workspace.yaml`'s catalogs; {} when there is none or it
+    cannot be read (a catalog reference then stays unreadable downstream)."""
+    return _tal_pnpm_catalogs_read(root)[0]
+
+
+def _tal_pnpm_catalogs_read(root: Path) -> "tuple[dict[str, dict[str, str]], bool]":
+    """The catalogs and whether the file was UNREADABLE: present but not
+    readable as text, not YAML, not a mapping at the top, or holding a catalog
+    that is not a mapping. An absent file, or an empty one, is readable."""
+    path = root / "pnpm-workspace.yaml"
+    if not path.exists():
+        return {}, False
+    try:
+        text = _read_config_text(path)
+    except OSError:
+        return {}, True
+    if text is None:
+        return {}, True
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError:
+        return {}, True
+    if data is None:
+        return {}, False
+    if not isinstance(data, dict):
+        return {}, True
+
+    def _specs(m: Any) -> "dict[str, str] | None":
+        if not isinstance(m, dict):
+            return None
+        return {str(k): str(v) for k, v in m.items()
+                if isinstance(v, (str, int, float)) and not isinstance(v, bool)}
+
+    bad = False
+    out: dict[str, dict[str, str]] = {}
+    named = data.get("catalogs")
+    if isinstance(named, dict):
+        for n, m in named.items():
+            specs = _specs(m)
+            if specs is not None:
+                out[str(n)] = specs
+            elif m is not None:
+                bad = True
+    elif named is not None:
+        bad = True
+    default = _specs(data.get("catalog"))
+    if default is not None:
+        out["default"] = {**out.get("default", {}), **default}
+    elif data.get("catalog") is not None:
+        bad = True
+    return out, bad
+
+
+# The packages whose declared versions OPT84 reads: the tools it can swap, the
+# targets that mean "already swapped", and the recipe-only rows' tools.
+_TAL_TOOL_PACKAGES = ("typescript", "prettier", "oxfmt", "oxlint", "eslint",
+                      "@babel/core", "@swc/core", "webpack", "next")
+_TAL_PRETTIER_PLUGIN_RE = re.compile(
+    r"^(?:prettier-plugin-[\w.-]+|@[\w.-]+/prettier-plugin(?:-[\w.-]+)?)$")
+_TAL_CONFIG_FILE_RE = re.compile(
+    r"^(\.prettierrc.*|prettier\.config\..+|babel\.config\..+|\.babelrc.*"
+    r"|next\.config\..+)$")
+# An ESLint plugin named in a config's text: `eslint-plugin-x`,
+# `@scope/eslint-plugin(-x)`, or a string in a legacy `plugins: [...]` list.
+_TAL_PLUGIN_PKG_RE = re.compile(r"(?:@([\w.-]+)/)?eslint-plugin(?:-([\w.-]+))?")
+_TAL_PLUGINS_LIST_RE = re.compile(r"""["']?plugins["']?\s*:\s*\[([^\]]*)\]""")
+_TAL_QUOTED_RE = re.compile(r"""["']([^"']+)["']""")
+# A rule defined in the repo itself: a local-rules plugin, a rules directory, a
+# relative import of a rules / plugin module, or an inline rule (`create(context`).
+_TAL_LOCAL_RULES_RE = re.compile(
+    r"eslint-plugin-local|local-rules|rulesdir|rulesDirectory"
+    r"""|(?:from\s+|require\(\s*)["']\.{1,2}/[^"']*(?:rule|plugin)[^"']*["']"""
+    r"|\bcreate\s*\(\s*context\b")
+
+
+# A legacy `extends` entry that loads a plugin's preset: `plugin:<name>/<cfg>`.
+_TAL_PLUGIN_EXTENDS_RE = re.compile(r"""["'](plugin:[^"'\s]+)["']""")
+# The `react-hooks` presets that turn `react-hooks/exhaustive-deps` on
+# (`recommended`, `recommended-latest`, `recommended-legacy`).
+_TAL_HOOKS_PRESET_PREFIX = "plugin:react-hooks/recommended"
+
+
+def _tal_plugin_short(name: str) -> str:
+    """A plugin name in the shape the flat-config read records: the package
+    `eslint-plugin-x` is `x`, `@scope/eslint-plugin(-x)` is `@scope(/x)`, and a
+    short name (`react`, `@typescript-eslint`) stays as written."""
+    name = name.strip()
+    m = _TAL_PLUGIN_PKG_RE.fullmatch(name)
+    if m:
+        scope, short = m.group(1), m.group(2)
+        return (f"@{scope}" + (f"/{short}" if short else "")) if scope else (short or "")
+    return name
+
+
+def _tal_plugin_from_extends(spec: str) -> "str | None":
+    """The plugin a legacy `extends: plugin:...` entry loads, or None for any
+    other entry: `plugin:react/recommended` is `react`, `plugin:@scope/cfg` is
+    `@scope`, `plugin:@scope/name/cfg` is `@scope/name`."""
+    if not spec.startswith("plugin:"):
+        return None
+    parts = spec[len("plugin:"):].split("/")
+    if parts[0].startswith("@"):
+        name = "/".join(parts[:2]) if len(parts) >= 3 else parts[0]
+    else:
+        name = parts[0]
+    return _tal_plugin_short(name) or None
+
+
+def _tal_obj_plugin_specs(obj: Any) -> "tuple[list[str], list[str]]":
+    """A structured config's `plugins` and `extends` entries, top level and
+    every `overrides[]` entry, as parsed (a YAML block list, an unquoted flow
+    list and a JSON array read the same)."""
+    blocks = [obj] if isinstance(obj, dict) else []
+    if isinstance(obj, dict) and isinstance(obj.get("overrides"), list):
+        blocks += [o for o in obj["overrides"] if isinstance(o, dict)]
+    plugins: list[str] = []
+    extends: list[str] = []
+    for b in blocks:
+        pl = b.get("plugins")
+        pl = [pl] if isinstance(pl, str) else list(pl) if isinstance(pl, dict) else pl
+        if isinstance(pl, list):
+            plugins += [str(x) for x in pl if isinstance(x, str)]
+        ext = b.get("extends")
+        ext = [ext] if isinstance(ext, str) else ext
+        if isinstance(ext, list):
+            extends += [x for x in ext if isinstance(x, str)]
+    return plugins, extends
+
+
+def _tal_fit_facts(text: str, obj: Any = None) -> dict[str, Any]:
+    """What an ESLint config names, for OPT84's swap fit: the plugins it loads
+    (a `plugins` entry, an `eslint-plugin-*` package, or a `plugin:<name>/...`
+    preset in `extends`), whether it defines rules locally, and whether it sets
+    `react-hooks/exhaustive-deps` (named, or through a `react-hooks` preset).
+    Never evaluated. `obj` is the parsed object of a structured config
+    (`.eslintrc`, `.eslintrc.json/.yml/.yaml`, `package.json#eslintConfig`):
+    its `plugins` and `extends` are read from it; a JS config's from its text."""
+    plugins: set[str] = set()
+    for scope, name in _TAL_PLUGIN_PKG_RE.findall(text):
+        plugins.add((f"@{scope}" + (f"/{name}" if name else "")) if scope else name)
+    if isinstance(obj, dict):
+        listed, extends = _tal_obj_plugin_specs(obj)
+        plugins.update(_tal_plugin_short(p) for p in listed)
+    else:
+        for body in _TAL_PLUGINS_LIST_RE.findall(text):
+            plugins.update(_TAL_QUOTED_RE.findall(body))
+        extends = _TAL_PLUGIN_EXTENDS_RE.findall(text)
+    for e in extends:
+        p = _tal_plugin_from_extends(e)
+        if p:
+            plugins.add(p)
+    plugins.discard("")
+    return {"plugins": sorted(plugins),
+            "local_rules": bool(_TAL_LOCAL_RULES_RE.search(text)),
+            "exhaustive_deps": "react-hooks/exhaustive-deps" in text
+            or any(e.startswith(_TAL_HOOKS_PRESET_PREFIX) for e in extends)}
+
+
+# Prettier configs this read parses as data (JSON, then YAML; `.prettierrc` may
+# be either, and tab-indented JSON is not YAML). Any other `.prettierrc*` / `prettier.config.*`
+# (JS, TS, TOML) is recorded as not opened.
+_TAL_PRETTIER_DATA_CONFIGS = (".prettierrc", ".prettierrc.json", ".prettierrc.json5",
+                              ".prettierrc.yaml", ".prettierrc.yml")
+
+
+def _tal_is_prettier_config_name(name: str) -> bool:
+    """A Prettier config file name (`.prettierrc*`, `prettier.config.*`)."""
+    return name.startswith(".prettierrc") or name.startswith("prettier.config.")
+
+
+def _tal_unlisted_folder(rel_dir: str) -> str:
+    """The `prettier_config_unreadable` entry for a package folder that could
+    not be listed: any Prettier config in it is unknown."""
+    return f"{rel_dir or '.'}/ (folder could not be listed)"
+
+
+def _tal_prettier_config_plugins(folder: Path, rel_dir: str, present: list[str],
+                                 pkg: dict[str, Any],
+                                 ) -> "tuple[dict[str, str], list[str]]":
+    """({plugin: repo-relative file naming it}, [repo-relative Prettier configs
+    not opened]) for one package directory: the `plugins` of its data-shaped
+    Prettier configs and of its package.json `"prettier"` key. Never evaluated."""
+    def _rel(name: str) -> str:
+        return f"{rel_dir}/{name}" if rel_dir else name
+
+    found: dict[str, str] = {}
+    unread: list[str] = []
+
+    def _take(obj: Any, where: str) -> None:
+        if not isinstance(obj, dict):
+            unread.append(where)            # a shared-config string, or not a map
+            return
+        pl = obj.get("plugins")
+        pl = [pl] if isinstance(pl, str) else pl
+        if pl is None:
+            return
+        if not isinstance(pl, list):
+            unread.append(where)
+            return
+        for p in pl:
+            if isinstance(p, str) and p.strip():
+                found.setdefault(p.strip(), where)
+
+    if "prettier" in pkg:
+        _take(pkg["prettier"], _rel("package.json"))
+    for name in present:
+        if not _tal_is_prettier_config_name(name):
+            continue
+        if name not in _TAL_PRETTIER_DATA_CONFIGS:
+            unread.append(_rel(name))
+            continue
+        try:
+            text = _read_config_text(folder / name)
+        except OSError:
+            text = None
+        if text is None:
+            unread.append(_rel(name))
+            continue
+        # JSON first, then YAML: a JSON config indented with tabs (legal JSON)
+        # is refused by YAML, which forbids tab indentation. Only a file that
+        # parses as neither is unread.
+        try:
+            obj = json.loads(text)
+        except ValueError:
+            try:
+                obj = yaml.safe_load(text)
+            except yaml.YAMLError:
+                unread.append(_rel(name))
+                continue
+        if obj is None:
+            continue                        # an empty config sets nothing
+        _take(obj, _rel(name))
+    return found, sorted(set(unread))
+
+
+def _read_type_aware_lint(root: Path) -> dict[str, Any]:
+    """Read the repo's ESLint config(s) for OPT82, and the manifest and
+    formatter facts OPT84 reads. Never raises: a crashed reader yields a block
+    both consumers withhold on, and says so."""
+    try:
+        return _read_type_aware_lint_unguarded(root)
+    except Exception as e:  # noqa: BLE001 — fail closed, never take the scan down
+        print(f"ci-speedup: the ESLint config reader failed ({type(e).__name__}: "
+              f"{e}); the type-aware lint check (OPT82) and the tool-swap check "
+              "(OPT84) will be WITHHELD for this repo — this is a scanner "
+              "failure, not a fact about the repo.",
+              file=sys.stderr)
+        return _tal_block(error=type(e).__name__)
+
+
+def _read_type_aware_lint_unguarded(root: Path) -> dict[str, Any]:
+    root = root.resolve()
+    rules_catalog = _load_type_aware_rules()
+    # Prettier configs are collected by the same walk (same depth, skip rules
+    # and `truncated`), keyed by their own directory: a `.prettierrc` with no
+    # package.json beside it (a root config over `web/package.json`, or a
+    # config-only `docs/`) applies all the same.
+    prettier_paths: list[Path] = []
+    unlisted_dirs: list[Path] = []
+    paths, truncated, manifests = _vitest_config_files(
+        root, _is_eslint_config_name, also=_tal_is_prettier_config_name,
+        also_found=prettier_paths, unlisted=unlisted_dirs)
+
+    def _rel(path: Path) -> str:
+        try:
+            return path.relative_to(root).as_posix()
+        except ValueError:                                  # pragma: no cover
+            return path.name
+
+    def _dir(rel: str) -> str:
+        return rel.rsplit("/", 1)[0] if "/" in rel else ""
+
+    configs: list[dict[str, Any]] = []
+    unreadable: list[str] = []
+    scripts: dict[str, dict[str, str]] = {}
+    scripts_unreadable: list[str] = []
+    eslint_versions: dict[str, str] = {}
+    tool_versions: dict[str, dict[str, str]] = {}
+    config_files: dict[str, list[str]] = {}
+    fit_facts: dict[str, dict[str, Any]] = {}
+    prettier_plugins: dict[str, list[str]] = {}
+    prettier_plugin_files: dict[str, dict[str, str]] = {}
+    prettier_config_unreadable: dict[str, list[str]] = {}
+    # A folder the walk could not list (or stat) is ground whose Prettier
+    # configs were never read: named, not silently absent, so the Prettier fit
+    # runs both tools rather than calling the swap a drop-in.
+    for _ud in unlisted_dirs:
+        try:
+            _urel = _ud.resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            _urel = _ud.name
+        _urel = "" if _urel == "." else _urel
+        prettier_config_unreadable.setdefault(_urel, [])
+        _mark = _tal_unlisted_folder(_urel)
+        if _mark not in prettier_config_unreadable[_urel]:
+            prettier_config_unreadable[_urel].append(_mark)
+    prettier_read_dirs: set[str] = set()
+
+    def _finish(rel: str, fmt: str, read: dict[str, Any],
+                typed: "_TalCustomRules", imp_unresolved: list[str]) -> None:
+        expanded: set[str] = set()
+        for p in read["presets"]:
+            expanded |= {r for r, meta in rules_catalog.items()
+                         if p == "all" or p in meta["presets"]}
+        rules: set[str] = set()
+        rule_unresolved: list[str] = []
+        custom: list[dict[str, str]] = []
+        for r, states in read["explicit"].items():
+            ns, _sep, short = r.rpartition("/")
+            is_ts = r in rules_catalog
+            proof = (None if r.startswith("@typescript-eslint/") or is_ts
+                     else typed.lookup(ns, short))
+            if not (is_ts or proof):
+                continue
+            # Set sets are unordered: "on" and an UNSCOPED "off" for the same
+            # rule means the outcome depends on config order this read does
+            # not model. Never named; reported unresolved.
+            conflict = "on" in states and "off" in states
+            if "on" in states and not conflict and proof != "unproven":
+                rules.add(r)
+                if isinstance(proof, tuple):
+                    custom.append({"rule": r, "source": proof[1]})
+            elif "unresolved" in states or conflict or (
+                    "on" in states and proof == "unproven"):
+                rule_unresolved.append(r)
+        for r in expanded:
+            st = read["explicit"].get(r, set())
+            if "unresolved" in st or ("on" in st and "off" in st):
+                rule_unresolved.append(r)
+            elif r not in read["explicit"] or st - {"off"}:
+                rules.add(r)
+        type_aware = ("unresolved" if read["unresolved"]
+                      else "on" if read["evidence"] else "off")
+        configs.append({
+            "path": rel, "dir": _dir(rel), "format": fmt,
+            "type_aware": type_aware,
+            "type_aware_evidence": read["evidence"][:6],
+            "unresolved": read["unresolved"][:6],
+            "presets": read["presets"],
+            "rules": sorted(rules),
+            "rule_unresolved": sorted(set(rule_unresolved) - rules),
+            "custom_rules": sorted(custom, key=lambda c: c["rule"]),
+            "unresolved_imports": sorted(set(imp_unresolved))[:6],
+            # `project: false` / `null` set literally: a nearer legacy config
+            # that turns type-aware parsing OFF shadows an ancestor's ON.
+            "sets_off": bool(read.get("sets_off")),
+            # legacy `.eslintrc` `root: true`: the upward cascade stops here.
+            "root": bool(read.get("root")),
+            # shareable config packages this read does not follow.
+            "shared_configs": list(read.get("shared") or [])[:6],
+        })
+
+    for path in paths:
+        rel = _rel(path)
+        try:
+            text = _read_config_text(path)
+        except OSError:
+            text = None
+        if text is None:
+            unreadable.append(rel)
+            continue
+        flat = path.name.startswith("eslint.config.")
+        fit_facts[rel] = _tal_fit_facts(
+            text, _tal_parse_obj_text(text) if _tal_is_obj_config(path.name) else None)
+        read = _tal_read_any(path, text, rel, flat)
+        if read is None:
+            unreadable.append(rel)
+            continue
+        typed, imp_unresolved, base_reads = _tal_follow(
+            path, text, root, _rel, flat, read["extends"])
+        _finish(rel, "flat" if flat else "eslintrc", _tal_merge(read, base_reads),
+                typed, imp_unresolved)
+    for path in manifests:
+        rel = _rel(path)
+        try:
+            text = _read_config_text(path)
+            data = json.loads(text) if text is not None else None
+        except (OSError, ValueError):
+            data = None
+        if not isinstance(data, dict):
+            scripts_unreadable.append(_dir(rel))
+            continue
+        deps = {**(data.get("dependencies") if isinstance(data.get("dependencies"), dict)
+                   else {}),
+                **(data.get("devDependencies") if isinstance(data.get("devDependencies"),
+                                                             dict) else {})}
+        if isinstance(deps.get("eslint"), str):
+            eslint_versions[_dir(rel)] = deps["eslint"]
+        tv = {k: deps[k] for k in _TAL_TOOL_PACKAGES if isinstance(deps.get(k), str)}
+        if tv:
+            tool_versions[_dir(rel)] = tv
+        pp = sorted(k for k in deps if _TAL_PRETTIER_PLUGIN_RE.match(str(k)))
+        prettier_read_dirs.add(_dir(rel))
+        try:
+            present = sorted(n for n in os.listdir(path.parent)
+                             if _TAL_CONFIG_FILE_RE.match(n))
+        except OSError:
+            # A folder that cannot be listed may hold a Prettier config: its
+            # plugins are unknown, never "none".
+            present = []
+            prettier_config_unreadable[_dir(rel)] = [_tal_unlisted_folder(_dir(rel))]
+        if present:
+            config_files[_dir(rel)] = present
+        cfg_plugins, cfg_unread = _tal_prettier_config_plugins(
+            path.parent, _dir(rel), present, data)
+        from_cfg = {n: f for n, f in cfg_plugins.items() if n not in pp}
+        if pp or from_cfg:
+            prettier_plugins[_dir(rel)] = sorted({*pp, *from_cfg})
+        if from_cfg:
+            prettier_plugin_files[_dir(rel)] = from_cfg
+        if cfg_unread:
+            prettier_config_unreadable[_dir(rel)] = sorted(
+                {*prettier_config_unreadable.get(_dir(rel), []), *cfg_unread})
+        sc = data.get("scripts")
+        scripts[_dir(rel)] = ({str(k): str(v) for k, v in sc.items()
+                               if isinstance(v, str)} if isinstance(sc, dict) else {})
+        if isinstance(data.get("eslintConfig"), dict):
+            fit_facts[rel] = _tal_fit_facts(json.dumps(data["eslintConfig"]),
+                                            data["eslintConfig"])
+            _finish(rel, "package.json", _tal_read_obj(data["eslintConfig"], rel),
+                    _TalCustomRules(), [])
+    # Prettier configs in a directory whose package.json was not read (none
+    # there, or one that could not be read): read the same way, keyed by the
+    # config's own directory, so the Prettier fit's upward and downward walks
+    # see them.
+    config_only: dict[str, list[str]] = {}
+    for path in prettier_paths:
+        d = _dir(_rel(path))
+        if d not in prettier_read_dirs:
+            config_only.setdefault(d, []).append(path.name)
+    for d, names in sorted(config_only.items()):
+        cfg_plugins, cfg_unread = _tal_prettier_config_plugins(
+            root / d if d else root, d, sorted(names), {})
+        if cfg_plugins:
+            prettier_plugins[d] = sorted(cfg_plugins)
+            prettier_plugin_files[d] = dict(cfg_plugins)
+        if cfg_unread:
+            prettier_config_unreadable[d] = cfg_unread
+    catalogs, catalogs_unreadable = _tal_pnpm_catalogs_read(root)
+    return _tal_block(
+        configs=sorted(configs, key=lambda c: c["path"]),
+        unreadable=sorted(unreadable),
+        truncated=truncated,
+        package_scripts=scripts,
+        package_scripts_unreadable=sorted(scripts_unreadable),
+        eslint_versions=eslint_versions,
+        tool_versions=tool_versions,
+        config_files=config_files,
+        eslint_config_facts=fit_facts,
+        pnpm_catalogs=catalogs,
+        pnpm_catalogs_unreadable=catalogs_unreadable,
+        prettier_plugins=prettier_plugins,
+        prettier_plugin_files=prettier_plugin_files,
+        prettier_config_unreadable=prettier_config_unreadable,
+    )
+
+
+def _detect_turbo(root: Path, ci_turbo_tasks: set[str] | None = None):
+    """OPT52/53/58/59/60 against turbo.json (catalog Stack-Specific heuristics).
+    Each pattern emits at most one consolidated finding listing the affected
+    tasks / vars WITH their turbo.json line numbers, and anchors the finding's
+    permalink at the first offender's line (not a meaningless `:1`). Returns
+    ``(hits, incomplete)``: a turbo.json that is present but unreadable /
+    unparseable is a COVERAGE GAP surfaced in `incomplete`, never silently
+    treated as "no turbo findings" (no-silent-drops invariant). An absent
+    turbo.json is legitimately nothing to do."""
+    incomplete: list[dict] = []
+    tj = root / "turbo.json"
+    if not tj.is_file():
+        return [], incomplete
+    if not _inside_scan_root(tj):
+        return [], incomplete
+    try:
+        raw = tj.read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        incomplete.append({"path": "turbo.json", "kind": "turbo-unreadable",
+                           "reason": f"read failed: {e}"})
+        return [], incomplete
+    data = _load_jsonc(tj)
+    if not isinstance(data, dict):
+        incomplete.append({"path": "turbo.json", "kind": "turbo-unreadable", "reason": (
+            "turbo.json present but unparseable / not a JSON object — Turbo "
+            "cache patterns (OPT52/53/58/59/60) NOT evaluated")})
+        return [], incomplete
+    tasks = _turbo_tasks(data)
+    # Admission gate: only consider tasks ACTUALLY run through turbo in CI. A
+    # task whose turbo config nothing in CI exercises (e.g. `lint` when the CI
+    # `lint` step is `biome check .`, not `turbo lint`) can't cost CI time, so
+    # flagging its missing inputs/outputs is a false positive. If turbo is never
+    # invoked in CI at all, there are no turbo findings to make.
+    if ci_turbo_tasks is not None:
+        if not ci_turbo_tasks:
+            return [], incomplete
+        tasks = {n: t for n, t in tasks.items() if n in ci_turbo_tasks}
+    out = []
+
+    def _first_line(names: list[str]) -> int:
+        lns = [_json_key_line(raw, n) for n in names]
+        lns = [n for n in lns if n]
+        return min(lns) if lns else 1
+
+    # Only CACHEABLE tasks matter here: a task with `cache: false` doesn't
+    # store anything (outputs/inputs are moot), and a task that explicitly
+    # declares `outputs: []` / its own `inputs` has made a deliberate choice
+    # (no-artifact lint/test tasks legitimately have `outputs: []`). Flag only
+    # tasks that are cacheable AND have the key genuinely ABSENT.
+    def _cacheable(t: dict) -> bool:
+        return isinstance(t, dict) and t.get("cache") is not False
+
+    # OPT52 — cacheable tasks with NO `outputs` key at all.
+    no_out = [n for n, t in tasks.items()
+              if _cacheable(t) and "outputs" not in t]
+    if no_out:
+        out.append(("OPT52", "turbo.json", Hit(
+            line=_first_line(no_out), affected_jobs=[],
+            evidence=("cacheable turbo.json tasks with no `outputs` key — Turbo "
+                      "can't cache their results (a build task without `outputs` "
+                      f"is never a cache hit): {_names_with_lines(raw, no_out)}"),
+            match_text="turbo.json")))
+
+    # OPT58 — cacheable tasks with NO explicit `inputs` key.
+    no_in = [n for n, t in tasks.items()
+             if _cacheable(t) and "inputs" not in t]
+    if no_in:
+        out.append(("OPT58", "turbo.json", Hit(
+            line=_first_line(no_in), affected_jobs=[],
+            evidence=("cacheable turbo.json tasks with no explicit `inputs` key — "
+                      "Turbo hashes ALL package files, so README / test-file "
+                      f"changes bust the cache: {_names_with_lines(raw, no_in)}"),
+            match_text="turbo.json")))
+
+    # Collect env from globalEnv + task-level env.
+    global_env = [str(e) for e in (data.get("globalEnv") or [])]
+    task_env = [str(e) for n, t in tasks.items() if isinstance(t, dict)
+                for e in (t.get("env") or [])]
+    all_env = global_env + task_env
+
+    # OPT53 — known-unstable env vars in the cache hash.
+    unstable = sorted({e for e in all_env if e in _UNSTABLE_ENV})
+    if unstable:
+        out.append(("OPT53", "turbo.json", Hit(
+            line=_first_line(unstable), affected_jobs=[],
+            evidence=("unstable env vars in turbo's cache hash (change every run "
+                      f"→ cache miss): {_names_with_lines(raw, unstable)}"),
+            match_text="turbo.json")))
+
+    # OPT59 — runtime-only secrets in globalEnv (stable but build-irrelevant).
+    runtime = sorted({e for e in global_env
+                      if _RUNTIME_ENV_RE.search(e) and not _COMPILE_PREFIX_RE.match(e)})
+    if runtime:
+        out.append(("OPT59", "turbo.json", Hit(
+            line=_first_line(runtime), affected_jobs=[],
+            evidence=("likely runtime-only secrets in turbo `globalEnv` (rotating "
+                      "them busts every task's cache; move to "
+                      "`globalPassThroughEnv` if not consumed at compile time): "
+                      f"{_names_with_lines(raw, runtime)}"),
+            match_text="turbo.json")))
+
+    # OPT60 — CI-tuning config missing.
+    missing = []
+    if "ui" not in data:
+        missing.append('root `ui` (e.g. "stream")')
+    if "futureFlags" not in data:
+        missing.append("root `futureFlags.affectedUsingTaskInputs`")
+    no_outputlogs = [n for n, t in tasks.items()
+                     if isinstance(t, dict) and t.get("cache") is not False
+                     and t.get("outputLogs") is None]
+    if no_outputlogs:
+        missing.append(f"per-task `outputLogs` on {_names_with_lines(raw, no_outputlogs)}")
+    if missing:
+        out.append(("OPT60", "turbo.json", Hit(
+            line=_first_line(no_outputlogs) if no_outputlogs else 1,
+            affected_jobs=[],
+            evidence=("turbo.json missing CI-tuning config: " + "; ".join(missing)
+                      + " (verify against the repo's Turbo version — `ui: stream` "
+                      "is the default in recent Turbo)"),
+            match_text="turbo.json")))
+    return out, incomplete
+
+
+def _opt96_key_family(key: object) -> str:
+    """Keep the stable prefix, ignoring expression-valued platform/hash parts."""
+    value = re.sub(r"\$\{\{.*?\}\}", "", str(key or ""), flags=re.S)
+    return re.sub(r"[-_]+", "-", value).strip("- ")
+
+
+# Each `${{ … }}` in a cache key is an unknown run-time value: a wildcard.
+_OPT96_WILD = "\x00"
+
+
+def _opt96_key_pattern(key: object) -> str:
+    """The key template with every expression replaced by one wildcard marker."""
+    return re.sub(r"\$\{\{.*?\}\}", _OPT96_WILD, str(key or ""), flags=re.S).strip()
+
+
+def _opt96_has_literal(pattern: str) -> bool:
+    """True when a key template has literal text beyond expressions and separators."""
+    return bool(re.sub(r"[\x00\s\-_./:]+", "", pattern))
+
+
+def _opt96_rx(pattern: str, prefix: bool) -> "re.Pattern[str]":
+    body = ".*".join(re.escape(part) for part in pattern.split(_OPT96_WILD))
+    return re.compile(body + (".*" if prefix else ""), re.S)
+
+
+def _opt96_could_match(reader: str, writer: str, prefix: bool = False) -> bool:
+    """Whether one concrete key could satisfy both templates. Either side's
+    wildcards may stand for the other side's literal text. `prefix` reads the
+    reader as a `restore-keys` prefix."""
+    if _opt96_rx(reader, prefix).fullmatch(writer):
+        return True
+    return bool(_opt96_rx(writer, False).fullmatch(reader + (_OPT96_WILD if prefix else "")))
+
+
+def _opt96_condition_allows(condition: object, event: str, branch: str) -> bool:
+    """Exclude only a fully understood literal. Unknown expressions are reachable."""
+    if condition is False:
+        return False
+    value = str(condition or "").strip()
+    if value.startswith("${{") and value.endswith("}}"):
+        value = value[3:-2].strip()
+    value = value.strip()
+    if value.lower() == "false":
+        return False
+    # An unknown conjunct cannot override a literal exclusion. Disjunctions
+    # remain conservative: an unrecognised alternative might allow this event.
+    if "&&" in value and "||" not in value:
+        return all(_opt96_condition_allows(part.strip().strip("()"), event, branch)
+                   for part in value.split("&&"))
+    match = re.fullmatch(r"github\.(event_name|ref)\s*(==|!=)\s*(['\"])(.*?)\3", value)
+    if not match:
+        return True
+    field, op, _, expected = match.groups()
+    # Each seed event is evaluated as itself: a nightly warmer gated to
+    # `schedule` saves.
+    actual = event if field == "event_name" else (
+        "refs/pull/1/merge" if event == "pull_request" else f"refs/heads/{branch}")
+    return (actual == expected) if op == "==" else (actual != expected)
+
+
+# setup-go caches by default from v4; older majors need `cache: true`.
+_OPT96_SETUP_GO_NO_DEFAULT_CACHE = re.compile(r"v[123](?:\.|$)")
+# Events whose runs execute on the default branch, so their saves seed it.
+# `merge_group` is deliberately absent: a merge-queue run saves under its
+# temporary `gh-readonly-queue/…` ref, which a new PR branch cannot restore.
+# `workflow_dispatch` is absent too: it seeds only when someone runs it.
+_OPT96_SEED_EVENTS = ("push", "schedule", "workflow_run", "repository_dispatch")
+# Remote actions known to never save a dependency cache. Any other remote
+# action on a seed event may save one, so its saves are unknown.
+_OPT96_NON_CACHING_ACTIONS = frozenset({
+    "actions/checkout", "actions/upload-artifact", "actions/download-artifact",
+    "actions/github-script",
+})
+_OPT96_SETUP_ACTIONS = ("actions/setup-node", "actions/setup-python",
+                        "actions/setup-go", "actions/setup-java")
+
+
+def _opt96_list(value: object) -> list[str]:
+    """A trigger filter as a list: YAML allows one string, a list, or nothing."""
+    if value is None:
+        return []
+    if isinstance(value, (str, int, float)):
+        return [str(value)]
+    if isinstance(value, list):
+        return [str(v) for v in value if v is not None]
+    return []
+
+
+def _opt96_ref(uses: str) -> str:
+    """The repository (`owner/repo`) or local path a `uses:` names."""
+    target = uses.split("@", 1)[0].strip()
+    if _is_local_uses(target):
+        return target[2:]
+    return "/".join(target.lower().split("/")[:2])
+
+
+def _opt96_push_runs_on(opts: object, branch: str) -> bool:
+    """Whether a `push:` trigger fires for a push to `branch`."""
+    from fnmatch import fnmatchcase
+
+    if not isinstance(opts, dict):
+        return True
+    has_branch_filter = "branches" in opts or "branches-ignore" in opts
+    if ("tags" in opts or "tags-ignore" in opts) and not has_branch_filter:
+        return False  # a tags-only filter never fires for a branch push
+    patterns = _opt96_list(opts.get("branches"))
+    if patterns:
+        allowed = False
+        for pattern in patterns:
+            negative = pattern.startswith("!")
+            if fnmatchcase(branch, pattern.lstrip("!")):
+                allowed = not negative
+        if not allowed:
+            return False
+    return not any(fnmatchcase(branch, p) for p in _opt96_list(opts.get("branches-ignore")))
+
+
+def _detect_opt96(parsed: list[tuple[str, dict, str]], root: Path,
+                  default_branch: str | None = None, branch_source: str | None = None):
+    """Correlate PR cache readers with push or schedule writers (plus
+    `workflow_run` / `repository_dispatch`) reachable on the default branch,
+    following local reusable workflows and local composite actions.
+
+    `scan()` passes the default branch from `--default-branch` or, failing
+    that, the checkout's origin/HEAD; with neither, main and master are tried.
+
+    Returns `(hits, held_back)`. A reader is held back, never flagged, when a
+    writer whose saves cannot be read (an unresolved reusable workflow, local
+    action or remote action on a seed event) could plausibly produce its key,
+    or when the only matching writer depends on expression-only key parts. Each
+    held-back reader is an entry in `held_back` (the report's `opt96_unresolved`
+    disclosure), not a workflow-file coverage gap."""
+    try:
+        return _detect_opt96_inner(parsed, root, default_branch, branch_source)
+    except Exception as exc:  # noqa: BLE001 — a malformed workflow must never crash scan()
+        logger.warning("OPT96 detector failed: %s", exc)
+        return [], [{"workflow_file": None, "job": None, "family": None,
+                     "reason": f"the cache-seeding check could not read the workflows "
+                               f"({type(exc).__name__}); no cache-seeding finding was produced"}]
+
+
+def _detect_opt96_inner(parsed, root, default_branch, branch_source):
+    branches = [default_branch] if default_branch else ["main", "master"]
+    docs = {rel: (doc, raw) for rel, doc, raw in parsed}
+    graph = _build_workflow_call_graph(parsed)
+    # (rel, job_id, kind, pattern) -> {"aliases", "family", "callers", "refs"}
+    readers: dict[tuple, dict] = {}
+    writers: set[tuple[str, str]] = set()          # (kind, pattern)
+    manual: set[tuple[str, str]] = set()           # workflow_dispatch-only savers
+    unresolved: list[dict] = []                    # writers whose saves are unknown
+    file_refs: dict[str, set[str]] = {}
+
+    for rel, doc, _ in parsed:
+        refs = set()
+        for job in _jobs_from_doc(doc).values():
+            if not isinstance(job, dict):
+                continue
+            if isinstance(job.get("uses"), str):
+                refs.add(_opt96_ref(job["uses"]))
+            for step, _cond in _steps_with_if(job):
+                if _uses(step):
+                    refs.add(_opt96_ref(_uses(step)))
+        file_refs[rel] = refs
+
+    def triggers(doc, event, branch):
+        if event not in _on_event_names(doc):
+            return False
+        on = doc.get("on", doc.get(True))
+        opts = on.get(event) if isinstance(on, dict) else None
+        return _opt96_push_runs_on(opts, branch) if event == "push" else True
+
+    def walk(rel, event, branch, stack, callers):
+        if rel in stack:
+            return  # a cycle revisits a workflow already being walked
+        doc, _raw = docs[rel]
+        for job_id, job in _jobs_from_doc(doc).items():
+            if not isinstance(job, dict) or not _opt96_condition_allows(job.get("if"), event, branch):
+                continue
+            if job.get("uses"):
+                uses = str(job["uses"])
+                target = uses.split("@", 1)[0]
+                if _is_local_uses(target):
+                    target = target[2:]
+                if target in graph.get(rel, []) and target in docs:
+                    walk(target, event, branch, stack | {rel}, callers + ((rel, str(job_id)),))
+                elif event != "pull_request" and not (
+                        target.startswith(".github/workflows/") and target not in docs):
+                    # A remote reusable workflow may save anything. A missing LOCAL
+                    # workflow file cannot run at all, so it hides no writer.
+                    unresolved.append({"ref": _opt96_ref(uses), "path": rel,
+                                       "inputs": json.dumps(job.get("with") or {}, default=str),
+                                       "what": "reusable workflow"})
+                continue
+            visit(_steps_with_if(job), rel, str(job_id), event, branch, (), callers)
+
+    def composite_steps(ref, chain):
+        """Steps of a local composite action, or None when it cannot be read."""
+        if ref in chain or len(chain) > _MAX_LOCAL_ACTION_DEPTH:
+            return None
+        text = _read_local_action(root, ref)
+        try:
+            action_doc = yaml.safe_load(text) if text is not None else None
+        except yaml.YAMLError:
+            action_doc = None
+        runs = action_doc.get("runs") if isinstance(action_doc, dict) else None
+        if not isinstance(runs, dict):
+            return None
+        if str(runs.get("using", "")).lower() != "composite":
+            return []  # a JavaScript or Docker action has no step-level cache inputs
+        steps = runs.get("steps")
+        if not isinstance(steps, list):
+            return None
+        return [(st, st.get("if")) for st in steps if isinstance(st, dict)]
+
+    def visit(steps, rel, job_id, event, branch, chain, callers):
+        for step, condition in steps:
+            if not _opt96_condition_allows(condition, event, branch):
+                continue
+            uses = _uses(step).strip()
+            action, _, version = uses.partition("@")
+            action = action.lower()
+            inputs = step.get("with") or {}
+            if not isinstance(inputs, dict):
+                inputs = {}
+            if _is_local_uses(uses) and not action.endswith((".yml", ".yaml")):
+                # A local composite action can hide a reader or a writer.
+                local = uses.partition("@")[0]
+                inner = composite_steps(local, chain)
+                if inner is None:
+                    if event != "pull_request":
+                        unresolved.append({"ref": _opt96_ref(local), "path": rel,
+                                           "inputs": json.dumps(inputs, default=str),
+                                           "what": "local action"})
+                else:
+                    visit(inner, rel, job_id, event, branch, chain + (local,), callers)
+                continue
+            if action in {"actions/cache", "actions/cache/restore", "actions/cache/save"}:
+                restore = action != "actions/cache/save"
+                save = action != "actions/cache/restore" and str(inputs.get("lookup-only", False)).lower() != "true"
+                kind = "key"
+                pattern = _opt96_key_pattern(inputs.get("key"))
+                family = _opt96_key_family(inputs.get("key")) or re.sub(
+                    r"\s+", " ", str(inputs.get("key") or "")).strip()
+                aliases = {_opt96_key_pattern(k) for k in str(inputs.get("restore-keys") or "").splitlines()}
+            elif action in _OPT96_SETUP_ACTIONS:
+                cache = inputs.get("cache")
+                if (cache is None and action == "actions/setup-go"
+                        and not _OPT96_SETUP_GO_NO_DEFAULT_CACHE.match(version)):
+                    cache = True  # setup-go v4+ caches unless told not to
+                if cache is None or str(cache).lower() in {"", "false", "no", "off"}:
+                    continue
+                kind = "setup"
+                pattern = family = f"{action}:{str(cache).lower()}"
+                aliases = set()
+                restore = True
+                save = str(inputs.get("cache-read-only", False)).lower() != "true"
+            else:
+                if (uses and event != "pull_request" and not uses.startswith("docker://")
+                        and action not in _OPT96_NON_CACHING_ACTIONS
+                        and not (action.startswith("actions/setup-") and "cache" not in inputs)):
+                    unresolved.append({"ref": _opt96_ref(uses), "path": rel,
+                                       "inputs": json.dumps(inputs, default=str),
+                                       "what": "action"})
+                continue
+            if not pattern:
+                continue  # no key at all: nothing to correlate
+            if save and event in _OPT96_SEED_EVENTS:
+                writers.add((kind, pattern))
+            elif save and event == "workflow_dispatch":
+                manual.add((kind, pattern))
+            if restore and event == "pull_request":
+                entry = readers.setdefault((rel, job_id, kind, pattern), {
+                    "aliases": set(), "family": family, "callers": set(), "chain_files": set()})
+                entry["aliases"] |= aliases - {""}
+                if callers:
+                    entry["callers"].add(callers)
+                entry["chain_files"] |= {rel, *(c[0] for c in callers)}
+
+    for rel, doc, _ in parsed:
+        for event in ("pull_request", *_OPT96_SEED_EVENTS, "workflow_dispatch"):
+            for branch in branches:
+                if triggers(doc, event, branch):
+                    walk(rel, event, branch, set(), ())
+
+    if branch_source == "flag":
+        branch_note = f"default branch `{default_branch}` from repo metadata"
+    elif default_branch:
+        branch_note = f"default branch `{default_branch}` from the local origin/HEAD (may be stale)"
+    else:
+        branch_note = "default branch name assumed: main/master"
+
+    def satisfied(kind, pattern, aliases, pool):
+        """'yes' (a writer decidably matches), 'maybe' (only through an
+        expression-only template) or 'no'."""
+        verdict = "no"
+        for w_kind, w_pat in pool:
+            if w_kind != kind:
+                continue
+            if w_pat == pattern:
+                return "yes"
+            if kind != "key":
+                continue
+            matched = _opt96_could_match(pattern, w_pat) or any(
+                _opt96_could_match(a, w_pat, prefix=True) for a in aliases)
+            if not matched:
+                continue
+            if _opt96_has_literal(w_pat) and _opt96_has_literal(pattern):
+                return "yes"
+            verdict = "maybe"
+        return verdict
+
+    hits, held = [], []
+    for (rel, job, kind, pattern), info in sorted(readers.items()):
+        family, aliases = info["family"], info["aliases"]
+        state = satisfied(kind, pattern, aliases, writers)
+        if state == "yes":
+            continue
+        record = {"workflow_file": rel, "job": job, "family": family}
+        if state == "maybe":
+            held.append(dict(record, reason="the only matching save uses a key made "
+                                            "entirely of expressions, so whether it "
+                                            "seeds this cache cannot be decided"))
+            continue
+        literal = _opt96_key_family(family) if kind == "key" else ""
+        blockers = sorted({u["ref"] for u in unresolved
+                           if any(u["ref"] in file_refs.get(f, set()) for f in info["chain_files"])
+                           or (literal and literal in u["inputs"])})
+        if blockers:
+            held.append(dict(record, reason="a default-branch step whose saves cannot be read "
+                                            "(" + ", ".join(f"`{b}`" for b in blockers)
+                                            + ") may save this cache"))
+            continue
+        note = ""
+        if satisfied(kind, pattern, aliases, manual) != "no":
+            note = ("; a manual `workflow_dispatch` warmer saves it, which seeds the "
+                    "default branch only when someone runs it")
+        hit = Hit(
+            line=1, affected_jobs=[job], match_text=family,
+            evidence=(f"cache family `{family}` is restored on PRs; no save on push to the "
+                      f"default branch or on schedule ({branch_note}){note}"),
+        )
+        if info["callers"]:
+            callee_doc = docs[rel][0]
+            spec = _jobs_from_doc(callee_doc).get(job)
+            display = str(spec.get("name") or job) if isinstance(spec, dict) else job
+            hit.callers = [{"workflow_file": chain[0][0],
+                            "jobs": [c[1] for c in chain],
+                            "callee_name": display}
+                           for chain in sorted(info["callers"])]
+        hits.append(("OPT96", rel, hit))
+    return hits, held
+
+
+def _cross_workflow_hits(parsed: list[tuple[str, dict, str]], root: Path,
+                         default_branch: str | None = None,
+                         branch_source: str | None = None,
+                         opt96_held: list[dict] | None = None):
+    """Return ``(hits, incomplete)`` aggregated across the cross-workflow /
+    repo-file detectors. Only the turbo pass can produce coverage gaps. OPT96's
+    held-back readers go to `opt96_held` (its own disclosure), never `incomplete`."""
+    out = []
+    out += _detect_opt7(parsed, root)
+    out += _detect_opt37(parsed, root)
+    out += _detect_opt40(parsed, root)
+    out += _detect_opt4_ephemeral_mounts(parsed, root)
+    out += _detect_opt12_duplicate_test_work(parsed)
+    turbo_hits, incomplete = _detect_turbo(root, _ci_turbo_tasks(root, parsed))
+    out += turbo_hits
+    cache_hits, cache_held = _detect_opt96(parsed, root, default_branch, branch_source)
+    out += cache_hits
+    if opt96_held is not None:
+        opt96_held.extend(cache_held)
+    return out, incomplete
+
+
+# =============================================================================
+# Source-file detector (Phase 2e) — OPT19. Greps test source for hardcoded
+# sleeps (the much larger category OPT17's workflow-YAML grep misses) and sums
+# `sleep_ms` across every matched file, per the catalog body.
+# =============================================================================
+
+_OPT19_TEST_DIR_RE = re.compile(
+    r"(^|/)(e2e|tests?|__tests__|playwright|cypress|integration-tests)(/|$)", re.I)
+_OPT19_TEST_FILE_RE = re.compile(r"\.(test|spec|cy)\.[tj]sx?$", re.I)
+_OPT19_SKIP_DIRS = {"node_modules", "dist", "build", "out", "coverage",
+                    "vendor", "target", "__pycache__"}
+_OPT19_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts",
+                   ".cts", ".py")
+
+# (subtype, regex capturing the numeric delay, ms-multiplier). Each pattern is
+# the catalog's specific *sleep idiom* — not any superficially-similar call:
+#   - setTimeout matches only the `setTimeout(resolve, N)` sleep form (a bare
+#     identifier callback, as in `await new Promise(r => setTimeout(r, N))`),
+#     NOT `setTimeout(() => …, N)` timeout-GUARDS that fire only on failure and
+#     never block. N ≥ 1000 is enforced below ("large N only — 1000ms+").
+#   - sleep/delay require the `await` prefix (a blocking wait), so a helper
+#     definition or a non-awaited config call isn't counted.
+_OPT19_PATTERNS: tuple[tuple[str, "re.Pattern[str]", float], ...] = (
+    ("waitForTimeout", re.compile(r"waitForTimeout\(\s*(\d+)"), 1.0),
+    ("cy.wait", re.compile(r"cy\.wait\(\s*(\d+)"), 1.0),
+    ("setTimeout", re.compile(r"setTimeout\(\s*\w+\s*,\s*(\d+)\s*\)"), 1.0),
+    ("sleep/delay", re.compile(r"\bawait\s+(?:\w+\.)?(?:sleep|delay)\(\s*(\d+)"), 1.0),
+    ("time.sleep", re.compile(r"time\.sleep\(\s*(\d+(?:\.\d+)?|\.\d+)"), 1000.0),
+)
+
+_OPT19_FILE_CAP = 8000
+
+
+def _detect_opt19(root: Path):
+    """Return ([(pattern, workflow_file, Hit, total_seconds)], incomplete).
+
+    Walks test source, sums hardcoded sleep across every matched file, and
+    emits ONE finding sized by the measured per-run sleep total. If the file
+    cap is hit the total is a lower bound and that is surfaced in
+    `scan_incomplete` (never silently dropped)."""
+    incomplete: list[dict] = []
+    matched: dict[str, float] = {}
+    occ: dict[str, int] = {}
+    total_ms = 0.0
+    scanned = 0
+    capped = False
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames
+                       if d not in _OPT19_SKIP_DIRS and not d.startswith(".")]
+        for fn in filenames:
+            if not fn.endswith(_OPT19_SUFFIXES):
+                continue
+            rel = os.path.relpath(os.path.join(dirpath, fn), root).replace(os.sep, "/")
+            if not (_OPT19_TEST_DIR_RE.search(rel) or _OPT19_TEST_FILE_RE.search(fn)):
+                continue
+            if scanned >= _OPT19_FILE_CAP:
+                capped = True
+                break
+            scanned += 1
+            try:
+                if not _inside_scan_root(Path(dirpath, fn)):
+                    continue
+                text = Path(dirpath, fn).read_text(encoding="utf-8", errors="replace")
+            except OSError as e:
+                # A test source that matched the filter but can't be read is a
+                # coverage gap — its sleeps go uncounted, so surface it rather
+                # than silently undercounting the per-run sleep total.
+                incomplete.append({"path": rel, "kind": "opt19-source-unreadable",
+                                   "reason": f"OPT19 source read failed: {e}"})
+                continue
+            file_ms = 0.0
+            file_lines: list[int] = []
+            for label, rx, mult in _OPT19_PATTERNS:
+                for m in rx.finditer(text):
+                    try:
+                        n = float(m.group(1))
+                    except ValueError:
+                        continue
+                    if label == "setTimeout" and n < 1000:
+                        continue
+                    file_ms += n * mult
+                    occ[label] = occ.get(label, 0) + 1
+                    file_lines.append(text.count("\n", 0, m.start()) + 1)
+            if file_ms > 0:
+                matched[rel] = (file_ms, sorted(file_lines))
+                total_ms += file_ms
+        if capped:
+            break
+    if capped:
+        incomplete.append({"path": "<source tree>", "kind": "opt19-file-cap", "reason": (
+            f"OPT19 source grep hit the {_OPT19_FILE_CAP}-file cap after "
+            f"scanning {scanned} files; remaining test sources unscanned, so "
+            f"the sleep total is a lower bound")})
+    if total_ms <= 0:
+        return [], incomplete
+    total_s = total_ms / 1000.0
+    top = sorted(matched.items(), key=lambda kv: -kv[1][0])[:10]
+    top_desc = ", ".join(f"{p} (~{ms / 1000:.1f}s)" for p, (ms, _ln) in top[:6])
+    occ_desc = ", ".join(f"{k}×{v}" for k, v in sorted(occ.items(), key=lambda kv: -kv[1]))
+
+    def _lines_cell(lines: list[int]) -> str:
+        shown = ", ".join(f"L{n}" for n in lines[:8])
+        return shown + (f" (+{len(lines) - 8} more)" if len(lines) > 8 else "")
+
+    # Measured evidence: the source files carrying the sleeps, ranked by total,
+    # WITH the line numbers of each sleep so a human jumps straight to them.
+    # Unlike a timing finding, OPT19's proof IS in the source — these paths are
+    # directly greppable / openable. (No run links: the cost is in the test
+    # code, not a specific run.)
+    me = {
+        "summary": (f"Hardcoded sleeps total ~{total_s:.1f}s per full test run "
+                    f"across {len(matched)} source file(s) [{occ_desc}]. These "
+                    f"are fixed waits in the test code, not workflow YAML."),
+        "table": {
+            "headers": ["Test source file", "Sleep total", "Sleep call lines"],
+            "rows": [[f"`{p}`", f"~{ms / 1000:.1f}s", _lines_cell(lns)]
+                     for p, (ms, lns) in top],
+        },
+        "note": ("Replace fixed waits with event-driven waits "
+                 "(`waitForSelector`/`expect(...).toBeVisible`, `cy.wait('@alias')`, "
+                 "bounded readiness probes). Files ranked by total sleep; "
+                 + (f"top {len(top)} of {len(matched)} shown." if len(matched) > len(top)
+                    else "all shown.")),
+    }
+    hit = Hit(
+        line=0, affected_jobs=[],
+        evidence=(f"hardcoded test sleeps total ~{total_s:.1f}s per full run "
+                  f"across {len(matched)} source file(s) [{occ_desc}]; top: "
+                  f"{top_desc}"),
+        match_text="(source)")
+    return [("OPT19", top[0][0], hit, total_s, me)], incomplete
+
+
+# =============================================================================
+# Workflow walk + emit
+# =============================================================================
+
+def _collect_workflow_files(root: Path) -> tuple[list[Path], list[dict]]:
+    """Return (workflow files, scan_incomplete records)."""
+    wf_dir = root / ".github" / "workflows"
+    if not wf_dir.is_dir():
+        return [], [{"path": str(wf_dir), "kind": "no-workflows-dir",
+                     "reason": "no .github/workflows directory"}]
+    files = sorted(p for p in wf_dir.iterdir()
+                   if p.is_file() and p.suffix in (".yml", ".yaml")
+                   and _inside_scan_root(p))
+    return files, []
+
+
+def _emit(entry: CatalogEntry, hit: Hit, workflow_file: str,
+          finding_idx: int) -> dict[str, Any]:
+    severity = _SEVERITY_OVERRIDE.get(entry.pattern, entry.impact)
+    out = {
+        "id": f"f{finding_idx}",
+        "pattern": entry.pattern,
+        "pattern_class": entry.finding_class,
+        "severity": severity,
+        "title": entry.title_template,
+        "workflow_file": workflow_file,
+        "line": hit.line,
+        "affected_jobs": hit.affected_jobs,
+        "workflow_activity": {},
+        "evidence": hit.evidence,
+        "subject": hit.match_text,
+        "fix_strategy": entry.fix_strategy,
+        "fix_recipe_anchor": entry.anchor,
+    }
+    if entry.pattern in _NEEDS_LOG_CONFIRMATION:
+        out["needs_log_confirmation"] = True
+    if entry.pattern in _ADVISORY_PATTERNS:
+        out["advisory"] = True
+    return out
+
+
+def _build_workflow_call_graph(
+    parsed: list[tuple[str, dict, str]],
+) -> dict[str, list[str]]:
+    """Map each workflow that INVOKES a reusable workflow to the children it
+    calls. A reusable workflow is invoked at the JOB level via
+    `uses: ./.github/workflows/X.yml` or the self-repository
+    `uses: $/.github/workflows/X.yml` (not at the step level). A `workflow_call`
+    child has no PR/push trigger of its own — it runs whenever its caller does —
+    so downstream sizing CAN attribute the child's run frequency and check-runs
+    to the caller (else a reusable test suite invoked on every PR looks
+    "dormant"). This graph is emitted for that purpose; consumption is not yet
+    wired up. Returns {caller_rel: [child_rel, ...]} with child paths in the same
+    `.github/workflows/<file>` form as a finding's `workflow_file`."""
+    graph: dict[str, list[str]] = {}
+    for rel, doc, _raw in parsed:
+        children: list[str] = []
+        for job in _jobs_from_doc(doc).values():
+            if not isinstance(job, dict):
+                continue
+            uses = job.get("uses")
+            if isinstance(uses, str):
+                ref = uses.split("@", 1)[0].strip()
+                if _is_local_uses(ref):
+                    ref = ref[2:]
+                if ref.startswith(".github/workflows/") and ref.endswith((".yml", ".yaml")):
+                    children.append(ref)
+        if children:
+            graph[rel] = sorted(dict.fromkeys(children))
+    return graph
+
+
+# GitHub Actions reads booleans the YAML 1.2 way: `true` / `false` and their capitalised
+# spellings, and nothing else. PyYAML reads YAML 1.1, where `yes`, `on`, `y`, `no`, `off`
+# and `n` are ALSO booleans. The two disagree on real workflow files: `continue-on-error:
+# yes` reaches this scan as Python `True` while GitHub reads the plain string "yes" and the
+# job keeps failing its run exactly as before. Reading the parsed value alone would let the
+# report print "declared advisory" over the slowest check in the repository on the strength
+# of a spelling GitHub does not honour.
+#
+# So the ONE keyword the report speaks about is re-read through this loader, which drops
+# PyYAML's YAML-1.1 boolean words and resolves only the spellings GitHub accepts. It is
+# deliberately NOT the loader the rest of the scan uses: every other detector keeps today's
+# parse, so the blast radius of this correction stays on the fact that needs it.
+class _GitHubBoolLoader(yaml.SafeLoader):
+    """A `SafeLoader` whose booleans are GitHub's, not YAML 1.1's."""
+
+
+_GitHubBoolLoader.yaml_implicit_resolvers = {
+    ch: [(tag, rx) for tag, rx in resolvers if tag != "tag:yaml.org,2002:bool"]
+    for ch, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
+}
+_GitHubBoolLoader.add_implicit_resolver(
+    "tag:yaml.org,2002:bool",
+    re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$"),
+    list("tTfF"))
+
+
+def _github_bool_jobs(raw: str) -> dict[str, Any]:
+    """The workflow's `jobs:` mapping re-read with GitHub's boolean spellings.
+
+    `{}` when the text cannot be re-read that way. The caller treats a job missing from this
+    mapping as NOT advisory: silence is the safe direction for a disclosure, and a sentence
+    resting on a boolean this scan could not confirm is worse than no sentence."""
+    try:
+        # Not an unsafe load: _GitHubBoolLoader subclasses SafeLoader and changes only the
+        # implicit boolean resolvers, so the SafeConstructor still rejects arbitrary object
+        # tags. Scanners that match on the loader's NAME rather than its bases need telling.
+        doc = yaml.load(raw, Loader=_GitHubBoolLoader)  # nosec B506
+    except yaml.YAMLError:
+        return {}
+    return _jobs_from_doc(doc) if isinstance(doc, dict) else {}
+
+
+def _strict_job(strict: Any) -> dict:
+    """The strictly re-read job node, or a node with no `continue-on-error` at all - never
+    the loosely parsed one, whose boolean is the very thing that cannot be trusted."""
+    return strict if isinstance(strict, dict) else {}
+
+
+def _job_continue_on_error_is_literally_true(job: dict) -> bool:
+    """Whether a job declares `continue-on-error: true` as a LITERAL, at job level.
+
+    Takes a job node parsed by `_GitHubBoolLoader`, so `yes` / `on` / `y` arrive as the
+    strings they are to GitHub rather than as booleans. The value-level semantics are the
+    ones the security engine's `_continue_on_error_is_literally_true` already applies: a
+    literal true, or the quoted string that means the same thing.
+
+    Job-level `continue-on-error: true` prevents the workflow RUN from failing when the job
+    fails (GitHub's documented wording for `jobs.<job_id>.continue-on-error`: "Prevents a
+    workflow run from failing when a job fails"). It says nothing about the job's own
+    check-run conclusion, so a consumer may report the run-level fact and no more.
+
+    Only a literal counts. `continue-on-error: ${{ matrix.experimental }}` is true on some
+    matrix legs and false on others, and the YAML cannot say which, so an expression is not
+    judged. GitHub also accepts the quoted string, which parses as a str and means the same
+    thing, so that counts. A STEP-level declaration is deliberately NOT read here: it is
+    job-scoped (it stops a step from failing its JOB) and proves nothing about what the job's
+    own failure does to the run.
+    """
+    value = job.get("continue-on-error")
+    return value is True or (isinstance(value, str)
+                             and value.strip().lower() == "true")
+
+
+def _build_workflow_job_graph(
+    parsed: list[tuple[str, dict, str]],
+) -> dict[str, dict[str, dict[str, Any]]]:
+    """Per-workflow JOB dependency structure, so `collect_runs` can scope the
+    critical-path pole to the **merge-blocking** work (a required check plus what it
+    transitively `needs:`), not just any slow check. For each workflow file:
+    `{job_id: {"name": <display template>, "needs": [job_id, ...], "reusable": bool}}`.
+
+    - `name` is the raw job `name:` with matrix `${{...}}` placeholders left intact (the
+      consumer regex-matches expanded check-run names against the template); falls back
+      to the job id when no `name:` is set, mirroring GitHub's own check-run naming.
+    - `needs` is normalized to a list of job ids (a bare string / null becomes a list).
+    - `reusable` marks a job that invokes a reusable workflow (`uses:` at job level): its
+      leaf check-runs surface as `<job name> / <child job>`, so the consumer groups those
+      children under this caller.
+    - `uses` preserves the call target so nested local children resolve only through
+      their actual workflow edges, never through a coincidentally matching job elsewhere.
+    - `continue_on_error` marks a job that declares a LITERAL `continue-on-error: true`
+      (see `_job_continue_on_error_is_literally_true`), so a consumer that crowns the job as
+      a long pole can state what its failure does to the workflow run without re-reading YAML.
+    - `matrix` marks a job with a `strategy.matrix`: GitHub appends the leg to its check-run
+      name (`<name> (<leg…>)`) even when the `name:` carries NO `${{ matrix.* }}` placeholder
+      to expand, so the consumer must tolerate that appended parenthetical for these jobs.
+
+    Repo-agnostic — pure YAML structure, no repo-specific names. Emitted for the
+    required-reachability filter; harmless if unconsumed."""
+    graph: dict[str, dict[str, dict[str, Any]]] = {}
+    for rel, doc, _raw in parsed:
+        jobs: dict[str, dict[str, Any]] = {}
+        # Only pay for the strict re-read when the loose parse turned some job's
+        # `continue-on-error` into a boolean at all - the two parsers cannot disagree
+        # otherwise, and most workflow files never mention the keyword.
+        strict_jobs: dict[str, Any] = {}
+        if any(isinstance(j, dict) and isinstance(j.get("continue-on-error"), bool)
+               for j in _jobs_from_doc(doc).values()):
+            strict_jobs = _github_bool_jobs(_raw)
+        for jid, job in _jobs_from_doc(doc).items():
+            if not isinstance(job, dict):
+                continue
+            needs = job.get("needs")
+            if isinstance(needs, str):
+                needs = [needs]
+            elif not isinstance(needs, list):
+                needs = []
+            name = job.get("name")
+            strategy = job.get("strategy")
+            jobs[str(jid)] = {
+                "name": name if isinstance(name, str) else str(jid),
+                "needs": [str(n) for n in needs if isinstance(n, str)],
+                "reusable": isinstance(job.get("uses"), str),
+                **({"uses": job["uses"]} if isinstance(job.get("uses"), str) else {}),
+                "matrix": isinstance(strategy, dict) and bool(strategy.get("matrix")),
+                "timeout_minutes": "timeout-minutes" in job,
+                "continue_on_error": _job_continue_on_error_is_literally_true(
+                    _strict_job(strict_jobs.get(str(jid)))),
+            }
+        if jobs:
+            graph[rel] = jobs
+    return graph
+
+
+# A commit-status call: a `repos/<owner>/<repo>/statuses/<sha>` call (gh api, curl,
+# octokit.request, a Python f-string — the trailing `/` before the sha keeps the
+# `commits/<sha>/statuses` LIST read out), an Octokit / PyGithub / go-github
+# create-status call, or a known status-publishing marketplace action. The HTTP
+# method is NOT checked, so a GET on `repos/.../statuses/<sha>` also counts: an
+# over-match only leaves the required gate unresolved, never claims gating.
+# The path segment between `repos/` and `/statuses/` is a `${{ ... }}` expression
+# (which may hold spaces), a `$` that does not open one, or any other non-space,
+# non-quote character. The three branches are disjoint, so every character has
+# exactly one way to match and a long run of `${{` fragments with no closing
+# `/statuses/` fails in linear time instead of backtracking through every split.
+# Both repeats are bounded: a real owner/repo path, expressions included, is far
+# shorter than 200 units, and the bound caps the work each `repos/` start can do,
+# so a file of repeated prefixes scans in time linear in its length.
+_STATUS_POST_RE = re.compile(
+    r"repos/(?:\$\{\{[^}]{0,200}\}\}|\$(?!\{\{)|[^\s'\"`$]){0,200}?/statuses/"
+    r"|\bcreate_?(?:commit_?)?status\s*\("
+    r"|\bcreateCommitStatus\b|\bCreateStatus\s*\("
+    r"|\buses:\s*['\"]?(?:Sibz/github-status-action|ouzi-dev/commit-status-updater"
+    r"|myrotvorets/set-commit-status-action|guibranco/github-status-action-v2)@",
+    re.IGNORECASE)
+# A repo-relative script path a workflow runs (`node .github/scripts/agg.mjs`,
+# `python ./ci/status.py`, `require('./.github/scripts/x.js')`).
+_LOCAL_SCRIPT_REF_RE = re.compile(
+    r"(?<![\w./$-])(?:\./)?((?:[\w.-]+/)*[\w.-]+\.(?:js|mjs|cjs|ts|mts|cts|py|sh|bash|rb))\b")
+# A script a composite action runs from its OWN directory
+# (`node ${{ github.action_path }}/scripts/x.mjs`, `"$GITHUB_ACTION_PATH/x.py"`).
+_ACTION_PATH_SCRIPT_REF_RE = re.compile(
+    r"(?:\$\{\{\s*github\.action_path\s*\}\}|\$\{?GITHUB_ACTION_PATH\}?)/"
+    r"((?:[\w.-]+/)*[\w.-]+\.(?:js|mjs|cjs|ts|mts|cts|py|sh|bash|rb))\b")
+# The context a status call POSTS, written as a literal: `context: 'All CI'`,
+# `"context": "All CI"`, `context="All CI"` (a Python kwarg), `-f context='All CI'` /
+# `-f context=CI` (gh api), `-f "context=All CI"`, an unquoted YAML action input
+# (`context: All CI`), or go-github's `Context: github.String("All CI")`.
+_STATUS_CONTEXT_LITERAL_RES = (
+    re.compile(r"\bcontext['\"]?\s*[:=]\s*(['\"`])([^'\"`\n]{1,200})\1", re.IGNORECASE),
+    re.compile(r"['\"]context=([^'\"\n]{1,200})['\"]", re.IGNORECASE),
+    re.compile(r"(?<![\w.'\"])context=([^\s'\"`\\;&|)]{1,200})", re.IGNORECASE),
+    re.compile(r"^[ \t]*context:[ \t]*([^\s'\"`#{\[|>(][^#\n(){}]{0,199}?)[ \t]*$",
+               re.MULTILINE),
+    re.compile(r"\bContext:\s*github\.\w+\(\s*\"([^\"\n]{1,200})\""),
+)
+# A context set from something that is not a literal (`context: ctx`,
+# `context: CONTEXT }`, `context: `CI / ${x}``), or an action whose context input is
+# not called `context` (ouzi-dev/commit-status-updater's `name:`). The posted name
+# can't be read, so the publisher's string literals are kept to match against.
+_STATUS_CONTEXT_DYNAMIC_RE = re.compile(
+    r"\bcontext['\"]?\s*(?::\s*[A-Za-z_][\w.\[\]]*\s*(?:[,})]|$)"
+    r"|=\s*[A-Za-z_][\w.\[\]]*\s*[,})]|[:=]\s*`[^`\n]*\$\{)"
+    r"|ouzi-dev/commit-status-updater@",
+    re.IGNORECASE | re.MULTILINE)
+# String literals (quoted, or a YAML scalar value) a dynamic publisher's sources hold.
+_STRING_LITERAL_RE = re.compile(r"(['\"`])([^'\"`\n\\]{1,200})\1")
+_YAML_SCALAR_RE = re.compile(
+    r"^[ \t]*(?:-[ \t]+)?[\w.-]+:[ \t]+([^\s'\"`#{\[|>&*!][^#\n]{0,199}?)[ \t]*$", re.MULTILINE)
+_STATUS_SOURCE_MAX_CHARS = 256_000
+_MAX_STATUS_SOURCES = 64
+
+
+def _status_contexts(texts: list[str]) -> "tuple[list[str], list[str] | None]":
+    """(the literal contexts the sources post, or the string literals to match when
+    some context is not a literal — else None). Literals carrying `$` are a shell or
+    expression interpolation, not a name, and count as dynamic. No literal at all
+    (`create_status(state, url, desc, ctx)` positionally) also counts as dynamic."""
+    contexts: set[str] = set()
+    dynamic = False
+    for t in texts:
+        for rx in _STATUS_CONTEXT_LITERAL_RES:
+            for m in rx.finditer(t):
+                val = m.group(m.lastindex or 1).strip()
+                if "$" in val:
+                    dynamic = True
+                elif val:
+                    contexts.add(val)
+        if _STATUS_CONTEXT_DYNAMIC_RE.search(t):
+            dynamic = True
+    if contexts and not dynamic:
+        return sorted(contexts), None
+    names: set[str] = set(contexts)
+    total = 0
+    for t in texts:
+        for v in ([m.group(2) for m in _STRING_LITERAL_RE.finditer(t)]
+                  + [m.group(1) for m in _YAML_SCALAR_RE.finditer(t)]):
+            v = v.strip()
+            if not v or "${" in v or v in names:
+                continue
+            total += len(v)
+            if total > _STATUS_SOURCE_MAX_CHARS:
+                break
+            names.add(v)
+    return sorted(contexts), sorted(names)
+
+
+def _local_action_dirs(root: Path, ref: str, text: str) -> list[Path]:
+    """The directories a local action's relative entrypoints resolve against: the
+    action's own directory (a node action's `main:` / `pre:` / `post:` and a
+    composite step's `github.action_path` scripts live there), plus that of every
+    local action its text delegates to. A reusable workflow (`.yml` ref) has none:
+    its `run:` steps start in the workspace, i.e. the repository root."""
+    dirs: list[Path] = []
+    for r in [ref] + _NESTED_LOCAL_USES_RE.findall(text):
+        base = _local_ref_path(root, r.split("@")[0].strip())
+        if base is not None and base.suffix not in (".yml", ".yaml") and base not in dirs:
+            dirs.append(base)
+    return dirs
+
+
+def _build_workflow_status_publishers(
+    root: Path, parsed: list[tuple[str, dict, str]],
+) -> dict[str, dict[str, Any]]:
+    """Workflows that POST commit statuses themselves (issue #119), as
+    `{workflow_file: {"sources": [path, ...], "contexts": [name, ...],
+    "names": [literal, ...]}}` (`names` only when some posted context is not a
+    literal).
+
+    A required check that names no job is not proof of an external gate: an in-repo
+    "aggregate" job can watch the test jobs and post one required status (`All CI`)
+    through the statuses API, with no `needs:` edge to them. collect_runs reads this
+    to tell that case from a real outside gate (a CLA bot or security app). A
+    workflow counts when its own YAML, a local action it uses, or a repo-local
+    script it runs (followed transitively, bounded) posts a status (a local action's
+    own entrypoints, `main:` / `pre:` / `post:` and `github.action_path` scripts,
+    are resolved from the action's directory first). `contexts` are the literal
+    context values those sources post. A name that merely appears in a publisher
+    (its title, a comment, the checks an aggregator waits on) is NOT one: counting
+    it would un-scope a correctly scoped gate. Only when a context is built at run
+    time is `names` kept, the sources' string literals (capped in total), as the
+    looser fallback. Only status-posting workflows are recorded (so the map is
+    empty on most repos), and no raw source text is stored. Which jobs the
+    publisher waits on is NOT traced."""
+    out: dict[str, dict[str, Any]] = {}
+    for rel, doc, raw in parsed:
+        # (label, text, action dirs its entrypoints resolve against, dirs its plain
+        # relative refs resolve against before the root: a script's own folder)
+        sources: list[tuple[str, str, list[Path], list[Path]]] = [(rel, raw, [], [])]
+        for job in _jobs_from_doc(doc).values():
+            if not isinstance(job, dict):
+                continue
+            for s in _steps(job):
+                u = _uses(s).split("@")[0].strip()
+                if _is_local_uses(u):
+                    text = _LOCAL_ACTION_TEXT.get(u)
+                    if text is None:
+                        text = _read_local_action(root, u)
+                    if text:
+                        sources.append((u, text, _local_action_dirs(root, u, text), []))
+        seen = {rel}
+        i = 0
+        # Follow script references transitively (an entry script importing the helper
+        # that posts), bounded so a large tree can't make this unbounded.
+        while i < len(sources) and len(sources) < _MAX_STATUS_SOURCES:
+            _src, text, action_dirs, rel_dirs = sources[i]
+            i += 1
+            cands = [(d, ref) for ref in _ACTION_PATH_SCRIPT_REF_RE.findall(text)
+                     for d in action_dirs]
+            cands += [(d, ref) for ref in _LOCAL_SCRIPT_REF_RE.findall(text)
+                      for d in action_dirs + rel_dirs + [root]]
+            for base, ref in cands:
+                try:
+                    label = os.path.relpath(os.path.normpath(base / ref), root)
+                    path = _local_ref_path(root, "./" + label)
+                    if label in seen or path is None or not path.is_file():
+                        continue
+                    seen.add(label)
+                    sources.append((label.replace(os.sep, "/"),
+                                    path.read_text(encoding="utf-8", errors="replace"),
+                                    [], [path.parent]))
+                except (OSError, ValueError):
+                    continue
+        if not any(_STATUS_POST_RE.search(t) for _s, t, _a, _r in sources):
+            continue
+        contexts, names = _status_contexts([t for _s, t, _a, _r in sources])
+        entry: dict[str, Any] = {"sources": [s for s, _t, _a, _r in sources],
+                                 "contexts": contexts}
+        if names is not None:
+            entry["names"] = names
+        out[rel] = entry
+    return out
+
+
+def _reconcile_opt1_opt2(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """OPT1 (Unnecessary Tool Install — *remove* the `playwright install`) and OPT2
+    (Uncached Large Downloads — *cache* the SAME install) both fire on a job that
+    runs `playwright install` with no Playwright usage AND no preceding cache. On
+    that one physical step the two findings are mutually exclusive: OPT1's premise
+    (the install is unused) negates OPT2's remedy (cache it so the download is
+    reused) — you cannot both delete the step and cache it. Worse, each detector
+    independently credits the SAME ~install seconds / runner-minutes, so leaving
+    both double-counts the saving as two separate wins on the identical step.
+
+    Reconcile to the decisive remedy (removal, OPT1) and drop OPT2 for that exact
+    step so the saving is credited once; record the dropped alternative on the
+    surviving OPT1 finding so the reconciliation is visible, not silent. The join
+    is keyed on `(workflow_file, line, affected_jobs)` — a distinct OPT2 on a job
+    that genuinely USES Playwright (where OPT1 never fires) is untouched."""
+    def _step_key(f: dict[str, Any]) -> tuple[str, Any, tuple[str, ...]]:
+        return (f.get("workflow_file", ""), f.get("line"),
+                tuple(f.get("affected_jobs") or []))
+    opt1_by_step = {_step_key(f): f for f in findings if f.get("pattern") == "OPT1"}
+    if not opt1_by_step:
+        return findings
+    out: list[dict[str, Any]] = []
+    for f in findings:
+        if f.get("pattern") == "OPT2":
+            keeper = opt1_by_step.get(_step_key(f))
+            if keeper is not None:
+                # Caching an install OPT1 says is unused is moot — fold OPT2 into
+                # OPT1's removal rather than render a second, contradictory win on
+                # the same step. Note the candidate alternative on the keeper.
+                keeper.setdefault("reconciled_with", []).append(f.get("pattern"))
+                keeper["evidence"] = (
+                    f"{keeper.get('evidence', '')} (same step also matched OPT2 "
+                    "'uncached download'; reconciled to removal — caching an unused "
+                    "install is moot, so the saving is credited once here)")
+                continue  # superseded by OPT1's removal on the identical step
+        out.append(f)
+    return out
+
+
+def _wf_jobs(doc: dict) -> dict[str, dict]:
+    jobs = doc.get("jobs")
+    return {str(k): v for k, v in jobs.items() if isinstance(v, dict)} if isinstance(jobs, dict) else {}
+
+
+def _step_uses(step: dict) -> tuple[str, str] | None:
+    """(action, ref) for a remote `uses:`; None for local (`./`, `$/`) /
+    docker:// / run steps."""
+    uses = step.get("uses")
+    if not isinstance(uses, str) or _is_local_uses(uses) or uses.startswith("docker://"):
+        return None
+    action, _, ref = uses.partition("@")
+    return (action, ref) if action else None
+
+
+def _declared_triggers(parsed: list[tuple[str, dict, str]]) -> dict[str, list[str]]:
+    """Per-workflow DECLARED trigger events from the `on:` block (normalized for
+    PyYAML's `on` -> True quirk). Observed run events alone cannot prove a
+    configured-but-idle `merge_group` trigger absent, so this stamp records the
+    declared events straight from the YAML for any trigger-scope consumer."""
+    out: dict[str, list[str]] = {}
+    for rel, doc, _raw in parsed:
+        on = doc.get("on", doc.get(True))
+        if isinstance(on, dict):
+            events = [str(k) for k in on]
+        elif isinstance(on, list):
+            events = [str(e) for e in on]
+        elif isinstance(on, str):
+            events = [on]
+        else:
+            events = []
+        out[rel] = sorted(set(events))
+    return out
+
+
+def _declared_push_scopes(
+    parsed: list[tuple[str, dict, str]], default_branch: str | None,
+) -> dict[str, list[str]]:
+    """Classify push triggers only when their filters prove their PR relevance."""
+    out: dict[str, list[str]] = {}
+    for rel, doc, _raw in parsed:
+        on = doc.get("on", doc.get(True))
+        if not isinstance(on, dict) or "push" not in on:
+            # A scalar/list `push` has no filters.
+            events = ([on] if isinstance(on, str) else on
+                      if isinstance(on, list) else [])
+            if "push" in events:
+                out[rel] = ["unscoped"]
+            continue
+        config = on.get("push")
+        if not isinstance(config, dict):
+            out[rel] = ["unscoped"]
+            continue
+        has_tags = "tags" in config or "tags-ignore" in config
+        has_branches = "branches" in config or "branches-ignore" in config
+        scopes: list[str] = []
+        if has_tags and not has_branches:
+            scopes.append("tag_only")
+        branches = config.get("branches")
+        branch_values = ([branches] if isinstance(branches, str)
+                         else branches if isinstance(branches, list) else [])
+        if (default_branch and branch_values == [default_branch]
+                and "branches-ignore" not in config):
+            scopes.append("default_branch_only")
+        if not scopes:
+            scopes.append("filtered" if (has_tags or has_branches) else "unscoped")
+        out[rel] = scopes
+    return out
+
+
+def _inherit_reusable_workflow_lanes(
+    lanes: dict[str, list[str]], push_scopes: dict[str, list[str]],
+    graph: dict[str, list[str]],
+) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """Resolve local reusable workflows to the lanes of their known callers."""
+    resolved = {path: set(values) for path, values in lanes.items()}
+    scopes = {path: set(values) for path, values in push_scopes.items()}
+    for _ in range(max(1, len(resolved))):
+        changed = False
+        for caller, children in graph.items():
+            inherited = resolved.get(caller, set()) - {"workflow_call"}
+            for child in children:
+                if not inherited:
+                    continue
+                before = set(resolved.get(child, set()))
+                after = (before - {"workflow_call"}) | inherited
+                if after != before:
+                    resolved[child] = after
+                    changed = True
+                scopes.setdefault(child, set()).update(scopes.get(caller, set()))
+        if not changed:
+            break
+    return ({path: sorted(values) for path, values in resolved.items()},
+            {path: sorted(values) for path, values in scopes.items() if values})
+
+
+def _trigger_conditionality(parsed: list[tuple[str, dict, str]]) -> dict[str, str]:
+    """Per-workflow PR-trigger conditionality, for the dead-required check: a
+    required check may only be called DEAD when its workflow's PR trigger is
+    UNCONDITIONAL (no path/branch filter, not merge-queue-only) yet it never
+    appeared in the sample. Classes:
+
+      unconditional      - pull_request(_target) with no paths/branches/types filters
+      type_scoped        - PR trigger carries an activity-type filter (types:)
+      path_scoped        - PR trigger carries paths / paths-ignore
+      branch_scoped      - PR trigger carries branches / branches-ignore
+      merge_group_scoped - merge_group with NO plain PR trigger (queue-only
+                           required checks are a best practice, never dead)
+      not_pr_triggered   - no PR-facing trigger at all
+    """
+    out: dict[str, str] = {}
+    for rel, doc, _raw in parsed:
+        on = doc.get("on", doc.get(True))
+        if isinstance(on, str):
+            on = {on: None}
+        elif isinstance(on, list):
+            on = {str(e): None for e in on}
+        if not isinstance(on, dict):
+            out[rel] = "not_pr_triggered"
+            continue
+        pr = None
+        for key in ("pull_request", "pull_request_target"):
+            if key in on:
+                pr = on.get(key) or {}
+                break
+        if pr is None:
+            out[rel] = "merge_group_scoped" if "merge_group" in on else "not_pr_triggered"
+        elif isinstance(pr, dict) and ("paths" in pr or "paths-ignore" in pr):
+            out[rel] = "path_scoped"
+        elif isinstance(pr, dict) and ("branches" in pr or "branches-ignore" in pr):
+            out[rel] = "branch_scoped"
+        elif isinstance(pr, dict) and "types" in pr:
+            # A `types:`-filtered trigger (label-gated e2e, ready_for_review
+            # gates) runs on almost no sampled PR BY DESIGN. Classifying it
+            # unconditional would let the dead-required check publish a false
+            # "your gate is dead" FAIL — the one direction this stamp must
+            # never err.
+            out[rel] = "type_scoped"
+        else:
+            out[rel] = "unconditional"
+    return out
+
+
+def _cache_effective_paths(root: Path, parsed: list) -> dict:
+    """Optional N01 context only; never a static finding. Do not execute Bazel.
+
+    Scoped configs, imports, dynamic flags and unknown runner OS are not read.
+    Use symbolic home/temp roots rather than the auditor machine's environment.
+    """
+    import posixpath
+
+    def normal(value, windows, shell=False):
+        value = str(value).strip().strip('"\'').replace("\\", "/")
+        value = value.replace("${{ runner.temp }}", "@temp")
+        # `$HOME` is expanded by a shell `run:` line only; actions/cache does not
+        # expand it (a literal `$HOME` cache path is itself a missing path).
+        home = r"^(?:~|\$HOME|\$\{HOME\})(?=/|$)" if shell else r"^~(?=/|$)"
+        value = re.sub(home, "@home", value)
+        if re.search(r"[$*?{};|&<>`]|^!", value):
+            return None
+        value = posixpath.normpath(value)
+        return value.lower() if windows else value
+
+    rc_unread = []
+    try:
+        rc = _read_config_text(root / ".bazelrc")
+    except OSError:
+        rc = ""
+    if rc is None:  # present but not UTF-8 text: unknown, never "no option"
+        rc, rc_unread = "", [".bazelrc not read (not UTF-8 text)"]
+    result = {}
+    for rel, doc, _raw in parsed:
+        for job_id, job in (doc.get("jobs") or {}).items():
+            if not isinstance(job, dict):
+                continue
+            runner = str(job.get("runs-on", ""))
+            windows = "windows" in runner.lower()
+            os_known = any(x in runner.lower() for x in ("ubuntu", "linux", "macos", "windows")) and "${{" not in runner
+            options, unread = [], list(rc_unread)
+            for line in rc.splitlines():
+                line = line.split("#", 1)[0].strip()
+                if not line:
+                    continue
+                if line.startswith(("import ", "try-import ")):
+                    unread.append(".bazelrc import not read")
+                if "--disk_cache=" not in line and "--repository_cache=" not in line:
+                    continue
+                if not re.match(r"^(?:common|build):?\s+", line):
+                    unread.append(".bazelrc scoped or command-specific cache option not read")
+                    continue
+                options.append((line, False))
+            steps = [step for step in (job.get("steps") or []) if isinstance(step, dict)]
+            for step in steps:
+                command = str(step.get("run", ""))
+                for line in command.splitlines():
+                    if re.match(r"^\s*bazel(?:isk)?\s+(?:build|test)\b", line):
+                        options.append((line, True))
+            paths = []
+            for option, shell in options:
+                # Preserve the one recognized expression, including its spaces.
+                option = option.replace("${{ runner.temp }}", "@temp")
+                for raw in re.findall(r"--(?:disk_cache|repository_cache)=(\"[^\"]*\"|'[^']*'|\S+)",
+                                      option):
+                    quoted = raw[:1] in "\"'"
+                    # A quoted value is read whole; an unterminated one is not read.
+                    norm = (None if quoted and (len(raw) < 2 or raw[-1] != raw[0])
+                            else normal(raw, windows, shell))
+                    raw = raw[1:-1] if quoted and norm is not None else raw
+                    if norm is None or not os_known:
+                        unread.append("dynamic cache option or runner OS not read")
+                    else:
+                        paths.append((raw, norm))
+            facts = []
+            for step in steps:
+                uses = str(step.get("uses", ""))
+                if not re.match(r"^actions/cache@", uses):
+                    continue
+                name = step.get("name") or "Run " + uses
+                if "${{" in str(name):
+                    continue
+                raw = str((step.get("with") or {}).get("path", ""))
+                caches = [normal(x, windows) for x in raw.splitlines() if x.strip()]
+                unknown = list(unread)
+                if not caches or None in caches:
+                    unknown.append("cache path not read")
+                likely = None
+                # Overlapping parent/child paths are not disjoint. Unknown or
+                # imported config prevents naming a particular effective path.
+                if caches and None not in caches and not unknown and os_known:
+                    disjoint = [original for original, tool in paths
+                                if all(tool != cache and not tool.startswith(cache + "/")
+                                       and not cache.startswith(tool + "/") for cache in caches)]
+                    if len(set(disjoint)) == 1:
+                        likely = disjoint[0]
+                facts.append({"step": str(name), "path": raw,
+                              "likely_directory": likely, "not_read": sorted(set(unknown))})
+            if facts:
+                result.setdefault(rel, {})[str(job.get("name") or job_id)] = facts
+    return result
+
+
+@_confine_scan_reads
+def scan(root: Path, catalog_path: Path, default_branch: str | None = None) -> dict[str, Any]:
+    branch_source = "flag" if default_branch else None
+    if default_branch is None:
+        try:
+            ref = subprocess.run(
+                ["git", "-C", str(root), "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+                capture_output=True, text=True, timeout=2, check=False)
+            if ref.returncode == 0 and ref.stdout.strip().startswith("origin/"):
+                default_branch = ref.stdout.strip()[len("origin/"):]
+                branch_source = "origin-head"
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    catalog = load_catalog(catalog_path)
+    catalog_by_id = {c.pattern: c for c in catalog}
+    static_entries = [c for c in catalog if c.finding_class == "static"]
+    # Structural patterns the critical-path router in collect_runs.py actually
+    # emits. An allow-list (not a denylist) so a NEW `structural` catalog entry
+    # fails SAFE — it shows up as undetected until a router is wired up, rather
+    # than being silently treated as covered. OPT74 (trust-boundary cache split)
+    # is catalogued for human application but has no auto-detector: it needs
+    # fork-PR cache trust-boundary signals we don't sample from run history.
+    # OPT78 (vitest per-file isolation) and OPT85 (per-invocation process startup)
+    # are not routed here either: they are emitted by drill-time log leaves in
+    # blocking_path.py (OPT78 is gated on this scan's `test_runner_isolation` block).
+    # OPT83 (independent steps on a pole) is routed by collect_runs from each
+    # drilled pole's step decomposition plus the workflow YAML. OPT84 (a slow
+    # pole step runs a tool with a native drop-in) is routed the same way, from
+    # the pole's step decomposition plus the workflow YAML and package scripts.
+    structural_detected = {"OPT70", "OPT71", "OPT72", "OPT73", "OPT75", "OPT83",
+                           "OPT84", "OPT85"}
+    structural_without_detector = sorted(
+        c.pattern for c in catalog
+        if c.finding_class == "structural" and c.pattern not in structural_detected)
+
+    files, scan_incomplete = _collect_workflow_files(root)
+    scan_incomplete.extend(_out_of_tree_symlinks(root))
+    # Parse every workflow once. The per-file dispatch runs over `parsed`; the
+    # cross-workflow / repo-context detectors need the whole set at once.
+    parsed: list[tuple[str, dict, str]] = []
+    for path in files:
+        rel = str(path.relative_to(root))
+        # An unreadable / unparseable file is a coverage gap, not a clean scan.
+        # Surface it loudly in `scan_incomplete`; never silently treat as clean.
+        try:
+            raw = path.read_text(encoding="utf-8", errors="replace")
+        except OSError as e:
+            scan_incomplete.append({"path": rel, "kind": "workflow-unreadable",
+                                    "reason": f"read failed: {e}"})
+            continue
+        try:
+            doc = yaml.safe_load(raw) or {}
+        except yaml.YAMLError as e:
+            scan_incomplete.append({"path": rel, "kind": "workflow-unparseable",
+                                    "reason": f"YAML parse: {e}"})
+            continue
+        if not isinstance(doc, dict):
+            scan_incomplete.append({"path": rel, "kind": "workflow-not-mapping",
+                                    "reason": "top-level is not a mapping"})
+            continue
+        parsed.append((rel, doc, raw))
+    workflow_lanes = _declared_triggers(parsed)
+    workflow_call_graph = _build_workflow_call_graph(parsed)
+    workflow_lanes, workflow_push_scopes = _inherit_reusable_workflow_lanes(
+        workflow_lanes, _declared_push_scopes(parsed, default_branch),
+        workflow_call_graph)
+
+    # What the step walker read inside GitHub Actions `parallel:` groups, and
+    # the control steps it skipped. A malformed group (`MALFORMED_KINDS`: not a
+    # list, contains itself, nested too deep, too many steps to read, or holding
+    # an item that is not a step) could not be read, so its file is a coverage
+    # gap, never clean, with the kind named. An INVALID group (`parallel:`
+    # beside `run:`/`uses:` on one step, which GitHub rejects) WAS read, so it is
+    # not a gap: the stamp names it and the Data sources row renders it.
+    parallel_stats = parallel_steps_stats((rel, doc) for rel, doc, _raw in parsed)
+    # (file, job key) → its scan_incomplete record, so a finding held back for
+    # that job (see _ABSENCE_STEP_PATTERNS) is named on the job's own record.
+    unreadable_jobs: dict[tuple[str, str], dict[str, Any]] = {}
+    for mj in parallel_stats["malformed_jobs"]:
+        kinds = "; ".join(MALFORMED_KINDS.get(k, k) for k in mj.get("reasons") or [])
+        rec = {
+            "path": mj["path"],
+            "kind": "parallel-group-unread",
+            "reason": (f"job `{mj['job']}`: {mj['count']} `parallel:` group(s) not "
+                       f"read ({kinds}), so the steps inside were not read")}
+        scan_incomplete.append(rec)
+        unreadable_jobs[(mj["path"], mj["job"])] = rec
+
+    findings: list[dict[str, Any]] = []
+    finding_idx = 0
+
+    # Index local composite actions that run git-history ops, so OPT28 can see a
+    # `git checkout origin/main` hidden inside `uses: ./.github/actions/foo`.
+    global _GIT_HISTORY_LOCAL_ACTIONS, _GIT_HISTORY_LOCAL_SCRIPTS, _OPT102_ROOT
+    _OPT102_ROOT = root
+    _OPT9_JEST_NOTES_CACHE.clear()
+    _GIT_HISTORY_LOCAL_ACTIONS = _index_local_git_actions(root, parsed)
+    _GIT_HISTORY_LOCAL_SCRIPTS = _index_local_git_scripts(root, parsed)
+
+    # Index the repo's DECLARED checkout payload (submodule paths, LFS-tracked
+    # path patterns) and the text of every local composite action, so OPT76 can
+    # tell a job that pulls a payload it never reads from one that needs it.
+    global _SUBMODULE_PATHS, _LFS_PATH_HINTS, _LOCAL_ACTION_TEXT
+    _SUBMODULE_PATHS = _parse_gitmodules(_read_repo_file(root, ".gitmodules"))
+    _LFS_PATH_HINTS = _parse_lfs_attributes(_read_repo_file(root, ".gitattributes"))
+    _LOCAL_ACTION_TEXT = _index_local_action_text(root, parsed)
+
+    # Coverage is a property of the catalog + the registered detectors, NOT of
+    # whatever workflows happened to parse. Compute it directly so a repo with
+    # zero parseable workflows reports the true uncovered set (incl. OPT13/15)
+    # instead of falsely claiming full coverage.
+    unmatched_patterns: set[str] = {
+        e.pattern for e in static_entries
+        if e.pattern not in _DETECTORS
+        and not (e.match or e.yaml_path)
+        and e.pattern not in _NON_PERFILE_PATTERNS
+    }
+
+    # A restore prefix can be seeded by a cache step in any workflow in the
+    # repository, so OPT61 needs one repository-wide saved-key index.
+    repo_cache_saved_keys = _cache_saved_keys(doc for _rel, doc, _raw in parsed)
+
+    # --- Per-file pass ---
+    for rel, doc, raw in parsed:
+        basename = Path(rel).name
+        for entry in static_entries:
+            # Dispatch order: a bespoke handler (correlated / multi-condition
+            # patterns) wins; otherwise a declarative detector keyed off the
+            # entry's params (match / yaml_path). A pattern with neither is
+            # handled by a cross-workflow / repo pass or is genuinely
+            # not-yet-implemented (already counted in unmatched_patterns above).
+            fn = _DETECTORS.get(entry.pattern)
+            if entry.pattern == "OPT61":
+                hits = list(_detect_opt61(doc, raw, saved_keys=repo_cache_saved_keys))
+            elif fn is not None:
+                hits = list(fn(doc, raw))
+            elif entry.match or entry.yaml_path:
+                if entry.wf_name_filter and not re.search(entry.wf_name_filter, basename):
+                    hits = []
+                elif entry.wf_name_exclude and re.search(entry.wf_name_exclude, basename):
+                    hits = []
+                else:
+                    hits = list(_declarative_hits(entry, doc, raw))
+            else:
+                continue
+            if unreadable_jobs and entry.pattern in _ABSENCE_STEP_PATTERNS:
+                hits = _hold_back_unreadable(entry.pattern, hits, rel, unreadable_jobs)
+            for hit in hits:
+                finding_idx += 1
+                f = _emit(entry, hit, rel, finding_idx)
+                f.update(hit.facts)
+                f["workflow_lanes"] = workflow_lanes.get(rel, [])
+                if workflow_push_scopes.get(rel):
+                    f["workflow_push_scopes"] = workflow_push_scopes[rel]
+                if entry.pattern == "OPT9" and "#" in hit.match_text:
+                    # The detector owns the tool identity. Keep it separate from
+                    # the job name and command prose so downstream sizing cannot
+                    # confuse a job such as `eslint-typecheck` with an ESLint
+                    # result-cache finding when the matched tool was `tsc`.
+                    f["opt9_tool"] = hit.match_text.rsplit("#", 1)[-1]
+                # Attach the verbatim matched code so the report shows the real
+                # workflow text, not prose in a yaml fence. Prefer a snippet the
+                # detector set explicitly (e.g. an `on:` block for an absence
+                # finding); otherwise the matched line at hit.line.
+                snippet = hit.snippet or _raw_line(raw, hit.line)
+                if snippet:
+                    f["evidence_snippet"] = snippet
+                findings.append(f)
+
+    # --- Cross-workflow / repo-context pass ---
+    opt96_held: list[dict] = []
+    cross_hits, cross_incomplete = _cross_workflow_hits(
+        parsed, root, default_branch, branch_source, opt96_held)
+    scan_incomplete.extend(cross_incomplete)
+    for pat, wf, hit in cross_hits:
+        entry = catalog_by_id.get(pat)
+        if entry is None:
+            continue
+        finding_idx += 1
+        f = _emit(entry, hit, wf, finding_idx)
+        f.update(hit.facts)
+        f["workflow_lanes"] = workflow_lanes.get(wf, [])
+        if workflow_push_scopes.get(wf):
+            f["workflow_push_scopes"] = workflow_push_scopes[wf]
+        if hit.snippet:
+            f["evidence_snippet"] = hit.snippet
+        if pat == "OPT96":
+            f["match_text"] = hit.match_text  # the cache family, as structured data
+        if getattr(hit, "callers", None):
+            f["callers"] = hit.callers  # OPT96 reader inside a reusable workflow
+        findings.append(f)
+    if any(f.get("pattern") == "OPT96" for f in findings):
+        # collect_runs cross-checks this against GitHub's default branch.
+        extra_opt96: dict[str, Any] = {"opt96_default_branch": {
+            "name": default_branch, "source": branch_source or "assumed"}}
+    else:
+        extra_opt96 = {}
+    if opt96_held:
+        extra_opt96["opt96_unresolved"] = opt96_held
+
+    # --- Source-file pass (OPT19) — sized inline from the measured sleep
+    # total, which collect_runs' "measured" model preserves. ---
+    opt19_hits, opt19_incomplete = _detect_opt19(root)
+    scan_incomplete.extend(opt19_incomplete)
+    for pat, wf, hit, total_s, me in opt19_hits:
+        entry = catalog_by_id.get(pat)
+        if entry is None:
+            continue
+        finding_idx += 1
+        f = _emit(entry, hit, wf, finding_idx)
+        f["wall_clock_p50_s"] = round(total_s, 1)
+        f["runner_min_saving"] = None
+        f["tier"] = 1
+        f["realization"] = "direct"
+        f["measured_signal"] = hit.evidence
+        f["measured_evidence"] = me
+        findings.append(f)
+
+    # Reconcile mutually-exclusive remedies that fired on the SAME physical step
+    # (OPT1 remove vs. OPT2 cache the same `playwright install`) so the shared
+    # install seconds / runner-minutes are credited once, not double-counted.
+    findings = _reconcile_opt1_opt2(findings)
+
+    # Candidates a detector could not read because of the syntax, with the
+    # reason (stamped with the rest of `parallel_steps`, only when used).
+    held_back = [{"pattern": "OPT12", "path": rel, "job": job,
+                  "reason": "first_step_inside_a_parallel_group"}
+                 for rel, doc, _raw in parsed for job in _opt12_first_step_in_a_group(doc)]
+    if held_back:
+        parallel_stats["held_back"] = held_back
+    extra: dict[str, Any] = dict(extra_opt96)
+    jest_coverage = _jest_coverage_notes(parsed)
+    if jest_coverage:
+        extra["jest_coverage_notes"] = jest_coverage
+    if parallel_steps_used(parallel_stats):
+        # Stamped only when the syntax is used, so every other findings
+        # document is byte-identical to before. Rendered as the "Parallel steps"
+        # row of the report's Data sources table.
+        extra["parallel_steps"] = parallel_stats
+    matrix_setup_facts: dict[str, dict[str, dict[str, Any]]] = {}
+    for rel, doc, _raw in parsed:
+        _jobs, leg_counts, repeated_work, handoff_jobs = _opt14_setup_state(doc)
+        leg_counts = {
+            job: legs for job, legs in leg_counts.items()
+            if job not in handoff_jobs and (rel, job) not in unreadable_jobs
+        }
+        if leg_counts:
+            matrix_setup_facts[rel] = {
+                job: {"legs": legs, "repeated": repeated_work.get(job, [])}
+                for job, legs in sorted(leg_counts.items())
+            }
+    if matrix_setup_facts:
+        # Guard-only facts: a lone sharded test job is not a report finding,
+        # but growing its matrix still needs the differential warning.
+        extra["matrix_setup_facts"] = matrix_setup_facts
+
+    return {
+        **extra,
+        "findings": findings,
+        "scanned_workflows": len(files),
+        "scan_incomplete": scan_incomplete,
+        # Declared `on:` events per scanned workflow. Available to any
+        # trigger-scope consumer; additive, harmless if unconsumed.
+        "workflow_triggers": workflow_lanes,
+        # Per-workflow PR-trigger conditionality (unconditional / path_scoped /
+        # branch_scoped / merge_group_scoped / not_pr_triggered). Joined against
+        # the required-check list by collect_runs into
+        # pr_critical_path.required_check_conditionality (the dead-required
+        # check's load-bearing conjunct).
+        "workflow_trigger_conditionality": _trigger_conditionality(parsed),
+        # caller → [reusable child workflow, ...] (workflow_call graph). Emitted
+        # so downstream sizing/report CAN attribute a child's frequency +
+        # check-runs to its caller instead of treating a per-PR reusable suite as
+        # dormant; the attribution itself is not yet wired up.
+        "workflow_call_graph": workflow_call_graph,
+        # Per-workflow job dependency graph (job -> name/needs/reusable) used by
+        # collect_runs to scope the critical-path pole to merge-blocking (required-
+        # reachable) work. Repo-agnostic; harmless if unconsumed.
+        "workflow_job_graph": _build_workflow_job_graph(parsed),
+        # Workflows that post commit statuses themselves (an in-repo aggregate
+        # status), so collect_runs never mistakes such a required context for an
+        # external gate just because it names no job (issue #119).
+        "workflow_status_publishers": _build_workflow_status_publishers(root, parsed),
+        # Each workflow's own top-level `name:` (absent when it declares none).
+        # A required check context `<workflow> / <job>` names THIS workflow's
+        # job only when the prefix is this name (or, unnamed, its file path).
+        "workflow_names": {rel: " ".join(doc["name"].split()) for rel, doc, _raw in parsed
+                           if isinstance(doc, dict) and isinstance(doc.get("name"), str)
+                           and doc["name"].strip()},
+        # What the repo's vitest config says about per-file isolation. NOT a
+        # finding — the corroborating config fact the drill-time OPT78 leaf
+        # (`blocking_path`'s `vitest-isolate-pool`) must read before it can
+        # claim the repo is still paying for per-file isolation.
+        "test_runner_isolation": _read_test_runner_isolation(root),
+        "cache_effective_paths": _cache_effective_paths(root, parsed),
+        # What the repo's ESLint config(s) say about TYPE-AWARE parsing and
+        # which type-aware rules are on, plus the package scripts a workflow's
+        # `npm run lint` resolves through. NOT a finding — the config fact the
+        # data-pass OPT82 detector joins to a slow lint job.
+        "type_aware_lint": _read_type_aware_lint(root),
+        "catalog_patterns_total": len(catalog),
+        "catalog_patterns_with_detector": len(static_entries) - len(unmatched_patterns),
+        "catalog_patterns_without_detector": sorted(unmatched_patterns),
+        # Structural catalog entries with no critical-path router (currently
+        # OPT74, OPT87, and OPT78, which a drill-time log leaf routes instead).
+        # OPT85's drill-time leaf is registered as detected above. Reported so a
+        # catalogued-but-undetected structural pattern is
+        # honest about its coverage instead of silently never appearing.
+        "catalog_structural_patterns_without_detector": structural_without_detector,
+    }
+# =============================================================================
+# CLI
+# =============================================================================
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument("--root", type=Path, required=True,
+                   help="Path to the target repo's root (contains .github/workflows/).")
+    p.add_argument("--out", type=Path, default=None)
+    p.add_argument("--catalog", type=Path, default=None,
+                   help="Catalog: the references/patterns/ directory or the compiled "
+                        "optimization-patterns.md (default: bundled references/patterns/).")
+    p.add_argument("--skill-commit-sha", default=None)
+    p.add_argument("--commit-sha", default=None)
+    p.add_argument("--repo", default=None)
+    p.add_argument("--default-branch", default=None,
+                   help="Default branch name; if omitted, read from the checkout's origin/HEAD, "
+                        "else assume main/master.")
+    args = p.parse_args(argv)
+
+    catalog = args.catalog or (Path(__file__).resolve().parents[1]
+                               / "references" / "patterns")
+    t0 = time.time()
+    try:
+        result = scan(args.root, catalog, args.default_branch)
+    except FileNotFoundError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+    result["timings"] = {
+        "static_scan_s": round(time.time() - t0, 2),
+        "run_start_epoch": t0,
+    }
+    result["scanned_at"] = datetime.now(timezone.utc).isoformat()
+    if args.skill_commit_sha:
+        result["skill_commit_sha"] = args.skill_commit_sha
+    if args.commit_sha:
+        result["commit_sha"] = args.commit_sha
+    if args.repo:
+        result["repo"] = args.repo
+
+    payload = json.dumps(result, indent=2) + "\n"
+    if args.out:
+        args.out.write_text(payload, encoding="utf-8")
+    else:
+        sys.stdout.write(payload)
+    return 0
+
+
+if __name__ == "__main__":
+    from log_level import configure_logging  # STARSLING_LOG_LEVEL opt-in
+    configure_logging()
+    sys.exit(main())

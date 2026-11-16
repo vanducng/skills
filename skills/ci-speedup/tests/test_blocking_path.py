@@ -1,0 +1,10339 @@
+"""Tests for `blocking_path.py` - the data-first ASCII blocking-path renderer.
+
+The leaf detectors in `_parse_log` are pure regex-over-tool-output functions:
+the single most likely thing to break silently when a tool tweaks its log format,
+and (before this) the least covered. Each test feeds a representative log snippet
+and locks the classification + the rendered shape, so a format drift fails loudly
+here instead of silently dropping a root cause from the report.
+
+Run: pytest -v skills/ci-speedup/tests/test_blocking_path.py
+"""
+from __future__ import annotations
+
+import datetime as _dt
+import json
+import re
+import sys
+from pathlib import Path
+
+_SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+sys.path.insert(0, str(_SCRIPTS))
+
+import blocking_path as bp  # noqa: E402  (uniquely-named module; no cross-skill clash)
+import collect_runs as cr  # noqa: E402  (uniquely-named module; no cross-skill clash)
+
+
+def _tier2_doc() -> dict:
+    doc = {
+        "repo": "demo/repo",
+        "repo_visibility": "private",
+        "scanned_at": "2026-07-04T00:00:00Z",
+        "skill_commit_sha": "7039302",
+        "commit_sha": "abcdef1234567890",
+        "pr_critical_path": {
+            "critical_path_check": "build",
+            "sampled_pr_count": 4,
+            "sample_target": 4,
+            "check_present_n_pr": 4,
+            "checks": [{"name": "build", "workflow_file": ".github/workflows/ci.yml",
+                        "p50_s": 300.0, "present_on": 4, "pole_n": 4}],
+            "poles": [{"check": "build", "job": "build",
+                       "workflow_file": ".github/workflows/ci.yml", "p50_s": 300.0}],
+        },
+        "findings": [
+            {
+                "id": "f-promoted",
+                "pattern": "OPT46",
+                "severity": "MEDIUM",
+                "title": "Superseded runs never cancelled",
+                "workflow_file": ".github/workflows/ci.yml",
+                "line": 12,
+                "affected_jobs": ["cleanup"],
+                "evidence": "3 overlapping runs in the sampled branch window",
+                "runner_min_saving": 120.0,
+                "runner_min_range_s": [100.0, 150.0],
+                "wall_clock_p50_s": 0.0,
+                "realization": "none",
+                "sizing_basis": "measured",
+                "measured_signal": ("remainder-weighted superseded runs x mean job-minutes "
+                                    "(3 confirmed, 90% mean remainder; naive 5; 4 timed run(s); scale 1)"),
+                "tier2_neutrality": {
+                    "proof": "post_completion_waste",
+                    "margin_s": None,
+                    "ref": "superseded runs finish after a newer run starts",
+                },
+                "measured_evidence": {
+                    "summary": "3 overlapping runs confirmed by timestamp overlap; credited on the remainder basis",
+                    "table": {
+                        "headers": ["Workflow", "Overlapping runs", "Mean compute/run"],
+                        "rows": [["`ci.yml`", "3 confirmed", "40.0 job-min"]],
+                    },
+                    "note": "Cancellation cause is inference; verify this is not a deploy.",
+                },
+                "fix_recipe_anchor": "opt46--superseded-runs",
+            },
+            {
+                "id": "f-residual",
+                "pattern": "OPT46",
+                "severity": "LOW",
+                "title": "Superseded runs never cancelled",
+                "workflow_file": ".github/workflows/slow.yml",
+                "line": 9,
+                "affected_jobs": [],
+                "evidence": "modeled legacy occurrence",
+                "runner_min_saving": 8.0,
+                "wall_clock_p50_s": 0.0,
+                "sizing_basis": "modeled",
+                "fix_recipe_anchor": "opt46--superseded-runs",
+            },
+        ],
+    }
+    wf = ".github/workflows/ci.yml"
+    jobs = [[_spine_job("cleanup", 75, "2026-06-01T00:00:00Z")]]
+    doc["data_sources"] = {"cost_spine_job_fetch_failures": 0}
+    doc["per_workflow_monthly_volume"] = {wf: 100}
+    spine = cr._build_runner_minute_spine(
+        {wf: {"pull_request": jobs}}, {}, {wf: 100}, "private",
+        workflows_in_play={wf})
+    assert spine is not None
+    assert spine["render_ready"] is True
+    doc["runner_minute_spine"] = spine
+    return doc
+
+
+def _spine_job(name: str, seconds: int, run_created: str) -> dict:
+    start = _dt.datetime(2026, 6, 1, tzinfo=_dt.timezone.utc)
+    end = start + _dt.timedelta(seconds=seconds)
+    return {
+        "name": name,
+        "started_at": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "completed_at": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "conclusion": "success",
+        "labels": ["ubuntu-latest"],
+        "_run_created_at": run_created,
+    }
+
+
+def _render_ready_spine_doc(*, row_count: int = 2) -> dict:
+    doc = _doc_one_pole()
+    doc["repo"] = "demo/repo"
+    doc["repo_visibility"] = "private"
+    doc["commit_sha"] = "abcdef1234567890"
+    doc["skill_commit_sha"] = "7039302"
+    doc["data_sources"]["cost_spine_job_fetch_failures"] = 0
+    wf = ".github/workflows/pipeline.yml"
+    jobs = [
+        _spine_job(f"job-{i:02d}", 60 + i, "2026-06-01T00:00:00Z")
+        for i in range(row_count)
+    ]
+    doc["per_workflow_monthly_volume"] = {wf: 10}
+    spine = cr._build_runner_minute_spine(
+        {wf: {"pull_request": [jobs]}}, {}, {wf: 10}, "private",
+        workflows_in_play={wf})
+    assert spine is not None
+    assert spine["render_ready"] is True
+    doc["runner_minute_spine"] = spine
+    return doc
+
+
+def test_tier2_section_promotes_measured_certified_findings_before_appendix():
+    report = bp.render(_tier2_doc())
+    assert "## Runner-minute reductions (wall-clock-neutral)" in report
+    assert report.index("## Runner-minute reductions") < report.index("## 🧹 Also noticed")
+    assert "<!-- ci-speedup:tier2-finding id=f-promoted pattern=OPT46 -->" in report
+    # Long-pole format parity (owner directive, 2026-07-09): `##` header with the
+    # 💸 marker, workflow + magnitude in the pole shape, a bold role lead, an OPEN
+    # body (no <details> wrapper), and the pattern name as a bold body line.
+    assert re.search(r"^## 🟢 Runner saving 1: `ci\.yml:12` \(cleanup\) - "
+                     r"120 min/mo$", report, re.MULTILINE)
+    assert "**The largest merge-safe runner-minute saving measured on this repo.**" in report
+    # Contents row: 🟢 in the pole rows' severity-dot slot, short label, link to #r-1.
+    assert re.search(r"^1\. 🟢 \[Superseded runs never cancelled\]\(#r-1\) - 120 min/mo",
+                     report, re.MULTILINE)
+    assert "**💸 Bill root-cause - OPT46 · Superseded runs never cancelled**" in report
+    tier2_region = report.split("<!-- ci-speedup:tier2-finding", 1)[1]
+    tier2_region = tier2_region.split("## 🧹 Also noticed", 1)[0]
+    assert "<details>" not in tier2_region
+    assert "machine-derived proof: `post_completion_waste`" in report
+    assert ("- **Source block:** `runner_minute_spine` matched 1 row for "
+            "`.github/workflows/ci.yml`") in report
+    appendix = report.split("## 🧹 Also noticed", 1)[1]
+    assert "Tier-2 note:" in appendix
+    assert "measured wall-clock-neutral instances of this same pattern are promoted above" in appendix
+    assert "f-promoted" not in appendix
+
+
+def test_tier2_short_title_strips_parenthetical_and_caps():
+    # The requests-report case: trailing parenthetical qualifier stripped whole.
+    assert bp._tier2_short_title({"title": (
+        "Superseded Runs Not Cancelled (Missing Concurrency or "
+        "`cancel-in-progress: false`)")}) == "Superseded Runs Not Cancelled"
+    # Under the cap and paren-free: unchanged.
+    assert bp._tier2_short_title({"title": "Cron Schedule Too Frequent"}) == (
+        "Cron Schedule Too Frequent")
+    # Over the cap: word-boundary cut + ellipsis, never a mid-word chop.
+    long_title = "Flaky Test Retry Waste Across Cross SKU Reruns Of The Whole Matrix"
+    short = bp._tier2_short_title({"title": long_title})
+    assert short.endswith("…") and len(short) <= bp._TIER2_SHORT_TITLE_MAX + 1
+    stem = short[:-1]
+    assert long_title.startswith(stem)                 # a true prefix ...
+    assert long_title[len(stem)] == " "                # ... cut exactly at a space
+    # All-parenthetical degenerate title: falls back to the original, not "".
+    assert bp._tier2_short_title({"title": "(only a qualifier)"}) == "(only a qualifier)"
+    # No title: falls back to the pattern id.
+    assert bp._tier2_short_title({"pattern": "OPT46"}) == "OPT46"
+
+
+def test_tier2_source_unbacked_candidates_fall_back_to_appendix():
+    doc = _tier2_doc()
+    doc["runner_minute_spine"]["rows"][0]["job_name"] = "other"
+
+    report = bp.render(doc)
+
+    assert "<!-- ci-speedup:tier2-finding id=f-promoted pattern=OPT46 -->" not in report
+    appendix = report.split("## 🧹 Also noticed", 1)[1]
+    # PR-Z: appendix labels use the Tier-2 positive-saving convention.
+    assert "128 min/mo" in appendix
+    assert "-128 min/mo" not in appendix
+    assert "did not have matching render-ready `runner_minute_spine` source rows" in appendix
+
+
+def test_tier2_claims_manifest_records_headline_lead_and_cert():
+    report = bp.render(_tier2_doc())
+    manifest = bp._LAST_CLAIMS.to_json()
+    kinds = [c["kind"] for c in manifest["claims"]]
+    assert "runner_minutes" in manifest["families_migrated"]
+    assert "tier2_headline" in kinds
+    assert "tier2_section_lead" in kinds
+    assert "tier2_neutrality_line" in kinds
+    assert any(c["kind"] == "tier2_headline" and c["subject"] == "f-promoted"
+               for c in manifest["claims"])
+    assert "wall-clock-neutral runner spend" in report
+
+
+def test_runner_minute_spine_renderer_round_trips_against_verifier(tmp_path: Path):
+    doc = _render_ready_spine_doc(row_count=2)
+    report = bp.render(doc)
+
+    assert "## Runner-minute cost spine" in report
+    assert "**Runner-minute cost spine**" in report
+    assert "### Cost spine: where runner minutes go" in report
+    assert "<!-- ci-speedup:runner-minute-spine -->" in report
+    # The single minutes-only cost-spine shape (pricing excised 2026-07-20): no
+    # SKU/Billing/Weighted/USD columns, just the runner-minute surface.
+    assert ("| Workflow | Job | Runner | Event | Status | Attempt | Volume "
+            "| Raw min/mo | Rounded-up min/mo | Share |") in report
+    assert "| Total |" in report
+    # The one-sentence pricing story leads the table; no dollar column anywhere.
+    assert ("All figures are runner-minutes; multiply by your runner's per-minute "
+            "rate to get dollars.") in report
+    assert "USD/mo" not in report
+
+    report_path = tmp_path / "blocking-path-speed.md"
+    findings_path = tmp_path / "findings.json"
+    report_path.write_text(report, encoding="utf-8")
+    findings_path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    vr = _load_verify_report()
+    chk = vr.check_runner_minute_spine_contract(report, findings_path)
+    assert chk.ok and not chk.skipped, chk
+
+
+def test_runner_minute_spine_renderer_discloses_hidden_rows(tmp_path: Path):
+    doc = _render_ready_spine_doc(row_count=13)
+    report = bp.render(doc)
+
+    assert "+1 more runner-minute row hidden" in report
+
+    findings_path = tmp_path / "findings.json"
+    findings_path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    vr = _load_verify_report()
+    chk = vr.check_runner_minute_spine_contract(report, findings_path)
+    assert chk.ok and not chk.skipped, chk
+
+
+def test_runner_minute_spine_renderer_skips_source_block_until_render_ready():
+    doc = _render_ready_spine_doc(row_count=1)
+    spine = doc["runner_minute_spine"]
+    spine["render_ready"] = False
+    spine["render_blocker"] = "coverage still incomplete"
+
+    report = bp.render(doc)
+
+    assert "<!-- ci-speedup:runner-minute-spine -->" not in report
+    assert "### Cost spine: where runner minutes go" not in report
+
+
+# --------------------------------------------------------------------------- #
+# Class A #4 — the addressable ceiling floors against the pole's OWN gating-PR
+# co-occurrence, not global presence (so a co-occurring 2nd-slowest sibling that
+# is globally slightly rarer can't be demoted, overstating the ceiling ~2×).
+# --------------------------------------------------------------------------- #
+def test_binding_floor_uses_pole_gating_cooccurrence_not_global_presence():
+    # `slow` (800s) co-occurs with the pole on 13/13 of the pole's gating PRs but is globally
+    # present on 15/20; the trivial `fast` (100s) is on all 20. The LEGACY global test
+    # (0.8 × 20 = 16) demotes `slow` (15 < 16) and wrongly names `fast` the floor; per-pole
+    # co-occurrence keeps `slow` (13/13 > 50%) — the real floor.
+    candidates = [
+        {"name": "pole", "p50_s": 1000.0, "workflow_file": "a.yml", "present_on": 15},
+        {"name": "slow", "p50_s": 800.0, "workflow_file": "b.yml", "present_on": 15},
+        {"name": "fast", "p50_s": 100.0, "workflow_file": "c.yml", "present_on": 20},
+    ]
+    others = [c for c in candidates if c["name"] != "pole"]
+    cooccur, gating_n = {"slow": 13, "fast": 13}, 13
+    # With co-occurrence: the floor is the slower co-occurring sibling.
+    assert bp._binding_floor(others, cooccur, gating_n)["name"] == "slow"
+    assert bp._floor_candidate(others, cooccur, gating_n)["name"] == "slow"
+    pole = {"check": "pole", "p50_s": 1000.0, "_cooccur": cooccur, "_gating_n": gating_n}
+    assert abs(bp._pole_addressable(pole, candidates) - 200.0) < 1.0   # 1000 - 800
+    # Legacy fallback (no co-occurrence data): the global 0.8-presence cutoff demotes `slow`
+    # (15/20) and crowns `fast` — the exact overstatement the fix removes. Pins the regression.
+    assert bp._binding_floor(others)["name"] == "fast"
+    pole_legacy = {"check": "pole", "p50_s": 1000.0}
+    assert abs(bp._pole_addressable(pole_legacy, candidates) - 900.0) < 1.0   # 1000 - 100 (overstated)
+
+
+def test_pole_cooccurrence_counts_only_the_poles_gating_prs():
+    # Re-derives the pole's gating PRs (where it is the per-PR slowest) and per-check co-occurrence
+    # from `populations`. `B` is slowest on 2 PRs (its own gate), `A` on 3; on A's 3 gating PRs the
+    # sibling `S` co-occurs twice. So for pole A: gating_n == 3 and S's count == 2.
+    cp = {"populations": [
+        [0.1, [["A", 100.0], ["S", 60.0]]],
+        [0.1, [["A", 100.0], ["S", 60.0]]],
+        [0.1, [["A", 100.0], ["X", 10.0]]],          # A gates, S absent
+        [0.1, [["B", 90.0], ["A", 50.0]]],           # B gates, not A
+        [0.1, [["B", 90.0], ["A", 50.0]]],
+    ]}
+    cooccur, gating_n = bp._pole_cooccurrence(cp, "A")
+    assert gating_n == 3
+    assert cooccur.get("s") == 2
+    assert bp._pole_cooccurrence(cp, "nope") == ({}, 0)   # never a winner → empty, callers fall back
+
+
+def test_floor_candidate_raw_fallback_when_checks_lack_workflow_file():
+    # The better-auth shape: populations-rich (so cooccur/gating_n are non-empty) but the `checks`
+    # carry NO `workflow_file`. `_floor_candidate` must still NAME a floor via the raw fallback —
+    # co-occurrence is not file metadata and must NOT disable that fallback — so `_pole_addressable`
+    # doesn't zero the win. Pins the `has_meta` rework (regression: the win silently floored to 0).
+    candidates = [{"name": "pole", "p50_s": 600.0}, {"name": "floor", "p50_s": 400.0}]
+    others = [c for c in candidates if c["name"] != "pole"]
+    cooccur, gating_n = {"floor": 18}, 18
+    fc = bp._floor_candidate(others, cooccur, gating_n)
+    assert fc is not None and fc["name"] == "floor"     # raw fallback still names a floor
+    pole = {"check": "pole", "p50_s": 600.0, "_cooccur": cooccur, "_gating_n": gating_n}
+    assert abs(bp._pole_addressable(pole, candidates) - 200.0) < 1.0   # 600 - 400, not zeroed
+
+
+def test_floor_qualifies_strict_majority_boundary():
+    # The strict-majority crux at the engine: a sibling co-occurring on EXACTLY half the gating PRs
+    # does NOT qualify; one more does. (Mirrors the verifier's `count <= majority` skip.)
+    c = {"name": "x", "p50_s": 1.0}
+    assert bp._floor_qualifies(c, {"x": 3}, 6, denom=0) is False   # 3/6 — not a majority
+    assert bp._floor_qualifies(c, {"x": 4}, 6, denom=0) is True    # 4/6 — a majority
+
+
+def test_render_toc_reframes_when_also_noticed_has_on_path_lever():
+    # Class A #7: when the "Also noticed" appendix holds a credited wall-clock lever that sits ON the
+    # critical path, the TOC pointer must reframe — not blanket-label the section "below the critical
+    # path / ~0 wall-clock". OPT24 (120s wall-clock, on a NON-pole job `slow-test`) lands in the
+    # appendix flagged on-path; the pointer must acknowledge it.
+    checks = [
+        {"name": "build", "p50_s": 1000.0, "present_on": 10, "workflow_file": "ci.yml"},
+        {"name": "slow-test", "p50_s": 500.0, "present_on": 10, "workflow_file": "other.yml"},
+    ]
+    pops = [[0.1, [["build", 1000.0], ["slow-test", 500.0]]] for _ in range(10)]
+    doc = {"pr_critical_path": {
+        "critical_path_check": "build", "critical_path_s": 1000.0,
+        "checks": checks, "check_present_n_pr": 10, "populations": pops,
+        "poles": [{"check": "build", "p50_s": 1000.0, "workflow_file": "ci.yml", "job": "build"}],
+    }, "findings": [
+        {"id": "f1", "pattern": "OPT24", "severity": "HIGH", "title": "Long Test Job",
+         "workflow_file": "other.yml", "affected_jobs": ["slow-test"],
+         "runner_min_saving": 0, "wall_clock_p50_s": 120.0},
+    ]}
+    out = bp.render(doc)
+    assert "sits ON the merge-gating critical path" in out, "the credited wall-clock lever should flag on-path"
+    m = re.search(r"\*\*🧹 Also noticed\*\* -.*", out)
+    assert m, "TOC 'Also noticed' pointer should render"
+    assert "below the critical path" not in m.group(0), "pointer must not blanket-label off-path"
+    assert "DO sit on the critical path" in m.group(0), "pointer must acknowledge the on-path lever"
+
+
+def test_render_does_not_frame_rare_demoted_job_on_path_in_appendix():
+    # Regression (paradedb `Test pg_search`): a heavy job the spine DEMOTES as opt-in/rare
+    # (present on a MINORITY of PRs — 8/20 here) keeps a large `wall_clock_p50_s` (the cascade
+    # bounds only against CONCURRENT checks, not the presence demotion) and is NOT off_spine
+    # (it IS PR-gating, just rare). Its OPT24 must NOT be framed "sits ON the merge-gating
+    # critical path" in "Also noticed" while the level-1 footnote demotes the SAME job as
+    # opt-in. `_saves_wall_clock` must decline it via the `spine_rare` stamp.
+    checks = [
+        {"name": "build", "p50_s": 1000.0, "present_on": 20, "workflow_file": "ci.yml"},
+        {"name": "Test pg_search on PostgreSQL 18 (pgrx - arm64)", "p50_s": 1351.0,
+         "present_on": 8, "workflow_file": "test-pg_search.yml"},
+    ]
+    # 12 PRs run only `build`; 8 run build + pg_search (pg_search slowest on those). No pole_n
+    # stamped, so the legacy presence rule fires: pg_search present 8/20 <= 0.5 → rare/opt-in.
+    pops = ([[0.05, [["build", 1000.0]]] for _ in range(12)]
+            + [[0.05, [["build", 1000.0],
+                       ["Test pg_search on PostgreSQL 18 (pgrx - arm64)", 1351.0]]]
+               for _ in range(8)])
+    doc = {"pr_critical_path": {
+        "critical_path_check": "build", "critical_path_s": 1000.0,
+        "checks": checks, "check_present_n_pr": 20, "populations": pops,
+        "poles": [{"check": "build", "p50_s": 1000.0, "workflow_file": "ci.yml", "job": "build"}],
+    }, "findings": [
+        {"id": "f1", "pattern": "OPT24", "severity": "HIGH",
+         "title": "Long Test Job Without Sharding", "line": 12,
+         "workflow_file": "test-pg_search.yml",
+         "affected_jobs": ["Test pg_search on PostgreSQL 18 (pgrx - arm64)"],
+         "runner_min_saving": 0, "wall_clock_p50_s": 100.4},
+    ]}
+    out = bp.render(doc)
+    # The spine footnote demotes it as opt-in (present on a minority)...
+    assert "opt-in" in out or "a typical PR doesn't wait" in out, \
+        "the rare job should be demoted as opt-in in the spine footnote"
+    # ...so the appendix must NOT double-frame the SAME job as on the critical path.
+    assert "sits ON the merge-gating critical path" not in out, \
+        "a presence-demoted (opt-in/rare) job must not be framed on the critical path"
+    # And the finding is stamped `spine_rare` (the mechanism). The stamp is DECOUPLED from
+    # coverage: `_saves_wall_clock` (credited-magnitude / catalog-coverage gate) stays True — a
+    # rare job with a real OPT24 is still catalog-covered — while `_frames_on_path` (the appendix
+    # on-path gate) declines it, so the appendix drops only the "sits ON the critical path" claim.
+    f = doc["findings"][0]
+    assert f.get("spine_rare") is True
+    assert bp._saves_wall_clock(f) is True, "coverage/magnitude gate must IGNORE spine_rare"
+    assert bp._frames_on_path(f) is False, "appendix on-path framing gate must honor spine_rare"
+
+
+def test_spine_rare_pole_stays_catalog_covered_no_false_gap():
+    # Finding 1 regression guard (the paradedb shape the earlier test MISSED): the rare-demoted
+    # job is ITSELF the drilled pole, its captured log matches NO `_parse_log` detector, and it
+    # carries an OPT24 data-driven finding. `spine_rare` must suppress ONLY the appendix on-path
+    # framing — it must NOT flip catalog-coverage. If it did (the reviewed regression), the pole
+    # would falsely read as a coverage gap: gap-fill fires, the gap is captured to
+    # `.ci-speedup-gaps/`, and a phase-4c detector-draft subagent is launched for a job OPT24
+    # ALREADY covers — the exact anti-pattern `_gap_poles` guards against.
+    pg = "Test pg_search on PostgreSQL 18 (pgrx - arm64)"
+    checks = [
+        {"name": "build", "p50_s": 1000.0, "present_on": 20, "workflow_file": "ci.yml"},
+        {"name": pg, "p50_s": 1351.0, "present_on": 8, "workflow_file": "test-pg_search.yml"},
+    ]
+    pops = ([[0.05, [["build", 1000.0]]] for _ in range(12)]
+            + [[0.05, [["build", 1000.0], [pg, 1351.0]]] for _ in range(8)])
+    doc = {"pr_critical_path": {
+        "critical_path_check": "build", "critical_path_s": 1000.0,
+        "checks": checks, "check_present_n_pr": 20, "populations": pops,
+        "poles": [
+            {"check": "build", "p50_s": 1000.0, "workflow_file": "ci.yml", "job": "build"},
+            # The rare job IS a drilled pole here (unlike the earlier test, where it lived only
+            # in checks/populations) — this is what surfaces the coverage-gap regression.
+            {"check": pg, "p50_s": 1351.0, "workflow_file": "test-pg_search.yml", "job": pg},
+        ],
+    }, "findings": [
+        {"id": "f1", "pattern": "OPT24", "severity": "HIGH",
+         "title": "Long Test Job Without Sharding", "line": 12,
+         "workflow_file": "test-pg_search.yml", "affected_jobs": [pg],
+         "runner_min_saving": 0, "wall_clock_p50_s": 1351.0},
+    ]}
+    # A captured log for the pg_search pole that matches no `_parse_log` detector.
+    logs = {pg: "compiling crate pgrx\nrunning suite\nfinished in 22m 31s\n"}
+    assert bp._parse_log(logs[pg]) is None, "fixture log must match no detector (be a true gap-shape)"
+
+    out = bp.render(doc, logs)
+    f = doc["findings"][0]
+    # The finding IS stamped spine_rare (the regression scenario is real)...
+    assert f.get("spine_rare") is True
+    pole = doc["pr_critical_path"]["poles"][1]
+    # ...yet it stays catalog-covered: _data_driven_for_pole still joins the OPT24 to the pole.
+    assert bp._data_driven_for_pole(pole, doc["findings"]), \
+        "spine_rare must NOT strip catalog coverage (the HIGH regression)"
+    # So the gap machinery does NOT capture it (no wasted gap-fill / detector-draft subagent).
+    assert bp._gap_poles(doc, logs) == [], \
+        "a rare pole an OPT24 covers must NOT be captured as a catalog gap"
+    # And the rendered pole waterfall does NOT read as a coverage gap...
+    assert "matched no known root-cause pattern" not in out
+    assert "coverage gap, not a clean job" not in out
+    # ...it points at the catalog match, framed opt-in/rare (NOT "sits ON the critical path").
+    assert "a measured **catalog pattern** matched this pole" in out
+    assert "flagged as opt-in / rare" in out
+    assert "sits ON the merge-gating critical path" not in out
+
+
+def _nx_offcategory_doc() -> tuple[dict, dict]:
+    # The nrwl/nx shape (issue #16): a single combined `Run Checks/Lint/Test/Build` step (one
+    # `nx affected` that lints + tests + builds) bins as `test` (payload), so the pole's measured
+    # dominant category is `test`. Its captured log ALSO carries an uncached `eslint` invocation, so
+    # the whole-log `eslint-no-cache` (`scan`) leaf fires — the hijack the fix must demote.
+    pole = {
+        "check": "Run Checks", "p50_s": 308.0, "workflow_file": "ci.yml", "job": "Run Checks",
+        "dominant_category": "test", "dominant_step": "Run Checks/Lint/Test/Build",
+        "dominant_p50_s": 300.0, "dominant_share": 0.974, "job_p50_s": 308.0,
+        "steps": [{"step": "Run Checks/Lint/Test/Build", "category": "test", "p50_s": 300.0},
+                  {"step": "Set up job", "category": "setup", "p50_s": 8.0}],
+    }
+    doc = {"pr_critical_path": {
+        "critical_path_check": "Run Checks", "critical_path_s": 308.0,
+        "checks": [{"name": "Run Checks", "p50_s": 308.0, "present_on": 6, "pole_n": 6,
+                    "workflow_file": "ci.yml"}],
+        "check_present_n_pr": 6,
+        "populations": [[0.05, [["Run Checks", 308.0]]] for _ in range(6)],
+        "poles": [pole],
+    }, "findings": []}
+    logs = {"Run Checks": (
+        "> nx run-many --target=lint\n"
+        "$ eslint . --ext .ts,.tsx,.js\n"
+        "> nx affected --target=test\n"
+        "PASS  src/foo.spec.ts (312 tests) 41200ms\n")}
+    return doc, logs
+
+
+def test_offcategory_eslint_leaf_does_not_hijack_a_test_dominant_pole():
+    # Issue #16 (nrwl/nx, HIGH): the `eslint-no-cache` whole-log leaf must NOT crown the MEASURED
+    # CAUSE of a TEST-dominant pole nor pin its full ceiling on a lint-cache fix. The leaf's category
+    # (`scan`) contradicts the pole's measured `dominant_category` (`test`), so it demotes to a
+    # secondary observation and the pole falls back to its generic dominant-step hand-off.
+    doc, logs = _nx_offcategory_doc()
+    # Fixture sanity: the log IS a true hijack shape (the eslint detector fires on the joined log)...
+    assert bp._parse_log(logs["Run Checks"]) is not None
+    assert bp._parse_log(logs["Run Checks"])["fix_key"] == "eslint-no-cache"
+    # ...and the demotion helper agrees this leaf is off-category for a test-dominant pole.
+    kept, demoted = bp._demote_offcategory_leaf(bp._parse_log(logs["Run Checks"]),
+                                                doc["pr_critical_path"]["poles"][0])
+    assert kept is None and demoted is not None, "an off-category leaf must be demoted, not crowned"
+
+    out = bp.render(doc, logs)
+    # The eslint leaf is NOT crowned: no crown marker for it, and its FIX_META cause prose (the
+    # matched-cause prompt) never renders — the pole's ceiling is not pinned on the lint fix.
+    assert "ci-speedup:leaf-crown fix_key=eslint-no-cache" not in out, \
+        "an off-category eslint leaf must not crown the pole's MEASURED CAUSE"
+    assert "re-analyses every file every run" not in out, \
+        "the eslint FIX_META cause (matched-cause prompt) must not render for a demoted leaf"
+    # It IS kept as a labelled secondary observation (never a silent drop), with its evidence.
+    assert "ci-speedup:offcategory-leaf" in out
+    assert "Secondary observation" in out
+    assert "eslint" in out
+    # The pole falls back to the generic dominant-step hand-off, pointing at the MEASURED dominant
+    # step (the combined step), not the lint cache.
+    assert "investigate the dominant step" in out
+    assert "Run Checks/Lint/Test/Build" in out
+
+
+def test_offcategory_guard_keeps_a_legitimate_same_category_leaf():
+    # Discriminator: the guard must NOT demote a leaf whose category AGREES with the pole's dominant
+    # category. A genuinely lint-dominant pole (dominant step `Lint`, category `scan`) keeps the
+    # eslint crown — proving the fix demotes on the measured contradiction, not on eslint per se.
+    doc, logs = _nx_offcategory_doc()
+    pole = doc["pr_critical_path"]["poles"][0]
+    pole["dominant_category"] = "scan"
+    pole["dominant_step"] = "Lint"
+    pole["steps"] = [{"step": "Lint", "category": "scan", "p50_s": 300.0},
+                     {"step": "Set up job", "category": "setup", "p50_s": 8.0}]
+    kept, demoted = bp._demote_offcategory_leaf(bp._parse_log(logs["Run Checks"]), pole)
+    assert kept is not None and demoted is None, "a same-category (lint-dominant) leaf must be kept"
+    out = bp.render(doc, logs)
+    assert "ci-speedup:leaf-crown fix_key=eslint-no-cache" in out, \
+        "a legitimately lint-dominant pole must keep the eslint crown"
+    assert "ci-speedup:offcategory-leaf" not in out
+
+
+def test_offcategory_sibling_token_demotes_a_typecheck_dominant_scan_pole():
+    # Issue #16 (sveltejs/svelte, HIGH) — the SIBLING-TOKEN half of the rule. Here the pole's
+    # measured dominant category IS `scan` (so a coarse-category check alone would keep the eslint
+    # crown), but the dominant STEP is a type-check (`svelte-check`), NOT the lint the eslint fix
+    # addresses. `_LEAF_DOMINANT_STEP_TOKEN` (eslint -> /lint/) must fire the demotion on the
+    # dominant-step token mismatch. This is the case the plain category check CANNOT catch — without
+    # the token branch this pole would wrongly crown a lint-cache fix on a type-check-dominated pole.
+    doc, logs = _nx_offcategory_doc()
+    pole = doc["pr_critical_path"]["poles"][0]
+    pole["dominant_category"] = "scan"          # scan IS dominant — category agreement alone passes
+    pole["dominant_step"] = "svelte-check"      # ...but the dominant STEP is a type-check, not lint
+    pole["steps"] = [{"step": "svelte-check", "category": "scan", "p50_s": 300.0},
+                     {"step": "Set up job", "category": "setup", "p50_s": 8.0}]
+    leaf = bp._parse_log(logs["Run Checks"])
+    assert leaf and leaf["fix_key"] == "eslint-no-cache"          # fixture sanity: eslint fires
+    # The token branch — NOT the category branch — must be what demotes here: category agrees (scan).
+    assert bp._offcategory_leaf(leaf, pole) is True, \
+        "a scan-dominant pole whose dominant step is a type-check must demote the eslint leaf"
+    kept, demoted = bp._demote_offcategory_leaf(leaf, pole)
+    assert kept is None and demoted is not None
+    out = bp.render(doc, logs)
+    assert "ci-speedup:leaf-crown fix_key=eslint-no-cache" not in out, \
+        "the eslint leaf must not crown a type-check-dominant pole (sibling-token demotion)"
+    assert "ci-speedup:offcategory-leaf" in out
+    assert "investigate the dominant step" in out
+    assert "svelte-check" in out
+
+
+def test_demoted_offcategory_pole_does_not_pull_an_llm_gap_fill():
+    # A demoted pole is NOT a coverage gap: a detector DID match its log, so it must fall back to the
+    # generic dominant-step hand-off, NOT the LLM gap-fill (which is only for poles no detector
+    # recognized). The `offcat_leaf is None` term in render's `analysis` guard is load-bearing here.
+    doc, logs = _nx_offcategory_doc()                            # test-dominant pole, eslint leaf -> demoted
+    analysis = {"cause": "SENTINEL-LLM-CAUSE the runner re-clones the world each run.",
+                "breakdown": [["clone", "~30s"]], "evidence": ["fetching 200000 objects"],
+                "prompt": "SENTINEL-LLM-PROMPT investigate the clone."}
+    out = bp.render(doc, logs, analyses={"Run Checks": analysis})
+    assert "ci-speedup:offcategory-leaf" in out                 # the leaf demoted, as designed
+    assert "🤖 LLM root-cause analysis" not in out, \
+        "a demoted pole matched a detector — it must not pull an LLM gap-fill"
+    assert "SENTINEL-LLM-CAUSE" not in out and "SENTINEL-LLM-PROMPT" not in out
+    # Positive control: the SAME pole with a log that matches NO detector (no eslint) is a true
+    # coverage gap, so the gap-fill DOES render — proving the suppression above is caused by the
+    # demoted leaf, not by the analysis simply never rendering in this fixture.
+    out2 = bp.render(doc, {"Run Checks": "> nx affected --target=test\nPASS 41200ms\n"},
+                     analyses={"Run Checks": analysis})
+    assert "ci-speedup:offcategory-leaf" not in out2
+    assert "🤖 LLM root-cause analysis" in out2 and "SENTINEL-LLM-CAUSE" in out2
+
+
+def test_offcategory_leaf_fails_open_without_a_measured_contradiction():
+    # `_offcategory_leaf` must NEVER demote without a measured contradiction to point at — it fails
+    # OPEN (keep the crown) on a missing/unknown category or a pole with no decomposition. The
+    # missing-`dominant_category` case is the load-bearing one: a pole from a legacy findings doc that
+    # predates step decomposition must keep its crown, not be silently demoted on absence.
+    doc, logs = _nx_offcategory_doc()
+    leaf = bp._parse_log(logs["Run Checks"])
+    pole = doc["pr_critical_path"]["poles"][0]
+    p_nodom = {k: v for k, v in pole.items() if k != "dominant_category"}
+    assert bp._offcategory_leaf(leaf, p_nodom) is False, \
+        "a pole with no measured dominant_category must keep its crown (fail open)"
+    kept, demoted = bp._demote_offcategory_leaf(leaf, p_nodom)
+    assert kept is not None and demoted is None
+    assert bp._offcategory_leaf({"fix_key": "not-a-real-detector"}, pole) is False, \
+        "an unmapped fix_key has no known category to contradict — keep the crown"
+    assert bp._offcategory_leaf(None, pole) is False             # no leaf -> nothing to demote
+
+
+def test_spine_rare_presence_clause_guards_always_present_frequency_demoted_leg():
+    # Finding 2 guard: the presence-MINORITY clause in `_opt_in_rare_check` is load-bearing on the
+    # modern `pole_n` path. A matrix leg that is FREQUENCY-demoted (`pole_n == 0` — rarely the single
+    # slowest) but present on EVERY PR is genuinely on the critical path each PR (a sibling gates),
+    # so its real wall-clock lever must STAY on-path — it must NOT be stamped `spine_rare`. Only a
+    # check present on a MINORITY of PRs is opt-in/rare. Deleting the presence clause (reducing the
+    # test to `not _typical_check`) would wrongly stamp the always-present leg — this test FAILS then.
+    always_leg = "build (3.10, windows-latest)"   # pole_n 0 but present 11/11 — NOT opt-in
+    minority = "Heavy conditional suite"           # pole_n 0 AND present 4/11 — opt-in/rare
+    checks = [
+        {"name": "lint", "p50_s": 100.0, "present_on": 11, "pole_n": 11, "workflow_file": "ci.yml"},
+        {"name": always_leg, "p50_s": 900.0, "present_on": 11, "pole_n": 0, "workflow_file": "ci.yml"},
+        {"name": minority, "p50_s": 1300.0, "present_on": 4, "pole_n": 0,
+         "workflow_file": "heavy.yml"},
+    ]
+    # 7 PRs run lint + build leg; 4 also run the minority suite. npop=11, present: lint 11,
+    # build-leg 11, minority 4. All checks carry `pole_n` → the modern pole-frequency path is active.
+    pops = ([[0.05, [["lint", 100.0], [always_leg, 900.0]]] for _ in range(7)]
+            + [[0.05, [["lint", 100.0], [always_leg, 900.0], [minority, 1300.0]]] for _ in range(4)])
+    doc = {"pr_critical_path": {
+        "critical_path_check": "lint", "critical_path_s": 100.0,
+        "checks": checks, "check_present_n_pr": 11, "populations": pops,
+        "poles": [{"check": "lint", "p50_s": 100.0, "workflow_file": "ci.yml", "job": "lint"}],
+    }, "findings": [
+        {"id": "leg", "pattern": "OPT73", "severity": "MEDIUM", "title": "Redundant Build Setup",
+         "line": 5, "workflow_file": "ci.yml", "affected_jobs": [always_leg],
+         "runner_min_saving": 0, "wall_clock_p50_s": 300.0},
+        {"id": "min", "pattern": "OPT24", "severity": "HIGH", "title": "Long Test Job Without Sharding",
+         "line": 8, "workflow_file": "heavy.yml", "affected_jobs": [minority],
+         "runner_min_saving": 0, "wall_clock_p50_s": 400.0},
+    ]}
+    bp.render(doc)
+    leg_f = next(f for f in doc["findings"] if f["id"] == "leg")
+    min_f = next(f for f in doc["findings"] if f["id"] == "min")
+    # The always-present frequency-demoted leg must NOT be stamped (presence clause keeps it on-path).
+    assert not leg_f.get("spine_rare"), \
+        "an always-present (frequency-demoted) leg must NOT be demoted opt-in — its lever stays on-path"
+    # The true minority-present check MUST be stamped opt-in/rare.
+    assert min_f.get("spine_rare") is True, "a minority-present check must be stamped spine_rare"
+
+
+def test_spine_rare_kept_guard_does_not_demote_a_job_also_on_the_typical_path():
+    # KEPT-GUARD: a finding whose job maps to BOTH a typical check AND a rare check is genuinely on
+    # the typical path (a sibling matrix leg gates every PR), so its wall-clock lever legitimately
+    # "sits ON the critical path" — stamping `spine_rare` would wrongly strip that on-path framing.
+    # `_stamp_spine_rare` stamps only when ALL matched checks are opt-in/rare. Even after Finding 1's
+    # decoupling (spine_rare no longer touches coverage) this still guards the APPENDIX framing.
+    typ = "test (ubuntu-latest)"   # present on every PR — typical
+    rare = "test (windows-latest)"  # minority-present — opt-in/rare
+    checks = [
+        {"name": "lint", "p50_s": 100.0, "present_on": 11, "workflow_file": "ci.yml"},
+        {"name": typ, "p50_s": 800.0, "present_on": 11, "workflow_file": "ci.yml"},
+        {"name": rare, "p50_s": 900.0, "present_on": 4, "workflow_file": "ci.yml"},
+    ]
+    pops = ([[0.05, [["lint", 100.0], [typ, 800.0]]] for _ in range(7)]
+            + [[0.05, [["lint", 100.0], [typ, 800.0], [rare, 900.0]]] for _ in range(4)])
+    doc = {"pr_critical_path": {
+        "critical_path_check": "lint", "critical_path_s": 100.0,
+        "checks": checks, "check_present_n_pr": 11, "populations": pops,
+        "poles": [{"check": "lint", "p50_s": 100.0, "workflow_file": "ci.yml", "job": "lint"}],
+    }, "findings": [
+        # Routed to the UNEXPANDED matrix base `test` → matches BOTH legs (one typical, one rare).
+        {"id": "f1", "pattern": "OPT24", "severity": "HIGH", "title": "Long Test Job",
+         "line": 5, "workflow_file": "ci.yml", "affected_jobs": ["test"],
+         "runner_min_saving": 0, "wall_clock_p50_s": 400.0},
+    ]}
+    bp.render(doc)
+    assert not doc["findings"][0].get("spine_rare"), \
+        "a job that also maps to a typical check must NOT be demoted opt-in (kept-guard)"
+
+
+def test_spine_rare_demotes_a_cross_workflow_name_collision_with_a_rare_check():
+    # NAME-level (formerly `_wf_conflict`-guarded to the OPPOSITE): GitHub gives same-named jobs in
+    # different workflows IDENTICAL check-run names (`Python 3.13` in two workflows). The spine
+    # footnote demotes the NAME `Python 3.13` as opt-in/rare, and the reader can't tell which
+    # workflow's `Python 3.13` a later "sits ON the merge-gating critical path" note is about — so a
+    # finding on that job in ANY workflow must be stamped `spine_rare`, or the appendix double-frames
+    # the same NAME the footnote calls opt-in on-path (the tauri `test (macos-latest)` class, the
+    # cross-workflow arm). The stamp join is NAME-level — it does NOT skip `_wf_conflict` — so this
+    # matches what `check_dropped_check_not_framed_on_path` enforces. Over-stamping here only makes
+    # the appendix MORE conservative (drop an on-path claim for a name the footnote already demotes);
+    # it can never manufacture the opposite contradiction, and it never touches catalog coverage.
+    checks = [
+        {"name": "lint", "p50_s": 100.0, "present_on": 11, "workflow_file": "a.yml"},
+        # A rare check in a DIFFERENT workflow that shares the finding's job name.
+        {"name": "Python 3.13", "p50_s": 900.0, "present_on": 4, "workflow_file": "b.yml"},
+    ]
+    pops = ([[0.05, [["lint", 100.0]]] for _ in range(7)]
+            + [[0.05, [["lint", 100.0], ["Python 3.13", 900.0]]] for _ in range(4)])
+    doc = {"pr_critical_path": {
+        "critical_path_check": "lint", "critical_path_s": 100.0,
+        "checks": checks, "check_present_n_pr": 11, "populations": pops,
+        "poles": [{"check": "lint", "p50_s": 100.0, "workflow_file": "a.yml", "job": "lint"}],
+    }, "findings": [
+        # Finding lives in a.yml; its job name collides with b.yml's rare check. The footnote
+        # demotes the NAME, so the on-path framing must be suppressed regardless of workflow file.
+        {"id": "f1", "pattern": "OPT73", "severity": "MEDIUM", "title": "Redundant Setup",
+         "line": 5, "workflow_file": "a.yml", "affected_jobs": ["Python 3.13"],
+         "runner_min_saving": 0, "wall_clock_p50_s": 400.0},
+    ]}
+    bp.render(doc)
+    assert doc["findings"][0].get("spine_rare") is True, \
+        "a finding on a NAME the footnote demotes as opt-in/rare must be spine_rare even across workflows"
+    assert bp._frames_on_path(doc["findings"][0]) is False, \
+        "the appendix must not frame a footnote-demoted NAME on-path"
+
+
+# --- tauri regression: `test (macos-latest)` framed on the merge-gating path while demoted -------
+# The dogfood `check_dropped_check_not_framed_on_path` FAIL on tauri-apps/tauri had TWO renderer
+# gaps, both leaving the RARE leg `test (macos-latest)` framed on-path while the footnote demotes
+# it as opt-in: (1) `_stamp_spine_rare` folded a DISTINCT typical sibling leg (`test
+# (windows-latest)`) into a single-leg rare finding's match set, so the KEPT-GUARD wrongly declined
+# the stamp; and (2) an on-path cluster (OPT73) finding's `**Where:**` LED with the rare sibling
+# leg (`affected_jobs[0]`) even though its on-path claim rests on the typical leg. Both are fixed to
+# be NAME-level and on-path-leg-first respectively.
+def _tauri_shape_checks() -> list[dict]:
+    # windows: typical (pole_n 5); macos + ubuntu: minority-present, never the single slowest
+    # (pole_n 0) → opt-in/rare. lint: the always-present gate.
+    return [
+        {"name": "lint", "p50_s": 100.0, "present_on": 20, "pole_n": 20, "workflow_file": "ci.yml"},
+        {"name": "test (windows-latest)", "p50_s": 900.0, "present_on": 8, "pole_n": 5,
+         "workflow_file": "test.yml"},
+        {"name": "test (macos-latest)", "p50_s": 800.0, "present_on": 5, "pole_n": 0,
+         "workflow_file": "test.yml"},
+        {"name": "test (ubuntu-latest)", "p50_s": 700.0, "present_on": 5, "pole_n": 0,
+         "workflow_file": "test.yml"},
+    ]
+
+
+def _tauri_shape_pops() -> list:
+    # npop 20: 12 lint-only; 3 lint+windows; 5 lint+windows+macos+ubuntu (windows is the pole
+    # whenever the test cluster runs). windows present 8, macos/ubuntu present 5.
+    W, M, U, L = "test (windows-latest)", "test (macos-latest)", "test (ubuntu-latest)", "lint"
+    return ([[0.05, [[L, 100.0]]] for _ in range(12)]
+            + [[0.05, [[L, 100.0], [W, 900.0]]] for _ in range(3)]
+            + [[0.05, [[L, 100.0], [W, 900.0], [M, 800.0], [U, 700.0]]] for _ in range(5)])
+
+
+def _tauri_shape_doc(findings: list[dict]) -> dict:
+    return {"pr_critical_path": {
+        "critical_path_check": "lint", "critical_path_s": 100.0,
+        "checks": _tauri_shape_checks(), "check_present_n_pr": 20, "populations": _tauri_shape_pops(),
+        "poles": [{"check": "lint", "p50_s": 100.0, "workflow_file": "ci.yml", "job": "lint"}],
+    }, "findings": findings}
+
+
+def test_spine_rare_stamps_exact_rare_leg_despite_typical_sibling_leg():
+    # ARM 1 (the `_same_matrix` fold): a finding on the EXACT rare leg `test (macos-latest)` — with
+    # a TYPICAL sibling leg `test (windows-latest)` in the same matrix/workflow — must be stamped
+    # spine_rare. The old `_hits` matched the sibling via `_same_matrix` and the KEPT-GUARD then
+    # declined the stamp, leaving the rare leg framed "sits ON the critical path" (the contradiction).
+    doc = _tauri_shape_doc([
+        {"id": "f1", "pattern": "OPT24", "severity": "HIGH", "title": "Long Test Job Without Sharding",
+         "line": 5, "workflow_file": "test.yml", "affected_jobs": ["test (macos-latest)"],
+         "runner_min_saving": 0, "wall_clock_p50_s": 400.0},
+    ])
+    out = bp.render(doc)
+    assert doc["findings"][0].get("spine_rare") is True, \
+        "the exact rare leg must be demoted even when a typical sibling leg shares its matrix base"
+    assert bp._frames_on_path(doc["findings"][0]) is False
+    assert "sits ON the merge-gating critical path" not in out
+
+
+def test_on_path_cluster_where_leads_with_on_path_leg_not_rare_sibling():
+    # ARM 2 (the `**Where:**` lead): an OPT73 cluster finding is genuinely on-path via its TYPICAL
+    # leg `test (windows-latest)`, so it is NOT stamped spine_rare and IS framed on-path — correct.
+    # But its `affected_jobs` LEADS with the rare `test (macos-latest)`; the on-path `**Where:**`
+    # must display the typical (on-path) leg, never the demoted sibling (which the footnote calls
+    # opt-in) — else the reader sees the demoted NAME framed on the critical path.
+    doc = _tauri_shape_doc([
+        {"id": "c1", "pattern": "OPT73", "severity": "HIGH",
+         "title": "Shared step recurs across the cluster",
+         "line": 5, "workflow_file": "test.yml",
+         "affected_jobs": ["test (macos-latest)", "test (windows-latest)"],
+         "evidence": "the `test` step is 90% of the slowest cluster job `test (windows-latest)`",
+         "runner_min_saving": 100, "wall_clock_p50_s": 400.0},
+    ])
+    out = bp.render(doc)
+    f = doc["findings"][0]
+    assert not f.get("spine_rare"), "a cluster on-path via a typical leg must NOT be demoted"
+    assert bp._frames_on_path(f) is True, "it legitimately sits on the critical path (typical leg)"
+    # The on-path appendix `**Where:**` line names the typical leg, NOT the demoted rare sibling.
+    where = next(ln for ln in out.splitlines()
+                 if ln.startswith("**Where:**") and "test.yml" in ln)
+    assert "test (windows-latest)" in where, "the on-path Where must lead with the on-path leg"
+    assert "test (macos-latest)" not in where, \
+        "the on-path Where must NOT name the footnote-demoted rare sibling leg"
+
+
+def _spine_dropped_check_line(report: str, findings_path: Path) -> str:
+    """Run verify_report.py's CLI and return the `no spine-dropped check …` check line (tag +
+    message) — the actual invariant that failed on tauri, tied to the SAME rendered bytes."""
+    import subprocess
+    verify = Path(__file__).resolve().parent / "verify_report.py"
+    rp = findings_path.parent / "report-2026-05-29.md"
+    rp.write_text(report, encoding="utf-8")
+    out = subprocess.run(
+        [sys.executable, str(verify), "--report", str(rp), "--findings", str(findings_path)],
+        capture_output=True, text=True).stdout
+    for ln in out.splitlines():
+        if "no spine-dropped check is also framed on the merge-gating critical path" in ln:
+            return ln
+    raise AssertionError(f"no spine-dropped check line in verify_report output:\n{out}")
+
+
+def test_rendered_tauri_shape_passes_the_spine_dropped_verify_gate_end_to_end(tmp_path: Path):
+    # End-to-end coupling: render BOTH arms through bp.render() and feed the real bytes to the real
+    # `check_dropped_check_not_framed_on_path` gate — the invariant that FAILED on tauri. On the
+    # pre-fix renderer this render frames `test (macos-latest)` on-path (both a single rare leg and
+    # a cluster Where lead) and the gate FAILs; after the fix it PASSes.
+    doc = _tauri_shape_doc([
+        {"id": "f1", "pattern": "OPT24", "severity": "HIGH", "title": "Long Test Job Without Sharding",
+         "line": 5, "workflow_file": "test.yml", "affected_jobs": ["test (macos-latest)"],
+         "runner_min_saving": 0, "wall_clock_p50_s": 400.0},
+        {"id": "x1", "pattern": "OPT24", "severity": "HIGH", "title": "Long Test Job Without Sharding",
+         "line": 7, "workflow_file": "other.yml", "affected_jobs": ["test (macos-latest)"],
+         "runner_min_saving": 0, "wall_clock_p50_s": 400.0},
+        {"id": "c1", "pattern": "OPT73", "severity": "HIGH",
+         "title": "Shared step recurs across the cluster",
+         "line": 5, "workflow_file": "test.yml",
+         "affected_jobs": ["test (macos-latest)", "test (windows-latest)"],
+         "evidence": "the `test` step is 90% of the slowest cluster job `test (windows-latest)`",
+         "runner_min_saving": 100, "wall_clock_p50_s": 400.0},
+    ])
+    out = bp.render(doc)
+    fp = tmp_path / "findings.json"
+    fp.write_text(json.dumps(doc), encoding="utf-8")
+    line = _spine_dropped_check_line(out, fp)
+    assert line.startswith("PASS"), \
+        f"a footnote-demoted leg must not be framed on the merge-gating path:\n{line}"
+
+
+def test_dropped_check_gets_one_off_path_framing_and_passes_verify(tmp_path: Path):
+    doc = _doc_one_pole()
+    doc["skill_commit_sha"] = "abc1234"
+    doc["pr_critical_path"]["dropped_non_required_checks"] = ["integration"]
+    doc["findings"] = [{
+        "id": "f1", "pattern": "OPT24", "severity": "HIGH",
+        "title": "Long Test Job Without Sharding",
+        "workflow_file": ".github/workflows/integration.yml", "line": 8,
+        "affected_jobs": ["integration"],
+        "runner_min_saving": 0, "wall_clock_p50_s": 400.0,
+    }]
+
+    out = bp.render(doc)
+    fp = tmp_path / "findings.json"
+    fp.write_text(json.dumps(doc), encoding="utf-8")
+    line = _spine_dropped_check_line(out, fp)
+    assert line.startswith("PASS"), line
+
+    # The whole self-check passes, not just the framing invariant: the report is saveable.
+    import subprocess
+    rp = tmp_path / "report-2026-06-08.md"
+    rp.write_text(out, encoding="utf-8")
+    verify = Path(__file__).resolve().parent / "verify_report.py"
+    res = subprocess.run(
+        [sys.executable, str(verify), "--report", str(rp), "--findings", str(fp)],
+        capture_output=True, text=True)
+    fails = [ln for ln in res.stdout.splitlines() if ln.startswith("FAIL")]
+    assert res.returncode == 0 and not fails, "\n".join(fails) or res.stdout[-2000:]
+
+    appendix = out.split("## 🧹 Also noticed - residual hygiene", 1)[1]
+    assert appendix.count("off the merge-gating critical path, so ~0 developer wall-clock") == 1
+    assert "sits ON the merge-gating critical path" not in appendix
+
+
+def test_dropped_job_does_not_demote_a_finding_that_also_covers_a_kept_job(tmp_path: Path):
+    doc = _doc_one_pole()
+    doc["pr_critical_path"]["dropped_non_required_checks"] = ["integration"]
+    doc["findings"] = [{
+        "id": "f1", "pattern": "OPT24", "severity": "HIGH",
+        "title": "Long Test Job Without Sharding",
+        "workflow_file": ".github/workflows/pipeline.yml", "line": 8,
+        "affected_jobs": ["integration", "tests-web"],
+        "runner_min_saving": 0, "wall_clock_p50_s": 400.0,
+    }]
+
+    out = bp.render(doc)
+    assert not doc["findings"][0].get("off_spine")
+    appendix = out.split("## 🧹 Also noticed - residual hygiene", 1)[1]
+    assert "sits ON the merge-gating critical path" in appendix
+    where = next(line for line in appendix.splitlines() if line.startswith("**Where:**"))
+    assert "tests-web" in where
+    assert "integration" not in where
+    fp = tmp_path / "findings.json"
+    fp.write_text(json.dumps(doc), encoding="utf-8")
+    line = _spine_dropped_check_line(out, fp)
+    assert line.startswith("PASS"), line
+
+
+def test_render_excludes_pole_job_from_also_noticed_appendix():
+    # Class A #5: a catalog finding on a job that is ALSO drilled as a long pole must NOT appear in
+    # the "Also noticed" off-path appendix (the pole already headlines it as the biggest lever).
+    # OPT24 on `main.yml` (pytest-torch) sits on the pole job; an OPT45 on a different job stays.
+    checks = [
+        {"name": "pytest-torch (ubuntu, 3.10)", "p50_s": 1500.0, "present_on": 10, "workflow_file": "main.yml"},
+        {"name": "lint", "p50_s": 50.0, "present_on": 10, "workflow_file": "main.yml"},
+    ]
+    pops = [[0.1, [["pytest-torch (ubuntu, 3.10)", 1500.0], ["lint", 50.0]]] for _ in range(10)]
+    doc = {"pr_critical_path": {
+        "critical_path_check": "pytest-torch (ubuntu, 3.10)", "critical_path_s": 1500.0,
+        "checks": checks, "check_present_n_pr": 10, "populations": pops,
+        "poles": [{"check": "pytest-torch (ubuntu, 3.10)", "p50_s": 1500.0,
+                   "workflow_file": "main.yml", "job": "pytest-torch (ubuntu, 3.10)"}],
+    }, "findings": [
+        {"id": "f1", "pattern": "OPT24", "severity": "HIGH", "title": "Long Test Job Without Sharding",
+         "workflow_file": "main.yml", "affected_jobs": ["pytest-torch"], "runner_min_saving": 0},
+        {"id": "f2", "pattern": "OPT45", "severity": "LOW", "title": "Missing Concurrency Groups",
+         "workflow_file": "main.yml", "affected_jobs": ["lint"], "runner_min_saving": 120},
+    ]}
+    out = bp.render(doc)
+    assert "OPT24" not in out, "a finding on the drilled-pole job must be excluded from 'Also noticed'"
+    assert "OPT45" in out, "a finding on a non-pole job must still appear in 'Also noticed'"
+
+
+def test_render_workflow_gate_frequency_sums_all_legs():
+    # Class A #2: a workflow's "gates N/M PRs" = how often ANY of its checks is the per-PR slowest,
+    # summed over ALL its legs — not just the representative pole. `validate.yml` holds the pole via
+    # leg `val (a)` on 3 PRs and sibling leg `val (b)` on 2 → 5/10, even though only one leg is the
+    # rendered representative. Pre-#2 (sum over representative poles) this rendered 3/10.
+    checks = [
+        {"name": "val (a)", "p50_s": 500.0, "present_on": 5, "workflow_file": "validate.yml"},
+        {"name": "val (b)", "p50_s": 480.0, "present_on": 5, "workflow_file": "validate.yml"},
+        {"name": "other", "p50_s": 50.0, "present_on": 10, "workflow_file": "other.yml"},
+    ]
+    pops = []
+    for _ in range(3):
+        pops.append([0.1, [["val (a)", 500.0], ["val (b)", 100.0], ["other", 50.0]]])   # (a) slowest
+    for _ in range(2):
+        pops.append([0.1, [["val (b)", 480.0], ["val (a)", 100.0], ["other", 50.0]]])   # (b) slowest
+    for _ in range(5):
+        pops.append([0.1, [["other", 50.0]]])                                            # neither leg
+    doc = {"pr_critical_path": {
+        "critical_path_check": "val (a)", "critical_path_s": 500.0,
+        "checks": checks, "check_present_n_pr": 10, "populations": pops,
+        "poles": [{"check": "val (a)", "p50_s": 500.0, "workflow_file": "validate.yml", "job": "validate"}],
+    }}
+    out = bp.render(doc)
+    assert re.search(r"`validate\.yml` gates 5/10 PRs", out), \
+        "per-workflow gate frequency must sum both legs (5/10), not just the representative (3/10)"
+
+
+def test_render_floors_against_heavy_minority_check_not_just_typical():
+    # Class A #6: the floor pool is the FULL concurrent set, not the typical-PR chart. A pole's floor
+    # must be a heavy check that co-occurs on a majority of its gating PRs even if that check runs on
+    # a MINORITY of all PRs (so it's not "typical"). `deploy` (on every PR) is gated by `heavy` (on
+    # half the PRs, slower than every typical check); the floor note must name `heavy`, not `lint`.
+    # `render()` derives `typical` internally from `checks` + `present_on` — `heavy`'s present_on=5
+    # fails the strict-majority test (5 > 10×0.5 is False), so PRE-#6 (floor pool = `src` = typical)
+    # `heavy` was excluded from the floor pool entirely; the split floor_pool (all checks) restores it.
+    checks = [
+        {"name": "deploy", "p50_s": 1000.0, "present_on": 10, "workflow_file": "ci.yml"},
+        {"name": "heavy", "p50_s": 780.0, "present_on": 5, "workflow_file": "ci.yml"},   # minority, the real floor
+        {"name": "lint", "p50_s": 200.0, "present_on": 10, "workflow_file": "ci.yml"},
+    ]
+    pops = []
+    for i in range(10):                     # 10 PRs; deploy slowest on all; heavy co-occurs on 6 (a majority)
+        row = [["deploy", 1000.0], ["lint", 200.0]]
+        if i < 6:
+            row.insert(1, ["heavy", 780.0])
+        pops.append([0.1, row])
+    doc = {"pr_critical_path": {
+        "critical_path_check": "deploy", "critical_path_s": 1000.0,
+        "checks": checks, "check_present_n_pr": 10, "populations": pops,
+        "poles": [{"check": "deploy", "p50_s": 1000.0, "workflow_file": "ci.yml", "job": "deploy"}],
+    }}
+    out = bp.render(doc)
+    assert "`heavy`" in out, "the heavy minority check must be named as the floor"
+    assert re.search(r"biggest single measured win is \*\*~3m 40s\*\*", out), \
+        "addressable win must be pole(1000s) - heavy(780s) = 3m 40s, not pole - lint"
+
+
+# --------------------------------------------------------------------------- #
+# _parse_log — one assertion per leaf detector + the negative case
+# --------------------------------------------------------------------------- #
+
+def test_parse_log_detects_prisma_per_file_migrations():
+    # Realistic structure: each file prints its per-file migration total then its ✓
+    # summary, files one after another.
+    log = "\n".join([
+        "   Total Migration Time: 303057.44ms",
+        " ✓ prisma.mysql.test.ts (446 tests | 9 skipped) 579553ms",
+        "   Total Migration Time: 150000.00ms",
+        " ✓ prisma.pg.test.ts (446 tests) 300000ms",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "prisma-migrate-once"
+    # Two deeper levels: the parallel test files, then migrations-vs-tests.
+    assert len(leaf["deeper"]) == 2
+    mig = next(r for r in leaf["deeper"][-1]["rows"] if "migration" in r[0].lower())
+    # The SLOWEST file's OWN migration total (303s of its 580s), not an average.
+    assert abs(mig[1] - 303.057) < 1.0
+    assert leaf["magnitude"]["value"] == round(100 * 303.05744 / 579.553, 2)  # ~52%
+    assert leaf["evidence"]  # verbatim proof present
+
+
+def test_prisma_migration_uses_slowest_files_own_total_not_cross_file_average():
+    # Regression: the slowest file (mysql, 400s) has a SMALL migration (80s); the
+    # other engines have huge ones. Averaging across files would wrongly inflate the
+    # share (~220s / 55%); it must use mysql's OWN 80s (20%).
+    log = "\n".join([
+        "   Total Migration Time: 300000.00ms",          # sqlite
+        " ✓ prisma.sqlite.test.ts (446 tests) 350000ms",
+        "   Total Migration Time: 280000.00ms",          # pg
+        " ✓ prisma.pg.test.ts (446 tests) 360000ms",
+        "   Total Migration Time: 80000.00ms",           # mysql (the slowest file)
+        " ✓ prisma.mysql.test.ts (446 tests) 400000ms",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "prisma-migrate-once"
+    mig = next(r for r in leaf["deeper"][-1]["rows"] if "migration" in r[0].lower())
+    assert abs(mig[1] - 80.0) < 1.0          # mysql's own 80s, NOT the ~220s average
+    assert leaf["magnitude"]["value"] == 20.0  # 80 / 400, NOT ~55%
+
+
+def test_parse_log_detects_vitest_istanbul_coverage():
+    log = "\n".join([
+        "$ vitest run --coverage --coverage.provider=istanbul",
+        " RUN  v4.1.5 /repo/packages/core",
+        "      Coverage enabled with istanbul",
+        " Duration  12.18s (transform 12.24s, setup 0ms, import 19.07s, tests 4.13s, environment 7ms)",
+        " RUN  v4.1.5 /repo/packages/web",
+        " Duration  19.30s (transform 7.03s, setup 0ms, import 14.25s, tests 32.56s, environment 0ms)",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "vitest-v8-coverage"
+    # Compile/load vs tests split is the root-cause level.
+    last = leaf["deeper"][-1]
+    assert any("transform" in r[0] for r in last["rows"])
+
+
+def test_vitest_coverage_guidance_requires_matched_provider_timing():
+    log = "\n".join([
+        "$ vitest run --coverage --coverage.provider=istanbul",
+        " RUN  v4.1.5 /repo/packages/core",
+        "      Coverage enabled with istanbul",
+        " Duration  12.18s (transform 12.24s, setup 0ms, import 19.07s, "
+        "tests 4.13s, environment 7ms)",
+        " RUN  v4.1.5 /repo/packages/web",
+        " Duration  19.30s (transform 7.03s, setup 0ms, import 14.25s, "
+        "tests 32.56s, environment 0ms)",
+    ])
+    leaf = bp._parse_log(log)
+
+    # Keep the existing detector and measured compile/load share while making the
+    # provider recommendation honest about what this single run can establish.
+    assert leaf is not None and leaf["fix_key"] == "vitest-v8-coverage"
+    assert leaf["magnitude"]["value"] == round(100 * 52.59 / (52.59 + 36.69), 2)
+    note = leaf["deeper"][-1]["blocker_note"].lower()
+    assert "caused by" not in note
+
+    pole = {
+        "check": "test", "workflow_file": ".github/workflows/ci.yml", "p50_s": 120.0,
+        "dominant_step": "test", "dominant_p50_s": 100.0, "dominant_share": 0.83,
+        "steps": [{"step": "test", "category": "test", "p50_s": 100.0}],
+    }
+    prompt = bp._build_agent_prompt(
+        leaf, pole, [], "https://example.invalid/actions/runs/1",
+        "example/repo", "abc1234", 5, 20, timeline=None)
+    guidance = prompt.lower()
+    assert "much cheaper" not in guidance
+    assert "time both providers on the same commit" in guidance
+    assert "coverage figures change" in guidance
+    assert "re-baseline thresholds" in guidance
+    assert "no provider-switch saving is credited" in guidance
+
+    architecture = (Path(__file__).resolve().parents[1] / "ARCHITECTURE.md").read_text()
+    catalog_row = next(
+        line for line in architecture.splitlines() if line.startswith("| `vitest-v8-coverage`")
+    )
+    assert "instruments every file" not in catalog_row.lower()
+    assert "measured" in catalog_row.lower()
+
+
+def test_parse_log_detects_vitest_import_bound_without_coverage():
+    # No coverage, and import dominates tests -> the import-bound leaf, NOT istanbul.
+    log = "\n".join([
+        " RUN  v4.1.4 /repo/web",
+        " Test Files  149 passed (149)",
+        " Duration  96.12s (transform 8.97s, setup 1.01s, import 245.03s, tests 214.54s, environment 8ms)",
+    ])
+    # OPT78: the leaf also needs the scanned config fact that the repo has NOT
+    # already opted out of per-file isolation — a log alone cannot establish that,
+    # so without it the leaf fails closed (tests/test_vitest_isolation_lever.py).
+    iso = {"runner": "vitest", "readable": True, "isolation_opt_out": False,
+           "truncated": False, "verdict": "isolation_on",
+           "configs": ["vitest.config.ts"], "opt_out_evidence": []}
+    leaf = bp._parse_log(log, iso)
+    assert leaf is not None and leaf["fix_key"] == "vitest-isolate-pool"
+    rows = leaf["deeper"][-1]["rows"]
+    assert rows[0][0].startswith("import")  # import is the blocker (first) row
+
+
+def test_parse_log_detects_turbo_cold_cache():
+    log = "\n".join([
+        "   • Remote caching disabled",
+        "cache miss, executing aaa",
+        "cache miss, executing bbb",
+        " Tasks:    149 successful, 149 total",
+        "Cached:    0 cached, 149 total",
+        "  Time:    9m48.772s",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "turbo-remote-cache"
+    rows = leaf["deeper"][-1]["rows"]
+    assert rows[0][0].startswith("rebuilt")  # 149 rebuilt, 0 restored
+    assert "Remote caching disabled" in "\n".join(leaf["evidence"])
+
+
+def test_parse_log_detects_turbo_cold_cache_with_remote_enabled():
+    # Second trigger: remote caching is ON (no "disabled" line) but the LOCAL cache
+    # is fully cold (0 cached) with >5 misses -> still a cold-cache root cause, and
+    # the note must NOT claim remote caching is disabled.
+    log = "\n".join(
+        [f"cache miss, executing pkg{i}" for i in range(6)]
+        + [" Tasks:    80 successful, 80 total",
+           "Cached:    0 cached, 80 total",
+           "  Time:    6m12.000s"])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "turbo-remote-cache"
+    note = leaf["deeper"][-1]["blocker_note"]
+    assert "0/80 cached" in note
+    assert "Remote caching DISABLED" not in note     # remote was not disabled here
+
+
+def test_parse_log_turbo_cold_cache_respects_the_miss_boundary():
+    # 5 misses (not >5) with remote caching enabled is below the threshold -> no leaf.
+    log = "\n".join(
+        [f"cache miss, executing pkg{i}" for i in range(5)]
+        + ["Cached:    0 cached, 80 total"])
+    assert bp._parse_log(log) is None
+
+
+def test_parse_log_detects_turbo_partial_cache_high_miss():
+    # Caching is ON and some packages hit, but most rebuild every run (62% miss here):
+    # a high partial-miss rate is cache-key churn, not normal per-PR change, so it
+    # drills as `turbo-partial-cache` (distinct from the fully-cold `turbo-remote-cache`).
+    log = "\n".join(
+        [f"cache miss, executing pkg{i}" for i in range(93)]
+        + [" Tasks:    150 successful, 150 total",
+           "Cached:    57 cached, 150 total",
+           "  Time:    7m11.858s"])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "turbo-partial-cache"
+    assert leaf["magnitude"]["value"] == 62.0 and leaf["magnitude"]["unit"] == "%"
+    note = leaf["deeper"][-1]["blocker_note"]
+    assert "57/150 cached" in note and "62% rebuilt" in note
+
+
+def test_parse_log_turbo_cold_cache_summary_driven_multi_invocation_and_bypass():
+    # The langfuse variant the LLM gap-fill first surfaced, now catalogued: a job runs
+    # TWO turbo invocations (db:migrate then build), the build prints NO per-task
+    # "cache miss" line (only "cache bypass, force executing") - so detection must (a)
+    # pick the summary of the SLOWEST invocation (build 0/6 @ 1m20s, not migrate 0/1 @
+    # 3s), and (b) treat the run-summary + "Remote caching disabled" as authoritative
+    # without needing >5 explicit miss lines.
+    log = "\n".join([
+        "$ turbo run db:migrate",
+        "   • Remote caching disabled",
+        " Tasks:    1 successful, 1 total",
+        "Cached:    0 cached, 1 total",
+        "  Time:    3.013s",
+        "$ turbo run build",
+        "   • Remote caching disabled",
+        "cache bypass, force executing 7ec18f29742f9e0f",
+        " Tasks:    6 successful, 6 total",
+        "Cached:    0 cached, 6 total",
+        "  Time:    1m20.171s",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "turbo-remote-cache"
+    # The BUILD summary (6 rebuilt) drives it, not the 1-task migrate.
+    assert leaf["magnitude"]["value"] == 100.0          # 6/6 rebuilt
+    note = leaf["deeper"][-1]["blocker_note"]
+    assert "0/6 cached" in note and "Remote caching DISABLED" in note
+    assert any("cache bypass, force executing" in e for e in leaf["evidence"])
+
+
+def test_parse_log_turbo_picks_the_slowest_invocation_not_the_most_rebuilt():
+    # expo/expo regression: a job runs THREE turbo invocations - a fast `prepare`
+    # (104/128), the DOMINANT `check` (127/356, 9m48.756s wall), and a separate `lint`
+    # (0/260, 4m40s wall). The check step is the one the drill renders under, but it is
+    # NOT the most-rebuilt summary - lint rebuilds all 260. Keying off most-rebuilt
+    # crowned the lint summary (0/260 = 100% miss, turbo-remote-cache), overstating the
+    # miss rate and contradicting the evidence block, which quotes the slow check build.
+    # The magnitude must come from the SLOWEST (gating) invocation, the 9m48s check.
+    log = "\n".join([
+        "$ turbo run prepare",
+        " Tasks:    128 successful, 128 total",
+        "Cached:    104 cached, 128 total",
+        "  Time:    45.0s",
+        "$ turbo run check",
+        *[f"cache miss, executing check-pkg{i}" for i in range(12)],
+        " Tasks:    356 successful, 356 total",
+        "Cached:    127 cached, 356 total",
+        "  Time:    9m48.756s",
+        "$ turbo run lint",
+        *[f"cache miss, executing lint-pkg{i}" for i in range(12)],
+        " Tasks:    260 successful, 260 total",
+        "Cached:    0 cached, 260 total",
+        "  Time:    4m40.000s",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None
+    # The slow `check` block (127 cached of 356 → 229 rebuilt = 64% miss) drives it, NOT
+    # the cold `lint` (0 cached of 260 → 100% miss).
+    assert leaf["fix_key"] == "turbo-partial-cache"
+    assert leaf["magnitude"]["value"] == round(100 * 229 / 356, 2)   # 64.33%, not 100%
+    rebuilt_row, restored_row = leaf["deeper"][-1]["rows"]
+    assert rebuilt_row[1] == 229 and restored_row[1] == 127
+    # Evidence must quote the SAME (gating) summary the magnitude came from, never the
+    # cold lint block - the two halves of the finding agree.
+    joined_ev = "\n".join(leaf["evidence"])
+    assert "127 cached, 356 total" in joined_ev
+    assert "0 cached, 260 total" not in joined_ev
+
+
+def test_parse_log_turbo_partial_cache_ignores_a_normal_low_miss_rate():
+    # A few misses (the packages a PR actually changed) is normal, NOT churn: 10/150
+    # = 6.7% miss is below the 40% floor -> no leaf (don't cry wolf on healthy caching).
+    log = "\n".join(
+        [f"cache miss, executing pkg{i}" for i in range(10)]
+        + [" Tasks:    150 successful, 150 total",
+           "Cached:    140 cached, 150 total",
+           "  Time:    1m30.000s"])
+    assert bp._parse_log(log) is None
+
+
+def test_parse_log_turbo_does_not_fire_on_full_local_cache_hit():
+    # "Remote caching disabled" but the LOCAL cache fully hit (0 misses) is benign -
+    # must NOT headline a cold cache. (Guards the remote_off & miss>0 fix.)
+    log = "\n".join([
+        "   • Remote caching disabled",
+        " Tasks:    149 successful, 149 total",
+        "Cached:    149 cached, 149 total",
+        "  Time:    8.2s",
+    ])
+    assert bp._parse_log(log) is None
+
+
+def test_parse_log_detects_buildx_no_persistent_cache():
+    # A `docker buildx build` with NO `--cache-from`/`--cache-to` backend: BuildKit
+    # prints `#NN [stage] RUN|FROM …` headers + matching `#NN DONE <secs>s`, every
+    # step cold (zero `CACHED` lines). The slowest cold layer's share of the build
+    # wall is the load-bearing magnitude. `cache-binary` is the `docker/setup-buildx-action`
+    # default (caches the binary, not the layers) and must NOT count as a cache backend.
+    log = "\n".join([
+        "  cache-binary: true",
+        "[command]/usr/bin/docker buildx build --output type=local,dest=/tmp/out "
+        "--platform linux/amd64 --target publish-server .",
+        "#6 [base 1/2] FROM docker.io/example/base:1.0@sha256:abc",
+        "#6 DONE 80.0s",
+        "#10 [deps 1/1] RUN pkg install -y heavy-toolkit",
+        "#10 DONE 180.0s",
+        "#14 [server 4/4] RUN --mount=type=cache,target=/root/.ccache cmake --build .",
+        "#14 DONE 600.0s",
+        "#15 [publish 1/1] COPY --from=server dist /out",
+        "#15 DONE 0.5s",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "buildx-no-cache"
+    # cold-layer wall = 80 + 180 + 600 + 0.5 = 860.5s. RUN/FROM/COPY/ADD all build
+    # CACHEABLE layers (a warm `--cache-from` skips them as `CACHED`), so COPY #15 counts
+    # toward the wall too. Slowest cold layer #14 = 600s. Magnitude divides by the SAME
+    # cold wall the `pct_of: "sum"` drill bars do, so the headline % and bars agree.
+    assert leaf["magnitude"]["unit"] == "%"
+    assert leaf["magnitude"]["value"] == round(100 * 600.0 / 860.5, 2)  # ~69.73%
+    rows = leaf["deeper"][-1]["rows"]
+    assert rows[0][1] == 600.0          # slowest cold layer leads the drill
+    assert any("copy" in r[0] for r in rows)   # the COPY layer is counted, not dropped
+    assert "BIGGEST LEVER" in leaf["deeper"][-1]["blocker_note"]
+    assert leaf["evidence"]             # verbatim proof present
+
+
+def test_parse_log_buildx_evidence_quotes_the_slowest_cold_layer():
+    # Faithfulness: the verbatim-evidence excerpt must quote the header AND the matching
+    # `DONE` line of the SLOWEST cold layer - the single layer the BIGGEST-LEVER magnitude
+    # is computed from. A blind "first-2 headers + last-3 DONE" window can structurally
+    # exclude that layer (its header isn't in the first two, its DONE isn't in the last
+    # three) and juxtapose an unrelated header against an unrelated DONE, inviting a false
+    # reading (e.g. apt-get's header next to pip's DONE). The quoted evidence must
+    # substantiate the headline number, not contradict it.
+    log = "\n".join([
+        "[command]/usr/bin/docker buildx build --output type=local .",
+        "#5 [1/4] FROM docker.io/example/base:1.0",
+        "#5 DONE 12.0s",
+        "#6 [2/4] RUN apt-get install -y build-essential",
+        "#6 DONE 26.4s",
+        "#7 [3/4] RUN make -j4 all",       # the slowest cold layer - the BIGGEST LEVER
+        "#7 DONE 185.9s",
+        "#8 [4/4] RUN pip install -r requirements.txt",
+        "#8 DONE 94.8s",
+        "#9 [5/5] COPY dist /out",
+        "#9 DONE 20.4s",
+        "#10 [6/6] COPY meta /meta",
+        "#10 DONE 0.0s",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "buildx-no-cache"
+    # #7 is the slowest cold layer (185.9s); the drill leads with it, so the magnitude
+    # is computed from #7's DONE line.
+    assert leaf["deeper"][-1]["rows"][0][1] == 185.9
+    ev_text = "\n".join(leaf["evidence"])
+    assert "#7 [3/4] RUN make -j4 all" in ev_text   # the slowest layer's header is quoted
+    assert "#7 DONE 185.9s" in ev_text              # ...and its DONE line (the magnitude source)
+
+
+def test_parse_log_buildx_tail_row_keeps_drill_shares_summing_to_the_cold_wall():
+    # Regression: with MORE than 6 cold layers the drill truncates to the top 6 + a
+    # rollup row. That rollup must carry the SUMMED seconds of the hidden layers (not
+    # None), or `pct_of: "sum"` would divide every shown bar by a partial denominator and
+    # inflate the shares past the headline magnitude. 8 cold layers -> 6 shown + 1 tail.
+    log = "\n".join(
+        ["[command]/usr/bin/docker buildx build --output type=local ."]
+        + [f"#{i} [s{i} 1/1] RUN step-{i}\n#{i} DONE {10 * i}.0s" for i in range(1, 9)]
+    )
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "buildx-no-cache"
+    rows = leaf["deeper"][-1]["rows"]
+    assert len(rows) == 7                      # 6 layers + the rollup row
+    assert "more cold layers" in rows[-1][0]
+    assert rows[-1][1] == 10.0 + 20.0          # two hidden layers (#1=10s, #2=20s) folded
+    cold_wall = sum(10 * i for i in range(1, 9))           # 360.0s
+    assert sum(s for _l, s, _d in rows) == cold_wall       # bars total the cold wall
+    # headline magnitude divides by that same cold wall (slowest layer #8 = 80s).
+    assert leaf["magnitude"]["value"] == round(100 * 80.0 / cold_wall, 2)
+
+
+def test_parse_log_buildx_fires_on_export_only_cache_with_no_restore():
+    # False-negative guard: a config that EXPORTS cache (`--cache-to`) but never IMPORTS
+    # it (`--cache-from`) writes a cache it never reads, so every run still starts cold.
+    # Keying suppression on `--cache-to` would miss this; we key on the import path, so it
+    # must still fire - and the label must call out the export-only nature.
+    export_only = "\n".join([
+        "[command]/usr/bin/docker buildx build --cache-to type=gha,mode=max "
+        "--output type=local .",
+        "#10 [deps 1/1] RUN pkg install -y heavy-toolkit",
+        "#10 DONE 180.0s",
+        "#14 [server 4/4] RUN cmake --build .",
+        "#14 DONE 600.0s",
+    ])
+    leaf = bp._parse_log(export_only)
+    assert leaf is not None and leaf["fix_key"] == "buildx-no-cache"
+    assert "never imported" in leaf["unit_label"]
+
+
+def test_parse_log_buildx_fires_when_an_expensive_copy_layer_dominates():
+    # False-negative guard: a build whose RUN/FROM layers are cheap but a `COPY` of a big
+    # context / `COPY --from` artifact is expensive. COPY/ADD are cacheable layers, so the
+    # cold wall must include them - excluding COPY would drop cold_wall under the floor and
+    # silently miss a build that rebuilds a costly cacheable layer every run.
+    copy_heavy = "\n".join([
+        "[command]/usr/bin/docker buildx build --output type=local .",
+        "#6 [base 1/2] FROM docker.io/example/base:1.0",
+        "#6 DONE 3.0s",
+        "#9 [stage-1 2/3] ADD https://example.com/big.tar /vendor",
+        "#9 DONE 5.0s",
+        "#12 [stage-1 3/3] COPY --from=builder /app/dist /out",
+        "#12 DONE 120.0s",
+    ])
+    leaf = bp._parse_log(copy_heavy)
+    assert leaf is not None and leaf["fix_key"] == "buildx-no-cache"
+    # cold wall = 3 + 5 + 120 = 128s (above the 60s floor only because COPY/ADD count);
+    # the COPY layer is the biggest lever.
+    rows = leaf["deeper"][-1]["rows"]
+    assert rows[0][1] == 120.0
+    assert leaf["magnitude"]["value"] == round(100 * 120.0 / 128.0, 2)
+
+
+def test_parse_log_buildx_does_not_fire_on_a_warm_cache_hit_build():
+    # False-fire boundary: a healthy build that restores layers from cache prints
+    # `#NN CACHED` (and/or wires a `--cache-from` backend). Either signal must keep
+    # the detector silent - a warm build is not a cold-cache finding.
+    cached_build = "\n".join([
+        "[command]/usr/bin/docker buildx build --output type=local .",
+        "#6 [base 1/2] FROM docker.io/example/base:1.0",
+        "#6 CACHED",
+        "#10 [deps 1/1] RUN pkg install -y heavy-toolkit",
+        "#10 CACHED",
+        "#14 [server 4/4] RUN cmake --build .",
+        "#14 DONE 12.0s",
+    ])
+    assert bp._parse_log(cached_build) is None
+    # A build that DOES wire a cache backend is configured correctly -> no finding,
+    # even with cold steps (the cache simply missed this run).
+    with_backend = "\n".join([
+        "[command]/usr/bin/docker buildx build --cache-from type=gha "
+        "--cache-to type=gha,mode=max .",
+        "#10 [deps 1/1] RUN pkg install -y heavy-toolkit",
+        "#10 DONE 180.0s",
+        "#14 [server 4/4] RUN cmake --build .",
+        "#14 DONE 600.0s",
+    ])
+    assert bp._parse_log(with_backend) is None
+    # A trivial buildx build below the wall floor (one quick layer) is not worth a
+    # cache backend -> no finding (guards the _BUILDX_COLD_WALL_FLOOR_S floor).
+    tiny = "\n".join([
+        "[command]/usr/bin/docker buildx build --output type=local .",
+        "#6 [base 1/2] FROM docker.io/example/base:1.0",
+        "#6 DONE 4.0s",
+        "#7 [base 2/2] RUN echo hi",
+        "#7 DONE 1.0s",
+    ])
+    assert bp._parse_log(tiny) is None
+
+
+def test_parse_log_buildx_no_export_label_names_the_no_cache_case():
+    # Pin the OTHER arm of the unit_label ternary: with no `--cache-to` at all the label
+    # must read "(no persistent cache - all cold)", not the export-only wording.
+    log = "\n".join([
+        "[command]/usr/bin/docker buildx build --output type=local .",
+        "#10 [deps 1/1] RUN pkg install -y heavy-toolkit",
+        "#10 DONE 180.0s",
+        "#14 [server 4/4] RUN cmake --build .",
+        "#14 DONE 600.0s",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "buildx-no-cache"
+    assert "no persistent cache - all cold" in leaf["unit_label"]
+    assert "never imported" not in leaf["unit_label"]
+
+
+def test_parse_log_buildx_fires_on_build_push_action_with_yaml_cache_to_only():
+    # The `docker/build-push-action` form (no raw `docker buildx build` line) is the
+    # dominant real-world trigger, and it expresses cache as YAML action INPUTS, not CLI
+    # flags. A `cache-to:` import-less config must still fire with the export-only label;
+    # the evidence must remain usable even without a `docker buildx build` command line.
+    log = "\n".join([
+        "Run docker/build-push-action@v5",
+        "  with:",
+        "    push: true",
+        "    cache-to: type=gha,mode=max",
+        "#10 [deps 1/1] RUN pkg install -y heavy-toolkit",
+        "#10 DONE 180.0s",
+        "#14 [server 4/4] RUN cmake --build .",
+        "#14 DONE 600.0s",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "buildx-no-cache"
+    assert "never imported" in leaf["unit_label"]   # export-only via the YAML cache-to
+    assert any(e for e in leaf["evidence"])          # evidence is non-empty/usable
+
+
+def test_parse_log_buildx_does_not_fire_with_yaml_cache_from_import():
+    # The correctly-configured build-push-action form: a `cache-from:` YAML input IS a
+    # cache import, so a warm restore is wired - the detector must stay silent even with
+    # cold layers this run. Guards the `re.MULTILINE` anchor on the YAML input regex.
+    log = "\n".join([
+        "Run docker/build-push-action@v5",
+        "  with:",
+        "    cache-from: type=gha",
+        "    cache-to: type=gha,mode=max",
+        "#10 [deps 1/1] RUN pkg install -y heavy-toolkit",
+        "#10 DONE 180.0s",
+        "#14 [server 4/4] RUN cmake --build .",
+        "#14 DONE 600.0s",
+    ])
+    assert bp._parse_log(log) is None
+
+
+def test_parse_log_buildx_requires_at_least_two_work_steps():
+    # Guards `_BUILDX_MIN_WORK_STEPS`: a single heavy cold layer clears the 60s wall floor
+    # but is ONE step - a single-layer image isn't a layer-cache story, so no finding.
+    one_step = "\n".join([
+        "[command]/usr/bin/docker buildx build --output type=local .",
+        "#10 [deps 1/1] RUN pkg install -y heavy-toolkit",
+        "#10 DONE 300.0s",
+    ])
+    assert bp._parse_log(one_step) is None
+
+
+def test_parse_log_buildx_ignores_stray_cached_token_in_log_chatter():
+    # Silent-failure regression: the cached-layer count is anchored to the `#NN CACHED`
+    # layer grammar, NOT a bare `" CACHED"` substring. A provably-cold build whose log
+    # merely MENTIONS the word CACHED (a RUN echo, a test print, a filename) must still
+    # fire - a stray token must not zero the count and suppress the finding as "clean".
+    log = "\n".join([
+        "[command]/usr/bin/docker buildx build --output type=local .",
+        "#10 [deps 1/1] RUN echo 'nothing was CACHED this run' && pkg install",
+        "#10 DONE 180.0s",
+        "#14 [server 4/4] RUN cmake --build .",
+        "#14 DONE 600.0s",
+        "Status: build finished, 0 layers CACHED",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "buildx-no-cache"
+
+
+def test_parse_log_buildx_survives_a_malformed_done_line():
+    # A corrupt/interleaved `#NN DONE 1.2.3s` must not crash rendering (float() would
+    # raise on the multi-dot capture). The bad layer is skipped as un-timed; the rest of
+    # the build still produces a finding off the well-formed layers, and the malformed
+    # layer surfaces as an UNPAIRED-layer caveat rather than silently shrinking the wall.
+    log = "\n".join([
+        "[command]/usr/bin/docker buildx build --output type=local .",
+        "#10 [deps 1/1] RUN pkg install -y heavy-toolkit",
+        "#10 DONE 1.2.3s",                       # malformed - unparseable seconds
+        "#12 [build 1/2] RUN make deps",
+        "#12 DONE 90.0s",
+        "#14 [server 4/4] RUN cmake --build .",
+        "#14 DONE 600.0s",
+    ])
+    leaf = bp._parse_log(log)                     # must not raise
+    assert leaf is not None and leaf["fix_key"] == "buildx-no-cache"
+    # cold wall = 90 + 600 = 690 (the 1.2.3s layer dropped); two well-formed layers clear
+    # the 2-step floor, and the undercount is disclosed in the evidence.
+    assert leaf["magnitude"]["value"] == round(100 * 600.0 / 690.0, 2)
+    assert any("no DONE line" in e for e in leaf["evidence"])
+
+
+def test_parse_log_buildx_excludes_internal_load_from_the_cold_wall():
+    # `[internal] load …` steps (context transfer, metadata) are BuildKit OVERHEAD, not
+    # cacheable layers, so they must NOT inflate the cold wall / magnitude denominator -
+    # only RUN/FROM/COPY/ADD layers count. A big `[internal] load` must not change the math.
+    log = "\n".join([
+        "[command]/usr/bin/docker buildx build --output type=local .",
+        "#1 [internal] load build context",
+        "#1 DONE 200.0s",                        # huge overhead - must be ignored
+        "#10 [deps 1/1] RUN pkg install -y heavy-toolkit",
+        "#10 DONE 180.0s",
+        "#14 [server 4/4] RUN cmake --build .",
+        "#14 DONE 600.0s",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "buildx-no-cache"
+    # cold wall = 180 + 600 = 780 (the 200s [internal] load excluded), so magnitude is
+    # 600/780, NOT 600/980 - the overhead step does not dilute the share.
+    assert leaf["magnitude"]["value"] == round(100 * 600.0 / 780.0, 2)
+    rows = leaf["deeper"][-1]["rows"]
+    assert sum(s for _l, s, _d in rows) == 780.0     # bars total the cacheable-layer wall only
+
+
+# A real serial-pytest job log (trimmed from Opentrons/opentrons robot-server
+# integration testing): xdist-2.5.0 in the plugin banner, no `-n`, all 195 tests
+# on one worker. The pattern that hit a catalog GAP on the live run.
+_PYTEST_SERIAL_LOG = "\n".join([
+    "uv run --python 3.12 pytest tests/integration --cov=robot_server "
+    "--cov-report term-missing:skip-covered --cov-report xml:coverage.xml",
+    "plugins: forked-1.6.0, hypothesis-6.146.0, xdist-2.5.0, decoy-2.2.0, "
+    "cov-4.1.0, asyncio-1.3.0, tavern-3.0.2",
+    "collected 195 items",
+    "tests/integration/http_api/persistence/test_compatibility.py .......  [ 13%]",
+    "tests/integration/http_api/runs/test_persistence.py .......           [ 50%]",
+    "================== 195 passed, 1 warning in 555.79s (0:09:15) ==================",
+])
+
+
+def test_parse_log_detects_pytest_xdist_installed_but_unused():
+    # The deterministic detector for the gap the live Opentrons run hit: xdist is in the
+    # plugin banner but the invocation passes no `-n`, so 195 independent tests ran
+    # one-by-one on a single worker. Flag-style (no scalar magnitude / drill) like
+    # playwright-parallel; the evidence carries the banner + collected + summary lines.
+    leaf = bp._parse_log(_PYTEST_SERIAL_LOG)
+    assert leaf is not None and leaf["fix_key"] == "pytest-no-xdist"
+    assert leaf["magnitude"] is None and leaf["deeper"] == []
+    assert any("xdist-2.5.0" in e for e in leaf["evidence"])
+    assert any("195 passed" in e for e in leaf["evidence"])
+
+
+def test_parse_log_pytest_no_xdist_silent_when_workers_are_active():
+    # False-fire boundary: the SAME suite actually running under xdist prints per-test
+    # worker tags (`[gw0]`) and a `N workers` startup line. With workers active it is
+    # already parallel - no finding.
+    active = _PYTEST_SERIAL_LOG.replace(
+        "collected 195 items",
+        "collected 195 items\n8 workers [195 items]") + \
+        "\n[gw0] [ 13%] PASSED tests/integration/http_api/x_test.py::test_a"
+    assert bp._parse_log(active) is None
+    # An explicit `-n auto` ON the pytest command line is also active.
+    n_auto = _PYTEST_SERIAL_LOG.replace("pytest tests/integration",
+                                        "pytest -n auto tests/integration")
+    assert bp._parse_log(n_auto) is None
+
+
+def test_parse_log_pytest_no_xdist_silent_without_xdist_installed():
+    # If xdist isn't in the banner at all, "add `-n auto`" is the wrong (it's not a dep)
+    # advice - this detector stays silent and the pole falls to the LLM gap-fill instead.
+    no_xdist = _PYTEST_SERIAL_LOG.replace("xdist-2.5.0, ", "")
+    assert bp._parse_log(no_xdist) is None
+
+
+def test_parse_log_pytest_no_xdist_respects_wall_and_item_floors():
+    # A fast suite (below the wall floor) isn't worth a worker pool's overhead.
+    quick = _PYTEST_SERIAL_LOG.replace("in 555.79s (0:09:15)", "in 9.20s")
+    assert bp._parse_log(quick) is None
+    # A handful of tests (below the item floor) is a matrix-leg problem, not an xdist one.
+    few = _PYTEST_SERIAL_LOG.replace("collected 195 items", "collected 3 items")
+    assert bp._parse_log(few) is None
+
+
+def test_parse_log_pytest_no_xdist_ignores_a_stray_dash_n_elsewhere():
+    # Silent-drop guard: a stray `-n` in unrelated log chatter (e.g. `echo -n`, `uname
+    # -n`) must NOT be misread as "xdist active" and suppress a real serial finding. The
+    # active-check only treats `-n` as workers when it's on a `pytest` command line.
+    with_chatter = _PYTEST_SERIAL_LOG.replace(
+        "collected 195 items",
+        "echo -n 'starting'\nuname -n\ncollected 195 items")
+    leaf = bp._parse_log(with_chatter)
+    assert leaf is not None and leaf["fix_key"] == "pytest-no-xdist"
+
+
+def test_parse_log_detects_sequential_playwright():
+    log = "\n".join([
+        "$ pnpm exec playwright test tests/smoke.spec.ts --project=desktop",
+        "$ pnpm exec playwright test tests/navigation.spec.ts",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "playwright-parallel"
+    assert leaf["deeper"] == []  # step-level root cause; no further drill
+
+
+def test_parse_log_detects_sequential_playwright_with_tsx_specs():
+    # `.spec.tsx` / `.spec.jsx` are valid Playwright specs (TS/React repos) and must
+    # be detected too, not just `.spec.ts`/`.spec.js`.
+    log = "\n".join([
+        "$ pnpm exec playwright test tests/home.spec.tsx",
+        "$ pnpm exec playwright test tests/checkout.spec.jsx",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "playwright-parallel"
+
+
+def test_playwright_cause_asserts_no_unrendered_timeline_or_worker_pool_shape():
+    """Regression (nrwl/nx): detector C fires on >=2 `playwright test <spec>` hits
+    ANYWHERE in the joined log with NO step-structure or sequencing check, yet the
+    canned MEASURED CAUSE asserted the invocations are 'visible as sequential steps in
+    the timeline above' AND 'so they don't share a worker pool'. Neither is derivable
+    from the log the detector reads: the invocations commonly live in ONE step (nx: a
+    single `Run Checks/Lint/Test/Build` step — the rendered timeline shows one bar, not
+    sequential steps), and in an nx monorepo they are separate `nx e2e` targets nx may
+    run CONCURRENTLY. The cause must state only what the log establishes and hand the
+    scheduling/worker-pool question to the agent — never assert timeline shape the
+    report's own timeline can contradict (the R2 rule, applied to the catalog cause)."""
+    leaf = {"fix_key": "playwright-parallel", "unit_label": "", "deeper": [],
+            "magnitude": None,
+            "evidence": ["> playwright test apps/foo-e2e/src/foo.spec.ts",
+                         "> playwright test apps/bar-e2e/src/bar.spec.ts"],
+            "search": ["playwright test"]}
+    # A single-step pole with NO captured timeline — the nrwl/nx shape.
+    pole = {"check": "Run Checks/Lint/Test/Build",
+            "workflow_file": ".github/workflows/ci.yml", "p50_s": 600.0,
+            "dominant_step": "Run Checks/Lint/Test/Build",
+            "dominant_p50_s": 560.0, "dominant_share": 0.93,
+            "steps": [{"step": "Run Checks/Lint/Test/Build", "category": "test",
+                       "p50_s": 560.0}]}
+    prompt = bp._build_agent_prompt(
+        leaf, pole, [], "https://github.com/nrwl/nx/actions/runs/123",
+        "nrwl/nx", "abc1234", 5, 20, timeline=None)
+    cause = prompt.split("THE MEASURED CAUSE", 1)[1].split("WHERE TO LOOK", 1)[0]
+    lc = cause.lower()
+    assert "in the timeline above" not in lc, (
+        "MEASURED CAUSE points at a timeline the pole doesn't render (R2 violation)")
+    assert "sequential steps in the timeline" not in lc
+    # The over-claim was that the invocations definitively DON'T share a worker pool.
+    # Referencing the worker pool as an open question the agent must confirm is fine;
+    # ASSERTING they don't share one is not.
+    assert "don't share a worker pool" not in lc
+    assert "do not share a worker pool" not in lc
+    # The `constraints`/`deliver` blocks were reworded too (they no longer presuppose serial
+    # execution) - assert the over-claims are gone from the WHOLE prompt, not just the cause
+    # slice, so a regression that moved the phrasing into another block is still caught.
+    lp = prompt.lower()
+    assert "in the timeline above" not in lp
+    assert "don't share a worker pool" not in lp
+    assert "do not share a worker pool" not in lp
+
+
+def test_test_result_replay_share_marks_a_cached_majority():
+    log = "\n".join(
+        [f"ok example/pkg{i} (cached)" for i in range(144)]
+        + ["ok example/live 1.23s"])
+
+    replay = bp._test_result_replay_share(log)
+
+    assert replay == {
+        "cached_lines": 144,
+        "test_result_lines": 145,
+        "share": 144 / 145,
+        "replayed": True,
+    }
+
+
+def test_test_result_replay_share_leaves_uncached_results_unchanged():
+    log = "\n".join(f"ok example/pkg{i} 1.23s" for i in range(145))
+
+    replay = bp._test_result_replay_share(log)
+
+    assert replay["cached_lines"] == 0
+    assert replay["test_result_lines"] == 145
+    assert replay["share"] == 0.0
+    assert replay["replayed"] is False
+
+
+def test_test_result_replay_share_reads_cached_go_coverage_results():
+    log = "ok example/pkg (cached) coverage: 81.2% of statements"
+
+    replay = bp._test_result_replay_share(log)
+
+    assert replay == {
+        "cached_lines": 1,
+        "test_result_lines": 1,
+        "share": 1.0,
+        "replayed": True,
+    }
+
+
+def test_test_result_replay_share_reads_each_supported_test_format_only():
+    log = "\n".join([
+        "ok example/go (cached)",
+        "//example:bazel_test (cached) PASSED in 0.1s",
+        "> Task :app:integrationTest FROM-CACHE",
+        "web:unit-test: cache hit, replaying logs",
+        "//example:bazel_live PASSED in 1.2s",
+        "> Task :app:otherTest",
+        "web:test: cache miss, executing abc123",
+    ])
+
+    replay = bp._test_result_replay_share(log)
+
+    assert replay == {
+        "cached_lines": 4,
+        "test_result_lines": 7,
+        "share": 4 / 7,
+        "replayed": True,
+    }
+
+
+def test_test_result_replay_share_ignores_non_test_build_cache_hits():
+    log = "\n".join([
+        "> Task :app:compileJava FROM-CACHE",
+        "> Task :app:processResources FROM-CACHE",
+        "web:build: cache hit, replaying logs",
+        "web:lint: cache hit, replaying logs",
+    ])
+
+    assert bp._test_result_replay_share(log) is None
+
+
+# A real Lint pole shape (generalized from a captured gap): a `bun run lint` step that
+# shells to a bare `$ eslint` with no `--cache`, followed by a whole-graph `knip` pass in
+# the same job. eslint prints no duration, so the finding is the missing-flag, not a wall.
+_ESLINT_NO_CACHE_LOG = "\n".join([
+    "##[group]Run bun run lint",
+    "bun run lint",
+    "$ eslint",
+    "##[group]Run bun run lint:unused",
+    "$ knip --include files,dependencies,unlisted",
+])
+
+
+def test_parse_log_detects_eslint_without_cache():
+    # The deterministic detector for the Lint gap: an `eslint` invocation with no
+    # `--cache`, so it re-lints the whole tree every run. Flag-style (no scalar magnitude
+    # / drill) like playwright-parallel; the evidence carries the invocation line.
+    leaf = bp._parse_log(_ESLINT_NO_CACHE_LOG)
+    assert leaf is not None and leaf["fix_key"] == "eslint-no-cache"
+    assert leaf["magnitude"] is None and leaf["deeper"] == []
+    assert any("eslint" in e for e in leaf["evidence"])
+
+
+def test_parse_log_eslint_silent_when_cache_flag_is_present():
+    # False-fire boundary: the SAME step already passing `--cache` (with a
+    # `--cache-location`) is persisting its cache — already warm, no finding.
+    cached = _ESLINT_NO_CACHE_LOG.replace(
+        "$ eslint", "$ eslint --cache --cache-location .eslintcache")
+    assert bp._parse_log(cached) is None
+
+
+def test_parse_log_eslint_silent_on_dependency_lines_only():
+    # An install log that merely NAMES eslint as a dependency (`+ eslint@…`,
+    # `eslint-plugin-…`, `typescript-eslint@…`) must NOT be misread as an invocation —
+    # there is no eslint COMMAND here, so the detector stays silent (no false fire).
+    install_only = "\n".join([
+        "544 packages installed",
+        "+ eslint@10.0.3",
+        "+ eslint-plugin-simple-import-sort@12.1.1",
+        "+ typescript-eslint@8.57.0",
+    ])
+    assert bp._parse_log(install_only) is None
+
+
+def test_parse_log_eslint_fires_via_a_js_runner_invocation():
+    # The command can come through a JS runner (`npx`/`pnpm exec`/`bunx`) rather than a
+    # bare script echo; a runner-prefixed eslint with no `--cache` still fires.
+    runner = "\n".join([
+        "##[group]Run npm run lint",
+        "npx eslint . --max-warnings 0",
+    ])
+    leaf = bp._parse_log(runner)
+    assert leaf is not None and leaf["fix_key"] == "eslint-no-cache"
+
+
+def test_parse_log_eslint_fires_via_gha_command_line():
+    # The third invocation position: the GHA `[command]…/eslint` echo (e.g. a `run:` step
+    # that shells straight to the binary). With no `--cache` it still fires.
+    gha = "\n".join([
+        "##[group]Run eslint .",
+        "[command]/home/runner/work/repo/node_modules/.bin/eslint . --format stylish",
+    ])
+    leaf = bp._parse_log(gha)
+    assert leaf is not None and leaf["fix_key"] == "eslint-no-cache"
+
+
+def test_parse_log_eslint_fires_when_only_cache_location_present():
+    # False-NEGATIVE guard: `--cache-location` ALONE does not enable ESLint caching (the
+    # boolean `--cache` must be present), so a tail carrying only `--cache-location` is still
+    # a cache MISS and must fire — `--cache(?![\w-])` must not be satisfied by the prefix of
+    # `--cache-location`.
+    loc_only = _ESLINT_NO_CACHE_LOG.replace(
+        "$ eslint", "$ eslint --cache-location .eslintcache")
+    leaf = bp._parse_log(loc_only)
+    assert leaf is not None and leaf["fix_key"] == "eslint-no-cache"
+
+
+def test_parse_log_eslint_silent_on_prose_and_output_lines():
+    # False-FIRE guard (PR-review): the detector requires a LINE-ANCHORED command marker, so
+    # prose / eslint's own output that merely mentions or starts with `eslint` is NOT read as
+    # an invocation. Each of these once fired a bogus `eslint-no-cache` finding (and would
+    # have stolen the LLM gap-fill, since branch G is the last gate before it).
+    for line in (
+        "Note: we use bun run eslint to lint the code base.",   # `bun run eslint` mid-prose
+        "eslint reported 2 warnings",                           # eslint's own output
+        "Running eslint via wrapper...",                        # a banner line
+        "/usr/local/bin/eslint",                                # a `which eslint` path line
+        "Loaded eslint.config.js from cwd",                     # a config-file mention
+    ):
+        assert bp._parse_log(line) is None, line
+
+
+def test_parse_log_eslint_silent_on_script_name_with_colon():
+    # `bun run eslint:fix` / `yarn eslint:fix` are SCRIPT names (the real flags live in the
+    # hidden script body), not a bare `eslint` invocation — the `(?=\s|$)` boundary after the
+    # token rejects the `:` so a misleadingly-named script can't false-fire.
+    assert bp._parse_log("yarn eslint:fix") is None
+    assert bp._parse_log("bun run eslint:lint") is None
+
+
+def test_parse_log_eslint_fires_per_invocation_not_collapsed():
+    # False-NEGATIVE guard (PR-review): a job that caches ONE eslint run but not another still
+    # has a real miss. The detector decides per-invocation and fires on the uncached one — a
+    # cached sibling must NOT silence it — and the evidence quotes the UNCACHED line, not the
+    # cached one (which would read as proof of a no-cache finding).
+    mixed = "\n".join(["$ eslint --cache --cache-location .x packages/a",
+                       "$ eslint packages/b"])
+    leaf = bp._parse_log(mixed)
+    assert leaf is not None and leaf["fix_key"] == "eslint-no-cache"
+    assert leaf["evidence"] == ["$ eslint packages/b"]         # the uncached line only
+    # Both invocations cached -> no miss -> silent.
+    assert bp._parse_log("$ eslint --cache a\n$ eslint --cache b") is None
+
+
+def test_parse_log_eslint_silent_on_line_continuation():
+    # False-POSITIVE guard: a backslash-continued command (`$ eslint \` then `--cache` on the
+    # next line) has its `--cache` on a line the single-line match can't see, so the cache
+    # state is UNKNOWN — fall through to the gap-fill rather than assert a (wrong) miss.
+    wrapped = "\n".join(["$ eslint \\", "    --cache \\", "    --cache-location .x \\", "    ."])
+    assert bp._parse_log(wrapped) is None
+
+
+# A serial `cargo test` (libtest) suite shape: each binary prints a `Running <name>
+# (target/…/deps/<name>-<hash>)` header then a `test result: ok. N passed; … finished
+# in <secs>s`, binaries one after another. Generalized from a captured gap (no repo
+# text): two heavy binaries dominate, a long tail is sub-second, plus the lib + an empty
+# `0 passed … 0.00s` binary that must NOT count as work.
+_CARGO_SERIAL_LOG = "\n".join([
+    "     Running unittests src/lib.rs (target/debug/deps/lib-aaaa)",
+    "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+    "     Running tests/heavy_one.rs (target/debug/deps/heavy_one-bbbb)",
+    "test result: ok. 23 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 228.00s",
+    "     Running tests/heavy_two.rs (target/debug/deps/heavy_two-cccc)",
+    "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 78.00s",
+    "     Running tests/mid.rs (target/debug/deps/mid-dddd)",
+    "test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.00s",
+    "     Running tests/small.rs (target/debug/deps/small-eeee)",
+    "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s",
+])
+
+
+def test_parse_log_detects_serial_cargo_test_suite():
+    # The deterministic detector for the long-serial-cargo-test gap: many libtest binaries
+    # run one after another in a single job, a couple of them dominate. Magnitude is the
+    # slowest binary's share of the summed serial wall.
+    leaf = bp._parse_log(_CARGO_SERIAL_LOG)
+    assert leaf is not None and leaf["fix_key"] == "cargo-test-shard"
+    # 4 real binaries (the `0.00s` empty one is excluded as non-work).
+    assert "4 `cargo test` binaries" in leaf["unit_label"]
+    total = 228.0 + 78.0 + 36.0 + 0.40
+    assert leaf["magnitude"]["value"] == round(100 * 228.0 / total, 2)  # ~66%
+    assert leaf["magnitude"]["unit"] == "%"
+    # One drill level; the slowest binary is the first row and carries the BIGGEST LEVER.
+    assert len(leaf["deeper"]) == 1
+    rows = leaf["deeper"][0]["rows"]
+    assert "heavy_one" in rows[0][0] and abs(rows[0][1] - 228.0) < 0.01
+    assert leaf["evidence"]
+
+
+def test_parse_log_cargo_test_tail_row_keeps_drill_shares_summing_to_the_wall():
+    # >6 binaries fold into one VALUED tail row so the `pct_of: "sum"` bars still total
+    # the serial wall (a None tail would drop out of the denominator and inflate shares).
+    many = _CARGO_SERIAL_LOG + "\n" + "\n".join(
+        f"     Running tests/x{i}.rs (target/debug/deps/x{i}-{i:04d})\n"
+        f"test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; "
+        f"finished in {2.0 + i}s" for i in range(4))
+    leaf = bp._parse_log(many)
+    assert leaf is not None and leaf["fix_key"] == "cargo-test-shard"
+    rows = leaf["deeper"][0]["rows"]
+    assert rows[-1][0].startswith("…") and "more test binaries" in rows[-1][0]
+    valued = sum(r[1] for r in rows if isinstance(r[1], (int, float)))
+    total = 228.0 + 78.0 + 36.0 + 0.40 + sum(2.0 + i for i in range(4))
+    assert abs(valued - total) < 0.01  # bars total the serial wall
+
+
+def test_parse_log_cargo_test_silent_on_a_small_or_quick_suite():
+    # False-fire boundary: a handful of binaries (below the binary floor) is a matrix-leg
+    # problem, not a sharding one.
+    few = "\n".join([
+        "     Running tests/a.rs (target/debug/deps/a-1111)",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 90.00s",
+        "     Running tests/b.rs (target/debug/deps/b-2222)",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 60.00s",
+    ])
+    assert bp._parse_log(few) is None
+    # Enough binaries but a quick suite (below the wall floor) isn't worth sharding.
+    quick = "\n".join(
+        f"     Running tests/q{i}.rs (target/debug/deps/q{i}-{i:04d})\n"
+        f"test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; "
+        f"finished in 1.00s" for i in range(6))
+    assert bp._parse_log(quick) is None
+
+
+def test_parse_log_detects_benchmark_serial_reruns():
+    # The deterministic detector for the repeated-iteration benchmark gap: a benchmark
+    # harness invoked with `--runs N` reruns its whole op suite N times in sequence.
+    # Magnitude is N (the serial-rerun multiplier), unit "x".
+    log = "\n".join([
+        "   Running `target/release/benchmarks benchmark --url postgresql://x "
+        "--dataset stuff --runs 10 --output json`",
+        "Results: [cold: 91.0 ] [22.1, 22.2, 22.1, 22.0, 22.3, 22.2, 22.1, 22.0, 22.2, 22.1]",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "benchmark-serial-reruns"
+    assert leaf["magnitude"]["value"] == 10 and leaf["magnitude"]["unit"] == "x"
+    assert leaf["deeper"] == []
+    assert any("--runs" in e for e in leaf["evidence"])
+
+
+def test_parse_log_benchmark_reruns_accepts_synonym_flags_and_takes_the_max():
+    # `--iterations`/`--samples`/`--repeat` are accepted synonyms; the magnitude is the
+    # largest configured rerun count across the invocations in the step.
+    log = "\n".join([
+        "$ ./bench run --iterations 5 suite-a",
+        "$ ./bench run --iterations 12 suite-b",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "benchmark-serial-reruns"
+    assert leaf["magnitude"]["value"] == 12
+
+
+def test_parse_log_benchmark_reruns_respects_the_floor_and_requires_a_bench_indicator():
+    # A low rerun count (below the floor) is a smoke benchmark that needs its repetition.
+    assert bp._parse_log("   Running `target/release/benchmarks benchmark --runs 2`") is None
+    # `--runs` on a NON-benchmark command line must not fire (the `\bbench` anchor is
+    # required on the same line) - this is the false-fire guard against a stray flag.
+    assert bp._parse_log("$ ./migrate apply --runs 50 --verbose") is None
+
+
+# A multi-module Android instrumentation suite (`./gradlew connectedCheck`) run serially on
+# one emulator: Gradle prints a per-module `> Task :<module>:connected[<Variant>]AndroidTest`
+# (plus the module's own `connectedAndroidTest`/`connectedCheck` aggregates), then a
+# `BUILD SUCCESSFUL in <wall>` summary. Generalized from a captured gap with synthetic
+# generic module names (no repo text); GHA timestamps + an ANSI-coloured command echo are
+# included so the timestamp/ANSI stripping is exercised.
+_ANDROID_CONNECTED_LOG = "\n".join([
+    "2026-01-01T00:00:00.0000000Z \x1b[36;1m./gradlew connectedCheck --stacktrace\x1b[0m",
+    "2026-01-01T00:00:10.0000000Z > Task :app:connectedDebugAndroidTest",
+    "2026-01-01T00:00:10.1000000Z > Task :app:connectedAndroidTest",
+    "2026-01-01T00:00:10.2000000Z > Task :app:connectedCheck",
+    "2026-01-01T00:01:30.0000000Z > Task :core:connectedDebugAndroidTest",
+    "2026-01-01T00:01:30.1000000Z > Task :core:connectedAndroidTest",
+    "2026-01-01T00:01:30.2000000Z > Task :core:connectedCheck",
+    "2026-01-01T00:02:40.0000000Z > Task :network:connectedDebugAndroidTest",
+    "2026-01-01T00:02:40.1000000Z > Task :network:connectedAndroidTest",
+    "2026-01-01T00:02:40.2000000Z > Task :network:connectedCheck",
+    "2026-01-01T00:03:55.0000000Z Starting 6 tests on emulator-5554",
+    "2026-01-01T00:04:02.0000000Z Finished 6 tests on emulator-5554",
+    "2026-01-01T00:05:35.0000000Z BUILD SUCCESSFUL in 5m 35s",
+    "2026-01-01T00:05:35.0000001Z 1576 actionable tasks: 1051 executed, 525 from cache",
+])
+
+
+def test_parse_log_detects_serial_android_emulator_suite():
+    # The deterministic detector for the connectedCheck-on-one-emulator gap: each module's
+    # androidTest runs serially on a single device. Flag-style like playwright-parallel - the
+    # cost is the serialization, not a single percentage - and the module count is surfaced
+    # in the unit label (3 distinct modules; the per-module `connectedAndroidTest`/
+    # `connectedCheck` aggregates do NOT inflate the count).
+    leaf = bp._parse_log(_ANDROID_CONNECTED_LOG)
+    assert leaf is not None and leaf["fix_key"] == "android-emulator-shard"
+    assert "3 modules" in leaf["unit_label"]
+    assert leaf["magnitude"] is None and leaf["deeper"] == []
+    assert leaf["fix_key"] in bp._FIX_META
+    assert leaf["evidence"]
+
+
+def test_parse_log_android_emulator_respects_module_and_wall_floors():
+    # False-fire boundary 1: a single-module connected run is a matrix-leg problem, not a
+    # device-parallelism one - below the module floor, no finding.
+    one_module = "\n".join([
+        "> Task :app:connectedDebugAndroidTest",
+        "> Task :app:connectedAndroidTest",
+        "> Task :app:connectedCheck",
+        "BUILD SUCCESSFUL in 4m 00s",
+    ])
+    assert bp._parse_log(one_module) is None
+    # False-fire boundary 2: enough modules but a quick build (below the wall floor) isn't
+    # worth the per-shard AVD-boot overhead.
+    quick = "\n".join([
+        "> Task :app:connectedAndroidTest",
+        "> Task :core:connectedAndroidTest",
+        "> Task :network:connectedAndroidTest",
+        "BUILD SUCCESSFUL in 45s",
+    ])
+    assert bp._parse_log(quick) is None
+
+
+# A single un-sharded JVM Gradle `:test` task that gates a long build: one
+# `> Task :<module>:test` line, then a `BUILD SUCCESSFUL in <wall>` over the floor.
+# Synthetic generic module name (no repo text).
+_GRADLE_TEST_LOG = "\n".join([
+    "2026-01-01T00:00:00.0000000Z \x1b[36;1m./gradlew :integration-tests:test --stacktrace\x1b[0m",
+    "2026-01-01T00:00:02.0000000Z Calculating task graph as no cached configuration is available",
+    "2026-01-01T00:01:00.0000000Z > Task :integration-tests:testClasses",
+    "2026-01-01T00:01:20.0000000Z > Task :integration-tests:test",
+    "2026-01-01T00:17:06.0000000Z BUILD SUCCESSFUL in 17m 6s",
+    "2026-01-01T00:17:06.0000001Z 1026 actionable tasks: 637 executed, 389 from cache",
+])
+
+
+def test_parse_log_detects_single_serial_gradle_test_task():
+    # The deterministic detector for the un-sharded `:test`-task gap: one serial Gradle test
+    # task gates a long build. Flag-style; `:testClasses` must NOT be miscounted as a `:test`
+    # task, and the instrumentation detector (J) must NOT fire (no connectedAndroidTest).
+    leaf = bp._parse_log(_GRADLE_TEST_LOG)
+    assert leaf is not None and leaf["fix_key"] == "gradle-test-parallelism"
+    assert leaf["magnitude"] is None and leaf["deeper"] == []
+    assert leaf["fix_key"] in bp._FIX_META
+    assert leaf["evidence"]
+
+
+def test_parse_log_gradle_test_also_fires_on_android_unit_test_task():
+    # The Android JVM unit-test task name (`:test<Variant>UnitTest`) is recognized too.
+    log = "\n".join([
+        "> Task :core:testDebugUnitTest",
+        "BUILD SUCCESSFUL in 8m 30s",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "gradle-test-parallelism"
+
+
+def test_parse_log_detectors_handle_nested_gradle_module_paths():
+    # NESTED module paths (`:feature:login:…`, `:libraries:network:test`) are common in the
+    # large multi-module Android/Gradle builds these detectors target — the capture must
+    # span multiple `:`-segments, not just one, or the modules go uncounted (false negative).
+    android = "\n".join([
+        "./gradlew connectedCheck",
+        "> Task :feature:login:connectedDebugAndroidTest",
+        "> Task :feature:profile:connectedDebugAndroidTest",
+        "> Task :libraries:network:connectedDebugAndroidTest",
+        "BUILD SUCCESSFUL in 4m 00s",
+    ])
+    leaf = bp._parse_log(android)
+    assert leaf is not None and leaf["fix_key"] == "android-emulator-shard"
+    assert "3 modules" in leaf["unit_label"]   # all three nested modules counted
+
+    jvm = "\n".join([
+        "./gradlew :libraries:network:test",
+        "> Task :libraries:network:test",
+        "> Task :libraries:network:testClasses",   # must NOT be miscounted as a :test task
+        "BUILD SUCCESSFUL in 6m 00s",
+    ])
+    leaf = bp._parse_log(jvm)
+    assert leaf is not None and leaf["fix_key"] == "gradle-test-parallelism"
+
+
+def test_parse_log_gradle_test_respects_the_wall_floor():
+    # False-fire boundary: a quick JVM test build (below the wall floor) isn't worth forking.
+    quick = "\n".join([
+        "> Task :app:test",
+        "BUILD SUCCESSFUL in 40s",
+    ])
+    assert bp._parse_log(quick) is None
+
+
+def test_parse_log_gradle_detectors_are_mutually_exclusive():
+    # An instrumentation suite (connectedAndroidTest tasks present) is classified by the
+    # emulator detector (J), never by the JVM `:test` detector (K) - even though a long
+    # connectedCheck build also clears K's wall floor.
+    leaf = bp._parse_log(_ANDROID_CONNECTED_LOG)
+    assert leaf is not None and leaf["fix_key"] == "android-emulator-shard"
+    # And a JVM `:test` build has no connectedAndroidTest tasks, so J stays silent and K owns it.
+    leaf2 = bp._parse_log(_GRADLE_TEST_LOG)
+    assert leaf2 is not None and leaf2["fix_key"] == "gradle-test-parallelism"
+
+
+def test_gradle_build_secs_parses_every_unit():
+    assert bp._gradle_build_secs("BUILD SUCCESSFUL in 17m 6s") == 17 * 60 + 6
+    assert bp._gradle_build_secs("BUILD SUCCESSFUL in 5m 35s") == 5 * 60 + 35
+    assert bp._gradle_build_secs("BUILD SUCCESSFUL in 45s") == 45
+    assert bp._gradle_build_secs("BUILD SUCCESSFUL in 1h 2m 3s") == 3600 + 120 + 3
+    assert bp._gradle_build_secs("BUILD SUCCESSFUL in 800ms") == 0.8  # ms, not minutes
+    assert bp._gradle_build_secs("no build summary here") is None
+
+
+def test_parse_log_returns_none_for_unrecognized_log():
+    assert bp._parse_log("just some unrelated build output\nDone in 3s") is None
+    assert bp._parse_log("") is None
+    # A vitest run where import does NOT dominate and there's no coverage -> no leaf.
+    weak = " Duration  10s (transform 1s, setup 0ms, import 2s, tests 40s, environment 0ms)"
+    assert bp._parse_log(weak) is None
+
+
+# --------------------------------------------------------------------------- #
+# _floor_note — the "what a change here can buy (wall-clock)" figure under each
+# pole. The render smoke tests use a single-pole doc (no concurrent checks), so
+# these exercise the number-producing branches directly.
+# --------------------------------------------------------------------------- #
+
+def test_floor_note_non_matrix_buys_down_to_next_concurrent_check():
+    pole = {"check": "build", "p50_s": 300.0}
+    candidates = [{"name": "build", "p50_s": 300.0},
+                  {"name": "lint", "p50_s": 120.0}]
+    note = "\n".join(bp._floor_note(pole, candidates))
+    # Cutting the gate helps 1:1 only down to the next concurrent check (120s),
+    # so the payoff is 300 - 120 = 180s.
+    assert "up to **~3m 00s**" in note
+    assert "`lint` (2m 00s)" in note
+    assert "the gate moves" in note
+
+
+def test_floor_note_matrix_leg_distinguishes_one_leg_from_the_whole_matrix():
+    pole = {"check": "tests-web (pg12)", "p50_s": 300.0}
+    candidates = [{"name": "tests-web (pg12)", "p50_s": 300.0},
+                  {"name": "tests-web (pg15)", "p50_s": 290.0},  # sibling leg
+                  {"name": "lint", "p50_s": 100.0}]              # next non-leg
+    note = "\n".join(bp._floor_note(pole, candidates))
+    # Speeding ONE leg only saves down to the next leg (300 - 290 = 10s)...
+    assert "this one leg** saves only ~10s" in note
+    assert "`tests-web (pg15)`" in note
+    # ...but a shared-config fix drops the whole matrix toward the next non-leg
+    # check `lint` (100s), for up to 300 - 100 = 200s.
+    assert "drops the whole matrix" in note
+    assert "`lint` (1m 40s)" in note
+    assert "**~3m 20s**" in note
+
+
+def test_same_matrix_prefix_suffix_and_length_guard():
+    # Real legs (share a long prefix/suffix, near-equal length) -> same matrix.
+    assert bp._same_matrix("tests-web (node24, pg12, mode)", "tests-web (node24, pg15, mode)")
+    assert bp._same_matrix("prisma-adapter Integration Test", "drizzle-adapter Integration Test")
+    # A leg whose dimension adds ONE token is still a leg (kysely-prisma vs prisma).
+    assert bp._same_matrix("@better-auth-test/prisma-adapter Integration Test",
+                           "@better-auth-test/kysely-prisma-adapter Integration Test")
+    # Length guard: a distinct, much shorter check that only shares a generic tail
+    # ("integration test", 2 tokens vs 4) is NOT a matrix leg - otherwise it would be
+    # wrongly dropped from the wall-clock floor if it sat between the gate and the true
+    # floor. (A one-token difference like kysely-prisma vs prisma is indistinguishable
+    # from a real leg by name alone and is intentionally still grouped, above.)
+    assert not bp._same_matrix("prisma-adapter Integration Test", "Integration test")
+    # Same length, exactly one differing token (>=3 tokens) is a single-dimension
+    # matrix - catches the node-version legs the prefix/suffix rule misses.
+    assert bp._same_matrix("test (22.x)", "test (24.x)")
+    assert not bp._same_matrix("lint", "test")          # too short / fully different
+
+
+def test_same_matrix_cross_workflow_name_collision_is_not_one_matrix():
+    # GitHub gives same-named jobs in DIFFERENT workflows identical check-run names: a
+    # `name: Python ${{ matrix.python }}` job in both datasets-test.yml and
+    # framework-test.yml surfaces as `Python 3.13`. Name similarity alone would fold them
+    # into one matrix; with the producing workflow files known they are NOT the same matrix.
+    assert not bp._same_matrix("Python 3.13", "Python 3.11",
+                               ".github/workflows/framework-test.yml",
+                               ".github/workflows/datasets-test.yml")
+    # Even an IDENTICAL name across two workflows is a collision, not a shared matrix.
+    assert not bp._same_matrix("Python 3.13", "Python 3.13",
+                               ".github/workflows/framework-test.yml",
+                               ".github/workflows/datasets-test.yml")
+    # Same workflow file (path or bare base) -> still a matrix, as before.
+    assert bp._same_matrix("Python 3.13", "Python 3.11",
+                           ".github/workflows/datasets-test.yml",
+                           "datasets-test.yml")
+    # An unknown side falls back to name-only matching (existing call sites unchanged).
+    assert bp._same_matrix("Python 3.13", "Python 3.11", "", "")
+    assert bp._same_matrix("Python 3.13", "Python 3.11")
+
+
+def test_floor_note_does_not_fold_two_workflows_into_one_matrix():
+    # flwrlabs/flower: datasets-test.yml ('Datasets') and framework-test.yml ('Framework
+    # Python') BOTH define a python matrix named `Python ${{ matrix.python }}`. The
+    # 623.5s `Python 3.13` pole is framework-test's job — NOT a leg of datasets-test's
+    # `Python 3.11`/`3.12`. The floor note must not claim "the legs share one job config"
+    # by mixing the two workflows' jobs into one matrix.
+    pole = {"check": "Python 3.13", "p50_s": 623.5,
+            "workflow_file": ".github/workflows/framework-test.yml"}
+    candidates = [
+        {"name": "Python 3.13", "p50_s": 623.5,
+         "workflow_file": ".github/workflows/framework-test.yml"},
+        {"name": "Python 3.11", "p50_s": 500.0,
+         "workflow_file": ".github/workflows/datasets-test.yml"},
+        {"name": "Python 3.12", "p50_s": 480.0,
+         "workflow_file": ".github/workflows/datasets-test.yml"},
+        {"name": "Lint", "p50_s": 100.0,
+         "workflow_file": ".github/workflows/lint.yml"},
+    ]
+    note = "\n".join(bp._floor_note(pole, candidates))
+    # framework-test's Python 3.13 has no sibling leg in its OWN workflow, so it must use
+    # the plain single-check floor framing, never the multi-leg "share one job config" one.
+    assert "share one job config" not in note
+    assert "matrix legs run" not in note
+    # The honest plain framing floors against the next concurrent check directly.
+    assert "it gates until it drops to the next concurrent check" in note
+
+
+def test_floor_note_excludes_a_distinct_shorter_check_sharing_a_generic_tail():
+    # `Integration test` (a standalone job) shares the "integration test" tail with the
+    # gating matrix pole but is NOT a leg - it must count as the floor, not be grouped
+    # away as a sibling leg (the _same_matrix length-guard regression).
+    pole = {"check": "prisma-adapter Integration Test", "p50_s": 500.0}
+    candidates = [{"name": "prisma-adapter Integration Test", "p50_s": 500.0},
+                  {"name": "drizzle-adapter Integration Test", "p50_s": 480.0},  # real leg
+                  {"name": "Integration test", "p50_s": 300.0}]                  # distinct
+    note = "\n".join(bp._floor_note(pole, candidates))
+    # The whole-matrix drop floors against `Integration test` (the next NON-leg), 500-300.
+    assert "`Integration test` (5m 00s)" in note
+    assert "**~3m 20s**" in note
+
+
+def test_floor_note_empty_for_a_non_gating_pole():
+    # A pole that runs BEHIND a slower concurrent check isn't the gate, so cutting it
+    # buys ~0 merge wait until that check is cut - emit NO "what a change can buy"
+    # note (the old code printed incoherent prose naming the slower check as a floor,
+    # and falsely matrix-grouped suffix-colliding names like `Smoke test (22.x)`).
+    pole = {"check": "test (22.x)", "p50_s": 268.0}
+    candidates = [{"name": "test (22.x)", "p50_s": 268.0},
+                  {"name": "Smoke test (22.x)", "p50_s": 120.0},
+                  {"name": "prisma-adapter Integration Test", "p50_s": 425.0}]
+    assert bp._floor_note(pole, candidates) == []
+
+
+def test_floor_note_empty_when_nothing_concurrent_to_floor_against():
+    # A lone pole with no other concurrent check has no wall-clock floor to quote.
+    assert bp._floor_note({"check": "build", "p50_s": 300.0},
+                          [{"name": "build", "p50_s": 300.0}]) == []
+
+
+def test_floor_note_floors_against_universal_bimodal_high_not_minority_blended():
+    # kernel/kernel-images class. The `test` pole (682s) runs concurrently with:
+    #   - `build-headful`: present on EVERY sampled PR (20/20), blended p50 only 150s but
+    #     flagged BIMODAL with a 356.5s HIGH mode (~47% of PRs) - so on the slow-mode PRs IT
+    #     is the real concurrent floor, at 356.5s.
+    #   - `Cursor Bugbot`: a managed/external check (no workflow_file, suppressed from the
+    #     long-pole list) present on only 13/20 PRs, blended 198s.
+    # The bug: the floor ranked siblings by BARE p50, so it floored against Cursor Bugbot
+    # (198s > build-headful's blended 150s) and over-promised 682-198 = ~8m 04s - using a
+    # minority-presence MANAGED check the report won't even render as a pole. The faithful
+    # floor is the universal build-headful at its EFFECTIVE (bimodal-high) 356.5s, so the
+    # honest ceiling is 682-356.5 = ~5m 26s.
+    pole = {"check": "test", "p50_s": 682.0,
+            "workflow_file": ".github/workflows/ci.yml"}
+    candidates = [
+        {"name": "test", "p50_s": 682.0, "present_on": 20,
+         "workflow_file": ".github/workflows/ci.yml"},
+        {"name": "build-headful", "p50_s": 150.0, "present_on": 20,
+         "workflow_file": ".github/workflows/ci.yml",
+         "bimodal": {"high_p50_s": 356.5, "low_p50_s": 90.0, "slow_frac": 0.47}},
+        {"name": "Cursor Bugbot", "p50_s": 198.0, "present_on": 13},  # managed, no wf file
+    ]
+    note = "\n".join(bp._floor_note(pole, candidates))
+    # Floors against the universal bimodal-high sibling, NOT the minority managed check.
+    assert "`build-headful` (5m 56s)" in note
+    assert "up to **~5m 26s**" in note
+    assert "Cursor Bugbot" not in note
+    # The executive-summary win must agree with the per-pole floor (no internal contradiction).
+    assert bp._pole_addressable(pole, candidates) == 682.0 - 356.5
+
+
+# --------------------------------------------------------------------------- #
+# _floor_note / _pole_addressable chain branch (review V2 / OD-F2): a modal-chain
+# MEMBER pole (render() stashes `_chain_member`) renders the chain-stage story with
+# the win capped at the stamped chain headroom — never the concurrent "next leg"
+# arithmetic that overstated deepgram's poles (~28s rendered vs the 5.0s stamp).
+# --------------------------------------------------------------------------- #
+
+_DEEPGRAM_LABEL = "`compile (3.10)` → `test (3.13)`"
+
+
+def _chain_member_pole(p50=66.0, win=5.0, stage=2):
+    return {"check": "test (3.13)", "p50_s": p50,
+            "workflow_file": ".github/workflows/ci.yml",
+            "_chain_member": {"win_s": win, "stage": stage, "len": 2,
+                              "label": _DEEPGRAM_LABEL}}
+
+
+_CHAIN_CANDIDATES = [
+    {"name": "test (3.13)", "p50_s": 66.0,
+     "workflow_file": ".github/workflows/ci.yml"},
+    {"name": "test (3.10)", "p50_s": 54.0,          # sibling matrix leg
+     "workflow_file": ".github/workflows/ci.yml"},
+    {"name": "Title Check", "p50_s": 14.0,
+     "workflow_file": ".github/workflows/title.yml"},
+]
+
+
+def test_floor_note_chain_member_caps_win_at_stamped_chain_headroom():
+    # The deepgram pole-1 shape (plan cell 2): the old note said "~28s"; the
+    # stamped chain headroom is 5.0s. The chain-stage story replaces the
+    # matrix/next-leg framing entirely.
+    pole = _chain_member_pole()
+    note = "\n".join(bp._floor_note(pole, _CHAIN_CANDIDATES))
+    assert "up to **~5s**" in note
+    assert "stage 2/2" in note and "gate chain" in note
+    assert "next leg" not in note and "matrix" not in note
+    # Never-disagree: the executive-summary win quotes the same capped figure.
+    assert bp._pole_addressable(pole, _CHAIN_CANDIDATES) == 5.0
+
+
+def test_floor_note_chain_predecessor_gets_its_stage_framing():
+    # Plan cell 3: a chain PREDECESSOR (the compile shape) is never framed as a
+    # concurrent sibling — it gets its own stage position.
+    pole = {"check": "compile (3.10)", "p50_s": 38.0,
+            "workflow_file": ".github/workflows/ci.yml",
+            "_chain_member": {"win_s": 5.0, "stage": 1, "len": 2,
+                              "label": _DEEPGRAM_LABEL}}
+    candidates = [{"name": "compile (3.10)", "p50_s": 38.0,
+                   "workflow_file": ".github/workflows/ci.yml"},
+                  {"name": "Title Check", "p50_s": 14.0,
+                   "workflow_file": ".github/workflows/title.yml"}]
+    note = "\n".join(bp._floor_note(pole, candidates))
+    assert "stage 1/2" in note and "up to **~5s**" in note
+    assert "next leg" not in note
+    assert bp._pole_addressable(pole, candidates) == 5.0
+
+
+def test_chain_member_gate_prompt_line_uses_chain_framing_not_slowest_typical():
+    # Issue #112 (secondary): a modal-CHAIN member's agent-prompt "THE GATE" line must NOT read
+    # "Slowest check a typical PR waits on: P50 37s" — a mid-chain serial `needs:` stage is not the
+    # slowest single check a typical PR waits on; the CHAIN is. It frames the stage against the chain
+    # total (`merge_dur`) instead. The pole carries render()'s `_chain_member` stash incl. `merge_dur`.
+    pole = {"check": "Prepare dependencies (3.14.5)", "p50_s": 37.0,
+            "workflow_file": ".github/workflows/ci.yaml",
+            "_chain_member": {"win_s": 5.0, "stage": 2, "len": 3,
+                              "label": "the chain", "merge_dur": "1m 56s"}}
+    line = bp._pole_gate_prompt_claim(
+        "Prepare dependencies (3.14.5)", "ci.yaml", "37s",
+        gate_count=18, npop=18, pole=pole, cs=None)
+    assert "Stage 2/3 of the `needs:` gate chain (chain P50 1m 56s)" in line
+    assert "this stage: P50 37s" in line
+    assert "Slowest check a typical PR waits on" not in line
+    # A non-chain pole is unaffected — it keeps the typical-gate line.
+    plain = bp._pole_gate_prompt_claim(
+        "lint", "ci.yaml", "37s", gate_count=18, npop=18, pole={"check": "lint"}, cs=None)
+    assert "Slowest check a typical PR waits on: P50 37s" in plain
+
+
+def test_floor_note_non_member_pole_unchanged_on_chain_bearing_repo():
+    # Plan cell 4: a pole that is NOT a chain member renders today's note
+    # byte-identically even when the repo has a chain (no `_chain_member` stash).
+    pole = {"check": "docs", "p50_s": 300.0,
+            "workflow_file": ".github/workflows/docs.yml"}
+    candidates = [{"name": "docs", "p50_s": 300.0,
+                   "workflow_file": ".github/workflows/docs.yml"},
+                  {"name": "lint", "p50_s": 120.0,
+                   "workflow_file": ".github/workflows/lint.yml"}]
+    note = "\n".join(bp._floor_note(pole, candidates))
+    assert "up to **~3m 00s**" in note and "the gate moves" in note
+    assert "gate chain" not in note
+
+
+def test_floor_note_chain_member_zero_headroom_says_so():
+    # Plan cell 6: co-longest chains net the per-PR headroom to 0 (the runner-up
+    # re-walk counts the tied path at full span — the both-counted rule). The
+    # note must not quote a positive win.
+    pole = _chain_member_pole(win=0.0)
+    note = "\n".join(bp._floor_note(pole, _CHAIN_CANDIDATES))
+    assert "~0s" in note and "competing path of comparable length" in note
+    assert "up to **~" not in note
+    assert bp._pole_addressable(pole, _CHAIN_CANDIDATES) == 0.0
+
+
+def test_floor_note_chain_member_win_capped_by_own_span():
+    # A stage can't give back more time than it runs: headroom 100s over a 66s
+    # member caps at the member's own span (the wall_clock member-span bound).
+    pole = _chain_member_pole(win=100.0)
+    note = "\n".join(bp._floor_note(pole, _CHAIN_CANDIDATES))
+    assert "up to **~1m 06s**" in note and "own span" in note
+    assert bp._pole_addressable(pole, _CHAIN_CANDIDATES) == 66.0
+
+
+def test_floor_note_chain_member_suppressed_pole_stays_suppressed():
+    # Plan cell 7: the suppression guards run BEFORE the chain branch — a pole
+    # whose note is suppressed today (a slower universal concurrent blocker)
+    # stays suppressed, chain member or not.
+    pole = _chain_member_pole()
+    candidates = _CHAIN_CANDIDATES + [
+        {"name": "Enterprise Gate", "p50_s": 400.0,
+         "workflow_file": ".github/workflows/gate.yml"}]
+    assert bp._floor_note(pole, candidates) == []
+    assert bp._pole_addressable(pole, candidates) == 0.0
+
+
+def test_floor_and_addressable_count_a_universal_managed_blocker():
+    # OneSignal-Android-SDK class — the OVER-statement guard. The `build` pole (619s, file-backed)
+    # runs concurrently with a UNIVERSAL managed check `Claude Code Review` (no workflow_file,
+    # present on EVERY PR, 944s > the pole) plus a smaller file-backed sibling (300s). Cutting
+    # `build` buys ~0 merge wait — the universal managed check already gates the merge at 944s.
+    # The regression to guard: flooring only against FILE-BACKED siblings floored at the 300s
+    # sibling and over-promised 619−300 = 319s of a win that does not exist. A universal
+    # managed/external blocker must CAP the win (and trip the non-gate guard) even though it is
+    # never NAMED as the floor (the reader can't tune it).
+    pole = {"check": "build", "p50_s": 619.0, "workflow_file": ".github/workflows/ci.yml"}
+    candidates = [
+        {"name": "build", "p50_s": 619.0, "present_on": 20, "workflow_file": ".github/workflows/ci.yml"},
+        {"name": "Claude Code Review", "p50_s": 944.0, "present_on": 20},   # managed, no wf, universal, slower
+        {"name": "lint", "p50_s": 300.0, "present_on": 20, "workflow_file": ".github/workflows/ci.yml"},
+    ]
+    assert bp._floor_note(pole, candidates) == [], "pole behind a universal managed blocker → no over-stated win"
+    assert bp._pole_addressable(pole, candidates) == 0.0, "headline credits 0 — the managed check gates the merge"
+    # When the managed check is BELOW the pole but ABOVE the file sibling, the win is capped at
+    # pole − managed (119s), NOT pole − file sibling (319s).
+    cand2 = [dict(c) for c in candidates]
+    cand2[1]["p50_s"] = 500.0
+    assert bp._pole_addressable(pole, cand2) == 619.0 - 500.0, "win capped by the universal managed check, not the file sibling"
+    # Prose coherence: when the managed check caps the win ABOVE the named file floor, the note
+    # names the managed check (the real next gate), NOT the faster file sibling — else the quoted
+    # number (619−500) wouldn't reconcile with a "drops to lint (300s)" clause.
+    note2 = "\n".join(bp._floor_note(pole, cand2))
+    assert "Claude Code Review" in note2 and "`lint`" not in note2, "names the managed cap, not the faster file floor"
+    assert "up to **~1m 59s**" in note2   # 619 − 500 = 119s, capped by the managed check
+
+
+# --------------------------------------------------------------------------- #
+# render() smoke test — the whole pipeline wired together
+# --------------------------------------------------------------------------- #
+
+def _doc_one_pole() -> dict:
+    return {
+        "repo": "o/r", "scanned_at": "2026-06-08T00:00:00Z",
+        "data_sources": {"runs_sampled": 100, "jobs_sampled": 300,
+                         "workflows_analyzed": 5},
+        # The scanned config fact the OPT78 (`vitest-isolate-pool`) leaf is gated
+        # on — this fixture's drill log is an import-bound vitest run.
+        "test_runner_isolation": {
+            "runner": "vitest", "readable": True, "isolation_opt_out": False,
+            "truncated": False, "verdict": "isolation_on",
+            "configs": ["vitest.config.ts"], "opt_out_evidence": []},
+        "pr_critical_path": {
+            "sampled_pr_count": 20, "sample_target": 20, "sample_complete": True,
+            "poles": [{
+                "check": "tests-web", "p50_s": 255.0,
+                "workflow_file": ".github/workflows/pipeline.yml", "job": "tests-web",
+                "dominant_step": "run tests", "dominant_p50_s": 91.0,
+                "steps": [{"step": "run tests", "category": "test", "p50_s": 91.0},
+                          {"step": "Build", "category": "build", "p50_s": 60.0}],
+            }]},
+    }
+
+
+_ISOLATION_ON = {"runner": "vitest", "readable": True, "isolation_opt_out": False,
+                 "truncated": False, "verdict": "isolation_on",
+                 "configs": ["vitest.config.ts"], "opt_out_evidence": []}
+
+_IMPORT_BOUND_LOG = "\n".join([
+    " RUN  v4.1.4 /repo/web",
+    " Test Files  149 passed (149)",
+    " Duration  96.12s (transform 8.97s, setup 1.01s, import 245.03s, tests 214.54s, environment 8ms)",
+])
+
+
+def test_render_smoke_builds_pole_section_prompt_and_provenance():
+    md = bp.render(
+        _doc_one_pole(), {"pipeline": _IMPORT_BOUND_LOG}, {},
+        {"pipeline": "https://github.com/o/r/actions/runs/123"}, "2026-06-08")
+    assert "# o/r - why is the merge slow?" in md
+    assert "Long pole 1: `pipeline.yml` ▸ `tests-web`" in md
+    assert "## 🟠 Long pole 1:" in md   # severity dot (255s gate -> 🟠 medium)
+    assert "Where this data comes from" in md          # provenance block
+    assert "scanned **2026-06-08**" in md
+    assert "one representative run" in md               # drill-down source line
+    assert "[run 123]" in md                            # the run is linked
+    # RCA-only: a prompt that points the agent at the docs, NOT a prescribed fix.
+    assert "Prompt for your coding agent" in md
+    assert "does NOT prescribe the fix" in md           # plain text, copy-friendly
+    assert "```text" in md                              # the prompt is in a code block
+    assert "vitest.dev/guide/improving-performance" in md   # the doc pointer
+    assert "```diff" not in md                          # no prescribed code change
+
+
+def test_render_pr_floor_fallback_demotes_spine_and_does_not_dead_end():
+    # External-gate repo: the required suite is all external/managed, so collect_runs
+    # synthesized a PR-FLOOR fallback spine (gate_kind=pr_floor_fallback) rather than
+    # leaving poles empty. The renderer must drill it (NOT return the dead-end line)
+    # AND demote it unmistakably: a demotion banner + a PR-scoped title that never
+    # calls the floor "the merge gate".
+    doc = _doc_one_pole()
+    doc["required_checks"] = ["Enterprise CI/tests", "cla/mattermost", "merge/blocked"]
+    cp = doc["pr_critical_path"]
+    cp["gate_kind"] = "pr_floor_fallback"
+    # The sampler proved the external suite ran on no PR (promoted a recency sample).
+    cp["required_suite_unsatisfiable"] = True
+    cp["required_suite_scoped"] = False
+    cp["poles"][0]["pr_floor_fallback"] = True
+    cp["checks"] = [{"name": "tests-web", "p50_s": 255.0}]
+    md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/123"}, "2026-06-08")
+    assert "_No measured critical path" not in md           # did NOT dead-end
+    assert "why is CI slow on a PR?" in md                  # PR-scoped title, not "merge"
+    assert "why is the merge slow?" not in md
+    assert "[!IMPORTANT]" in md and "measured PR-floor" in md   # demotion banner present
+    assert "not** the branch-protection gate" in md        # banner disclaims the real gate
+    assert "Enterprise CI/tests" in md                      # names the external required checks
+    assert "ran on the sampled PRs" in md                   # banner says the suite was absent, not unread
+    assert "Long pole 1: `pipeline.yml` ▸ `tests-web`" in md  # still drills the floor pole
+    assert "gate your merge" not in md                      # TOC framing demoted too, no contradiction
+    assert "set your PR-floor" in md
+    # P2 regression: an external-but-READ suite must NOT be reported as unreadable.
+    assert "Required checks were unreadable" not in md
+    assert "No file-backed required gate" in md             # the correct provenance line
+
+
+def test_render_pr_floor_banner_absent_on_a_normal_gate_scoped_report():
+    # Guard: a normal report (a real file-backed gate, no gate_kind) must NOT show the
+    # PR-floor demotion banner or the PR-scoped title.
+    md = bp.render(_doc_one_pole(), {"pipeline": _IMPORT_BOUND_LOG}, {}, {}, "2026-06-08")
+    assert "why is the merge slow?" in md
+    assert "measured PR-floor" not in md
+    assert "PR-floor" not in md
+
+
+def test_all_managed_gate_bottom_line_does_not_promise_missing_drilldowns():
+    # Regression: when every gating check is managed/external (nwf==0, no file-backed
+    # pole), the lead correctly says "there is no workflow to drill or diff" and the
+    # report contains ZERO per-pole "## Long pole" sections. The Bottom line must agree
+    # — it must NOT direct the reader to "the per-pole drill-downs below" that don't exist.
+    doc = {
+        "repo": "o/r", "scanned_at": "2026-06-08T00:00:00Z",
+        "data_sources": {"runs_sampled": 100, "jobs_sampled": 300,
+                         "workflows_analyzed": 5},
+        "required_checks": ["Enterprise CI/tests", "cla/bot"],
+        "pr_critical_path": {
+            "sampled_pr_count": 20, "sample_target": 20, "sample_complete": True,
+            "gate_kind": "pr_floor_fallback",
+            "poles": [{"check": "Enterprise CI/tests", "p50_s": 600.0,
+                       "workflow_file": "", "job": ""}],
+        },
+    }
+    md = bp.render(doc, {}, {}, {}, "2026-06-08")
+    # Precondition: this really is the all-managed / no-drill-down case.
+    assert "there is no workflow to drill or diff" in md
+    # Emoji-agnostic: the renderer emits 🔴/🟠/🟡 severity dots, so match ANY pole heading
+    # (mirrors verify_report._pole_sections) rather than enumerating two of the three glyphs.
+    assert not re.search(r"^##\s+.*Long pole \d+:", md, re.MULTILINE)
+    # The bug: the Bottom line promised drill-downs that the report does not contain.
+    bottom = next(ln for ln in md.splitlines() if "**Bottom line.**" in ln)
+    assert "per-pole drill-downs below" not in bottom
+    assert "drill-down" not in bottom
+
+
+def _prov_doc(**cp_overrides) -> dict:
+    """Minimal doc for exercising `_provenance_block` directly."""
+    cp = {"sampled_pr_count": 20, "sample_target": 20, "sample_complete": True}
+    cp.update(cp_overrides)
+    return {
+        "scanned_at": "2026-06-08T00:00:00Z",
+        "data_sources": {"runs_sampled": 100, "jobs_sampled": 300,
+                         "workflows_analyzed": 5},
+        "pr_critical_path": cp,
+    }
+
+
+def test_provenance_surfaces_the_gh_call_cost():
+    # The data-collection cost (gh call count + time) must be visible in the report
+    # so "why did this take a while" is answerable from the artifact, not a guess.
+    doc = _prov_doc()
+    doc["data_sources"]["gh_query_count"] = 837
+    doc["data_sources"]["gh_error_count"] = 0
+    doc["timings"] = {"scripted_total_s": 191.0}
+    block = "\n".join(bp._provenance_block(doc, "o/r", "2026-06-08"))
+    assert "837 gh API call(s)" in block
+    assert "3m 11s" in block          # _clock(191.0)
+    assert "failed" not in block      # no error clause when gh_error_count == 0
+
+
+def test_provenance_cost_line_omitted_when_no_call_count():
+    # An older/static-only doc with no gh_query_count must not render a bare/empty
+    # cost line.
+    block = "\n".join(bp._provenance_block(_prov_doc(), "o/r", "2026-06-08"))
+    assert "Data-collection cost" not in block
+
+
+def test_provenance_cost_line_has_four_honest_states():
+    # The cost line must distinguish: (a) adaptive-with-deepening, (b) a genuine full
+    # pass, (c) candidates that already fit within the shallow depth (exact, nothing to
+    # deepen) while others stayed shallow, and (d) no PR-gating pole at all. It must
+    # never launder reduced coverage as full (c/d vs b) nor call an exact gate shallow.
+    doc = _prov_doc()
+    # (a) adaptive with deepening
+    doc["data_sources"].update({"gh_query_count": 560, "shallow_runs": 10, "max_runs": 20,
+                                "shallow_capped": True, "pole_candidates": 30,
+                                "deepened_workflows": 5, "deepen_converged": True})
+    a = "\n".join(bp._provenance_block(doc, "o/r", "2026-06-08"))
+    assert "560 gh API call(s)" in a
+    assert "10-run shallow pass" in a and "5 of 30 PR-gating pole candidate(s) deepened to 20" in a
+    doc["data_sources"]["deepen_converged"] = False
+    assert "did not fully converge" in "\n".join(bp._provenance_block(doc, "o/r", "2026-06-08"))
+    # (b) genuine full pass (nothing capped) → per-run wording
+    doc["data_sources"].update({"shallow_capped": False, "deepened_workflows": 0,
+                                "deepen_converged": True})
+    assert "one jobs fetch per sampled run" in "\n".join(bp._provenance_block(doc, "o/r", "2026-06-08"))
+    # (c) capped, candidates exist but were already within shallow depth (deep==0,
+    #     cand>0) → "already fit within N runs", NOT "none ranked as a pole".
+    doc["data_sources"].update({"shallow_capped": True, "deepened_workflows": 0,
+                                "pole_candidates": 3})
+    c = "\n".join(bp._provenance_block(doc, "o/r", "2026-06-08"))
+    assert "rendered PR-gating poles fit within 10 runs" in c
+    assert "none" not in c.lower() and "one jobs fetch per sampled run" not in c
+    # (c2) cost-only deepening: no PR-gating workflow needed more samples, but
+    # selected bill-pole workflows did. This must not render as "nothing deepened".
+    doc["data_sources"].update({"shallow_capped": True, "deepened_workflows": 0,
+                                "pole_candidates": 0,
+                                "cost_deepened_workflow_count": 2})
+    c2 = "\n".join(bp._provenance_block(doc, "o/r", "2026-06-08"))
+    assert "2 bill-pole workflow candidate(s) deepened to 20 runs for the runner-minute source block" in c2
+    assert "nothing was deepened" not in c2
+    assert "gate, drill-set, floor, and selected bill-pole workflows are full-depth" not in c2
+    # (d) capped, NO pole candidates → loud reduced-coverage wording
+    doc["data_sources"]["cost_deepened_workflow_count"] = 0
+    doc["data_sources"]["pole_candidates"] = 0
+    d = "\n".join(bp._provenance_block(doc, "o/r", "2026-06-08"))
+    assert "none" in d.lower() and "rests on the shallow sample" in d
+
+
+def test_provenance_flags_a_deep_scan_for_a_complete_sample():
+    # A complete sample that needed a deep scan (>=3x kept) to find PRs running the
+    # full suite is flagged, so it reads differently from a shallow one.
+    block = "\n".join(bp._provenance_block(
+        _prov_doc(sampled_pr_count=20, sample_fetched=60), "o/r", "2026-06-08"))
+    assert "scanned **60 recent PRs**" in block
+    assert "20 that ran the full required suite" in block
+
+
+def test_provenance_omits_deep_scan_note_for_a_shallow_walk():
+    # 50 fetched for 20 kept is past the OLD 2x trigger but below the 3x threshold —
+    # a routine ~half-partial-suite rate must NOT trip the note (guards the raise).
+    block = "\n".join(bp._provenance_block(
+        _prov_doc(sampled_pr_count=20, sample_fetched=50), "o/r", "2026-06-08"))
+    assert "recent PRs**" not in block
+    assert "20 of 20 PRs sampled" in block       # the plain honest baseline
+
+
+def test_provenance_unsatisfiable_suite_is_not_reported_as_unreadable():
+    # P2 regression: an external required suite that was READ but was not observable
+    # in the sampled Actions job lists
+    # sets required_suite_scoped=False AND required_suite_unsatisfiable=True. The
+    # provenance must report the PR-floor cause, NOT the "unreadable (no admin / 404)"
+    # cause — the two share the scoped=False flag but are different failures.
+    block = "\n".join(bp._provenance_block(
+        _prov_doc(required_suite_scoped=False, required_suite_unsatisfiable=True),
+        "o/r", "2026-06-08"))
+    assert "No file-backed required gate" in block
+    assert "per-commit presence and timing could not be established" in block
+    assert "ran on **none** of the sampled PRs" not in block
+    assert "Required checks were unreadable" not in block      # the wrong cause
+
+
+def test_provenance_genuinely_unreadable_suite_still_says_unreadable():
+    # The other branch is preserved: scoped=False with NO unsatisfiable flag means the
+    # required set truly couldn't be read (no admin / 404).
+    block = "\n".join(bp._provenance_block(
+        _prov_doc(required_suite_scoped=False), "o/r", "2026-06-08"))
+    assert "Required checks were unreadable" in block
+    assert "No file-backed required gate" not in block
+
+
+def test_provenance_surfaces_required_scope_narrowing_never_silent():
+    # The required-scope filter can drop the slowest check (a non-required, non-gating
+    # one), so the narrowing must be VISIBLE in the report — same "never a silent drop"
+    # bar as the push/schedule exclusion. The footnote names what was set aside and why.
+    block = "\n".join(bp._provenance_block(
+        _prov_doc(dropped_non_required_checks=[
+            "changed-tests", "Validate build outputs", "CodeQL", "Socket Security",
+            "labeler"]),
+        "o/r", "2026-06-08"))
+    assert "Narrowed to merge-blocking checks:" in block
+    assert "5 non-required check(s)" in block
+    assert "`changed-tests`" in block
+    assert "+1 more" in block                       # only the first 4 are named inline
+    # No drop list -> no footnote (it's not an unconditional line).
+    empty = "\n".join(bp._provenance_block(_prov_doc(), "o/r", "2026-06-08"))
+    assert "Narrowed to merge-blocking checks" not in empty
+
+
+def test_pr_floor_banner_clauses_branch_on_unsatisfiable():
+    # The categorical "external/managed … none ran on the sampled PRs" claim only
+    # appears when the sampler PROVED the external suite absent (unsatisfiable) ON A
+    # COMPLETE, fetch-clean sample. For an all-fileless gate that DID run (no
+    # unsatisfiable flag), the banner must not claim it didn't run.
+    doc = {"required_checks": ["Enterprise CI/tests", "cla/mattermost"]}
+    unsat = "\n".join(bp._pr_floor_fallback_banner(
+        doc, {"gate_kind": "pr_floor_fallback", "required_suite_unsatisfiable": True,
+              "sample_complete": True}))
+    assert "ran on the sampled PRs" in unsat
+    assert "external/managed" in unsat
+    fileless = "\n".join(bp._pr_floor_fallback_banner(
+        doc, {"gate_kind": "pr_floor_fallback"}))
+    assert "ran on the sampled PRs" not in fileless
+    assert "external/managed" in fileless                       # still demoted, just accurate
+    # A normal report draws no banner at all.
+    assert bp._pr_floor_fallback_banner(doc, {}) == []
+
+
+def test_pr_floor_banner_softens_on_a_degraded_sample():
+    # "No PR carried the required suite" is only as strong as the sample. On a SHORT
+    # sample or one with fetch failures, the absence may be a COVERAGE gap, not proof
+    # the gate is external — the banner must NOT assert "external/managed" categorically,
+    # and must point the reader at re-running on a fuller window.
+    doc = {"required_checks": ["Enterprise CI/tests"]}
+    short = "\n".join(bp._pr_floor_fallback_banner(
+        doc, {"gate_kind": "pr_floor_fallback", "required_suite_unsatisfiable": True,
+              "sample_complete": False}))
+    assert "may be a coverage gap" in short
+    assert "are external/managed" not in short  # the categorical claim is withheld
+    failures = "\n".join(bp._pr_floor_fallback_banner(
+        doc, {"gate_kind": "pr_floor_fallback", "required_suite_unsatisfiable": True,
+              "sample_complete": True, "sample_fetch_failures": 3}))
+    assert "3 fetch failure(s)" in failures
+    assert "coverage gap" in failures
+
+
+def test_pr_floor_banner_handles_empty_required_checks():
+    # The `else` arm: no required check could be resolved at all (empty list). The banner
+    # must still demote to the PR-floor without naming a (nonexistent) gate check.
+    banner = "\n".join(bp._pr_floor_fallback_banner(
+        {"required_checks": []}, {"gate_kind": "pr_floor_fallback"}))
+    assert "No file-backed required check could be resolved" in banner
+    assert "measured PR-floor" in banner
+
+
+def test_provenance_deep_scan_count_excludes_fetch_failures():
+    # The deep-scan note counts only PRs we got a verdict on: 70 fetched − 12
+    # failed = 58 evaluated, which is < 3×20, so the note must NOT fire on the raw
+    # 70 (it would, pre-fix). The failures get their own coverage-gap bullet.
+    block = "\n".join(bp._provenance_block(
+        _prov_doc(sampled_pr_count=20, sample_fetched=70, sample_fetch_failures=12),
+        "o/r", "2026-06-08"))
+    assert "recent PRs**" not in block                  # 58 evaluated < 60, omitted
+    assert "12 PR check-run fetch(es) failed" in block  # disclosed separately
+    # With fewer failures the evaluated count clears 3× kept and the note fires,
+    # reporting the evaluated span (66), not the raw fetched (70).
+    block2 = "\n".join(bp._provenance_block(
+        _prov_doc(sampled_pr_count=20, sample_fetched=70, sample_fetch_failures=4),
+        "o/r", "2026-06-08"))
+    assert "scanned **66 recent PRs**" in block2
+
+
+def test_provenance_short_sample_wins_over_deep_scan_note():
+    # An INCOMPLETE sample shows the short-sample floor caveat and never the
+    # (reassuring) deep-scan note, even when the scan was deep — locks the `elif`.
+    block = "\n".join(bp._provenance_block(
+        _prov_doc(sample_complete=False, sampled_pr_count=16, sample_fetched=160),
+        "o/r", "2026-06-08"))
+    assert "short sample" in block
+    assert "scanned **160 recent PRs**" not in block
+
+
+def test_provenance_renders_fetch_failure_coverage_gap():
+    # A non-zero fetch-failure count is surfaced as a coverage gap (it was computed
+    # but never rendered before) — and suppressed when zero.
+    shown = "\n".join(bp._provenance_block(
+        _prov_doc(sample_fetch_failures=2), "o/r", "2026-06-08"))
+    assert "2 PR check-run fetch(es) failed" in shown
+    assert "not laundered into 'ran nothing / clean'" in shown
+    clean = "\n".join(bp._provenance_block(
+        _prov_doc(sample_fetch_failures=0), "o/r", "2026-06-08"))
+    assert "fetch(es) failed" not in clean
+
+
+def test_toc_attributes_gate_frequency_to_the_workflow_not_one_matrix_leg():
+    # The gate count is a per-WORKFLOW sum over its matrix legs. The representative
+    # check shown is a single leg that may be the literal pole on fewer PRs than its
+    # workflow gates, so the label must attribute the count to the workflow file -
+    # "<check> gates 13/20" would read as the leg's own count and mismatch a
+    # populations recompute (a real defect caught by adversarial review).
+    pole_wfs = [{"check": "tests-web (node24, pg15, mode)", "p50_s": 269.0,
+                 "workflow_file": ".github/workflows/pipeline.yml"}]
+    wf_gate = {".github/workflows/pipeline.yml": 13}
+    toc = "\n".join(bp._toc_block(pole_wfs, wf_gate, 20, also_count=0))
+    assert "`pipeline.yml` gates 13/20 PRs" in toc      # attributed to the workflow
+    assert "mode)` — 4m 29s · gates 13/20" not in toc   # NOT to the bare leg name
+
+
+def test_agent_prompt_attributes_gate_frequency_to_the_workflow():
+    # Same fix at the per-pole agent prompt: "its workflow `<wf>` gates N/M", never
+    # "the pole on N/M sampled PRs" attached to the single leg.
+    doc = _doc_one_pole()
+    doc["pr_critical_path"]["poles"][0]["check"] = "tests-web (node24, pg15, mode)"
+    # A second pipeline.yml leg so the workflow gate count sums over both legs (11+2).
+    doc["pr_critical_path"]["poles"].append({
+        "check": "tests-web (node24, pg12, mode)", "p50_s": 258.0,
+        "workflow_file": ".github/workflows/pipeline.yml",
+        "job": "tests-web (node24, pg12, mode)", "dominant_step": "run tests",
+        "dominant_p50_s": 88.0,
+        "steps": [{"step": "run tests", "category": "test", "p50_s": 88.0}]})
+    # 20 sampled PRs: pg15 is the pole on 11, pg12 on 2 (workflow gates 13), and 7 PRs
+    # are gated by some other check -> npop=20, wf gate 13, single leg pg15 only 11.
+    doc["pr_critical_path"]["populations"] = (
+        [[0.05, [["tests-web (node24, pg15, mode)", 269.0],
+                 ["tests-web (node24, pg12, mode)", 258.0]]]] * 11 +
+        [[0.05, [["tests-web (node24, pg12, mode)", 268.0],
+                 ["tests-web (node24, pg15, mode)", 255.0]]]] * 2 +
+        [[0.05, [["some-other-check", 300.0]]]] * 7
+    )
+    md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/123"}, "2026-06-08")
+    assert "its workflow `pipeline.yml` gates 13/20 sampled PRs" in md
+    assert "the pole on 13/20 sampled PRs" not in md
+
+
+def _doc_demoted_frequency_pole() -> dict:
+    # caddy goreleaser-check regression: `test` gates every PR (typical). `goreleaser-check` is
+    # present on a MAJORITY (13/20) but the actual slowest on 0/20 (pole_n 0) → frequency-demoted,
+    # NOT opt-in/rare. Both jobs live in ci.yml, so the WORKFLOW gate-count is 20/20 (driven by
+    # `test`) — the count the buggy render borrowed next to the demoted pole.
+    doc = _doc_one_pole()
+    cp = doc["pr_critical_path"]
+    cp["check_present_n_pr"] = 20
+    cp["poles"] = [
+        {"check": "test", "p50_s": 400.0,
+         "workflow_file": ".github/workflows/ci.yml", "job": "test",
+         "dominant_step": "run tests", "dominant_p50_s": 200.0,
+         "steps": [{"step": "run tests", "category": "test", "p50_s": 200.0}]},
+        {"check": "goreleaser-check", "p50_s": 168.0,
+         "workflow_file": ".github/workflows/ci.yml", "job": "goreleaser-check",
+         "dominant_step": "run goreleaser", "dominant_p50_s": 120.0,
+         "steps": [{"step": "run goreleaser", "category": "build", "p50_s": 120.0}]},
+    ]
+    cp["checks"] = [
+        {"name": "test", "workflow_file": ".github/workflows/ci.yml",
+         "p50_s": 400.0, "present_on": 20, "pole_n": 20},
+        {"name": "goreleaser-check", "workflow_file": ".github/workflows/ci.yml",
+         "p50_s": 168.0, "present_on": 13, "pole_n": 0},
+    ]
+    cp["populations"] = (
+        [[0.05, [["test", 400.0], ["goreleaser-check", 168.0]]]] * 13 +
+        [[0.05, [["test", 400.0]]]] * 7)
+    return doc
+
+
+def test_demoted_frequency_pole_prompt_and_toc_drop_typical_gate_framing():
+    # A frequency-demoted pole (`goreleaser-check`, the actual slowest on 0/20) must NOT be handed
+    # the typical-gate framing its own "Rarely the merge gate" header disowns: its agent prompt must
+    # not say "Slowest check a typical PR waits on", and its Contents row must not borrow the
+    # workflow's "gates 20/20 PRs" count. The TYPICAL `test` pole keeps both.
+    doc = _doc_demoted_frequency_pole()
+    md = bp.render(doc, {"ci": _IMPORT_BOUND_LOG}, {},
+                   {"ci": "https://github.com/caddyserver/caddy/actions/runs/1"}, "2026-06-08")
+    # Isolate the demoted pole's drill section (from its Long-pole header to end).
+    demoted = md[md.index("Long pole 2: `ci.yml` ▸ `goreleaser-check`"):]
+    assert "Rarely the merge gate" in demoted                      # header states the demotion
+    assert "Slowest check a typical PR waits on" not in demoted    # the bug: gone from the prompt
+    assert "Rarely the merge pole" in demoted                      # prompt reframed to match header
+    # Contents rows: typical pole keeps the gate count, demoted pole does not. Slice from the
+    # Contents header to the first pole drill header AFTER it (the bottom-line above also names
+    # "Long pole 1", so anchor on the "## " drill header, not the bare phrase).
+    _toc_start = md.index("📋 Contents")
+    toc = md[_toc_start:md.index("\n## ", _toc_start)]
+    # Plain-text anchor labels, no backticks (owner UX edit 2026-07-19).
+    assert "[test](#pole-1)" in toc and "`ci.yml` gates 20/20 PRs" in toc
+    assert "[goreleaser-check](#pole-2)" in toc
+    assert "rarely the merge pole" in toc
+    # The demoted row must not carry a "gates N/NN PRs" tail (the sibling `test`'s frequency).
+    gore_row = next(l for l in toc.splitlines() if "goreleaser-check](#pole-2)" in l)
+    assert "gates" not in gore_row
+
+
+def test_rarely_slowest_first_pole_is_not_framed_as_the_typical_gate():
+    # The first ordered pole is the frequency `blocker`, but under the `pole_n` schema that
+    # identity must not reclaim the typical-gate wording: `test` is the slowest check on only
+    # 1/20 sampled PRs (below the recurring floor), so its drill says "Rarely the merge pole",
+    # matching the verifier's spine-demoted rule (Next.js `Wait for preview tarball` shape).
+    doc = _doc_demoted_frequency_pole()
+    cp = doc["pr_critical_path"]
+    cp["checks"][0]["pole_n"] = 1
+    cp["checks"][1]["pole_n"] = 0
+    md = bp.render(doc, {"ci": _IMPORT_BOUND_LOG}, {},
+                   {"ci": "https://example.invalid/actions/runs/1"}, "2026-06-08")
+    start = md.index("Long pole 1:")
+    first = md[start:md.index("Long pole 2:", start)]
+    assert "Slowest check a typical PR waits on" not in first
+    assert "Rarely the merge pole" in first
+
+
+def test_bimodal_note_surfaces_a_fast_median_check_but_not_a_slow_median_one():
+    # A check whose MEDIAN is the fast mode (bar under-states it) -> surfaced, so the
+    # P50 ranking can't silently drop a frequent slow gate from the spine.
+    checks = [
+        {"name": "test (22.x)", "p50_s": 145.0,
+         "bimodal": {"low_p50_s": 132.0, "high_p50_s": 353.0, "slow_frac": 0.48}},
+        # Median already on the slow mode -> shown at its slow time, nothing hidden.
+        {"name": "build", "p50_s": 500.0,
+         "bimodal": {"low_p50_s": 300.0, "high_p50_s": 520.0, "slow_frac": 0.4}},
+        # Fast-median bimodal BUT the slow mode (136s) isn't a material gate vs the
+        # 549s headline gate -> filtered out (not surfaced as a "long gate").
+        {"name": "typecheck", "p50_s": 91.0,
+         "bimodal": {"low_p50_s": 85.0, "high_p50_s": 136.0, "slow_frac": 0.4}},
+        {"name": "lint", "p50_s": 100.0},  # not bimodal
+    ]
+    note = "\n".join(bp._bimodal_note(checks, gate_p50=549.0))
+    assert "Bimodal gates" in note
+    assert "`test (22.x)`" in note and "~48% of PRs" in note and "5m 53s" in note
+    assert "`build`" not in note       # slow-median check is not surfaced (not hidden)
+    assert "`typecheck`" not in note   # slow mode below materiality threshold
+    assert "`lint`" not in note
+    # No bimodal checks at all -> no note.
+    assert bp._bimodal_note([{"name": "a", "p50_s": 10.0}], gate_p50=549.0) == []
+
+
+def test_pole_headline_shows_slow_mode_for_a_bimodal_pole():
+    # A bimodal pole whose P50 sits on the FAST mode: the drill is captured from a
+    # representative SLOW run, so the header + severity must use the slow-mode time -
+    # not the median, which would read as a 2m header over a 6m drill.
+    bimodal = {"check": "test", "p50_s": 145.0,
+               "bimodal": {"low_p50_s": 132.0, "high_p50_s": 353.0, "slow_frac": 0.48}}
+    head_s, caveat = bp._pole_headline(bimodal)
+    assert head_s == 353.0                       # header/severity follow the slow mode
+    assert bp._severity_dot(head_s) == "🔴"      # 353s -> 🔴, vs 🟠 at the 145s median
+    assert bp._severity_dot(145.0) == "🟠"       # what the median alone would have shown
+    assert "Bimodal" in caveat and "5m 53s" in caveat and "~48% of runs" in caveat
+    assert "2m 25s" in caveat                    # the fast P50 is named as the fast mode
+
+    # A pole whose median is already its slow mode (or isn't bimodal) -> no override,
+    # no caveat: its header is already honest.
+    slow_median = {"check": "build", "p50_s": 500.0,
+                   "bimodal": {"low_p50_s": 300.0, "high_p50_s": 520.0, "slow_frac": 0.4}}
+    head_s2, caveat2 = bp._pole_headline(slow_median)
+    assert head_s2 == 500.0 and caveat2 == ""
+    head_s3, caveat3 = bp._pole_headline({"check": "lint", "p50_s": 100.0})
+    assert head_s3 == 100.0 and caveat3 == ""
+
+
+def test_pole_headline_no_fast_mode_caveat_when_median_sits_in_the_slow_cluster():
+    # CLASS invariant (nrwl/nx): the "The P50 ... sits on the fast mode" caveat is only
+    # TRUE when the median actually sits on the fast cluster - `p50 <= (lo + hi) / 2`, the
+    # SAME midpoint predicate `_bimodal_note` uses to decide a median is on the fast mode.
+    # When a strict majority of runs are slow (nx: slow_frac 0.59) the median sits IN the
+    # slow cluster by construction, so p50 (46m 33s) is 3.4x the fast mode and 86% of the
+    # slow mode. `hi > p50 * 1.15` alone (3254 > 3211.95) used to fire the override, printing
+    # a caveat that CONTRADICTS the split rendered in the same sentence. Re-derived from the
+    # findings pole fields (p50_s + bimodal.{low,high}_p50_s) - no rendered-text proxy.
+    nx = {"check": "main", "p50_s": 2793.0,
+          "bimodal": {"low_p50_s": 821.0, "high_p50_s": 3254.0, "slow_frac": 0.59}}
+    lo, hi = 821.0, 3254.0
+    assert nx["p50_s"] > (lo + hi) / 2                    # median is in the slow cluster
+    assert hi > nx["p50_s"] * 1.15                        # the OLD condition still fires...
+    head_s, caveat = bp._pole_headline(nx)
+    assert head_s == 2793.0                               # ...but no override: header is the honest median
+    assert caveat == ""                                   # and NO false "sits on the fast mode" caveat
+    assert "sits on the fast mode" not in caveat
+
+    # Boundary, aligned with `_bimodal_note` (`p50 > (lo + hi) / 2` -> median NOT on the
+    # fast mode): a median just ABOVE the midpoint is in the slow cluster -> suppressed;
+    # one AT the midpoint (or below) is still fast-median -> the caveat fires.
+    just_above = {"check": "b", "p50_s": 205.0,
+                  "bimodal": {"low_p50_s": 100.0, "high_p50_s": 300.0, "slow_frac": 0.52}}
+    assert bp._pole_headline(just_above) == (205.0, "")   # 205 > (100+300)/2=200 -> slow cluster
+    at_mid = {"check": "c", "p50_s": 200.0,
+              "bimodal": {"low_p50_s": 100.0, "high_p50_s": 300.0, "slow_frac": 0.5}}
+    head_am, caveat_am = bp._pole_headline(at_mid)        # 200 == midpoint, 300 > 230 -> override fires
+    assert head_am == 300.0 and "sits on the fast mode" in caveat_am
+
+
+def test_render_includes_headline_toc_anchors_and_data_sources():
+    # Phase-1 polish: an executive-summary "Bottom line", a Contents TOC linking each
+    # pole, explicit `#pole-N` anchors the TOC targets, and a Data sources footer.
+    md = bp.render(_doc_one_pole(), {"pipeline": _IMPORT_BOUND_LOG}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/123"}, "2026-06-08")
+    assert "**Bottom line.**" in md
+    assert "waits **4m 15s**" in md                     # total merge wait (255s pole)
+    assert "## 📋 Contents" in md
+    # Plain-text anchor label, no backticks (owner UX edit 2026-07-19): the label used to
+    # be a code span `[\`tests-web\`]` that rendered as a non-link-looking code chip.
+    assert "[tests-web](#pole-1)" in md                 # TOC entry links the pole
+    assert "[`tests-web`](#pole-1)" not in md           # the old code-chip label is gone
+    # This single pole IS the slowest gate, so its Contents row carries the "(the gate)"
+    # tag that the removed Level-1 chart's ◀ used to carry.
+    assert "(the gate)" in md
+    assert '<a id="pole-1"></a>' in md                  # the anchor the TOC targets
+    # The prose provenance now leads the Data sources section (owner UX edit 2026-07-19).
+    assert "## 🗄️ Data sources" in md                   # methodology footer table
+    _ds = md.split("## 🗄️ Data sources", 1)[1]
+    assert "Where this data comes from" in _ds          # provenance consolidated into Data sources
+    assert md.count("Where this data comes from") == 1  # not left after the Contents too
+
+
+def test_data_sources_footer_reports_logs_when_the_job_logs_tier_ran():
+    # Regression: the tier is named "job-logs" (collect_runs), but the footer used to
+    # test `"logs" in tiers` and so always rendered "job logs | not run" even when every
+    # drill came from those logs. Now it accepts "job-logs" and shows the count - from
+    # `logs_fetched`, or falling back to the persisted data_bundle manifest.
+    doc = _doc_one_pole()
+    doc["data_sources"] = {**doc["data_sources"], "tiers_run": ["gh-timing", "job-logs"],
+                           "logs_fetched": 2}
+    foot = "\n".join(bp._data_sources_footer(doc, "o/r"))
+    assert "| job logs | 2 job log(s) sampled |" in foot
+    assert "job logs | not run" not in foot
+    # No explicit count, but a bundle manifest is present -> fall back to its length.
+    doc2 = _doc_one_pole()
+    doc2["data_sources"] = {**doc2["data_sources"], "tiers_run": ["gh-timing", "job-logs"]}
+    doc2["data_bundle"] = {"logs": [{"file": "a.log"}, {"file": "b.log"}, {"file": "c.log"}]}
+    foot2 = "\n".join(bp._data_sources_footer(doc2, "o/r"))
+    assert "| job logs | 3 job log(s) sampled |" in foot2
+    # Tier genuinely absent -> still "not run".
+    doc3 = _doc_one_pole()
+    doc3["data_sources"] = {**doc3["data_sources"], "tiers_run": ["gh-timing"]}
+    assert "job logs | not run" in "\n".join(bp._data_sources_footer(doc3, "o/r"))
+
+
+def _withheld_foot(doc):
+    return "\n".join(bp._data_sources_footer(doc, "o/r"))
+
+
+def _withheld_row(foot, label):
+    return next((ln for ln in foot.splitlines() if ln.startswith(f"| {label} |")), "")
+
+
+def test_withheld_setup_and_checkout_candidates_reach_the_data_sources_table():
+    """OPT77 (repeated setup) and OPT80 (checkout stalls) can be unable to decide
+    a candidate (no job to measure the consolidation against, a tail run's log
+    gone). Without a line saying so the report reads "nothing found" for "could
+    not tell". The row names the jobs and gives the reason in plain English -
+    never the internal gate name."""
+    doc = _doc_one_pole()
+    doc["data_sources"] = {**doc["data_sources"], "tiers_run": ["gh-timing"]}
+    doc["opt77_withheld_candidates"] = [
+        {"workflow_file": ".github/workflows/ci.yml", "group": "ubuntu-latest/a+b+c",
+         "jobs": ["c", "a", "b"], "gate": "needs_graph_undecidable"},
+        {"workflow_file": ".github/workflows/ci.yml", "group": "ubuntu-latest/d+e+f",
+         "jobs": ["d", "e", "f"],
+         "gate": "no_job_outside_the_group_runs_often_enough_to_measure_against"},
+        {"workflow_file": ".github/workflows/b.yml", "group": "ubuntu-latest/x+y+z",
+         "jobs": ["x", "y", "z"], "gate": "needs_graph_undecidable"}]
+    doc["opt80_withheld_candidates"] = [
+        {"workflow_file": "ci.yml", "job": "build",
+         "gate": "tail_run_log_unavailable"},
+        {"workflow_file": "ci.yml", "job": "e2e",
+         "gate": "log_carries_no_progress_vocabulary"}]
+    foot = _withheld_foot(doc)
+    r77 = _withheld_row(foot, "repeated-setup: held back")
+    r80 = _withheld_row(foot, "checkout stall: held back")
+    assert r77 and r80, foot
+    # More than one gate contributed on each row, so the commonest gate's
+    # reason is hedged rather than asserted of every group the row names.
+    assert ("3 candidate job group(s) held back (a + b + c in ci.yml, "
+            "d + e + f in ci.yml, x + y + z in b.yml): " + bp._WITHHELD_MODAL_LEAD
+            + bp._OPT77_WITHHOLD_PHRASES["needs_graph_undecidable"] + ".") in r77, r77
+    # A tie goes to the alphabetically first gate - the verifier's rule too -
+    # and is hedged as a tie, because on an exact split there is no commonest
+    # reason for "most commonly" to be about.
+    assert ("2 candidate checkout(s) held back (build, e2e): " + bp._WITHHELD_TIED_LEAD
+            + bp._OPT80_WITHHOLD_PHRASES["log_carries_no_progress_vocabulary"]
+            + ".") in r80, r80
+    # Both assertions above build their expectation out of the very table they
+    # are checking, so they hold whatever it says. The hedge itself is the
+    # behaviour, so it is pinned as literal text: absent progress output in a
+    # log is an OBSERVATION, and naming the switch as its cause is the claim
+    # this reason must not make.
+    assert ("the slow runs' logs show no fetch progress lines (most likely "
+            "because progress output is switched off)") in r80, r80
+    for raw in ("needs_graph_undecidable", "log_carries_no_progress_vocabulary",
+                "top reason", "measured but"):
+        assert raw not in r77 + r80, (raw, r77, r80)
+    assert "verdicts" not in foot
+    # nothing withheld -> no row
+    doc["opt77_withheld_candidates"] = []
+    doc.pop("opt80_withheld_candidates")
+    foot = _withheld_foot(doc)
+    assert "repeated-setup: held back" not in foot
+    assert "checkout stall: held back" not in foot
+
+
+def test_withheld_row_qualifies_shared_job_names_caps_the_list_and_escapes():
+    doc = _doc_one_pole()
+    doc["data_sources"] = {**doc["data_sources"], "tiers_run": ["gh-timing"]}
+    gate = "tail_run_log_unavailable"
+    doc["opt80_withheld_candidates"] = (
+        [{"workflow_file": ".github/workflows/ci.yml", "job": "build", "gate": gate},
+         {"workflow_file": ".github/workflows/release.yml", "job": "build", "gate": gate}]
+        + [{"workflow_file": "ci.yml", "job": f"j{i}", "gate": gate} for i in range(5)])
+    row = _withheld_row(_withheld_foot(doc), "checkout stall: held back")
+    assert ("7 candidate checkout(s) held back (ci.yml / build, j0, j1, j2, j3, "
+            "and 2 more): ") in row, row
+    # Job names are repo-controlled text: a pipe, backticks and a newline must not
+    # break the table row or open a code span.
+    doc["opt80_withheld_candidates"] = [
+        {"workflow_file": "ci.yml", "job": "a|b`c\nd", "gate": gate}]
+    row = _withheld_row(_withheld_foot(doc), "checkout stall: held back")
+    assert row.count("|") - row.count("\\|") == 4, row
+    # every backtick escaped, so none can open a code span across the cell
+    assert "\n" not in row, row
+    assert re.sub(r"\\`", "", row).count("`") == 0, row
+
+
+def test_withheld_row_never_prints_an_unmapped_gate_code():
+    doc = _doc_one_pole()
+    doc["data_sources"] = {**doc["data_sources"], "tiers_run": ["gh-timing"]}
+    doc["opt80_withheld_candidates"] = [
+        {"workflow_file": "ci.yml", "job": "build", "gate": "brand_new_gate_code"}]
+    row = _withheld_row(_withheld_foot(doc), "checkout stall: held back")
+    assert row and "brand_new_gate_code" not in row, row
+
+
+def _reason_accumulators(fn):
+    """The local names OPT80 accumulates its no-proof reasons in, DERIVED from
+    the function rather than listed here.
+
+    They used to be listed (`("reasons", "open_reasons")`), which is the same
+    defect one level up from the one the derivation fixed: a hardcoded name is
+    a name the guard cannot notice being renamed, and the scan would then read
+    zero gates out of an accumulator while still reporting the ones it found.
+
+    Derivation: a list-valued local is an accumulator when the function
+    iterates over it and hands the loop variable to a gate sink — `_no`'s gate
+    argument, or `_unresolved`'s (`for gate in sorted(set(reasons)) or [...]`
+    gives `reasons`) — and so is any list-valued local built out of one
+    (`open_reasons = [g for g in (reasons or [...]) ...]`).
+    """
+    import ast
+    list_valued = set()
+    for n in ast.walk(fn):
+        if (isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)
+                and isinstance(n.value, (ast.List, ast.ListComp))):
+            list_valued.add(n.target.id)
+        elif isinstance(n, ast.Assign) and isinstance(n.value, (ast.List, ast.ListComp)):
+            list_valued |= {t.id for t in n.targets if isinstance(t, ast.Name)}
+        elif isinstance(n, ast.AugAssign) and isinstance(n.target, ast.Name):
+            list_valued.add(n.target.id)
+
+    def _names(node):
+        return {c.id for c in ast.walk(node) if isinstance(c, ast.Name)}
+
+    def _gate_sink_for(target):
+        """True when this `for` body hands its loop variable to a gate sink —
+        `_no`'s gate argument or `_unresolved`'s."""
+        for n in ast.walk(target):
+            if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)):
+                continue
+            if n.func.id == "_no" and n.args and target_name in _names(n.args[0]):
+                return True
+            if (n.func.id == "_unresolved" and len(n.args) > 1
+                    and target_name in _names(n.args[1])):
+                return True
+        return False
+
+    acc = set()
+    for n in ast.walk(fn):
+        if isinstance(n, ast.For) and isinstance(n.target, ast.Name):
+            target_name = n.target.id
+            if any(_gate_sink_for(b) for b in n.body):
+                acc |= _names(n.iter) & list_valued
+    # …and anything built OUT of an accumulator is one too: the open reasons
+    # are filtered out of the collected ones and then handed on.
+    for _ in range(10):
+        grown = set(acc)
+        for n in ast.walk(fn):
+            if isinstance(n, (ast.Assign, ast.AugAssign)):
+                targets = (n.targets if isinstance(n, ast.Assign) else [n.target])
+                if _names(n.value) & acc:
+                    grown |= {t.id for t in targets
+                              if isinstance(t, ast.Name) and t.id in list_valued}
+        if grown == acc:
+            break
+        acc = grown
+    return acc
+
+
+def _withhold_gates_recordable_in_the_collector():
+    """Every gate the collector can write into a withheld-candidates list, read
+    from the detectors' own source. FOUR sources, which is what the scan reads:
+    the literals handed to `_drop_group` / `_unresolved`, the names the
+    independence check returns, the names `_opt80_stall_in_log` returns, and
+    the no-proof reasons OPT80 collects (by `.append`, `.extend`, `+=` or an
+    assignment's fallback default). A gate added to any of them without a
+    phrase fails here.
+
+    Nothing in this scan is hardcoded — including the names of the reason
+    accumulators, which `_reason_accumulators` derives from the function (see
+    there for why listing them was the same defect one level up)."""
+    import ast
+    tree = ast.parse((_SCRIPTS / "collect_runs.py").read_text(encoding="utf-8"))
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    found77, found80 = set(), set()
+
+    def lits(node):
+        return {c.value for c in ast.walk(node)
+                if isinstance(c, ast.Constant) and isinstance(c.value, str)}
+
+    def calls(fn, name):
+        return [c for c in ast.walk(fn) if isinstance(c, ast.Call)
+                and ((isinstance(c.func, ast.Name) and c.func.id == name)
+                     or (isinstance(c.func, ast.Attribute) and c.func.attr == name))]
+
+    d77 = fns["_detect_opt77_repeated_setup_across_small_jobs"]
+    for c in calls(d77, "_drop_group"):
+        found77 |= lits(c.args[2]) if len(c.args) > 2 else set()
+    for n in ast.walk(fns["_consolidation_group_is_independent"]):
+        if isinstance(n, ast.Return) and n.value is not None:
+            found77 |= lits(n.value)
+    d80 = fns["_detect_opt80_checkout_tail_stall"]
+    for c in calls(d80, "_unresolved"):
+        found80 |= lits(c.args[1]) if len(c.args) > 1 else set()
+    accumulators = _reason_accumulators(d80)
+    assert accumulators, "no reason accumulator derived from the OPT80 detector"
+
+    # Every way the derived accumulators are written to, not just `.append`.
+    def _writes_a_reason_list(node):
+        if isinstance(node, (ast.Assign, ast.AugAssign)):
+            targets = (node.targets if isinstance(node, ast.Assign)
+                       else [node.target])
+            return any(isinstance(t, ast.Name) and t.id in accumulators
+                       for t in targets)
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr in ("append", "extend", "insert")):
+            return (isinstance(node.func.value, ast.Name)
+                    and node.func.value.id in accumulators)
+        return False
+
+    for n in ast.walk(d80):
+        if _writes_a_reason_list(n):
+            found80 |= lits(n)
+    for n in ast.walk(fns["_opt80_stall_in_log"]):
+        if isinstance(n, ast.Return) and isinstance(n.value, ast.Tuple):
+            found80 |= lits(n.value)
+    return (found77 - set(cr._OPT77_VERDICT_GATES),
+            found80 - set(cr._OPT80_VERDICT_GATES))
+
+
+def test_every_recordable_withhold_gate_has_a_plain_english_phrase():
+    g77, g80 = _withhold_gates_recordable_in_the_collector()
+    # the scan must actually be reading the detectors
+    assert {"needs_graph_undecidable",
+            "no_job_outside_the_group_runs_often_enough_to_measure_against"} <= g77, g77
+    assert {"tail_run_log_unavailable", "fewer_than_the_minimum_tail_runs",
+            "tail_run_past_the_log_probe_budget"} <= g80, g80
+    # …and enough of them that an accumulator whose name the scan failed to
+    # derive cannot pass unnoticed: every non-verdict phrase must have been read
+    # back out of the source.
+    assert len(g80) >= len(bp._OPT80_WITHHOLD_PHRASES), (
+        "the scan read fewer OPT80 gates than there are phrases - an "
+        "accumulator the derivation missed", sorted(g80))
+    assert g77 - set(bp._OPT77_WITHHOLD_PHRASES) == set(), (
+        "OPT77 withhold gate with no phrase", g77 - set(bp._OPT77_WITHHOLD_PHRASES))
+    assert g80 - set(bp._OPT80_WITHHOLD_PHRASES) == set(), (
+        "OPT80 withhold gate with no phrase", g80 - set(bp._OPT80_WITHHOLD_PHRASES))
+    # …and the reverse: a phrase for a gate no collector path can record is
+    # dead text that reads like coverage. Nothing is allowlisted today; an
+    # entry here must name the path the scan cannot see.
+    assert set(bp._OPT77_WITHHOLD_PHRASES) - g77 == set(), (
+        "OPT77 phrase for a gate nothing records",
+        sorted(set(bp._OPT77_WITHHOLD_PHRASES) - g77))
+    assert set(bp._OPT80_WITHHOLD_PHRASES) - g80 == set(), (
+        "OPT80 phrase for a gate nothing records",
+        sorted(set(bp._OPT80_WITHHOLD_PHRASES) - g80))
+    # a verdict is never withheld, so a phrase for one is dead text
+    assert not set(bp._OPT77_WITHHOLD_PHRASES) & set(cr._OPT77_VERDICT_GATES)
+    assert not set(bp._OPT80_WITHHOLD_PHRASES) & set(cr._OPT80_VERDICT_GATES)
+    for phrase in (*bp._OPT77_WITHHOLD_PHRASES.values(),
+                   *bp._OPT80_WITHHOLD_PHRASES.values()):
+        assert phrase and "_" not in phrase and "$" not in phrase, phrase
+
+
+def test_opt81_every_recordable_withhold_gate_has_a_plain_english_phrase():
+    """OPT81's two detectors list a candidate only through `_no(gate, job)` —
+    a gate passed WITH a job name. Read every such call off both detectors'
+    source: each non-verdict gate needs a phrase, and every phrase must be a
+    gate something can record."""
+    import ast
+    tree = ast.parse((_SCRIPTS / "collect_runs.py").read_text(encoding="utf-8"))
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    found: set[str] = set()
+    for fname in ("_detect_opt81_measured_runner_gap",
+                  "_detect_opt81_runner_size_advisory"):
+        for c in ast.walk(fns[fname]):
+            if (isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+                    and c.func.id == "_no" and len(c.args) >= 2
+                    and isinstance(c.args[0], ast.Constant)):
+                found.add(c.args[0].value)
+    found -= set(cr._OPT81_VERDICT_GATES)
+    assert {"step_lists_differ", "fewer_than_min_samples_on_two_labels",
+            "runner_label_not_classifiable_by_size"} <= found, found
+    assert found == set(bp._OPT81_WITHHOLD_PHRASES), (
+        sorted(found ^ set(bp._OPT81_WITHHOLD_PHRASES)))
+    assert not set(bp._OPT81_WITHHOLD_PHRASES) & set(cr._OPT81_VERDICT_GATES)
+    for phrase in bp._OPT81_WITHHOLD_PHRASES.values():
+        assert phrase and "_" not in phrase and "$" not in phrase, phrase
+
+
+def test_opt81_held_back_row_renders_in_plain_english():
+    rows = [{"workflow_file": ".github/workflows/ci.yml", "job": "bench",
+             "gate": "step_lists_differ", "half": "A1"}]
+    line = bp._withheld_candidates_line(
+        {bp._OPT81_WITHHELD_DOC_KEY: rows}, bp._OPT81_WITHHELD_DOC_KEY,
+        "candidate job(s)")
+    assert line == ("1 candidate job(s) held back (bench): the job did not run the "
+                    "same steps on both runner labels, so it is not the same job on "
+                    "both."), line
+    assert any(r.doc_key == bp._OPT81_WITHHELD_DOC_KEY for r in bp._WITHHELD_ROWS)
+
+
+def test_opt81_pole_join_agrees_with_the_data_driven_join_on_a_sibling_matrix_leg():
+    """A credited OPT81 finding on a SIBLING leg of the pole's matrix (same base,
+    different params) does not render at this pole (`_opt81_for_pole` matches only
+    the exact job or its unexpanded base), so the data-driven join must not claim
+    it either: otherwise `_dd_where` points the reader to an OPT81 card "below this
+    pole's prompt" that renders in the unrouted section instead."""
+    wf = ".github/workflows/bench.yml"
+    pole = {"check": "bench (ubuntu-latest)", "job": "bench (ubuntu-latest)",
+            "workflow_file": wf}
+    sibling = {"pattern": "OPT81", "workflow_file": wf, "wall_clock_p50_s": 60.0,
+               "affected_jobs": ["bench (ubuntu-24.04)"],
+               "faster_runner": {"half": "A1"}}
+    assert bp._saves_wall_clock(sibling)
+    assert bp._opt81_for_pole(pole, [sibling]) == []
+    assert bp._data_driven_for_pole(pole, [sibling]) == []
+    # The exact leg and the unexpanded base still join both ways.
+    for job in ("bench (ubuntu-latest)", "bench"):
+        own = dict(sibling, affected_jobs=[job])
+        assert bp._opt81_for_pole(pole, [own]) == [own]
+        assert bp._data_driven_for_pole(pole, [own]) == [own]
+    # A non-OPT81 credited finding keeps the same-matrix sibling fold.
+    other = dict(sibling, pattern="OPT24")
+    other.pop("faster_runner")
+    assert bp._data_driven_for_pole(pole, [other]) == [other]
+
+
+def _opt82_gates_recorded_in_the_detector():
+    """Every gate literal OPT82's detector hands to its `_no(...)` recorder,
+    read from the detector's own source."""
+    import ast
+    tree = ast.parse((_SCRIPTS / "collect_runs.py").read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
+              and n.name == "_detect_opt82_type_aware_lint")
+    return {c.args[0].value for c in ast.walk(fn)
+            if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+            and c.func.id == "_no" and c.args and isinstance(c.args[0], ast.Constant)
+            and isinstance(c.args[0].value, str)}
+
+
+def test_every_opt82_gate_the_detector_records_is_classified_and_phrased():
+    """A gate added to the OPT82 detector must be a verdict, a workflow-level
+    count, or a held-back gate WITH a phrase; and every phrase must belong to a
+    gate the detector can record."""
+    g = _opt82_gates_recorded_in_the_detector()
+    assert {"type_aware_parsing_off", "lint_script_unresolvable",
+            "no_enumerable_type_aware_rule"} <= g, g        # the scan reads the detector
+    verdict, held = set(cr._OPT82_VERDICT_GATES), set(cr._OPT82_HELD_BACK_GATES)
+    workflow = set(cr._OPT82_WORKFLOW_GATES)
+    assert not (verdict & held) and not (verdict & workflow) and not (held & workflow)
+    assert g - verdict - held - workflow == set(), (
+        "OPT82 gate in no class", sorted(g - verdict - held - workflow))
+    held_recorded = g - verdict - workflow
+    assert held_recorded - set(bp._OPT82_WITHHOLD_PHRASES) == set(), (
+        "OPT82 held-back gate with no phrase",
+        sorted(held_recorded - set(bp._OPT82_WITHHOLD_PHRASES)))
+    assert set(bp._OPT82_WITHHOLD_PHRASES) - held_recorded == set(), (
+        "OPT82 phrase for a gate nothing records",
+        sorted(set(bp._OPT82_WITHHOLD_PHRASES) - held_recorded))
+
+
+def _opt80_tail_render_doc(**kw):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import test_verify_report_self as vs  # noqa: E402
+
+    doc = vs._opt80_tail_doc(**kw)
+    vs._ensure_tier2_source_rows(doc)
+    return doc
+
+
+def test_opt80_tail_line_never_moves_the_headline_or_bottom_line():
+    """The tail line is a separate axis. Rendering the same findings with and
+    without `tail_axis` must leave everything above the Contents (title,
+    provenance table, Bottom line) byte-identical, and the line must sit inside
+    the pole section only."""
+    doc = _opt80_tail_render_doc()
+    with_tail = bp.render(doc)
+    plain = json.loads(json.dumps(doc))
+    del plain["findings"][0]["checkout_stall"]["tail_axis"]
+    without = bp.render(plain)
+    head = lambda r: r.split("## 📋 Contents", 1)[0]  # noqa: E731
+    assert head(with_tail) == head(without)
+    assert "longer on checkout" not in head(with_tail)
+    assert "<!-- opt80-tail:" not in without
+    assert with_tail.count("<!-- opt80-tail:f-promoted -->") == 1
+    tier2 = with_tail.split("## Runner-minute reductions", 1)[-1]
+    assert "<!-- opt80-tail:" not in tier2
+
+
+def test_opt80_tail_line_states_the_stamped_numbers_as_a_tail_not_a_p50():
+    doc = _opt80_tail_render_doc()
+    lines = bp._opt80_tail_block(doc["findings"], "https://catalog")
+    assert lines[0] == "<!-- opt80-tail:f-promoted -->"
+    assert ("one run in 5 spends about 110s longer on checkout, and that run's log shows the fetch stalling"
+            in lines[1]), lines[1]
+    assert "never added to any total" in lines[1]
+    assert "**~" not in lines[1] and "min/mo" not in lines[1]
+    # The collector's own phrase is the same sentence the renderer prints.
+    axis = doc["findings"][0]["checkout_stall"]["tail_axis"]
+    assert cr._opt80_tail_phrase(axis) in lines[1]
+    # A finding with no tail axis renders nothing, at a pole or off it.
+    del doc["findings"][0]["checkout_stall"]["tail_axis"]
+    assert bp._opt80_tail_for({"check": "build", "job": "build",
+                               "workflow_file": ".github/workflows/ci.yml"},
+                              doc["findings"]) == []
+    assert bp._opt80_off_pole_tail_block(doc["findings"], "u") == []
+
+
+def test_opt80_tail_line_states_every_number_in_its_own_slot():
+    """The rendered line carries more than the two numbers the verifier
+    re-derives: the job and workflow it is on, how many sampled runs proved a
+    stall, and the tail vs typical checkout. Each must sit in its own slot - a
+    swap reads as a different (wrong) claim with the same digits."""
+    doc = _opt80_tail_render_doc()
+    line = bp._opt80_tail_block(doc["findings"], "https://catalog")[1]
+    assert "on `build` in `ci.yml`, one run in 5" in line, line
+    assert "2 of 10 sampled runs had a slow checkout" in line, line
+    assert "The 2 proven runs' median checkout is 120s against a typical 10s" in line, line
+    assert "this job" not in line, line
+
+
+def test_opt80_tail_line_off_a_drilled_pole_never_moves_the_headline():
+    """The off-pole case of the headline-identity rule: the stalling job is not
+    a drilled pole, so its line renders in its own block - and the headline and
+    Bottom line stay byte-identical with and without the tail axis."""
+    doc = _opt80_tail_render_doc(pole_check="deploy", pole_job="deploy")
+    with_tail = bp.render(doc)
+    plain = json.loads(json.dumps(doc))
+    del plain["findings"][0]["checkout_stall"]["tail_axis"]
+    without = bp.render(plain)
+    head = lambda r: r.split("## 📋 Contents", 1)[0]  # noqa: E731
+    assert head(with_tail) == head(without)
+    bottom = lambda r: [ln for ln in r.splitlines() if "Bottom line" in ln]  # noqa: E731
+    assert bottom(with_tail) and bottom(with_tail) == bottom(without)
+    assert "the fetch stalling" not in head(with_tail)
+    assert with_tail.count("<!-- opt80-tail:f-promoted -->") == 1
+    assert "Checkout stall tails on a workflow's slowest job" in with_tail
+    assert "<!-- opt80-tail:" not in without
+
+
+def test_opt80_tail_line_renders_in_a_static_only_report():
+    """No pole is measured, so the static-only body is the only place the tail
+    line can reach the reader; it renders there once, in the off-pole block."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import test_verify_report_self as vs  # noqa: E402
+
+    f = vs._opt80_verifier_finding()
+    f["checkout_stall"]["tail_axis"] = dict(vs._OPT80_TAIL_AXIS)
+    doc = {"repo": "o/r", "findings": [f], "pr_critical_path": {"poles": []},
+           "data_sources": {}}
+    static = bp._render_static_only(doc)
+    assert static.count("<!-- opt80-tail:f1 -->") == 1, static
+    assert "one run in 5 spends about 110s longer on checkout, and that run's log shows the fetch stalling" in static
+
+def test_opt80_off_pole_tail_renders_in_its_own_section_in_both_renders():
+    """A tail on a job that is not a drilled pole gets its own `##` section -
+    never the tail of the last Runner saving card - placed before Also noticed
+    and Data sources, in the full render (with a Contents entry) and in the
+    static-only render (which has no Contents)."""
+    marker = "<!-- opt80-tail:f-promoted -->"
+    for static in (False, True):
+        doc = _opt80_tail_render_doc(pole_check="other", pole_job="other")
+        if static:
+            doc["pr_critical_path"]["poles"] = []
+        md = bp.render(doc)
+        assert md.count(marker) == 1, static
+        head_i = md.find("## ⏱️ Checkout stall tails")
+        assert head_i != -1, (static, md[-3000:])
+        enclosing = re.findall(r"(?m)^## .*$", md[:md.index(marker)])[-1]
+        assert "Checkout stall tails" in enclosing, (static, enclosing)
+        assert '<a id="checkout-stall-tails"></a>' in md
+        for later in ("## 🧹 Also noticed", "## 🗄️ Data sources"):
+            if later in md:
+                assert md.index(later) > head_i, (static, later)
+        if not static:
+            toc = md.split("## 📋 Contents", 1)[1].split("\n## ", 1)[0]
+            assert "(#checkout-stall-tails)" in toc, toc
+
+
+def _opt79_and_opt80_off_pole_doc():
+    """A job that is not a drilled pole carrying both an OPT80 tail and an
+    OPT79 pole cache, so the tails section renders right before the cache
+    block."""
+    doc = _opt80_tail_render_doc(pole_check="other", pole_job="other")
+    tail = doc["findings"][0]
+    job = tail["affected_jobs"][0]
+    f79 = _opt79_pole_finding(workflow_file=tail["workflow_file"],
+                              affected_jobs=[job], wall_clock_p50_s=45.0, id="f79")
+    f79["cache_net_negative"]["job"] = job
+    doc["findings"].append(f79)
+    return doc
+
+
+def test_opt79_off_pole_block_has_its_own_section_never_the_tails_one():
+    """The off-pole cache block opens with a bold line, not a heading, so after
+    the checkout stall tails section it read as part of that section. It gets
+    its own `##` heading and anchor (and a Contents entry on the full render),
+    in both renders."""
+    marker = "<!-- opt79-pole:f79 -->"
+    for static in (False, True):
+        doc = _opt79_and_opt80_off_pole_doc()
+        if static:
+            doc["pr_critical_path"]["poles"] = []
+        md = bp.render(doc)
+        assert md.count(marker) == 1 and "<!-- opt80-tail:" in md, static
+        assert md.index("<!-- opt80-tail:") < md.index(marker), static
+        enclosing = re.findall(r"(?m)^## .*$", md[:md.index(marker)])[-1]
+        assert enclosing == "## 💾 Measured cache cost on a workflow's slowest job", \
+            (static, enclosing)
+        assert f'<a id="{bp._OPT79_OFF_POLE_ANCHOR}"></a>' in md, static
+        if not static:
+            toc = md.split("## 📋 Contents", 1)[1].split("\n## ", 1)[0]
+            assert f"(#{bp._OPT79_OFF_POLE_ANCHOR})" in toc, toc
+            order = [toc.find(s) for s in ("(#checkout-stall-tails)",
+                                           f"(#{bp._OPT79_OFF_POLE_ANCHOR})",
+                                           "**🧹 Also noticed**") if s in toc]
+            assert len(order) >= 2 and order == sorted(order), toc
+
+
+def test_verifier_fails_an_opt79_off_pole_block_under_another_section():
+    """The placement rule: a pole-cache marker sits under a long pole or under
+    its own off-pole heading - never under the tails heading or a runner-minute
+    card."""
+    vr = _load_vr()
+    f = _opt79_pole_finding()
+    own = "\n".join(bp._opt79_off_pole_block([f], "https://x/c.md"))
+    assert vr._VR_OPT79_OFF_POLE_HEADING in own.splitlines()   # one heading, two copies
+    at_pole = ("## 🟠 Long pole 1: `ci.yml` ▸ `build` - 5m 00s\n\n"
+               + "\n".join(bp._opt79_pole_block([f], "https://x/c.md")))
+    for good in (own, at_pole):
+        assert vr._opt79_pole_findings_rendered(good, [f]) == [], good
+    # The pre-fix shape: the bold-line block straight after another section.
+    for heading in ("## ⏱️ Checkout stall tails on a workflow's slowest job",
+                    "## 💸 Runner-minute reductions"):
+        bad = (f"{heading}\n\nsome body\n\n---\n\n"
+               "**💾 Measured cache cost on a workflow's slowest job** - text.\n\n"
+               + "\n".join(bp._opt79_pole_block([f], "https://x/c.md")))
+        problems = vr._opt79_pole_findings_rendered(bad, [f])
+        assert any("not under its own long pole or its own" in p for p in problems), \
+            (heading, problems)
+
+
+def test_verifier_fails_an_opt79_block_under_another_jobs_long_pole():
+    """"Under a long pole" means under ITS long pole: the pre-fix heading-less
+    block straight after a different job's pole section read as part of that
+    pole. A header check carrying the workflow prefix (`CI / build`) is the
+    same job."""
+    vr = _load_vr()
+    f = _opt79_pole_finding()
+    blk = "\n".join(bp._opt79_pole_block([f], "https://x/c.md"))
+    for check, ok in (("`build`", True), ("`CI / build`", True),
+                      ("`build (ubuntu, 3.12)`", True), ("`other`", False)):
+        md = f"## 🔴 Long pole 1: `ci.yml` ▸ {check} - 5m 00s\n\nbody\n\n{blk}"
+        problems = vr._opt79_pole_findings_rendered(md, [f])
+        placed = not any("not under" in p for p in problems)
+        assert placed is ok, (check, problems)
+
+
+def test_opt79_off_pole_intro_matches_the_render():
+    """Like the tails section: "not shown at a long pole above" only when poles
+    were drilled; a static-only report drills none."""
+    f = _opt79_pole_finding()
+    drilled = "\n".join(bp._opt79_off_pole_block([f], "u"))
+    static = "\n".join(bp._opt79_off_pole_block([f], "u", drilled=False))
+    assert "not shown at a long pole above" in drilled
+    assert "long pole above" not in static and "drilled no long pole" in static
+    doc = _opt79_and_opt80_off_pole_doc()
+    doc["pr_critical_path"]["poles"] = []
+    md = bp.render(doc)
+    assert "not shown at a long pole above" not in md
+
+
+def test_verifier_fails_a_contents_link_to_an_off_pole_section_that_is_missing():
+    """The two off-pole sections' Contents links must land on their anchors."""
+    vr = _load_vr()
+    md = bp.render(_opt79_and_opt80_off_pole_doc())
+    assert vr.check_pole_anchors_resolve(md).ok
+    for anchor in ("checkout-stall-tails", bp._OPT79_OFF_POLE_ANCHOR):
+        bad = md.replace(f'<a id="{anchor}"></a>', "")
+        c = vr.check_pole_anchors_resolve(bad)
+        assert not c.ok and anchor in c.detail, (anchor, c.detail)
+
+
+def test_opt80_off_pole_tail_heading_matches_the_render():
+    """The off-pole block says "not one of the long poles drilled above" only
+    when poles were drilled; a static-only report drills none."""
+    doc = _opt80_tail_render_doc()
+    drilled = bp._opt80_off_pole_tail_block(doc["findings"], "u")
+    static = bp._opt80_off_pole_tail_block(doc["findings"], "u", drilled=False)
+    assert "drilled above" in "\n".join(drilled)
+    assert "drilled above" not in "\n".join(static)
+    assert "no long pole" in "\n".join(static), static
+    assert "<!-- opt80-tail:f-promoted -->" in static
+
+
+def test_opt80_tail_count_sentence_names_slow_runs_logs_read_and_proofs():
+    """The count sentence states what N stands on: how many sampled runs were
+    slow, how many of their logs were read, how many of those show the stall,
+    and that the slow runs whose logs were not read are counted in N."""
+    doc = _opt80_tail_render_doc()
+    axis = doc["findings"][0]["checkout_stall"]["tail_axis"]
+    axis.update(sampled_runs=30, slow_runs=10, logs_read=4, tail_runs=3,
+                logs_clean=1, logs_unreadable=0, counted_runs=9, one_in_n=3)
+    line = bp._opt80_tail_block(doc["findings"], "https://catalog")[1]
+    assert "10 of 30 sampled runs had a slow checkout" in line, line
+    assert ("logs were read for 4 of those: 3 show the fetch standing still, "
+            "0 unreadable, 1 clean") in line, line
+    assert "the 1 clean log is left out" in line, line
+    assert "the 6 slow runs whose logs were not read" in line, line
+    assert "sampled runs have a checkout log" not in line, line
+
+
+def test_opt80_tail_count_sentence_states_unreadable_logs_separately():
+    """A fetched log that could not be read (gone, unparseable, or a stall
+    dropped as credential-shaped) is not a clean fetch: the sentence names it
+    apart from the clean ones and counts its slow run in N."""
+    doc = _opt80_tail_render_doc()
+    axis = doc["findings"][0]["checkout_stall"]["tail_axis"]
+    axis.update(sampled_runs=30, slow_runs=10, logs_read=4, tail_runs=2,
+                logs_clean=1, logs_unreadable=1, counted_runs=9, one_in_n=3)
+    line = bp._opt80_tail_block(doc["findings"], "https://catalog")[1]
+    assert ("logs were read for 4 of those: 2 show the fetch standing still, "
+            "1 unreadable, 1 clean") in line, line
+    assert ("N counts the 2 proven runs, the 1 slow run whose log could not be "
+            "read and the 6 slow runs whose logs were not read") in line, line
+    assert "the 1 clean log is left out" in line, line
+    assert "read log that does not" not in line, line
+
+
+def _opt80_tail_finding(fid="f-promoted", job="build",
+                        wf=".github/workflows/ci.yml"):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import test_verify_report_self as vs  # noqa: E402
+
+    f = vs._opt80_verifier_finding(id=fid, affected_jobs=[job], workflow_file=wf)
+    f["checkout_stall"]["tail_axis"] = dict(vs._OPT80_TAIL_AXIS)
+    return f
+
+
+def test_opt80_tail_never_joins_a_pole_in_another_workflow_file():
+    """GitHub gives same-named jobs in different workflows the same check
+    name, so `build` in other.yml must not ride a `ci.yml` pole named `build`."""
+    pole = {"check": "build", "job": "build", "workflow_file": ".github/workflows/ci.yml"}
+    assert len(bp._opt80_tail_for(pole, [_opt80_tail_finding()])) == 1
+    other = _opt80_tail_finding(wf=".github/workflows/other.yml")
+    assert bp._opt80_tail_for(pole, [other]) == []
+
+
+def test_opt80_tail_joins_on_the_poles_stamped_job_over_the_check_name():
+    """A workflow NAME can hold ` / ` (`CI / main`): the prefix strip of check
+    `CI / main / build` gives `main / build`. The pole's stamped job, `build`,
+    is the job, and the tail joins on it."""
+    pole = {"check": "CI / main / build", "job": "build",
+            "workflow_file": ".github/workflows/ci.yml"}
+    assert len(bp._opt80_tail_for(pole, [_opt80_tail_finding()])) == 1
+
+
+def test_opt80_static_only_report_tail_heading_does_not_say_drilled_above():
+    """The static-only render drills no pole, so its tails section must not
+    point at "the long poles drilled above"."""
+    doc = {"repo": "o/r", "findings": [_opt80_tail_finding()],
+           "pr_critical_path": {"poles": []}, "data_sources": {}}
+    static = bp._render_static_only(doc)
+    assert "<!-- opt80-tail:f-promoted -->" in static
+    assert "drilled above" not in static, static
+    assert "drilled no long pole" in static, static
+
+
+def _opt80_toc_doc(tails):
+    doc = _opt80_tail_render_doc(pole_check="other", pole_job="other")
+    for i in range(1, tails):
+        g = json.loads(json.dumps(doc["findings"][0]))
+        g.update(id=f"f-tail-{i}", affected_jobs=[f"lint{i}"], line=40 + i)
+        g["checkout_stall"]["job"] = f"lint{i}"
+        doc["findings"].append(g)
+    doc["findings"].append({"id": "f-hyg", "pattern": "OPT5",
+                            "title": "pnpm Store Not Cached", "severity": "MEDIUM",
+                            "runner_min_saving": 68.0,
+                            "workflow_file": ".github/workflows/ci.yml", "line": 20})
+    return doc
+
+
+def test_opt80_tails_contents_entry_counts_jobs_and_sits_before_also_noticed():
+    """The Contents pointer to the tails section is spliced in after the poles
+    render: it must land inside the Contents, directly ahead of the Also
+    noticed pointer, and count the tail lines with the right plural."""
+    for tails, phrase in ((1, "1 job whose"), (2, "2 jobs whose")):
+        md = bp.render(_opt80_toc_doc(tails))
+        assert md.count("<!-- opt80-tail:") == tails, tails
+        toc = md.split("## 📋 Contents", 1)[1].split("\n## ", 1)[0].split("\n")
+        entry = next(i for i, ln in enumerate(toc)
+                     if ln.startswith("**⏱️ Checkout stall tails**"))
+        assert phrase in toc[entry], (tails, toc[entry])
+        assert toc[entry + 1] == "", toc
+        assert toc[entry + 2].startswith("**🧹 Also noticed**"), toc
+
+
+def test_second_pole_role_names_the_real_slowest_concurrent_check_above_it():
+    # Regression (two-pole): pole 2's "becomes the gate once X drops" must name the
+    # ACTUAL slowest concurrent check above it - which may be an intervening check that
+    # is not itself a drilled pole (e.g. a matrix shard) - not just the previous pole.
+    doc = _doc_one_pole()
+    doc["pr_critical_path"]["checks"] = [
+        {"name": "changed-tests", "p50_s": 776.5},
+        {"name": "UNIT Test (Shard 4)", "p50_s": 504.5},   # intervening, NOT a pole
+        {"name": "Validate build outputs", "p50_s": 491.5},
+    ]
+    doc["pr_critical_path"]["poles"] = [
+        {"check": "changed-tests", "p50_s": 776.5,
+         "workflow_file": ".github/workflows/changed-test-gate.yml", "job": "changed-tests",
+         "steps": [{"step": "Build", "category": "build", "p50_s": 650.0}]},
+        {"check": "Validate build outputs", "p50_s": 491.5,
+         "workflow_file": ".github/workflows/lint.yml", "job": "Validate build outputs",
+         "steps": [{"step": "Build", "category": "build", "p50_s": 432.0}]},
+    ]
+    md = bp.render(doc, {}, {}, {}, "2026-06-08")
+    # The intervening Shard 4 (8m 24s) sits between the two poles, so pole 2's role must
+    # NOT claim it gates the moment changed-tests alone drops below 8m 12s.
+    assert "becomes the gate only once every slower concurrent check drops below" in md
+    assert "Runs concurrently behind `changed-tests`" in md
+
+
+def _doc_sibling_floor() -> dict:
+    """A two-pole shape reproducing the sibling-family spine-drop bug (a live-run false FAIL):
+    a matrix-sharded family `web-tests (shard N)` where pole 1 is the p50-slowest leg (`shard 1`,
+    drilled at the top) but the leg that actually CAPS the second pole is `shard 4` — a DIFFERENT
+    leg whose bimodal SLOW mode (245s / 4m 05s) is the effective ceiling even though its blended
+    p50 (227s) sits BELOW shard 1's (234s). The second pole `typecheck` runs concurrently behind
+    the family. Generic shapes only — no real repo's check names or logs. `populations` make each
+    pole the per-PR slowest on 6 of 12 sampled PRs, with shard 4 co-occurring on the majority of
+    `typecheck`'s gating PRs so verify_report re-derives it as `typecheck`'s binding floor."""
+    def leg(n: int, p50: float, hi: float | None = None) -> dict:
+        c = {"name": f"web-tests (shard {n})", "p50_s": p50,
+             "workflow_file": ".github/workflows/ci.yml"}
+        if hi is not None:
+            c["bimodal"] = {"low_p50_s": 180.0, "high_p50_s": hi, "slow_frac": 0.55}
+        return c
+    checks = [leg(1, 234.0), leg(4, 227.0, hi=245.0), leg(2, 226.0), leg(3, 221.0),
+              {"name": "typecheck", "p50_s": 206.0, "workflow_file": ".github/workflows/ci.yml"}]
+    pops = []
+    for _ in range(6):   # shard 1 is the per-PR slowest here (pole 1's gating PRs)
+        pops.append([0.05, [["web-tests (shard 1)", 234.0], ["web-tests (shard 4)", 200.0],
+                            ["web-tests (shard 2)", 190.0], ["typecheck", 150.0]]])
+    for _ in range(6):   # typecheck is the per-PR slowest here; shard 4 co-occurs (its floor)
+        pops.append([0.05, [["typecheck", 206.0], ["web-tests (shard 4)", 200.0],
+                            ["web-tests (shard 1)", 190.0], ["web-tests (shard 2)", 180.0]]])
+    return {
+        "repo": "o/r", "scanned_at": "2026-06-08T00:00:00Z",
+        "data_sources": {"runs_sampled": 100, "jobs_sampled": 300, "workflows_analyzed": 2},
+        "pr_critical_path": {
+            "sampled_pr_count": 12, "sample_target": 12, "sample_complete": True,
+            "checks": checks, "populations": pops,
+            "poles": [
+                {"check": "web-tests (shard 1)", "p50_s": 234.0,
+                 "workflow_file": ".github/workflows/ci.yml", "job": "web-tests (shard 1)",
+                 "dominant_step": "run tests", "dominant_p50_s": 120.0,
+                 "steps": [{"step": "run tests", "category": "test", "p50_s": 120.0},
+                           {"step": "Build", "category": "build", "p50_s": 40.0}]},
+                {"check": "typecheck", "p50_s": 206.0,
+                 "workflow_file": ".github/workflows/ci.yml", "job": "typecheck",
+                 "dominant_step": "tsc", "dominant_p50_s": 150.0,
+                 "steps": [{"step": "tsc", "category": "test", "p50_s": 150.0},
+                           {"step": "Build", "category": "build", "p50_s": 40.0}]}]}}
+
+
+def test_below_gate_pole_role_names_effective_floor_not_p50_slowest_sibling():
+    # Regression (sibling-family spine drop): a below-gate pole's role line must NAME the check that
+    # actually caps it — the EFFECTIVE-slowest concurrent check (`_eff_floor_s`, bimodal-aware) — not
+    # the bare-p50-slowest sibling leg. `shard 1` has the highest blended p50 (234s) but `shard 4`'s
+    # slow mode (245s / 4m 05s) is the true binding floor; selecting by p50 named `shard 1`, leaving
+    # the real floor (`shard 4`) disclosed nowhere and tripping verify_report's spine-drop check.
+    md = bp.render(_doc_sibling_floor(), {}, {}, {}, "2026-06-08")
+    assert "Runs concurrently behind `web-tests (shard 4)` (4m 05s)" in md   # the effective floor
+    assert "Runs concurrently behind `web-tests (shard 1)`" not in md        # NOT the p50-slowest leg
+
+
+def _spine_drop_line(report: str, findings: dict, tmp_path: Path) -> str:
+    """Run verify_report.py's CLI with --findings and return the spine-drop (#6) check line."""
+    import subprocess
+    verify = Path(__file__).resolve().parent / "verify_report.py"
+    rp = tmp_path / "report-2026-05-29.md"
+    rp.write_text(report, encoding="utf-8")
+    fp = tmp_path / "findings.json"
+    fp.write_text(json.dumps(findings), encoding="utf-8")
+    out = subprocess.run([sys.executable, str(verify), "--report", str(rp), "--findings", str(fp)],
+                         capture_output=True, text=True).stdout
+    for ln in out.splitlines():
+        if "binding floor is disclosed on the spine" in ln:
+            return ln
+    raise AssertionError(f"no spine-drop check line in verify_report output:\n{out}")
+
+
+def test_sibling_floor_disclosure_passes_verify_report_end_to_end(tmp_path: Path):
+    # End-to-end coupling: the rendered sibling-family report (fixed renderer names `shard 4`) must
+    # PASS verify_report's spine-drop check, and a report that DROPS that disclosure must still FAIL
+    # — so a renderer wording drift can't silently slip past the gate, and the gate can't be softened
+    # into always-passing. Ties the SAME rendered bytes to the actual verifier CLI.
+    doc = _doc_sibling_floor()
+    md = bp.render(doc, {}, {}, {}, "2026-06-08")
+    assert _spine_drop_line(md, doc, tmp_path).split(None, 1)[0] == "PASS"
+    # Drop the disclosure: strip `shard 4` from the pole role line (simulate the pre-fix p50 pick,
+    # which named `shard 1` and left `shard 4` disclosed nowhere). The gate must catch it.
+    dropped = md.replace("Runs concurrently behind `web-tests (shard 4)`",
+                         "Runs concurrently behind `web-tests (shard 1)`")
+    assert dropped != md
+    fail_line = _spine_drop_line(dropped, doc, tmp_path)
+    assert fail_line.split(None, 1)[0] == "FAIL"
+    assert "web-tests (shard 4)" in fail_line   # names the exact dropped binding floor
+
+
+def test_below_gate_pole_role_admits_sibling_below_headline_when_slow_mode_exceeds_it():
+    # Predicate-change regression (the OTHER half of the fix): the fix switched the role line's
+    # membership FILTER — not only the sort key — from bare `p50_s > head_s` to
+    # `_eff_floor_s(c) > head_s`. A concurrent sibling whose BLENDED p50 sits BELOW the below-gate
+    # pole's headline (so the OLD filter EXCLUDED it outright, dropping it from `above` entirely)
+    # but whose bimodal SLOW mode exceeds that headline is now admitted and, as the effective-
+    # slowest, named. Pre-fix, such a check was invisible to the role line and the pole named the
+    # p50-slowest ADMITTED sibling instead — a strictly worse miss than the reordering case, since
+    # the true cap was excluded, not merely out-ranked. Generic shapes only.
+    doc = _doc_sibling_floor()
+    # `lint-heavy`: a different-family concurrent check whose blended p50 (200s) is BELOW the
+    # below-gate pole `typecheck`'s headline (206s) — so `p50 > head_s` is FALSE — but whose slow
+    # mode (260s / 4m 20s) is above it AND above every shard's effective floor (shard 4 == 245s).
+    # It must be a TYPICAL-PR check (present in `populations`) to reach the role line's candidate
+    # set at all, so add it to every sampled PR at a per-PR value that never unseats the winner.
+    cp = doc["pr_critical_path"]
+    cp["checks"].append(
+        {"name": "lint-heavy", "p50_s": 200.0, "workflow_file": ".github/workflows/ci.yml",
+         "bimodal": {"low_p50_s": 150.0, "high_p50_s": 260.0, "slow_frac": 0.55}})
+    for _share, cks in cp["populations"]:
+        cks.append(["lint-heavy", 200.0])
+    md = bp.render(doc, {}, {}, {}, "2026-06-08")
+    assert "Runs concurrently behind `lint-heavy` (4m 20s)" in md   # admitted by the eff-floor filter
+    assert "Runs concurrently behind `web-tests (shard 4)`" not in md  # no longer the effective max
+    assert "Runs concurrently behind `web-tests (shard 1)`" not in md  # never the p50-slowest pick
+
+
+def test_unmatched_pole_still_gets_crossrun_check_and_agent_prompt():
+    # A pole whose log matches NO catalog detector must still be a complete finding:
+    # a cross-run check on its dominant step + an agent prompt - not a bare timeline.
+    timeline = {"job_dur_s": 535.0, "run_url": "https://github.com/o/r/actions/runs/9",
+                "steps": [{"name": "Set up job", "dur_s": 5.0, "start_s": 0.0},
+                          {"name": "Build", "dur_s": 432.0, "start_s": 90.0}]}
+    # generic step-wall magnitude (what collect_runs._dominant_step_sample produces)
+    mag = {"label": "the `Build` step (wall)", "unit": "s", "kind": "step-wall",
+           "this_run": 432.0, "values": [
+               {"run_url": "https://github.com/o/r/actions/runs/9", "value": 432.0, "drilled": True},
+               {"run_url": "https://github.com/o/r/actions/runs/8", "value": 410.0},
+               {"run_url": "https://github.com/o/r/actions/runs/7", "value": 448.0}]}
+    doc = _doc_one_pole()
+    doc["pr_critical_path"]["poles"][0]["check"] = "Validate build outputs"
+    doc["pr_critical_path"]["poles"][0]["job"] = "Validate build outputs"
+    md = bp.render(doc, {"pipeline": "log that matches nothing"},
+                   {}, {"pipeline": "https://github.com/o/r/actions/runs/9"}, "2026-06-08",
+                   mags={"pipeline": mag}, steps={"pipeline": timeline})
+    assert "**🔬 Cross-run check** - the `Build` step (wall)" in md   # em-dash stripped to ascii
+    assert "dominant step's own wall time" in md          # step-wall phrasing, not "categorical cause"
+    assert "Prompt for your coding agent" in md           # the hand-off renders
+    assert "NO CATALOG PATTERN MATCHED" in md             # honest about the coverage gap
+    assert "`Build` step" in md                           # prompt focuses the dominant step
+
+
+def test_unmatched_pole_with_llm_analysis_renders_grounded_section_and_prompt():
+    # The LLM gap-fill: for a pole with NO catalog match, a provided --analysis renders
+    # a clearly-labelled, log-grounded root-cause section + a tailored prompt, and the
+    # waterfall's coverage-gap note points at it instead of dead-ending.
+    timeline = {"job_dur_s": 210.0, "run_url": "https://github.com/o/r/actions/runs/9",
+                "steps": [{"name": "Run e2e tests", "dur_s": 41.0, "start_s": 120.0}]}
+    analysis = {
+        "cause": "The `Run e2e tests` step runs Playwright specs serially across 3 "
+                 "projects; the log shows each project starting only after the prior "
+                 "finishes.",
+        "breakdown": [["chromium project", "~16s"], ["firefox project", "~14s"]],
+        "evidence": ["Running 42 tests using 1 worker",
+                     "[chromium] › auth.spec.ts ... ok"],
+        "prompt": "REPO: o/r\nTHE GATE: e2e-tests in pipeline.yml.\nInvestigate the "
+                  "serial Playwright projects and raise the worker count.",
+    }
+    doc = _doc_one_pole()
+    doc["pr_critical_path"]["poles"][0]["check"] = "e2e-tests"
+    doc["pr_critical_path"]["poles"][0]["job"] = "e2e-tests"
+    md = bp.render(doc, {"pipeline": "log matching no detector"}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/9"}, "2026-06-08",
+                   steps={"pipeline": timeline}, analyses={"pipeline": analysis})
+    assert "🤖 LLM root-cause analysis" in md
+    assert "not** a measured catalog detector" in md          # honest provenance label
+    assert "runs Playwright specs serially" in md             # the cause narrative
+    assert "Running 42 tests using 1 worker" in md            # grounded evidence line
+    assert "see the **LLM root-cause analysis** below" in md  # gap note points at it
+    assert "no drill-down available" not in md                # not a dead-end anymore
+    assert "raise the worker count" in md                     # the tailored prompt body
+
+    # Back-compat: same pole, NO analysis provided -> still the honest coverage-gap note.
+    md2 = bp.render(doc, {"pipeline": "log matching no detector"}, {},
+                    {"pipeline": "https://github.com/o/r/actions/runs/9"}, "2026-06-08",
+                    steps={"pipeline": timeline})
+    assert "no drill-down available" in md2
+    assert "🤖 LLM root-cause analysis" not in md2
+
+
+def _rca_line(report: str, tmp_path: Path) -> str:
+    """Run ci-speedup's verify_report.py CLI on `report` (via subprocess — ci-secure
+    ships a same-named verify_report, so importing it would collide on the shared
+    pythonpath) and return the full RCA-hands-off check line (tag + message)."""
+    import subprocess
+    verify = Path(__file__).resolve().parent / "verify_report.py"
+    rp = tmp_path / "report-2026-05-29.md"
+    rp.write_text(report, encoding="utf-8")
+    out = subprocess.run([sys.executable, str(verify), "--report", str(rp)],
+                         capture_output=True, text=True).stdout
+    for ln in out.splitlines():
+        if "RCA hands off via prompts" in ln:
+            return ln
+    raise AssertionError(f"no RCA check line in verify_report output:\n{out}")
+
+
+def test_rendered_deadend_pole_fails_the_verify_report_gate_end_to_end(tmp_path: Path):
+    # End-to-end coupling: render a REAL coverage-gap dead-end pole through bp.render()
+    # and feed the actual bytes to the actual verify_report gate. This is what stops a
+    # renderer wording change from silently slipping past the gate — the marker literal
+    # is asserted in test_blocking_path (render side) and test_verify_report_self (gate
+    # side) separately against a hardcoded string, but only this test ties the SAME
+    # rendered output to the gate, so a drift that updated one literal but not the other
+    # fails loudly here. (The gate checks dead-end markers FIRST, so the FAIL is for the
+    # dead-end, not some other incompleteness of this minimal synthetic report.)
+    timeline = {"job_dur_s": 210.0, "run_url": "https://github.com/o/r/actions/runs/9",
+                "steps": [{"name": "Run e2e tests", "dur_s": 41.0, "start_s": 120.0}]}
+    doc = _doc_one_pole()
+    doc["pr_critical_path"]["poles"][0]["check"] = "e2e-tests"
+    doc["pr_critical_path"]["poles"][0]["job"] = "e2e-tests"
+    dead = bp.render(doc, {"pipeline": "log matching no detector"}, {},
+                     {"pipeline": "https://github.com/o/r/actions/runs/9"}, "2026-06-08",
+                     steps={"pipeline": timeline})
+    assert "no drill-down available; this is a coverage gap" in dead   # the real marker
+    line = _rca_line(dead, tmp_path)
+    assert line.split(None, 1)[0] == "FAIL"
+    assert "coverage-gap" in line          # failed FOR the dead-end reason, not another
+    # The filled counterpart PASSES the RCA gate end-to-end. The agent's `prompt` body
+    # carries NO disclaimer (as it naturally won't) — the renderer prepends the standard
+    # "does NOT prescribe the fix" disclaimer, so prompts==disclaimers and the gate passes.
+    # (This is the teleport-dogfood bug: before the fix, a gap-fill report failed its own
+    # verify gate for the missing disclaimer, forcing the agent to hack its output.)
+    analysis = {"cause": "Playwright specs run serially across 3 projects.",
+                "breakdown": [["chromium", "~16s"]],
+                "evidence": ["Running 42 tests using 1 worker"],
+                "prompt": "REPO: o/r\nInvestigate the serial projects and raise workers."}
+    filled = bp.render(doc, {"pipeline": "log matching no detector"}, {},
+                       {"pipeline": "https://github.com/o/r/actions/runs/9"}, "2026-06-08",
+                       steps={"pipeline": timeline}, analyses={"pipeline": analysis})
+    assert "no drill-down available" not in filled
+    assert "does NOT prescribe the fix" in filled              # renderer added the disclaimer
+    assert _rca_line(filled, tmp_path).split(None, 1)[0] == "PASS"   # full gate PASS, not a hack
+
+
+def test_singleton_mag_pole_prompt_does_not_cite_a_missing_cross_run_check(tmp_path: Path):
+    # Class regression (goreleaser-check on caddyserver/caddy): an undetected pole with a
+    # DRILLED timeline but a SINGLETON magnitude sample (only the drilled run) renders NO
+    # "🔬 Cross-run check" section (`_mag_line` returns [] on <2 values). The generic prompt
+    # must therefore NOT claim the dominant step's share is "validated across runs in the
+    # cross-run check above" — that section isn't there. verify_report's RCA-hands-off gate
+    # re-derives this per pole and FAILs a dangling reference.
+    timeline = {"job_dur_s": 535.0, "run_url": "https://github.com/o/r/actions/runs/87229819454",
+                "steps": [{"name": "Set up job", "dur_s": 5.0, "start_s": 0.0},
+                          {"name": "GoReleaser", "dur_s": 432.0, "start_s": 90.0}]}
+    # Singleton step-wall magnitude: only the drilled run itself, so no cross-run check renders.
+    mag = {"label": "the `GoReleaser` step (wall)", "unit": "s", "kind": "step-wall",
+           "this_run": 432.0, "values": [
+               {"run_url": "https://github.com/o/r/actions/runs/87229819454",
+                "value": 432.0, "drilled": True}]}
+    doc = _doc_one_pole()
+    doc["pr_critical_path"]["poles"][0]["check"] = "goreleaser-check"
+    doc["pr_critical_path"]["poles"][0]["job"] = "goreleaser-check"
+    md = bp.render(doc, {"pipeline": "log that matches nothing"}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/87229819454"},
+                   "2026-06-08", mags={"pipeline": mag}, steps={"pipeline": timeline})
+    # Precondition: the section really is suppressed for a singleton sample.
+    assert "🔬 Cross-run check" not in md
+    assert "GoReleaser" in md                                     # the prompt still names the step
+    # The bug: the generic prompt must not point at a cross-run check that isn't rendered.
+    assert "validated across runs in the cross-run check above" not in md
+    assert "measured in the drilled run" in md                    # honest replacement wording
+
+    # The SAME suppression applies to the LLM-analysis block's provenance line. With an
+    # analysis (not a dead-end), the report is otherwise gate-clean, so the RCA-hands-off
+    # gate PASSes end-to-end only because the dangling cross-run citation is gone (before
+    # the engine fix `_llm_analysis_block` cited "cross-run check above" unconditionally).
+    analysis = {"cause": "GoReleaser builds all targets serially.",
+                "breakdown": [["darwin/amd64", "~2m"]],
+                "evidence": ["building goreleaser ..."],
+                "prompt": "REPO: o/r\nInvestigate the serial GoReleaser targets."}
+    md2 = bp.render(doc, {"pipeline": "log that matches nothing"}, {},
+                    {"pipeline": "https://github.com/o/r/actions/runs/87229819454"},
+                    "2026-06-08", mags={"pipeline": mag}, steps={"pipeline": timeline},
+                    analyses={"pipeline": analysis})
+    assert "🔬 Cross-run check" not in md2
+    assert "cross-run check above are measured" not in md2        # no dangling provenance ref
+    assert "the timeline above is measured" in md2                # honest replacement wording
+    assert _rca_line(md2, tmp_path).split(None, 1)[0] == "PASS", _rca_line(md2, tmp_path)
+
+
+def test_two_gap_fill_poles_keep_the_disclaimer_count_balanced_end_to_end(tmp_path: Path):
+    # The literal teleport-dogfood shape: a report where BOTH poles hit coverage gaps, so
+    # TWO gap-fill prompts render. verify_report's invariant is a COUNT
+    # (disclaimers == prompts), not a boolean — the single-pole test above only ever proves
+    # 1 == 1, so a regression that drops the disclaimer would still balance at 0 == 0 or
+    # slip through. This pins the N>1 case the bug actually fired on: prompts == 2 and the
+    # renderer must contribute exactly one disclaimer per prompt, so disclaimers == 2 and the
+    # real RCA gate PASSes.
+    timeline = {"job_dur_s": 210.0, "run_url": "https://github.com/o/r/actions/runs/9",
+                "steps": [{"name": "Run e2e tests", "dur_s": 41.0, "start_s": 120.0}]}
+    doc = _doc_one_pole()
+    doc["pr_critical_path"]["poles"][0]["check"] = "e2e-tests"
+    doc["pr_critical_path"]["poles"][0]["job"] = "e2e-tests"
+    # A second, distinct-workflow pole that also hits a coverage gap (its own log matches no
+    # detector). Distinct workflow stem (`api`) so the per-pole keys bind unambiguously.
+    doc["pr_critical_path"]["poles"].append({
+        "check": "api-tests", "p50_s": 200.0,
+        "workflow_file": ".github/workflows/api.yml", "job": "api-tests",
+        "dominant_step": "pytest", "dominant_p50_s": 88.0,
+        "steps": [{"step": "pytest", "category": "test", "p50_s": 88.0}],
+    })
+    api_timeline = {"job_dur_s": 200.0, "run_url": "https://github.com/o/r/actions/runs/9",
+                    "steps": [{"name": "pytest", "dur_s": 88.0, "start_s": 30.0}]}
+    logs = {"pipeline": "log matching no detector", "api": "other log, no detector"}
+    analyses = {
+        "pipeline": {"cause": "Playwright specs run serially across 3 projects.",
+                     "breakdown": [["chromium", "~16s"]],
+                     "evidence": ["Running 42 tests using 1 worker"],
+                     "prompt": "REPO: o/r\nInvestigate the serial projects and raise workers."},
+        "api": {"cause": "pytest collects the whole suite in one process.",
+                "breakdown": [["collect", "~12s"]],
+                "evidence": ["collected 1200 items"],
+                "prompt": "REPO: o/r\nInvestigate pytest-xdist for the api suite."},
+    }
+    filled = bp.render(doc, logs, {},
+                       {"pipeline": "https://github.com/o/r/actions/runs/9"}, "2026-06-08",
+                       steps={"pipeline": timeline, "api": api_timeline}, analyses=analyses)
+    assert "no drill-down available" not in filled            # both poles are gap-filled
+    assert filled.count("🤖 Prompt for your coding agent") == 2
+    assert filled.count("does NOT prescribe the fix") == 2    # exactly one per prompt
+    assert _rca_line(filled, tmp_path).split(None, 1)[0] == "PASS"   # count-balanced gate PASS
+
+
+def test_llm_agent_prompt_owns_the_no_prescription_disclaimer():
+    # The teleport-dogfood bug: the gap-fill prompt wrapper rendered a "🤖 Prompt…" header
+    # with no "does NOT prescribe the fix" disclaimer, so verify_report's
+    # one-disclaimer-per-prompt count failed on every coverage-gap report. The renderer now
+    # owns the disclaimer (the agent writes only the body), exactly like the catalog prompts.
+    p = bp._llm_agent_prompt("The Benchmarks job spends 400s in one serial step. Shard it.")
+    assert p.count("🤖 Prompt for your coding agent") == 1
+    assert p.count("does NOT prescribe the fix") == 1
+    # Idempotent: a body that ALREADY carries the disclaimer (a hand-written prompt that
+    # included it) must not be doubled — the per-prompt count stays exactly 1.
+    p2 = bp._llm_agent_prompt("x does NOT prescribe the fix y\n\nThe real body.")
+    assert p2.count("does NOT prescribe the fix") == 1
+
+
+def test_dominant_step_from_timeline_skips_setup_and_picks_longest():
+    tl = {"job_dur_s": 600.0, "steps": [
+        {"name": "Set up job", "dur_s": 5.0}, {"name": "Checkout repo", "dur_s": 8.0},
+        {"name": "Build", "dur_s": 432.0}, {"name": "Test", "dur_s": 90.0},
+        {"name": "Post Build", "dur_s": 3.0}]}
+    name, dur, share = bp._dominant_step_from_timeline(tl)
+    assert name == "Build" and dur == 432.0 and round(share, 2) == 0.72
+    assert bp._dominant_step_from_timeline(None) is None
+    assert bp._dominant_step_from_timeline({"job_dur_s": 0, "steps": []}) is None
+
+
+def test_render_headline_quotes_the_biggest_win_when_a_floor_exists():
+    # With a concurrent check below the gate, the headline names the addressable
+    # wall-clock win (gate p50 - next check) and points at Long pole 1.
+    doc = _doc_one_pole()
+    doc["pr_critical_path"]["checks"] = [
+        {"name": "tests-web", "p50_s": 255.0},
+        {"name": "lint", "p50_s": 75.0},
+    ]
+    md = bp.render(doc, {}, {}, {}, "2026-06-08")
+    assert "biggest single measured win is **~3m 00s**" in md   # 255 - 75 = 180s
+    assert "[Long pole 1](#pole-1)" in md
+
+
+def _doc_with_findings() -> dict:
+    doc = _doc_one_pole()
+    doc["findings"] = [
+        {"id": "f1", "pattern": "OPT28", "title": "Full Git History Checkout",
+         "severity": "MEDIUM", "runner_min_saving": 859.0,
+         "workflow_file": ".github/workflows/ci.yml", "line": 10},
+        {"id": "f2", "pattern": "OPT28", "title": "Full Git History Checkout",
+         "severity": "MEDIUM", "runner_min_saving": 100.0,
+         "workflow_file": ".github/workflows/release.yml", "line": 5},
+        {"id": "f3", "pattern": "OPT5", "title": "pnpm Store Not Cached",
+         "severity": "MEDIUM", "runner_min_saving": 68.0,
+         "workflow_file": ".github/workflows/ci.yml", "line": 20},
+        # Advisory: surfaced as a signal, NOT in the hygiene table.
+        {"id": "f4", "pattern": "OPT19", "title": "Test Source Sleep Dominance",
+         "severity": "LOW", "advisory": True,
+         "workflow_file": ".github/workflows/ci.yml", "line": 30},
+        # Structural per-pole lever (OPT70/71/72/74/75): rendered AS the pole above,
+        # carries NO runner-minute axis (only the cluster-floor lever OPT73 does), so
+        # it's excluded from the bill-ranked appendix.
+        {"id": "f5", "pattern": "OPT72", "title": "Prefer the safe cache path",
+         "severity": "HIGH", "structural": True, "risk": "MEDIUM",
+         "runner_min_saving": None, "wall_clock_p50_s": 120.0,
+         "workflow_file": ".github/workflows/pipeline.yml", "line": 1},
+    ]
+    return doc
+
+
+def test_also_noticed_lists_hygiene_ranked_by_bill_and_links_toc():
+    md = bp.render(_doc_with_findings(), {}, {}, {}, "2026-06-08")
+    assert "## 🧹 Also noticed - residual hygiene" in md
+    assert '<a id="also-noticed"></a>' in md
+    # OPT28 (859+100 runner-min) ranks above OPT5 (68); both grouped by pattern.
+    i28, i5 = md.index("OPT28"), md.index("OPT5")
+    assert i28 < i5
+    assert "959 min/mo" in md                  # 859 + 100 summed across occurrences (PR-Z: positive label)
+    assert "-959 min/mo" not in md
+    assert "2 across 2 wf" in md               # OPT28's two occurrences
+    # The TOC points at the appendix (2 hygiene patterns: OPT28, OPT5).
+    assert "**🧹 Also noticed** - 2 additional hygiene finding" in md
+    assert "[see below](#also-noticed)" in md
+
+
+def test_also_noticed_excludes_advisory_and_structural():
+    md = bp.render(_doc_with_findings(), {}, {}, {}, "2026-06-08")
+    # Advisory + manual-review sections were removed entirely; advisory findings are
+    # not rendered anywhere (they stay in the findings JSON only).
+    assert "Considered & set aside" not in md
+    assert "Manual review" not in md
+    assert "OPT19" not in md          # advisory finding, no longer surfaced
+    # A structural PER-POLE lever (OPT72) is rendered AS the pole and carries no
+    # runner-minute axis, so it never appears as an off-path hygiene row.
+    assert "OPT72" not in md.split("## 🧹 Also noticed")[1]
+
+
+def test_also_noticed_includes_bill_only_cluster_floor_structural():
+    # Regression: OPT73 (the cross-cluster shared-substep floor lever) is the ONE
+    # structural pattern that carries a credited, bill-only runner-minute saving. It
+    # is NOT rendered as a single pole (it spans the whole cluster), so excluding the
+    # entire structural track as "already rendered as the poles" silently dropped the
+    # single biggest bill saving in the audit. The savings methodology says the
+    # runner-minute axis is shown in "Also noticed" — so a bill-only OPT73 must render
+    # there, ranked by bill saving, above a smaller catalog hygiene finding.
+    doc = _doc_one_pole()
+    doc["findings"] = [
+        {"id": "f1", "pattern": "OPT33",
+         "title": "No Draft-PR Gating on an Expensive Job",
+         "severity": "MEDIUM", "runner_min_saving": 479.0,
+         "workflow_file": ".github/workflows/ci.yml", "line": 10},
+        # Per-pole structural lever — rendered AS the pole, no runner-minute axis.
+        {"id": "f2", "pattern": "OPT72", "title": "Prefer the safe cache path",
+         "severity": "HIGH", "structural": True, "risk": "MEDIUM",
+         "runner_min_saving": None, "wall_clock_p50_s": 120.0,
+         "workflow_file": ".github/workflows/ci.yml", "line": 1},
+        # Cross-cluster floor lever — bill-only (wall-clock floored to 0), the biggest
+        # single runner-minute saving in the audit.
+        {"id": "f3", "pattern": "OPT73", "structural": True, "risk": "LOW",
+         "severity": "HIGH",
+         "title": "Shared step recurs across the cluster - fix once, lower the floor",
+         "runner_min_saving": 984.0, "wall_clock_p50_s": 0.0,
+         "affected_jobs": ["app", "web"],
+         "workflow_file": ".github/workflows/ci.yml", "line": 0},
+    ]
+    md = bp.render(doc, {}, {}, {}, "2026-06-08")
+    appendix = md.split("## 🧹 Also noticed")[1]
+    # The dropped lever now renders, with its bill saving shown.
+    assert "OPT73" in appendix
+    assert "984 min/mo" in appendix            # PR-Z: positive label
+    assert "-984 min/mo" not in appendix
+    # Residual rows still rank by bill saving: OPT73 (984) above the smaller OPT33 (479).
+    assert appendix.index("OPT73") < appendix.index("OPT33")
+    # The per-pole structural lever (no runner-minute axis) is still excluded.
+    assert "OPT72" not in appendix
+    # The TOC count stays honest: OPT73 + OPT33 = 2 residual hygiene findings.
+    assert "**🧹 Also noticed** - 2 additional hygiene finding" in md
+
+
+def test_metadata_table_up_top_has_commit_link_and_window():
+    doc = _doc_with_findings()
+    doc["commit_sha"] = "abcdef1234567890"
+    doc["skill_commit_sha"] = "2b4b7360000"
+    md = bp.render(doc, {}, {}, {}, "2026-06-08")
+    # Sits above the spine.
+    assert md.index("| **Audited commit** |") < md.index("Long pole 1:")
+    # Repository is the header row - no empty `| | |` row starting the table.
+    assert "| Repository | `o/r` |" in md
+    assert "| | |" not in md
+    # Commit hash links to the commit so file refs have a home.
+    assert "[`abcdef1`](https://github.com/o/r/commit/abcdef1234567890)" in md
+    assert "anchored to this tree" in md
+    # The skill commit links to the skill repo too.
+    assert "https://github.com/starslingdev/skills/commit/2b4b7360000" in md
+    # 30-day window derived from the scan date (2026-06-08 -> 2026-05-09).
+    assert "2026-05-09 → 2026-06-08 (30-day window)" in md
+    assert "100 runs / 300 jobs" in md
+
+
+def test_starsling_footer_is_present():
+    md = bp.render(_doc_with_findings(), {}, {}, {}, "2026-06-08")
+    assert "Generated by [StarSling](https://starsling.dev) 💫" in md
+    # The TOC carries the per-pole severity dot too (255s gate -> 🟠). Plain-text anchor
+    # label, no backticks (owner UX edit 2026-07-19).
+    assert "🟠 [tests-web](#pole-1)" in md
+
+
+def test_coverage_gap_and_dropped_unprovable_banners_render():
+    doc = _doc_with_findings()
+    doc["scan_incomplete"] = [{"path": ".github/workflows/broken.yml",
+                               "reason": "YAML parse error"}]
+    doc["pr_critical_path"]["dropped_unprovable"] = [
+        {"id": "d9", "pattern": "OPT3", "affected_jobs": ["build"],
+         "reason": "no cache line in logs"}]
+    md = bp.render(doc, {}, {}, {}, "2026-06-08")
+    assert "Incomplete coverage" in md and "broken.yml" in md
+    assert "dropped after log review" in md and "OPT3" in md
+    # No silent drops: both must read as gaps, not as clean.
+    # Placement: the incomplete-coverage WARNING is read-me-first (above the spine);
+    # the dropped-finding NOTE is bottom matter (below the poles, by the footer).
+    assert md.index("Incomplete coverage") < md.index("Long pole 1:")
+    assert md.index("dropped after log review") > md.index("Long pole 1:")
+    assert md.index("dropped after log review") > md.index("## 🧹 Also noticed")
+
+
+def test_render_handles_pole_with_no_captured_log():
+    # A pole with no --log still renders its steps + the "run with --log" hint,
+    # never crashes.
+    md = bp.render(_doc_one_pole(), {}, {}, {}, "")
+    assert "Long pole 1:" in md
+    assert "no captured log" in md
+
+
+def test_jest_provider_note_keeps_a_static_only_report_visible():
+    doc = {
+        "repo": "demo/repo",
+        "findings": [],
+        "pr_critical_path": {},
+        "data_sources": {},
+        "jest_coverage_notes": [{
+            "workflow_file": ".github/workflows/ci.yml",
+            "job": "test",
+            "note": ("Jest coverage provider is `v8`; compare providers on the same "
+                     "commit; no provider-switch saving is credited without matched "
+                     "measurements"),
+        }],
+    }
+
+    report = bp.render(doc)
+
+    assert "No measured critical path" not in report
+    assert "Jest coverage configuration" in report
+    assert "no provider-switch saving is credited" in report
+
+
+def _load_verify_report():
+    # `verify_report` is not a unique module name (ci-secure ships one too), so load
+    # THIS skill's by path under a unique name to avoid a cross-skill import clash.
+    import importlib.util
+    path = Path(__file__).resolve().parents[1] / "tests" / "verify_report.py"
+    name = "ci_speedup_verify_report_in_bp"
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod  # register first: its @dataclass resolves __module__ here
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    return mod
+
+
+def _doc_no_runs_with_static_findings() -> dict:
+    # An archived / brand-new / low-activity repo: collect_runs sampled 0 runs, so the
+    # spine is empty (poles == []) and per_workflow_timing is all-zero — but the static
+    # scan still found real workflow hygiene findings.
+    return {
+        "repo": "datafold/data-diff", "scanned_at": "2026-06-08T00:00:00Z",
+        "commit_sha": "abcdef1234567890", "skill_commit_sha": "2b4b7360000",
+        "data_sources": {"runs_sampled": 0, "jobs_sampled": 0, "workflows_analyzed": 3},
+        "pr_critical_path": {"sampled_pr_count": 0, "sample_target": 20, "poles": []},
+        "findings": [
+            {"id": "f1", "pattern": "OPT26", "title": "Outdated Action Versions",
+             "severity": "MEDIUM", "runner_min_saving": 50.0,
+             "workflow_file": ".github/workflows/ci.yml", "line": 10},
+            {"id": "f2", "pattern": "OPT45", "title": "Missing Concurrency Group",
+             "severity": "MEDIUM", "runner_min_saving": 120.0,
+             "workflow_file": ".github/workflows/ci.yml", "line": 1},
+            {"id": "f3", "pattern": "OPT33",
+             "title": "No Draft-PR Gating on an Expensive Job",
+             "severity": "MEDIUM", "runner_min_saving": 30.0,
+             "workflow_file": ".github/workflows/ci.yml", "line": 20},
+        ],
+    }
+
+
+def test_render_no_poles_but_static_findings_does_not_drop_them(tmp_path):
+    # Regression: a no-run-history repo (poles == []) with static hygiene findings must
+    # NOT dead-end with the one-line "_No measured critical path_" note — that silently
+    # drops every static finding and fails verify_report (a dead-end the skill must
+    # never ship). It must render those findings honestly and pass verify_report.
+    doc = _doc_no_runs_with_static_findings()
+    md = bp.render(doc)
+    assert "_No measured critical path" not in md           # did NOT dead-end
+    assert "No run history to measure" in md                # honest no-timing banner
+    for pat in ("OPT26", "OPT45", "OPT33"):                 # every static finding rendered
+        assert pat in md
+    assert "## 🗄️ Data sources" in md                       # provenance/data-basis present
+
+    # The rendered report must satisfy the shipped artifact guard (verify_report).
+    report = tmp_path / "blocking-path-speed.md"
+    report.write_text(md, encoding="utf-8")
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+    vr = _load_verify_report()
+    failures = [f"{c.name}: {c.detail}"
+                for c in vr.run_checks(md, report, findings, skill_repo=None)
+                if not c.skipped and not c.ok]
+    assert not failures, "verify_report invariant failures:\n" + "\n".join(failures)
+
+
+def test_render_no_pr_gating_ci_gets_shape_banner_not_dormant_hedge(tmp_path):
+    # Regression (pre-launch audit, live on simonw/sf-tree-history): a repo running CI
+    # daily whose workflows never fire on a PR event (schedule/push-only git scraper)
+    # rendered the dormant-repo banner ("archived, brand-new, or low-activity … aged
+    # out" / "found no run timing") while pricing OPT36 off 20 timed schedule runs
+    # three sections below — the report contradicted its own data. The shape branch
+    # must say "no PR-gating CI", own the timed runs, and pass the new verify guard.
+    doc = _doc_no_runs_with_static_findings()
+    doc["workflow_triggers"] = {
+        ".github/workflows/update.yml": ["push", "schedule", "workflow_dispatch"]}
+    doc["data_sources"]["runs_sampled"] = 10
+    md = bp.render(doc)
+    assert "No PR-gating CI to measure" in md
+    assert "10 timed run(s)" in md                          # owns the measured runs
+    assert "archived, brand-new, or low-activity" not in md  # no dormant speculation
+    assert "found no run timing" not in md                   # would contradict OPT36 pricing
+    assert "No run history was available" not in md
+    assert "until there is run timing to measure" not in md  # no false merge-wait promise
+
+    report = tmp_path / "blocking-path-speed.md"
+    report.write_text(md, encoding="utf-8")
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+    vr = _load_verify_report()
+    failures = [f"{c.name}: {c.detail}"
+                for c in vr.run_checks(md, report, findings, skill_repo=None)
+                if not c.skipped and not c.ok]
+    assert not failures, "verify_report invariant failures:\n" + "\n".join(failures)
+
+    # CLASS guard: the pre-fix dormant prose over this same findings JSON must FAIL
+    # verify_report.check_static_only_banner_matches_ci_shape (goes RED on the old
+    # renderer, GREEN on this one).
+    bad = ("<!-- ci-speedup:static-only -->\n# r — why is the merge slow?\n"
+           "> **No run history to measure.** ci-speedup sampled 0 of 20 PRs but found "
+           "no run timing (an archived, brand-new, or low-activity repo whose GitHub "
+           "Actions run history aged out).\n"
+           "> **Bottom line.** No run history was available.\n")
+    c = vr.check_static_only_banner_matches_ci_shape(bad, findings)
+    assert not c.ok and "no-PR-gating" in c.detail
+
+
+def test_render_pr_workflow_without_pr_runs_keeps_hedged_banner(tmp_path):
+    # A PR-triggered workflow EXISTS but no PR run timing was sampled (e.g. every
+    # recent PR run belongs to a since-deleted workflow): the hedged no-run-history
+    # banner is still the honest one — but it must name the since-deleted-workflows
+    # possibility and must never render the no-PR-gating shape banner.
+    doc = _doc_no_runs_with_static_findings()
+    doc["workflow_triggers"] = {
+        ".github/workflows/ci.yml": ["pull_request", "push"],
+        ".github/workflows/release.yml": ["push", "workflow_dispatch"]}
+    md = bp.render(doc)
+    assert "No run history to measure" in md
+    assert "since-deleted workflows" in md
+    assert "No PR-gating CI to measure" not in md
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+    vr = _load_verify_report()
+    c = vr.check_static_only_banner_matches_ci_shape(md, findings)
+    assert c.ok and not c.skipped
+
+
+def test_render_no_poles_no_findings_still_dead_ends_gracefully():
+    # The truly-empty case (no poles AND no static findings) keeps the one-line note —
+    # there is genuinely nothing to report — whether the fields are missing or empty.
+    for doc in ({"pr_critical_path": {}},
+                {"pr_critical_path": {"poles": []}, "findings": []}):
+        assert "No measured critical path" in bp.render(doc), doc
+
+
+def test_primary_section_invariant_flags_measured_pole_dropped_to_static(tmp_path):
+    # CLASS invariant (verify_report.check_primary_section_present, strengthened): a
+    # static-only "no run history" report is honest ONLY when the merge-path spine is
+    # truly unmeasurable. A push-only repo whose per_workflow_timing carries a measured
+    # merge-path long pole but whose poles is empty (the bug: the PR-floor fallback never
+    # engaged because it was gated on PR-volume events, not on populated timing) must be
+    # FLAGGED — the slowest measured job was buried. Re-derived from the findings JSON,
+    # mirroring collect_runs._select_pr_floor_workflows. Goes RED on the pre-fix renderer
+    # (which accepted any static-only report) and GREEN once the floor is synthesized.
+    vr = _load_verify_report()
+    static = ("<!-- ci-speedup:static-only -->\n# webflow/js-webflow-api - why is the "
+              "merge slow?\n> **No run history to measure.**\n")
+
+    def _findings(pwt: dict, poles: list) -> Path:
+        p = tmp_path / f"f{len(list(tmp_path.iterdir()))}.json"
+        p.write_text(json.dumps(
+            {"per_workflow_timing": pwt, "pr_critical_path": {"poles": poles}}),
+            encoding="utf-8")
+        return p
+
+    # Bug shape: a measured push (merge-path) long pole, but poles == [].
+    bug = _findings({".github/workflows/ci.yml": {
+        "long_pole_job": "test", "long_pole_p50": 51.5, "events": ["push"]}}, [])
+    c = vr.check_primary_section_present(static, bug)
+    assert not c.ok and "measured merge-path long pole" in c.detail
+
+    # Cron-only repo: the only timed workflow ran on `schedule` (NOT a merge-path event),
+    # so there is genuinely no merge spine to drill — static-only stays legitimate.
+    cron = _findings({".github/workflows/nightly.yml": {
+        "long_pole_job": "bench", "long_pole_p50": 600.0, "events": ["schedule"]}}, [])
+    assert vr.check_primary_section_present(static, cron).ok
+
+    # Comment-contaminated push workflow: its 30d volume is not a CI proxy, so the engine
+    # excludes it from the floor — the invariant must mirror that and stay legitimate.
+    noisy = _findings({".github/workflows/chatter.yml": {
+        "long_pole_job": "triage", "long_pole_p50": 80.0,
+        "events": ["push", "issue_comment"]}}, [])
+    assert vr.check_primary_section_present(static, noisy).ok
+
+    # Pre-`events`-stamp findings (older JSON): can't re-derive eligibility, so the
+    # invariant declines to fire rather than false-flag — static-only stays legitimate.
+    legacy = _findings({".github/workflows/ci.yml": {
+        "long_pole_job": "test", "long_pole_p50": 51.5}}, [])
+    assert vr.check_primary_section_present(static, legacy).ok
+
+    # A real spine report passes regardless of findings.
+    spine = "# r - why is the merge slow?\n## Long pole 1: `ci.yml` test\nbody"
+    assert vr.check_primary_section_present(spine, bug).ok
+
+
+def test_render_static_only_queue_only_does_not_claim_zero_hygiene():
+    # A no-run-history repo whose ONLY static finding is a queue-wait (OPT43) finding:
+    # `_also_noticed_block` excludes wait patterns, so the hygiene group count is 0, but
+    # the Pre-start wait section DOES render. The "Bottom line" must not read
+    # "0 static hygiene finding(s)" beside a populated queue section (greptile #86 P2).
+    doc = {
+        "repo": "x/y", "scanned_at": "2026-06-08T00:00:00Z",
+        "commit_sha": "abcdef1234567890", "skill_commit_sha": "2b4b7360000",
+        "data_sources": {"runs_sampled": 0, "workflows_analyzed": 1},
+        "pr_critical_path": {"sampled_pr_count": 0, "sample_target": 20, "poles": []},
+        "findings": [
+            {"id": "q1", "pattern": "OPT43", "title": "Long Queue Wait",
+             "severity": "MEDIUM", "wall_clock_p50_s": 120.0,
+             "evidence": "P90 queue 295s",
+             "workflow_file": ".github/workflows/ci.yml", "line": 1},
+        ],
+    }
+    md = bp.render(doc)
+    assert "_No measured critical path" not in md           # did NOT dead-end
+    assert "0 static hygiene finding" not in md             # no false zero-count
+    assert "Pre-start wait" in md                           # queue section rendered
+    assert "static hygiene finding" not in md               # hygiene clause omitted entirely
+
+
+def test_static_only_finding_sized_with_no_timing_does_not_claim_a_spine():
+    # End-to-end regression: in a static-only report (poles == [], no run timing), a
+    # `direct`-model hygiene finding (OPT21 — Unnecessary `needs:`) must NOT render as a
+    # wall-clock lever that "sits ON the merge-gating critical path / See the spine above".
+    # There is NO spine in a static-only report (the IMPORTANT banner says so), so that
+    # framing is a self-contradiction. The root cause was collect_runs._size_finding's
+    # no-timing fallback crediting the nominal estimate as positive wall-clock; this test
+    # runs the real pipeline (size, then render) so it fails before that fix.
+    from collect_runs import _size_finding  # noqa: E402 (scripts on path via line 18)
+
+    doc = {
+        "repo": "openphone/gha", "scanned_at": "2026-06-08T00:00:00Z",
+        "commit_sha": "abcdef1234567890", "skill_commit_sha": "2b4b7360000",
+        "data_sources": {"runs_sampled": 0, "jobs_sampled": 0, "workflows_analyzed": 3},
+        "pr_critical_path": {"sampled_pr_count": 0, "sample_target": 20, "poles": []},
+        "findings": [
+            {"id": "f2", "pattern": "OPT21", "title": "Unnecessary needs: Dependencies",
+             "severity": "MEDIUM", "affected_jobs": ["deploy-docs"],
+             "workflow_file": ".github/workflows/docs.yml", "line": 5},
+        ],
+    }
+    # Size exactly as the real pipeline does: no measured critical path (empty crit).
+    crit = {"long_pole_job": "", "long_pole_p50": 0.0, "floor_p50": 0.0, "job_p50": {}}
+    for f in doc["findings"]:
+        _size_finding(f, crit, monthly_volume=None)
+
+    md = bp.render(doc)
+    assert "<!-- ci-speedup:static-only -->" in md            # rendered static-only
+    assert "OPT21" in md                                      # the finding still renders
+    # The contradiction the bug filed: on-critical-path / spine framing in a no-spine report.
+    assert "See the spine above" not in md
+    assert "sits ON the merge-gating critical path" not in md
+    assert "long pole ON the merge-gating critical path" not in md
+
+
+def test_render_no_runs_with_scan_incomplete_keeps_coverage_banner():
+    # A no-run-history repo with an UNSCANNABLE workflow but zero findings must NOT fall
+    # back to the bannerless one-line note — an unscanned file must never read as clean,
+    # so the coverage-gap warning still renders (#86 follow-up).
+    doc = {
+        "repo": "x/y", "skill_commit_sha": "2b4b7360000",
+        "data_sources": {"runs_sampled": 0, "workflows_analyzed": 1},
+        "pr_critical_path": {"poles": []},
+        "findings": [],
+        "scan_incomplete": [{"path": ".github/workflows/ci.yml",
+                             "reason": "unparseable YAML"}],
+    }
+    md = bp.render(doc)
+    assert "_No measured critical path" not in md           # did NOT dead-end
+    assert "Incomplete coverage" in md                      # coverage banner present
+    assert "not** known to be clean" in md
+
+
+def test_static_only_classified_by_marker_not_banner_prose():
+    # `_is_static_only` must key off the invisible machine marker, NOT the human banner
+    # phrase — a MEASURED report whose prose happens to quote "no run history to measure"
+    # must not be misclassified static-only (which would skip the spine invariants).
+    vr = _load_verify_report()
+    static_md = bp.render(_doc_no_runs_with_static_findings())
+    assert "<!-- ci-speedup:static-only -->" in static_md
+    assert vr._is_static_only(static_md) is True
+    # A measured report quoting the banner phrase in prose is NOT static-only.
+    measured_quoting_phrase = (
+        "# repo — why is the merge slow?\n\n"
+        "## Long pole 1: test\n\nThe agent noted there was no run history to measure "
+        "in the upstream mirror, but the gate here is real.\n")
+    assert vr._is_static_only(measured_quoting_phrase) is False
+
+
+def test_render_captured_but_unrecognized_log_reads_as_coverage_gap():
+    # A log WAS captured but no detector matched it: this must surface as a coverage
+    # gap, NOT as "no captured log" (which would read as clean / nothing to drill).
+    # Regression guard for the "no silent drops" rule applied to log parsing.
+    md = bp.render(_doc_one_pole(), {"pipeline": "unrelated build output\nDone in 3s"},
+                   {}, {}, "2026-06-08")
+    assert "matched no known root-cause pattern" in md
+    assert "coverage gap, not a clean job" in md
+    assert "no captured log" not in md           # NOT mislabelled as "no log present"
+
+
+def test_render_unrecognized_log_on_timeline_path_still_flags_the_gap():
+    # Same false-clean risk on the timeline path: steps captured + an unrecognized
+    # log must still note the gap rather than silently drawing the timeline alone.
+    md = bp.render(_doc_one_pole(), {"pipeline": "noise\nDone"}, {}, {},
+                   "2026-06-08", {"pipeline": _TIMELINE})
+    assert "one after another" in md             # the timeline still renders
+    assert "matched no known root-cause pattern" in md
+    assert "Level 3" not in md  # no drill is claimed
+    # No leaf -> the report must NOT promise a "cause below" or "Evidence lines
+    # below" that don't exist; it sends the reader to the step's own log instead.
+    assert "cause** below" not in md
+    assert "Evidence** lines below" not in md
+    assert "no specific callout to search for" in md
+
+
+def _doc_with_structural_pole(pattern: str = "OPT75") -> dict:
+    # A pole whose log matches NO leaf detector but to which a STRUCTURAL finding
+    # (OPT70–75) is routed via `affected_jobs` — the reflex-dev/reflex shape: the
+    # structural track IS the pole, so the finding must render AS the pole, not be
+    # dropped (excluded from "Also noticed") AND missing from the pole. With a captured
+    # log, a GENERIC pattern (OPT75/OPT71) leaves the pole a gap-fill target
+    # (test_generic_structural_gap_fill.py); a specific one (e.g. OPT72) covers it.
+    doc = _doc_one_pole()
+    job = "integration-app-harness (redis, 3.14, 1)"
+    doc["pr_critical_path"]["poles"][0]["check"] = job
+    doc["pr_critical_path"]["poles"][0]["job"] = job
+    doc["findings"] = [
+        {"id": "f103", "pattern": pattern, "pattern_class": "structural",
+         "structural": True, "severity": "HIGH", "risk": "MEDIUM",
+         "title": "Decompose the dominant addressable step",
+         "workflow_file": ".github/workflows/pipeline.yml", "line": 0,
+         "affected_jobs": [job], "fix_recipe_anchor": "opt75-anchor",
+         "guardrail": "Keep a full-suite fallback before scoping.",
+         "rollout": "Run the scoped and full suites in parallel first.",
+         "failure_mode": "A scoped run can miss a cross-cutting regression.",
+         "evidence": "dominant step Run app harness tests (test, 88%)"},
+    ]
+    return doc
+
+
+def test_structural_finding_routed_to_a_pole_renders_as_the_pole_not_a_dead_end():
+    # Regression for the dropped-structural-pole bug (reflex-dev/reflex): a structural
+    # OPT75/OPT73 finding routed to a long pole via affected_jobs was excluded from
+    # "Also noticed" (the pole "already represents" it) but NEVER rendered at the pole,
+    # so the pole falsely read "no catalog pattern matched" and the finding's
+    # risk/guardrail/rollout rendered nowhere. The structural track IS the pole.
+    # OPT72 (a structural pattern that names a cause): the generic OPT75/OPT71 still
+    # render AT the pole but leave it a gap-fill target (test_generic_structural_gap_fill).
+    doc = _doc_with_structural_pole("OPT72")
+    md = bp.render(doc, {"pipeline": "log that matches no leaf detector at all"}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/9"}, "2026-06-08")
+    # (a) the pole no longer claims it's a coverage gap / no catalog match.
+    assert "no drill-down available; this is a coverage gap" not in md
+    assert "matched no known root-cause pattern" not in md
+    assert "no known root-cause pattern matched" not in md
+    # (b) the OPT72 finding renders AT the pole with its mandatory risk axis.
+    assert "OPT72" in md
+    assert "Decompose the dominant addressable step" in md
+    assert "risk **MEDIUM**" in md
+    assert "Keep a full-suite fallback before scoping." in md          # guardrail
+    assert "Run the scoped and full suites in parallel first." in md   # rollout
+    assert "A scoped run can miss a cross-cutting regression." in md   # failure mode
+    # (c) the phase-4a LLM gap-fill must NOT fire for a pole with a catalog match.
+    assert "🤖 LLM root-cause analysis" not in md
+    # the waterfall points at the structural root-cause, not a dead-end.
+    assert "structural catalog pattern" in md
+
+
+def test_structural_for_pole_excludes_bill_only_cross_cluster_lever():
+    # Composition regression (#62 render-as-pole vs #63 appendix): a bill-only cross-cluster
+    # OPT73 is OWNED by "Also noticed" (it spans the whole cluster; no single pole represents
+    # it). Even when its `affected_jobs` name-match a rendered pole, it must NOT also render
+    # AT the pole — otherwise the same bill saving renders twice. `_structural_for_pole` must
+    # mirror `_also_noticed_block`'s predicate (`_is_pole_structural`).
+    pole = {"check": "tests-web", "job": "tests-web"}
+    opt73_bill_only = {"pattern": "OPT73", "structural": True,
+                       "affected_jobs": ["tests-web", "web"],   # name-matches the pole
+                       "wall_clock_p50_s": 0.0, "runner_min_saving": 984.0}
+    opt75_per_pole = {"pattern": "OPT75", "structural": True,
+                      "affected_jobs": ["tests-web"], "wall_clock_p50_s": 120.0}
+    # bill-only OPT73 → appendix-owned → NOT rendered at the pole (the fix)
+    assert bp._structural_for_pole(pole, [opt73_bill_only]) == []
+    # an ON-SPINE OPT73 (wall_clock > 0) is STILL the cross-cluster lever — anchoring on the
+    # pattern keeps it appendix-owned, so it can't be mis-classified as per-pole and vanish
+    # when no pole name-matches its cluster (greptile review of #65).
+    opt73_on_spine = {"pattern": "OPT73", "structural": True,
+                      "affected_jobs": ["tests-web", "web"],
+                      "wall_clock_p50_s": 90.0, "runner_min_saving": 984.0}
+    assert bp._is_pole_structural(opt73_on_spine) is False        # appendix-owned, not per-pole
+    assert bp._structural_for_pole(pole, [opt73_on_spine]) == []  # not rendered at the pole
+    # a per-pole structural lever (OPT75, wall-clock, no bill axis) still renders AS the pole
+    assert bp._structural_for_pole(pole, [opt75_per_pole]) == [opt75_per_pole]
+
+
+def test_structural_for_pole_joins_unexpanded_matrix_base_not_a_sibling_leg():
+    # FAITHFUL per-pole routing (lancedb/lancedb regression). The join is "exact, then
+    # base↔leg expansion" — NOT a shared-matrix-base fold. A structural finding whose
+    # `affected_jobs` names the unexpanded matrix BASE joins the rendered leg (the router
+    # anchored to the base, the pole is one expanded leg). But a DISTINCT sibling leg is its
+    # OWN check with its own bar/dominant step; folding it under this pole would falsely
+    # render it with an "it IS this pole" claim.
+    pole = {"check": "integration-app-harness (redis, 3.14, 1)",
+            "job": "integration-app-harness (redis, 3.14, 1)"}
+    opt75_base = {"pattern": "OPT75", "structural": True,
+                  "affected_jobs": ["integration-app-harness"],
+                  "wall_clock_p50_s": 120.0}
+    assert bp._structural_for_pole(pole, [opt75_base]) == [opt75_base]
+    # A DISTINCT sibling leg (different params) does NOT join — it is its own pole.
+    opt75_sibling_leg = {"pattern": "OPT75", "structural": True,
+                         "affected_jobs": ["integration-app-harness (postgres, 3.12, 2)"],
+                         "wall_clock_p50_s": 120.0}
+    assert bp._structural_for_pole(pole, [opt75_sibling_leg]) == []
+    # A finding on a DIFFERENT matrix (different base) does NOT join either.
+    other = {"pattern": "OPT75", "structural": True,
+             "affected_jobs": ["unit-tests (redis, 3.14, 1)"], "wall_clock_p50_s": 120.0}
+    assert bp._structural_for_pole(pole, [other]) == []
+
+
+def test_structural_for_pole_does_not_fold_sibling_windows_target_triple():
+    # Direct lancedb/lancedb shape: long pole 2 is `windows (aarch64-pc-windows-msvc)`
+    # (its own OPT70 Build lever). A SEPARATE concurrent check `windows (x86_64-pc-windows-msvc)`
+    # carries its own OPT75 (dominant `Run tests`, saving 0 wall-clock) — a different check,
+    # not pole 2. Sharing the `windows` matrix base must NOT fold the x86_64 finding under the
+    # aarch64 pole with the false "it IS this pole" framing.
+    pole = {"check": "windows (aarch64-pc-windows-msvc)",
+            "job": "windows (aarch64-pc-windows-msvc)"}
+    opt70_pole = {"pattern": "OPT70", "structural": True,
+                  "affected_jobs": ["windows (aarch64-pc-windows-msvc)"],
+                  "wall_clock_p50_s": 300.0}
+    opt75_sibling = {"pattern": "OPT75", "structural": True,
+                     "affected_jobs": ["windows (x86_64-pc-windows-msvc)"],
+                     "wall_clock_p50_s": 0.0}
+    joined = bp._structural_for_pole(pole, [opt70_pole, opt75_sibling])
+    assert joined == [opt70_pole]  # only the pole's own lever — the x86_64 sibling is excluded
+
+
+def test_wf_conflict_only_fires_when_both_files_known_and_differ():
+    # The guard that stops a finding from one workflow anchoring a pole in another when
+    # their check names collide. Both sides known + different basename → conflict; an
+    # unknown side (""/None) falls back to name-only matching (no conflict); same file
+    # (path or bare base) → no conflict.
+    assert bp._wf_conflict(".github/workflows/framework-test.yml",
+                           ".github/workflows/datasets-test.yml") is True
+    assert bp._wf_conflict(".github/workflows/ci.yml", "ci.yml") is False   # path vs base
+    assert bp._wf_conflict("ci.yml", "ci.yml") is False
+    assert bp._wf_conflict("", "ci.yml") is False                           # unknown side
+    assert bp._wf_conflict("ci.yml", "") is False
+    assert bp._wf_conflict("", "") is False
+
+
+def test_structural_for_pole_excludes_cross_workflow_name_collision():
+    # Residual half of the cross-workflow fold (the by_matrix fix stopped the POLES from
+    # folding, but the per-pole JOIN still matched on the bare name). GitHub gives a
+    # `name: Python ${{ matrix.python }}` job in BOTH datasets-test.yml and
+    # framework-test.yml the identical check-run name `Python 3.13`. A structural finding
+    # routed to datasets-test's `Python 3.13` must NOT join framework-test's `Python 3.13`
+    # pole via the exact-name (`j == t`) term — that re-attaches the wrong workflow's
+    # finding (its own file/evidence/line) under this pole, the very contradiction the PR
+    # eliminates everywhere else.
+    pole = {"check": "Python 3.13", "job": "Python 3.13",
+            "workflow_file": ".github/workflows/framework-test.yml"}
+    foreign = {"pattern": "OPT75", "structural": True,
+               "affected_jobs": ["Python 3.13"], "wall_clock_p50_s": 120.0,
+               "workflow_file": ".github/workflows/datasets-test.yml"}
+    assert bp._structural_for_pole(pole, [foreign]) == []
+    # The SAME-workflow finding still joins (no regression to the legitimate case).
+    native = {**foreign, "workflow_file": ".github/workflows/framework-test.yml"}
+    assert bp._structural_for_pole(pole, [native]) == [native]
+    # An unknown finding file falls back to name-only matching (reusable-workflow caller).
+    unknown = {**foreign, "workflow_file": ""}
+    assert bp._structural_for_pole(pole, [unknown]) == [unknown]
+
+
+def test_data_driven_for_pole_excludes_cross_workflow_name_collision():
+    # Same residual fold on the data-driven join (`_job_targets_pole`, which DOES use the
+    # exact-name `j == t` term). A credited (>= floor) OPT24 on datasets-test's `Python
+    # 3.13` must not be acknowledged by framework-test's `Python 3.13` pole.
+    pole = {"check": "Python 3.13", "job": "Python 3.13",
+            "workflow_file": ".github/workflows/framework-test.yml"}
+    foreign = {"pattern": "OPT24", "affected_jobs": ["Python 3.13"],
+               "wall_clock_p50_s": 200.0, "runner_min_saving": 0.0,
+               "workflow_file": ".github/workflows/datasets-test.yml"}
+    assert bp._data_driven_for_pole(pole, [foreign]) == []
+    native = {**foreign, "workflow_file": ".github/workflows/framework-test.yml"}
+    assert bp._data_driven_for_pole(pole, [native]) == [native]
+
+
+def test_collapsed_sibling_structural_guards_no_fire_and_over_fire():
+    # `_collapsed_sibling_structural` is the last line of defense against the silent drop:
+    # it must annotate a COLLAPSED-OUT sibling leg's lever, but its faithfulness guards must
+    # not (a) re-annotate a finding already rendered at the rep, (b) pull in a same-named leg
+    # from a DIFFERENT workflow, or (c) annotate a leg that survived as its own rendered pole.
+    wf = ".github/workflows/ci.yml"
+    rep = {"check": "build (x86_64)", "job": "build (x86_64)", "workflow_file": wf}
+    collapsed = {"check": "build (aarch64)", "job": "build (aarch64)", "workflow_file": wf}
+    sibling_lever = {"pattern": "OPT75", "structural": True, "wall_clock_p50_s": 90.0,
+                     "affected_jobs": ["build (aarch64)"], "workflow_file": wf,
+                     "evidence": "Build runs uncached"}
+
+    # Positive: the collapsed-out sibling's lever IS surfaced for the representative pole.
+    out = bp._collapsed_sibling_structural(rep, [rep], [rep, collapsed], [sibling_lever])
+    assert len(out) == 1
+    leg, f = out[0]
+    assert f is sibling_lever and "aarch64" in leg
+
+    # (a) A finding routed to the matrix BASE (`build`) already joins the rep via base↔leg
+    # expansion (it renders there), so it must NOT be re-annotated as a sibling.
+    base_lever = {**sibling_lever, "affected_jobs": ["build"]}
+    assert bp._collapsed_sibling_structural(rep, [rep], [rep, collapsed], [base_lever]) == []
+
+    # (b) A same-named leg in a DIFFERENT workflow is not a sibling of this matrix.
+    foreign_leg = {**collapsed, "workflow_file": ".github/workflows/other.yml"}
+    foreign_lever = {**sibling_lever, "workflow_file": ".github/workflows/other.yml"}
+    assert bp._collapsed_sibling_structural(
+        rep, [rep], [rep, foreign_leg], [foreign_lever]) == []
+
+    # (c) A sibling leg that survived as its OWN rendered pole is shown there already.
+    assert bp._collapsed_sibling_structural(
+        rep, [rep, collapsed], [rep, collapsed], [sibling_lever]) == []
+
+
+def test_structural_for_pole_skips_unrouted_finding_with_no_affected_jobs():
+    # An unrouted structural finding (empty/absent `affected_jobs`) can't anchor to a
+    # pole, so it must be skipped rather than joined to every pole.
+    pole = {"check": "tests-web", "job": "tests-web"}
+    no_jobs = {"pattern": "OPT75", "structural": True, "wall_clock_p50_s": 120.0}
+    empty_jobs = {"pattern": "OPT75", "structural": True, "affected_jobs": [],
+                  "wall_clock_p50_s": 120.0}
+    assert bp._structural_for_pole(pole, [no_jobs, empty_jobs]) == []
+
+
+def test_is_pole_structural_uncredited_opt73_renders_as_a_pole():
+    # An UNCREDITED OPT73 (no runner-minute saving) is NOT appendix-owned: with nothing
+    # to show in the bill-ranked appendix, it falls back to the per-pole treatment
+    # (`_is_pole_structural` True → rendered AS the pole, excluded from "Also noticed").
+    # Contrast the credited case asserted above (saving>0 → False → appendix-owned).
+    for saving in (0.0, None):
+        opt73_uncredited = {"pattern": "OPT73", "structural": True,
+                            "affected_jobs": ["tests-web"], "runner_min_saving": saving}
+        assert bp._is_pole_structural(opt73_uncredited) is True, saving
+        pole = {"check": "tests-web", "job": "tests-web"}
+        assert bp._structural_for_pole(pole, [opt73_uncredited]) == [opt73_uncredited]
+
+
+def test_structural_pole_with_analysis_suppresses_the_llm_gap_fill():
+    # Even when an --analysis is supplied (the gap-fill ran), a structural catalog match
+    # means the pole is NOT a coverage gap, so the LLM gap-fill must be suppressed
+    # (SKILL.md phase 4a fires only for poles that "matched no catalog detector"). A
+    # structural pattern that names a cause (OPT72); the generic OPT75/OPT71 take the
+    # analysis instead (test_generic_structural_gap_fill.py).
+    doc = _doc_with_structural_pole("OPT72")
+    analysis = {"cause": "serial test projects", "breakdown": [["a", "1s"]],
+                "evidence": ["X"], "prompt": "REPO: o/r\ndo the thing"}
+    md = bp.render(doc, {"pipeline": "log matching no leaf detector"}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/9"}, "2026-06-08",
+                   analyses={"pipeline": analysis})
+    assert "🤖 LLM root-cause analysis" not in md
+    assert "OPT72" in md and "risk **MEDIUM**" in md
+
+
+def _doc_with_data_driven_pole() -> dict:
+    # The mindee/doctr shape: the headline pole's log matches NO leaf detector, but a
+    # DATA-DRIVEN catalog finding (OPT24 'Long Test Job Without Sharding', a deterministic
+    # detector) fired squarely ON it with a CREDITED wall-clock saving (it sits on the
+    # critical path). The finding's `affected_jobs` names the UNEXPANDED matrix job id
+    # (`pytest-torch`) while the rendered pole is an expanded leg
+    # (`pytest-torch (ubuntu-latest, 3.10)`). The pole must not falsely read as a coverage
+    # gap, and the gap-capture loop must not be told to "draft a new detector" for it.
+    doc = _doc_one_pole()
+    job = "pytest-torch (ubuntu-latest, 3.10)"
+    pole = doc["pr_critical_path"]["poles"][0]
+    pole["check"] = job
+    pole["job"] = job
+    pole["workflow_file"] = ".github/workflows/main.yml"
+    doc["findings"] = [
+        {"id": "f1", "pattern": "OPT24", "pattern_class": "data-driven",
+         "structural": None, "severity": "HIGH",
+         "title": "Long Test Job Without Sharding",
+         "workflow_file": ".github/workflows/main.yml", "line": 0,
+         "affected_jobs": ["pytest-torch"], "fix_recipe_anchor": "opt24-anchor",
+         "wall_clock_p50_s": 744.8, "runner_min_saving": 0.0,
+         "pr_critical_path_check": job,
+         "evidence": "single pytest job runs 12m24s with no shard split"},
+    ]
+    return doc
+
+
+def test_data_driven_for_pole_joins_credited_wall_clock_finding():
+    # The join must recognize a credited-wall-clock data-driven finding routed to the pole
+    # even when its `affected_jobs` names the unexpanded matrix base of the pole's leg.
+    pole = {"check": "pytest-torch (ubuntu-latest, 3.10)",
+            "job": "pytest-torch (ubuntu-latest, 3.10)"}
+    opt24 = {"pattern": "OPT24", "affected_jobs": ["pytest-torch"],
+             "wall_clock_p50_s": 744.8, "runner_min_saving": 0.0}
+    assert bp._data_driven_for_pole(pole, [opt24]) == [opt24]
+    # A bill-only / off-path data-driven finding (wall-clock floored to 0) makes no "spine"
+    # claim, so it must NOT be joined (it stays appendix-owned, no contradiction to fix).
+    off_path = {"pattern": "OPT33", "affected_jobs": ["pytest-torch"],
+                "wall_clock_p50_s": 0.0, "runner_min_saving": 900.0}
+    assert bp._data_driven_for_pole(pole, [off_path]) == []
+    # A structural finding is handled by `_structural_for_pole`, never double-joined here.
+    opt75 = {"pattern": "OPT75", "structural": True, "affected_jobs": ["pytest-torch"],
+             "wall_clock_p50_s": 744.8}
+    assert bp._data_driven_for_pole(pole, [opt75]) == []
+    # An unrouted finding (no affected_jobs) can't anchor to a pole.
+    unrouted = {"pattern": "OPT24", "wall_clock_p50_s": 744.8}
+    assert bp._data_driven_for_pole(pole, [unrouted]) == []
+
+
+def test_pole_with_data_driven_catalog_match_is_not_a_coverage_gap():
+    # Regression (mindee/doctr): a data-driven OPT24 finding fired ON the headline pole, yet
+    # the spine rendered "(no catalog pattern matched this job's log...)" and routed the pole
+    # into the phase-4a LLM gap-fill — self-contradicting the "Also noticed" OPT24 entry that
+    # says it "sits ON the merge-gating critical path... See the spine above".
+    doc = _doc_with_data_driven_pole()
+    analysis = {"cause": "single unsharded pytest job", "breakdown": [["tests", "12m"]],
+                "evidence": ["X"], "prompt": "REPO: o/r\ndo the thing"}
+    md = bp.render(doc, {"main": "log that matches no leaf detector at all"}, {},
+                   {"main": "https://github.com/o/r/actions/runs/9"}, "2026-06-08",
+                   analyses={"main": analysis})
+    # (a) the pole no longer claims it's a coverage gap / no catalog match.
+    assert "no catalog pattern matched this job's log" not in md
+    assert "this is a coverage gap, not a clean job" not in md
+    # (b) the phase-4a LLM gap-fill must NOT fire for a pole with a catalog match.
+    assert "🤖 LLM root-cause analysis" not in md
+    # (c) the spine points back at the matched catalog finding (resolving the contradiction).
+    assert "catalog pattern" in md
+    # (d) the SAME pole's agent prompt must not contradict the matched data-driven finding —
+    # the structural fix threaded `structural` into the prompt builders but left this parallel
+    # case asserting `NO CATALOG PATTERN MATCHED` (it keyed purely off `leaf is None`), the same
+    # output contradiction this PR eliminates for the structural case.
+    assert "NO CATALOG PATTERN MATCHED" not in md
+    assert "found no known root-cause pattern" not in md
+    assert "DATA-DRIVEN CATALOG PATTERN MATCHED" in md
+    prompt_tail = md.split("🤖 Prompt for your coding agent", 1)[1]
+    assert "OPT24" in prompt_tail
+    # The renderer's one-disclaimer-per-prompt invariant still holds (exactly one).
+    assert md.count("does NOT prescribe the fix") == md.count(
+        "🤖 Prompt for your coding agent")
+
+
+def test_gap_poles_excludes_pole_with_data_driven_catalog_match():
+    # The downstream harm: blocking_path captured this pole to `.ci-speedup-gaps/` and told a
+    # maintainer to "promote these gaps to deterministic catalog detectors" — for a pole OPT24
+    # already covers. A pole with a credited-wall-clock data-driven finding is NOT a gap.
+    doc = _doc_with_data_driven_pole()
+    # No data_bundle -> the fallback `cp.poles` + `_sole_owner_pole` path. `main` uniquely
+    # owns the single pole (its workflow basename is `main.yml`).
+    gaps = bp._gap_poles(doc, {"main": _NO_MATCH_LOG})
+    assert gaps == []
+
+
+def test_structural_pole_agent_prompt_does_not_claim_no_catalog_match():
+    # Regression (superfly/litefs): a pole with no log `leaf` but a routed STRUCTURAL
+    # finding (OPT75/OPT73) renders the `📐 Structural root-cause` block AND the
+    # waterfall note that a structural catalog pattern matched - yet the SAME pole's
+    # generic agent prompt asserted `NO CATALOG PATTERN MATCHED` / `its detectors found
+    # no known root-cause pattern` (it keyed purely off `leaf is None`). The prompt must
+    # NOT contradict the structural finding rendered alongside it.
+    doc = _doc_with_structural_pole()
+    md = bp.render(doc, {"pipeline": "log that matches no leaf detector at all"}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/9"}, "2026-06-08")
+    # The structural finding IS rendered at this pole...
+    assert "📐 Structural root-cause" in md and "OPT75" in md
+    # ...so the prompt must NOT claim there was no catalog match.
+    assert "NO CATALOG PATTERN MATCHED" not in md
+    assert "found no known root-cause pattern" not in md
+    # Instead it names the matched structural pattern and points at its root-cause block.
+    assert "STRUCTURAL CATALOG PATTERN MATCHED" in md
+    prompt_tail = md.split("🤖 Prompt for your coding agent", 1)[1]
+    assert "OPT75" in prompt_tail
+    # The renderer's one-disclaimer-per-prompt invariant still holds (exactly one).
+    assert md.count("does NOT prescribe the fix") == md.count(
+        "🤖 Prompt for your coding agent")
+
+
+def test_pole_matching_both_structural_and_data_driven_prefers_structural_in_prompt():
+    # Precedence contract introduced by threading BOTH finding lists into the prompt: when a
+    # pole matches a structural finding (OPT70–75, rendered AS the pole) AND a credited
+    # data-driven finding (OPT24, rendered in 'Also noticed'), both joins are non-empty. The
+    # prompt names the STRUCTURAL pattern (the louder pole-level lever) and must NOT also emit
+    # the data-driven wording — exactly one catalog-match block, one disclaimer, no double note.
+    doc = _doc_with_structural_pole()
+    job = doc["pr_critical_path"]["poles"][0]["check"]
+    # A credited-wall-clock OPT24 routed to the SAME job, so _data_driven_for_pole also fires.
+    doc["findings"].append(
+        {"id": "f200", "pattern": "OPT24", "pattern_class": "data-driven",
+         "structural": None, "severity": "HIGH",
+         "title": "Long Test Job Without Sharding",
+         "workflow_file": ".github/workflows/pipeline.yml", "line": 0,
+         "affected_jobs": [job], "fix_recipe_anchor": "opt24-anchor",
+         "wall_clock_p50_s": 744.8, "runner_min_saving": 0.0,
+         "pr_critical_path_check": job,
+         "evidence": "single pytest job runs 12m24s with no shard split"})
+    pole, findings = doc["pr_critical_path"]["poles"][0], doc["findings"]
+    assert bp._structural_for_pole(pole, findings)      # both joins genuinely fire...
+    assert bp._data_driven_for_pole(pole, findings)     # ...so precedence is actually exercised
+    md = bp.render(doc, {"pipeline": "log that matches no leaf detector at all"}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/9"}, "2026-06-08")
+    prompt_tail = md.split("🤖 Prompt for your coding agent", 1)[1]
+    assert "STRUCTURAL CATALOG PATTERN MATCHED" in prompt_tail     # structural wins
+    assert "DATA-DRIVEN CATALOG PATTERN MATCHED" not in prompt_tail  # data-driven suppressed here
+    assert "NO CATALOG PATTERN MATCHED" not in md
+    # Exactly one disclaimer per prompt — no double catalog-match note.
+    assert md.count("does NOT prescribe the fix") == md.count(
+        "🤖 Prompt for your coding agent")
+
+
+# --------------------------------------------------------------------------- #
+# Timeline (Gantt) path — steps run in succession, not concurrently
+# --------------------------------------------------------------------------- #
+
+_TIMELINE = {
+    "job": "tests-web", "job_dur_s": 300.0,
+    "run_url": "https://github.com/o/r/actions/runs/999",
+    "steps": [
+        {"name": "Set up job", "start_s": 0.0, "dur_s": 3.0},     # collapsed (<2% )
+        {"name": "Build", "start_s": 3.0, "dur_s": 60.0},
+        {"name": "run tests", "start_s": 63.0, "dur_s": 230.0},   # dominant
+        {"name": "Complete job", "start_s": 293.0, "dur_s": 1.0},  # collapsed
+    ],
+}
+
+
+def test_timeline_renders_offset_gantt_and_drills_from_the_slow_step():
+    md = bp.render(_doc_one_pole(), {"pipeline": _IMPORT_BOUND_LOG}, {}, {},
+                   "2026-06-08", {"pipeline": _TIMELINE})
+    # The step level is now a succession timeline, not "slowest first" P50 bars.
+    assert "one after another" in md
+    assert "this run" in md                                 # job wall-time footer
+    # Each row's number is the step's DURATION + % of the job (what the █ bar holds),
+    # NOT a timestamp; the dominant row carries the SAME connector wire (◀┐) the
+    # deeper levels use - the arrow is drawn literally.
+    assert "3m 50s" in md and "◀┐" in md                    # run tests = 230s of 300s
+    assert "77%" in md                                       # 230 / 300 of the job
+    assert "1:03→4:53" not in md                             # no start→end timestamp
+    assert "job start" in md and "wall time on this run" in md  # total folded into intro
+    # An offset bar carries leading elapsed shading (it does not start at column 0).
+    assert "░█" in md
+    # Tiny setup/cleanup steps are collapsed, not drawn as slivers, and the wire
+    # continues past them to the connector. The collapse threshold is max(2s, 1.5% of
+    # the job), so on this 300s job it's ~4s and the note names the real threshold
+    # INCLUSIVELY ("4s or less") - a step AT the threshold is collapsed, so the old
+    # "under Ns" wording mislabelled a hidden step that is exactly Ns.
+    assert "setup/cleanup steps of 4s or less not shown" in md
+    assert "under 4s" not in md and "sub-2s" not in md
+    # Sequential-steps note: time cut from a step comes off wall-clock.
+    assert "comes straight off the job's wall-clock" in md
+    # The drill still hangs off the dominant step (numbered level header), and the
+    # run is linked.
+    assert "Level 3 - inside `run tests`" in md   # em-dash sanitized to hyphen
+    assert "[run 999]" in md
+    # No P50-doesn't-sum caveat on the timeline path (a single run sums exactly).
+    assert "read the bars as proportions" not in md
+
+
+def test_emit_level_scales_aggregate_durations_to_wall():
+    # Regression: summed-across-workers values (e.g. vitest transform+import) must be
+    # scaled to the step wall so a sub-part never reads longer than its parent.
+    out: list[str] = []
+    bp._emit_level(out, [("compile+instrument", 1320.0, None), ("tests", 880.0, None)],
+                   header_below=None, pct_of="sum", scale_to=196.0)  # 196s = 3m 16s
+    text = "\n".join(out)
+    assert "1m 58s" in text and "60%" in text   # 60% of 196s, not the raw 22m
+    assert "1m 18s" in text and "40%" in text
+    assert "22m" not in text and "14m" not in text  # raw summed values never shown
+
+
+def test_audit_links_deep_link_run_job_and_step():
+    # The drill must be auditable: a run → job → dominant-step deep-link trail, with
+    # the step anchored via #step:N from the timeline's job_url + step number.
+    tl = {"job": "tests-web", "job_dur_s": 300.0,
+          "run_url": "https://github.com/o/r/actions/runs/999",
+          "job_url": "https://github.com/o/r/actions/runs/999/job/77",
+          "job_id": 77,
+          "steps": [{"name": "Set up job", "number": 1, "start_s": 0.0, "dur_s": 3.0},
+                    {"name": "Build", "number": 2, "start_s": 3.0, "dur_s": 60.0},
+                    {"name": "run tests", "number": 7, "start_s": 63.0, "dur_s": 230.0},
+                    {"name": "Complete job", "number": 9, "start_s": 293.0, "dur_s": 1.0}]}
+    md = bp.render(_doc_one_pole(), {"pipeline": _IMPORT_BOUND_LOG}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/999"},
+                   "2026-06-08", {"pipeline": tl})
+    assert "**🔗 Audit:**" in md
+    assert "[the `tests-web` job](https://github.com/o/r/actions/runs/999/job/77)" in md
+    # dominant step "run tests" -> #step:7
+    assert "https://github.com/o/r/actions/runs/999/job/77#step:7:1" in md
+
+
+def test_timeline_absent_falls_back_to_p50_bars():
+    # Without a timeline the POLE step level is the prior P50 view (still fine). Scoped to
+    # the pole section: the Long pole map's own level-2 lead legitimately says "one after
+    # another", so assert on the pole waterfall's leads specifically (the timeline path's
+    # "inside that one job" is absent; the P50 path's "Where the job's" is present).
+    md = bp.render(_doc_one_pole(), {"pipeline": _IMPORT_BOUND_LOG}, {}, {},
+                   "2026-06-08", {})
+    pole = md.split("Long pole 1:", 1)[1]
+    assert "inside that one job" not in pole
+    assert "Where the job's" in pole
+
+
+def test_p50_chart_marker_follows_the_dominant_category_lead_not_the_longest_step():
+    # Faithfulness regression (dominant_step-disagreement class): when NO single step
+    # dominates, the category-aware crown (root-cause + agent prompt) names the slowest
+    # step of the largest CATEGORY, while the per-step chart's ◀ "addressable lever"
+    # marker must agree with it — not blindly flag the single longest step, which lives
+    # in a NON-dominant category when a multi-step phase out-aggregates it. Here the
+    # `other` phase (5 steps, 170s) out-aggregates the lone 98s `Install dependencies`
+    # (install), so the crown is `Run schema generation` (the `other` lead) and the
+    # chart's ◀ must land on THAT row, not on `Install dependencies`.
+    pole = {
+        "check": "Build",
+        "workflow_file": ".github/workflows/ci.yml",
+        "job": "build",
+        "p50_s": 290.0,
+        "dominant_step": "Run schema generation + 4 more other steps",
+        "dominant_category": "other",
+        "dominant_p50_s": 170.0,
+        "dominant_share": 0.59,
+        "steps": [
+            {"step": "Install dependencies", "category": "install", "p50_s": 98.0},
+            {"step": "Run schema generation", "category": "other", "p50_s": 42.0},
+            {"step": "Run codegen", "category": "other", "p50_s": 40.0},
+            {"step": "Run validate", "category": "other", "p50_s": 38.0},
+            {"step": "Run lint configs", "category": "other", "p50_s": 30.0},
+            {"step": "Run reconcile", "category": "other", "p50_s": 20.0},
+        ],
+    }
+    lines = bp._pole_waterfall(pole, leaf=None, timeline=None, log_present=False)
+    marked = [ln for ln in lines if "◀" in ln]
+    assert len(marked) == 1, f"expected exactly one ◀ marker, got: {marked}"
+    # The marker must be on the dominant-category lead, NOT the single longest step.
+    assert "Run schema generation" in marked[0], marked
+    assert "Install dependencies" not in marked[0], marked
+    install_rows = [ln for ln in lines if "Install dependencies" in ln]
+    assert install_rows and "◀" not in install_rows[0], install_rows
+
+
+def test_p50_chart_marker_skips_boilerplate_in_the_dominant_category():
+    # Faithfulness regression (boilerplate-collision case of the dominant_step-disagreement
+    # class): the category-aware crown (`collect_runs._decompose_job_steps` /
+    # `_dominant_category_lead`) picks the dominant-category lead over NON-boilerplate steps
+    # only. The chart's ◀ marker (`_dom_lead_idx`) must apply the SAME `_NON_WORK_STEP_RE`
+    # exclusion — otherwise a slow boilerplate step that shares the dominant category (here
+    # "Set up job", category `setup`, the single longest step at 60s) gets the ◀ while the
+    # root-cause/prompt crown names the real work lead ("Setup environment", the slowest
+    # NON-boilerplate `setup` step). The marker must land on the work lead, not the
+    # un-actionable runner-provisioning step.
+    pole = {
+        "check": "Build",
+        "workflow_file": ".github/workflows/ci.yml",
+        "job": "build",
+        "p50_s": 155.0,
+        "dominant_step": "Setup environment",
+        "dominant_category": "setup",
+        "dominant_p50_s": 45.0,
+        "dominant_share": 0.29,
+        "steps": [
+            {"step": "Set up job", "category": "setup", "p50_s": 60.0},      # boilerplate, longest
+            {"step": "Setup environment", "category": "setup", "p50_s": 45.0},  # real setup lead
+            {"step": "Run tests", "category": "test", "p50_s": 40.0},
+            {"step": "Checkout", "category": "checkout", "p50_s": 10.0},
+        ],
+    }
+    lines = bp._pole_waterfall(pole, leaf=None, timeline=None, log_present=False)
+    marked = [ln for ln in lines if "◀" in ln]
+    assert len(marked) == 1, f"expected exactly one ◀ marker, got: {marked}"
+    # The ◀ must mark the real (non-boilerplate) dominant-category lead, NOT "Set up job".
+    assert "Setup environment" in marked[0], marked
+    assert "Set up job" not in marked[0], marked
+    setup_rows = [ln for ln in lines if "Set up job" in ln]
+    assert setup_rows and "◀" not in setup_rows[0], setup_rows
+
+
+def test_parse_log_buildx_evidence_anchors_on_layer_number_not_substring():
+    # Faithfulness/safety: the slowest-layer evidence anchor must match the layer NUMBER
+    # exactly, not as a substring — so when a decoy layer like `#70` is present, the
+    # excerpt for slowest layer `#7` quotes `#7`'s header + DONE and never `#70`'s. (The
+    # anchor uses a trailing space — `#7 ` — so `#7` cannot match `#70`.)
+    log = "\n".join([
+        "[command]/usr/bin/docker buildx build --output type=local .",
+        "#5 [1/4] FROM docker.io/example/base:1.0",
+        "#5 DONE 12.0s",
+        "#6 [2/4] RUN apt-get install -y build-essential",
+        "#6 DONE 26.4s",
+        "#7 [3/4] RUN make -j4 all",       # the slowest cold layer - the BIGGEST LEVER
+        "#7 DONE 185.9s",
+        "#70 [4/4] RUN echo decoy",        # decoy whose number CONTAINS '#7'
+        "#70 DONE 5.0s",
+        "#8 [5/5] COPY dist /out",
+        "#8 DONE 20.4s",
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "buildx-no-cache"
+    ev = leaf["evidence"]
+    # The slowest layer's header must be quoted and IMMEDIATELY followed by ITS OWN DONE
+    # (adjacency = correct anchoring). A substring anchor would mis-pair `#7` with `#70`.
+    i = next(k for k, l in enumerate(ev) if "#7 [3/4] RUN make -j4 all" in l)
+    assert "#7 DONE 185.9s" in ev[i + 1], ev          # #7's DONE, not #70's
+    # The decoy layer (#70) must never be quoted AS the slow layer — its header is out,
+    # and #7's anchored DONE is the real 185.9s, not the decoy's 5.0s.
+    assert not any("#70 [" in l for l in ev), ev      # decoy header never anchored in
+
+
+# --------------------------------------------------------------------------- #
+# Cross-run magnitude check — the load-bearing number isn't trusted from 1 run
+# --------------------------------------------------------------------------- #
+
+def test_leaf_detectors_carry_a_load_bearing_magnitude():
+    # Each scalar finding exposes the one number the fix rests on; the sequencing
+    # finding (playwright) has none (it's categorical).
+    coverage = "\n".join([
+        "$ vitest run --coverage --coverage.provider=istanbul",
+        " RUN  v4.1.5 /repo/packages/core",
+        " Duration  12.18s (transform 12.24s, setup 0ms, import 19.07s, tests 4.13s)",
+    ])
+    assert bp._parse_log(coverage)["magnitude"]["unit"] == "%"
+    assert bp._parse_log(_IMPORT_BOUND_LOG, _ISOLATION_ON)["magnitude"]["value"] > 0
+    pw = bp._parse_log("$ pnpm exec playwright test a.spec.ts\n"
+                       "$ pnpm exec playwright test b.spec.ts")
+    assert pw["magnitude"] is None
+
+
+def test_cross_run_check_small_sample_is_a_bracket_not_a_median():
+    # A 3-run probe with a TIGHT spread: report the drilled value + bracket (no
+    # "median" claim at n<5), verdict = stable, runs linked.
+    mag = {"pipeline": {
+        "label": "import share of the vitest run", "unit": "%", "this_run": 49.0,
+        "escalated": False,
+        "values": [{"run_url": ".../49", "value": 49.0, "drilled": True},
+                   {"run_url": ".../54", "value": 54.0},
+                   {"run_url": ".../51", "value": 51.0}]}}
+    md = bp.render(_doc_one_pole(), {"pipeline": _IMPORT_BOUND_LOG}, {}, {},
+                   "2026-06-08", {}, mag)
+    assert "**49%** in the drilled run" in md      # drilled value, NOT "median"
+    assert "median **" not in md                   # no bolded median claim at n<5
+    assert "3 runs sampled, range 49%-54%" in md
+    assert "tight spread" in md
+    assert "- drilled above" in md                 # the drilled run is marked
+
+
+def test_cross_run_check_wide_escalated_uses_median_and_flags_genuine_spread():
+    # A widened sample with a genuinely wide IQR (not just one outlier): real
+    # "median", verdict = varies run to run.
+    vals = [{"run_url": f".../{v}", "value": float(v)} for v in (30, 35, 45, 50, 55)]
+    vals[0]["drilled"] = True
+    mag = {"pipeline": {"label": "DB-migration share", "unit": "%", "this_run": 30.0,
+                        "escalated": True, "values": vals}}
+    md = bp.render(_doc_one_pole(), {"pipeline": _IMPORT_BOUND_LOG}, {}, {},
+                   "2026-06-08", {}, mag)
+    assert "median **45%**" in md                  # median of 30/35/45/50/55
+    assert "5 runs sampled, range 30%-55%" in md
+    assert "genuinely wide spread" in md and "varies run to run" in md
+
+
+def test_cross_run_check_widened_sample_reads_a_lone_outlier_as_stable():
+    # The key payoff of escalation: a tight cluster + ONE stray run has a wide raw
+    # RANGE but a tiny IQR - it must read as stable (outlier noted), not "varies".
+    vals = [{"run_url": f".../{int(v*10)}", "value": v}
+            for v in (53.0, 52.5, 53.2, 52.7, 54.0, 36.7, 52.6, 53.1)]
+    vals[0]["drilled"] = True
+    mag = {"pipeline": {"label": "DB-migration share of the slowest test file",
+                        "unit": "%", "this_run": 53.0, "escalated": True, "values": vals}}
+    md = bp.render(_doc_one_pole(), {"pipeline": _IMPORT_BOUND_LOG}, {}, {},
+                   "2026-06-08", {}, mag)
+    # Median of the 8 (mean of the two middles) is 52.85 -> shown to one decimal so
+    # it doesn't round to a whole percent that disagrees with the cluster.
+    assert "median **52.9%**" in md
+    assert "cluster near 52.9%" in md and "1 outlier run" in md
+    assert "effectively stable" in md
+    assert "varies run to run" not in md           # NOT mislabelled as wide
+
+
+def test_cross_run_check_skipped_with_one_value():
+    # A single value isn't a "range" - don't render a misleading cross-run line.
+    mag = {"pipeline": {"label": "x", "unit": "%", "this_run": 52.0,
+                        "values": [{"run_url": "u1", "value": 52.0}]}}
+    md = bp.render(_doc_one_pole(), {"pipeline": _IMPORT_BOUND_LOG}, {}, {},
+                   "2026-06-08", {}, mag)
+    assert "runs sampled, range" not in md      # the cross-run line is suppressed
+
+
+# --- gap → catalog loop, phase 4b/4c plumbing (deterministic capture + signal) ---
+
+def _gap_doc():
+    # Two drilled poles: one whose log matches a detector (pytest-no-xdist), one whose
+    # log matches nothing (a genuine coverage gap).
+    return {"repo": "Acme/widgets",
+            "data_sources": {"skill_commit_sha": "abc1234"},
+            "captured_at": "2026-06-11",
+            "pr_critical_path": {"poles": [
+                {"check": "integration", "workflow_file": "robot.yml", "job": "integration",
+                 "dominant_step": "Test"},
+                {"check": "weird", "workflow_file": "mystery.yml", "job": "weird",
+                 "dominant_step": "Run"},
+            ]}}
+
+
+def test_gap_poles_finds_only_undetected_drilled_poles():
+    logs = {"robot": _PYTEST_SERIAL_LOG,                 # matches pytest-no-xdist
+            "mystery": "random job output\nnothing here matches\nfinished in 300s"}
+    gaps = bp._gap_poles(_gap_doc(), logs)
+    assert [p["job"] for p, _, _, _ in gaps] == ["weird"]   # only the undetected pole
+
+
+_NO_MATCH_LOG = "random job output\nnothing here matches\nfinished in 300s"
+
+
+def _superstring_gap_doc():
+    """The vellum-assistant shape that exposed the binding bug: FIVE critical-path poles
+    across three workflows, but only TWO drilled (a `data_bundle` with two log entries).
+    Several pole names are superstrings of the drilled `Test` pole (`Unit Tests`, `… vet,
+    test, build`, `… type check & test`), so a loose substring matcher mis-binds the one
+    `Test` log/analysis onto all of them. Only `Test` and `Lint` should ever surface."""
+    return {
+        "repo": "vellum-ai/vellum-assistant",
+        "data_sources": {"skill_commit_sha": "abc1234"},
+        "scanned_at": "2026-06-12T20:04:59+00:00",
+        "pr_critical_path": {"poles": [
+            {"check": "Test", "workflow_file": ".github/workflows/pr-assistant.yaml",
+             "job": "Test", "dominant_step": "Test"},
+            {"check": "Lint", "workflow_file": ".github/workflows/pr-assistant.yaml",
+             "job": "Lint", "dominant_step": "Lint"},
+            {"check": "Unit Tests", "workflow_file": ".github/workflows/pr-electron.yaml",
+             "job": "Unit Tests", "dominant_step": "Run tests"},
+            {"check": "Go vellum-evals-runtime (gofmt, vet, test, build)",
+             "workflow_file": ".github/workflows/ci-pr-evals.yaml",
+             "job": "Go vellum-evals-runtime (gofmt, vet, test, build)", "dominant_step": "Vet"},
+            {"check": "Evals lint, type check & test",
+             "workflow_file": ".github/workflows/ci-pr-evals.yaml",
+             "job": "Evals lint, type check & test", "dominant_step": "Checkout"},
+        ]},
+        "data_bundle": {"logs_dir": "x.data", "logs": [
+            {"check": "Test", "job": "Test",
+             "workflow_file": ".github/workflows/pr-assistant.yaml", "file": "Test.log",
+             "html_url": "https://github.com/vellum-ai/vellum-assistant/actions/runs/1/job/2"},
+            {"check": "Lint", "job": "Lint",
+             "workflow_file": ".github/workflows/pr-assistant.yaml", "file": "Lint.log",
+             "html_url": "https://github.com/vellum-ai/vellum-assistant/actions/runs/3/job/4"},
+        ]},
+    }
+
+
+def test_gap_poles_drives_off_drilled_set_not_cp_poles():
+    # The bug: _gap_poles looped cp.poles (5) and substring-borrowed the Test log onto
+    # the 3 undrilled poles -> "5 drilled pole(s)" and 3 poisoned captures. Now it drives
+    # off the drill bundle (the 2 entries with their own logs) and binds by exact owner key.
+    keys = ["Test", "Lint"]  # what summary._render_keys emits for these 2 entries
+    logs = {keys[0]: _NO_MATCH_LOG, keys[1]: _NO_MATCH_LOG}
+    gaps = bp._gap_poles(_superstring_gap_doc(), logs)
+    assert [p["job"] for p, _, _, _ in gaps] == ["Test", "Lint"]   # NOT the 3 phantoms
+    # each pole is bound to ITS OWN key, and run_url is threaded from the entry html_url
+    assert [k for _, _, _, k in gaps] == ["Test", "Lint"]
+    assert all(p.get("run_url", "").startswith("https://") for p, _, _, _ in gaps)
+
+
+def test_gap_poles_threads_run_url_from_drill_entry():
+    logs = {"Test": _NO_MATCH_LOG, "Lint": _NO_MATCH_LOG}
+    gaps = bp._gap_poles(_superstring_gap_doc(), logs)
+    by_job = {p["job"]: p for p, _, _, _ in gaps}
+    assert by_job["Test"]["run_url"].endswith("/job/2")
+
+
+def _superstring_fallback_doc():
+    """The fixed bug's FALLBACK twin: superstring poles (`Test` ⊂ `Unit Tests`) but NO
+    `data_bundle`, so `_gap_poles` takes the `cp.poles` + `_sole_owner_pole` path. A bare
+    `Test` key must own NEITHER pole (it's a substring of both); only a fully-qualifying
+    key binds. Guards the same class of bug as the headline fix on the path its tests miss."""
+    return {"repo": "x/y", "data_sources": {"skill_commit_sha": "abc1234"},
+            "pr_critical_path": {"poles": [
+                {"check": "Test", "workflow_file": "a.yml", "job": "Test"},
+                {"check": "Unit Tests", "workflow_file": "b.yml", "job": "Unit Tests"}]}}
+
+
+def test_gap_poles_fallback_refuses_ambiguous_substring_key():
+    # No data_bundle -> fallback. A bare `Test` key is a substring of BOTH pole names, so
+    # _sole_owner_pole refuses it (returns None) rather than borrowing onto the wrong pole.
+    gaps = bp._gap_poles(_superstring_fallback_doc(), {"Test": _NO_MATCH_LOG})
+    assert gaps == []                                   # refused, not mis-bound
+    # A key that uniquely identifies one pole binds to exactly that pole.
+    gaps = bp._gap_poles(_superstring_fallback_doc(), {"Unit Tests": _NO_MATCH_LOG})
+    assert [p["job"] for p, _, _, _ in gaps] == ["Unit Tests"]
+
+
+def test_gap_poles_surfaces_drilled_entry_with_no_matching_cp_pole():
+    # A drilled data_bundle entry whose (check, workflow_file) isn't in cp.poles must still
+    # surface as a gap (synthesized from the entry) — skipping it would silently drop a real
+    # gap (a false "clean"). run_url still threads from the entry's html_url.
+    import summary
+    doc = {"repo": "x/y", "pr_critical_path": {"poles": []},   # no poles to match
+           "data_bundle": {"logs": [
+               {"check": "Build", "job": "Build", "workflow_file": "ci.yml",
+                "file": "Build.log",
+                "html_url": "https://github.com/x/y/actions/runs/7/job/8"}]}}
+    key = summary._render_keys(doc["data_bundle"]["logs"])[0]   # the owner key the renderer uses
+    gaps = bp._gap_poles(doc, {key: _NO_MATCH_LOG})
+    assert [p["job"] for p, _, _, _ in gaps] == ["Build"]
+    assert gaps[0][0]["run_url"].endswith("/job/8")
+
+
+def test_gap_poles_warns_loudly_when_key_derivation_fails(monkeypatch, capsys):
+    # The no-silent-drop rule: when render-key derivation fails, _gap_poles degrades to the
+    # fallback matcher, but must SAY SO (a silent downgrade could under-report gaps on the
+    # very pipeline this fix exists to make trustworthy). Doc HAS a data_bundle (to enter the
+    # key-derivation path) with a cleanly-bindable pole so the fallback still surfaces it.
+    import summary
+    monkeypatch.setattr(summary, "_render_keys",
+                        lambda _e: (_ for _ in ()).throw(RuntimeError("boom")))
+    doc = {"repo": "x/y", "pr_critical_path": {"poles": [
+               {"check": "Build", "workflow_file": "ci.yml", "job": "Build"}]},
+           "data_bundle": {"logs": [
+               {"check": "Build", "job": "Build", "workflow_file": "ci.yml",
+                "file": "Build.log"}]}}
+    gaps = bp._gap_poles(doc, {"Build": _NO_MATCH_LOG})
+    assert [p["job"] for p, _, _, _ in gaps] == ["Build"]   # fallback still surfaces it
+    err = capsys.readouterr().err
+    assert "gap-key derivation failed" in err and "UNDER-REPORTED" in err
+
+
+def test_emit_gap_signal_refuses_ambiguously_keyed_analysis(tmp_path: Path, capsys):
+    # The transcript footgun: an analysis attached under a LOOSE key that only fuzzy-matches
+    # must NOT be stamped onto the pole. Key `tes` is a substring of `Test` but is not the
+    # exact owner key -> skip + loud warning naming the correct key, capture nothing.
+    logs = {"Test": _NO_MATCH_LOG, "Lint": _NO_MATCH_LOG}
+    analyses = {"tes": {"cause": "bun 1448 files", "evidence": ["x"]}}
+    bp._emit_gap_signal(_superstring_gap_doc(), logs, analyses, gaps_root=tmp_path)
+    assert not any(tmp_path.iterdir())                       # nothing captured
+    err = capsys.readouterr().err
+    assert "skipped 1 gap" in err and "exact owner key" in err
+    assert "--analysis Test=PATH" in err                     # the right key, surfaced
+
+
+def test_emit_gap_signal_binds_analysis_by_exact_key_only(tmp_path: Path, capsys):
+    # The correct exact keys capture exactly their own pole — and the one Test analysis
+    # is NOT also stamped onto Lint (no cross-pole bleed).
+    logs = {"Test": _NO_MATCH_LOG, "Lint": _NO_MATCH_LOG}
+    analyses = {"Test": {"cause": "bun test", "evidence": ["a"]},
+                "Lint": {"cause": "eslint no cache", "evidence": ["b"]}}
+    bp._emit_gap_signal(_superstring_gap_doc(), logs, analyses, gaps_root=tmp_path)
+    dirs = sorted(p.name for p in tmp_path.iterdir())
+    assert dirs == ["vellum-ai-vellum-assistant__Lint", "vellum-ai-vellum-assistant__Test"]
+    test_a = json.loads((tmp_path / "vellum-ai-vellum-assistant__Test"
+                         / "analysis.json").read_text())
+    lint_a = json.loads((tmp_path / "vellum-ai-vellum-assistant__Lint"
+                         / "analysis.json").read_text())
+    assert test_a["cause"] == "bun test" and lint_a["cause"] == "eslint no cache"
+    # provenance threaded: scanned_at from top-level, run_url from the drill entry
+    meta = json.loads((tmp_path / "vellum-ai-vellum-assistant__Test" / "meta.json").read_text())
+    assert meta["scanned_at"] == "2026-06-12T20:04:59+00:00"
+    assert meta["run_url"].endswith("/job/2")
+
+
+def test_emit_gap_signal_first_render_prints_exact_keys(tmp_path: Path, capsys):
+    # First render (no analysis): the signal must hand the agent the EXACT per-pole key to
+    # use, so it can't guess a loose key that collides.
+    logs = {"Test": _NO_MATCH_LOG, "Lint": _NO_MATCH_LOG}
+    bp._emit_gap_signal(_superstring_gap_doc(), logs, {}, gaps_root=tmp_path)
+    err = capsys.readouterr().err
+    assert "2 drilled pole(s)" in err                        # not the inflated 5
+    assert "--analysis Test=PATH" in err and "--analysis Lint=PATH" in err
+
+
+def test_emit_gap_signal_warns_on_missing_provenance(tmp_path: Path, capsys):
+    # A captured gap with no scanned_at/run_url is the feedstock's missing audit trail —
+    # warn, don't write it silently (provenance self-check discipline).
+    import summary
+    doc = {"repo": "x/y",                                  # no scanned_at / captured_at
+           "pr_critical_path": {"poles": [
+               {"check": "Build", "workflow_file": "ci.yml", "job": "Build"}]},
+           "data_bundle": {"logs": [                       # entry has NO html_url -> no run_url
+               {"check": "Build", "job": "Build", "workflow_file": "ci.yml",
+                "file": "Build.log"}]}}
+    key = summary._render_keys(doc["data_bundle"]["logs"])[0]
+    bp._emit_gap_signal(doc, {key: _NO_MATCH_LOG},
+                        {key: {"cause": "x", "evidence": ["a"]}}, gaps_root=tmp_path)
+    err = capsys.readouterr().err
+    assert "captured 1 gap" in err
+    assert "no scanned_at/run_url provenance for: Build" in err
+
+
+def test_emit_gap_signal_maintainer_next_action_is_imperative(tmp_path: Path, capsys):
+    # 4c never fired in the dogfood run despite all preconditions. After a successful
+    # capture in maintainer source context, the signal must print an IMPERATIVE next
+    # action naming the exact prepare command + the captured slugs — not a passive pointer.
+    logs = {"Test": _NO_MATCH_LOG, "Lint": _NO_MATCH_LOG}
+    analyses = {"Test": {"cause": "bun", "evidence": ["a"]},
+                "Lint": {"cause": "eslint", "evidence": ["b"]}}
+    bp._emit_gap_signal(_superstring_gap_doc(), logs, analyses, gaps_root=tmp_path)
+    err = capsys.readouterr().err
+    # _is_maintainer_source() is True in this tracked checkout (asserted elsewhere).
+    assert "REQUIRED NEXT ACTION" in err and "phase 4c" in err
+    assert "draft_detector.py prepare vellum-ai-vellum-assistant__Test" in err
+    assert "vellum-ai-vellum-assistant__Lint" in err
+
+
+def test_capture_gap_writes_the_full_bundle(tmp_path: Path):
+    doc = _gap_doc()
+    pole = doc["pr_critical_path"]["poles"][1]
+    dest = bp._capture_gap("Acme/widgets", pole, "raw log text",
+                           {"cause": "x", "evidence": ["l1"]}, doc, tmp_path)
+    assert dest.name == "Acme-widgets__weird"
+    assert (dest / "job.log").read_text() == "raw log text"
+    analysis = json.loads((dest / "analysis.json").read_text())
+    assert analysis["cause"] == "x"
+    meta = json.loads((dest / "meta.json").read_text())
+    assert meta["repo"] == "Acme/widgets" and meta["job"] == "weird"
+    assert meta["workflow_file"] == "mystery.yml" and meta["dominant_step"] == "Run"
+    assert meta["skill_commit_sha"] == "abc1234"
+
+
+def test_emit_gap_signal_captures_when_analysis_attached(tmp_path: Path, capsys):
+    # The gap-fill analysis is attached (the re-render): 4b capture fires automatically,
+    # and the stderr signal names the captured gap. This is the path that used to be
+    # skippable prose - now it rides on the render the agent always runs.
+    logs = {"mystery": "random output, no detector match, ran for a while"}
+    analyses = {"mystery": {"cause": "serial thing", "evidence": ["x"]}}
+    doc = {"repo": "Acme/widgets", "pr_critical_path": {"poles": [
+        {"check": "weird", "workflow_file": "mystery.yml", "job": "weird"}]}}
+    bp._emit_gap_signal(doc, logs, analyses, gaps_root=tmp_path)
+    assert (tmp_path / "Acme-widgets__weird" / "analysis.json").exists()
+    err = capsys.readouterr().err
+    assert "CATALOG GAP" in err and "captured 1 gap" in err
+
+
+def test_emit_gap_signal_warns_but_does_not_capture_without_analysis(tmp_path: Path, capsys):
+    # First render (no analysis yet): the gap is still announced loudly so it can't be
+    # missed, but nothing is captured (no analysis to persist) - the signal tells the
+    # agent to attach one on re-render.
+    logs = {"mystery": "random output, no detector match, ran for a while"}
+    doc = {"repo": "Acme/widgets", "pr_critical_path": {"poles": [
+        {"check": "weird", "workflow_file": "mystery.yml", "job": "weird"}]}}
+    bp._emit_gap_signal(doc, logs, {}, gaps_root=tmp_path)
+    assert not any(tmp_path.iterdir())                  # nothing captured
+    err = capsys.readouterr().err
+    assert "CATALOG GAP" in err and "--analysis" in err
+
+
+def test_emit_gap_signal_is_silent_with_no_gaps(tmp_path: Path, capsys):
+    # Every drilled pole matched a detector: no gap, no signal, no capture.
+    logs = {"robot": _PYTEST_SERIAL_LOG}
+    doc = {"repo": "Acme/widgets", "pr_critical_path": {"poles": [
+        {"check": "integration", "workflow_file": "robot.yml", "job": "integration"}]}}
+    bp._emit_gap_signal(doc, logs, {}, gaps_root=tmp_path)
+    assert not any(tmp_path.iterdir())
+    assert capsys.readouterr().err == ""
+
+
+def test_is_maintainer_source_true_in_this_checkout():
+    # These tests run from the tracked monorepo source, so the 4c maintainer probe
+    # must report True (it's what lets the gap signal tell a maintainer to draft a
+    # detector). A symlinked install resolves into the same git tree.
+    assert bp._is_maintainer_source() is True
+
+
+def test_is_maintainer_source_false_when_git_probe_fails(monkeypatch):
+    # The False path gates whether installed/end-user runs STOP at capture vs launch
+    # the 4c detector-draft pointer. A git-missing / timeout degrades to False (an
+    # installed copy must never tell an end user to draft detectors), not a crash.
+    def boom(*_a, **_k):
+        raise FileNotFoundError("git not on PATH")
+    monkeypatch.setattr(bp.subprocess, "run", boom)
+    assert bp._is_maintainer_source() is False
+    # A non-zero git exit (path not tracked = an installed/vendored copy) is also False.
+    monkeypatch.setattr(bp.subprocess, "run",
+                        lambda *_a, **_k: bp.subprocess.CompletedProcess([], 1))
+    assert bp._is_maintainer_source() is False
+
+
+def test_gaps_root_default_none_on_installed_copy(monkeypatch):
+    # Installed/vendored copy: not maintainer source → None, WITHOUT consulting git. This is
+    # the end-user leak-prevention path — None makes _emit_gap_signal skip capture, so the
+    # capture dir never lands under the skill (which the installer would ship).
+    monkeypatch.setattr(bp, "_is_maintainer_source", lambda: False)
+    def _no_git(*_a, **_k):
+        raise AssertionError("git must not be consulted once not-a-maintainer-source is known")
+    monkeypatch.setattr(bp.subprocess, "run", _no_git)
+    assert bp._gaps_root_default() is None
+
+
+def test_gaps_root_default_roots_at_repo_top_outside_skill(monkeypatch):
+    # Tracked-source checkout: roots at the git toplevel, OUTSIDE skills/<name>/.
+    monkeypatch.setattr(bp, "_is_maintainer_source", lambda: True)
+    monkeypatch.setattr(bp.subprocess, "run",
+                        lambda *_a, **_k: bp.subprocess.CompletedProcess([], 0, "/repo/root\n"))
+    root = bp._gaps_root_default()
+    assert root == Path("/repo/root") / ".ci-speedup-gaps"
+    assert root.name == ".ci-speedup-gaps"
+    assert "skills/ci-speedup" not in root.as_posix()
+
+
+def test_gaps_root_default_warns_and_returns_none_when_root_unresolved(monkeypatch, capsys):
+    # Maintainer source but the repo root won't resolve (git race/timeout/non-zero/empty) →
+    # None, but LOUDLY — distinguished from the silent installed-copy skip so a maintainer's
+    # feedstock loss is visible, not silent.
+    monkeypatch.setattr(bp, "_is_maintainer_source", lambda: True)
+    def _boom(*_a, **_k):
+        raise FileNotFoundError("git vanished mid-run")
+    monkeypatch.setattr(bp.subprocess, "run", _boom)
+    assert bp._gaps_root_default() is None
+    assert "could not resolve the repo root" in capsys.readouterr().err
+    # Non-zero rc and empty/whitespace stdout reach the same loud None (the `and r.stdout.strip()`
+    # guard — a regression here would root captures at `Path("")/.ci-speedup-gaps`).
+    monkeypatch.setattr(bp.subprocess, "run",
+                        lambda *_a, **_k: bp.subprocess.CompletedProcess([], 1, ""))
+    assert bp._gaps_root_default() is None
+    monkeypatch.setattr(bp.subprocess, "run",
+                        lambda *_a, **_k: bp.subprocess.CompletedProcess([], 0, "   \n"))
+    assert bp._gaps_root_default() is None
+
+
+def test_emit_gap_signal_skips_capture_on_installed_copy(tmp_path: Path, capsys, monkeypatch):
+    # The leak-prevention contract end to end: on an installed copy the resolver returns None,
+    # so _emit_gap_signal (called with gaps_root=None, as the sole production caller does)
+    # captures NOTHING and prints NO banner — loop machinery never reaches an end user. Must
+    # monkeypatch the resolver: in this tracked-source checkout the real one returns a live
+    # <repo-root>/.ci-speedup-gaps (precious, gitignored), which a test must never write to.
+    monkeypatch.setattr(bp, "_gaps_root_default", lambda: None)
+    logs = {"mystery": "random output, no detector match, ran for a while"}
+    analyses = {"mystery": {"cause": "serial thing", "evidence": ["x"]}}
+    doc = {"repo": "Acme/widgets", "pr_critical_path": {"poles": [
+        {"check": "weird", "workflow_file": "mystery.yml", "job": "weird"}]}}
+    bp._emit_gap_signal(doc, logs, analyses, gaps_root=None)
+    assert capsys.readouterr().err == ""          # no CATALOG GAP banner on an installed copy
+    assert not any(tmp_path.iterdir())            # nothing captured anywhere we provided
+
+
+def test_emit_gap_signal_consults_default_root_when_none(tmp_path: Path, capsys, monkeypatch):
+    # The complement (proves the wiring isn't dead): gaps_root=None must fall through to
+    # _gaps_root_default(); point it at tmp_path and assert the capture lands there.
+    monkeypatch.setattr(bp, "_gaps_root_default", lambda: tmp_path)
+    logs = {"mystery": "random output, no detector match, ran for a while"}
+    analyses = {"mystery": {"cause": "serial thing", "evidence": ["x"]}}
+    doc = {"repo": "Acme/widgets", "pr_critical_path": {"poles": [
+        {"check": "weird", "workflow_file": "mystery.yml", "job": "weird"}]}}
+    bp._emit_gap_signal(doc, logs, analyses, gaps_root=None)
+    assert (tmp_path / "Acme-widgets__weird" / "analysis.json").exists()
+    assert "CATALOG GAP" in capsys.readouterr().err
+
+
+def test_emit_gap_signal_degrades_when_capture_raises(tmp_path: Path, capsys, monkeypatch):
+    # The stated invariant: a capture I/O error degrades to a warning, never fails the
+    # render (the report is already written when this runs). With an analysis attached,
+    # force _capture_gap to raise OSError and assert (a) no exception propagates and
+    # (b) the message names the I/O failure - NOT "attach --analysis" (which the
+    # maintainer already did).
+    monkeypatch.setattr(bp, "_capture_gap",
+                        lambda *_a, **_k: (_ for _ in ()).throw(OSError("disk full")))
+    logs = {"mystery": "random output, no detector match, ran for a while"}
+    analyses = {"mystery": {"cause": "serial thing", "evidence": ["x"]}}
+    doc = {"repo": "Acme/widgets", "pr_critical_path": {"poles": [
+        {"check": "weird", "workflow_file": "mystery.yml", "job": "weird"}]}}
+    bp._emit_gap_signal(doc, logs, analyses, gaps_root=tmp_path)   # must not raise
+    err = capsys.readouterr().err
+    assert "gap capture failed" in err and "disk full" in err
+    assert "capture to `.ci-speedup-gaps/` failed" in err
+    assert "attach the gap-fill analysis" not in err              # not the wrong fix
+
+
+def test_also_noticed_reframes_wall_clock_lever_not_off_path():
+    # Regression (Infisical/infisical): OPT24 ("Long Test Job Without Sharding") sets a
+    # POSITIVE credited wall-clock saving (`wall_clock_p50_s` survives the cascade only when
+    # the job is the slowest concurrent check — i.e. it IS on the critical path) and rm=0.
+    # The appendix used to assert "off the merge-gating critical path, so ~0 developer
+    # wall-clock" for it, contradicting the report's own spine: sharding the long pole cuts
+    # wall-clock. A finding with credited wall-clock must NOT be framed as off-path/bill-only.
+    opt24 = {"pattern": "OPT24", "title": "Long Test Job Without Sharding", "id": "f1",
+             "workflow_file": "ci.yml", "line": 5, "affected_jobs": ["Run integration test"],
+             "wall_clock_p50_s": 880.0, "runner_min_saving": 0.0}
+    lines, _, _ = bp._also_noticed_block([opt24], "http://cat")
+    body = "\n".join(lines)
+    # The false off-path / ~0 wall-clock framing must be gone for a wall-clock lever.
+    assert "off the merge-gating critical path, so ~0 developer wall-clock" not in body
+    # ...and replaced by an honest on-critical-path / wall-clock disclosure.
+    assert "wall-clock" in body.lower()
+    assert "critical path" in body.lower()
+    # A genuinely bill-only hygiene finding still gets the off-path / ~0 wall-clock framing.
+    opt33 = {"pattern": "OPT33", "title": "No Draft PR Gating", "id": "f2",
+             "workflow_file": "y.yml", "runner_min_saving": 100}
+    bill_body = "\n".join(bp._also_noticed_block([opt33], "http://cat")[0])
+    assert "off the merge-gating critical path, so ~0 developer wall-clock" in bill_body
+
+
+def test_also_noticed_wall_clock_lever_not_capped_out_by_bill_only_hygiene():
+    # Regression (greptile P2 on the OPT24 reframe): a wall-clock lever carries rm=0, so the
+    # bill-desc ranking sank it to the bottom — and a repo with >_ALSO_NOTICED_CAP bill-only
+    # hygiene patterns pushed it past the "+N more not shown" cap, suppressing the very lever
+    # the reframe exists to surface. Wall-clock-saving groups must sort first and always render.
+    bill_only = [
+        {"pattern": f"OPT{n}", "title": f"Hygiene {n}", "id": f"h{n}",
+         "workflow_file": f"w{n}.yml", "runner_min_saving": 500 - n}
+        for n in range(bp._ALSO_NOTICED_CAP + 4)  # comfortably more than the cap
+    ]
+    opt24 = {"pattern": "OPT24", "title": "Long Test Job Without Sharding", "id": "f1",
+             "workflow_file": "ci.yml", "line": 5, "affected_jobs": ["Run integration test"],
+             "wall_clock_p50_s": 880.0, "runner_min_saving": 0.0}
+    lines, _, _ = bp._also_noticed_block(bill_only + [opt24], "http://cat")
+    body = "\n".join(lines)
+    # The wall-clock lever must render in the body, NOT be hidden behind the "+N more" cap.
+    assert "OPT24" in body
+    assert "more hygiene pattern(s)" in body  # the cap still fired on the bill-only surplus
+    # And it leads the section (sorts ahead of the highest-bill hygiene group, OPT0).
+    assert body.index("OPT24") < body.index("OPT0")
+
+
+def test_also_noticed_blurb_not_contradicted_by_wall_clock_lever():
+    # Regression (greptile P2): the section blurb unconditionally asserted "These do not sit
+    # on the merge-gating critical path", contradicting the per-row "sits ON the critical path"
+    # note added for a wall-clock lever. When a lever is present the blurb must be qualified.
+    opt24 = {"pattern": "OPT24", "title": "Long Test Job Without Sharding", "id": "f1",
+             "workflow_file": "ci.yml", "line": 5, "affected_jobs": ["Run integration test"],
+             "wall_clock_p50_s": 880.0, "runner_min_saving": 0.0}
+    opt33 = {"pattern": "OPT33", "title": "No Draft PR Gating", "id": "f2",
+             "workflow_file": "y.yml", "runner_min_saving": 100}
+    blurb = "\n".join(bp._also_noticed_block([opt24, opt33], "http://cat")[0]).split("</summary>")[0]
+    # The blanket "These do not sit on the merge-gating critical path" must be softened, and
+    # the blurb must point the reader at the inline exception so header and row don't conflict.
+    assert "These do **not** sit on the merge-gating critical path" not in blurb
+    assert "exception" in blurb.lower()
+    # A section with NO wall-clock lever keeps the residual-section blurb, with no exception callout.
+    plain = "\n".join(bp._also_noticed_block([opt33], "http://cat")[0])
+    assert "stay outside the wall-clock-neutral runner-minute section" in plain
+    assert "removes little or no developer wall-clock" in plain
+    assert "exception" not in plain.lower()
+
+
+def test_also_noticed_off_path_finding_with_uncapped_wall_clock_stays_bill_only():
+    # Guard the INVERSE of the OPT24 reframe: a genuinely off-path finding can still carry a
+    # positive `wall_clock_uncapped_p50_s` (the pre-cascade raw), but the cross-workflow
+    # cascade floored its CREDITED `wall_clock_p50_s` to 0 precisely because it is off the
+    # critical path. It must keep bill-only / "~0 wall-clock" framing. `_saves_wall_clock`
+    # must read the capped field — a "simplify" to the uncapped field would mis-promote EVERY
+    # off-path finding to a critical-path lever (the exact inverse of the bug this PR fixes).
+    off_path = {"pattern": "OPT33", "title": "No Draft PR Gating", "id": "f1",
+                "workflow_file": "y.yml", "runner_min_saving": 100,
+                "wall_clock_p50_s": 0.0, "wall_clock_uncapped_p50_s": 500.0}
+    assert bp._saves_wall_clock(off_path) is False
+    body = "\n".join(bp._also_noticed_block([off_path], "http://cat")[0])
+    assert "off the merge-gating critical path, so ~0 developer wall-clock" in body
+
+
+def test_also_noticed_wall_clock_framing_scans_all_group_members():
+    # `_group_saves_wall_clock` deliberately scans EVERY member (not just ms[0]) to match the
+    # `max(... for m in ms)` summary metric. A group whose wall-clock-saving member is not
+    # first must still be detected as a lever, framed by its wall-clock saving, and sorted
+    # first. This fails if the check regresses to `_saves_wall_clock(ms[0])`.
+    bill_member = {"pattern": "OPT24", "title": "Long Test Job Without Sharding", "id": "a",
+                   "workflow_file": "ci.yml", "line": 1, "affected_jobs": ["job a"],
+                   "wall_clock_p50_s": 0.0, "runner_min_saving": 0.0}
+    wc_member = {"pattern": "OPT24", "title": "Long Test Job Without Sharding", "id": "b",
+                 "workflow_file": "ci.yml", "line": 2, "affected_jobs": ["job b"],
+                 "wall_clock_p50_s": 880.0, "runner_min_saving": 0.0}
+    # Saver is the SECOND member; ms[0] alone would miss it.
+    assert bp._group_saves_wall_clock([bill_member, wc_member]) is True
+    opt33 = {"pattern": "OPT33", "title": "No Draft PR Gating", "id": "c",
+             "workflow_file": "y.yml", "runner_min_saving": 100}
+    body = "\n".join(bp._also_noticed_block([opt33, bill_member, wc_member], "http://cat")[0])
+    # The OPT24 group renders as a wall-clock lever and leads the section despite OPT33's bill.
+    assert body.index("OPT24") < body.index("OPT33")
+    assert "sits ON the merge-gating critical path" in body
+
+
+def test_saves_wall_clock_floors_subsecond_and_rare_check_savings():
+    # Regression (Opentrons/opentrons): `_saves_wall_clock` used a bare `> 0` test with no
+    # magnitude floor, so ANY positive `wall_clock_p50_s` was labeled as sitting "ON the
+    # merge-gating critical path (a long pole)". The concurrency cascade floors an OFF-path
+    # workflow to 0, but it bounds against concurrent checks only — NOT against the spine's
+    # rare/conditional-presence demotion — so a rare/opt-in job (the slowest check only on the
+    # minority of PRs it runs) kept a small positive saving and got the long-pole label,
+    # contradicting the report's own spine, whose footnote demotes that job as opt-in.
+    # A sub-second OPT24 (0.3s, renders "~0s wall-clock") and a 2.2s OPT28 on a demoted
+    # conditional job must NOT be credited as long poles.
+    subsecond = {"pattern": "OPT24", "wall_clock_p50_s": 0.3}   # renders "~0s wall-clock"
+    rare_check = {"pattern": "OPT28", "wall_clock_p50_s": 2.2}  # demoted conditional job
+    assert bp._saves_wall_clock(subsecond) is False
+    assert bp._saves_wall_clock(rare_check) is False
+    # A genuine sharding/structural long-pole saving (minutes) is still credited.
+    real_pole = {"pattern": "OPT24", "wall_clock_p50_s": 880.0}
+    assert bp._saves_wall_clock(real_pole) is True
+    # The floor is the gate: exactly at the floor counts, just under it does not.
+    assert bp._saves_wall_clock({"wall_clock_p50_s": bp._WALL_CLOCK_LONG_POLE_FLOOR_S}) is True
+    assert bp._saves_wall_clock(
+        {"wall_clock_p50_s": bp._WALL_CLOCK_LONG_POLE_FLOOR_S - 0.1}) is False
+    # The group summary uses `max(... for m in ms)`; a single sub-floor occurrence must NOT
+    # relabel a whole bill-only group as a wall-clock lever (the OPT28-group "~2s wall-clock"
+    # mislabel). With every member sub-floor the group claims no spine.
+    group = [{"pattern": "OPT28", "wall_clock_p50_s": 2.2, "runner_min_saving": 0.0},
+             {"pattern": "OPT28", "wall_clock_p50_s": 0.3, "runner_min_saving": 0.0}]
+    assert bp._group_saves_wall_clock(group) is False
+    # And the rendered appendix must not claim the sub-floor group sits ON the critical path.
+    opt28_grp = [{"pattern": "OPT28", "title": "Rare Conditional Check", "id": f"f{i}",
+                  "workflow_file": "ci.yml", "affected_jobs": ["confirm-g-code"],
+                  "wall_clock_p50_s": wc, "runner_min_saving": 5.0}
+                 for i, wc in enumerate((2.2, 0.3))]
+    body = "\n".join(bp._also_noticed_block(opt28_grp, "http://cat")[0])
+    assert "sits ON the merge-gating critical path" not in body
+
+
+def test_data_driven_for_pole_skips_subfloor_credited_finding():
+    # The spine-acknowledgment join must not fire for a sub-floor credited finding: a 2.2s
+    # OPT28 on a demoted conditional job is NOT a long pole, so it makes no "sits ON the
+    # critical path ... See the spine above" claim the spine would have to acknowledge back.
+    pole = {"check": "confirm-g-code", "job": "confirm-g-code"}
+    subfloor = {"pattern": "OPT28", "affected_jobs": ["confirm-g-code"],
+                "wall_clock_p50_s": 2.2, "runner_min_saving": 5.0}
+    assert bp._data_driven_for_pole(pole, [subfloor]) == []
+    # A genuine credited long-pole finding on the same job still joins.
+    real = {"pattern": "OPT24", "affected_jobs": ["confirm-g-code"],
+            "wall_clock_p50_s": 744.8, "runner_min_saving": 0.0}
+    assert bp._data_driven_for_pole(pole, [real]) == [real]
+
+
+def test_hygiene_prompt_subfloor_positive_wallclock_is_not_framed_off_path():
+    # The 30s `_saves_wall_clock` floor declines to call a small positive wall-clock saving
+    # a "long pole" — correct. But the bill-only prompt branch then asserted the OPPOSITE of
+    # the measured value: "off the merge-gating critical path, so ~0 developer wall-clock (a
+    # cloud-bill cut)". For a rm=0 finding carrying a genuine 20s on-path saving (a near-tie
+    # with the next concurrent check) that line is wrong three ways (it IS on the path, has
+    # NO bill cut, and does NOT have ~0 wall-clock). The prompt must instead state the
+    # measured fact: a sub-threshold saving, not credited as a long pole.
+    members = [{"pattern": "OPT24", "wall_clock_p50_s": 20.0, "runner_min_saving": 0.0,
+                "affected_jobs": ["test"], "workflow_file": "ci.yml", "line": 5,
+                "evidence": "the test job runs ~10m serially"}]
+    prompt = "\n".join(bp._hygiene_prompt("OPT24", "Long Test Job", members, "http://cat"))
+    # The contradictory off-path / cloud-bill framing must be gone for a positive saving...
+    assert "off the merge-gating critical path" not in prompt
+    assert "cloud-bill cut" not in prompt
+    # ...replaced by the honest below-threshold framing that quotes the measured value.
+    assert "below the long-pole threshold" in prompt
+    assert "~20s" in prompt
+    # A genuinely off-path finding (wall-clock == 0) KEEPS the off-path framing — the fix
+    # must not blanket-rewrite every bill-only prompt.
+    off_path = [{"pattern": "OPT5", "wall_clock_p50_s": 0.0, "runner_min_saving": 1200.0,
+                 "affected_jobs": ["lint"], "workflow_file": "ci.yml", "line": 9,
+                 "evidence": "lint reinstalls deps"}]
+    off_prompt = "\n".join(bp._hygiene_prompt("OPT5", "Cache deps", off_path, "http://cat"))
+    assert "off the merge-gating critical path" in off_prompt
+    assert "below the long-pole threshold" not in off_prompt
+
+
+def test_group_evidence_falls_back_when_driver_has_no_evidence():
+    # `_group_evidence(prefer=driver)` quotes the driver's evidence when it has one, but the
+    # driver (the max-wall-clock member) may carry no evidence string — then it must fall
+    # back to the first member that DOES, so a driver-without-evidence still shows the
+    # group's available evidence rather than nothing.
+    driver = {"wall_clock_p50_s": 200.0}                       # no evidence
+    other = {"wall_clock_p50_s": 0.0, "evidence": "the e2e suite runs serially"}
+    assert bp._group_evidence([driver, other], prefer=driver) == "the e2e suite runs serially"
+    # With no `prefer` it is the historical first-with-evidence behaviour.
+    assert bp._group_evidence([driver, other]) == "the e2e suite runs serially"
+    # When the driver HAS evidence, that wins over a later member's.
+    driver_ev = {"wall_clock_p50_s": 200.0, "evidence": "the driver's own evidence"}
+    assert bp._group_evidence([driver_ev, other], prefer=driver_ev) == "the driver's own evidence"
+
+
+def test_turbo_time_secs_parses_unit_edges():
+    # The unit alternation must try `ms` BEFORE bare `m`/`s` so a millisecond tail isn't
+    # misread as minutes/seconds, and `h`/`m`/`s` compose. Reached only via `_parse_log`
+    # with m/s values elsewhere, so lock the edges directly.
+    assert bp._turbo_time_secs("9m48.756s") == 9 * 60 + 48.756
+    assert bp._turbo_time_secs("1h2m3s") == 3600 + 120 + 3
+    assert bp._turbo_time_secs("3.013s") == 3.013
+    assert bp._turbo_time_secs("250ms") == 0.25            # ms, not 250 minutes
+    assert bp._turbo_time_secs("1m20.171s") == 60 + 20.171
+    assert bp._turbo_time_secs("no time here") is None     # nothing parseable → None
+
+
+def test_parse_log_turbo_falls_back_to_most_rebuilt_when_no_time_line():
+    # The slowest-invocation selection keys off each block's `Time:` line; when NO block has
+    # a parseable `Time:` (an older turbo, or piped output that dropped the summary timing),
+    # it must fall back to the most-rebuilt summary rather than crash or pick nothing.
+    log = "\n".join([
+        "$ turbo run prepare",
+        "   • Remote caching disabled",
+        *[f"cache miss, executing prep{i}" for i in range(6)],
+        "Cached:    1 cached, 2 total",          # barely rebuilt
+        "$ turbo run build",
+        *[f"cache miss, executing build{i}" for i in range(6)],
+        "Cached:    0 cached, 8 total",          # most rebuilt → must be chosen
+    ])
+    leaf = bp._parse_log(log)
+    assert leaf is not None
+    # 0/8 (the most-rebuilt block) drives it: 100% miss.
+    assert leaf["magnitude"]["value"] == 100.0
+
+
+def test_also_noticed_distinct_opt73_levers_render_as_separate_rows():
+    # Regression (embrace-io/embrace-android-sdk): OPT73 is the cross-cluster floor lever,
+    # and EACH finding is a DISTINCT lever — its own shared step, its own cluster of jobs,
+    # its own evidence and magnitude — NOT a fungible occurrence of one fix recipe. The
+    # appendix grouped every OPT73 finding into a single row, which (1) showed only the
+    # first member's evidence, (2) sized the row at the MAX leg's wall-clock — hiding the
+    # smaller leg's evidence and over-sizing it. Two genuinely distinct levers must render
+    # as two separate rows, each carrying its own evidence and its own magnitude.
+    f17 = {"pattern": "OPT73", "title": "Shared step recurs across the cluster", "id": "f17",
+           "workflow_file": ".github/workflows/android-emulator-tests.yml", "line": 0,
+           "affected_jobs": ["emulator (29, .)"], "wall_clock_p50_s": 143.1,
+           "runner_min_saving": 4000.0, "severity": "HIGH",
+           "evidence": "the `Run tests on android emulator` step is 88% of the slowest "
+                       "cluster job `emulator (29, .)` — a cluster-floor lever"}
+    f18 = {"pattern": "OPT73", "title": "Shared step recurs across the cluster", "id": "f18",
+           "workflow_file": ".github/workflows/ci-gradle.yml", "line": 0,
+           "affected_jobs": ["gradle (build)"], "wall_clock_p50_s": 43.0,
+           "runner_min_saving": 300.0, "severity": "HIGH",
+           "evidence": "the `actions/cache` step recurs across the gradle cluster "
+                       "— a cluster-floor lever"}
+    lines, n, _ = bp._also_noticed_block([f17, f18], "http://cat")
+    body = "\n".join(lines)
+    # Both levers' OWN evidence must render — not just the larger leg's.
+    assert "Run tests on android emulator" in body          # f17's evidence
+    assert "actions/cache" in body                          # f18's evidence (was hidden)
+    # The smaller leg must be sized at its OWN magnitude (~43s), not the max leg's 2m 23s.
+    assert "~43s" in body                                   # f18 summary, was oversized
+    assert "~2m 23s" in body                                # f17 summary, unchanged
+    # Two distinct levers ⇒ two grouped rows, not one folded row.
+    assert n == 2
+    assert body.count("<summary>") == 2
+
+
+
+def test_also_noticed_distinct_opt79_caches_render_as_separate_rows():
+    # OPT79 is per JOB: one workflow can carry two net-negative caches, each with its
+    # own measured hit/miss comparison, its own runner class and its own re-key-or-remove
+    # edit. Folded by pattern id (the default), one job's evidence would be advertised
+    # beside BOTH jobs' minutes and the prompt would name only the first job — the same
+    # failure the OPT73 and OPT77 cases above exist for.
+    def _f(fid, job, waste, rm):
+        return {"pattern": "OPT79", "title": "A Cache That Costs More Than It Saves",
+                "id": fid, "workflow_file": ".github/workflows/ci.yml", "line": 0,
+                "affected_jobs": [job], "wall_clock_p50_s": 0.0,
+                "runner_min_saving": rm, "severity": "MEDIUM",
+                "evidence": f"on `{job}` the cache block is {waste}s slower on hit runs"}
+
+    lines, n, _ = bp._also_noticed_block([_f("f1", "deps", 19, 400.0),
+                                          _f("f2", "docs", 7, 90.0)], "http://cat")
+    body = "\n".join(lines)
+    assert n == 2
+    assert body.count("<summary>") == 2
+    assert "`deps`" in body and "`docs`" in body
+
+def test_also_noticed_bill_only_group_evidence_covers_all_listed_jobs():
+    # Regression (OPT12-style bill-only aggregate): a bill-only "Also noticed" group folds
+    # multiple FUNGIBLE occurrences of one fix recipe into ONE row whose displayed magnitude
+    # is an aggregate over ALL members and whose "Where" lists EVERY member's job. The
+    # Evidence line was sourced from only the FIRST member (`_group_evidence(ms)`), so a
+    # second member's job sat in "Where" unexplained and that member's evidence was silently
+    # dropped — locations and evidence disagreed. Unlike the wall-clock-lever branch (which
+    # sources evidence from the single displayed driver), the bill-only branch must COMPOSE
+    # evidence across the listed members so every job in "Where" is explained.
+    f1 = {"pattern": "OPT12", "title": "Redundant setup preamble", "id": "f1",
+          "workflow_file": ".github/workflows/ci.yaml", "line": 12,
+          "affected_jobs": ["Build-Docs", "Deploy-Pages"],
+          "wall_clock_p50_s": 0.0, "runner_min_saving": 800.0, "severity": "MEDIUM",
+          "evidence": "2 jobs share an identical 4-step setup preamble (Build-Docs, "
+                      "Deploy-Pages)"}
+    f10 = {"pattern": "OPT12", "title": "Redundant setup preamble", "id": "f10",
+           "workflow_file": ".github/workflows/integration-test.yml", "line": 7,
+           "affected_jobs": ["spark-integration-test", "spark-connect-integration-test"],
+           "wall_clock_p50_s": 0.0, "runner_min_saving": 200.0, "severity": "MEDIUM",
+           "evidence": "2 jobs share an identical setup preamble (spark-integration-test, "
+                       "spark-connect-integration-test)"}
+    lines = bp._also_noticed_block([f1, f10], "http://cat")[0]
+    body = "\n".join(lines)
+    # The two fungible occurrences fold into ONE bill-only row (same pattern, both rm-only).
+    assert body.count("<summary>") == 1
+    # ...whose "Where" lists BOTH members' jobs.
+    where = next(ln for ln in body.splitlines() if ln.startswith("**Where:**"))
+    assert "Build-Docs" in where and "spark-integration-test" in where
+    # The single Evidence line must explain BOTH listed members, not just the first —
+    # f10's evidence (spark-connect-integration-test) was being dropped, leaving its job in
+    # "Where" unexplained.
+    ev_line = next(ln for ln in body.splitlines() if ln.startswith("**Evidence:**"))
+    assert "Build-Docs" in ev_line                       # f1's evidence (kept)
+    assert "spark-connect-integration-test" in ev_line   # f10's evidence (was dropped)
+    # The embedded agent prompt's "What ci-speedup saw" shares the same evidence source and
+    # must reconcile with "Where" too.
+    saw = next(ln for ln in body.splitlines() if ln.startswith("What ci-speedup saw:"))
+    assert "Build-Docs" in saw and "spark-connect-integration-test" in saw
+
+
+def test_also_noticed_wall_clock_magnitude_and_evidence_describe_same_member():
+    # Regression (flwrlabs/flower): a wall-clock-lever group's displayed magnitude is
+    # `max(wall_clock_p50_s for m in ms)` (ONE member), but the evidence was sourced from the
+    # FIRST member carrying an evidence string — a DIFFERENT member. So the headline (one
+    # on-path job's ~3m09s) and the evidence (a different, 0s, off-path job) described two
+    # jobs that don't reconcile. The magnitude and the evidence MUST come from the same
+    # member (the one whose wall-clock drives the displayed figure). OPT24 groups by pattern
+    # id, so both members land in ONE group and exercise the driver-vs-first-evidence path.
+    off_path = {"pattern": "OPT24", "title": "Long Test Job Without Sharding", "id": "1",
+                "workflow_file": "datasets-e2e.yml", "line": 5, "affected_jobs": ["e2e"],
+                "wall_clock_p50_s": 0.0, "runner_min_saving": 0.0,
+                "evidence": "datasets-e2e job runs the e2e suite serially"}
+    driver = {"pattern": "OPT24", "title": "Long Test Job Without Sharding", "id": "7",
+              "workflow_file": "framework-test.yml", "line": 9, "affected_jobs": ["framework"],
+              "wall_clock_p50_s": 189.4, "runner_min_saving": 0.0,
+              "evidence": "framework-test: full suite runs ~3m09s serially"}
+    # off_path is FIRST (so the old `next(... with evidence)` would pick it), driver is the
+    # max-wall-clock member that sets the displayed `~3m 09s` magnitude.
+    body = "\n".join(bp._also_noticed_block([off_path, driver], "http://cat")[0])
+    assert "~3m 09s wall-clock" in body  # magnitude is the driver's 189.4s
+    # The Evidence line beside that 3m09s magnitude must describe the SAME (driver) job,
+    # not the off-path 0s member that merely happened to be listed first.
+    ev_line = next(ln for ln in body.splitlines() if ln.startswith("**Evidence:**"))
+    assert "framework-test" in ev_line
+    assert "datasets-e2e" not in ev_line
+    # The embedded agent prompt's "What ci-speedup saw" must reconcile with its own
+    # "~3m 09s" saving line too (it shares `_hygiene_prompt`).
+    saw = next(ln for ln in body.splitlines() if ln.startswith("What ci-speedup saw:"))
+    assert "framework-test" in saw and "datasets-e2e" not in saw
+
+
+def test_also_noticed_wall_clock_banner_does_not_prescribe_sharding_for_non_opt24():
+    # Regression (lancedb/lancedb): the on-critical-path wall-clock banner (and its agent
+    # prompt) hardcoded OPT24's sharding remedy — "its fix (sharding / parallelizing the
+    # suite) cuts developer wall-clock" — for EVERY credited finding. That is wrong for a
+    # credited non-OPT24 pattern (OPT28 'Full Git History Checkout' → reduce fetch-depth;
+    # a credited on-spine OPT73 → extract/cache the shared step), AND it violates the
+    # skill's "does NOT prescribe the fix" invariant. The banner must assert the
+    # on-critical-path / wall-clock fact WITHOUT naming a specific remedy. (Magnitudes are
+    # kept above `_WALL_CLOCK_LONG_POLE_FLOOR_S` so the saves_wc reframe fires.)
+    for pat, title, extra in [
+        ("OPT28", "Full Git History Checkout", {"runner_min_saving": 0.0}),
+        ("OPT73", "Shared step recurs across the cluster",
+         {"structural": True, "runner_min_saving": 984.0}),
+    ]:
+        f = {"pattern": pat, "title": title, "id": "f1", "workflow_file": "ci.yml",
+             "line": 5, "affected_jobs": ["pydantic1x"], "wall_clock_p50_s": 60.0, **extra}
+        body = "\n".join(bp._also_noticed_block([f], "http://cat")[0]).lower()
+        # The honest on-critical-path / wall-clock framing is still present.
+        assert "merge-gating critical path" in body
+        assert "wall-clock" in body
+        # ...but it must NOT prescribe sharding / parallelizing — that is OPT24's remedy,
+        # not this pattern's, and prescribing any fix breaks the no-prescription invariant.
+        assert "sharding" not in body, f"{pat} banner/prompt prescribes sharding"
+        assert "parallelizing" not in body, f"{pat} banner/prompt prescribes parallelizing"
+
+
+def test_also_noticed_flags_shallow_sampled_figures():
+    # When adaptive sampling left off-path workflows shallow, the hygiene appendix must
+    # carry a visible "approximate — re-run at full depth" flag (chosen design: keep the
+    # speedup, flag the rough findings).
+    findings = [{"pattern": "OPT33", "title": "No Draft PR Gating", "id": "f1",
+                 "workflow_file": "x.yml", "runner_min_saving": 100}]
+    lines, n, _ = bp._also_noticed_block(findings, "http://cat",
+                                      shallow_note="Approximate: shallow 10-run sample; "
+                                      "re-run with `--shallow-runs 20` to confirm.")
+    body = "\n".join(lines)
+    assert n >= 1
+    assert "⚠️" in body and "Approximate" in body and "--shallow-runs 20" in body
+    # No note passed → no flag (a full-depth run reads clean).
+    clean, _, _ = bp._also_noticed_block(findings, "http://cat")
+    assert "Approximate" not in "\n".join(clean)
+
+
+def test_queue_wait_block_renders_opt43_as_wall_clock_not_bill():
+    # OPT43 (pre-start wait) gets its OWN section framed as developer WALL-CLOCK wait,
+    # ranked by savable wait — NOT the runner-minute hygiene appendix (which would tell the
+    # reader it removes ~0 wall-clock). And it's excluded from _also_noticed_block.
+    opt43 = {"pattern": "OPT43", "title": "Excessive Queue Time", "id": "f1",
+             "workflow_file": "x.yml", "job": "e2e", "wall_clock_p50_s": 130.0,
+             "runner_min_saving": None}
+    hygiene = {"pattern": "OPT33", "title": "No Draft PR Gating", "id": "f2",
+               "workflow_file": "y.yml", "runner_min_saving": 100}
+    qlines = bp._queue_wait_block([opt43, hygiene], "http://cat")
+    body = "\n".join(qlines)
+    assert "Pre-start wait (queue time)" in body
+    assert "OPT43" in body and "wait-to-start" in body
+    assert "worst savable wait 2m 10s" in body   # _clock(130) ranked headline
+    assert "OPT33" not in body                # only wait-family patterns
+    # The embedded agent prompt must match the section, not contradict it: developer
+    # WALL-CLOCK wait, NOT the off-path "~0 developer wall-clock" bill framing.
+    assert "developer WALL-CLOCK wait before the job starts" in body
+    assert "~0 developer wall-clock" not in body
+    assert "cloud-bill cut" not in body
+    # OPT43 must NOT appear in the runner-minute appendix.
+    also, _, _ = bp._also_noticed_block([opt43, hygiene], "http://cat")
+    assert "OPT43" not in "\n".join(also) and "OPT33" in "\n".join(also)
+    # No wait finding → empty section.
+    assert bp._queue_wait_block([hygiene], "http://cat") == []
+
+
+def test_queue_wait_block_ranks_by_savable_groups_and_truncates():
+    # Multiple OPT43 findings: ranked savable-desc (worst leads the headline), the occurrence
+    # string counts distinct workflow files, and >8 occurrences truncate with "+N more".
+    findings = [{"pattern": "OPT43", "title": "Excessive Queue Time", "id": f"f{i}",
+                 "workflow_file": f"wf{i % 2}.yml", "line": i, "job": f"j{i}",
+                 "wall_clock_p50_s": float(i * 10)}
+                for i in range(1, 11)]              # i=10 (100s) is the worst
+    body = "\n".join(bp._queue_wait_block(findings, "http://cat"))
+    assert "worst savable wait 1m 40s" in body     # _clock(100) leads, not a smaller one
+    assert "10 across 2 wf" in body                # 10 occurrences over wf0.yml + wf1.yml
+    assert "+2 more" in body                       # only the first 8 locations listed
+    # The advisory exclusion: an advisory OPT43 never renders a section.
+    adv = [{"pattern": "OPT43", "title": "Excessive Queue Time", "id": "a1",
+            "workflow_file": "x.yml", "advisory": True, "wall_clock_p50_s": 200.0}]
+    assert bp._queue_wait_block(adv, "http://cat") == []
+
+
+def test_queue_wait_block_renders_one_label_table_per_workflow():
+    rows = [{"runner_label": "self-hosted linux", "n": 3,
+             "queue_p50_s": 90.0, "queue_p95_s": 100.0,
+             "work_n": 3, "work_p50_s": 30.0}]
+    findings = [
+        {"pattern": "OPT43", "title": "Excessive Queue Time", "id": f"f{i}",
+         "workflow_file": ".github/workflows/ci.yml", "affected_jobs": [job],
+         "wall_clock_p50_s": 90.0, "queue_by_runner_label": rows,
+         "queue_label_comparison": {"unavailable": True}}
+        for i, job in enumerate(("build", "test"), 1)
+    ]
+
+    body = "\n".join(bp._queue_wait_block(findings, "http://cat"))
+
+    assert body.count("Runner-label queue/work for `.github/workflows/ci.yml`") == 1
+    assert body.count("Runner-label comparison for `build`") == 1
+    assert body.count("Runner-label comparison for `test`") == 1
+
+
+def test_is_wait_finding_excludes_zero_savable_wait():
+    # The dogfood overstatement: 107 OPT43 findings emitted but only the few with a positive
+    # floor-capped savable wait belong in the section/TOC count. A zero-savable queue finding
+    # (a Slack-notify / scheduled job no one merge-waits on) is excluded from both.
+    real = {"pattern": "OPT43", "wall_clock_p50_s": 64.0}
+    zero = {"pattern": "OPT43", "wall_clock_p50_s": 0.0}
+    assert bp._is_wait_finding(real) is True
+    assert bp._is_wait_finding(zero) is False
+    body = "\n".join(bp._queue_wait_block([real, zero, zero, zero], "http://cat"))
+    assert "1 occurrence" in body or "1 across" in body   # only the 1 real one counted
+    # ...and the 3 dropped zero-savable findings are DISCLOSED (no silent drop), like the
+    # hygiene appendix's "+N more ... kept in the findings JSON".
+    assert "3 more queue findings have no addressable wait" in body
+    assert "kept in the findings JSON" in body
+    # No disclosure line when nothing was dropped.
+    assert "no addressable wait" not in "\n".join(bp._queue_wait_block([real], "http://cat"))
+
+
+def test_queue_wait_block_surfaces_shallow_note():
+    # A shallow-sample run flags the queue figures as approximate (its own code path,
+    # separate from the also-noticed appendix's copy of the warning).
+    opt43 = {"pattern": "OPT43", "title": "Excessive Queue Time", "id": "f1",
+             "workflow_file": "x.yml", "job": "e2e", "wall_clock_p50_s": 130.0}
+    body = "\n".join(bp._queue_wait_block([opt43], "http://cat",
+                                          shallow_note="Approximate: shallow 10-run "
+                                          "sample; re-run to confirm."))
+    assert "⚠️" in body and "Approximate: shallow 10-run sample" in body
+    # No note → no warning line.
+    assert "⚠️" not in "\n".join(bp._queue_wait_block([opt43], "http://cat"))
+
+
+def test_toc_block_renders_pre_start_wait_pointer_and_pluralizes():
+    # The TOC gains a "⏳ Pre-start wait" pointer driven by queue_count, with grammatical
+    # subject/verb agreement: "1 job waits" vs "2 jobs wait".
+    pole_wfs = [{"check": "tests", "p50_s": 100.0,
+                 "workflow_file": ".github/workflows/ci.yml"}]
+    wf_gate = {".github/workflows/ci.yml": 5}
+    one = "\n".join(bp._toc_block(pole_wfs, wf_gate, 20, queue_count=1))
+    assert "**⏳ Pre-start wait** — 1 job waits in queue" in one
+    assert "[see below](#pre-start-wait)" in one
+    two = "\n".join(bp._toc_block(pole_wfs, wf_gate, 20, queue_count=2))
+    assert "**⏳ Pre-start wait** — 2 jobs wait in queue" in two
+    # queue_count=0 → no pointer at all.
+    zero = "\n".join(bp._toc_block(pole_wfs, wf_gate, 20, queue_count=0))
+    assert "Pre-start wait" not in zero
+
+
+def test_render_wires_queue_section_above_also_noticed():
+    # End-to-end through render(): an OPT43 finding produces the section, the TOC pointer,
+    # the `---` separator, and sits ABOVE the "Also noticed" appendix. Guards the two
+    # independent copies of the queue predicate (render's queue_count vs the block's own
+    # filter) from drifting into a dead #pre-start-wait anchor.
+    doc = _doc_with_findings()
+    doc["findings"].append(
+        {"id": "q1", "pattern": "OPT43", "title": "Excessive Queue Time",
+         "severity": "MEDIUM", "runner_min_saving": None, "wall_clock_p50_s": 130.0,
+         "workflow_file": ".github/workflows/ci.yml", "line": 40, "job": "e2e"})
+    md = bp.render(doc, {}, {}, {}, "2026-06-08")
+    assert "## ⏳ Pre-start wait (queue time)" in md
+    assert '<a id="pre-start-wait"></a>' in md
+    # render() flattens em-dashes to ASCII hyphens at the boundary (_strip_emdashes).
+    assert "**⏳ Pre-start wait** - 1 job waits in queue" in md   # TOC pointer rendered
+    # The section sits above the runner-minute appendix (and the anchor it points at
+    # actually exists in the body — no dead link).
+    assert md.index("pre-start-wait") < md.index("## 🧹 Also noticed")
+    assert md.index("## ⏳ Pre-start wait (queue time)") < md.index("## 🧹 Also noticed")
+
+
+def _doc_rare_and_typical_poles() -> dict:
+    # Two FILE poles: a slow, rarely-run benchmark (present on 1/20 PRs — label-gated/opt-in)
+    # and a typical test gate (present on a majority). populations drive presence/npop.
+    doc = _doc_one_pole()
+    cp = doc["pr_critical_path"]
+    cp["poles"] = [
+        {"check": "Run Benchmark Jobs", "p50_s": 9000.0,
+         "workflow_file": ".github/workflows/benchmark.yml", "job": "Run Benchmark Jobs",
+         "dominant_step": "bench", "dominant_p50_s": 8000.0,
+         "steps": [{"step": "bench", "category": "test", "p50_s": 8000.0}]},
+        {"check": "Test suite", "p50_s": 1400.0,
+         "workflow_file": ".github/workflows/test.yml", "job": "Test suite",
+         "dominant_step": "run tests", "dominant_p50_s": 900.0,
+         "steps": [{"step": "run tests", "category": "test", "p50_s": 900.0}]},
+    ]
+    cp["checks"] = [{"name": "Run Benchmark Jobs", "p50_s": 9000.0},
+                    {"name": "Test suite", "p50_s": 1400.0},
+                    {"name": "lint", "p50_s": 200.0}]
+    cp["populations"] = (
+        [[0.05, [["Run Benchmark Jobs", 9000.0], ["Test suite", 1400.0]]]] * 1 +
+        [[0.05, [["Test suite", 1400.0]]]] * 14 +
+        [[0.05, [["lint", 200.0]]]] * 5)
+    return doc
+
+
+def test_rare_slow_file_pole_does_not_headline_and_is_labeled_opt_in():
+    # A label-gated/opt-in benchmark that ran on only 1/20 PRs must NOT headline "why is the
+    # merge slow?" just because it's the slowest job. The typical gate (majority-present)
+    # headlines; the rare giant is demoted and labeled opt-in / conditional with its presence
+    # count — and is NEVER mislabeled as an external review check (it's a fixable workflow).
+    doc = _doc_rare_and_typical_poles()
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG, "benchmark": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1",
+                    "benchmark": "https://github.com/o/r/actions/runs/2"}, "2026-06-08")
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    assert "`Test suite` is the slowest check a typical PR waits on" in head   # typical gate headlines
+    assert "`Run Benchmark Jobs`" in head and "ran on only 1/20 sampled PRs" in head
+    assert "opt-in / conditional" in head
+    assert "external review check" not in md          # the bug: a rare FILE pole is NOT external
+    # Demoted, but still surfaced as a drilled pole carrying the opt-in label (not the gate).
+    assert "Long pole 1: `test.yml` ▸ `Test suite`" in md
+    assert "Opt-in / rare - ran on only 1/20 sampled PRs" in md   # typographic dash normalized to '-'
+
+
+def test_required_scoped_minority_pole_reads_as_required_path_conditional():
+    # trigger.dev regression: when the spine was REQUIRED-SCOPED (spine_required_scoped True —
+    # the data layer ACTUALLY narrowed it to required-reachable checks), a demoted minority
+    # FILE pole is a *required* path-conditional gate — NOT an opt-in benchmark. It must be
+    # reframed "required · path-conditional" (it gates the PRs that run it), never "opt-in /
+    # throughput, not merge-wait" (which would tell the user a required gate is skippable). All
+    # THREE label sites (headline, "Also slower" note, per-pole role) must be reframed.
+    doc = _doc_rare_and_typical_poles()
+    doc["pr_critical_path"]["spine_required_scoped"] = True
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG, "benchmark": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1",
+                    "benchmark": "https://github.com/o/r/actions/runs/2"}, "2026-06-08")
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    assert "`Test suite` is the slowest check a typical PR waits on" in head   # typical gate still headlines
+    # Site 1 (headline): the demoted required leg is reframed, not called opt-in/throughput.
+    assert "is a *required* gate" in head and "path-conditional" in head
+    # Site 2 ("Also slower" note): reframed to *required* path-conditional, with the
+    # required-gate tail — not the opt-in/throughput note.
+    note = next(l for l in md.split("\n") if "Also slower on **some**" in l)
+    assert "*required* check(s) that ran on a minority of sampled PRs" in note
+    assert "gate the merge on the PRs that run them" in note
+    assert "opt-in / conditional workflow check(s)" not in note
+    assert "treat it as throughput/cost (an opt-in job)" not in note
+    # Site 3 (per-pole role): reframed.
+    assert "Required · path-conditional - ran on 1/20 sampled PRs" in md       # role label reframed
+    assert "throughput/cost, not merge-wait" not in md                         # the bug framing is gone
+    assert "opt-in / conditional (e.g. label-gated)" not in md
+
+
+def test_confirmed_required_need_headlines_before_faster_unpinnable_keep():
+    """A conservative cat-3 keep stays visible without outranking a proven gate."""
+    doc = _doc_one_pole()
+    doc["required_checks"] = ["merge-gate"]
+    cp = doc["pr_critical_path"]
+    cp.update({
+        "spine_required_scoped": True,
+        "critical_path_check": "mystery matrix",
+        "critical_path_s": 500.0,
+        "checks": [
+            {"name": "mystery matrix", "p50_s": 500.0, "present_on": 20},
+            {"name": "unit", "p50_s": 300.0, "present_on": 20},
+        ],
+        "populations": [
+            [1.0, [["mystery matrix", 500.0], ["unit", 300.0]]]
+            for _ in range(20)
+        ],
+        "poles": [
+            {"check": "mystery matrix", "p50_s": 500.0,
+             "workflow_file": ".github/workflows/mystery.yml", "job": "mystery matrix",
+             "required_reachable": False},
+            {"check": "unit", "p50_s": 300.0,
+             "workflow_file": ".github/workflows/ci.yml", "job": "unit",
+             "required_reachable": True},
+        ],
+    })
+
+    selected, _ = bp._select_render_poles(doc, cp["poles"])
+    assert [p["check"] for p in selected] == ["unit", "mystery matrix"]
+
+    report = bp.render(doc, {}, {}, {}, "2026-11-05")
+    assert "Long pole 1: `ci.yml` ▸ `unit`" in report
+    assert "Could not confirm this check blocks merging" in report
+    headline = next(line for line in report.splitlines() if "until all checks finish" in line)
+    assert "`unit` is the slowest check a typical PR waits on" in headline
+    assert "mystery matrix" not in headline
+
+    # An unreadable required set has no reachability stamps and keeps the old order.
+    unreadable = _doc_one_pole()
+    unreadable_cp = unreadable["pr_critical_path"]
+    unreadable_cp["poles"] = [
+        {k: v for k, v in p.items() if k != "required_reachable"}
+        for p in cp["poles"]
+    ]
+    unchanged, _ = bp._select_render_poles(unreadable, unreadable_cp["poles"])
+    assert [p["check"] for p in unchanged] == ["mystery matrix", "unit"]
+
+
+def test_sampling_scoped_but_spine_unscoped_keeps_opt_in_framing():
+    # Correctness guard for the flag fix: `required_suite_scoped` (the SAMPLING flag) can be
+    # True on a partial / anchorless required read where `_scope_spine_to_required` stayed
+    # inert and the spine still holds NON-required checks. The relabel must key off
+    # `spine_required_scoped` (the narrowing-fired flag), NOT `required_suite_scoped` — else a
+    # genuinely non-required opt-in benchmark gets mislabeled a "required gate", the exact
+    # inversion of the bug this guards. With the sampling flag set but the spine flag unset,
+    # the demoted minority pole keeps the opt-in / throughput framing.
+    doc = _doc_rare_and_typical_poles()
+    doc["pr_critical_path"]["required_suite_scoped"] = True
+    doc["pr_critical_path"]["spine_required_scoped"] = False
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG, "benchmark": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1",
+                    "benchmark": "https://github.com/o/r/actions/runs/2"}, "2026-06-08")
+    assert "Opt-in / rare - ran on only 1/20 sampled PRs" in md   # opt-in framing kept
+    assert "is a *required* gate" not in md                       # NOT relabeled required
+    assert "Required · path-conditional" not in md
+
+
+def test_unobservable_required_check_is_disclosed_in_report():
+    # No-silent-drop: a required check excluded from the suite test as status-only/external
+    # (`required_checks_unobservable`) must be NAMED in the rendered report, not just the JSON
+    # — the gate was measured on the observable subset, so the excluded check is unmeasurable,
+    # never silently treated as satisfied.
+    doc = _doc_one_pole()
+    doc["pr_critical_path"]["required_checks_unobservable"] = ["Devin Review"]
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1"}, "2026-06-08")
+    assert "Status-only required check(s) excluded from the suite test:" in md
+    assert "`Devin Review`" in md
+    assert "observable" in md
+
+
+def test_external_fileless_minority_check_still_reads_as_external():
+    # No-regression: a genuinely external/managed check (an AI review bot with NO workflow
+    # file) that's slow but ran on a minority of PRs keeps the "external review check" framing
+    # — the file-vs-external split must not turn every minority check into "opt-in".
+    doc = _doc_one_pole()
+    cp = doc["pr_critical_path"]
+    cp["poles"] = [{
+        "check": "Test suite", "p50_s": 1400.0,
+        "workflow_file": ".github/workflows/test.yml", "job": "Test suite",
+        "dominant_step": "run tests", "dominant_p50_s": 900.0,
+        "steps": [{"step": "run tests", "category": "test", "p50_s": 900.0}]}]
+    cp["checks"] = [{"name": "Claude Code Review", "p50_s": 5000.0},  # fileless, no pole
+                    {"name": "Test suite", "p50_s": 1400.0}]
+    cp["populations"] = (
+        [[0.05, [["Claude Code Review", 5000.0], ["Test suite", 1400.0]]]] * 2 +
+        [[0.05, [["Test suite", 1400.0]]]] * 18)
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1"}, "2026-06-08")
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    assert "`Test suite` is the slowest check a typical PR waits on" in head
+    assert "`Claude Code Review`" in head and "external review check" in head   # kept
+    assert "opt-in / conditional" not in head
+
+def _doc_two_typical_poles_one_rare_gate() -> dict:
+    # flwrlabs/flower regression: TWO file poles BOTH present on every sampled PR, so both
+    # pass the presence-based typical/rare split. But one (`Python 3.11`) is slower by global
+    # p50 (743s) while only being the ACTUAL per-PR gate on 3/20 PRs; the other (`Python 3.13`)
+    # is the real gate on 17/20. The headline must crown the actual gate (frequency), not the
+    # slowest-but-rarely-gating check, even though both are "typical" by presence.
+    doc = _doc_one_pole()
+    cp = doc["pr_critical_path"]
+    cp["poles"] = [
+        {"check": "Python 3.11", "p50_s": 743.0,
+         "workflow_file": ".github/workflows/datasets-test.yml", "job": "Python 3.11",
+         "dominant_step": "run tests", "dominant_p50_s": 600.0,
+         "steps": [{"step": "run tests", "category": "test", "p50_s": 600.0}]},
+        {"check": "Python 3.13", "p50_s": 620.0,
+         "workflow_file": ".github/workflows/framework-test.yml", "job": "Python 3.13",
+         "dominant_step": "run tests", "dominant_p50_s": 500.0,
+         "steps": [{"step": "run tests", "category": "test", "p50_s": 500.0}]},
+    ]
+    cp["checks"] = [{"name": "Python 3.11", "p50_s": 743.0},
+                    {"name": "Python 3.13", "p50_s": 620.0}]
+    # 20 per-PR populations: both checks present on every PR (so both are "typical" by
+    # presence), but `Python 3.11` is the slowest (the pole) on only 3 and `Python 3.13` on 17.
+    cp["populations"] = (
+        [[0.05, [["Python 3.11", 743.0], ["Python 3.13", 500.0]]]] * 3 +
+        [[0.05, [["Python 3.11", 600.0], ["Python 3.13", 700.0]]]] * 17)
+    return doc
+
+
+def test_headline_crowns_actual_gate_not_slowest_when_both_typical():
+    # The slowest typical pole (`Python 3.11`, 743s) gates only 3/20 PRs; the actual gate is
+    # `Python 3.13` (17/20). With both present on every PR the old presence-only split kept
+    # both typical and crowned `Python 3.11` by p50. The fix orders typical poles by how often
+    # they ACTUALLY gate, so the headline + Long pole 1 name the real gate, and the slowest
+    # check is reported separately (never crowned as the gate).
+    doc = _doc_two_typical_poles_one_rare_gate()
+    md = bp.render(
+        doc, {"datasets-test": _IMPORT_BOUND_LOG, "framework-test": _IMPORT_BOUND_LOG}, {},
+        {"datasets-test": "https://github.com/o/r/actions/runs/1",
+         "framework-test": "https://github.com/o/r/actions/runs/2"}, "2026-06-08")
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    # The real gate (most PRs gate on it) is named as the gate; the slowest check is reported
+    # truthfully as the floor, NOT crowned as "the slowest check a typical PR waits on".
+    assert "`Python 3.13` is the check" in head and "most PRs gate on" in head
+    assert "`Python 3.11`" not in head or "is the slowest check a typical PR waits on" not in head
+    # Long pole 1 is the actual gate, not the slowest-but-rare pole.
+    assert "Long pole 1: `framework-test.yml` ▸ `Python 3.13`" in md
+    # The actual gate must NOT be mislabeled "the slowest check a typical PR waits on".
+    gate_role_idx = md.find("Long pole 1: `framework-test.yml` ▸ `Python 3.13`")
+    next_pole_idx = md.find("Long pole 2", gate_role_idx)
+    gate_section = md[gate_role_idx:next_pole_idx if next_pole_idx != -1 else len(md)]
+    assert "The slowest check a typical PR waits on" not in gate_section
+
+
+def test_provenance_discloses_triaged_fast_workflows():
+    # Run-list triage must be visible, never silent: the provenance block names the fast
+    # workflows whose job fetch was skipped and flags their hygiene as run-list-only.
+    doc = _prov_doc()
+    doc["data_sources"].update({
+        "gh_query_count": 150, "shallow_runs": 10, "max_runs": 20, "shallow_capped": True,
+        "deepened_workflows": 3, "pole_candidates": 5, "deepen_converged": True,
+        "triaged_fast_workflows": [".github/workflows/lint.yml",
+                                    ".github/workflows/check-typo.yml"]})
+    block = "\n".join(bp._provenance_block(doc, "o/r", "2026-06-08"))
+    assert "Fast workflows triaged (no job fetch):" in block
+    assert "2 workflow(s)" in block
+    assert "`lint.yml`" in block and "`check-typo.yml`" in block
+    # No triaged workflows -> no line.
+    doc["data_sources"]["triaged_fast_workflows"] = []
+    assert "Fast workflows triaged" not in "\n".join(bp._provenance_block(doc, "o/r", "2026-06-08"))
+
+
+def test_renderer_demotes_via_present_on_fallback_when_no_populations():
+    # The common non-bimodal case: M2 emitted no `populations`, so the renderer must fall
+    # back to the data layer's per-check `present_on` / `check_present_n_pr` to still demote a
+    # rare pole. (Every other rare-pole test sets `populations`; this pins the fallback path.)
+    doc = _doc_rare_and_typical_poles()
+    cp = doc["pr_critical_path"]
+    cp["populations"] = []
+    cp["populations_n"] = 0
+    cp["check_present_n_pr"] = 20
+    cp["checks"] = [{"name": "Run Benchmark Jobs", "p50_s": 9000.0, "present_on": 1},
+                    {"name": "Test suite", "p50_s": 1400.0, "present_on": 15},
+                    {"name": "lint", "p50_s": 200.0, "present_on": 18}]
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG, "benchmark": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1",
+                    "benchmark": "https://github.com/o/r/actions/runs/2"}, "2026-06-08")
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    assert "`Test suite` is the slowest check a typical PR waits on" in head   # fallback worked
+    assert "ran on only 1/20 sampled PRs" in head
+    assert "external review check" not in md
+
+
+def test_renderer_no_demotion_when_presence_unknown_zero_denominator():
+    # check_present_n_pr == 0 means presence is UNKNOWN (not "absent") — the renderer must
+    # NOT demote every pole to rare. Guards the 0-denominator fallback regression.
+    doc = _doc_rare_and_typical_poles()
+    cp = doc["pr_critical_path"]
+    cp["populations"] = []
+    cp["populations_n"] = 0
+    cp["check_present_n_pr"] = 0
+    cp["checks"] = [{"name": "Run Benchmark Jobs", "p50_s": 9000.0, "present_on": 0},
+                    {"name": "Test suite", "p50_s": 1400.0, "present_on": 0}]
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG, "benchmark": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1",
+                    "benchmark": "https://github.com/o/r/actions/runs/2"}, "2026-06-08")
+    assert "Opt-in / rare" not in md          # nothing demoted when presence is unknown
+
+
+def test_renderer_no_rare_label_on_small_sample_fallback():
+    # Regression for the toolkit-review finding: with the present_on fallback AND a sample
+    # below _RARE_PRESENCE_MIN_PR, the renderer must NOT demote OR label a check rare — the
+    # typical/minority label split is guarded by the same threshold as the pole ordering, so
+    # the prose can't contradict the (un-demoted) ranking on a tiny sample.
+    doc = _doc_rare_and_typical_poles()
+    cp = doc["pr_critical_path"]
+    cp["populations"] = []
+    cp["populations_n"] = 0
+    cp["check_present_n_pr"] = 4          # < 6 -> inert
+    cp["checks"] = [{"name": "Run Benchmark Jobs", "p50_s": 9000.0, "present_on": 1},
+                    {"name": "Test suite", "p50_s": 1400.0, "present_on": 3}]
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG, "benchmark": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1",
+                    "benchmark": "https://github.com/o/r/actions/runs/2"}, "2026-06-08")
+    assert "Opt-in / rare" not in md            # no role-label demotion on a tiny sample
+    assert "opt-in / conditional" not in md     # no minority-footnote label either
+
+
+def test_minority_file_check_below_poles_reads_as_opt_in_not_external():
+    # greptile P2: a rare FILE check that never ranked as a drilled pole (e.g. a slow upload
+    # job) must read as "opt-in / conditional", not "external review check" — recognized via
+    # its own emitted `workflow_file`, independent of whether it was drilled.
+    doc = _doc_one_pole()
+    cp = doc["pr_critical_path"]
+    cp["poles"] = [{"check": "Test suite", "p50_s": 1400.0,
+                    "workflow_file": ".github/workflows/test.yml", "job": "Test suite",
+                    "dominant_step": "run tests", "dominant_p50_s": 900.0,
+                    "steps": [{"step": "run tests", "category": "test", "p50_s": 900.0}]}]
+    cp["check_present_n_pr"] = 20
+    cp["checks"] = [
+        {"name": "Upload artifacts", "p50_s": 5000.0, "present_on": 1,
+         "workflow_file": ".github/workflows/release.yml"},   # file-backed, NOT a drilled pole
+        {"name": "Test suite", "p50_s": 1400.0, "present_on": 15,
+         "workflow_file": ".github/workflows/test.yml"},
+        {"name": "lint", "p50_s": 200.0, "present_on": 18,
+         "workflow_file": ".github/workflows/lint.yml"}]
+    cp["populations"] = ([[0.05, [["Upload artifacts", 5000.0], ["Test suite", 1400.0]]]]
+                         + [[0.05, [["Test suite", 1400.0]]]] * 14
+                         + [[0.05, [["lint", 200.0]]]] * 5)
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1"}, "2026-06-08")
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    assert "`Test suite` is the slowest check a typical PR waits on" in head
+    assert "`Upload artifacts`" in head and "opt-in / conditional" in head
+    assert "external review check" not in md       # the bug: a file-backed minority is NOT external
+
+
+def test_renderer_required_check_on_minority_is_not_demoted():
+    # The renderer's required-check exemption (`name in _required_names` in `_typical_check`)
+    # mirrors the data layer's: a *required* check present on a MINORITY still gates and must
+    # NOT be labeled "Opt-in / rare" or demoted below the typical gate — else the report would
+    # contradict `critical_path_check`, which keeps a required check as the headline.
+    doc = _doc_rare_and_typical_poles()
+    doc["required_checks"] = ["Run Benchmark Jobs"]   # slow + minority (1/20) BUT required
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG, "benchmark": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1",
+                    "benchmark": "https://github.com/o/r/actions/runs/2"}, "2026-06-08")
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    # Exempt -> stays the headline (slowest required gate), never demoted/relabeled rare.
+    assert "`Run Benchmark Jobs` is the slowest check a typical PR waits on" in head
+    assert "Opt-in / rare" not in md
+    assert "opt-in / conditional" not in head
+
+
+def test_renderer_active_demotion_at_min_pr_boundary_fallback():
+    # Renderer analog of the data-layer n==6 boundary test: with the `present_on` fallback and
+    # check_present_n_pr == _RARE_PRESENCE_MIN_PR (6, the first ACTIVE size), the renderer MUST
+    # demote the rare giant. Pins the renderer's `npop >= _RARE_PRESENCE_MIN_PR` against a flip
+    # to `>` that would leave demotion silently off at exactly 6 PRs.
+    assert bp._RARE_PRESENCE_MIN_PR == 6
+    doc = _doc_rare_and_typical_poles()
+    cp = doc["pr_critical_path"]
+    cp["populations"] = []
+    cp["populations_n"] = 0
+    cp["check_present_n_pr"] = 6
+    cp["checks"] = [{"name": "Run Benchmark Jobs", "p50_s": 9000.0, "present_on": 1},
+                    {"name": "Test suite", "p50_s": 1400.0, "present_on": 5}]
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG, "benchmark": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1",
+                    "benchmark": "https://github.com/o/r/actions/runs/2"}, "2026-06-08")
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    assert "`Test suite` is the slowest check a typical PR waits on" in head   # demoted at n=6
+    assert "ran on only 1/6 sampled PRs" in head
+
+
+def test_renderer_demotes_at_exactly_half_presence_fallback():
+    # The renderer carries its OWN duplicated `present > npop*_RARE_PRESENCE_FRAC` predicate
+    # (`_typical_check`). At EXACTLY 50% presence the check is rare (`>` is False, mirroring
+    # the data layer's `<= 0.5`), so it demotes below a >50% typical check. Pins the renderer
+    # operator so a flip to `>=` (which would keep the giant headlining and contradict the
+    # data layer's `critical_path_check`) fails CI — the data-layer analog is
+    # `test_rank_spine_present_first_boundary_exactly_half_is_rare`.
+    doc = _doc_rare_and_typical_poles()
+    cp = doc["pr_critical_path"]
+    cp["populations"] = []
+    cp["populations_n"] = 0
+    cp["check_present_n_pr"] = 10
+    cp["checks"] = [{"name": "Run Benchmark Jobs", "p50_s": 9000.0, "present_on": 5},  # 5/10 = 50%
+                    {"name": "Test suite", "p50_s": 1400.0, "present_on": 8}]          # 8/10 > 50%
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG, "benchmark": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1",
+                    "benchmark": "https://github.com/o/r/actions/runs/2"}, "2026-06-08")
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    assert "`Test suite` is the slowest check a typical PR waits on" in head   # demoted at 50%
+    assert "ran on only 5/10 sampled PRs" in head
+
+
+def test_renderer_partial_present_on_does_not_demote():
+    # If ANY check in the fallback lacks `present_on`, the presence map is incomplete and
+    # unreliable — the renderer must treat it as UNKNOWN and demote nothing (same stance as the
+    # 0-denominator guard), rather than reading the missing key as present_on==0 and silently
+    # marking that check rare.
+    doc = _doc_rare_and_typical_poles()
+    cp = doc["pr_critical_path"]
+    cp["populations"] = []
+    cp["populations_n"] = 0
+    cp["check_present_n_pr"] = 20
+    cp["checks"] = [{"name": "Run Benchmark Jobs", "p50_s": 9000.0},   # MISSING present_on
+                    {"name": "Test suite", "p50_s": 1400.0, "present_on": 15}]
+    md = bp.render(doc, {"test": _IMPORT_BOUND_LOG, "benchmark": _IMPORT_BOUND_LOG}, {},
+                   {"test": "https://github.com/o/r/actions/runs/1",
+                    "benchmark": "https://github.com/o/r/actions/runs/2"}, "2026-06-08")
+    assert "Opt-in / rare" not in md            # incomplete presence -> nothing demoted
+    assert "opt-in / conditional" not in md
+
+
+# --------------------------------------------------------------------------- #
+# _mag_line — degenerate cross-run sample must not read as "stable/validated"
+# --------------------------------------------------------------------------- #
+
+def test_mag_line_flags_degenerate_sample_not_stable():
+    # Defensive guard for the duplicate-named-step bug: if every sampled value
+    # collapsed to 0 while the drilled value is large, the renderer must NOT claim the
+    # magnitude is "stable across runs" — it must flag it as NOT cross-run validated.
+    mag = {
+        "label": "the `Run tests on android emulator` step (wall)",
+        "unit": "s", "kind": "step-wall", "this_run": 358.0, "escalated": False,
+        "values": [
+            {"run_url": "https://example/runs/1", "value": 0.0, "drilled": True},
+            {"run_url": "https://example/runs/2", "value": 0.0, "drilled": False},
+            {"run_url": "https://example/runs/3", "value": 0.0, "drilled": False},
+        ],
+    }
+    out = "\n".join(bp._mag_line(mag, None))
+    assert "stable across runs" not in out
+    assert "validated" in out and "NOT cross-run validated" in out
+
+
+def test_mag_line_healthy_step_wall_still_reads_stable():
+    # The consistent post-fix shape (values track this_run) keeps its normal verdict.
+    mag = {
+        "label": "the `Gradle :test` step (wall)",
+        "unit": "s", "kind": "step-wall", "this_run": 1000.0, "escalated": False,
+        "values": [
+            {"run_url": "https://example/runs/1", "value": 1000.0, "drilled": True},
+            {"run_url": "https://example/runs/2", "value": 1010.0, "drilled": False},
+            {"run_url": "https://example/runs/3", "value": 990.0, "drilled": False},
+        ],
+    }
+    out = "\n".join(bp._mag_line(mag, None))
+    assert "stable across runs" in out
+    assert "NOT cross-run validated" not in out
+
+
+def test_mag_line_discloses_replayed_sibling_when_too_few_values_survive():
+    mag = {
+        "label": "test work", "unit": "s", "this_run": 10.0,
+        "values": [{"run_url": "https://example/runs/1", "value": 10.0,
+                    "drilled": True}],
+        "replayed_result_logs_excluded": 1,
+    }
+
+    out = "\n".join(bp._mag_line(mag, None))
+
+    assert "1 fetched sibling log was left out" in out
+    assert "replayed from cache" in out
+    assert "Cross-run check" not in out
+
+
+def test_mag_line_discloses_replayed_sibling_beside_surviving_baseline():
+    mag = {
+        "label": "test work", "unit": "s", "this_run": 10.0,
+        "values": [
+            {"run_url": "https://example/runs/1", "value": 10.0, "drilled": True},
+            {"run_url": "https://example/runs/2", "value": 11.0},
+        ],
+        "replayed_result_logs_excluded": 2,
+    }
+
+    out = "\n".join(bp._mag_line(mag, None))
+
+    assert "Cross-run check" in out
+    assert "2 fetched sibling logs were left out" in out
+
+
+# The one sentence every fork disclosure must land on. A fork PR is NOT colder because it
+# "cannot save" a cache — a same-repo PR saves under the identical merge-ref scoping. What is
+# fork-specific is that it gets no repo secrets (so a secrets-gated remote cache is out of
+# reach) and can restore only the base branch's scope. Every rendered disclosure is pinned to
+# that reason below, because a report that excludes data must say what the exclusion is FOR.
+_FORK_TAG = " — fork PR (no repo secrets; can't reach upstream branch caches)"
+
+
+def test_mag_line_annotates_fork_run_in_the_common_case_loop():
+    # PR #126 fresh-review (Angle A): the fork disclosure was added to only the degenerate
+    # "NOT cross-run validated" per-run loop; the common-case (n>=5) loop emitted fork runs
+    # unannotated, so a fork PR's cold-cache miss read as an ordinary upstream point in the
+    # range. Both loops must annotate the fork run.
+    vals = [{"run_url": f"https://x/runs/{i}", "value": 12.0} for i in range(1, 5)]
+    vals.append({"run_url": "https://x/runs/9", "value": 95.0, "fork": True})  # cold fork run
+    mag = {"unit": "%", "label": "packages rebuilt", "this_run": 12.0, "values": vals}
+    out = "\n".join(bp._mag_line(mag, {"fix_key": "turbo-partial-cache"}))
+    assert "[run 9](https://x/runs/9) — 95%" + _FORK_TAG in out
+
+
+def test_mag_line_annotates_fork_run_in_the_degenerate_loop():
+    # PR #75 review: only the common-case loop's tag was pinned, so the DEGENERATE
+    # ("NOT cross-run validated", n<5) loop's identical tag could drift or be dropped with the
+    # whole suite green — re-opening PR #126's bug in the other direction. Pin both loops.
+    # The degenerate branch fires when the per-run samples collapse to ~0 against a non-zero
+    # drilled value, so the magnitude is reported as not cross-run validated.
+    vals = [{"run_url": "https://x/runs/1", "value": 0.0},
+            {"run_url": "https://x/runs/9", "value": 0.0, "fork": True}]
+    mag = {"unit": "%", "label": "packages rebuilt", "this_run": 100.0, "values": vals}
+    out = "\n".join(bp._mag_line(mag, {"fix_key": "turbo-partial-cache"}))
+    assert "NOT cross-run validated" in out, "expected the degenerate branch"
+    assert "[run 9](https://x/runs/9) — 0%" + _FORK_TAG in out
+
+
+def test_fork_disclosures_never_blame_the_save_side():
+    # PR #75 review: the save-side scoping rule (`refs/pull/.../merge`) binds same-repo PRs
+    # identically, so it cannot explain why a FORK run is excluded from the upstream median.
+    # A disclosure that cites it is telling the reader a reason that doesn't distinguish the
+    # run it just dropped. Guard every rendered fork surface at once.
+    vals = [{"run_url": f"https://x/runs/{i}", "value": 12.0} for i in range(1, 5)]
+    vals.append({"run_url": "https://x/runs/9", "value": 95.0, "fork": True})
+    surfaces = [
+        "\n".join(bp._mag_line({"unit": "%", "label": "packages rebuilt",
+                                "this_run": 12.0, "values": vals},
+                               {"fix_key": "turbo-partial-cache"})),
+        "\n".join(bp._cache_health_block(_cd("mostly-warm", med=9, rng=(2, 44), n=8,
+                                             upstream_n=6, fork_n=1))),
+    ]
+    for out in surfaces:
+        assert "fork PR" in out or "fork-PR" in out
+        low = out.lower()
+        assert "cannot save" not in low and "can't save" not in low
+        assert "cannot read the repo cache" not in low
+        assert "repo cache unavailable" not in low
+        # A fork PR's own re-run restores what that PR saved under its merge ref, so no
+        # disclosure may present the base branch as the only thing it can restore.
+        assert "base-branch caches only" not in low
+        assert "restores only base-branch" not in low
+
+
+def test_agent_prompt_cache_context_gives_a_reason_the_agent_cannot_refute():
+    # PR #75 review: this constraint tells a coding subagent "NEVER benchmark on a fork". The
+    # reason it gives has to SURVIVE the agent checking it, because an agent that refutes a
+    # stated rationale disregards the instruction. "A fork can't save a cache" is refutable —
+    # GitHub's own reference says a fork PR's merge-ref cache is restorable by re-runs of that
+    # PR, so "run the fork PR twice" reads as a legal workaround. The durable reasons are the
+    # missing repo secrets and the unreachable upstream branch scope.
+    leaf = {"fix_key": "turbo-partial-cache", "unit_label": "", "deeper": [],
+            "magnitude": None, "evidence": [], "search": []}
+    pole = {"check": "build", "workflow_file": ".github/workflows/ci.yml", "p50_s": 600.0,
+            "dominant_step": "build", "dominant_p50_s": 560.0, "dominant_share": 0.93,
+            "steps": [{"step": "build", "category": "build", "p50_s": 560.0}],
+            "cache_dist": {"verdict": "mostly-warm", "pr": {"upstream_median": 9.0}}}
+    prompt = bp._build_agent_prompt(leaf, pole, [], "https://x/actions/runs/1",
+                                    "o/r", "abc1234", 5, 20, timeline=None)
+    assert "NEVER a fork or cold clone" in prompt, "expected the cache-context constraint"
+    assert "no repo secrets" in prompt
+    assert "cannot restore an upstream branch's own cache scope" in prompt
+    low = prompt.lower()
+    assert "cannot save" not in low and "can't save" not in low
+    assert "nothing it builds is ever warm" not in low
+
+
+def test_headline_floor_is_slowest_check_not_the_frequency_gate():
+    # langfuse class: the most-GATING check (`tests-web`, 255s — what most PRs wait on, and
+    # the only drilled pole) is NOT the slowest concurrent check (`heavy-bot`, 900s, a spine
+    # check that isn't a drilled pole). "X until all checks finish" must be the FLOOR (900s),
+    # and the headline must NOT call the frequency-gate "the slowest" when a slower check exists.
+    doc = _doc_one_pole()
+    cp = doc["pr_critical_path"]
+    cp["checks"] = [{"name": "tests-web", "p50_s": 255.0},
+                    {"name": "heavy-bot", "p50_s": 900.0},
+                    {"name": "lint", "p50_s": 100.0}]
+    # 20 populations, all three present → both gate-candidates are "typical"; heavy-bot is the
+    # slowest (sets the floor) but is not a pole, so the frequency gate stays tests-web.
+    cp["populations"] = [[0.05, [["heavy-bot", 900.0], ["tests-web", 255.0],
+                                 ["lint", 100.0]]]] * 20
+    md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/1"}, "2026-06-08")
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    floor, gate_dur = bp._clock(900.0), bp._clock(255.0)
+    # the floor (slowest) is the headline number AND named the slowest; the gate is named apart
+    assert floor in head
+    assert "the slowest check a typical PR waits on is `heavy-bot`" in head
+    assert "`tests-web` is the check most PRs gate on" in head
+    # the OLD bug: the frequency gate must NOT be called the slowest, and its 255s must not be
+    # presented as the "until all checks finish" wall-clock floor
+    assert "`tests-web` is the slowest check" not in head
+    assert gate_dur not in head
+    # the Bottom line waits the FLOOR (900s), not the gate's 255s
+    bl = next(l for l in md.split("\n") if "Bottom line" in l)
+    assert floor in bl and gate_dur not in bl
+    # The Level-1 ASCII chart was removed (owner UX edit 2026-07-19); its "top bar = the
+    # gate" signal now lives on the Contents' first critical-path row as a " (the gate)"
+    # tag, emitted ONLY when the frequency gate IS the slowest single check. Here gate ≠
+    # slowest, so the first Contents row must carry NO "(the gate)" tag (the same
+    # invariant the old chart caption "Top bar = the slowest:" verified).
+    toc_rows = [l for l in md.split("\n") if re.match(r"^\d+\. ", l)]
+    assert toc_rows, "no Contents critical-path rows rendered"
+    assert "(the gate)" not in toc_rows[0], toc_rows[0]
+
+
+def test_frequency_gate_role_line_discloses_bimodal_effective_floor():
+    # Issue #22 class, site B. The frequency-gate pole's role line ("**The check most PRs gate
+    # on.** … the slowest concurrent check is `X`, which sets the wall-clock floor") named `X`
+    # from `src[0]` — the p50-slowest TYPICAL check — and credited it with setting the wall-clock
+    # floor. But `src[0]`/`floor_name` is STAMP-BOUND to the data layer's p50-based
+    # `critical_path_check`, so it must NOT be re-ranked here. Instead, when a DIFFERENT concurrent
+    # check's bimodal SLOW mode floors the merge higher, the role line must disclose that true
+    # ceiling beside the p50 pick rather than silently crediting `floor_name`.
+    #
+    # `tests-web` (255s) is the frequency gate; `heavy` (900s, on 20/20) is the p50-slowest typical
+    # check = `floor_name` = the stamp; `flaky` (blended p50 600s, on 20/20) is bimodal with a
+    # 1200s slow mode — the real effective floor (20m), above `heavy`'s 15m.
+    doc = _doc_one_pole()
+    cp = doc["pr_critical_path"]
+    cp["checks"] = [
+        {"name": "tests-web", "p50_s": 255.0,
+         "workflow_file": ".github/workflows/pipeline.yml"},
+        {"name": "heavy", "p50_s": 900.0, "present_on": 20,
+         "workflow_file": ".github/workflows/heavy.yml"},
+        {"name": "flaky", "p50_s": 600.0, "present_on": 20,
+         "workflow_file": ".github/workflows/flaky.yml",
+         "bimodal": {"low_p50_s": 300.0, "high_p50_s": 1200.0, "slow_frac": 0.4}},
+        {"name": "lint", "p50_s": 100.0, "present_on": 20},
+    ]
+    # 20 per-PR populations, all four checks present on every PR (so `flaky` co-occurs on a
+    # majority of `tests-web`'s gating PRs and is its binding floor), `tests-web` still the
+    # most-gating.
+    cp["populations"] = [[0.05, [["heavy", 900.0], ["flaky", 600.0],
+                                 ["tests-web", 255.0], ["lint", 100.0]]]] * 20
+    md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/1"}, "2026-06-08")
+    role = next(l for l in md.split("\n") if "The check most PRs gate on." in l)
+    # The p50 pick is unchanged (stamp-safe): `heavy` at its 15m p50 is still named the slowest
+    # concurrent check.
+    assert "the slowest concurrent check is `heavy` (~15m 00s)" in role
+    # GREEN: the bimodal true ceiling is disclosed beside it (em dashes normalized to hyphens by
+    # the report-wide strip). `flaky`'s 20m slow mode sets the floor, not `heavy`.
+    assert "but `flaky`'s bimodal slow mode (~20m 00s) runs longer, so it" in role
+    assert "sets the wall-clock floor on slow-mode PRs" in role
+    # RED against the pre-fix renderer: it credited `heavy` with setting the wall-clock floor and
+    # named `flaky` nowhere in the role line.
+    assert "(~15m 00s), which sets the wall-clock floor." not in role
+    # The stamp bind still holds: the headline names `heavy` (= critical_path_check), unchanged.
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    assert "the slowest check a typical PR waits on is `heavy`" in head
+    # And the effective floor is disclosed on the spine too (the pole's floor note names `flaky`),
+    # so this correction adds no silent spine drop.
+    assert "`flaky`" in md
+
+
+def _bimodal_story_pole(rows, *, total_n=None, slow_min_s=315.0,
+                         low_p50_s=30.0, high_p50_s=350.0):
+    return {
+        "bimodal": {
+            "low_p50_s": low_p50_s,
+            "high_p50_s": high_p50_s,
+            "slow_frac": 0.4,
+            "slow_min_s": slow_min_s,
+        },
+        "_per_pr_floor": {
+            "total_n": total_n if total_n is not None else len(rows),
+            "rows": rows,
+        },
+    }
+
+
+def test_bimodal_slow_mode_story_keeps_measured_zero_ceilings():
+    rows = [
+        {"before_s": before, "saving_s": saving, "target_ran": True}
+        for before, saving in [(315, 0), (325, 0), (335, 290), (345, 290)]
+    ] + [
+        {"before_s": 30, "saving_s": 0, "target_ran": True}
+        for _ in range(6)
+    ]
+    story = bp._bimodal_slow_mode_story(_bimodal_story_pole(rows))
+    assert "slow-mode win is about **2m 25s**" in story
+
+
+def test_bimodal_slow_mode_story_scopes_shares_to_prs_where_check_ran():
+    rows = [
+        {"before_s": 350, "saving_s": 290, "target_ran": True}
+        for _ in range(4)
+    ] + [
+        {"before_s": 30, "saving_s": 0, "target_ran": True}
+        for _ in range(6)
+    ] + [
+        {"before_s": 0, "saving_s": 0, "target_ran": False}
+        for _ in range(10)
+    ]
+    story = bp._bimodal_slow_mode_story(_bimodal_story_pole(rows))
+    assert story.startswith("Of sampled PRs where this check ran, 40% wait")
+    assert "the other 60% wait" in story
+
+
+def test_bimodal_slow_mode_story_uses_the_largest_gap_boundary():
+    slow = [100, 180, 260, 340, 420, 500, 580, 660]
+    rows = [
+        {"before_s": before, "saving_s": before - 50, "target_ran": True}
+        for before in slow
+    ] + [
+        {"before_s": 10, "saving_s": 0, "target_ran": True}
+        for _ in range(12)
+    ]
+    pole = _bimodal_story_pole(
+        rows, slow_min_s=100.0, low_p50_s=10.0, high_p50_s=380.0)
+    story = bp._bimodal_slow_mode_story(pole)
+    assert "40% of sampled PRs wait" in story
+    assert "slow-mode win is about **5m 30s**" in story
+
+
+def test_bimodal_slow_mode_story_requires_a_fast_median_and_nonzero_win():
+    rows = [
+        {"before_s": 350, "saving_s": 290, "target_ran": True}
+        for _ in range(4)
+    ] + [
+        {"before_s": 30, "saving_s": 0, "target_ran": True}
+        for _ in range(6)
+    ]
+    slow_median = _bimodal_story_pole(rows)
+    slow_median["p50_s"] = 330.0
+    assert bp._bimodal_slow_mode_story(slow_median) == ""
+
+    zero_rows = [
+        {"before_s": 350, "saving_s": 0, "target_ran": True}
+        for _ in range(4)
+    ] + rows[4:]
+    zero_win = _bimodal_story_pole(zero_rows)
+    zero_win["p50_s"] = 30.0
+    assert bp._bimodal_slow_mode_story(zero_win) == ""
+
+
+def test_only_long_pole_one_gets_the_slow_share_story():
+    doc = _pole_order_agreement_doc()
+    bimodal = {
+        "low_p50_s": 280.0,
+        "high_p50_s": 1000.0,
+        "slow_frac": 0.4,
+        "slow_min_s": 1000.0,
+    }
+    for row in doc["pr_critical_path"]["checks"]:
+        if row["name"] == "D":
+            row["bimodal"] = bimodal
+    for pole in doc["pr_critical_path"]["poles"]:
+        if pole["check"] == "D":
+            pole["bimodal"] = bimodal
+    for _share, rows in doc["pr_critical_path"]["populations"][:8]:
+        for row in rows:
+            if row[0] == "D":
+                row[1] = 1000.0
+
+    report = bp.render(doc)
+    section = _pole_section(report, "D")
+    assert "_Bimodal: **~16m 40s**" in section
+    assert "slow-mode win" not in section
+
+
+def test_frequency_gate_role_line_managed_floor_disclosed_not_misattributed():
+    # Issue #22 class, site B — the managed-floor edge (greptile). The file-backed disclosure clause
+    # frames the named check as the one to ATTACK ("sets the wall-clock floor on slow-mode PRs"), so
+    # it must be a tunable, file-backed check. When the binding floor is a MANAGED/external check (no
+    # `workflow_file`) that out-floors `floor_name`, the role line must (i) NOT credit `floor_name`
+    # (the lower p50 sibling) with setting the floor, (ii) NOT frame the untunable managed check as
+    # attackable, yet (iii) still NAME the managed check as the real cap so it isn't disclosed
+    # nowhere — using the "no workflow file to speed up here `X`" phrasing, which is BOTH honest
+    # about untunability AND the form `verify_report._SPINE_FLOOR_NAME_RE` reads (so the managed cap
+    # lands in the spine-disclosed set even when the gate pole's own `_floor_note` is suppressed
+    # because `binding_s >= pole_p`). Same fixture as the file-backed test, but `flaky` carries NO
+    # `workflow_file`.
+    doc = _doc_one_pole()
+    cp = doc["pr_critical_path"]
+    cp["checks"] = [
+        {"name": "tests-web", "p50_s": 255.0,
+         "workflow_file": ".github/workflows/pipeline.yml"},
+        {"name": "heavy", "p50_s": 900.0, "present_on": 20,
+         "workflow_file": ".github/workflows/heavy.yml"},
+        {"name": "flaky", "p50_s": 600.0, "present_on": 20,   # MANAGED: no workflow_file
+         "bimodal": {"low_p50_s": 300.0, "high_p50_s": 1200.0, "slow_frac": 0.4}},
+        {"name": "lint", "p50_s": 100.0, "present_on": 20},
+    ]
+    cp["populations"] = [[0.05, [["heavy", 900.0], ["flaky", 600.0],
+                                 ["tests-web", 255.0], ["lint", 100.0]]]] * 20
+    md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/1"}, "2026-06-08")
+    role = next(l for l in md.split("\n") if "The check most PRs gate on." in l)
+    # `heavy` is still named the slowest concurrent (typical) check — the stamp-consistent p50 pick.
+    assert "the slowest concurrent check is `heavy` (~15m 00s)" in role
+    # `heavy` is NOT credited with setting the floor, and the managed check is NOT framed as tunable.
+    assert "which sets the wall-clock floor" not in role
+    assert "bimodal slow mode" not in role
+    # The managed `flaky` IS named as the real cap, with the untunable "no workflow file" framing.
+    assert "no workflow file to speed up here, `flaky` (~20m 00s)" in role
+    assert "caps the wall-clock floor on slow-mode PRs" in role
+    # And that phrasing is the form the spine parser reads, so the managed cap is disclosed on the
+    # spine (not dropped) — the managed-floor disclosure gap is fully closed.
+    import verify_report as _vr
+    assert "flaky" in {_n for _n in _vr._spine_disclosed_names(md)}
+
+
+def test_frequency_gate_role_line_ignores_degenerate_bimodal_floor():
+    # Issue #22 class, site B — the degenerate-bimodal edge. The clause gates + quotes by
+    # `_pole_headline(_bf)[0]` (the seconds `_bf`'s own drilled header shows), NOT frac-blind
+    # `_eff_floor_s` (which reads only `high_p50_s`). A malformed bimodal dict — `slow_frac == 0`,
+    # or missing `slow_frac`/`low_p50_s` — has no genuine slow MODE: `_pole_headline` returns the
+    # p50, so the clause must NOT emit a phantom "slow mode on ~0% of runs" disclosure. `flaky`
+    # here is file-backed with a degenerate bimodal (high 1200s but no honest slow mode); its p50
+    # (600s) is below `heavy`'s (900s), so it does not out-floor `heavy` on any honest reading.
+    for _bad_bimodal in ({"low_p50_s": 300.0, "high_p50_s": 1200.0, "slow_frac": 0.0},
+                         {"low_p50_s": 300.0, "high_p50_s": 1200.0},          # missing slow_frac
+                         {"high_p50_s": 1200.0, "slow_frac": 0.4}):           # missing low_p50_s
+        doc = _doc_one_pole()
+        cp = doc["pr_critical_path"]
+        cp["checks"] = [
+            {"name": "tests-web", "p50_s": 255.0,
+             "workflow_file": ".github/workflows/pipeline.yml"},
+            {"name": "heavy", "p50_s": 900.0, "present_on": 20,
+             "workflow_file": ".github/workflows/heavy.yml"},
+            {"name": "flaky", "p50_s": 600.0, "present_on": 20,
+             "workflow_file": ".github/workflows/flaky.yml", "bimodal": _bad_bimodal},
+            {"name": "lint", "p50_s": 100.0, "present_on": 20},
+        ]
+        cp["populations"] = [[0.05, [["heavy", 900.0], ["flaky", 600.0],
+                                     ["tests-web", 255.0], ["lint", 100.0]]]] * 20
+        md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {},
+                       {"pipeline": "https://github.com/o/r/actions/runs/1"}, "2026-06-08")
+        role = next(l for l in md.split("\n") if "The check most PRs gate on." in l)
+        # `heavy` genuinely sets the floor (nothing out-floors it once the degenerate bimodal is
+        # discounted); the plain phrasing stands, and no phantom "20m slow mode" is emitted.
+        assert "the slowest concurrent check is `heavy` (~15m 00s), which sets the wall-clock " \
+            "floor." in role, (_bad_bimodal, role)
+        assert "bimodal slow mode" not in role, (_bad_bimodal, role)
+        assert "20m 00s" not in role, (_bad_bimodal, role)
+
+
+def test_frequency_gate_role_line_never_calls_a_unimodal_floor_bimodal():
+    # Issue #22 class, site B — the UNIMODAL out-flooring edge (silent-failure-hunter). The
+    # clause's wording asserts "bimodal slow mode ... on slow-mode PRs", so it must fire ONLY when
+    # `_bf` is a genuine fast-median bimodal (the `_pole_headline` override fired). A heavy
+    # path-conditional/minority check drawn from the full floor pool (the lightdash `E2E` class)
+    # can be the pole's BINDING FLOOR yet be UNIMODAL: its blended p50 out-ranks the slowest
+    # TYPICAL check, but it has no slow MODE and it doesn't run on a typical PR. The role line must
+    # credit the slowest typical check (`base`) with the typical wall-clock floor and NOT print a
+    # phantom "bimodal slow mode" for the unimodal `E2E` (whose own gating is disclosed on its
+    # drilled pole). `E2E`'s per-PR values sit BELOW the gate on the gate's own gating PRs (so the
+    # gate wins them and `E2E` co-occurs as a floor candidate) while its stamped p50 is high.
+    doc = _doc_one_pole()
+    cp = doc["pr_critical_path"]
+    cp["checks"] = [
+        {"name": "tests-web", "p50_s": 255.0, "present_on": 20,
+         "workflow_file": ".github/workflows/pipeline.yml"},
+        {"name": "base", "p50_s": 400.0, "present_on": 20,
+         "workflow_file": ".github/workflows/base.yml"},
+        {"name": "E2E", "p50_s": 1000.0, "present_on": 6,          # UNIMODAL, minority-presence
+         "workflow_file": ".github/workflows/e2e.yml"},
+        {"name": "lint", "p50_s": 100.0, "present_on": 20},
+    ]
+    pops = []
+    for i in range(20):
+        if i < 6:   # tests-web (the gate) wins; E2E present but LOW-valued here → co-occurs
+            pops.append([0.05, [["tests-web", 700.0], ["base", 400.0],
+                                ["E2E", 300.0], ["lint", 100.0]]])
+        else:       # base wins; E2E absent → E2E is a global minority (6/20)
+            pops.append([0.05, [["base", 450.0], ["tests-web", 255.0], ["lint", 100.0]]])
+    cp["populations"] = pops
+    md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/1"}, "2026-06-08")
+    role = next(l for l in md.split("\n") if "The check most PRs gate on." in l)
+    # `base` (the slowest TYPICAL check) genuinely sets the typical floor; plain phrasing stands.
+    assert "the slowest concurrent check is `base` (~6m 40s), which sets the wall-clock floor." \
+        in role, role
+    # RED against the pre-guard renderer: it printed "`E2E`'s bimodal slow mode (~16m 40s) ... on
+    # slow-mode PRs" — false on both counts (`E2E` is unimodal and runs on a minority, not a "slow
+    # mode"). The clause must not name `E2E` at all here.
+    assert "bimodal slow mode" not in role, role
+    assert "`E2E`" not in role, role
+
+
+def test_headline_floor_excludes_partial_presence_slowest_check():
+    # OneSignal/OneSignal-Android-SDK class: the slowest TYPICAL check (`Claude Code Review`,
+    # a managed app check at 944.5s) ran on only 12/20 PRs; `build` (619.5s) ran on 20/20.
+    # The "X until all checks finish" headline is the wait a TYPICAL (median) PR sees, so a
+    # check present on only 12/20 PRs must NOT set that universal floor at its full conditional
+    # p50 — the 8 PRs that don't run it finish sooner. The faithful floor is the population-
+    # weighted typical: the median of the per-PR critical-path maxima (~750s = 12m 30s), NOT
+    # Claude's 944.5s (15m 44s). The slowest check's OWN time is still named truthfully.
+    doc = _doc_one_pole()
+    cp = doc["pr_critical_path"]
+    cp["provenance"] = "unresolved"
+    # `build` is the file-backed pole; `Claude Code Review` is a managed/fileless check.
+    cp["poles"] = [{
+        "check": "build", "p50_s": 619.5,
+        "workflow_file": ".github/workflows/build.yml", "job": "build",
+        "dominant_step": "compile", "dominant_p50_s": 300.0,
+        "steps": [{"step": "compile", "category": "build", "p50_s": 300.0}],
+    }]
+    cp["checks"] = [{"name": "Claude Code Review", "p50_s": 944.5, "present_on": 12},
+                    {"name": "build", "p50_s": 619.5, "present_on": 20,
+                     "workflow_file": ".github/workflows/build.yml"}]
+    # 20 per-PR populations: 8 run `build` only (max 619.5); 12 also run Claude (its per-PR
+    # max). Median of the 20 per-PR maxima = 750.0 (12m 30s), well below Claude's 944.5 p50.
+    claude_maxima = [700.0, 750.0, 750.0, 800.0, 850.0, 900.0,
+                     944.5, 944.5, 944.5, 1000.0, 1050.0, 1100.0]
+    cp["populations"] = ([[0.05, [["build", 619.5]]]] * 8
+                         + [[0.05, [["Claude Code Review", x], ["build", 619.5]]]
+                            for x in claude_maxima])
+    md = bp.render(doc, {"build": _IMPORT_BOUND_LOG}, {},
+                   {"build": "https://github.com/o/r/actions/runs/1"}, "2026-06-08")
+    head = next(l for l in md.split("\n") if "until all checks finish" in l)
+    bottom = next(l for l in md.split("\n") if "Bottom line" in l)
+    # The faithful population-weighted floor (12m 30s) headlines, NOT Claude's 944.5 p50.
+    assert head.lstrip("> ").startswith(f"**{bp._clock(750.0)} until all checks finish**")
+    assert f"waits **{bp._clock(750.0)}** for all checks to finish" in bottom
+    # The bug: Claude's conditional 944.5 (15m 44s) must NOT be the "all checks finish" floor.
+    assert f"**{bp._clock(944.5)} until all checks finish**" not in md
+    assert f"waits **{bp._clock(944.5)}** for all checks" not in md
+    # …but Claude's OWN slowest-check time is still named truthfully (the faithful split).
+    assert "Claude Code Review" in head and f"~{bp._clock(944.5)}" in head
+    # …AND the form-2 headline RECONCILES the two: a non-universal slowest check (12/20) must not be
+    # labeled "a typical PR waits on" beside a strictly-lower 12m 30s floor without the presence
+    # caveat (the tauri `test (windows-latest)` bug — Form 2 omitted the disclosure Form 1 carries).
+    assert f"ran on only 12/20 sampled PRs, so a typical PR finishes in {bp._clock(750.0)}" in head, \
+        "form-2 floor-lowered headline must disclose the slowest check's presence (N/npop)"
+
+
+def test_dominant_step_from_timeline_uses_category_aggregate_with_map():
+    # With the pole's name→category map, the prompt crowns the dominant CATEGORY lead (a
+    # `test` step), agreeing with the decomposition + cross-run check — not the lone big
+    # `Build` step. Without the map it falls back to the single longest (backward-compatible).
+    timeline = {"job_dur_s": 180.0, "steps": [
+        {"name": "Build", "dur_s": 60.0}, {"name": "test a", "dur_s": 40.0},
+        {"name": "test b", "dur_s": 40.0}, {"name": "test c", "dur_s": 40.0}]}
+    cat = {"Build": "build", "test a": "test", "test b": "test", "test c": "test"}
+    name, d, _share = bp._dominant_step_from_timeline(timeline, cat)
+    assert name == "test a" and d == 40.0          # dominant-category lead, not Build(60)
+    name2, _d2, _s2 = bp._dominant_step_from_timeline(timeline)   # no map → legacy behaviour
+    assert name2 == "Build"
+
+
+def test_dom_index_excludes_boilerplate_in_longest_fallback():
+    # An AGGREGATE dominant label matches no single step name, so _dom_index falls
+    # back to the longest step. It must skip setup/cleanup boilerplate (`Post`,
+    # `checkout`) even when that boilerplate is the longest, crowning the dominant
+    # WORK step — matching the producer's category-aware decomposition.
+    steps = [
+        {"name": "Set up job", "dur_s": 5.0},
+        {"name": "checkout", "dur_s": 200.0},      # longest, but boilerplate
+        {"name": "Build", "dur_s": 120.0},          # the real work step
+        {"name": "Post Run actions/checkout", "dur_s": 30.0},
+    ]
+    assert bp._dom_index(steps, "Build + 2 more") == 2   # Build, not checkout
+
+
+def test_dom_index_all_boilerplate_falls_back_to_full_set():
+    # When EVERY step is boilerplate, the fallback uses the full set (longest wins)
+    # rather than returning nothing.
+    steps = [
+        {"name": "Set up job", "dur_s": 5.0},
+        {"name": "Post checkout", "dur_s": 40.0},   # longest boilerplate
+        {"name": "Complete job", "dur_s": 2.0},
+    ]
+    assert bp._dom_index(steps, "no-such-step") == 1
+
+
+def test_dom_index_exact_name_still_wins_over_longest():
+    # An exact name match is unchanged by the boilerplate fix.
+    steps = [
+        {"name": "checkout", "dur_s": 200.0},
+        {"name": "Build", "dur_s": 120.0},
+    ]
+    assert bp._dom_index(steps, "Build") == 1
+
+
+def test_pole_addressable_caps_at_concurrent_sibling_not_optimistic_matrix():
+    # Finding 2 (pre-commit): the headline "biggest single measured win" must floor at the
+    # actual 2nd-slowest CONCURRENT check — a sibling matrix leg included — not the optimistic
+    # next-NON-leg. A 175s concurrent sibling beside a 517s gate caps the win at 517-175=342,
+    # not 517-90=427 (which over-promised past the visible 175s bar).
+    pole = {"check": "main / windows-latest / py310", "p50_s": 517.0}
+    candidates = [
+        {"name": "main / windows-latest / py310", "p50_s": 517.0},
+        {"name": "main / ubuntu-latest / py310", "p50_s": 175.0},   # concurrent sibling
+        {"name": "lint", "p50_s": 90.0},                            # a non-leg, faster
+    ]
+    assert bp._pole_addressable(pole, candidates) == 517.0 - 175.0   # 342, not 427
+    # non-gate guard (G6): a pole that runs BEHIND a slower concurrent check buys ~0
+    pole2 = {"check": "fast", "p50_s": 100.0}
+    cands2 = [{"name": "fast", "p50_s": 100.0}, {"name": "slow", "p50_s": 300.0}]
+    assert bp._pole_addressable(pole2, cands2) == 0.0
+
+
+# --- install-lifecycle-build detector + _cache_state_of_log (PR #126 review coverage) ----
+def _install_lifecycle_log(build_time="3m20s", cmd="pnpm install --frozen-lockfile",
+                           marker=True, cached="72 cached, 128 total"):
+    lines = [f"##[group]Run {cmd}", cmd, "##[endgroup]", "Lockfile is up to date"]
+    if marker:
+        lines.append(". prepare$ turbo build")
+    lines += [f"Cached:    {cached}", f"  Time:    {build_time}",
+              "##[group]Run pnpm -w check", "done"]
+    return "\n".join("2024Z " + l for l in lines)
+
+
+def test_parse_log_install_lifecycle_build_fires_inside_install_section():
+    leaf = bp._parse_log(_install_lifecycle_log())
+    assert leaf is not None and leaf["fix_key"] == "install-lifecycle-build"
+    assert leaf["magnitude"]["unit"] == "s" and leaf["magnitude"]["value"] == 200.0
+
+
+def test_parse_log_install_lifecycle_respects_floor():
+    # A sub-floor (<30s) in-install build is not a material gate -> falls through (D2 here).
+    leaf = bp._parse_log(_install_lifecycle_log(build_time="12s"))
+    assert leaf is None or leaf["fix_key"] != "install-lifecycle-build"
+
+
+def test_parse_log_install_lifecycle_requires_a_lifecycle_marker():
+    # A bare install whose section has a turbo summary but NO lifecycle marker is not this
+    # mechanism (the marker is what proves a `prepare`/`postinstall` script ran the build).
+    leaf = bp._parse_log(_install_lifecycle_log(marker=False))
+    assert leaf is None or leaf["fix_key"] != "install-lifecycle-build"
+
+
+def test_parse_log_install_lifecycle_rejects_explicit_chained_build():
+    # `pnpm install && pnpm build` is an EXPLICIT second command, not a lifecycle script — the
+    # `--ignore-scripts` remedy wouldn't remove it, so it must not be mislabeled lifecycle.
+    leaf = bp._parse_log(_install_lifecycle_log(cmd="pnpm install --frozen-lockfile && pnpm build"))
+    assert leaf is None or leaf["fix_key"] != "install-lifecycle-build"
+
+
+def test_parse_log_install_lifecycle_ignore_scripts_not_matched():
+    leaf = bp._parse_log(_install_lifecycle_log(cmd="pnpm install --ignore-scripts"))
+    assert leaf is None or leaf["fix_key"] != "install-lifecycle-build"
+
+
+def test_parse_log_turbo_in_its_own_step_still_d2_not_lifecycle():
+    # THE D2-unchanged regression: a turbo build in its OWN (non-install) `##[group]Run` step
+    # must still classify as turbo-partial-cache, not the new lifecycle leaf.
+    log = "\n".join("2024Z " + l for l in [
+        "##[group]Run pnpm install --frozen-lockfile", "##[endgroup]", "done",
+        "##[group]Run pnpm turbo build", "pnpm turbo build", "##[endgroup]",
+        "Cached:    72 cached, 128 total", "  Time:    3m20s", "##[endgroup]"])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "turbo-partial-cache"
+
+
+def test_cache_state_of_log_turbo_percent_and_cold():
+    st = bp._cache_state_of_log(_install_lifecycle_log(cached="72 cached, 128 total"),
+                                "turbo-partial-cache")
+    assert st and round(st["miss_pct"]) == 44 and st["cold"] is False
+    cold = bp._cache_state_of_log("\n".join(["   • Remote caching disabled",
+                                             "Cached:    0 cached, 100 total", "  Time: 5m"]),
+                                  "turbo-remote-cache")
+    assert cold and cold["cold"] is True and cold["remote_off"] is True
+
+
+def test_cache_state_of_log_no_summary_needs_activity_burst():
+    # A LONE stray "cache miss" line must NOT stamp a run 100% cold (mirrors detector D's
+    # `activity > 5` floor) — otherwise one miss drags the cross-run median toward cold/churn.
+    assert bp._cache_state_of_log("cache miss, executing x", "turbo-partial-cache") is None
+    burst = "\n".join(f"cache miss, executing p{i}" for i in range(6))
+    st = bp._cache_state_of_log(burst, "turbo-partial-cache")
+    assert st and st["miss_pct"] == 100.0 and st["cold"] is True
+
+
+def test_cache_state_of_log_buildx_and_unrecognized():
+    bx = "\n".join(["#5 [build 2/3] RUN make", "#5 DONE 40.0s",
+                    "#6 [build 3/3] RUN test", "#6 DONE 10.0s"])
+    st = bp._cache_state_of_log(bx, "buildx-no-cache")
+    assert st and st["cold"] is True and st["miss_pct"] == 100.0
+    assert bp._cache_state_of_log("nothing here", "turbo-partial-cache") is None
+    assert bp._cache_state_of_log("", "turbo-partial-cache") is None
+
+
+def test_cache_state_of_log_lifecycle_reads_install_section_not_later_build():
+    # Greptile P2 (PR #126): a job with an in-install lifecycle build (low miss) AND a later
+    # explicit `turbo build` step (high miss). `_cache_state_of_log` for the lifecycle leaf must
+    # read the INSTALL section's miss, not the later build's — else a false "churn" verdict would
+    # tag the structural finding "BIGGEST LEVER". The detector and the state must agree.
+    # The later explicit build is deliberately SLOWER (5m) than the in-install build (2m), so a
+    # regression to a whole-log max-by-Time scan would pick the later 61%-miss block and the assert
+    # below (~6%) would catch it. (A fixture where the install block is the slowest can't tell the
+    # section-scoped fix from the bug — the weakness the PR-review flagged.)
+    log = "\n".join("2024Z " + l for l in [
+        "##[group]Run pnpm install --frozen-lockfile", "pnpm install --frozen-lockfile",
+        "##[endgroup]", ". prepare$ turbo build",
+        "Cached:    120 cached, 128 total",   # install section: 8 rebuilt = ~6% miss
+        "  Time:    2m00s",
+        "##[group]Run pnpm turbo build", "pnpm turbo build", "##[endgroup]",
+        "Cached:    50 cached, 128 total",    # later explicit build: 78 rebuilt = ~61% miss
+        "  Time:    5m00s", "##[endgroup]"])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "install-lifecycle-build"
+    st = bp._cache_state_of_log(log, "install-lifecycle-build")
+    # ~6% (the install section), NOT ~61% (the later build) — they measure the SAME section.
+    assert st is not None and round(st["miss_pct"]) == 6
+
+
+# --- PR #126 2nd-review: detector precision + render-side behavior ------------------
+def test_parse_log_multiline_run_block_explicit_build_not_lifecycle():
+    # F1 (2nd adversarial review): a `run: |` block that installs THEN explicitly builds echoes
+    # both commands under one `##[group]Run` header. The explicit `pnpm build` must be recognized
+    # (scanning the echoed command block, not just the header line) so it's NOT mislabeled a
+    # lifecycle build — `--ignore-scripts` wouldn't remove an explicit command.
+    log = "\n".join("2024Z " + l for l in [
+        "##[group]Run pnpm install --frozen-lockfile", "pnpm install --frozen-lockfile",
+        "pnpm build", "shell: /usr/bin/bash", "##[endgroup]",
+        "esbuild@0.1 postinstall$ node install.js",   # a dependency postinstall marker (a decoy)
+        "Cached:    40 cached, 128 total", "  Time:    1m30s"])
+    leaf = bp._parse_log(log)
+    assert leaf is None or leaf["fix_key"] != "install-lifecycle-build"
+
+
+def test_cache_state_of_log_warm_run_below_fire_floor_still_measured():
+    # F2 (2nd adversarial review): a WARM run's miss must be readable even when the leaf wouldn't
+    # re-fire on it — otherwise warm runs drop out and the distribution can't reach mostly-warm.
+    # turbo: `_cache_state_of_log` reads the miss regardless of the 40% fire floor.
+    warm_turbo = "Cached:    120 cached, 128 total\n  Time:    1m00s"
+    assert bp._parse_log(warm_turbo) is None                      # D2 doesn't fire at ~6%
+    st = bp._cache_state_of_log(warm_turbo, "turbo-partial-cache")
+    assert st and round(st["miss_pct"]) == 6                      # ...but the state is still read
+    # lifecycle: a sub-30s in-install build (warm) is still measured (min_secs=0 in the state read).
+    warm_lc = "\n".join("2024Z " + l for l in [
+        "##[group]Run pnpm install", "pnpm install", "##[endgroup]", ". prepare$ turbo build",
+        "Cached:    124 cached, 128 total", "  Time:    8s", "##[group]Run next"])
+    assert bp._parse_log(warm_lc) is None                         # 8s build < 30s floor -> no leaf
+    st2 = bp._cache_state_of_log(warm_lc, "install-lifecycle-build")
+    assert st2 and round(st2["miss_pct"]) == 3                    # ...but the miss is still measured
+
+
+def _cd(verdict, med=9.0, rng=(2, 44), n=6, upstream_n=6, no_summary_n=0, fork_n=0,
+        push=None, push_reason=None, prev=0.1):
+    return {"fix_key": "turbo-partial-cache", "verdict": verdict,
+            "pr": {"upstream_median": med, "upstream_range": list(rng), "n": n,
+                   "upstream_n": upstream_n, "no_summary_n": no_summary_n, "fork_n": fork_n},
+            "tail": {"prevalence_max": prev}, "push": push, "push_reason": push_reason}
+
+
+def test_apply_cache_dist_reframes_by_verdict():
+    # T2 (2nd review): the render-side reframe had no behavioral test.
+    churn_note = "72/128 cached - 44% rebuilt despite caching ON (cache-key churn?) - BIGGEST LEVER"
+    # mostly-warm: strip BIGGEST LEVER + churn hint, reframe around the warm median.
+    leaf = {"fix_key": "turbo-partial-cache", "deeper": [{"blocker_note": churn_note}]}
+    bp._apply_cache_dist(leaf, _cd("mostly-warm"))
+    note = leaf["deeper"][0]["blocker_note"]
+    assert "BIGGEST LEVER" not in note and "cache-key churn" not in note and "mostly HITS" in note
+    # cold: untouched (a genuinely cold cache keeps its broad claim).
+    leaf2 = {"fix_key": "turbo-remote-cache",
+             "deeper": [{"blocker_note": "0/110 cached - BIGGEST LEVER"}]}
+    bp._apply_cache_dist(leaf2, _cd("cold"))
+    assert "BIGGEST LEVER" in leaf2["deeper"][0]["blocker_note"]
+    # lifecycle cold/churn GAINS the lever (it hard-codes none).
+    leaf3 = {"fix_key": "install-lifecycle-build",
+             "deeper": [{"blocker_note": "51s of turbo build runs INSIDE install"}]}
+    bp._apply_cache_dist(leaf3, _cd("churn"))
+    assert "BIGGEST LEVER" in leaf3["deeper"][0]["blocker_note"]
+
+
+def test_install_build_section_multiple_installs_detector_and_state_agree():
+    # PR #126 3rd-review (adversarial): a job with TWO qualifying `<pm> install` lifecycle-build
+    # steps where the EARLIER one is sub-floor (<30s) and misses MORE than the later >=30s one.
+    # `_install_build_section` used to return the FIRST section clearing its floor, so the detector
+    # (floor 30) fired on the later low-miss section while `_cache_state_of_log` (floor 0) returned
+    # the earlier high-miss section — the same drilled run then reported a well-cached gating build
+    # in its leaf yet contributed the earlier section's higher miss to the cross-run distribution,
+    # flipping the verdict to churn and stamping "BIGGEST LEVER" on a well-cached build. The fix
+    # picks the MAX-build section across all install steps, then applies the floor, so both callers
+    # land on the SAME section. Assert they measure identical hit/total.
+    log = "\n".join("2024Z " + l for l in [
+        "##[group]Run pnpm install", "pnpm install", "##[endgroup]", ". prepare$ turbo build",
+        "Cached:    5 cached, 10 total",     # section 1: 20s, 50% miss (sub-floor)
+        "  Time:    20s",
+        "##[group]Run pnpm install", "pnpm install", "##[endgroup]", ". prepare$ turbo build",
+        "Cached:    9 cached, 10 total",     # section 2: 50s, 10% miss (the real gate)
+        "  Time:    50s",
+        "##[group]Run pnpm -w test", "done"])
+    leaf = bp._parse_log(log)
+    assert leaf is not None and leaf["fix_key"] == "install-lifecycle-build"
+    # Detector fires on the 50s section: 9/10 cached, value 50.0s.
+    assert leaf["magnitude"]["value"] == 50.0
+    assert "9/10 packages cached" in leaf["deeper"][0]["blocker_note"]
+    # State reader must read the SAME (50s) section -> 10% miss, NOT section 1's 50% miss.
+    st = bp._cache_state_of_log(log, "install-lifecycle-build")
+    assert st is not None and round(st["miss_pct"]) == 10
+
+
+def test_apply_cache_dist_mostly_warm_none_median_is_not_contradictory():
+    # PR #126 3rd-review: for a mostly-warm verdict with NO numeric upstream_median, the reframe
+    # used to fall through to the miss-tail else-branch ("drilled run is from the miss-heavy
+    # minority") — directly contradicting "the cache mostly HITS". It must say mostly-HITS (without
+    # the median number), never the miss-heavy-minority wording.
+    leaf = {"fix_key": "turbo-remote-cache",
+            "deeper": [{"blocker_note": "0/110 cached - BIGGEST LEVER"}]}
+    bp._apply_cache_dist(leaf, _cd("mostly-warm", med=None))
+    note = leaf["deeper"][0]["blocker_note"]
+    assert "mostly HITS" in note and "miss-heavy minority" not in note
+    assert "BIGGEST LEVER" not in note
+
+
+def test_apply_cache_dist_insufficient_strips_overclaim_and_discloses_basis():
+    # PR #126 3rd-review: an `insufficient` verdict (fewer than 2 upstream runs exposed a cache
+    # summary) has no cross-run grounding — the drilled run's native "BIGGEST LEVER" / churn framing
+    # must be stripped and the single-run basis disclosed, not shipped as if it were grounded.
+    churn_note = "3/128 cached - 98% rebuilt despite caching ON (cache-key churn?) - BIGGEST LEVER"
+    leaf = {"fix_key": "turbo-partial-cache", "deeper": [{"blocker_note": churn_note}]}
+    bp._apply_cache_dist(leaf, _cd("insufficient"))
+    note = leaf["deeper"][0]["blocker_note"]
+    assert "BIGGEST LEVER" not in note and "cache-key churn" not in note
+    assert "single sampled run" in note and "cross-run hit rate" in note
+
+
+def test_cache_health_block_renders_all_disclosure_lines():
+    # T2 (2nd review): the health block's fork / no-summary / push-error / marker / caveat lines
+    # were all untested. Exercise each live branch.
+    cd = _cd("mostly-warm", med=9, rng=(2, 44), n=8, upstream_n=6, no_summary_n=1, fork_n=1,
+             push={"median": None, "n": 0, "errors": 2})
+    out = "\n".join(bp._cache_health_block(cd))
+    assert "median miss **9%**" in out and "across 6 sampled run(s)" in out   # upstream_n, not n
+    assert "fork-PR run(s) excluded" in out and "1 run(s) exposed no cache summary" in out
+    # The REASON, not just the fact: the exclusion has to name what makes a fork colder.
+    assert ("no repo secrets and cannot restore an upstream branch's own cache scope"
+            in out), "the fork exclusion must disclose the fork-specific reason"
+    assert "unknown — 2 log fetch(es) failed" in out                          # push-error line
+    assert bp._CACHE_CONTEXT_MARKER in out and "Cache-context caveat" in out   # demoted -> marker+caveat
+    # insufficient / absent -> empty (nothing measured to disclose).
+    assert bp._cache_health_block(_cd("insufficient")) == []
+    assert bp._cache_health_block(None) == []
+    # a "no push runs" reason renders when push is None with a reason.
+    out2 = "\n".join(bp._cache_health_block(_cd("miss-tail", push=None,
+                                               push_reason="no push runs sampled for this workflow")))
+    assert "no push runs sampled" in out2
+
+
+# --- PR #126 4th-review (adversarial): frequency-demotion prose + median display ----------
+def _freq_demoted_doc():
+    # A `check-packages` present on ALL 20 PRs (present_on=20) but NEVER the per-PR slowest
+    # (pole_n=0) — the exact expo/expo case: correctly demoted by the pole-frequency rule while a
+    # heavier always-present `native` (pole_n=20) heads the list. Both are drilled poles.
+    npop = 20
+    checks = [
+        {"name": "native", "p50_s": 1400.0, "present_on": npop, "workflow_file": "ci.yml", "pole_n": 20},
+        {"name": "check-packages", "p50_s": 300.0, "present_on": npop, "workflow_file": "pkg.yml", "pole_n": 0},
+    ]
+    pops = [[0.1, [["native", 1400.0], ["check-packages", 300.0]]] for _ in range(npop)]
+    return {"pr_critical_path": {
+        "critical_path_check": "native", "critical_path_s": 1400.0,
+        "checks": checks, "check_present_n_pr": npop, "populations": pops,
+        "poles": [
+            {"check": "native", "p50_s": 1400.0, "workflow_file": "ci.yml", "job": "native"},
+            {"check": "check-packages", "p50_s": 300.0, "workflow_file": "pkg.yml", "job": "check-packages"},
+        ],
+    }}
+
+
+def test_render_frequency_demoted_pole_states_frequency_not_presence():
+    # F1 (4th adversarial review): a pole DEMOTED by the pole-frequency rule (never the per-PR
+    # slowest) but present on EVERY PR used to render "Opt-in / rare — ran on only 20/20 sampled
+    # PRs" — self-contradictory (20/20 is not rare), and the wrong reason (the true one is "never
+    # the slowest"). With `pole_n` present the role text must state the FREQUENCY reason instead.
+    out = bp.render(_freq_demoted_doc())
+    # No presence-based contradiction: never "rare/opt-in — ran on only 20/20".
+    assert "ran on only 20/20" not in out
+    assert "Opt-in / rare" not in out
+    # The honest frequency reason is stated, with the pole_n (0/20) and the true presence (20/20).
+    assert "Rarely the merge gate" in out
+    assert "0/20 sampled PRs" in out and "Present on 20/20 PRs" in out
+
+
+def _minority_slow_doc(bench_present=20, bench_pole_n=1):
+    # `test` is the gate (pole_n=18, p50 400s). `flaky-bench` is SLOWER (p50 700s > blocker) and
+    # present on `bench_present`/20 PRs, but the actual per-PR slowest on only `bench_pole_n` PRs —
+    # so it is demoted into `minority_slow` (not typical AND p50 > blocker).
+    npop = 20
+    checks = [
+        {"name": "test", "p50_s": 400.0, "present_on": npop, "workflow_file": "ci.yml", "pole_n": 18},
+        {"name": "flaky-bench", "p50_s": 700.0, "present_on": bench_present,
+         "workflow_file": "bench.yml", "pole_n": bench_pole_n},
+    ]
+    # flaky-bench appears in exactly `bench_present` populations (the renderer's presence count is
+    # populations-derived, not checks[].present_on): slowest on 1, present-but-fast on the rest.
+    pops = [[0.1, [["flaky-bench", 2000.0], ["test", 400.0]]]]         # bench slowest once
+    for i in range(npop - 1):
+        row = [["test", 400.0]]
+        if i < bench_present - 1:
+            row.append(["flaky-bench", 100.0])                        # present but fast
+        pops.append([0.1, row])
+    return {"pr_critical_path": {
+        "critical_path_check": "test", "critical_path_s": 400.0,
+        "checks": checks, "check_present_n_pr": npop, "populations": pops,
+        "poles": [
+            {"check": "test", "p50_s": 400.0, "workflow_file": "ci.yml", "job": "test"},
+            {"check": "flaky-bench", "p50_s": 700.0, "workflow_file": "bench.yml", "job": "flaky-bench"},
+        ],
+    }}
+
+
+def test_render_minority_slow_frequency_demoted_states_frequency_not_presence():
+    # F1 (fresh review, Angle B): a `minority_slow` member present on a MAJORITY of PRs but rarely
+    # the per-PR slowest (pole_n < floor) rendered "ran on only 20/20 sampled PRs — it looks opt-in
+    # / conditional (e.g. label-gated)" in the lead-in and "ran on a minority of sampled PRs" in the
+    # summary note — both self-contradictory. It must state the frequency reason instead.
+    out = bp.render(_minority_slow_doc(bench_present=20))
+    assert "opt-in / conditional" not in out
+    assert "ran on a minority of sampled PRs" not in out
+    assert "ran on only 20/20" not in out
+    # lead-in + summary both use the frequency framing.
+    assert "runs on 20/20 sampled PRs, but it's rarely the actual slowest" in out
+    assert "present on most sampled PRs but rarely the actual slowest" in out
+
+
+def test_render_minority_slow_genuine_minority_keeps_opt_in_wording():
+    # The other case must be unchanged: a check that genuinely ran on a MINORITY (present 3/20) is
+    # still framed opt-in / conditional — the frequency reword must not swallow this true case.
+    out = bp.render(_minority_slow_doc(bench_present=3))
+    # (render flattens the em-dash separator to ASCII ` - `, per check_no_typographic_dashes)
+    assert "ran on only 3/20 sampled PRs - it looks opt-in / conditional" in out
+    assert "ran on a minority of sampled PRs (label-gated or path-filtered" in out
+
+
+def _pole_order_agreement_doc() -> dict:
+    """Four public-facing poles shaped like issue #305's example.
+
+    A is the longest frequent gate.  B is a shorter member of the saved modal
+    ``needs:`` chain.  D is longer than all of them but finished last only once.
+    """
+    npop = 20
+    checks = [
+        {"name": "A", "p50_s": 250.0, "present_on": npop,
+         "workflow_file": "a.yml", "pole_n": 9},
+        {"name": "B setup", "p50_s": 30.0, "present_on": npop,
+         "workflow_file": "b.yml", "pole_n": 0},
+        {"name": "B", "p50_s": 230.0, "present_on": npop,
+         "workflow_file": "b.yml", "pole_n": 6},
+        {"name": "C", "p50_s": 125.0, "present_on": npop,
+         "workflow_file": "c.yml", "pole_n": 3},
+        {"name": "D", "p50_s": 280.0, "present_on": npop,
+         "workflow_file": "d.yml", "pole_n": 1},
+    ]
+    winners = ["A"] * 9 + ["B"] * 6 + ["C"] * 3 + ["D"] + ["external"]
+    populations = []
+    for winner in winners:
+        rows = [[c["name"], 1000.0 if c["name"] == winner else c["p50_s"]]
+                for c in checks]
+        if winner == "external":
+            rows.append(["external", 1100.0])
+        populations.append([0.1, rows])
+    poles = [
+        {"check": c["name"], "p50_s": c["p50_s"],
+         "workflow_file": c["workflow_file"], "job": c["name"]}
+        for c in checks if c["name"] != "B setup"
+    ]
+    return {
+        "repo": "example/repo",
+        "required_checks": ["A"],
+        "data_sources": {},
+        "pr_critical_path": {
+            "critical_path_check": "A",
+            "critical_path_s": 250.0,
+            "check_present_n_pr": npop,
+            "checks": checks,
+            "populations": populations,
+            "poles": poles,
+            "chain_summary": {
+                "modal_chain": ["B setup", "B"],
+                "chain_p50_s": 230.0,
+                "chain_win_p50_s": 0.0,
+                "runner_up_p50_s": 250.0,
+                "makespan_p50_s": 280.0,
+                "divergence_pct": 0.0,
+            },
+        },
+    }
+
+
+def test_poles_render_in_two_duration_ordered_groups_and_bottom_names_pole_one():
+    report = bp.render(_pole_order_agreement_doc())
+    contents = report.split("## 📋 Contents", 1)[1].split("<a id=\"long-pole-map\"", 1)[0]
+
+    assert "Checks that hold up most PRs" in contents
+    assert "Long but rarely the last to finish" in contents
+    frequent = contents.index("Checks that hold up most PRs")
+    rare = contents.index("Long but rarely the last to finish")
+    assert frequent < contents.index("[A]") < contents.index("[B]") < contents.index("[C]") < rare
+    assert rare < contents.index("[D]")
+    for check, p50, gates in (("A", "4m 10s", "9/20"), ("B", "3m 50s", "6/20"),
+                              ("C", "2m 05s", "3/20"), ("D", "4m 40s", "1/20")):
+        row = next(line for line in contents.splitlines() if f"[{check}]" in line)
+        assert f"P50 {p50}" in row and f"finishes last on {gates} PRs" in row
+    d_row = next(line for line in contents.splitlines() if "[D]" in line)
+    assert "a slower check usually ran alongside" in d_row
+    assert "**Frequency group:** Checks that hold up most PRs." in _pole_section(report, "A")
+    assert "**Frequency group:** Long but rarely the last to finish." in _pole_section(
+        report, "D")
+    bottom = next(line for line in report.splitlines() if line.startswith("> **Bottom line.**"))
+    assert bottom.startswith(
+        "> **Bottom line.** Long pole 1, `A`, has P50 **4m 10s** and is the longest "
+        "check in **Checks that hold up most PRs**."
+    )
+
+
+def test_bottom_line_long_pole_one_cost_and_group_are_verified(tmp_path):
+    doc = _pole_order_agreement_doc()
+    clean = bp.render(doc)
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+
+    variants = [
+        clean.replace("has P50 **4m 10s**", "has P50 **9m 10s**", 1),
+        clean.replace(
+            "is the longest check in **Checks that hold up most PRs**",
+            "is the longest check in **Long but rarely the last to finish**",
+            1,
+        ),
+    ]
+    for report in variants:
+        check = _load_vr().check_pole_groups_and_bottom_agree(report, findings)
+        assert not check.ok, check.detail
+
+
+def test_all_rare_poles_are_not_introduced_as_checks_that_gate_your_merge():
+    doc = _pole_order_agreement_doc()
+    for row in doc["pr_critical_path"]["checks"]:
+        row["pole_n"] = 1 if row["name"] in {"A", "B", "C", "D"} else 0
+
+    report = bp.render(doc)
+    contents = report.split("## 📋 Contents", 1)[1].split(
+        '<a id="long-pole-map"', 1)[0]
+
+    assert "the checks that gate your merge" not in contents
+    assert "measured conditional last-finishers" in contents
+
+
+def test_needs_chain_member_is_not_said_to_run_alongside_a_slower_check(tmp_path):
+    doc = _pole_order_agreement_doc()
+    for row in doc["pr_critical_path"]["checks"]:
+        if row["name"] == "B":
+            row["pole_n"] = 1
+
+    report = bp.render(doc)
+    contents = report.split("## 📋 Contents", 1)[1].split(
+        '<a id="long-pole-map"', 1)[0]
+    b_row = next(line for line in contents.splitlines() if "[B]" in line)
+    assert "runs in the measured `needs:` chain" in b_row
+    assert "a slower check usually ran alongside" not in b_row
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+    check = _load_vr().check_pole_groups_and_bottom_agree(report, findings)
+    assert check.ok, check.detail
+
+
+def test_phase_six_handoff_uses_the_report_frequency_groups():
+    text = (_SCRIPTS.parent / "SKILL.md").read_text(encoding="utf-8")
+    assert "Open with the report's Long pole 1" in text
+    assert "Checks that hold up most PRs" in text
+    assert "Long but rarely the last to finish" in text
+    assert re.search(r"do not call a\s+rare-last row a gating check", text, re.I)
+
+
+def test_pole_group_renderer_and_verifier_use_the_population_denominator(tmp_path):
+    doc = _pole_order_agreement_doc()
+    doc["pr_critical_path"]["populations"] = doc["pr_critical_path"]["populations"][:-1]
+
+    report = bp.render(doc)
+    contents = report.split("## 📋 Contents", 1)[1].split(
+        '<a id="long-pole-map"', 1)[0]
+    assert "finishes last on 9/19 PRs" in contents
+
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+    check = _load_vr().check_pole_groups_and_bottom_agree(report, findings)
+    assert check.ok, check.detail
+
+
+def test_pole_group_verifier_excludes_an_unconfirmed_only_population(tmp_path):
+    doc = _pole_order_agreement_doc()
+    d_check = next(row for row in doc["pr_critical_path"]["checks"]
+                   if row["name"] == "D")
+    d_check["required_reachable"] = False
+    doc["pr_critical_path"]["populations"].append([0.1, [["D", 900.0]]])
+
+    report = bp.render(doc)
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+    check = _load_vr().check_pole_groups_and_bottom_agree(report, findings)
+
+    assert check.ok, check.detail
+
+
+def test_pole_groups_sort_by_the_p50_the_rows_display():
+    doc = _pole_order_agreement_doc()
+    a_check = next(row for row in doc["pr_critical_path"]["checks"]
+                   if row["name"] == "A")
+    a_pole = next(row for row in doc["pr_critical_path"]["poles"]
+                  if row["check"] == "A")
+    a_check["p50_s"] = a_pole["p50_s"] = 100.0
+    a_check["bimodal"] = a_pole["bimodal"] = {"high_p50_s": 500.0}
+
+    report = bp.render(doc)
+    contents = report.split("## 📋 Contents", 1)[1].split(
+        "<a id=\"long-pole-map\"", 1)[0]
+    assert contents.index("[B]") < contents.index("[C]") < contents.index("[A]")
+
+
+def test_one_of_one_last_finisher_is_not_called_rare():
+    doc = _pole_order_agreement_doc()
+    doc["pr_critical_path"]["check_present_n_pr"] = 1
+    doc["pr_critical_path"]["populations"] = doc["pr_critical_path"]["populations"][:1]
+    for row in doc["pr_critical_path"]["checks"]:
+        row["present_on"] = 1
+        row["pole_n"] = 1 if row["name"] == "A" else 0
+
+    report = bp.render(doc)
+    contents = report.split("## 📋 Contents", 1)[1].split(
+        "<a id=\"long-pole-map\"", 1)[0]
+    a_row = next(line for line in contents.splitlines() if "[A]" in line)
+    assert contents.index("Checks that hold up most PRs") < contents.index(a_row)
+    assert "rarely" not in a_row and "slower check usually ran alongside" not in a_row
+
+
+def test_unconfirmed_check_cannot_become_long_pole_one():
+    doc = _pole_order_agreement_doc()
+    counts = {"A": 1, "B": 1, "C": 1, "D": 0, "B setup": 0}
+    for row in doc["pr_critical_path"]["checks"]:
+        row["pole_n"] = counts[row["name"]]
+        if row["name"] == "D":
+            row["required_reachable"] = False
+            row["p50_s"] = 600.0
+    next(row for row in doc["pr_critical_path"]["poles"]
+         if row["check"] == "D")["p50_s"] = 600.0
+
+    report = bp.render(doc)
+    bottom = next(line for line in report.splitlines()
+                  if line.startswith("> **Bottom line.**"))
+    assert "Long pole 1, `A`," in bottom
+    contents = report.split("## 📋 Contents", 1)[1].split(
+        "<a id=\"long-pole-map\"", 1)[0]
+    assert contents.index("[D]") > contents.index("[C]")
+
+
+def test_verifier_rejects_pole_group_order_bottom_disagreement_and_missing_rare_reason(tmp_path):
+    doc = _pole_order_agreement_doc()
+    clean = bp.render(doc)
+    contents = clean.split("## 📋 Contents", 1)[1].split("<a id=\"long-pole-map\"", 1)[0]
+    a_row = next(line for line in contents.splitlines() if "[A]" in line)
+    b_row = next(line for line in contents.splitlines() if "[B]" in line)
+    d_row = next(line for line in contents.splitlines() if "[D]" in line)
+    variants = [
+        clean.replace(a_row + "\n" + b_row, b_row + "\n" + a_row),
+        clean.replace("Long pole 1, `A`", "Long pole 1, `B`"),
+        clean.replace(" · a slower check usually ran alongside", ""),
+        clean.replace("[A](#pole-1)", "[Z](#pole-1)").replace(
+            "Long pole 1, `A`", "Long pole 1, `Z`"),
+        clean.replace("at least 2 sampled PRs", "at least 3 sampled PRs").replace(
+            "fewer than 2 sampled PRs", "fewer than 3 sampled PRs"),
+        clean.replace("at least 2 sampled PRs", "at least 9 sampled PRs"),
+        clean.replace("fewer than 2 sampled PRs", "fewer than 9 sampled PRs"),
+    ]
+    vr = _load_verify_report()
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+    for i, report in enumerate(variants):
+        report_path = tmp_path / f"report-{i}.md"
+        report_path.write_text(report, encoding="utf-8")
+        failures = [
+            c for c in vr.run_checks(report, report_path, findings, skill_repo=None)
+            if c.name == "pole groups are duration-ordered and Bottom line agrees with Long pole 1"
+            and not c.skipped and not c.ok
+        ]
+        assert failures, f"pole-order verifier accepted tampered variant {i}"
+
+
+def test_verifier_rejects_a_drill_frequency_group_that_disagrees_with_contents(tmp_path):
+    doc = _pole_order_agreement_doc()
+    clean = bp.render(doc)
+    tampered = clean.replace(
+        "**Frequency group:** Checks that hold up most PRs.",
+        "**Frequency group:** Long but rarely the last to finish.",
+        1,
+    )
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+
+    check = _load_vr().check_pole_groups_and_bottom_agree(tampered, findings)
+
+    assert not check.ok, check.detail
+
+
+def test_verifier_rejects_a_forged_terminal_needs_reason(tmp_path):
+    doc = _pole_order_agreement_doc()
+    clean = bp.render(doc)
+    tampered = clean.replace(
+        "a slower check usually ran alongside",
+        "feeds the terminal `needs:` gate",
+        1,
+    )
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+
+    check = _load_vr().check_pole_groups_and_bottom_agree(tampered, findings)
+
+    assert not check.ok, check.detail
+
+
+def test_render_legacy_no_pole_n_keeps_presence_wording():
+    # Backward compat: a pre-`pole_n` doc (no `pole_n` on any check) still falls back to the legacy
+    # PRESENCE demotion + its original "Opt-in / rare — ran on only N/npop" wording, unchanged.
+    doc = _freq_demoted_doc()
+    for c in doc["pr_critical_path"]["checks"]:
+        c.pop("pole_n", None)
+    # Legacy presence rule: check-packages present on all 20 stays "typical" (present > 50%), so to
+    # exercise the rare-branch wording drop its presence below the floor.
+    doc["pr_critical_path"]["checks"][1]["present_on"] = 3
+    doc["pr_critical_path"]["populations"] = (
+        [[0.1, [["native", 1400.0], ["check-packages", 300.0]]] for _ in range(3)]
+        + [[0.1, [["native", 1400.0]]] for _ in range(17)])
+    out = bp.render(doc)
+    # (the render flattens the em-dash separator to an ASCII ` - `, per check_no_typographic_dashes)
+    assert "Opt-in / rare - ran on only 3/20 sampled PRs" in out
+    assert "Rarely the merge gate" not in out
+
+
+def test_pct_disp_matches_mag_line_fmtm_rule():
+    # F3 (4th adversarial review): the shared cache-health percent formatter must apply the SAME
+    # whole-vs-one-decimal rule `_mag_line`'s local `fmtm` uses, so a half-percent median never
+    # rounds across the churn floor and reads as disagreeing with the re-derived verdict.
+    fmtm = (lambda x: f"{x:.0f}%" if abs(x - round(x)) < 0.05 else f"{x:.1f}%")
+    for x in (0.0, 6.0, 39.0, 39.5, 40.0, 40.4, 51.5, 99.5, 100.0):
+        assert bp._pct_disp(x) == fmtm(x), x
+    assert bp._pct_disp(39.5) == "39.5%" and bp._pct_disp(40.0) == "40%"
+
+
+def test_cache_health_block_half_percent_median_does_not_round_across_floor():
+    # F3: a median of 39.5% (below the 40% churn floor → `mostly-warm`) must render "39.5%", not a
+    # rounded "40%" that would sit ON the floor next to the "cache mostly HITS" verdict.
+    # Push (default-branch) median carries the SAME half-percent hazard — a distinct 12.5% value
+    # must render "12.5%", not a rounded "12%"/"13%".
+    cd = _cd("mostly-warm", med=39.5, rng=(39, 40), n=2, upstream_n=2,
+             push={"median": 12.5, "n": 3})
+    out = "\n".join(bp._cache_health_block(cd))
+    assert "median miss **39.5%**" in out          # PR bucket
+    assert "median miss **40%**" not in out
+    assert "median miss **12.5%**" in out           # push bucket (same formatter)
+    assert "12%" not in out and "13%" not in out
+    assert "mostly HITS" in out
+
+
+# --------------------------------------------------------------------------- #
+# Bug 3 — one canonical matrix-base parser. The trailing-paren REDUCTION is
+# shared (blocking_path._matrix_base_raw), so the drill engine's key-building
+# _matrix_base_name and the renderer's display _matrix_base can never disagree
+# on WHERE the base ends (they used to: the old _matrix_base matched up to the
+# FIRST `(`, while _matrix_base_name stripped only the TRAILING parenthetical —
+# GitHub's actual matrix-leg naming, `<job> (<params>)`).
+#
+# Only the reduction is shared, NOT the display normalization. _matrix_base_name
+# builds required-check MATCHING KEYS, so it must be byte-identical to the
+# original — scope- and case-PRESERVING. _matrix_base builds display labels, so
+# it layers `_clean_label` (strip `@scope/`) + `.lower()` on top. Both contracts
+# are locked below so a future "just delegate to _matrix_base" shortcut (which
+# would silently collide `@a/pkg build (18)` with `@b/pkg build (18)` and fold
+# `Build`/`build` together in the engine's keys) fails loudly here.
+# --------------------------------------------------------------------------- #
+def test_matrix_base_parsers_agree_on_where_base_ends():
+    cases = [
+        "test (18, ubuntu)",   # canonical matrix leg -> "test"
+        "test",                # no parenthetical at all -> None / passthrough
+        "build (x) fast",      # embedded, non-trailing paren -> NOT a matrix leg
+        "test (a) (b)",        # two trailing groups -> peel only the outer one
+    ]
+    for name in cases:
+        renderer_base = bp._matrix_base(name)       # blocking_path = DISPLAY parser
+        engine_base = cr._matrix_base_name(name)    # collect_runs = ENGINE key builder
+        if renderer_base is None:
+            assert engine_base == name.strip(), (name, renderer_base, engine_base)
+        else:
+            # They agree on WHERE the base ends; the renderer additionally
+            # lowercases for display while the engine PRESERVES case (blessed by
+            # test_matrix_base_name_preserves_scope_and_case_for_engine_keys).
+            # Compare case-normalized so adding a mixed-case case here (e.g.
+            # "Test (18, ubuntu)") can't spuriously fail this cut-point check.
+            assert renderer_base == engine_base.lower(), (name, renderer_base, engine_base)
+    # Spot-check the actual reduced values so a future edit can't satisfy the
+    # "they agree" assertion above by breaking both sides identically.
+    assert bp._matrix_base("test (18, ubuntu)") == "test"
+    assert bp._matrix_base("test") is None
+    assert bp._matrix_base("build (x) fast") is None
+    assert bp._matrix_base("test (a) (b)") == "test (a)"
+
+
+def test_matrix_base_name_preserves_scope_and_case_for_engine_keys():
+    # The engine's _matrix_base_name feeds required-check MATCHING KEYS, so it
+    # must preserve BOTH the monorepo `@scope/` prefix and the original case —
+    # otherwise `@a/pkg build (18)` and `@b/pkg build (18)` would collide, and a
+    # `Build` job would fold into a `build` job.
+    assert cr._matrix_base_name("@myorg/pkg build (18)") == "@myorg/pkg build"
+    assert cr._matrix_base_name("Build (18)") == "Build"
+    # The renderer's display parser, by contrast, strips scope + lowercases.
+    assert bp._matrix_base("@myorg/pkg build (18)") == "pkg build"
+    assert bp._matrix_base("Build (18)") == "build"
+
+
+def test_matrix_base_tolerates_one_level_of_nested_parens():
+    # A matrix param VALUE can itself contain parens (e.g. a version string
+    # "18 (LTS)"), so the trailing group must tolerate ONE nesting level or the
+    # leg isn't recognized and loses its grouping to its siblings.
+    assert bp._matrix_base_raw("test (18 (LTS), ubuntu)") == "test"
+    assert cr._matrix_base_name("test (18 (LTS), ubuntu)") == "test"
+    assert bp._matrix_base("test (18 (LTS), ubuntu)") == "test"
+    # Non-nested behavior is unchanged, and DEEP (2-level) nesting stays not-a-leg.
+    assert bp._matrix_base_raw("test (18, ubuntu)") == "test"
+    assert bp._matrix_base_raw("build (x) fast") is None
+    assert bp._matrix_base_raw("test (a (b (c)))") is None
+
+
+# Note: the best-practice grade card renderer moved to a separate internal skill
+# at the score-ectomy (2026-07-16); its render tests live in that skill's own
+# tests. ci-speedup carries zero grading machinery, so there is no card surface
+# to pin here anymore.
+
+
+def test_count_noun_pluralizes_provenance_counts():
+    # Provenance strings ("Where this data comes from") render census counts as
+    # `N runs / M jobs across K workflows`; a naive f"{n} workflows" prints the
+    # live-run nit `across 1 workflows`. `_count_noun` fixes singular/plural, and
+    # passes a non-int (degraded/partial doc) through without pluralizing.
+    assert bp._count_noun(1, "workflow") == "1 workflow"
+    assert bp._count_noun(3, "workflow") == "3 workflows"
+    assert bp._count_noun(1, "run") == "1 run"
+    assert bp._count_noun(0, "job") == "0 jobs"
+    assert bp._count_noun(None, "workflow") == "None workflows"
+
+
+# ── Owner UX edit 2026-07-19: Long pole map, single Bottom-line block, name-collision ──
+
+def _collision_doc(*, colliding: bool = True) -> dict:
+    """A one-pole doc modeled on the live internal-dev-repo report: the check `test` IS
+    the gate; a small `Test` step collides with the check name; the dominant step is the
+    guards step. With `colliding=False` the small step is renamed so no collision fires."""
+    small = "Test" if colliding else "Unit suite"
+    return {
+        "repo": "acme/site", "repo_visibility": "public",
+        "scanned_at": "2026-07-19T00:00:00Z", "commit_sha": "09e8243", "skill_commit_sha": "dd51d85",
+        "findings": [],
+        "data_sources": {"runs_sampled": 18, "jobs_sampled": 26, "workflows_analyzed": 1},
+        "pr_critical_path": {
+            "sampled_pr_count": 20, "sample_target": 20, "sample_complete": True,
+            "poles": [{
+                "check": "test", "p50_s": 538.0,
+                "workflow_file": ".github/workflows/ci.yml", "job": "test",
+                "dominant_step": "Verify the guards can actually fail (mutation registry)",
+                "dominant_p50_s": 371.0,
+                "steps": [
+                    {"step": "Checkout", "category": "setup", "p50_s": 18.0},
+                    {"step": small, "category": "test", "p50_s": 31.0},
+                    {"step": "Verify the guards can actually fail (mutation registry)",
+                     "category": "other", "p50_s": 371.0},
+                ],
+            }],
+            "checks": [{"name": "test", "p50_s": 538.0, "present_on": 20,
+                        "workflow_file": ".github/workflows/ci.yml"},
+                       {"name": "guard shard 3/4", "p50_s": 150.0, "present_on": 20,
+                        "workflow_file": ".github/workflows/ci.yml"}],
+            "populations": [],
+        },
+    }
+
+
+# Built to the REAL capture schema `collect_runs._step_timeline` writes — each entry
+# keyed `name`/`number`/`start_s`/`dur_s` (verified live 2026-07-20 against
+# `test-*.steps.json`) — NOT the `step` key the pole's P50 list uses. The old fixture
+# was hand-built with `step` keys, a shape the capture pipeline never produces, which is
+# exactly how issue #92 (`_check_step_collision` read only `step`, so a captured timeline
+# scanned all-empty and the collision clause never fired on a real drilled pole) passed
+# its own test. The schema-parity pin below pins these keys to the writer's output.
+_COLLISION_TIMELINE = {
+    "job_dur_s": 541.0, "run_url": "https://github.com/acme/site/actions/runs/99",
+    "steps": [
+        {"name": "Checkout", "number": 1, "start_s": 0.0, "dur_s": 18.0},
+        {"name": "Test", "number": 2, "start_s": 18.0, "dur_s": 31.0},
+        {"name": "Verify the guards can actually fail (mutation registry)",
+         "number": 3, "start_s": 49.0, "dur_s": 371.0},
+    ]}
+
+
+def _map_section(md: str) -> str:
+    """The Long pole map section only (up to the next `## ` header)."""
+    return md.split("## 🗺️ Long pole map", 1)[1].split("\n## ", 1)[0]
+
+
+def _turbo_cold_log() -> str:
+    # Reused parsed-leaf fixture: a turbo cold-cache log `_parse_log` recognizes as
+    # `turbo-remote-cache` with a single-level `deeper` of 2 rows + a blocker note.
+    return "\n".join([
+        "   • Remote caching disabled",
+        "cache miss, executing aaa",
+        "cache miss, executing bbb",
+        " Tasks:    149 successful, 149 total",
+        "Cached:    0 cached, 149 total",
+        "  Time:    9m48.772s",
+    ])
+
+
+def _turbo_build_doc() -> dict:
+    """A one-pole `build` doc whose dominant `Build` step's captured log parses to a turbo
+    cold-cache leaf (category `build`, matching the pole's `dominant_category`, so it is
+    crowned not demoted). Two checks on level 1; one drilled pole with a real Level 3."""
+    return {
+        "repo": "acme/site", "repo_visibility": "public",
+        "scanned_at": "2026-07-19T00:00:00Z", "commit_sha": "09e8243",
+        "skill_commit_sha": "dd51d85", "findings": [],
+        "data_sources": {"runs_sampled": 18, "jobs_sampled": 26, "workflows_analyzed": 1},
+        "pr_critical_path": {
+            "sampled_pr_count": 20, "sample_target": 20, "sample_complete": True,
+            "poles": [{
+                "check": "build", "p50_s": 600.0,
+                "workflow_file": ".github/workflows/ci.yml", "job": "build",
+                "dominant_step": "Build", "dominant_p50_s": 588.0,
+                "dominant_category": "build",
+                "steps": [
+                    {"step": "Checkout", "category": "setup", "p50_s": 12.0},
+                    {"step": "Build", "category": "build", "p50_s": 588.0},
+                ],
+            }],
+            "checks": [{"name": "build", "p50_s": 600.0, "present_on": 20,
+                        "workflow_file": ".github/workflows/ci.yml"},
+                       {"name": "lint", "p50_s": 120.0, "present_on": 20,
+                        "workflow_file": ".github/workflows/ci.yml"}],
+            "populations": [],
+        },
+    }
+
+
+def test_long_pole_map_renders_after_contents_before_pole1():
+    # The FULL blocker cascade (owner-approved 2026-07-19), placed AFTER the Contents and
+    # BEFORE Long pole 1. Checks-first: level 1 = the flat race of merge-gating checks;
+    # ◀┐ descends into the gate check's steps (level 2); % is share of the check's own p50.
+    md = bp.render(_collision_doc(), {}, {}, {"ci": _COLLISION_TIMELINE["run_url"]},
+                   "2026-07-19T00:00:00Z", {"ci": _COLLISION_TIMELINE})
+    assert "## 🗺️ Long pole map" in md
+    seg = _map_section(md)
+    # Hierarchy glossary (issue #96): rendered ONCE, under the map heading, above the
+    # fence — the first place workflow/job/step all collide.
+    _glossary = ("A **workflow** is one YAML file under `.github/workflows/`; a run of it "
+                 "executes its **jobs** in parallel (each on its own runner); each job runs "
+                 "its **steps** in sequence.")
+    assert md.count(_glossary) == 1
+    assert _glossary in seg
+    assert seg.index(_glossary) < seg.index("```text")
+    # Ordering: Contents → Long pole map → Long pole 1.
+    i_contents = md.index("## 📋 Contents")
+    i_map = md.index("## 🗺️ Long pole map")
+    i_pole1 = md.index("## 🔴 Long pole 1:")
+    assert i_contents < i_map < i_pole1
+    # Level-1 lead + labels carry the workflow file (pin 1).
+    assert "Level 1 - checks racing on every PR; the merge waits for the slowest:" in seg
+    assert "test · ci.yml" in seg
+    assert "guard shard 3/4 · ci.yml" in seg
+    # The ◀┐ + connector + `▼ Level 2 — inside test` cascade renders (pin 2).
+    assert "◀┐" in seg
+    assert "┌" in seg and "┘" in seg
+    assert "▼ Level 2 - inside test, steps run one after another:" in seg
+    # Level-2 dominant step marked ◀, pct = share of the CHECK's p50: 371/538 → 69% (pin 3).
+    assert "Verify the guards can actually f" in seg
+    assert "69% ◀" in seg
+    # No roll-up row in the map's level 2 — that lives in the pole section only (pin 4).
+    assert "smaller steps" not in seg
+    # Closing prose is the cascade line, AFTER the fence (pin 5); the old #75 line is gone here.
+    assert "Each ◀ marks the blocker the next level opens." in md
+    assert "Long pole 1 below drills the marked step" in md
+    assert "each **Long pole** finding below drills" not in md
+    assert "(the gate)" in md            # Contents tag survives, unrelated to the map
+
+
+def test_long_pole_map_degenerate_single_check_no_one_bar_level():
+    # Pin 6: a doc with a SINGLE check (and a single step) must NOT render a one-bar level 1
+    # — degenerate levels collapse. With nothing that qualifies, the section is skipped.
+    doc = _collision_doc()
+    cp = doc["pr_critical_path"]
+    cp["checks"] = [cp["checks"][0]]                       # one check
+    cp["poles"][0]["steps"] = [cp["poles"][0]["steps"][0]]  # one step
+    md = bp.render(doc, {}, {}, {}, "2026-07-19T00:00:00Z", {})
+    assert "## 🗺️ Long pole map" not in md
+    # The hierarchy glossary rides the map — absent when the map is skipped (issue #96).
+    assert "A **workflow** is one YAML file under" not in md
+
+
+def test_long_pole_map_level1_only_fallback_keeps_75_closing():
+    # When the descent pole's check isn't among the shown level-1 rows (here: its steps are
+    # stripped so level 2 can't draw), fall back to the level-1-only render with the ORIGINAL
+    # #75 closing line — a data-poor repo renders exactly as before.
+    doc = _collision_doc()
+    doc["pr_critical_path"]["poles"][0]["steps"] = []      # no usable steps → no level 2
+    md = bp.render(doc, {}, {}, {}, "2026-07-19T00:00:00Z", {})
+    seg = _map_section(md)
+    assert "test · ci.yml" in seg                          # level 1 still draws (>=2 checks)
+    assert "▼ Level 2" not in seg                          # no cascade
+    assert "each **Long pole** finding below drills" in md  # the #75 closing line returns
+    assert "Each ◀ marks the blocker the next level opens." not in md
+
+
+def test_long_pole_map_level3_renders_with_leaf_and_pole_keeps_its_own():
+    # Pin 7: when the descent pole's shared leaf has a `deeper` first level of >=2 rows, the
+    # MAP renders Level 3 (with its blocker note), AND the pole section below still renders
+    # its OWN Level 3 — the two share one derivation, so they can't disagree.
+    md = bp.render(_turbo_build_doc(), {"ci": _turbo_cold_log()}, {},
+                   {"ci": "https://github.com/acme/site/actions/runs/7"},
+                   "2026-07-19T00:00:00Z", {})
+    seg = _map_section(md)
+    assert "▼ Level 3 - inside `Build`: turbo builds 149 packages" in seg
+    assert "rebuilt (cache miss)" in seg
+    assert "Remote caching DISABLED - BIGGEST LEVER" in seg   # deeper[0] blocker note
+    # The pole section (after the map) renders its own Level 3 too.
+    pole = md.split("## 🔴 Long pole 1:", 1)[1]
+    assert "Level 3 - inside `Build`" in pole
+
+
+def test_long_pole_map_chain_form_keeps_lead_and_cascades():
+    # Pin 8: on a `needs:` chain repo the level-1 lead keeps the chain-variant wording
+    # ("run in sequence (`needs:`), so their times ADD on the gate path") and still cascades.
+    doc = _collision_doc()
+    doc["pr_critical_path"]["chain_summary"] = {
+        "modal_chain": ["guard shard 3/4", "test"], "chain_p50_s": 688.0}
+    md = bp.render(doc, {}, {}, {"ci": _COLLISION_TIMELINE["run_url"]},
+                   "2026-07-19T00:00:00Z", {"ci": _COLLISION_TIMELINE})
+    seg = _map_section(md)
+    assert "Level 1 - checks racing on every PR - except" in seg
+    assert "run in sequence (`needs:`), so their times ADD on the gate path" in seg
+    assert "▼ Level 2 - inside test" in seg                 # still cascades
+
+
+def test_long_pole_map_does_not_change_pole_waterfall():
+    # Pin 9: the pole 1 waterfall is unchanged by the map — it still renders its own
+    # Level 2 header line exactly as before (the map is presentation-only, shares no state
+    # that alters the loop's per-pole render).
+    md = bp.render(_collision_doc(), {}, {}, {"ci": _COLLISION_TIMELINE["run_url"]},
+                   "2026-07-19T00:00:00Z", {"ci": _COLLISION_TIMELINE})
+    pole = md.split("## 🔴 Long pole 1:", 1)[1]
+    assert "Level 2 - inside that one job" in pole          # the pole's own timeline lead
+
+
+# ── Long pole map: minority-presence honesty marking (2026-07-21) ─────────────────────
+# A level-1 row can be "typical" (kept in `src`) by pole FREQUENCY or the required-check
+# exemption yet have run on only a MINORITY of sampled PRs. Under the "every PR" lead a reader
+# would misread its conditional time as the normal blocker (the playwright `Windows (firefox)`,
+# 2/20, defect). The map marks such rows with ` †`, reframes the lead honestly, and adds a
+# legend line with each marked row's real sampled-PR fraction. Presentation-only.
+
+def _minority_map_doc(*, denom: int = 20, e2e_present: int = 2,
+                      required: bool = True, chain: bool = False) -> dict:
+    """Two level-1 checks: `unit` (present on every PR — the descent pole, with steps) and a
+    slow `Windows E2E (firefox)` kept in `src` via the required exemption but present on only
+    `e2e_present`/`denom` PRs (a minority). `denom` sets the presence denominator so the
+    small-sample case (denom < the rare-presence floor) can be driven."""
+    doc = {
+        "repo": "acme/site", "repo_visibility": "public",
+        "scanned_at": "2026-07-19T00:00:00Z", "commit_sha": "09e8243",
+        "skill_commit_sha": "dd51d85", "findings": [],
+        "data_sources": {"runs_sampled": 18, "jobs_sampled": 26, "workflows_analyzed": 1},
+        "pr_critical_path": {
+            "sampled_pr_count": denom, "sample_target": denom, "sample_complete": True,
+            "check_present_n_pr": denom,
+            "poles": [{
+                "check": "unit", "p50_s": 538.0,
+                "workflow_file": ".github/workflows/ci.yml", "job": "unit",
+                "dominant_step": "Verify the guards can actually fail (mutation registry)",
+                "dominant_p50_s": 371.0,
+                "steps": [
+                    {"step": "Checkout", "category": "setup", "p50_s": 18.0},
+                    {"step": "Run tests", "category": "test", "p50_s": 31.0},
+                    {"step": "Verify the guards can actually fail (mutation registry)",
+                     "category": "other", "p50_s": 371.0},
+                ],
+            }],
+            "checks": [
+                {"name": "Windows E2E (firefox)", "p50_s": 4377.0,
+                 "present_on": e2e_present, "workflow_file": ".github/workflows/e2e.yml"},
+                {"name": "unit", "p50_s": 538.0, "present_on": denom,
+                 "workflow_file": ".github/workflows/ci.yml"},
+            ],
+            "populations": [],
+        },
+    }
+    if required:
+        doc["required_checks"] = ["Windows E2E (firefox)"]
+    if chain:
+        doc["pr_critical_path"]["chain_summary"] = {
+            "modal_chain": ["unit", "Windows E2E (firefox)"], "chain_p50_s": 4915.0}
+    return doc
+
+
+def _level1_bar_cols(seg: str) -> list[int]:
+    """The column of the first bar glyph on each level-1 row (the block before `▼ Level 2`).
+    Equal across rows == the fixed-width label field still pads to the same width, so bars and
+    connectors stay aligned even after a ` †` marker is appended."""
+    top = seg.split("▼ Level 2", 1)[0]
+    return [line.index("█") for line in top.splitlines() if "█" in line]
+
+
+def test_long_pole_map_minority_row_marks_reframes_and_legends():
+    # A required check present on only 2/20 PRs renders in level 1 (required exemption); it
+    # must be MARKED with ` †`, the lead reframed to "a typical PR" + the † disclosure, and a
+    # legend must name it with its real fraction. `unit` (20/20) stays unmarked.
+    md = bp.render(_minority_map_doc(), {}, {}, {}, "2026-07-19T00:00:00Z", {})
+    seg = _map_section(md)
+    # The minority row carries the trailing ` †` (short enough to render un-truncated).
+    assert "Windows E2E (firefox) · e2e.yml †" in seg
+    # The majority descent row is NOT marked.
+    unit_line = [l for l in seg.splitlines() if l.strip().startswith("unit ·")][0]
+    assert "†" not in unit_line
+    # The lead is reframed honestly (em dashes are flattened to ASCII at the render boundary).
+    assert ("Level 1 - checks racing on a typical PR; the merge waits for the slowest - rows "
+            "marked † ran on a minority of sampled PRs (path-conditional - they gate only the "
+            "PRs that trigger them):") in seg
+    assert "checks racing on every PR;" not in seg          # old lead gone on this doc
+    # The legend names the marked row with its real fraction, AFTER the fence.
+    assert "† `Windows E2E (firefox)` ran on 2/20 sampled PRs." in md
+    assert md.index("```", md.index("## 🗺️")) < md.index("† `Windows E2E (firefox)` ran on")
+    # Bars stay aligned across rows despite the ` †` on row 0.
+    cols = _level1_bar_cols(seg)
+    assert len(cols) == 2 and len(set(cols)) == 1
+
+
+def test_long_pole_map_all_majority_active_filter_byte_identical():
+    # With the presence filter ACTIVE (denom >= floor) but every rendered row present on every
+    # PR, the output is unchanged: original "every PR" lead, no ` †`, no legend.
+    md = bp.render(_minority_map_doc(e2e_present=20, required=False),
+                   {}, {}, {}, "2026-07-19T00:00:00Z", {})
+    seg = _map_section(md)
+    assert "Level 1 - checks racing on every PR; the merge waits for the slowest:" in seg
+    assert "†" not in seg
+    assert "ran on a minority of sampled PRs" not in md
+    assert "sampled PRs." not in _map_section(md)            # no legend line
+
+
+def test_long_pole_map_small_sample_no_minority_marking():
+    # Below the rare-presence floor (denom < _RARE_PRESENCE_MIN_PR) presence is noise: the
+    # filter is inactive, nothing is marked, and the map renders exactly as today.
+    md = bp.render(_minority_map_doc(denom=4, e2e_present=1),
+                   {}, {}, {}, "2026-07-19T00:00:00Z", {})
+    seg = _map_section(md)
+    assert "Level 1 - checks racing on every PR; the merge waits for the slowest:" in seg
+    assert "†" not in seg
+    assert "ran on a minority of sampled PRs" not in md
+
+
+def test_long_pole_map_chain_minority_arm_carries_the_dagger_clause():
+    # On a `needs:` chain repo the chain-variant lead keeps its "run in sequence" wording AND
+    # carries the minority † disclosure when a rendered row is minority-present.
+    md = bp.render(_minority_map_doc(chain=True), {}, {}, {}, "2026-07-19T00:00:00Z", {})
+    seg = _map_section(md)
+    assert "Level 1 - checks racing on a typical PR - except" in seg
+    assert "run in sequence (`needs:`), so their times ADD on the gate path" in seg
+    assert "rows marked † ran on a minority of sampled PRs" in seg
+    assert "Windows E2E (firefox) · e2e.yml †" in seg
+    assert "† `Windows E2E (firefox)` ran on 2/20 sampled PRs." in md
+
+
+def test_check_step_name_collision_disambiguates():
+    # A check whose name collides with a small step name inside it gets ONE clarifying
+    # clause on the pole header, and the waterfall lead is strengthened to "**steps** (not
+    # checks)". Both are collision-triggered — absent on a non-colliding pole.
+    md = bp.render(_collision_doc(colliding=True), {}, {},
+                   {"ci": _COLLISION_TIMELINE["run_url"]}, "2026-07-19T00:00:00Z",
+                   {"ci": _COLLISION_TIMELINE})
+    assert "the check named `test`; its small `Test` step below is not the bottleneck" in md
+    assert "the dominant step is `Verify the guards can actually fail…`" in md
+    assert "its **steps** (not checks) run one after another" in md
+
+    # No collision (the small step renamed): neither clause fires — never boilerplate.
+    # Rename the real timeline key (`name`), the one the capture pipeline emits.
+    tl2 = json.loads(json.dumps(_COLLISION_TIMELINE))
+    tl2["steps"][1]["name"] = "Unit suite"
+    md2 = bp.render(_collision_doc(colliding=False), {}, {},
+                    {"ci": tl2["run_url"]}, "2026-07-19T00:00:00Z", {"ci": tl2})
+    assert "is not the bottleneck" not in md2
+    assert "(not checks)" not in md2
+    assert "its steps run **one after another**" in md2      # plain lead returns
+
+
+def test_check_step_collision_helper_ignores_dominant_name_match():
+    # The shared name IS the dominant step → no disambiguation owed (a legitimately
+    # name-matched bottleneck), so the helper returns the empty no-op.
+    pole = {"check": "build", "dominant_step": "build",
+            "steps": [{"step": "build"}, {"step": "checkout"}]}
+    assert bp._check_step_collision(pole, None) == ("", "")
+    # A NON-dominant step collides → (colliding_step, dominant) is returned.
+    pole2 = {"check": "test", "dominant_step": "Verify guards",
+             "steps": [{"step": "Test"}, {"step": "Verify guards"}]}
+    assert bp._check_step_collision(pole2, None) == ("Test", "Verify guards")
+    # No known dominant step (None / missing / empty) → no disambiguation owed. Without the
+    # early-out, `dom == ""` makes the "not the dominant step" guard always true and the
+    # fallback returns `(nm, nm)`, rendering "its small `Test` step is not the bottleneck —
+    # the dominant step is `Test`" — a self-contradiction (Greptile P2, PR #75).
+    for absent in (None, "", "   "):
+        p = {"check": "test", "dominant_step": absent, "steps": [{"step": "Test"}]}
+        assert bp._check_step_collision(p, None) == ("", "")
+    assert bp._check_step_collision(
+        {"check": "test", "steps": [{"step": "Test"}]}, None) == ("", "")
+
+
+def test_collision_reader_accepts_the_exact_keys_the_timeline_writer_emits():
+    # Schema-parity pin (issue #92): the collision scan reads step names off the captured
+    # timeline; the timeline is written by `collect_runs._step_timeline`. If the writer's
+    # step key drifts out from under the reader (the #92 bug: writer emits `name`, reader
+    # read `step`), the collision clause silently dies on every drilled pole. So pin the
+    # WRITER's real output to the READER: invoke the writer on a synthetic jobs payload,
+    # then assert (a) it emits `name`, and (b) `_check_step_collision` recovers the
+    # colliding step from that unmodified writer output.
+    job = {
+        "name": "test",
+        "html_url": "https://github.com/o/r/actions/runs/9/job/77",
+        "started_at": "2026-01-01T00:00:00Z",
+        "completed_at": "2026-01-01T00:05:00Z",
+        "id": 77,
+        "steps": [
+            {"name": "Checkout", "number": 2, "started_at": "2026-01-01T00:00:00Z",
+             "completed_at": "2026-01-01T00:00:18Z"},
+            {"name": "Test", "number": 3, "started_at": "2026-01-01T00:00:18Z",
+             "completed_at": "2026-01-01T00:00:49Z"},   # small, collides with check `test`
+            {"name": "Verify the guards can actually fail (mutation registry)",
+             "number": 4, "started_at": "2026-01-01T00:00:49Z",
+             "completed_at": "2026-01-01T00:05:00Z"},   # the real dominant step
+        ],
+    }
+    tl = cr._step_timeline(job, "test", 300.0)
+    # (a) The writer keys every step `name` (NOT `step`); `_tl_name` reads that key.
+    assert tl["steps"] and all("name" in s for s in tl["steps"])
+    assert all("step" not in s for s in tl["steps"])
+    assert bp._tl_name(tl["steps"][1]) == "Test"
+    # (b) The reader recovers the collision from the writer's UNMODIFIED output — the very
+    # path that returned ('', '') before the fix (drilled poles always carry a timeline).
+    pole = {"check": "test",
+            "dominant_step": "Verify the guards can actually fail (mutation registry)"}
+    assert bp._check_step_collision(pole, tl) == (
+        "Test", "Verify the guards can actually fail (mutation registry)")
+
+
+def test_collision_clause_renders_on_a_live_shaped_real_schema_timeline():
+    # Live-shape regression pin (issue #92, confirmed on internal-dev-repo 2026-07-20):
+    # the check `test` gates; a small non-dominant `Test` step reads as "so test isn't the
+    # bottleneck"; the dominant step is a long install/verify step. Modeled on the real
+    # capture (`test-*.steps.json`): a REAL-schema timeline (`name`/`number`/`start_s`/
+    # `dur_s`). Both live surfaces must render: the role clause on the pole header AND the
+    # "**steps** (not checks)" waterfall lead.
+    dom_name = "Verify install-CTA instrumentation (production build) + 2 more install steps"
+    doc = {
+        "repo": "acme/site", "repo_visibility": "public",
+        "scanned_at": "2026-07-20T00:00:00Z", "commit_sha": "09e8243",
+        "skill_commit_sha": "dd51d85", "findings": [],
+        "data_sources": {"runs_sampled": 18, "jobs_sampled": 26, "workflows_analyzed": 1},
+        "pr_critical_path": {
+            "sampled_pr_count": 20, "sample_target": 20, "sample_complete": True,
+            "poles": [{
+                "check": "test", "p50_s": 177.0,
+                "workflow_file": ".github/workflows/ci.yml", "job": "test",
+                "dominant_step": dom_name, "dominant_p50_s": 92.0,
+                "steps": [
+                    {"step": "Checkout", "category": "setup", "p50_s": 13.0},
+                    {"step": "Test", "category": "test", "p50_s": 34.0},
+                    {"step": dom_name, "category": "other", "p50_s": 92.0},
+                ],
+            }],
+            "checks": [{"name": "test", "p50_s": 177.0, "present_on": 20,
+                        "workflow_file": ".github/workflows/ci.yml"},
+                       {"name": "guard shard 2/4", "p50_s": 90.0, "present_on": 20,
+                        "workflow_file": ".github/workflows/ci.yml"}],
+            "populations": [],
+        },
+    }
+    # REAL capture schema — `name`/`number`/`start_s`/`dur_s`, exactly what the writer emits.
+    tl = {
+        "job_dur_s": 177.0, "run_url": "https://github.com/acme/site/actions/runs/99",
+        "steps": [
+            {"name": "Checkout", "number": 3, "start_s": 2.0, "dur_s": 13.0},
+            {"name": "Test", "number": 10, "start_s": 25.0, "dur_s": 34.0},
+            {"name": dom_name, "number": 20, "start_s": 85.0, "dur_s": 92.0},
+        ]}
+    md = bp.render(doc, {}, {}, {"ci": tl["run_url"]}, "2026-07-20T00:00:00Z", {"ci": tl})
+    # Surface 1: the role clause on the pole header.
+    assert "the check named `test`; its small `Test` step below is not the bottleneck" in md
+    assert "the dominant step is `Verify install-CTA instrumentation" in md
+    # Surface 2: the strengthened waterfall lead.
+    assert "its **steps** (not checks) run one after another" in md
+
+
+def test_top_matter_is_one_bottom_line_blockquote_then_contents():
+    # Owner UX edit 2026-07-19: metadata table → ONE Bottom-line blockquote → Contents,
+    # nothing else. The folded headline claim + the config-era caveat live INSIDE the same
+    # blockquote (no blank line splits it), and the bill-scope note moved to Data sources.
+    doc = _collision_doc()
+    doc["pr_critical_path"]["config_eras"] = [{
+        "workflow_file": ".github/workflows/ci.yml", "boundary": "2026-07-18T08:00:00Z",
+        "kept_era": "pre", "rule": "disclosed_pre", "pre_count": 16, "post_count": 2,
+        "sufficiency_min": 6}]
+    md = bp.render(doc, {}, {}, {"ci": _COLLISION_TIMELINE["run_url"]},
+                   "2026-07-19T00:00:00Z", {"ci": _COLLISION_TIMELINE})
+    # Everything from the Bottom line down to the Contents is ONE contiguous blockquote:
+    # every non-blank line in that span is a '>' quote line (no blank line splits it).
+    lines = md.splitlines()
+    i_bl = next(i for i, l in enumerate(lines) if l.startswith("> **Bottom line.**"))
+    i_toc = next(i for i, l in enumerate(lines) if l.startswith("## 📋 Contents"))
+    between = "\n".join(lines[i_bl:i_toc])
+    body = [l for l in lines[i_bl:i_toc] if l.strip()]           # drop the closing blank
+    assert body and all(l.startswith(">") for l in body), between
+    assert bp._CONFIG_ERA_DISCLOSED_MARKER in between            # era caveat folded in
+    # The bill-scope methodology note moved OUT of the top matter, down into Data sources.
+    assert "keep the full sample by design" not in between
+    ds = md.split("## 🗄️ Data sources", 1)[1]
+    assert "keep the full sample by design" in ds
+
+
+# --------------------------------------------------------------------------- #
+# Fence-escaping (report-corruption / verifier-desync): repo-controlled free text
+# — check/job/step names and verbatim job-log evidence lines — is dropped into the
+# rendered Markdown. A stray triple-backtick would close a ```text fence early,
+# corrupting the report AND desyncing verify_report's own fence split (it parses the
+# same text with `re.findall(r"```text\n(.*?)```")`). `_fence_safe`/`_safe_span`
+# neutralize it at the sinks; these lock the behaviour + the byte-identity contract.
+# --------------------------------------------------------------------------- #
+
+def _load_vr():
+    import importlib.util
+    p = Path(__file__).resolve().parents[1] / "tests" / "verify_report.py"
+    spec = importlib.util.spec_from_file_location("verify_report", p)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["verify_report"] = mod  # so its @dataclass resolves
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_fence_safe_neutralizes_hostile_text_and_is_byte_identical_on_clean_input():
+    # BYTE-IDENTICAL on clean single-line input (the invariant the alignment/keys rely on).
+    for clean in ("test", "guard shard 2/4",
+                  "Verify install-CTA instrumentation (production build)"):
+        assert bp._fence_safe(clean) == clean
+        # `_clean_label` (the scope-strip) is deliberately NOT fence-safed — its verbatim
+        # verify_report._strip_scope twin is pinned by test_s1a — but `_lbl` (display) IS.
+        # `_lbl` truncates to `_LBLW`; fence-safety must not change that, so a within-width clean
+        # name is byte-identical (the long name only truncates — pre-existing behaviour).
+        if len(clean) <= bp._LBLW:
+            assert bp._lbl(clean) == clean
+    # A run of >=3 backticks (the ONLY thing that can close a ```text fence) is defused to a
+    # same-length, provably-non-terminating apostrophe run; 1-2 backticks (harmless in a fence)
+    # are left intact.
+    assert bp._fence_safe("a ```b``` c") == "a '''b''' c"
+    assert bp._fence_safe("`x` and ``y``") == "`x` and ``y``"    # <3 runs untouched
+    assert "`" * 3 not in bp._fence_safe("close ```` me")        # 4-run also defused
+    # Embedded newlines/CR collapse to a single space (a name/step/log line is ONE line, so it
+    # can never become its own all-backtick line inside a fence).
+    assert bp._fence_safe("line1\nline2\r\nline3") == "line1 line2 line3"
+    assert "\n" not in bp._fence_safe("a\n```\nb")
+    # Dangerous control chars are dropped; tab is KEPT (legit log indentation, harmless in a fence).
+    assert bp._fence_safe("a\x00b\x1bc\x07d") == "abcd"
+    assert bp._fence_safe("indent\tok") == "indent\tok"
+    # `_safe_span` wraps as inline code with NO surviving backtick to close the delimiter.
+    span = bp._safe_span("test ```echo pwned```")
+    assert span.startswith("`") and span.endswith("`")
+    assert "```" not in span and span.count("`") == 2   # only the two delimiters
+
+
+def _hostile_doc():
+    doc = _doc_one_pole()
+    pole = doc["pr_critical_path"]["poles"][0]
+    pole["check"] = "test ```echo pwned```"
+    # A step name carrying BOTH a triple-backtick and an embedded newline (waterfall-label sink).
+    pole["steps"][0]["step"] = "Run ```rm -rf```\nline2"
+    pole["dominant_step"] = "Run ```rm -rf```\nline2"
+    return doc
+
+
+def test_hostile_check_and_step_names_do_not_corrupt_the_rendered_report():
+    md = bp.render(_hostile_doc(), {}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/123"}, "2026-06-08")
+    # No raw triple-backtick from repo text survived anywhere — every sink defused it, so the
+    # only ``` runs left are the renderer's own fence delimiters.
+    assert "echo pwned" in md                       # the name still renders (readable)
+    assert "```echo pwned```" not in md             # ...but defused, never as a live fence
+    assert "```rm -rf```" not in md
+    # Fence-delimiter lines are BALANCED (even) — the corruption + verifier-desync signature.
+    assert len(re.findall(r"(?m)^`{3,}", md)) % 2 == 0
+    # The pole heading renders on ONE physical line (the embedded newline was collapsed).
+    hdr = next(l for l in md.splitlines() if "Long pole 1:" in l)
+    assert "echo pwned" in hdr and "\n" not in hdr
+    # The verifier PARSES the hostile heading correctly: the check name comes back clean
+    # (wrapping backticks peeled, interior triple-backtick defused) — no desync.
+    vr = _load_vr()
+    wf, check, _body = vr._pole_header_sections(md)[0]
+    assert wf == "pipeline.yml"
+    assert "`" not in check and "echo pwned" in check
+    # ...and the defense-in-depth balance check passes on the (now safe) report.
+    assert vr.check_fences_balanced(md).ok
+
+
+def test_hostile_evidence_line_does_not_break_its_fence():
+    # Drive the verbatim-evidence sink end-to-end: an off-category leaf renders its captured log
+    # lines inside a ```text fence. Inject a triple-backtick INTO the quoted log line.
+    doc, logs = _nx_offcategory_doc()
+    logs["Run Checks"] = (
+        "> nx run-many --target=lint\n"
+        "$ eslint . ```echo pwned``` --ext .ts\n"     # this line becomes verbatim evidence
+        "> nx affected --target=test\n"
+        "PASS  src/foo.spec.ts (312 tests) 41200ms\n")
+    md = bp.render(doc, logs)
+    assert "Secondary observation" in md and "eslint" in md   # the evidence fence rendered
+    assert "```echo pwned```" not in md                       # ...with the ``` defused
+    assert len(re.findall(r"(?m)^`{3,}", md)) % 2 == 0        # fences stay balanced
+    assert _load_vr().check_fences_balanced(md).ok
+
+
+def test_hostile_workflow_filename_does_not_break_the_pole_heading_span():
+    # The pole heading wraps the workflow FILENAME as an inline code span. A workflow file is
+    # repo-controlled text (it's the `.github/workflows/` dir listing), and a filename may
+    # legally carry a backtick — a SINGLE backtick in `` `c`i.yml` `` closes the span early,
+    # a >=3-run breaks out entirely. `_safe_span` must map every backtick so the filename can't.
+    doc = _doc_one_pole()
+    pole = doc["pr_critical_path"]["poles"][0]
+    pole["workflow_file"] = ".github/workflows/c`i```.yml"   # single AND triple backtick
+    md = bp.render(doc, {}, {}, {"pipeline": "https://github.com/o/r/actions/runs/123"},
+                   "2026-06-08")
+    hdr = next(l for l in md.splitlines() if "Long pole 1:" in l)
+    # The safe form is exactly what `_safe_span(_wf_base(...))` produces — every backtick apostrophe-
+    # mapped — and the raw breakout form must NOT survive anywhere in the heading.
+    assert bp._safe_span(bp._wf_base(pole["workflow_file"])) in hdr
+    assert "`c`i" not in hdr and "```" not in hdr
+    # The verifier parses the (now safe) heading and the report's fences stay balanced.
+    vr = _load_vr()
+    assert vr.check_fences_balanced(md).ok
+    assert vr._pole_header_sections(md)[0][0] == "c'i'''.yml"   # wf comes back apostrophe-mapped
+
+
+def test_hostile_workflow_filename_keeps_the_gate_claim_verbatim_in_the_report():
+    # Regression: the pole-gate-prompt Claim embeds the workflow filename and is emitted into the
+    # agent prompt through `_fence_body` (per-line `_fence_safe`). A `Claim.rendered` MUST be byte-
+    # identical to the report text (`check_claims_cover_framing_vocabulary` binds by exact-span
+    # containment), so the manifest has to carry the SAME `_fence_safe(wf)` the fence emission
+    # produces. A >=3-backtick filename that defused on emit but not in the claim silently false-
+    # failed the framing-coverage guard. Build a doc whose gate line renders the workflow clause.
+    check = "web-tests"
+    wf = ".github/workflows/c```i.yml"                         # triple-backtick filename
+    checks = [{"name": check, "p50_s": 900.0, "present_on": 10, "workflow_file": wf},
+              {"name": "lint", "p50_s": 40.0, "present_on": 10, "workflow_file": wf}]
+    pops = [[0.1, [[check, 900.0], ["lint", 40.0]]] for _ in range(10)]
+    doc = {"pr_critical_path": {
+        "critical_path_check": check, "critical_path_s": 900.0, "checks": checks,
+        "check_present_n_pr": 10, "populations": pops,
+        "poles": [{"check": check, "p50_s": 900.0, "workflow_file": wf, "job": check,
+                   "dominant_step": "run tests", "dominant_p50_s": 850.0}]},
+        "findings": [{"id": "f1", "pattern": "OPT24", "severity": "HIGH",
+                      "title": "Long Test Job Without Sharding", "workflow_file": wf,
+                      "affected_jobs": [check], "runner_min_saving": 0}]}
+    md = bp.render(doc)
+    cs = bp._LAST_CLAIMS
+    # The gate claim with the workflow clause exists, and EVERY claim's rendered sentence appears
+    # verbatim in the report — the invariant the framing-coverage guard enforces.
+    assert any("its workflow" in c.rendered for c in cs.claims), "gate workflow clause did not render"
+    for c in cs.claims:
+        assert c.rendered in md, f"claim rendered not byte-identical in the report: {c.rendered!r}"
+    # And the real guard passes end-to-end (manifest written next to the report, as main() does).
+    import tempfile
+    d = Path(tempfile.mkdtemp())
+    rp = d / "report-2026-06-08.md"
+    rp.write_text(md, encoding="utf-8")
+    (d / (rp.name + ".claims.json")).write_text(json.dumps(cs.to_json()), encoding="utf-8")
+    vr = _load_vr()
+    assert vr.check_claims_cover_framing_vocabulary(md, rp).ok
+
+
+def test_single_backtick_name_stays_symmetric_between_heading_and_verifier():
+    # #108 bot review (P1): _safe_span maps EVERY backtick in the heading, so the
+    # verifier's name normalizer must map them too or a 1-2-backtick check name
+    # diverges between the rendered heading and the comparator. Both sides now drop
+    # all backticks from NAMES (apostrophe-mapped); clean names stay byte-identical.
+    assert bp._clean_label("run `unit` tests") == "run 'unit' tests"
+    assert bp._clean_label("x ``y`` z") == "x ''y'' z"
+    assert bp._clean_label("guard shard 2/4") == "guard shard 2/4"
+
+
+# ── Aggregation-gate poles (issue #1) ─────────────────────────────────────────────────
+# A success-aggregation gate is the trivial job that exists ONLY to `needs:` a set of real
+# jobs so ONE check can be the single required status check (vercel/next.js `thank you,
+# build`: job `buildPassed`, `needs: [deploy-target, build, build-wasm, build-native]`, body
+# `run: exit 1`, P50 3s, required). Crowning it by frequency is CORRECT data; drilling it and
+# prompting "capture timing, then optimize this step" is inert advice over a 3-second no-op.
+# The renderer must instead tell the honest upstream story and point at the slowest member.
+
+_AGG_DEPLOY = ".github/workflows/deploy.yml"
+_AGG_CI = ".github/workflows/ci.yml"
+
+
+def _agg_gate_doc() -> dict:
+    """Two workflows. `deploy.yml` carries the SINK (`thank you, build`, 3s, terminal, its
+    transitive `needs:` covering every non-terminal job) plus a conditional peer sink
+    (`Potentially publish release`, terminal and uncovered — the `publishRelease` shape).
+    `ci.yml` carries the near-miss: a real 3s `lint` job that `needs:` nothing."""
+    return {
+        "repo": "acme/site", "repo_visibility": "public",
+        "scanned_at": "2026-07-28T00:00:00Z", "commit_sha": "09e8243",
+        "skill_commit_sha": "dd51d85", "findings": [],
+        "data_sources": {"runs_sampled": 20, "jobs_sampled": 60, "workflows_analyzed": 2},
+        "workflow_job_graph": {
+            _AGG_DEPLOY: {
+                "target": {"name": "deploy-target", "needs": []},
+                "build": {"name": "build", "needs": ["target"]},
+                "matrixgen": {"name": "generate-native-matrix", "needs": ["target"]},
+                "native": {"name": "stable - ${{ matrix.target }}", "matrix": True,
+                           "needs": ["target", "matrixgen"]},
+                "publish": {"name": "Potentially publish release",
+                            "needs": ["target", "build", "native"]},
+                "gate": {"name": "thank you, build", "needs": ["target", "build", "native"]},
+            },
+            _AGG_CI: {
+                "lint": {"name": "lint", "needs": []},
+                "unit": {"name": "unit", "needs": []},
+            },
+        },
+        "pr_critical_path": {
+            "sampled_pr_count": 20, "sample_target": 20, "sample_complete": True,
+            "check_present_n_pr": 20, "critical_path_check": "unit",
+            "poles": [
+                {"check": "unit", "p50_s": 600.0, "workflow_file": _AGG_CI, "job": "unit",
+                 "dominant_step": "Run tests", "dominant_p50_s": 480.0,
+                 "steps": [{"step": "Checkout", "category": "setup", "p50_s": 20.0},
+                           {"step": "Run tests", "category": "test", "p50_s": 480.0}]},
+                {"check": "thank you, build", "p50_s": 3.0, "workflow_file": _AGG_DEPLOY,
+                 "job": "gate", "timing_source": "pr_check_runs", "steps": []},
+                {"check": "lint", "p50_s": 3.0, "workflow_file": _AGG_CI, "job": "lint",
+                 "dominant_step": "Run eslint", "dominant_p50_s": 2.0,
+                 "steps": [{"step": "Run eslint", "category": "lint", "p50_s": 2.0}]},
+            ],
+            "checks": [
+                {"name": "unit", "p50_s": 600.0, "present_on": 20, "workflow_file": _AGG_CI},
+                {"name": "stable - x86_64-linux", "p50_s": 355.0, "present_on": 20,
+                 "workflow_file": _AGG_DEPLOY},
+                {"name": "build", "p50_s": 240.0, "present_on": 20,
+                 "workflow_file": _AGG_DEPLOY},
+                {"name": "deploy-target", "p50_s": 19.0, "present_on": 20,
+                 "workflow_file": _AGG_DEPLOY},
+                {"name": "thank you, build", "p50_s": 3.0, "present_on": 20,
+                 "workflow_file": _AGG_DEPLOY},
+                {"name": "lint", "p50_s": 3.0, "present_on": 20, "workflow_file": _AGG_CI},
+            ],
+            "populations": [],
+        },
+    }
+
+
+def _pole_section(md: str, check: str) -> str:
+    """The `## … Long pole N: … ▸ <check>` section body for `check`."""
+    i = md.index(f"▸ `{check}`")
+    i = md.rindex("\n## ", 0, i)
+    j = md.find("\n## ", i + 4)
+    return md[i:j if j != -1 else len(md)]
+
+
+def test_opt80_tail_on_an_aggregation_gate_pole_renders_in_that_pole():
+    """An aggregation-gate pole renders its upstream story and stops early. Its
+    OPT80 tail line must still render IN that pole: falling through to the
+    off-pole tails section would place it under a heading that says its job is
+    "not one of the long poles drilled above" - which it is."""
+    tail = _opt80_tail_render_doc()["findings"][0]
+    tail = json.loads(json.dumps(tail))
+    tail.update(workflow_file=_AGG_DEPLOY, affected_jobs=["gate"])
+    tail["checkout_stall"]["job"] = "gate"
+    doc = _agg_gate_doc()
+    doc["findings"] = [tail]
+    md = bp.render(doc, {}, {}, {}, "2026-07-28T00:00:00Z", {})
+    sec = _pole_section(md, "thank you, build")
+    assert "**Aggregation gate" in sec
+    assert f"<!-- opt80-tail:{tail['id']} -->" in sec, sec
+    assert md.count(f"<!-- opt80-tail:{tail['id']} -->") == 1
+    assert "not one of the long poles drilled above" not in md
+
+
+def test_aggregation_gate_pole_tells_the_upstream_story_not_a_prompt():
+    # The whole fix (issue #1): the `needs:`-everything 3s sink renders the honest role line,
+    # names its slowest MEASURED upstream member, points the reader there — and carries NO
+    # drill and NO "optimize this step" agent prompt.
+    md = bp.render(_agg_gate_doc(), {}, {}, {}, "2026-07-28T00:00:00Z", {})
+    sec = _pole_section(md, "thank you, build")
+    assert "**Aggregation gate" in sec
+    assert "it exists to be the single required check" in sec
+    assert "runs no work of its own" in sec
+    # The slowest upstream is the matrix leg (355s), resolved through the `${{ }}` name
+    # template — not the sink's own 3s and not the unrelated `unit` pole in the other workflow.
+    assert "`stable - x86_64-linux` (~5m 55s)" in sec
+    assert "**➡️ Where the wait actually is:**" in sec
+    # The two inert artifacts are gone.
+    assert "🤖 Prompt for your coding agent" not in sec
+    assert "Level 2" not in sec
+    assert "before optimizing" not in sec
+    # The OTHER poles are untouched — each still drills and hands off.
+    assert "🤖 Prompt for your coding agent" in _pole_section(md, "unit")
+
+
+def test_aggregation_upstream_inherits_the_terminal_verdict_frequency(tmp_path):
+    doc = _agg_gate_doc()
+    for check in doc["pr_critical_path"]["checks"]:
+        check["pole_n"] = 20 if check["name"] == "thank you, build" else 0
+    doc["pr_critical_path"]["poles"].append({
+        "check": "stable - x86_64-linux", "p50_s": 355.0,
+        "workflow_file": _AGG_DEPLOY, "job": "native",
+        "dominant_step": "Build native", "dominant_p50_s": 350.0,
+        "steps": [{"step": "Build native", "category": "build", "p50_s": 350.0}],
+    })
+
+    report = bp.render(doc, {}, {}, {}, "2026-07-28T00:00:00Z", {})
+    contents = report.split("## 📋 Contents", 1)[1].split(
+        '<a id="long-pole-map"', 1)[0]
+    upstream = contents.index("[stable - x86_64-linux]")
+    sink = contents.index("[thank you, build]")
+    assert upstream < sink
+    upstream_row = next(line for line in contents.splitlines()
+                        if "[stable - x86_64-linux]" in line)
+    assert "finishes last on 20/20 PRs" in upstream_row
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+    check = _load_vr().check_pole_groups_and_bottom_agree(report, findings)
+    assert check.ok, check.detail
+
+
+def test_aggregation_upstream_names_its_terminal_gate_reason():
+    doc = _agg_gate_doc()
+    for check in doc["pr_critical_path"]["checks"]:
+        check["pole_n"] = 1 if check["name"] == "thank you, build" else 0
+    doc["pr_critical_path"]["poles"].append({
+        "check": "stable - x86_64-linux", "p50_s": 355.0,
+        "workflow_file": _AGG_DEPLOY, "job": "native",
+        "dominant_step": "Build native", "dominant_p50_s": 350.0,
+        "steps": [{"step": "Build native", "category": "build", "p50_s": 350.0}],
+    })
+
+    report = bp.render(doc, {}, {}, {}, "2026-07-28T00:00:00Z", {})
+    contents = report.split("## 📋 Contents", 1)[1].split(
+        '<a id="long-pole-map"', 1)[0]
+    upstream_row = next(line for line in contents.splitlines()
+                        if "[stable - x86_64-linux]" in line)
+    assert "feeds the terminal `needs:` gate" in upstream_row
+    assert "a slower check usually ran alongside" not in upstream_row
+
+
+def test_aggregation_frequency_and_reason_follow_the_retained_matrix_representative(tmp_path):
+    doc = _agg_gate_doc()
+    for check in doc["pr_critical_path"]["checks"]:
+        check["pole_n"] = 1 if check["name"] == "thank you, build" else 0
+    slow_median = {
+        "low_p50_s": 300.0, "high_p50_s": 560.0, "slow_frac": 0.6,
+    }
+    fast_median = {
+        "low_p50_s": 180.0, "high_p50_s": 900.0, "slow_frac": 0.4,
+    }
+    x86 = next(row for row in doc["pr_critical_path"]["checks"]
+               if row["name"] == "stable - x86_64-linux")
+    x86.update(name="stable - linux-x86", p50_s=500.0, pole_n=0,
+               bimodal=slow_median)
+    doc["pr_critical_path"]["checks"].append({
+        "name": "stable - linux-arm", "p50_s": 300.0, "present_on": 20,
+        "pole_n": 0, "workflow_file": _AGG_DEPLOY, "bimodal": fast_median,
+    })
+    doc["pr_critical_path"]["poles"].extend([
+        {"check": "stable - linux-x86", "p50_s": 500.0,
+         "workflow_file": _AGG_DEPLOY, "job": "native", "bimodal": slow_median,
+         "steps": [{"step": "Build", "p50_s": 400.0}]},
+        {"check": "stable - linux-arm", "p50_s": 300.0,
+         "workflow_file": _AGG_DEPLOY, "job": "native", "bimodal": fast_median,
+         "steps": [{"step": "Build", "p50_s": 250.0}]},
+    ])
+
+    report = bp.render(doc, {}, {}, {}, "2026-07-28T00:00:00Z", {})
+    contents = report.split("## 📋 Contents", 1)[1].split(
+        '<a id="long-pole-map"', 1)[0]
+    representative = next(line for line in contents.splitlines()
+                          if "[stable - linux-x86]" in line)
+    assert "finishes last on 1/20 PRs" in representative
+    assert "feeds the terminal `needs:` gate" in representative
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps(doc), encoding="utf-8")
+    check = _load_vr().check_pole_groups_and_bottom_agree(report, findings)
+    assert check.ok, check.detail
+
+
+def test_aggregation_gate_pole_role_line_is_a_registered_claim():
+    # Claims parity: the role line is a `pole_role_line` Claim whose rendered sentence appears
+    # verbatim in the report, exactly like its neighbouring role lines.
+    md = bp.render(_agg_gate_doc(), {}, {}, {}, "2026-07-28T00:00:00Z", {})
+    cs = bp._LAST_CLAIMS
+    agg = [c for c in cs.claims
+           if c.kind == "pole_role_line" and "Aggregation gate" in c.rendered]
+    assert len(agg) == 1
+    assert agg[0].subject == "thank you, build"
+    assert agg[0].fields["upstream_slowest"] == "stable - x86_64-linux"
+    for c in cs.claims:
+        assert c.rendered in md, f"claim not byte-identical in the report: {c.rendered!r}"
+
+
+def test_aggregation_gate_near_miss_renders_byte_identically(monkeypatch):
+    # A real 3s `lint` job with NO `needs:` coverage must keep today's rendering exactly —
+    # duration alone never triggers the framing. Pinned byte-for-byte against the renderer
+    # with detection disabled (the pre-fix behaviour).
+    doc = _agg_gate_doc()
+    after = _pole_section(bp.render(doc, {}, {}, {}, "2026-07-28T00:00:00Z", {}), "lint")
+    monkeypatch.setattr(bp, "_agg_gate_shape", lambda *a, **k: None)
+    before = _pole_section(bp.render(doc, {}, {}, {}, "2026-07-28T00:00:00Z", {}), "lint")
+    assert after == before
+    assert "**Aggregation gate" not in after
+    assert "🤖 Prompt for your coding agent" in after
+
+
+def test_aggregation_gate_that_ends_a_chain_keeps_its_stage_and_prescribes_nothing():
+    # A sink that IS a modal-chain member (only ever the LAST stage: a sink is terminal)
+    # renders as the aggregation gate, with its chain stage kept in the role line. The
+    # chain-stage-only rendering drilled the verdict's own step and handed over an "optimize
+    # this step" prompt for a job that runs no work (starslingdev/skills' 3s `test` verdict
+    # ending the `test (self-hosted)` → `test` chain).
+    doc = _agg_gate_doc()
+    doc["pr_critical_path"]["chain_summary"] = {
+        "modal_chain": ["build", "stable - x86_64-linux", "thank you, build"],
+        "chain_p50_s": 598.0}
+    sec = _pole_section(bp.render(doc, {}, {}, {}, "2026-07-28T00:00:00Z", {}),
+                        "thank you, build")
+    assert "**Aggregation gate" in sec
+    assert "stage 3/3 of the" in sec and "gate chain" in sec
+    assert "**➡️ Where the wait actually is:**" in sec
+    assert "🤖 Prompt for your coding agent" not in sec
+
+
+def test_agg_gate_shape_structural_conditions():
+    # The shape helper itself: each condition is load-bearing.
+    doc = _agg_gate_doc()
+    graph = doc["workflow_job_graph"]
+    checks = doc["pr_critical_path"]["checks"]
+    poles = {p["check"]: p for p in doc["pr_critical_path"]["poles"]}
+    hit = bp._agg_gate_shape(poles["thank you, build"], graph, checks)
+    assert hit and hit["job_id"] == "gate"
+    # The closure walks TRANSITIVELY: `matrixgen` is reached via `native`, so the
+    # conditional peer sink `publish` is the only uncovered job — and it is terminal.
+    assert hit["upstream"] == ["build", "matrixgen", "native", "target"]
+    assert bp._clean_label(bp._check_name(hit["slowest"])) == "stable - x86_64-linux"
+    # (a) duration: a job doing real work never matches on structure alone.
+    heavy = dict(poles["thank you, build"], p50_s=180.0)
+    assert bp._agg_gate_shape(heavy, graph, checks) is None
+    # (b) coverage: a non-terminal job outside the closure → not an aggregation sink.
+    gapped = json.loads(json.dumps(graph))
+    gapped[_AGG_DEPLOY]["extra"] = {"name": "extra", "needs": ["target"]}
+    gapped[_AGG_DEPLOY]["afterextra"] = {"name": "afterextra", "needs": ["extra"]}
+    assert bp._agg_gate_shape(poles["thank you, build"], gapped, checks) is None
+    # (b) a single-parent stage (a chain member's shape) needs >= 2 upstream jobs.
+    thin = json.loads(json.dumps(graph))
+    thin[_AGG_DEPLOY]["gate"]["needs"] = ["build"]
+    assert bp._agg_gate_shape(poles["thank you, build"], thin, checks) is None
+    # (b) the near-miss lint job: trivial, but `needs:` nothing.
+    assert bp._agg_gate_shape(poles["lint"], graph, checks) is None
+    # (c) step data DISQUALIFIES when it shows real work.
+    busy = dict(poles["thank you, build"],
+                steps=[{"step": "Run the suite", "p50_s": 400.0}])
+    assert bp._agg_gate_shape(busy, graph, checks) is None
+    # (d) no measured upstream check → nothing honest to point at.
+    assert bp._agg_gate_shape(poles["thank you, build"], graph,
+                              [c for c in checks
+                               if c["workflow_file"] != _AGG_DEPLOY]) is None
+    # No scanned graph for the workflow → the shape is unknowable, never guessed.
+    assert bp._agg_gate_shape(poles["thank you, build"], {}, checks) is None
+
+
+def test_aggregation_gate_discloses_both_thin_data_caveats():
+    # Both caveats are independent and BOTH must render: an unmeasured upstream member (the
+    # named "slowest" could be beaten by one with no timing) AND the absence of per-step data
+    # (which is what "runs no work of its own" rests on, together with the measured P50). An
+    # `elif` dropped the second exactly when the sample was thinnest.
+    md = bp.render(_agg_gate_doc(), {}, {}, {}, "2026-07-28T00:00:00Z", {})
+    sec = _pole_section(md, "thank you, build")
+    assert "had no measured check timing in this sample" in sec
+    assert "No per-step data was captured for this check" in sec
+
+
+def test_aggregation_gate_pointer_links_the_upstream_members_own_pole():
+    # When the slowest upstream member IS itself a rendered pole, the pointer links to THAT
+    # pole's anchor — matched on the raw check name + workflow file (the spine's identity),
+    # never on the cleaned display label, which can fold two distinct checks together.
+    doc = _agg_gate_doc()
+    doc["pr_critical_path"]["poles"].append(
+        {"check": "stable - x86_64-linux", "p50_s": 355.0, "workflow_file": _AGG_DEPLOY,
+         "job": "native", "dominant_step": "cargo build", "dominant_p50_s": 300.0,
+         "steps": [{"step": "cargo build", "category": "build", "p50_s": 300.0}]})
+    md = bp.render(doc, {}, {}, {}, "2026-07-28T00:00:00Z", {})
+    sec = _pole_section(md, "thank you, build")
+    n = int(re.search(r"## .*Long pole (\d+): .*▸ `stable - x86_64-linux`", md).group(1))
+    assert f"**➡️ Where the wait actually is:** [Long pole {n}](#pole-{n}) drills " \
+           f"`stable - x86_64-linux` (5m 55s)" in sec
+
+
+def test_aggregation_gate_names_upstream_member_by_effective_floor_not_bare_p50():
+    # Issue #22 class, site A. The success-sink names its slowest measured `needs:` upstream
+    # member as THE lever. It ranked candidates by BARE p50, so a matrix leg whose blended
+    # median sits below a faster-median sibling but whose bimodal SLOW mode is the true ceiling
+    # went unnamed — the sink pointed the reader at the wrong lever. A second matrix leg,
+    # `stable - aarch64-darwin`, has a LOWER blended p50 (300s) than `stable - x86_64-linux`
+    # (355s) but a bimodal high mode (520s) that is the real ceiling of the gate's wait. Its
+    # median (300s) sits on the FAST cluster (<= (180+520)/2 = 350s), so the member's own drilled
+    # HEADER shows the slow mode — both the WITHIN-matrix `top` pick and the ACROSS-jobs `slowest`
+    # pick must rank by that header value (`_pole_headline`, == the 520s slow mode here), and the
+    # rendered duration must be that header time (8m 40s), not a bare p50.
+    doc = _agg_gate_doc()
+    doc["pr_critical_path"]["checks"].append(
+        {"name": "stable - aarch64-darwin", "p50_s": 300.0, "present_on": 20,
+         "workflow_file": _AGG_DEPLOY,
+         "bimodal": {"low_p50_s": 180.0, "high_p50_s": 520.0, "slow_frac": 0.4}})
+    md = bp.render(doc, {}, {}, {}, "2026-07-28T00:00:00Z", {})
+    sec = _pole_section(md, "thank you, build")
+    # GREEN: the effective-floor winner is named at its slow-mode time.
+    assert "`stable - aarch64-darwin` (~8m 40s)" in sec
+    assert "**➡️ Where the wait actually is:**" in sec
+    assert "`stable - aarch64-darwin` (8m 40s)" in sec  # the pointer agrees
+    # RED against the pre-fix renderer: it named the p50-slowest leg as the lever, at its p50.
+    assert "`stable - x86_64-linux`" not in sec
+    assert "5m 55s" not in sec
+
+
+def test_aggregation_gate_pointer_agrees_with_slow_cluster_median_pole_header():
+    # Issue #22 class, site A — the divergence a bare `_eff_floor_s` render (greptile P1) leaves.
+    # When the winning member's MEDIAN already sits IN the slow cluster (a strict majority of runs
+    # slow), its own drilled pole HEADER shows its p50, NOT its bimodal high mode — `_pole_headline`
+    # keeps the p50 there (the median already reflects the slow mode; the high mode would over-state
+    # it). `_eff_floor_s` (always `max(p50, high)`) would quote the high mode, so the aggregation
+    # pointer would name a duration ABOVE the very pole header it links to. The pointer MUST quote
+    # the header value so the two agree.
+    doc = _agg_gate_doc()
+    # p50 500s sits ABOVE the midpoint (300+560)/2 = 430s -> slow-cluster median -> header = p50.
+    _bi = {"low_p50_s": 300.0, "high_p50_s": 560.0, "slow_frac": 0.6}
+    doc["pr_critical_path"]["checks"].append(
+        {"name": "stable - aarch64-darwin", "p50_s": 500.0, "present_on": 20,
+         "workflow_file": _AGG_DEPLOY, "bimodal": _bi})
+    doc["pr_critical_path"]["poles"].append(
+        {"check": "stable - aarch64-darwin", "p50_s": 500.0, "workflow_file": _AGG_DEPLOY,
+         "job": "native", "dominant_step": "cargo build", "dominant_p50_s": 400.0,
+         "bimodal": _bi, "steps": [{"step": "cargo build", "category": "build", "p50_s": 400.0}]})
+    md = bp.render(doc, {}, {}, {}, "2026-07-28T00:00:00Z", {})
+    sec = _pole_section(md, "thank you, build")
+    n = int(re.search(r"## .*Long pole (\d+): .*▸ `stable - aarch64-darwin` - (\d+m \d+s)",
+                      md).group(1))
+    hdr_dur = re.search(r"▸ `stable - aarch64-darwin` - (\d+m \d+s)", md).group(1)
+    assert hdr_dur == "8m 20s"                                    # header shows the p50, not 9m 20s
+    # GREEN: the pointer links the pole and quotes the SAME 8m 20s the header shows.
+    assert f"[Long pole {n}](#pole-{n}) drills `stable - aarch64-darwin` (8m 20s)" in sec
+    # RED against a bare `_eff_floor_s` render: it quoted the 9m 20s high mode, above the header.
+    assert "9m 20s" not in sec
+
+
+def test_aggregation_gate_cross_job_pick_ranks_by_header_not_p50():
+    # Issue #22 class, site A — guards the ACROSS-JOBS `slowest` comparison (`_agg_gate_shape`
+    # second `max`) INDEPENDENTLY of the within-matrix `top` pick (pr-test-analyzer). A non-matrix
+    # `build` job (p50 550s, no bimodal → header 550s) competes across jobs with a matrix leg
+    # `stable - x86_64-linux` (p50 300s, fast-median bimodal high 900s → header 900s). By bare p50
+    # `build` (550) out-ranks the leg (300) and would be named the lever at 9m 10s; by header the
+    # leg (900) is the true ceiling and must be named at 15m 00s. A regression that dropped
+    # `_pole_headline` from only the cross-job leg would be invisible to the other Site A tests
+    # (there the bimodal winner also wins on bare p50), so this fixture is the distinguishing case.
+    doc = _agg_gate_doc()
+    for c in doc["pr_critical_path"]["checks"]:
+        if c["name"] == "build":
+            c["p50_s"] = 550.0
+        if c["name"] == "stable - x86_64-linux":
+            c["p50_s"] = 300.0
+            c["bimodal"] = {"low_p50_s": 180.0, "high_p50_s": 900.0, "slow_frac": 0.4}
+    md = bp.render(doc, {}, {}, {}, "2026-07-28T00:00:00Z", {})
+    sec = _pole_section(md, "thank you, build")
+    # GREEN: the header-ranked cross-job winner is named at its slow-mode time.
+    assert "slowest measured member is `stable - x86_64-linux` (~15m 00s)" in sec, sec
+    # RED against a bare-p50 cross-job comparison: it named `build` at its 9m 10s p50.
+    assert "`build`" not in sec, sec
+    assert "9m 10s" not in sec, sec
+
+
+# ── Advisory long poles (`continue-on-error: true` on the pole's job) ──────────────────
+# A job declared `continue-on-error: true` cannot fail its workflow RUN. The engine can
+# crown such a job as the long pole and as the dominant runner-minute spend without ever
+# reading that declaration, which leaves the reader with a materially incomplete picture of
+# what the job's failure does. The pole section must state the fact, and must state it at
+# exactly the strength GitHub documents: `jobs.<job_id>.continue-on-error` "prevents a
+# workflow run from failing when a job fails" and says nothing about the job's own check-run
+# conclusion, so the report must NOT claim the job can never block a merge.
+
+_ADV_WF = ".github/workflows/ci.yml"
+
+
+def _advisory_pole_doc(continue_on_error: bool) -> dict:
+    node = {"name": "e2e", "needs": []}
+    if continue_on_error:
+        node["continue_on_error"] = True
+    return {
+        "repo": "acme/site", "repo_visibility": "public",
+        "scanned_at": "2026-09-02T00:00:00Z", "commit_sha": "09e8243",
+        "skill_commit_sha": "dd51d85", "findings": [],
+        "data_sources": {"runs_sampled": 20, "jobs_sampled": 40, "workflows_analyzed": 1},
+        "workflow_job_graph": {_ADV_WF: {
+            "e2e": node,
+            "lint": {"name": "lint", "needs": []},
+        }},
+        "pr_critical_path": {
+            "sampled_pr_count": 20, "sample_target": 20, "sample_complete": True,
+            "check_present_n_pr": 20, "critical_path_check": "e2e",
+            "poles": [
+                {"check": "e2e", "p50_s": 900.0, "workflow_file": _ADV_WF, "job": "e2e",
+                 "dominant_step": "Run tests", "dominant_p50_s": 800.0,
+                 "steps": [{"step": "Checkout", "category": "setup", "p50_s": 20.0},
+                           {"step": "Run tests", "category": "test", "p50_s": 800.0}]},
+                {"check": "lint", "p50_s": 60.0, "workflow_file": _ADV_WF, "job": "lint",
+                 "dominant_step": "Run eslint", "dominant_p50_s": 40.0,
+                 "steps": [{"step": "Run eslint", "category": "lint", "p50_s": 40.0}]},
+            ],
+            "checks": [
+                {"name": "e2e", "p50_s": 900.0, "present_on": 20, "workflow_file": _ADV_WF},
+                {"name": "lint", "p50_s": 60.0, "present_on": 20, "workflow_file": _ADV_WF},
+            ],
+            "populations": [],
+        },
+    }
+
+
+def test_advisory_long_pole_reports_its_continue_on_error_declaration():
+    md = bp.render(_advisory_pole_doc(True), {}, {}, {}, "2026-09-02T00:00:00Z", {})
+    sec = _pole_section(md, "e2e")
+    assert "`continue-on-error: true`" in sec, sec
+    assert "does not fail the workflow run" in sec, sec
+
+
+def test_advisory_long_pole_does_not_overclaim_what_continue_on_error_does():
+    # The documented semantics are run-scoped only. The job still reports its own check-run
+    # conclusion, so a required-status-check rule naming it can still block a merge - the
+    # report must say so rather than declaring the job harmless.
+    md = bp.render(_advisory_pole_doc(True), {}, {}, {}, "2026-09-02T00:00:00Z", {})
+    sec = _pole_section(md, "e2e")
+    assert "can still block a merge" in sec, sec
+    for overclaim in ("never fail the build", "cannot fail the build", "gates nothing",
+                      "never block a merge", "blocks nothing", "nothing waits on it"):
+        assert overclaim not in sec, f"over-claimed: {overclaim!r}"
+    # And it must not tell the reader to move or skip the job (the no-weakening rail).
+    for banned in ("move it off", "off the PR path", "skip it", "stop running it"):
+        assert banned not in sec, f"weakening advice: {banned!r}"
+
+
+def test_pole_without_the_declaration_and_its_sibling_remain_unrouted():
+    # The route is based on the pole job's literal declaration. The same job without
+    # `continue-on-error`, and a sibling whose own job carries none, stay untouched.
+    # (Scoped to the advisory sentence, not the bare word: the no-weakening rail's prompt
+    # copy names `continue-on-error` on every pole.)
+    advisory = "does not fail the workflow run"
+    plain = _pole_section(
+        bp.render(_advisory_pole_doc(False), {}, {}, {}, "2026-09-02T00:00:00Z", {}), "e2e")
+    assert advisory not in plain, plain
+    assert "confirm it is not a required check" not in plain
+    assert "OPT71 recipe (c)" not in plain
+    md = bp.render(_advisory_pole_doc(True), {}, {}, {}, "2026-09-02T00:00:00Z", {})
+    sibling = _pole_section(md, "lint")
+    assert advisory not in sibling
+    assert "confirm it is not a required check" not in sibling
+    assert "OPT71 recipe (c)" not in sibling
+    # Outside its own lines, the advisory pole's section is otherwise byte-identical to
+    # the un-annotated one: the declaration adds facts and (here, with required-check
+    # status unknown) a confirm-first instruction; it re-frames nothing else. Drop the
+    # advisory lines from both sides and collapse blank runs, so any real re-framing
+    # still shows up as a difference.
+    markers = (advisory, "Required-check status is unavailable or partial")
+
+    def _without_advisory(text: str) -> str:
+        kept: list[str] = []
+        for line in text.splitlines():
+            if any(marker in line for marker in markers):
+                continue
+            if line == "" and kept and kept[-1] == "":
+                continue
+            kept.append(line)
+        return "\n".join(kept)
+
+    annotated = _pole_section(md, "e2e")
+    assert advisory in annotated
+    assert _without_advisory(annotated) == _without_advisory(plain)
+
+
+# ── Job-selection collision regression ──────────────────────────────────────
+# When a pole's job field equals a DIFFERENT job's YAML ID but the pole's check
+# matches a DIFFERENT job's display name, the correct job (the one that produces
+# the check) must be resolved. Direct YAML ID lookup without validation caused
+# false matches. The fix validates the YAML-ID match produces the check before
+# returning it.
+
+def test_pole_job_node_resolves_correct_job_when_display_name_collides_with_yaml_id():
+    """Regression: job-selection collision when pole's job field is ambiguous.
+    
+    Scenario:
+      - Job A: YAML ID "build", display name "build-python", no continue-on-error
+      - Job B: YAML ID "lint", display name "build", continue-on-error: true
+      - Pole: job="build" (ambiguous: YAML ID of A or display name of B)
+              check="build" (check-run name produced by B, not A)
+    
+    Bug: direct YAML ID lookup returns job A without validating it produces check.
+    Result: advisory `continue-on-error` flag read from wrong job (A instead of B).
+    
+    Fix: validates YAML-ID match produces the check before returning; falls back
+    to check-name matching if not.
+    
+    Assertion: resolved job must be B (continue-on-error: true), not A (false).
+    """
+    job_graph = {
+        ".github/workflows/ci.yml": {
+            "build": {
+                "name": "build-python",
+                "needs": [],
+                "continue_on_error": False,
+            },
+            "lint": {
+                "name": "build",  # collision: display name == job A's YAML ID
+                "needs": [],
+                "continue_on_error": True,
+            },
+        }
+    }
+    pole = {
+        "workflow_file": ".github/workflows/ci.yml",
+        "job": "build",  # ambiguous
+        "check": "build",  # produced by job B, not A
+    }
+    node = bp._pole_job_node(pole, job_graph)
+    # Must resolve to job B (lint), not A (build).
+    assert node is not None, "Should resolve to exactly one job"
+    assert node.get("continue_on_error") is True, (
+        "Resolved to wrong job: got continue_on_error={}, expected True. "
+        "Unfixed code returns job A (YAML ID match) instead of validating it "
+        "produces the check and falling back to job B (check-name match)."
+        .format(node.get("continue_on_error"))
+    )
+
+
+def test_advisory_long_pole_tells_the_coding_agent_the_job_is_advisory():
+    """The copy-paste prompt is handed to an agent alone, so the disclosure has to be IN it.
+
+    The report states the advisory declaration under the pole's role line, but the prompt
+    block is designed to be pasted on its own - "self-contained: pasted alone it gives the
+    agent the gate". An agent that only ever sees the prompt would size and change the
+    slowest job on the pull-request path without knowing the workflow run passes whether or
+    not that job succeeded, which is exactly the context the disclosure exists to supply."""
+    md = bp.render(_advisory_pole_doc(True), {}, {}, {}, "2026-09-02T00:00:00Z", {})
+    prompt = _pole_section(md, "e2e").split("#### 🤖 Prompt for your coding agent", 1)
+    assert len(prompt) == 2, "no agent prompt rendered for the advisory pole"
+    assert "continue-on-error: true" in prompt[1], prompt[1]
+    # A pole whose job declares nothing keeps a prompt with no such line.
+    plain = _pole_section(
+        bp.render(_advisory_pole_doc(False), {}, {}, {}, "2026-09-02T00:00:00Z", {}), "e2e")
+    assert "continue-on-error: true" not in plain.split(
+        "#### 🤖 Prompt for your coding agent", 1)[1]
+
+
+def _advisory_prompt(*, required_checks: list[str] | None,
+                     continue_on_error: bool = True) -> str:
+    doc = _advisory_pole_doc(continue_on_error)
+    if required_checks is not None:
+        doc["required_checks"] = required_checks
+        doc["required_checks_complete"] = True
+        doc["required_checks_advice_complete"] = True
+    md = bp.render(doc, {}, {}, {}, "2026-09-02T00:00:00Z", {})
+    return _pole_section(md, "e2e").split(
+        "#### 🤖 Prompt for your coding agent", 1)[1]
+
+
+def test_non_required_declared_advisory_pole_routes_to_async_recipe():
+    prompt = _advisory_prompt(required_checks=[])
+
+    assert prompt.index("decide first whether this job is meant to gate") < prompt.index(
+        "Declared advisory")
+    assert "OPT71 recipe (c)" in prompt
+    assert "make it advisory-async" in prompt
+    assert "enumerate every consumer of the job and its outputs" in prompt
+    assert "feeds a required aggregator" in prompt
+    assert ("moving a job that cannot block the merge off the PR trigger changes what "
+            "the developer waits on, not what verifies the merge") in prompt
+    assert "may be moved off the PR trigger" in prompt
+    assert "never delete the job" in prompt.lower()
+    assert "never remove its `continue-on-error`" in prompt.lower()
+
+
+def test_advisory_route_carve_out_is_absent_from_non_advisory_poles():
+    prompt = _advisory_prompt(required_checks=[], continue_on_error=False)
+
+    assert "may be moved off the PR trigger" not in prompt
+    assert "OPT71 recipe (c)" not in prompt
+
+
+def test_required_declared_advisory_pole_gets_disclosure_without_route():
+    prompt = _advisory_prompt(required_checks=["e2e"])
+
+    assert "Declared advisory" in prompt
+    assert "OPT71 recipe (c)" not in prompt
+    assert "may be moved off the PR trigger" not in prompt
+
+
+def test_unknown_required_status_requires_confirmation_without_route():
+    prompt = _advisory_prompt(required_checks=None)
+
+    assert "confirm it is not a required check" in prompt
+    assert "OPT71 recipe (c)" not in prompt
+    assert "may be moved off the PR trigger" not in prompt
+
+
+def test_unread_classic_protection_requires_confirmation_without_route():
+    doc = _advisory_pole_doc(True)
+    doc["required_checks"] = ["lint"]
+    doc["required_checks_complete"] = True
+    doc["required_checks_advice_complete"] = False
+
+    md = bp.render(doc, {}, {}, {}, "2026-09-02T00:00:00Z", {})
+    prompt = _pole_section(md, "e2e").split(
+        "#### 🤖 Prompt for your coding agent", 1)[1]
+
+    assert "confirm it is not a required check" in prompt
+    assert "OPT71 recipe (c)" not in prompt
+
+
+def test_legacy_required_read_without_advice_proof_fails_closed():
+    doc = _advisory_pole_doc(True)
+    doc["required_checks"] = []
+    doc["required_checks_complete"] = True
+
+    md = bp.render(doc, {}, {}, {}, "2026-09-02T00:00:00Z", {})
+    prompt = _pole_section(md, "e2e").split(
+        "#### 🤖 Prompt for your coding agent", 1)[1]
+
+    assert "confirm it is not a required check" in prompt
+    assert "OPT71 recipe (c)" not in prompt
+
+
+def test_llm_gap_fill_keeps_advisory_route_when_body_repeats_declaration():
+    prompt = bp._llm_agent_prompt(
+        "The job sets `continue-on-error: true`; inspect its expensive setup.",
+        {"_advisory_declared": True, "_advisory_required_status": "not-required"})
+
+    assert "decide first whether this job is meant to gate" in prompt
+    assert "OPT71 recipe (c)" in prompt
+    assert "may be moved off the PR trigger" in prompt
+
+
+def test_distinct_opt77_consolidations_render_as_separate_rows():
+    # A workflow can carry more than one consolidation: the detector groups by
+    # runner label AND by setup prefix, so a row of Node checks and a row of Python
+    # checks in one workflow are two separate edits (the catalog's own "Worked
+    # shape" shows exactly that). Folded by pattern they became ONE row that SUMMED
+    # both savings while the embedded agent prompt named only the first group's
+    # jobs — the combined minutes advertised next to a partial job list, verbatim
+    # the failure the OPT73 special case exists for.
+    def _opt77(fid, jobs, rm):
+        return {"pattern": "OPT77", "id": fid,
+                "title": "Repeated Fixed Setup Across Independent Small Jobs",
+                "workflow_file": ".github/workflows/ci.yml", "line": 0,
+                "affected_jobs": list(jobs), "wall_clock_p50_s": 0.0,
+                "runner_min_saving": rm, "severity": "MEDIUM",
+                "evidence": f"3 independent same-runner jobs ({', '.join(jobs)})",
+                "tier2_neutrality": {"proof": "below_remaining_tallest_job",
+                                     "margin_s": 450.0, "ref": "x"}}
+
+    node = _opt77("f1", ["lint", "typecheck", "format"], 400.0)
+    py = _opt77("f2", ["mypy", "ruff", "bandit"], 150.0)
+    groups = bp._group_by_pattern_ranked([node, py])
+    opt77_groups = [ms for pat, ms in groups if pat == "OPT77"]
+    assert len(opt77_groups) == 2, opt77_groups
+    assert [bp._rmin_of(ms) for ms in opt77_groups] == [400.0, 150.0]
+    # …and two identical consolidations still fold, exactly as OPT73 does.
+    assert len([ms for pat, ms in bp._group_by_pattern_ranked([node, dict(node, id="f3")])
+                if pat == "OPT77"]) == 1
+
+
+def test_data_sources_footer_declares_the_cache_comparison_log_probe():
+    """The cache-cost comparison reads job logs during collection, outside the
+    pole drill and regardless of `--with-logs`. Until this row existed the
+    provenance table could print "job logs | not run" in the very report whose
+    evidence quotes eight fetched log lines — the table that exists to say what
+    was read from the user's repository, denying it read anything.
+
+    It is its OWN row on purpose: `logs_fetched` counts the pole-drill logs the
+    data bundle persists, and the report's self-check re-derives that cell from
+    that bundle, so folding a second kind of fetch into it would trade a false
+    statement for a broken invariant."""
+    doc = _doc_one_pole()
+    doc["data_sources"] = {**doc["data_sources"], "tiers_run": ["gh-timing"],
+                           "cache_probe_logs": {"probed": 8, "returned": 8,
+                                                "budget": 24}}
+    foot = "\n".join(bp._data_sources_footer(doc, "o/r"))
+    assert "| cache hit/miss log probe |" in foot
+    assert "8 job log(s) read" in foot
+    # the pole-drill row keeps its own, separate truth
+    assert "job logs | not run" in foot
+
+    # Probed but nothing came back (expired logs) must not read as 8 read.
+    doc2 = _doc_one_pole()
+    doc2["data_sources"] = {**doc2["data_sources"], "tiers_run": ["gh-timing"],
+                            "cache_probe_logs": {"probed": 8, "returned": 0,
+                                                 "budget": 24}}
+    foot2 = "\n".join(bp._data_sources_footer(doc2, "o/r"))
+    assert "| cache hit/miss log probe |" in foot2
+    assert "0 of 8" in foot2
+
+    # No probe planned -> no row at all. A repo with no cache-then-install job
+    # pays nothing and must not be told about a probe that never ran.
+    doc3 = _doc_one_pole()
+    doc3["data_sources"] = {**doc3["data_sources"], "tiers_run": ["gh-timing"],
+                            "cache_probe_logs": {"probed": 0, "returned": 0,
+                                                 "budget": 24}}
+    assert "cache hit/miss log probe" not in "\n".join(
+        bp._data_sources_footer(doc3, "o/r"))
+    doc4 = _doc_one_pole()
+    doc4["data_sources"] = {**doc4["data_sources"], "tiers_run": ["gh-timing"]}
+    assert "cache hit/miss log probe" not in "\n".join(
+        bp._data_sources_footer(doc4, "o/r"))
+
+
+def test_data_sources_cache_probe_row_states_what_the_budget_cut():
+    """When the repo-wide budget cut the plan, the row says how many reads were
+    planned beside how many were made — the comparison saw less of the
+    repository than its own selector asked for."""
+    doc = _doc_one_pole()
+    doc["data_sources"] = {**doc["data_sources"], "tiers_run": ["gh-timing"],
+                           "cache_probe_logs": {"probed": 24, "returned": 24,
+                                                "planned": 32, "budget": 24}}
+    foot = "\n".join(bp._data_sources_footer(doc, "o/r"))
+    assert "24 job log(s) read (24 of 32 planned)" in foot, foot
+    assert "(capped at 24 for the repository)" in foot, foot
+
+
+def test_uncredited_pole_cache_is_reported_even_though_it_is_not_sized():
+    """A net-negative cache on the slowest job of a workflow no pull request
+    runs cannot be priced in this version. The old behaviour skipped such jobs
+    in the candidate selector, so the report was byte-identical to one for a
+    repository with no such cache.
+
+    It is measured like any other and stated with NO number: the reader
+    learns the cache exists and that the saving is not credited here. (The
+    long pole of a PR workflow is a credited wall-clock finding instead, and a
+    job shorter than its workflow's long pole is credited runner-minutes.)"""
+    doc = _doc_one_pole()
+    doc["opt79_uncredited_pole_caches"] = [{
+        "kind": "opt79_uncredited_pole_cache",
+        "workflow_file": ".github/workflows/ci.yml",
+        "job": "build",
+        "runner_label": "ubuntu-latest",
+        "restore_step": "Run actions/cache@v4",
+        "install_step": "Run npm ci",
+        "waste_s": 19.0, "hits": 5, "misses": 4,
+        "hit_path_p50_s": 31.0, "miss_path_p50_s": 12.0,
+        "job_p50_s": 600.0, "floor_p50_s": 300.0,
+        "long_pole_job": "build", "long_pole_p50_s": 600.0,
+        "workflow_gates_pull_requests": False,
+        "on_critical_path": False,
+    }]
+    lines = bp._opt79_uncredited_block(doc)
+    md = "\n".join(lines)
+    assert "build" in md
+    assert "19s" in md                      # the measured excess, per hit
+    assert "5 hit" in md and "4 miss" in md  # the sample it came from
+    assert "does not run on pull requests" in md
+    # the retired wording: a job between the floor and the pole is credited now
+    assert "second-slowest" not in md
+    assert "merge wait" not in md
+    assert "not credited" in md
+    # It must NOT read as a sized saving: no runner-minutes, no wall-clock claim.
+    assert "min/mo" not in md
+    assert "runner-min/mo" not in md     # "runner-minutes only" is a statement, not a size
+
+    # Nothing measured -> nothing said.
+    assert bp._opt79_uncredited_block(_doc_one_pole()) == []
+    empty = _doc_one_pole()
+    empty["opt79_uncredited_pole_caches"] = []
+    assert bp._opt79_uncredited_block(empty) == []
+
+
+def test_uncredited_pole_cache_reaches_the_rendered_report():
+    """A helper nothing calls is not a disclosure. Pin that the block is actually
+    emitted into the report body."""
+    doc = _doc_one_pole()
+    doc["opt79_uncredited_pole_caches"] = [{
+        "kind": "opt79_uncredited_pole_cache",
+        "workflow_file": ".github/workflows/ci.yml",
+        "job": "build",
+        "runner_label": "ubuntu-latest",
+        "restore_step": "Run actions/cache@v4",
+        "install_step": "Run npm ci",
+        "waste_s": 19.0, "hits": 5, "misses": 4,
+        "hit_path_p50_s": 31.0, "miss_path_p50_s": 12.0,
+        "job_p50_s": 600.0, "floor_p50_s": 300.0,
+        "long_pole_job": "build", "long_pole_p50_s": 600.0,
+        "workflow_gates_pull_requests": False,
+        "on_critical_path": False,
+    }]
+    md = bp.render(doc, "o/r")
+    assert "not credited" in md
+    assert "`build`" in md
+
+
+def test_uncredited_block_never_claims_the_merge_wait():
+    """The merge-wait sentence is gone from the uncredited block: the long pole
+    of a pull-request workflow is a credited wall-clock finding rendered at its
+    pole. A row stamped `on_critical_path: True` (which `verify_report` fails)
+    still renders without that claim rather than repeating it."""
+    md = "\n".join(bp._opt79_uncredited_block({
+        "opt79_uncredited_pole_caches": [
+            _uncredited_row(on_critical_path=True,
+                            workflow_gates_pull_requests=True)]}))
+    assert "merge wait" not in md, md
+    assert "this workflow's slowest job" not in md, md
+    assert "not credited" in md, md
+
+
+def _opt79_pole_finding(**kw):
+    f = {
+        "id": "f7", "pattern": "OPT79",
+        "title": "A Cache That Costs More Than It Saves",
+        "workflow_file": ".github/workflows/ci.yml", "affected_jobs": ["build"],
+        "evidence": "On `build` the hit path is 21s SLOWER.",
+        "wall_clock_p50_s": 18.0, "runner_min_saving": None,
+        "sizing_basis": "measured", "risk": "LOW",
+        "guardrail": "Re-key or narrow the cache first.",
+        "rollout": "Re-measure the hit-vs-miss block.",
+        "fix_recipe_anchor": "opt79--a-cache-that-costs-more-than-it-saves",
+        "cache_net_negative": {"kind": "opt79_pole_net_negative_cache",
+                               "job": "build", "hits": 4, "misses": 4,
+                               "ambiguous_runs": 0, "hit_share": 0.5},
+    }
+    f.update(kw)
+    return f
+
+
+def test_opt79_pole_finding_renders_at_its_pole_with_its_merge_wait():
+    """The pole-cache finding's credited figure is capped at the headroom to the
+    next-tallest job, routinely under the 30s long-pole floor — as a pole-job
+    row with no bill saving the appendix would drop it as valueless. It renders
+    AT the pole instead, with its id, title and seconds, and no minutes."""
+    pole = {"check": "build", "job": "build",
+            "workflow_file": ".github/workflows/ci.yml"}
+    f = _opt79_pole_finding()
+    assert bp._opt79_pole_for(pole, [f]) == [f]
+    other_wf = dict(pole, workflow_file=".github/workflows/release.yml")
+    assert bp._opt79_pole_for(other_wf, [f]) == []
+    # a below-the-floor OPT79 is the Tier-2 arm, not this block
+    credited = _opt79_pole_finding(cache_net_negative={
+        "kind": "opt79_net_negative_cache", "job": "build"})
+    assert bp._opt79_pole_for(pole, [credited]) == []
+    md = "\n".join(bp._opt79_pole_block([f], "https://x/catalog.md"))
+    assert md.startswith("<!-- opt79-pole:f7 -->"), md
+    head = md.split("\n")[1]
+    assert "A Cache That Costs More Than It Saves" in head and "`f7`" in head
+    assert ("up to **18s** off the merge wait on the 50% of sampled runs where the "
+            "cache hit (4 of 8 runs read)") in head, head
+    assert "min/mo" not in md
+    assert "#opt79--a-cache-that-costs-more-than-it-saves" in md
+
+
+def test_opt79_pole_finding_joins_its_pole_across_a_matrix_name():
+    """A matrix leg like `test (1)` must still join the pole-cache finding on its
+    job; an exact-name join drops the block off its pole."""
+    wf = ".github/workflows/ci.yml"
+    for pole_job, finding_job in (
+            ("test (1)", "test"),         # the drilled pole is one matrix leg
+            ("test", "test (1)"),         # the finding names the leg, the pole the base
+            ("test (2)", "test (1)")):    # two legs of the same matrix
+        pole = {"check": pole_job, "job": pole_job, "workflow_file": wf}
+        f = _opt79_pole_finding(
+            affected_jobs=[finding_job],
+            cache_net_negative={"kind": "opt79_pole_net_negative_cache",
+                                "job": finding_job})
+        assert bp._opt79_pole_for(pole, [f]) == [f], (pole_job, finding_job)
+        lint = dict(pole, check="lint", job="lint")
+        assert bp._opt79_pole_for(lint, [f]) == [], (pole_job, finding_job)
+
+
+def test_opt79_pole_finding_off_the_drilled_poles_still_renders_its_block():
+    """The engine credits the long pole of EVERY pull-request workflow, but only
+    the drilled poles render a pole section. A pole-cache finding on another
+    workflow's slowest job fell through to the appendix as a plain row with no
+    `<!-- opt79-pole:<id> -->` marker, so `verify_report` (which requires
+    exactly one block per pole-cache finding) failed the report, and a sub-30s
+    figure read "no bill saving" instead of its merge-wait seconds."""
+    vr = _load_verify_report()
+    f = _opt79_pole_finding()                     # ci.yml / build, not a drilled pole
+    doc = _doc_one_pole()
+    doc["findings"] = [f]
+    md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/123"},
+                   "2026-06-08")
+    assert vr._opt79_pole_findings_rendered(md, [f]) == [], md
+    assert ("up to **18s** off the merge wait on the 50% of sampled runs where the "
+            "cache hit (4 of 8 runs read)") in md, md
+    assert not [ln for ln in md.splitlines()
+                if "OPT79" in ln and "no bill saving" in ln], md
+    # ...and in the static-only report, where no pole is drilled at all.
+    static = {"repo": "o/r", "findings": [_opt79_pole_finding()],
+              "pr_critical_path": {"poles": []}, "data_sources": {}}
+    md2 = bp.render(static, "o/r")
+    assert vr._opt79_pole_findings_rendered(md2, static["findings"]) == [], md2
+
+
+def _opt79_on_tests_web(wc: float):
+    return _opt79_pole_finding(
+        workflow_file=".github/workflows/pipeline.yml",
+        affected_jobs=["tests-web"], wall_clock_p50_s=wc,
+        cache_net_negative={"kind": "opt79_pole_net_negative_cache",
+                            "job": "tests-web"})
+
+
+def test_opt79_pole_finding_is_named_at_its_pole_not_sent_to_the_appendix():
+    """A pole-cache finding renders AT its pole. At 30s or more it also joined
+    the data-driven track, so the pole's waterfall and its agent prompt sent the
+    reader to "the **Also noticed** section below", where it is not.
+
+    It counts as catalog COVER for the pole only under the same magnitude rule
+    every other non-log match uses (`_saves_wall_clock`, the 30s long-pole
+    floor). An 18s cache cost on a 255s pole does not explain the pole: with an
+    unrecognized log the pole stays a coverage gap (waterfall + NO CATALOG
+    PATTERN MATCHED), and the OPT79 block still renders once beside it."""
+    for wc in (45.0, 18.0):
+        doc = _doc_one_pole()
+        doc["findings"] = [_opt79_on_tests_web(wc)]
+        md = bp.render(doc, {"pipeline": "nothing any detector knows\n"}, {},
+                       {"pipeline": "https://github.com/o/r/actions/runs/123"},
+                       "2026-06-08")
+        assert md.count("<!-- opt79-pole:f7 -->") == 1, md
+        assert "**Also noticed** section" not in md, (wc, md)
+        prompt = md.split("Prompt for your coding agent", 1)[1]
+        assert "OPT79" in prompt, (wc, md)
+        if wc >= 30:
+            assert "NO CATALOG PATTERN MATCHED" not in md, (wc, md)
+            assert "coverage gap" not in md, (wc, md)
+            assert "MEASURED CACHE PATTERN MATCHED" in prompt, md
+        else:
+            assert "NO CATALOG PATTERN MATCHED" in prompt, md
+            assert "coverage gap" in md, md
+            # the small cache cost is mentioned, never as the pole's explanation
+            assert "MEASURED CACHE PATTERN MATCHED" not in prompt, md
+            assert "(OPT79, a cache that costs more than it saves) matched this" \
+                not in md, md
+
+
+def test_opt79_pole_block_renders_inside_its_own_pole_section():
+    """With two drilled poles, the pole-cache block sits in ITS pole's section -
+    after that pole's anchor and before the next pole's - not merely once
+    somewhere in the report (the off-pole fallback would also render it once)."""
+    doc = _doc_one_pole()
+    doc["pr_critical_path"]["poles"].append({
+        "check": "lint", "p50_s": 200.0, "workflow_file": ".github/workflows/lint.yml",
+        "job": "lint", "dominant_step": "eslint", "dominant_p50_s": 150.0,
+        "steps": [{"step": "eslint", "category": "lint", "p50_s": 150.0}]})
+    doc["findings"] = [_opt79_on_tests_web(18.0)]
+    md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {},
+                   {"pipeline": "https://github.com/o/r/actions/runs/123"},
+                   "2026-06-08")
+    assert md.count("<!-- opt79-pole:f7 -->") == 1, md
+    here = md.index("<!-- opt79-pole:f7 -->")
+    own, nxt = md.index('<a id="pole-1"></a>'), md.index('<a id="pole-2"></a>')
+    assert "`tests-web`" in md[own:nxt].split("\n", 3)[2], md[own:nxt][:300]
+    assert own < here < nxt, (own, here, nxt)
+    assert "Measured cache cost on a workflow's slowest job" not in md
+
+
+def test_opt79_pole_cache_at_the_floor_suppresses_the_llm_gap_fill():
+    """A pole-cache finding of 30s or more on the pole is a catalog match for it,
+    so a supplied LLM gap-fill analysis must not render; under 30s the pole is
+    still a coverage gap and the analysis does render."""
+    analysis = {"cause": "The `run tests` step is slow for a reason the log shows.",
+                "breakdown": [["tests", "~90s"]], "evidence": ["Ran 900 tests"],
+                "prompt": "REPO: o/r\nInvestigate the test step."}
+    for wc, gap_fill in ((45.0, False), (30.0, False), (18.0, True)):
+        doc = _doc_one_pole()
+        doc["findings"] = [_opt79_on_tests_web(wc)]
+        md = bp.render(doc, {"pipeline": "nothing any detector knows\n"}, {},
+                       {"pipeline": "https://github.com/o/r/actions/runs/123"},
+                       "2026-06-08", analyses={"pipeline": analysis})
+        assert ("LLM root-cause analysis" in md) is gap_fill, (wc, md)
+        assert md.count("<!-- opt79-pole:f7 -->") == 1, (wc, md)
+
+
+def test_gap_poles_counts_an_opt79_pole_cache_as_cover_only_at_the_floor():
+    """`_gap_poles` feeds the maintainer gap-capture / detector-draft loop. A
+    drilled pole with an unrecognized log and a >=30s OPT79 pole-cache finding is
+    covered; an 8s one does not explain the pole, so it is still a gap."""
+    for wc, is_gap in ((45.0, False), (8.0, True)):
+        doc = _doc_one_pole()
+        doc["findings"] = [_opt79_on_tests_web(wc)]
+        gaps = bp._gap_poles(doc, {"pipeline": _NO_MATCH_LOG})
+        assert bool(gaps) is is_gap, (wc, gaps)
+
+
+def test_opt79_pole_block_says_why_the_cross_checks_lowered_the_figure():
+    """When the generic cascade shrinks the pole finding, its headline drops
+    (e.g. to 8s) while the evidence still states the pre-cascade 20s. The block
+    printed no reason, so the two numbers contradicted each other with nothing
+    to reconcile them."""
+    f = _opt79_pole_finding(
+        wall_clock_p50_s=8.0, wall_clock_uncapped_p50_s=20.0,
+        wall_clock_derivation=[{
+            "bound": "measured-critical-path", "from_s": 20.0, "to_s": 8.0,
+            "reason": "floored by the slowest concurrent check `lint`"}])
+    md = "\n".join(bp._opt79_pole_block([f], "https://x/catalog.md"))
+    assert "up to **8s** off the merge wait" in md
+    assert "floored by the slowest concurrent check `lint`" in md, md
+    assert "20s" in md, md
+
+
+def test_uncredited_pole_cache_survives_a_report_with_nothing_else_in_it():
+    """A schedule-only repository with no measured poles and no other findings
+    renders through the degenerate arms, where every other input is empty. The
+    uncredited line was dropped with them and the whole report collapsed to the
+    50-byte "no measured critical path" note — the exact silence this block
+    exists to break, in the one repository where it is the only thing to say."""
+    doc = {
+        "repo": "o/r",
+        "findings": [],
+        "pr_critical_path": {"poles": []},
+        "data_sources": {},
+        "opt79_uncredited_pole_caches": [{
+            "kind": "opt79_uncredited_pole_cache",
+            "workflow_file": ".github/workflows/nightly.yml",
+            "job": "build",
+            "runner_label": "ubuntu-latest",
+            "restore_step": "Run actions/cache@v4",
+            "install_step": "Run npm ci",
+            "waste_s": 19.0, "hits": 5, "misses": 4,
+            "hit_path_p50_s": 31.0, "miss_path_p50_s": 12.0,
+            "job_p50_s": 600.0, "floor_p50_s": 300.0,
+            "long_pole_job": "build", "long_pole_p50_s": 600.0,
+            "on_critical_path": False,
+        }],
+    }
+    static = bp._render_static_only(doc)
+    assert static, "the static-only body must not be empty with a measured cache"
+    assert "not credited" in static and "`build`" in static
+    md = bp.render(doc, "o/r")
+    assert "No measured critical path" not in md, md
+    assert "not credited" in md and "`build`" in md
+    # …and a schedule-only workflow is never told its saving is on a merge wait.
+    assert "merge wait" not in md, md
+
+
+def test_static_only_keeps_the_withheld_cache_disclosure():
+    """A repository with no measured poles and no other findings whose cache
+    was probed and then withheld: the static-only body treated that as nothing
+    to say, collapsed to the one-line no-critical-path note, and the Data
+    sources row that says "probed, could not tell" was never rendered."""
+    doc = {
+        "repo": "o/r",
+        "findings": [],
+        "pr_critical_path": {"poles": []},
+        "data_sources": {},
+        "opt79_withheld_candidates": [
+            {"workflow_file": ".github/workflows/nightly.yml", "job": "build",
+             "gate": "population_truncated_by_unread_logs"}],
+    }
+    static = bp._render_static_only(doc)
+    assert static, "the static-only body must not be empty with a withheld cache"
+    md = bp.render(doc, "o/r")
+    assert "held back" in md, md
+
+
+def test_tier2_cert_summary_names_the_below_long_pole_proof():
+    """OPT79's second runner-minute proof renders as its own token, with the
+    slowest job's lead as the margin and the certificate's `ref` naming that
+    job - never as `below_cluster_floor`, whose margin means something else."""
+    f = {"tier2_neutrality": {
+        "proof": "below_long_pole", "margin_s": 60.0,
+        "ref": ("per_workflow_timing[wf]: `integration` at 180.0s is 60.0s below "
+                "the workflow long pole `e2e` at 240.0s")}}
+    msg = bp._tier2_cert_summary(f)
+    assert msg.startswith("`below_long_pole` with 1m 00s margin"), msg
+    # only "cannot lengthen" is provable: the slowest job can be off the merge
+    # gate (or the workflow can gate no PR), and a shorter job in a `needs:`
+    # chain DOES move the gate when it shrinks
+    assert "shrinking it cannot make the workflow take longer" in msg, msg
+    assert "sets the merge gate" not in msg, msg
+    assert "`e2e` at 240.0s" in msg, msg
+    assert "below_cluster_floor" not in msg, msg
+
+
+def test_uncredited_co_pole_is_not_called_the_slowest_job():
+    """A job TIED with the long pole of a pull-request workflow is stamped
+    `pole_tied_with_next_job`; its line says it is tied for the slowest job
+    rather than claiming to be the one the run named."""
+    md = "\n".join(bp._opt79_uncredited_block({
+        "opt79_uncredited_pole_caches": [_uncredited_row(
+            job="unit", long_pole_job="e2e", job_p50_s=660.0,
+            long_pole_p50_s=660.0, floor_p50_s=660.0,
+            workflow_gates_pull_requests=True,
+            uncredited_reason="pole_tied_with_next_job")]}))
+    assert "`unit` is tied with `e2e`, this workflow's slowest job (660s), so " \
+        "neither job alone sets the merge wait" in md, md
+    assert "tied for this workflow's slowest job, but it is tied" not in md, md
+    assert "not credited" in md, md
+
+
+def _uncredited_row(**kw):
+    row = {
+        "kind": "opt79_uncredited_pole_cache",
+        "workflow_file": ".github/workflows/nightly.yml",
+        "job": "build",
+        "runner_label": "ubuntu-latest",
+        "restore_step": "Run actions/cache@v4",
+        "install_step": "Run npm ci",
+        "waste_s": 19.0, "hits": 5, "misses": 4,
+        "hit_path_p50_s": 31.0, "miss_path_p50_s": 12.0,
+        "job_p50_s": 600.0, "floor_p50_s": 300.0,
+        "long_pole_job": "build", "long_pole_p50_s": 600.0,
+        "on_critical_path": False,
+    }
+    row.update(kw)
+    return row
+
+
+def test_uncredited_cache_on_a_workflow_that_gates_no_pr_says_so():
+    """A workflow no pull request runs has no merge gate to leave unchanged. The
+    row was told "this audit cannot prove that shrinking it leaves the merge gate
+    unchanged" — a sentence about a gate that does not exist, which reads as a
+    reason to hesitate over a saving that is pure runner-minutes."""
+    md = "\n".join(bp._opt79_uncredited_block({
+        "opt79_uncredited_pole_caches": [
+            _uncredited_row(workflow_gates_pull_requests=False)]}))
+    assert "merge gate" not in md, md
+    assert "merge wait" not in md, md
+    assert "does not run on pull requests" in md, md
+    assert "not credited" in md
+
+
+def test_uncredited_cache_rows_without_their_numbers_are_not_rendered():
+    """A row missing its measured excess or its populations rendered as
+    "by ?s … (None hit / None miss run(s) sampled)" — a measurement line with no
+    measurement in it. Such a row is not rendered (and the report's self-check
+    fails on the resulting count mismatch)."""
+    rows = [_uncredited_row(job="good"),
+            _uncredited_row(job="nowaste", waste_s=None),
+            _uncredited_row(job="nohits", hits=None),
+            _uncredited_row(job="nomisses", misses="4")]
+    md = "\n".join(bp._opt79_uncredited_block(
+        {"opt79_uncredited_pole_caches": rows}))
+    assert "`good`" in md
+    for job in ("nowaste", "nohits", "nomisses"):
+        assert f"`{job}`" not in md, md
+    assert "?s" not in md and "None hit" not in md, md
+    assert "**1 cache(s) measured net-negative" in md, md
+
+
+def test_withheld_cache_candidates_reach_the_data_sources_table():
+    """The cache hit/miss probe can read a candidate's logs and still withhold it
+    (too few misses, unread logs, a runner change). Without a line saying so the
+    report reads "measured, nothing found" for "measured, could not tell"."""
+    doc = _doc_one_pole()
+    doc["data_sources"] = {**doc["data_sources"], "tiers_run": ["gh-timing"],
+                           "cache_probe_logs": {"probed": 8, "returned": 8,
+                                                "budget": 24}}
+    doc["opt79_withheld_candidates"] = [
+        {"workflow_file": "ci.yml", "job": "unit",
+         "gate": "population_truncated_by_unread_logs"},
+        {"workflow_file": "ci.yml", "job": "e2e",
+         "gate": "fewer_than_min_miss_runs_classified"},
+        {"workflow_file": "b.yml", "job": "x",
+         "gate": "fewer_than_min_miss_runs_classified"}]
+    foot = "\n".join(bp._data_sources_footer(doc, "o/r"))
+    assert "| cache hit/miss verdicts |" in foot, foot
+    # Two gates contributed, so the commonest gate's reason is hedged: it is
+    # true of two of the three named jobs, not of all of them.
+    assert ("3 candidate cache(s) held back (e2e, unit, x): most commonly, too "
+            "few sampled runs missed the cache to compare "
+            "a miss against a hit.") in foot, foot
+    assert "fewer_than_min" not in foot and "_runs_classified" not in foot, foot
+    # nothing withheld -> no row
+    doc["opt79_withheld_candidates"] = []
+    assert "cache hit/miss verdicts" not in "\n".join(
+        bp._data_sources_footer(doc, "o/r"))
+
+
+def _held_back_cell(rows):
+    doc = _doc_one_pole()
+    doc["data_sources"] = {**doc["data_sources"], "tiers_run": ["gh-timing"]}
+    doc["opt79_withheld_candidates"] = rows
+    foot = "\n".join(bp._data_sources_footer(doc, "o/r"))
+    line = next((l for l in foot.splitlines()
+                 if l.startswith("| cache hit/miss verdicts |")), "")
+    return line
+
+
+def test_held_back_line_is_plain_english_and_names_the_jobs():
+    line = _held_back_cell([
+        {"workflow_file": ".github/workflows/ci.yml", "job": "unit",
+         "gate": "job_declares_more_than_one_cache_restore_step"},
+        {"workflow_file": ".github/workflows/ci.yml", "job": "lint",
+         "gate": "job_declares_more_than_one_cache_restore_step"}])
+    assert ("2 candidate cache(s) held back (lint, unit): the job restores "
+            "more than one cache, so one hit/miss verdict can't price it."
+            ) in line, line
+    assert "job_declares" not in line and "probed" not in line and "$" not in line
+
+
+def test_held_back_line_qualifies_a_job_name_two_workflows_share():
+    line = _held_back_cell([
+        {"workflow_file": ".github/workflows/ci.yml", "job": "build",
+         "gate": "no_install_step_after_the_cache_step"},
+        {"workflow_file": ".github/workflows/nightly.yml", "job": "build",
+         "gate": "no_install_step_after_the_cache_step"},
+        {"workflow_file": ".github/workflows/ci.yml", "job": "unit",
+         "gate": "no_install_step_after_the_cache_step"}])
+    assert "(ci.yml / build, nightly.yml / build, unit)" in line, line
+
+
+def test_held_back_line_shows_five_jobs_then_and_k_more():
+    rows = [{"workflow_file": "ci.yml", "job": f"j{i}",
+             "gate": "no_monthly_volume"} for i in range(8)]
+    line = _held_back_cell(rows)
+    assert "8 candidate cache(s) held back (j0, j1, j2, j3, j4, and 3 more):" in line, line
+
+
+def test_held_back_line_escapes_repo_controlled_job_names():
+    line = _held_back_cell([{"workflow_file": "ci.yml",
+                             "job": "a|b `x`\nc", "gate": "no_monthly_volume"}])
+    cells = [c for c in line.replace("\\|", "").split("|") if c.strip()]
+    assert len(cells) == 3, line            # source, coverage, feeds: the pipe did not split
+    assert "`x`" not in line and "\n" not in line, line
+    # the name survives intact, escaped rather than substituted: two jobs whose
+    # names differ only in their punctuation stay two names in the row
+    assert "a\\|b \\`x\\` c" in line, line
+
+
+def test_held_back_line_merges_early_and_late_gates_and_keeps_the_tie_rule():
+    line = _held_back_cell([
+        {"workflow_file": "ci.yml", "job": "a", "gate": "no_monthly_volume"},
+        {"workflow_file": "ci.yml", "job": "b",
+         "gate": "job_declares_more_than_one_cache_restore_step"}])
+    # tie: alphabetically first gate wins, exactly as before
+    assert "restores more than one cache" in line, line
+
+
+def test_held_back_reason_is_hedged_when_more_than_one_gate_contributed():
+    """The count and the named jobs cover EVERY held-back candidate, but the
+    reason is only the commonest gate's. Printed flat, the sentence asserted
+    that reason of every job it named — "7 held back (…): the job restores more
+    than one cache" while two of the seven were held back for something else,
+    with nothing in the row letting the reader see it. A second gate now makes
+    the reason explicitly modal; one gate leaves it unhedged."""
+    rows = ([{"workflow_file": "ci.yml", "job": f"many{i}",
+              "gate": "no_install_step_after_the_cache_step"} for i in range(5)]
+            + [{"workflow_file": "ci.yml", "job": f"few{i}",
+                "gate": "job_declares_more_than_one_cache_restore_step"}
+               for i in range(2)])
+    line = _held_back_cell(rows)
+    assert "7 candidate cache(s) held back" in line, line
+    # the modal gate's reason, and it does NOT claim to hold of all seven
+    assert ("): most commonly, " + bp._OPT79_HELD_BACK_REASONS[
+        "no_install_step_after_the_cache_step"] + ".") in line, line
+    # the minority gate's own reason is not asserted of anyone
+    assert "restores more than one cache" not in line, line
+    # …and one gate for every candidate stays unhedged: there is nothing to hedge.
+    only = _held_back_cell(
+        [{"workflow_file": "ci.yml", "job": f"j{i}",
+          "gate": "no_install_step_after_the_cache_step"} for i in range(3)])
+    assert ("): " + bp._OPT79_HELD_BACK_REASONS[
+        "no_install_step_after_the_cache_step"] + ".") in only, only
+    assert "most commonly" not in only, only
+
+
+def test_held_back_job_names_cannot_split_the_row_or_become_a_link():
+    """Job names are repo-controlled and land in a markdown table cell.
+
+    `a\\|b` was escaped to `a\\\\|b` — GFM reads that as an escaped BACKSLASH
+    followed by a live cell separator, so the row grew a column and the
+    self-check's own cell regex read only the fragment before the split. And a
+    job named `[click](http://example.test)` rendered as a working link inside
+    the audit's own Data sources table."""
+    def _gfm_cells(row: str) -> int:
+        """Count the row's cells the way GFM does: a backslash escapes exactly
+        the character after it, so a `|` ends a cell unless an ODD run of
+        backslashes precedes it. Counting with a `(?<!\\)\\|` lookbehind has
+        precisely the blind spot this test exists to catch — it declines to
+        split `a\\\\|b`, which GFM reads as an escaped backslash followed by a
+        LIVE separator, so the broken escaper would score three cells here."""
+        cells, buf, i = [], [], 0
+        while i < len(row):
+            if row[i] == "\\" and i + 1 < len(row):
+                buf.append(row[i:i + 2])
+                i += 2
+            elif row[i] == "|":
+                cells.append("".join(buf))
+                buf = []
+                i += 1
+            else:
+                buf.append(row[i])
+                i += 1
+        cells.append("".join(buf))
+        return len([c for c in cells if c.strip()])
+
+    line = _held_back_cell([
+        {"workflow_file": "ci.yml", "job": "a\\|b", "gate": "no_monthly_volume"}])
+    # exactly three cells: the row did not grow a column
+    assert _gfm_cells(line) == 3, line
+    # `\` escaped first, THEN `|`: `a\|b` -> `a\\\|b`, never `a\\|b`
+    assert "a\\\\\\|b" in line, line
+
+    line = _held_back_cell([
+        {"workflow_file": "ci.yml", "job": "[click](http://example.test)",
+         "gate": "no_monthly_volume"}])
+    assert "[click](http://example.test)" not in line, line
+    assert "\\[click\\]\\(http://example.test\\)" in line, line
+    assert len([c for c in re.split(r"(?<!\\)\|", line) if c.strip()]) == 3, line
+
+    # The row exists to say WHICH candidates were held back, so two different
+    # jobs must not arrive as one name. Backticks and asterisks used to be
+    # swapped for an apostrophe, which collapsed `a*b`, "a`b" and `a'b` into a
+    # single rendered string; both are ordinary GFM backslash escapes, so the
+    # name survives instead.
+    def _cell_of(job):
+        return _held_back_cell([{"workflow_file": "ci.yml", "job": job,
+                                 "gate": "no_monthly_volume"}])
+
+    rendered = {_cell_of(j) for j in ("a*b", "a`b", "a'b")}
+    assert len(rendered) == 3, rendered
+    assert "a\\*b" in _cell_of("a*b"), _cell_of("a*b")
+    assert "a\\`b" in _cell_of("a`b"), _cell_of("a`b")
+    # …and neither can still open a code span or an emphasis run
+    assert _gfm_cells(_cell_of("a`b`c")) == 3, _cell_of("a`b`c")
+
+    # an emphasis run a name would otherwise open across the rest of the cell
+    line = _held_back_cell([
+        {"workflow_file": "ci.yml", "job": "snake_case_job_name",
+         "gate": "no_monthly_volume"}])
+    assert "snake\\_case\\_job\\_name" in line, line
+
+    # `<https://example.test>` is a GFM autolink and renders as a working link
+    # exactly like the `[click](...)` form above; a raw `<img …>` / `<details>`
+    # is live HTML inside the cell. Angle brackets are the same harm, so they
+    # are neutralised the same way.
+    line = _held_back_cell([
+        {"workflow_file": "ci.yml", "job": "<https://example.test>",
+         "gate": "no_monthly_volume"}])
+    assert "<https://example.test>" not in line, line
+    assert "\\<https://example.test\\>" in line, line
+    line = _held_back_cell([
+        {"workflow_file": "ci.yml", "job": "<details open>build</details>",
+         "gate": "no_monthly_volume"}])
+    assert "<details open>" not in line, line
+
+
+def test_no_collector_path_can_record_a_held_back_entry_with_no_job():
+    """The renderer carries `(unnamed job)` / "a group" fallbacks and the
+    self-check hard-REJECTS an entry that names no job, so the two would
+    disagree if any real detector path could produce one. Read off the
+    collector: every site that adds to a withheld-candidate list is an append
+    of a dict literal whose name field is bound to a non-empty expression, and
+    OPT79's pre-probe site — the only one whose name is not structurally
+    non-empty — appends under a condition that tests it.
+
+    The scan used to match `withheld_candidates.append(<Name>)` only, so an
+    `extend`, an `insert`, a `+=` or a row built one line earlier escaped it
+    entirely — and `len(sites) == 4` still passed, because a site the scan
+    cannot see is not a site it counts. It now matches every way the list can
+    be written to, and asserts each one is the recognised shape. The OPT79
+    guard is located by walking that function's conditions rather than by
+    grepping the whole file for the text of the test, which matched wherever
+    it happened to live."""
+    import ast
+    import collect_runs as _cr
+    src = (_SCRIPTS / "collect_runs.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+
+    def _is_target(node):
+        return isinstance(node, ast.Name) and node.id == "withheld_candidates"
+
+    writes = []
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                and _is_target(n.func.value)):
+            writes.append((n.func.attr, n))
+        elif isinstance(n, ast.AugAssign) and _is_target(n.target):
+            writes.append(("+=", n))
+        elif (isinstance(n, ast.Assign)
+              and any(_is_target(t) for t in n.targets)):
+            writes.append(("=", n))
+    # 77, 79 pre-probe, 79 post-probe, 80, 81 A1, 81 A2, 82, 83 and 84 (82, 83
+    # and 84 guarded by `and job` in their `_no` helpers) — and every one of them
+    # an `append(<dict literal>)`, never an `extend`, an `insert` or a `+=`.
+    assert len(writes) == 9, [(k, ast.dump(n)[:60]) for k, n in writes]
+    for kind, n in writes:
+        assert kind == "append", (kind, ast.dump(n)[:80])
+        d = n.args[0]
+        assert isinstance(d, ast.Dict), ast.dump(n)[:120]
+        named = {k.value: v for k, v in zip(d.keys, d.values)
+                 if isinstance(k, ast.Constant)}
+        key = "job" if "job" in named else "jobs"
+        assert key in named, sorted(named)
+        # the name is BOUND to something, not a literal blank or None
+        value = named[key]
+        assert not (isinstance(value, ast.Constant)
+                    and not str(value.value or "").strip()), ast.dump(value)
+
+    # OPT79's pre-probe site is the only one whose name is not structurally
+    # non-empty. Its guard is located STRUCTURALLY: the conditions that
+    # actually govern that append, not a substring anywhere in the file.
+    def _guards_of(root, needle):
+        """Every `if` test that encloses `needle` inside `root`."""
+        found = []
+
+        def walk(node, tests):
+            for child in ast.iter_child_nodes(node):
+                if child is needle:
+                    found.extend(tests)
+                if isinstance(child, ast.If):
+                    for b in child.body:
+                        walk(b, tests + [child.test])
+                    for b in child.orelse:
+                        walk(b, tests)
+                else:
+                    walk(child, tests)
+
+        walk(root, [])
+        return found
+
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    pre_probe = [n for _k, n in writes
+                 if any(isinstance(c, ast.Subscript)
+                        and isinstance(c.value, ast.Name) and c.value.id == "ctx"
+                        for c in ast.walk(n))]
+    assert len(pre_probe) == 1, len(pre_probe)
+    guards = _guards_of(fns["_opt79_candidates"], pre_probe[0])
+    assert guards, "OPT79's pre-probe append is not inside any condition"
+    guarded = any(
+        isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+        and c.func.attr == "get" and isinstance(c.func.value, ast.Name)
+        and c.func.value.id == "ctx"
+        and c.args and isinstance(c.args[0], ast.Constant)
+        and c.args[0].value == "job"
+        for t in guards for c in ast.walk(t))
+    assert guarded, [ast.dump(t)[:120] for t in guards]
+
+    # …and the renderer still renders something legible if one ever appeared —
+    # escaped like any other name, so it reads "(unnamed job)" on the page.
+    line = _held_back_cell([{"workflow_file": "ci.yml", "job": "",
+                             "gate": "no_monthly_volume"}])
+    assert "\\(unnamed job\\)" in line, line
+    assert _cr is not None
+
+
+def test_a_tied_held_back_reason_says_equally_often_not_most_commonly():
+    """"most commonly" is a claim about which reason dominates, and on an exact
+    split there is no such reason — the sentence asserts something false about
+    the very tie it is standing on. The tie gets its own wording; which of the
+    tied reasons is shown is still the alphabetically first."""
+    rows = [{"workflow_file": "ci.yml", "job": "a",
+             "gate": "tail_run_log_unavailable"},
+            {"workflow_file": "ci.yml", "job": "b",
+             "gate": "no_tail_run_log_was_probed"}]
+    line = bp._withheld_candidates_line(
+        {"opt80_withheld_candidates": rows}, "opt80_withheld_candidates",
+        "candidate checkout(s)")
+    assert bp._WITHHELD_TIED_LEAD in line, line
+    assert bp._WITHHELD_MODAL_LEAD not in line, line
+    # …and an actual majority still reads "most commonly".
+    rows.append({"workflow_file": "ci.yml", "job": "c",
+                 "gate": "tail_run_log_unavailable"})
+    line = bp._withheld_candidates_line(
+        {"opt80_withheld_candidates": rows}, "opt80_withheld_candidates",
+        "candidate checkout(s)")
+    assert bp._WITHHELD_MODAL_LEAD in line, line
+    assert bp._WITHHELD_TIED_LEAD not in line, line
+
+
+def test_the_held_back_count_counts_what_the_row_actually_names():
+    """The count was the number of recorded rows while the names and the "and
+    K more" overflow were the number of DISTINCT entries. Two rows for one job
+    — the same candidate held back at two gates — printed "2 candidate
+    checkout(s) held back (build)", a sentence that disagrees with itself."""
+    rows = [{"workflow_file": "ci.yml", "job": "build",
+             "gate": "tail_run_log_unavailable"},
+            {"workflow_file": "ci.yml", "job": "build",
+             "gate": "no_tail_run_log_was_probed"}]
+    line = bp._withheld_candidates_line(
+        {"opt80_withheld_candidates": rows}, "opt80_withheld_candidates",
+        "candidate checkout(s)")
+    assert line.startswith("1 candidate checkout(s) held back (build): "), line
+
+
+def test_a_registered_pattern_with_no_phrase_table_still_renders_a_report():
+    """`_WITHHELD_PHRASES_BY_KEY[key]` was a bare subscript: a pattern
+    registered in `_WITHHELD_ROWS` whose gate -> phrase table had not been
+    registered too raised a KeyError and took the WHOLE report with it. The
+    renderer's contract is that it always produces a report, even from a
+    document a bug has malformed - so this degrades to the unmapped wording
+    and leaves `verify_report` to fail the run."""
+    line = bp._withheld_candidates_line(
+        {"optzz_withheld_candidates": [
+            {"workflow_file": "ci.yml", "job": "unit", "gate": "some_gate"}]},
+        "optzz_withheld_candidates", "candidate thing(s)")
+    assert line == (f"1 candidate thing(s) held back (unit): "
+                    f"{bp._WITHHELD_UNMAPPED_PHRASE}."), line
+
+
+def test_a_group_shaped_pattern_renders_its_jobs_because_the_shape_is_registered():
+    """Whether an entry names one job or a whole group was decided by
+    comparing the doc key against OPT77's, in the renderer AND in
+    `verify_report`. A fourth group-shaped pattern would therefore have
+    rendered `(unnamed job)` for every candidate - in both twins alike, so
+    they agreed and the suite stayed green. The shape is part of the
+    registration now."""
+    key = "optzz_withheld_candidates"
+    old_rows = bp._WITHHELD_ROWS
+    old_shape = dict(bp._WITHHELD_SHAPE_BY_KEY)
+    try:
+        bp._WITHHELD_ROWS = old_rows + (bp.WithheldRow(
+            key, "mystery: held back", "candidate group(s)",
+            "Why a thing produced no finding", "group"),)
+        bp._WITHHELD_SHAPE_BY_KEY[key] = "group"
+        entries = bp._withheld_entries(
+            [{"workflow_file": ".github/workflows/ci.yml",
+              "jobs": ["lint", "test"], "gate": "g"}], key)
+    finally:
+        bp._WITHHELD_ROWS = old_rows
+        bp._WITHHELD_SHAPE_BY_KEY.clear()
+        bp._WITHHELD_SHAPE_BY_KEY.update(old_shape)
+    assert entries == ["lint + test in ci.yml"], entries
+
+
+def test_a_group_entry_with_a_blank_member_name_renders_a_visible_marker():
+    """The job-shaped path has always had a `(unnamed job)` fallback; the
+    group-shaped one had none, so a blank member rendered as nothing at all
+    and the entry read " in ci.yml"."""
+    entries = bp._withheld_entries(
+        [{"workflow_file": "ci.yml", "jobs": ["  "], "gate": "g"}],
+        bp._OPT77_WITHHELD_DOC_KEY)
+    assert entries == ["\\(unnamed job\\) in ci.yml"], entries
+
+
+def test_a_gate_with_no_phrase_renders_a_reason_never_its_code():
+    """A gate the phrase tables do not cover is a collector bug the self-check
+    fails on — but until the report is verified the row still renders, and what
+    it renders must read as a reason rather than leak the internal gate name.
+    Pinned at the RENDER level: the constant alone could be rewritten to
+    anything (including a code) with nothing going red."""
+    line = _held_back_cell([{"workflow_file": "ci.yml", "job": "unit",
+                             "gate": "a_gate_no_table_covers"}])
+    assert "a_gate_no_table_covers" not in line, line
+    assert bp._WITHHELD_UNMAPPED_PHRASE in line, line
+    # it has to be prose, not a placeholder or a token
+    assert bp._WITHHELD_UNMAPPED_PHRASE == (
+        "a reason this report has no plain-English wording for")
+    assert "_" not in bp._WITHHELD_UNMAPPED_PHRASE
+
+
+def test_every_held_back_row_keeps_the_static_only_body_alive():
+    """A repository with nothing else to report but one held-back candidate
+    must still render a body, or the Data sources footer — the only place the
+    candidate is disclosed — goes with it and "could not tell" reads as
+    "nothing found". Pinned for EVERY registered pattern, not just OPT79: a row
+    added without this is silent on exactly the repositories it exists for."""
+    for key, label, _noun, _feeds, _shape in bp._WITHHELD_ROWS:
+        entry = {"workflow_file": ".github/workflows/nightly.yml",
+                 "gate": "no_monthly_volume"}
+        if key == "opt77_withheld_candidates":
+            entry.update(group="ubuntu-latest/a+b+c", jobs=["a", "b", "c"],
+                         gate="needs_graph_undecidable")
+        else:
+            entry["job"] = "build"
+            if key == "opt80_withheld_candidates":
+                entry["gate"] = "no_tail_run_log_was_probed"
+        doc = {"repo": "o/r", "findings": [], "pr_critical_path": {"poles": []},
+               "data_sources": {}, key: [entry]}
+        assert bp._render_static_only(doc), key
+        md = bp.render(doc, "o/r")
+        assert "held back" in md, (key, md)
+        assert _withheld_row(md, label), (key, md)
+
+
+def test_opt82_held_back_row_names_the_lint_job_and_its_plain_reason():
+    """OPT82 (type-aware lint) joins the shared held-back registry: a slow lint
+    job whose ESLint config could not be decided is named with a plain-English
+    reason, never a gate code."""
+    rows = [{"workflow_file": ".github/workflows/lint.yml", "job": "eslint",
+             "gate": "type_aware_setting_unresolvable"}]
+    line = bp._withheld_candidates_line(
+        {bp._OPT82_WITHHELD_DOC_KEY: rows}, bp._OPT82_WITHHELD_DOC_KEY,
+        "candidate lint job(s)")
+    assert line == ("1 candidate lint job(s) held back (eslint): "
+                    + bp._OPT82_WITHHOLD_PHRASES["type_aware_setting_unresolvable"]
+                    + "."), line
+    md = bp.render({"repo": "o/r", "findings": [], "pr_critical_path": {"poles": []},
+                    "data_sources": {}, bp._OPT82_WITHHELD_DOC_KEY: rows}, "o/r")
+    assert _withheld_row(md, "type-aware lint: held back"), md
+
+
+def test_opt82_card_uses_its_own_prompt_never_the_generic_bill_line():
+    f = {"id": "f1", "pattern": "OPT82", "severity": "MEDIUM",
+         "title": "Lint Builds the Whole Type Graph",
+         "workflow_file": ".github/workflows/lint.yml", "affected_jobs": ["eslint"],
+         "evidence": "`eslint` runs ESLint with type-aware parsing on.",
+         "fix_recipe_anchor": "opt82--lint-builds-the-whole-type-graph",
+         "wall_clock_p50_s": 0.0, "runner_min_saving": None,
+         "type_aware_lint": {"kind": "opt82_type_aware_lint", "ceiling_s": 78.0,
+                             "ceiling_basis": "lint_step", "configs": ["eslint.config.mjs"],
+                             "rules": [{"rule": "@typescript-eslint/no-floating-promises"}],
+                             "benchmark_commands": {"as_ci_runs_it": "(time npx eslint .)",
+                                                    "without_type_information": "(time x)"}}}
+    lines, n, _ = bp._also_noticed_block([f], "https://example.invalid/c.md")
+    card = "\n".join(lines)
+    assert n == 1 and "uncredited, benchmark first" in card
+    assert bp._OPT82_LEDGER_SENTENCE in card and "SIZING: uncredited." in card
+    assert "runner-min/mo" not in card and "no bill saving" not in card
+
+
+# --------------------------------------------------------------------------- #
+# A pole job that runs steps in a `parallel:` group: the step-level drill must
+# not claim the steps run in sequence, sum to the job, or that time cut from any
+# step comes 1:1 off the job. Keyed on `doc["parallel_steps"]["jobs_with_groups"]`.
+# --------------------------------------------------------------------------- #
+
+_SEQ_PHRASES = ("one after another", "straight off the job's wall-clock",
+                "they run in sequence and roughly add up to the job")
+
+
+def _with_groups(doc: dict, path: str, job: str, sequential: list | None = None) -> dict:
+    doc = dict(doc)
+    doc["parallel_steps"] = {"groups": 1, "steps_in_groups": 2, "control_steps": 0,
+                             "malformed_groups": 0, "malformed_files": [],
+                             "malformed_jobs": [],
+                             "jobs_with_groups": [{"path": path, "job": job}],
+                             "sequential_jobs": list(sequential or [])}
+    return doc
+
+
+_PL = ".github/workflows/pipeline.yml"
+
+
+def _ps_doc(**stamp) -> dict:
+    base = {"groups": 1, "steps_in_groups": 1, "control_steps": 0,
+            "jobs_with_groups": [], "jobs_with_background": [], "sequential_jobs": []}
+    base.update(stamp)
+    return {"parallel_steps": base}
+
+
+def test_pole_overlap_join_matches_display_names_matrix_legs_templates_and_callees():
+    """T1/S3: the pole's check or job is joined to the stamp by job key, display
+    name, matrix leg, a `${{ }}`-templated name, and a reusable-workflow callee's
+    trailing ` / <job>` segment."""
+    cases = [
+        ({"job": "test", "name": "Unit tests"}, {"check": "Unit tests"}),
+        ({"job": "test"}, {"check": "test (ubuntu-latest, 3.12)"}),
+        ({"job": "test", "name": "Test ${{ matrix.os }}"}, {"check": "Test ubuntu-latest"}),
+        ({"job": "build"}, {"check": "caller / build"}),
+    ]
+    for row, pole in cases:
+        doc = _ps_doc(jobs_with_groups=[dict(row, path=_PL)])
+        assert bp._pole_steps_overlap(dict(pole, workflow_file=_PL), doc) == "group", (row, pole)
+
+
+def test_pole_overlap_join_fails_closed_when_the_job_cannot_be_matched():
+    """S3: a workflow that holds a group, and a pole matching neither the
+    grouped jobs nor the jobs recorded as sequential, is worded as uncertain,
+    never "one after another". A recorded sequential job keeps its wording."""
+    doc = _ps_doc(jobs_with_groups=[{"path": _PL, "job": "lint"}],
+                  sequential_jobs=[{"path": _PL, "job": "tests-web"}])
+    assert bp._pole_steps_overlap({"check": "tests-web", "workflow_file": _PL}, doc) is None
+    assert bp._pole_steps_overlap({"check": "Tests ${{ x }}", "workflow_file": _PL},
+                                  doc) == "maybe"
+    assert bp._pole_steps_overlap({"check": "e2e", "workflow_file": _PL}, doc) == "maybe"
+    # another workflow's group says nothing about this pole
+    assert bp._pole_steps_overlap(
+        {"check": "e2e", "workflow_file": ".github/workflows/other.yml"}, doc) is None
+
+
+def test_pole_overlap_join_with_no_workflow_file_is_wording_only():
+    """Item 6: a pole with no known workflow file cannot be pinned to a YAML
+    job, so a name match only hedges the wording ("maybe"), never asserts it."""
+    doc = _ps_doc(jobs_with_groups=[{"path": _PL, "job": "test"}])
+    assert bp._pole_steps_overlap({"check": "test", "workflow_file": ""}, doc) == "maybe"
+    assert bp._pole_steps_overlap({"check": "lint", "workflow_file": ""}, doc) is None
+
+
+def test_pole_overlap_join_reads_background_only_jobs():
+    doc = _ps_doc(groups=0, steps_in_groups=0, background_steps=1,
+                  jobs_with_background=[{"path": _PL, "job": "it"}])
+    assert bp._pole_steps_overlap({"check": "it", "workflow_file": _PL}, doc) == "background"
+
+
+def test_pole_with_only_background_steps_drops_the_sequential_claim():
+    doc = _doc_one_pole()
+    doc["parallel_steps"] = {"groups": 0, "steps_in_groups": 0, "control_steps": 0,
+                             "background_steps": 1, "jobs_with_groups": [],
+                             "jobs_with_background": [{"path": _PL, "job": "tests-web"}],
+                             "sequential_jobs": []}
+    md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {}, {},
+                   "2026-06-08", {"pipeline": _TIMELINE})
+    for ph in _SEQ_PHRASES:
+        assert ph not in md, ph
+    assert "runs some steps in the background" in md, md
+
+
+def test_unmatched_pole_in_a_grouped_workflow_is_worded_as_uncertain():
+    doc = _with_groups(_doc_one_pole(), _PL, "lint")
+    md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {}, {},
+                   "2026-06-08", {"pipeline": _TIMELINE})
+    for ph in _SEQ_PHRASES:
+        assert ph not in md, ph
+    assert "may overlap" in md, md
+
+
+def test_pole_with_parallel_steps_timeline_drops_the_sequential_claim():
+    doc = _with_groups(_doc_one_pole(), ".github/workflows/pipeline.yml", "tests-web")
+    md = bp.render(doc, {"pipeline": _IMPORT_BOUND_LOG}, {}, {},
+                   "2026-06-08", {"pipeline": _TIMELINE})
+    for ph in _SEQ_PHRASES:
+        assert ph not in md, ph
+    assert "side by side in a `parallel:` group" in md, md
+    assert "only if it is on the slowest branch" in md
+
+
+def test_pole_with_parallel_steps_p50_bars_drop_the_sum_claim():
+    doc = _with_groups(_doc_one_pole(), ".github/workflows/pipeline.yml", "tests-web")
+    md = bp.render(doc, {}, {}, {}, "2026-06-08")
+    for ph in _SEQ_PHRASES:
+        assert ph not in md, ph
+    assert "side by side in a `parallel:` group" in md, md
+
+
+def test_long_pole_map_lead_drops_the_sequential_claim_for_a_grouped_job():
+    doc = _with_groups(_collision_doc(), ".github/workflows/ci.yml", "test")
+    md = bp.render(doc, {}, {}, {"ci": _COLLISION_TIMELINE["run_url"]},
+                   "2026-07-19T00:00:00Z", {"ci": _COLLISION_TIMELINE})
+    seg = _map_section(md)
+    assert "steps run one after another" not in seg, seg
+    assert "▼ Level 2 - inside test, some steps run side by side:" in seg, seg
+    for ph in _SEQ_PHRASES:
+        assert ph not in md, ph
+
+
+def test_grouped_job_elsewhere_leaves_the_pole_text_byte_identical():
+    """A `parallel:` group in a DIFFERENT workflow (or a different job) is not
+    this pole's: its drill text is byte-identical to a doc with no stamp, apart
+    from the Data sources row the stamp itself adds."""
+    import re as _re
+
+    def _strip(s):
+        # the Data sources row the stamp adds, and the per-render prompt nonce
+        s = _re.sub(r"CONTENT \[[0-9a-f]{8}\]", "CONTENT [nonce]", s)
+        return "\n".join(ln for ln in s.splitlines() if "Parallel steps" not in ln)
+
+    base = bp.render(_doc_one_pole(), {"pipeline": _IMPORT_BOUND_LOG}, {}, {},
+                     "2026-06-08", {"pipeline": _TIMELINE})
+    for path, job in ((".github/workflows/other.yml", "tests-web"),
+                      (".github/workflows/pipeline.yml", "lint")):
+        # The pole's own job is recorded as running in sequence (the scan lists
+        # every other job of a file that holds a group).
+        md = bp.render(_with_groups(_doc_one_pole(), path, job,
+                                    [{"path": path, "job": "tests-web"}]),
+                       {"pipeline": _IMPORT_BOUND_LOG}, {}, {},
+                       "2026-06-08", {"pipeline": _TIMELINE})
+        assert _strip(md) == _strip(base), (path, job)
+        assert "comes straight off the job's wall-clock" in md
+
+
+def test_opt83_card_renders_at_its_pole_and_never_in_also_noticed():
+    """OPT83 is uncredited and routed from a pole: excluded from the hygiene
+    appendix whatever it carries, and joined only to its own pole's job."""
+    f = {"id": "f7", "pattern": "OPT83", "title": "t", "risk": "MEDIUM",
+         "workflow_file": ".github/workflows/q.yml", "affected_jobs": ["q"],
+         "wall_clock_p50_s": None, "runner_min_saving": None,
+         "independent_steps": {"job": "q", "yaml_job": "q", "ceiling_s": 50.0,
+                               "steps": [{"step": "A", "p50_s": 30.0},
+                                         {"step": "B", "p50_s": 25.0},
+                                         {"step": "C", "p50_s": 25.0}]}}
+    lines, n, _wc = bp._also_noticed_block([f], "https://x/c.md")
+    assert (lines, n) == ([], 0)
+    pole = {"check": "q", "job": "q", "workflow_file": ".github/workflows/q.yml"}
+    assert bp._opt83_for_pole(pole, [f]) == [f]
+    assert bp._opt83_for_pole({**pole, "job": "r"}, [f]) == []
+    card = "\n".join(bp._opt83_card(f, "https://x/c.md"))
+    assert card.startswith('<a id="opt83-f7"></a>') and "up to 50s sooner" in card
+
+
+def test_the_drill_fallbacks_never_mark_a_control_step_as_dominant():
+    """D3: `_dom_index` (an aggregate dominant label that names no single step)
+    and `_dom_lead_idx` (no step of the dominant category in the top rows) fall
+    back to "the longest step" / row 0. A `wait-all` step only waits, so the
+    fallback skips control steps exactly as the collector's crown does."""
+    steps = [{"name": "wait-all", "dur_s": 300}, {"name": "Checkout", "dur_s": 5}]
+    assert bp._dom_index(steps, "Build + 2 more build steps") == 1
+    rows = [{"step": "wait-all", "category": "other", "p50_s": 300},
+            {"step": "Run tests", "category": "test", "p50_s": 60}]
+    assert bp._dom_lead_idx(rows, "build") == 1
+    assert bp._dom_lead_idx(rows, "") == 1
+    assert bp._dom_index([{"name": "wait", "dur_s": 9}], "x") == -1
+
+
+def test_coverage_banner_counts_files_not_records():
+    """S9: two gap records for one file (two jobs with unreadable groups) are
+    one file that could not be fully scanned, not two."""
+    lines = bp._coverage_gap_banner([
+        {"path": ".github/workflows/ci.yml", "reason": "job `a`: x"},
+        {"path": ".github/workflows/ci.yml", "reason": "job `b`: y"}])
+    assert "Incomplete coverage - 1 workflow file(s)" in lines[1], lines
+
+
+def test_control_step_pattern_is_identical_in_collector_and_renderer():
+    assert cr._CONTROL_STEP_NAME_RE.pattern == bp._CONTROL_STEP_NAME_RE.pattern
+    assert cr._CONTROL_STEP_NAME_RE.flags == bp._CONTROL_STEP_NAME_RE.flags

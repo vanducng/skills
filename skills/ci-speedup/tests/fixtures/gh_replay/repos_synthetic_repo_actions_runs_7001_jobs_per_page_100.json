@@ -1,0 +1,107 @@
+{
+  "total_count": 2,
+  "jobs": [
+    {
+      "id": 7101,
+      "run_id": 7001,
+      "name": "prep",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-06-25T10:00:00Z",
+      "completed_at": "2026-06-25T10:02:00Z",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "html_url": "https://github.com/synthetic/repo/actions/runs/7001/job/7101",
+      "steps": [
+        {
+          "name": "Set up job",
+          "number": 1,
+          "started_at": "2026-06-25T10:00:00Z",
+          "completed_at": "2026-06-25T10:00:02Z",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/cache@v4",
+          "number": 2,
+          "started_at": "2026-06-25T10:00:02Z",
+          "completed_at": "2026-06-25T10:00:32Z",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run npm ci",
+          "number": 3,
+          "started_at": "2026-06-25T10:00:32Z",
+          "completed_at": "2026-06-25T10:00:35Z",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build artifact",
+          "number": 4,
+          "started_at": "2026-06-25T10:00:35Z",
+          "completed_at": "2026-06-25T10:01:55Z",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Upload artifact",
+          "number": 5,
+          "started_at": "2026-06-25T10:01:55Z",
+          "completed_at": "2026-06-25T10:02:00Z",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/cache@v4",
+          "number": 6,
+          "started_at": "2026-06-25T10:02:00Z",
+          "completed_at": "2026-06-25T10:02:00Z",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 7201,
+      "run_id": 7001,
+      "name": "verify",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-06-25T10:02:02Z",
+      "completed_at": "2026-06-25T10:03:42Z",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "html_url": "https://github.com/synthetic/repo/actions/runs/7001/job/7201",
+      "steps": [
+        {
+          "name": "Set up job",
+          "number": 1,
+          "started_at": "2026-06-25T10:02:02Z",
+          "completed_at": "2026-06-25T10:02:04Z",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Download artifact",
+          "number": 2,
+          "started_at": "2026-06-25T10:02:04Z",
+          "completed_at": "2026-06-25T10:02:10Z",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify artifact",
+          "number": 3,
+          "started_at": "2026-06-25T10:02:10Z",
+          "completed_at": "2026-06-25T10:03:42Z",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ]
+}

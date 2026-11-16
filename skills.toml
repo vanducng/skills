@@ -22,10 +22,21 @@ type = 'git'
 url = 'https://github.com/citrolabs/ego-lite'
 ref = ''
 
+[sources.starslingdev]
+type = 'git'
+url = 'https://github.com/starslingdev/skills'
+ref = ''
+
 [skills]
 [skills.browser-trace]
 source = 'browserbase'
 path = 'skills/browser-trace'
+mode = 'tracked'
+pin = ''
+
+[skills.ci-speedup]
+source = 'starslingdev'
+path = 'skills/ci-speedup'
 mode = 'tracked'
 pin = ''
 

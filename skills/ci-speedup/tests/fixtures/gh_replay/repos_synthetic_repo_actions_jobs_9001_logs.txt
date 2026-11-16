@@ -1,0 +1,7 @@
+2026-06-25T10:00:15.000Z ##[group]Run npm ci
+2026-06-25T10:00:16.000Z npm warn using --force
+2026-06-25T10:00:55.000Z added 812 packages in 40s
+2026-06-25T10:00:55.000Z ##[endgroup]
+2026-06-25T10:00:55.000Z ##[group]Run npm test
+2026-06-25T10:03:15.000Z 42 passed
+2026-06-25T10:03:15.000Z ##[endgroup]
