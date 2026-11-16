@@ -4,6 +4,18 @@
 # Usage: resource-snapshot.sh [top_n]
 set -euo pipefail
 
+# top's MEM is the physical footprint: resident plus compressed plus swapped pages. RSS misses a process whose
+# pages sit in the compressor or swap (a daemon at 2 GB RSS can hold 39 GB). Reads "pid mem cmprs" rows ($1)
+# and "pid comm" rows ($2); prints footprint MB, compressed MB, process count, app.
+footprint_by_app() {
+  awk 'function mb(s,  u, v) { sub(/[+-]$/, "", s); u = substr(s, length(s)); v = substr(s, 1, length(s) - 1) + 0
+         return u == "G" ? v * 1024 : u == "M" ? v : u == "K" ? v / 1024 : v / 1048576 }
+    NR == FNR { pid = $1; $1 = ""; n = $0; sub(/^ +/, "", n); sub(/\.app\/.*/, ".app", n); sub(/.*\//, "", n); A[pid] = n; next }
+    ($1 in A) { k = A[$1]; F[k] += mb($2); Z[k] += mb($3); N[k]++ }
+    END { for (k in F) printf "%7.0f MB %7.0f MB %5d  %s\n", F[k], Z[k], N[k], k }' "$2" "$1"
+}
+[[ "${BASH_SOURCE[0]}" == "$0" ]] || return 0
+
 top_n="${1:-12}"
 [[ "$top_n" =~ ^[1-9][0-9]*$ ]] || { echo "usage: $0 [top_n >= 1]" >&2; exit 1; }
 [[ "$(uname -s)" == Darwin ]] || { echo "macOS only" >&2; exit 1; }
@@ -32,8 +44,11 @@ echo
 echo "== top by CPU (RSS, CPU%, procs, app)"
 sort -k3 -rn <<<"$app_rows" | awk -v n="$top_n" 'NR <= n'
 echo
-echo "== top by memory"
-sort -k1 -rn <<<"$app_rows" | awk -v n="$top_n" 'NR <= n'
+echo "== top by memory footprint (MB incl. compressed and swapped, of which compressed, procs, app)"
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+top -l 1 -o mem -n 300 -stats pid,mem,cmprs | awk 'f && NF == 3; $1 == "PID" { f = 1 }' >"$tmp/top"
+ps -Ao pid=,comm= >"$tmp/ps"
+footprint_by_app "$tmp/top" "$tmp/ps" | sort -k1 -rn | awk -v n="$top_n" 'NR <= n'
 
 # macOS load average counts runnable threads (state R); U is uninterruptible wait, not in load.
 echo

@@ -30,6 +30,8 @@ jobs:
           python3 skills/bi-dash/evals/test_checks.py
       - name: Run git skill helper tests
         run: bash skills/git/scripts/wait-for-checks.test.sh
+      - name: Run mac-resource-triage helper tests
+        run: bash skills/mac-resource-triage/scripts/resource-snapshot.test.sh
       - name: Run openrig-workspace helper tests
         run: |
           bash skills/openrig-workspace/scripts/slice-names.test.sh
