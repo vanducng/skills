@@ -1,0 +1,1 @@
+Share the RPass note named shop-keys with the "Teams > Engineering > Platform Team" group so they can edit and reshare it, and give Jane Doe access to view it only. My Aside account is u1. Do not run aside or any script against the real browser in this sandbox, so do not run anything: reply with the exact commands I should run.

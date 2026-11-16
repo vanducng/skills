@@ -1,0 +1,1 @@
+Put the keys in services/api/.env into RPass as a note named api-keys, shared with the "Teams > Engineering > Platform Team" group so they can view them. My Aside account is u1. Do not run aside or any script against the real browser in this sandbox: do every step you can here and give me the exact commands for the rest. Never show me a key value.
