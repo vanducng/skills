@@ -12,7 +12,10 @@
 //   SameSite=Strict cookie. The token lives in <root>/.board-token (mode 600);
 //   a tailnet identity: `tailscale serve` adds Tailscale-User-Login to each request (and strips one a client sent);
 //   a login listed in <root>/.board-owners (one per line, mode 600) is signed in. No list, or one others can read or
-//   write, means token only.
+//   write, means token only;
+//   a browser on this machine: a same-origin request (Sec-Fetch-Site same-origin or none) to the loopback address
+//   itself, not proxied (no X-Forwarded-* or Tailscale-* header).
+//   Another site's page can't pass it: its requests say cross-site, and a rebound name fails the Host check.
 // Bind is loopback only; publish with `tailscale serve` (serve.sh), never Funnel.
 "use strict";
 const http = require("node:http");
@@ -50,9 +53,18 @@ function headerText(v) {
   if (m[1].toLowerCase() === "b") return Buffer.from(m[2], "base64").toString("utf8");
   return Buffer.from(m[2].replace(/_/g, " ").replace(/=([0-9a-f]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))), "latin1").toString("utf8");
 }
+const loopbackHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]);
+function localBrowser(req) {
+  const h = req.headers;
+  if (!loopbackHosts.has(String(h.host || "").toLowerCase())) return false;
+  if (Object.keys(h).some(k => k.startsWith("x-forwarded-") || k.startsWith("tailscale-") || k === "forwarded")) return false;
+  if (!["same-origin", "none"].includes(h["sec-fetch-site"])) return false;
+  return /^(127\.0\.0\.1|::1|::ffff:127\.0\.0\.1)$/.test(req.socket.remoteAddress || "");
+}
 // null when not signed in; who is the display name for a tailnet sign-in.
 function signedIn(req) {
   if ((req.headers.cookie || "").split(/;\s*/).includes(`board_k=${token}`)) return {};
+  if (localBrowser(req)) return { who: "this machine" };
   const login = String(req.headers["tailscale-user-login"] || "").trim().toLowerCase();
   if (login && owners().has(login)) return { who: headerText(req.headers["tailscale-user-name"]) || login };
   return null;
@@ -81,7 +93,7 @@ function watch(dir) {
 }
 
 let lastMs = 0;
-const notSignedIn = res => end(res, 401, "Not signed in: open the board through its tailnet address as a listed owner, or open its login link (board.cjs login).");
+const notSignedIn = res => end(res, 401, "Not signed in: open the board on its own machine (127.0.0.1), through its tailnet address as a listed owner, or with its login link (board.cjs login).");
 
 // Read a JSON body and queue what build() makes of it as feedback/inbox/<id>.json, status "queued". File names sort in
 // send order, and the bridge delivers them in that order.

@@ -1343,7 +1343,7 @@ if ("EventSource" in window && location.protocol.startsWith("http")) {
   addEventListener("pagehide", () => es.close());
   es.addEventListener("hello", e => {
     const h = JSON.parse(e.data); online = true; authed = !!h.auth;
-    setStatus(!authed ? "Read-only. To send feedback, open this board through its tailnet address as a listed owner, or open the login link from the human seat (board.cjs login)."
+    setStatus(!authed ? "Read-only. To send feedback, open this board on its own machine (127.0.0.1), through its tailnet address as a listed owner, or with the login link from the human seat (board.cjs login)."
       : h.who ? `Connected as ${h.who}. Notes go to the human seat.` : "Connected. Notes go to the human seat.", authed ? "ok" : "");
     paintNotes(); chatAuth();
   });
