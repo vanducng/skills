@@ -5,7 +5,7 @@ RPass has no CLI or API: the vault lives in its browser extension. This drives t
 share page with `aside repl`. Values travel only inside a mode-600 generated script that is deleted after the run;
 only lines the generated script prefixes with "RPASS:" are printed.
 
-  rpass.py envblocks --out note.env services/rocket/.env services/five9/.env ...
+  rpass.py envblocks --out note.env services/api/.env services/worker/.env ...
   rpass.py put   --account u1 --name team-api-keys --body-file note.env [--vault "Acme Vault"]
   rpass.py share --account u1 --name team-api-keys --add "Teams > Platform Team" --access manage [--remove "Jane Doe"]
   rpass.py access --account u1 --name team-api-keys
