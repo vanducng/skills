@@ -11,6 +11,7 @@
 | Search | the only `input` on the home page (placeholder "Search all items") |
 | Add | button "Add" → menu "Login", "Note", "Folder" |
 | Note form | placeholders "Name this note", "Type your note here", "Search vaults" (vault picker, shows the chosen vault name), "Enter tags"; buttons "Create" (new) or "Save" (edit), "Cancel" |
+| Opened item | shows the whole body in its page text (never read it); a leaf "Vault" label whose parent reads "Vault <name>" names the vault; the edit form has no vault picker |
 | Item menu | the `[data-testid=test_button]` on the same row as `[data-testid=item-header-back-button]`, rightmost → "Share", "Edit", "Remove" |
 | Share | opens a Rippling tab: `https://app.rippling.com/rpass/share/vault/<vault-id>/item/<item-id>?rpassId=<ext-id>`; the item URL carries both ids |
 

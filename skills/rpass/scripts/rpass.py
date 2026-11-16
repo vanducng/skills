@@ -25,6 +25,7 @@ def envblocks(args):
         out += [f"# ===== {path} =====", *keys, ""]
     body = "\n".join(out).rstrip() + "\n"
     fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)  # an existing file keeps its old mode otherwise
     with os.fdopen(fd, "w") as f:
         f.write(body)
     n = sum(1 for l in body.splitlines() if "=" in l and not l.startswith("#"))
@@ -38,7 +39,9 @@ await openTab(`chrome-extension://${EXT}/index.html`); await sleep(4000);
 async function findItem() {
   await page.locator('input').first().fill(NAME); await sleep(2500);
   const hit = page.getByText(NAME, { exact: true });
-  return (await hit.count()) ? hit.first() : null;
+  const n = await hit.count();
+  if (n > 1) { say('ABORT:', n, 'notes are named', JSON.stringify(NAME)); throw new Error('ambiguous note'); }
+  return n ? hit.first() : null;
 }
 async function itemMenu(label) {
   const pos = await page.evaluate(() => {
@@ -56,15 +59,25 @@ async function itemMenu(label) {
 
 JS_PUT = JS_OPEN_ITEM + """
 const BODY = %(body)s, VAULT = %(vault)s;
+// The note form shows a vault picker on create only; an opened item shows a "Vault <name>" label instead.
+const itemVault = () => page.evaluate(() => {
+  const l = [...document.querySelectorAll('*')].find(e => e.childElementCount === 0 && (e.textContent || '').trim() === 'Vault');
+  let p = l && l.parentElement; while (p && (p.innerText || '').trim() === 'Vault') p = p.parentElement;
+  return p ? (p.innerText || '').replace(/\\s+/g, ' ').replace(/^Vault /, '').trim() : '';
+});
 const item = await findItem();
-if (item) { await item.click(); await sleep(3000); await itemMenu('Edit'); say('editing existing note'); }
+let v;
+if (item) { await item.click(); await sleep(3000); v = await itemVault(); }
 else {
   await page.getByRole('button', { name: 'Add' }).first().click(); await sleep(1200);
   await page.getByText('Note', { exact: true }).first().click(); await sleep(2500);
-  const v = await page.getByPlaceholder('Search vaults').inputValue();
-  if ((VAULT && v !== VAULT) || /^Personal/i.test(v)) { say('ABORT: vault is', JSON.stringify(v), '(personal vault items cannot be shared)'); throw new Error('vault'); }
-  say('creating in vault', JSON.stringify(v));
+  v = await page.getByPlaceholder('Search vaults').inputValue();
 }
+if (!v || (VAULT && v.toLowerCase() !== VAULT.toLowerCase()) || /^Personal/i.test(v)) {
+  say('ABORT: vault is', JSON.stringify(v), VAULT ? `(expected ${JSON.stringify(VAULT)})` : '(personal vault items cannot be shared)'); throw new Error('vault');
+}
+if (item) await itemMenu('Edit');
+say(item ? 'editing existing note in vault' : 'creating in vault', JSON.stringify(v));
 await page.getByPlaceholder('Name this note').fill(NAME);
 await page.getByPlaceholder('Type your note here').fill(BODY);
 const ok = (await page.getByPlaceholder('Name this note').inputValue()) === NAME
@@ -91,7 +104,7 @@ for (const who of ADD) {
   if (n !== 1) { say('ABORT:', JSON.stringify(who), 'matched', n, 'entries'); throw new Error('ambiguous'); }
   await opts.first().click(); await sleep(1500);
 }
-for (const who of REMOVE) { await row(who).getByTestId('remove-recipient-icon').click(); await sleep(1200); }
+for (const who of REMOVE) { await row(who.split(/ [>→] /).pop()).getByTestId('remove-recipient-icon').click(); await sleep(1200); }
 if (LEVEL) for (const who of [...ADD, ...CHANGE]) {
   await row(who.split(/ [>→] /).pop()).locator('[role=combobox]').first().click(); await sleep(1200);
   await page.locator('[role=option],li').filter({ hasText: new RegExp('^' + LEVEL) }).first().click(); await sleep(1200);
@@ -128,7 +141,10 @@ def run(account, js):
         os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
         with os.fdopen(fd, "w") as f:
             f.write(js)
-        p = subprocess.run(["aside", "repl", "--account", account, "--file", path], capture_output=True, text=True)
+        try:
+            p = subprocess.run(["aside", "repl", "--account", account, "--file", path], capture_output=True, text=True, timeout=600)
+        except subprocess.TimeoutExpired:
+            sys.exit("aside repl did not finish in 10 minutes; check the browser and rerun")
     finally:
         os.unlink(path)
     lines = [l for l in (p.stdout + p.stderr).splitlines() if l.startswith("RPASS:")]
