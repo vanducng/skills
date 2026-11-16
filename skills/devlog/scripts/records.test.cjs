@@ -83,6 +83,23 @@ test("scrub passes a clean draft, and allowed orgs and names do not count", () =
   assert.equal(run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss,ledger" }, "scrub", draft).code, 0);
 });
 
+test("an allowed org's owner name that is also a machine's hostname passes; other hosts stay blocked", () => {
+  const { root } = workspace();
+  put(root, "orgs/oss/org.yaml", "id: oss\ngithub_owner: octoform\n");
+  put(root, "fleet/machines.yaml", "machines:\n  studio:\n    hostname: octoform\n  lab:\n    hostname: lab-mini\n");
+  const draft = path.join(root, "draft.txt");
+  fs.writeFileSync(draft, "docs at https://octoform.example.test and github.com/octoform/toolkit\n");
+  const ok = run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss" }, "scrub", draft);
+  assert.equal(ok.code, 0, ok.out); // the owner is public once oss is allowed, whatever a host is called
+  const without = run({ PROJECTS_ROOT: root }, "scrub", draft);
+  assert.equal(without.code, 1, without.out);
+  assert.ok(without.json().hits.some(h => h.name === "octoform"), without.out);
+  fs.writeFileSync(draft, "github.com/octoform/toolkit, built on lab-mini and studio\n");
+  const other = run({ PROJECTS_ROOT: root, DEVLOG_ALLOW: "oss" }, "scrub", draft);
+  assert.equal(other.code, 1, other.out);
+  assert.deepEqual(other.json().hits.map(h => `${h.kind}:${h.name}`).sort(), ["host:lab-mini", "host:studio"]);
+});
+
 test("scrub matches whole words only, so a longer word is not a hit", () => {
   const { root } = workspace();
   const draft = path.join(root, "draft.txt");

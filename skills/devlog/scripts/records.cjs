@@ -75,7 +75,9 @@ function week(root, since) {
 // The scrub is the shared private-name scan (openrig-workspace/scripts/private-terms.cjs, beside this skill): every org,
 // repo, project, owner, contact and host in the records, plus private path shapes. It fails closed: without the scan
 // the gate did not run (exit 2). DEVLOG_ALLOW may name orgs and projects from the records only: an allowed org drops
-// its own names (org, owner, repos, projects), never its people or hosts. Other values are ignored and listed.
+// its own names (org, owner, repos, projects), never its people or hosts. A host spelled exactly like one of those
+// names passes too, since the name is public already; every other host stays blocked. Other values are ignored and
+// listed.
 const SHARED = path.join(__dirname, "../../openrig-workspace/scripts/private-terms.cjs");
 
 function scrub(file, root) {
@@ -89,7 +91,10 @@ function scrub(file, root) {
   const own = new Set(allowed.filter(a => all.some(e => e.kind === "org" && e.term.toLowerCase() === a)));
   const allow = [...allowed, ...all.filter(e => own.has(String(e.org).toLowerCase()) && ["org", "owner", "repo", "project"].includes(e.kind)).map(e => e.term)];
   const t = terms.load(root, { allow });
-  const hits = terms.scanText(fs.readFileSync(file, "utf8"), t, { shapes: true }).map(h => ({ kind: h.kind, name: h.term, line: h.line }));
+  const isPublic = new Set(allow.map(a => a.toLowerCase()));
+  const hits = terms.scanText(fs.readFileSync(file, "utf8"), t, { shapes: true })
+    .filter(h => !(h.kind === "host" && isPublic.has(h.term.toLowerCase())))
+    .map(h => ({ kind: h.kind, name: h.term, line: h.line }));
   return { file, clean: hits.length === 0, hits, allowed, ignored_allow: asked.filter(a => !allowed.includes(a)) };
 }
 

@@ -5,7 +5,7 @@ license: MIT
 argument-hint: "[today|ship|fix|debug|lesson|idea|week] [short|long|thread|article] [draft|artifact|post] [cover|no-cover] [blunt|polished|technical] [--since <ref>] [--topic <text>] [--url <url>] [--repo <path>] [--project <slug>]"
 metadata:
   author: vanducng
-  version: "1.3.0"
+  version: "1.3.1"
 ---
 
 # Devlog
@@ -225,8 +225,9 @@ blog post or thread): write the draft to a file and run `node "$R" scrub <file>`
   against hard rule 3 and say the gate did not run.
 - Public orgs and projects go in `DEVLOG_ALLOW` (comma list), and only on the
   user's word. It accepts org and project names from the records (an org
-  brings its owner, repos and projects), never a person or a host. The scrub's JSON lists what it allowed (`allowed`) and what
-  it ignored (`ignored_allow`).
+  brings its owner, repos and projects), never a person or a host. A host
+  spelled exactly like one of those public names passes with it. The scrub's
+  JSON lists what it allowed (`allowed`) and what it ignored (`ignored_allow`).
 
 ### 7. Materialize vault artifacts in the same turn
 
