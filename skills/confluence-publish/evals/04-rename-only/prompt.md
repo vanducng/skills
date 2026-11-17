@@ -1,0 +1,1 @@
+Rename Confluence page 100004 to "Sprint 42 report (final)". Leave its content exactly as it is; ./body.html is the current body, for reference only. twg is not reachable from this sandbox, so do not run it: write the exact twg command into ./rename.sh. A fresh `twg confluence content get --id 100004 -o json` output is in ./get.out.

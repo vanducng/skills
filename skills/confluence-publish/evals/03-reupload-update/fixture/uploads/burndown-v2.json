@@ -1,0 +1,16 @@
+{
+  "apiVersion": "v2",
+  "command": "confluence.content.attachments.upload",
+  "data": {
+    "results": [
+      {
+        "id": "att900301",
+        "title": "burndown.png",
+        "version": 2,
+        "mediaType": "image/png",
+        "fileSize": 1657,
+        "fileId": "c3e1f9a7-6b2d-4e8f-a1c4-5d7b9e0f2a02"
+      }
+    ]
+  }
+}

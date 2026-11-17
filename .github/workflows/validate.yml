@@ -28,6 +28,7 @@ jobs:
           python3 skills/create-skill/scripts/test_run_evals.py
           node --test skills/intake/scripts/contract.test.cjs
           python3 skills/bi-dash/evals/test_checks.py
+          python3 skills/confluence-publish/scripts/test_to_confluence.py
       - name: Run git skill helper tests
         run: bash skills/git/scripts/wait-for-checks.test.sh
       - name: Run mac-resource-triage helper tests
