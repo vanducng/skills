@@ -1,0 +1,1 @@
+I want ./report.html on Confluence Cloud as page 100001, published later with `twg confluence content update --format html`. Write the page body to ./body.html now. In the work items table keep Ticket and Status narrow (about 120px) and give Summary the room (about 480px). twg is not reachable from this sandbox: do not run twg or anything that needs the network.

@@ -1,0 +1,6 @@
+output_files:
+  stdout: "get.json"
+  stdout_lines: 12
+  stdout_bytes: 330
+command: "confluence.content.get"
+resource_type: "entity"

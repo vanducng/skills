@@ -1,0 +1,12 @@
+{
+  "apiVersion": "v2",
+  "command": "confluence.content.get",
+  "data": {
+    "id": "100003",
+    "type": "page",
+    "title": "Sprint 42 report",
+    "version": 7,
+    "snapshotToken": "snap-7f3a9c2e41",
+    "body": "(see body.html)"
+  }
+}

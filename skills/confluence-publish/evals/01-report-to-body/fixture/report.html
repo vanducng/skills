@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sprint report</title>
+<style>
+  .pill { padding: 2px 8px; border-radius: 10px; }
+  .pill.green { background: #e3fcef; } .pill.amber { background: #fff0b3; } .pill.red { background: #ffebe6; }
+  table { width: 100%; }
+</style>
+</head>
+<body>
+<main class="report">
+<h1 class="title">Sprint report</h1>
+<p class="lede">Overall the sprint is <b>on track</b>, with <i>one</i> blocker.</p>
+<div class="note">Numbers are from the tracker export taken this morning.</div>
+<h2>Work items</h2>
+<table class="grid">
+  <thead>
+    <tr><th class="col-key">Ticket</th><th>Owner</th><th class=narrow>Status</th><th>Summary</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class=mono>APP-101</td><td>Team A</td><td><span class="pill green">Done</span></td><td>Move the nightly export to the new scheduler and drop the old cron entry once two runs match</td></tr>
+    <tr><td class=mono>APP-102</td><td>Team B</td><td><span class="pill amber">At risk</span></td><td>Backfill the last ninety days of events after the schema change, in batches small enough for the replica</td></tr>
+    <tr><td class=mono>APP-103</td><td>Team A</td><td><span class="pill red">Blocked</span></td><td>Waiting on access to the vendor sandbox before the contract tests can run</td></tr>
+  </tbody>
+</table>
+<h2>How to reproduce</h2>
+<p>Run <strong><code>make report</code></strong> from the repository root:</p>
+<pre class="code"><code class="language-bash">make report SPRINT=42</code></pre>
+</main>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "apiVersion": "v2",
+  "command": "confluence.content.attachments.upload",
+  "data": {
+    "results": [
+      {
+        "id": "att900102",
+        "title": "velocity.png",
+        "mediaType": "image/png",
+        "fileSize": 1919,
+        "fileId": "5d0c2a3e-1b7f-4c55-9a51-7d9e4f2a3b02"
+      }
+    ]
+  }
+}

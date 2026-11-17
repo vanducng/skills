@@ -1,0 +1,6 @@
+output_files:
+  stdout: "uploads/burndown.json"
+  stdout_lines: 14
+  stdout_bytes: 402
+command: "confluence.content.attachments.upload"
+resource_type: "entity"
