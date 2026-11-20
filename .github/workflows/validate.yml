@@ -31,6 +31,8 @@ jobs:
           python3 skills/confluence-publish/scripts/test_to_confluence.py
       - name: Run git skill helper tests
         run: bash skills/git/scripts/wait-for-checks.test.sh
+      - name: Run computer-use helper tests
+        run: bash skills/computer-use/scripts/shot-xy.test.sh
       - name: Run mac-resource-triage helper tests
         run: bash skills/mac-resource-triage/scripts/resource-snapshot.test.sh
       - name: Run openrig-workspace helper tests

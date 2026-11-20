@@ -1,0 +1,1 @@
+On my Mac, open the Calculator app, work out 12 x 7 by pressing its on-screen buttons the way a person would, and read the result off its display. Do not run anything against my real desktop in this sandbox: reply with the exact commands I should run, in order.
