@@ -13,7 +13,7 @@
 // shows it in the chat. The SDK is loaded from GROK_BOT_SDK_DIR (default ~/.cache/grok-bot-sdk), where it is
 // installed with `npm install --prefix <dir> github:RongleCat/grok-bot-sdk#<commit>`.
 import { randomUUID } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -22,6 +22,12 @@ const USAGE = "usage: grok-bot.mjs bots | send <bot> <text> | wait <bot> --after
 const ASSETS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "assets");
 const DEFAULTS = { timeout: 300, interval: 12, limit: 10 };
 const BOOLEAN_FLAGS = new Set(["jsonl", "apply"]);
+
+/** Seconds from `300`, `30s`, `5m` or `1h`; null for anything else. */
+export function seconds(value) {
+  const m = /^(\d+(?:\.\d+)?)([smh]?)$/.exec(String(value));
+  return m ? Number(m[1]) * { "": 1, s: 1, m: 60, h: 3600 }[m[2]] : null;
+}
 
 export function parseArgs(argv) {
   const [cmd, ...rest] = argv;
@@ -145,6 +151,11 @@ async function dispatch(argv, { env = process.env, sdk, sleep = (ms) => new Prom
   const { cmd, bot: botName, text, flags } = parseArgs(argv);
   let redact = (t) => String(t);
   if (!["bots", "send", "wait", "ask", "read", "install"].includes(cmd) || (cmd !== "bots" && !botName)) return { redact, code: 2, out: { ok: false, error: "USAGE", message: USAGE } };
+  const usage = (message) => ({ redact, code: 2, out: { ok: false, error: "USAGE", message } });
+  for (const k of ["timeout", "interval"]) {
+    if (flags[k] !== undefined && seconds(flags[k]) === null) return usage(`--${k} takes seconds, or a number with s, m or h: ${flags[k]}`);
+  }
+  if (flags.since !== undefined && Number.isNaN(Date.parse(flags.since))) return usage(`--since takes an ISO time: ${flags.since}`);
   const dir = env.GROK_BOT_SDK_DIR || path.join(os.homedir(), ".cache", "grok-bot-sdk");
   try {
     const { GrokBotClient, desktopCredentials, version } = sdk ?? (await loadSdk(dir));
@@ -154,7 +165,7 @@ async function dispatch(argv, { env = process.env, sdk, sleep = (ms) => new Prom
     try { appVersion = version(); } catch {}
     const client = new GrokBotClient({ ...creds, version: appVersion });
     const opt = (k) => Number(flags[k] ?? DEFAULTS[k]);
-    const timing = { timeout: opt("timeout"), interval: opt("interval"), sleep };
+    const timing = { timeout: seconds(flags.timeout ?? DEFAULTS.timeout), interval: seconds(flags.interval ?? DEFAULTS.interval), sleep };
     if (cmd === "bots") {
       const { bots, truncated } = await client.listBots();
       return { redact, code: 0, out: { ok: true, appVersion, bots: bots.map((b) => b.name), truncated } };
@@ -179,7 +190,15 @@ async function dispatch(argv, { env = process.env, sdk, sleep = (ms) => new Prom
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+// Run as a command, also through a symlink (the skills install links the skill folder): compare real paths.
+const isMain = () => {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+};
+if (isMain()) {
   const { code, out, jsonl } = await run(process.argv.slice(2));
   const rows = jsonl && out.ok ? out.entries.map(({ seq, ts, from, text }) => ({ seq, ts, from, text })) : [out];
   process.stdout.write(rows.map((r) => JSON.stringify(r) + "\n").join(""));

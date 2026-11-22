@@ -19,7 +19,7 @@ The person reads this chat on a phone, between other things. Each reply must be 
    - Put the headline, Needs you and status lines in the message before the card.
    - Only if the card cannot be shown, fall back to text: `**1 · <question?>**`, then `- **A** <action> → <what he will see>` per option, then `✅ **Recommend A** · <why>`.
    - After submit, act on every page's answer. A tapped option is the person's choice; a typed answer is recorded as their exact words. A page left unanswered stays open: say which ones, and ask again later.
-5. **Status as a short list**, one line per project or item: `🟢 **<name>** · <state> · <next step or ETA>`. Never a table: tables do not fit a phone screen.
+5. **Status as a short list**, one line per project or item: `🟢 **<name>** · <state> · <next step or ETA>`. Tables only for the Rigs and Inbox boards below (3-4 short columns).
 6. **Last line, when anything waits and no card is shown:** `**Reply:** 1A 2B · "ok" takes every recommendation`. With a card, end with `Tap through the card, or type "ok" to take every recommendation.`
 
 ## Which shape

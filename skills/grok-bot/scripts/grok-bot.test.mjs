@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { botAssets, parseArgs, redactor, run } from "./grok-bot.mjs";
+import { botAssets, parseArgs, redactor, run, seconds } from "./grok-bot.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FAKE = path.join(here, "../evals/fake-sdk");
@@ -116,6 +116,25 @@ test("install is a dry run until --apply, then adds or updates only the bot-side
   await run(["install", "Atlas", "--apply"], { env });
   assert.deepEqual(calls().filter((c) => c.method === "updateAgentSkill").map((c) => c.args.name), ["openrig-team"]);
   assert.ok(JSON.parse(readFileSync(process.env.FAKE_GROK_STATE, "utf8")).skills.some((k) => k.name === "notes"));
+});
+
+test("runs as a command through a symlinked skill folder", () => {
+  const link = path.join(mkdtempSync(path.join(os.tmpdir(), "grok-bot-link-")), "grok-bot");
+  symlinkSync(path.dirname(here), link);
+  const out = execFileSync("node", [path.join(link, "scripts", "grok-bot.mjs"), "bots"], { env: { ...process.env, ...env } }).toString();
+  assert.deepEqual(JSON.parse(out).bots, ["Atlas", "Birch"]);
+});
+
+test("--timeout takes seconds or s/m/h, and a bad --timeout or --since exits 2", async () => {
+  assert.deepEqual(["300", "30s", "5m", "1h", "5x", "m"].map(seconds), [300, 30, 300, 3600, null, null]);
+  const bad = await run(["wait", "Atlas", "--after", "41", "--timeout", "5 minutes"], { env, sleep: noSleep });
+  assert.equal(bad.code, 2);
+  assert.match(bad.out.message, /--timeout/);
+  const late = await run(["wait", "Atlas", "--after", "41", "--timeout", "0m"], { env, sleep: noSleep });
+  assert.equal(late.out.error, "TIMEOUT");
+  const since = await run(["read", "Atlas", "--since", "yesterday-ish"], { env });
+  assert.equal(since.code, 2);
+  assert.match(since.out.message, /--since/);
 });
 
 test("usage errors exit 2", async () => {
