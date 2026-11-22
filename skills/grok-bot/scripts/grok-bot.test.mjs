@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, test } from "node:test";
@@ -67,6 +67,33 @@ test("no output carries the token, errors included", async () => {
   for (const argv of [["bots"], ["send", "Atlas", TOKEN], ["read", "nobody"]]) {
     const { out } = await run(argv, { env });
     assert.ok(!JSON.stringify(out).includes(TOKEN), argv.join(" "));
+  }
+});
+
+test("the default npm prefix loads an import-only package", async () => {
+  const prefix = mkdtempSync(path.join(os.tmpdir(), "grok-bot-prefix-"));
+  cpSync(FAKE, path.join(prefix, "node_modules", "grok-bot-sdk"), { recursive: true });
+  const { code, out } = await run(["bots"], { env: { GROK_BOT_SDK_DIR: prefix } });
+  assert.equal(code, 0, JSON.stringify(out));
+  assert.deepEqual(out.bots, ["Atlas", "Birch"]);
+  assert.equal((await run(["bots"], { env: { GROK_BOT_SDK_DIR: os.tmpdir() } })).out.error, "NO_SDK");
+});
+
+test("a token with a quote or a backslash is redacted in the serialised output too", async () => {
+  const token = 'tok"en\\with-quote-and-backslash';
+  const sdk = {
+    desktopCredentials: async () => ({ accessToken: token }),
+    version: () => "1.2.3",
+    GrokBotClient: class {
+      async listBots() {
+        return { bots: [{ id: "b", name: token }], truncated: false };
+      }
+    },
+  };
+  for (const argv of [["bots"], ["read", "nobody"]]) {
+    const { out } = await run(argv, { env, sdk });
+    const text = JSON.stringify(out);
+    assert.ok(!text.includes(token) && !text.includes(JSON.stringify(token).slice(1, -1)), `${argv[0]}: ${text}`);
   }
 });
 

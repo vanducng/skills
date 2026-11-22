@@ -13,7 +13,6 @@
 // installed with `npm install --prefix <dir> github:RongleCat/grok-bot-sdk#<commit>`.
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -36,22 +35,26 @@ export function parseArgs(argv) {
 
 /** The SDK from an npm prefix (dir/node_modules/grok-bot-sdk) or from the package directory itself. */
 async function loadSdk(dir) {
-  let files;
-  try {
-    const pkg = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8"));
-    if (pkg.name === "grok-bot-sdk") files = [pkg.exports["."].import, pkg.exports["./desktop"].import].map((f) => path.join(dir, f));
-  } catch {}
-  if (!files) {
-    const require = createRequire(path.join(dir, "noop.js"));
-    files = ["grok-bot-sdk", "grok-bot-sdk/desktop"].map((spec) => require.resolve(spec));
-  }
+  // The package exports only an `import` condition, so require.resolve cannot find it: read its exports map instead.
+  const pkgDir = [dir, path.join(dir, "node_modules", "grok-bot-sdk")].find((d) => {
+    try {
+      return JSON.parse(readFileSync(path.join(d, "package.json"), "utf8")).name === "grok-bot-sdk";
+    } catch {
+      return false;
+    }
+  });
+  if (!pkgDir) throw Object.assign(new Error(`grok-bot-sdk is not installed in ${dir}`), { code: "NO_SDK" });
+  const { exports } = JSON.parse(readFileSync(path.join(pkgDir, "package.json"), "utf8"));
+  const files = [exports["."].import, exports["./desktop"].import].map((f) => path.join(pkgDir, f));
   const [sdk, desktop] = await Promise.all(files.map((f) => import(pathToFileURL(f).href)));
   return { GrokBotClient: sdk.GrokBotClient, desktopCredentials: desktop.desktopCredentials, version: desktop.version };
 }
 
-/** Replaces every credential string in `text`, so no output or error message can carry the token. */
+/** Replaces every credential string in `text`, raw or JSON-escaped (a quote or backslash in it is escaped once the
+ *  output is serialised), so no output or error message can carry the token. */
 export function redactor(creds) {
-  const secrets = Object.values(creds).filter((v) => typeof v === "string" && v.length >= 8);
+  const raw = Object.values(creds).filter((v) => typeof v === "string" && v.length >= 8);
+  const secrets = [...new Set([...raw, ...raw.map((v) => JSON.stringify(v).slice(1, -1))])].sort((a, b) => b.length - a.length);
   return (text) => secrets.reduce((t, s) => t.split(s).join("[redacted]"), String(text));
 }
 
