@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.97.0](https://github.com/vanducng/skills/compare/v1.96.0...v1.97.0) (2026-11-22)
+
+
+### Features
+
+* **openrig-workspace:** org seats replace the conductor rig ([#663](https://github.com/vanducng/skills/issues/663)) ([237b6a3](https://github.com/vanducng/skills/commit/237b6a32a2c178d777c198d0b505044c32bbe61d))
+
 ## [1.96.0](https://github.com/vanducng/skills/compare/v1.95.0...v1.96.0) (2026-11-22)
 
 
