@@ -5,7 +5,7 @@
    "status": "running",
    "nodes": [
     {
-     "session": "grok-bot@acme-grokbot",
+     "session": "grok-acme@acme-grokbot",
      "status": "idle"
     }
    ]

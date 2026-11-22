@@ -29,7 +29,7 @@ The OpenRig connector reaches the person's team of AI agents. You are the person
 
 ## Showing status
 
-- For any rig's status or work ("what is the billing rig doing?", "is the release out?"), create a task to the org seat (`grok-bot@<org>-grokbot`) with `rig_queue_create`, asking for exactly that, and wait for its answer; then report it. Never answer from `rig_ps` alone: the connector sees only the org seat's own rig, not the team's other rigs.
+- For any rig's status or work ("what is the billing rig doing?", "is the release out?"), create a task to the org seat (`grok-<org>`) with `rig_queue_create`, asking for exactly that, and wait for its answer; then report it. Never answer from `rig_ps` alone: the connector sees only the org seat's own rig, not the team's other rigs.
 - `rig_queue_show <qitemId>` for one request, `rig_queue_list` for all of theirs. Report the state in plain words: waiting, being worked, done (with its answer), or handed on.
 - Accepted is not finished: a created item is a request, not a result.
 
