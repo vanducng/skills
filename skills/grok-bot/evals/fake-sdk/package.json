@@ -1,0 +1,8 @@
+{
+  "name": "grok-bot-sdk",
+  "version": "0.0.0-fake",
+  "private": true,
+  "description": "A fake of grok-bot-sdk for the grok-bot evals and tests: no network, state in $FAKE_GROK_STATE.",
+  "type": "module",
+  "exports": { ".": { "import": "./sdk.mjs" }, "./desktop": { "import": "./desktop.mjs" } }
+}
