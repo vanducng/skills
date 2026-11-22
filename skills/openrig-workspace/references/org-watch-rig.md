@@ -52,13 +52,13 @@ The workspace rule is that every rig with more than two seats has one terminal m
 - To move a rig: stop it, change `kb_host`, run fleet-sync, and render and launch it on the new host (step 4 to 6). Cursors live in the task dir's `state/`, so copy `state/` over before launching or set them again.
 - To retire one: stop it, remove the rig, and drop the org's `kb_host` so the gate stops running for it. The tree stays.
 - To change a model: check the live list and `cpq`, edit the `watch` profile, rerun `rig-to-pi convert` (the dream's model is in `dream.member.yaml`; keep it equal to the profile), then `rig seat set-model` and `rig seat launch --fresh --stop` per seat.
-- A seat that cannot continue sends one queue row to the org's conductor desk and stops. It never works around a refused command.
+- A seat that cannot continue sends one queue row to the org's seat ([org-seats.md](org-seats.md)) and stops. It never works around a refused command.
 
 ## Weekly audit
 
 **This section starts when the audit job lands, after the first rollout. Until then no one runs it and the desk does nothing about it.** It names no command that the CLI does not have yet; the job's commands are added here when it ships.
 
-The org's conductor desk runs it, read-only: it writes nothing to the tree. A model from a different family than the dream's checks the dream's work.
+The org's seat runs it, read-only: it writes nothing to the tree. A model from a different family than the dream's checks the dream's work.
 
 1. **Sample.** Ask the audit job's sample command for 20 Facts and 5 supersessions the dream wrote in one ISO week. The sample is deterministic and carries each item's citation, resolved.
 2. **Check each item.** The cited day entry exists and supports every Jira key, number and date in the line, and says what the Fact says. A superseded line sits in `## History` with its evidence.

@@ -118,7 +118,7 @@ function summary(data) {
 // ---- audit: is the board kept? -----------------------------------------------------------------------------------
 // Rig facts come from the rig CLI: `rig ps --json` (running rigs) and `rig queue list -A --json` (open rows to a person,
 // `*@external`; --limit, as the default is 100 rows), read once per run. $OPENRIG_OPERATOR_QUEUE_HOST names the host whose daemon holds the operator's rows
-// (where the desks run); unset reads this host. If rig cannot answer, the two checks that need it are skipped, with a note.
+// (where the org seats run); unset reads this host. If rig cannot answer, the two checks that need it are skipped, with a note.
 // The section-word cap is `section_words_max` in <root>/.board-config.json (default 3000).
 const FEEDBACK_MAX_MIN = 30, STALE_MAX_H = 24, SECTION_WORDS_DEFAULT = 3000;
 const clock = () => (process.env.OPENRIG_BOARDS_NOW ? new Date(process.env.OPENRIG_BOARDS_NOW) : new Date());
