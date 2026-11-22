@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.98.0](https://github.com/vanducng/skills/compare/v1.97.0...v1.98.0) (2026-11-22)
+
+
+### Features
+
+* **grok-bot:** message a Grok Bot bot from a shell ([#668](https://github.com/vanducng/skills/issues/668)) ([113e8a6](https://github.com/vanducng/skills/commit/113e8a64b9f72180fd7ce660aebfde785b8643e2))
+
 ## [1.97.0](https://github.com/vanducng/skills/compare/v1.96.0...v1.97.0) (2026-11-22)
 
 
