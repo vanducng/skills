@@ -7,7 +7,7 @@ A skill's evals live in `<skill>/evals/<n>-<slug>/`, three or more of them.
 | `prompt.md` | The task, exactly as a user would give it. Put every instruction the run needs here: the harness loads no `AGENTS.md`, no extensions, no installed skills. |
 | `fixture/` | Optional. Copied into a fresh temp directory; the run starts there. |
 | `checks.sh` | Deterministic pass check, run in that directory after the agent finishes. Exit 0 = pass. No judge model. |
-| `scenario.json` | Optional. `{"clean": true}` marks a case the skill must leave alone; `{"timeout": 600}` overrides the run limit; `{"needs_skills": ["other"]}` loads sibling skills by name (beside the skill under test; a path is refused) in every variant, so the baseline drops only the skill under test. |
+| `scenario.json` | Optional. `{"clean": true}` marks a case the skill must leave alone; `{"timeout": 600}` overrides the run limit; `{"needs_skills": ["other"]}` loads sibling skills by name (beside the skill under test; a path is refused) in every variant, so the baseline drops only the skill under test; `{"tools": ["read", "write", "edit"]}` is the agent's tool allowlist. |
 
 `checks.sh` gets these environment variables:
 
@@ -27,6 +27,8 @@ python3 scripts/run_evals.py <skill-dir> --before <old-skill-dir> --after <new-s
 - `--before/--after` runs two versions of a skill under random labels X and Y, scores them, then prints the key. The edit wins only when `after` gains at least `--margin` passes (default 2) and fails no clean case that `before` passed.
 - `--runtime pi` is the only adapter so far (Claude Code and Codex adapters are a follow-up). Skills are loaded with `--skill`; installed skills, context files, extensions and MCP are switched off so a run sees only the skill under test.
 - Run artifacts (agent output, check output, the results JSON) go to `--out-dir`; keep the JSON as the evidence and record its sha256. In before/after mode the JSON also holds the blind key, the seed, the margin, both paths and the verdict, so it resolves X and Y without stdout.
+
+The agent is not sandboxed either: with bash it can read and search the whole disk, and a baseline with no skill tends to go looking for one, which can load the host for minutes. Give every scenario that needs no commands a `tools` list without `bash`, `find`, `grep` and `ls`, and keep the default `--jobs 1`.
 
 `checks.sh` is run, not sandboxed: it inherits only `PATH`, `HOME`, `TMPDIR`, `LANG` and `LC_ALL`, but it can still touch the filesystem. Run only evals from a repository you have reviewed, as you would a test suite.
 
