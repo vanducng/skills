@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.96.0](https://github.com/vanducng/skills/compare/v1.95.0...v1.96.0) (2026-11-22)
+
+
+### Features
+
+* **grok-bot:** write for a person in Grok Bot and teach its bots OpenRig ([#664](https://github.com/vanducng/skills/issues/664)) ([03df72b](https://github.com/vanducng/skills/commit/03df72b1b4ab139682cbb94556fbab5731b02d87))
+
 ## [1.95.0](https://github.com/vanducng/skills/compare/v1.94.0...v1.95.0) (2026-11-22)
 
 

@@ -117,6 +117,19 @@ class Runner(unittest.TestCase):
         _, result = self.run_main(skill, fake, "--runs", "1")
         self.assertTrue(all(r["error"] == "timeout" for r in result["records"] if r["variant"] == "with"))
 
+    def test_a_tools_allowlist_reaches_the_agent_and_a_bad_one_is_a_usage_error(self):
+        # A scenario that lists its tools runs without the others (no bash: the agent cannot search the disk).
+        self.assertEqual(m.pi_argv("pi", "p/m", None, "go", [], ["read", "write"])[-3:], ["--tools", "read,write", "go"])
+        self.assertNotIn("--tools", m.pi_argv("pi", "p/m", None, "go"))
+        skill, _ = build(self.root, dict(STANDARD, **{"04-tools": (CHECK_DONE, {"tools": ["read", "write"]})}))
+        self.assertEqual(m.find_scenarios(skill / "evals", ["04-tools"])[0]["tools"], ["read", "write"])
+        for bad in ([], "read", ["../x"]):
+            with self.subTest(bad=bad), self.assertRaises(SystemExit):
+                root = self.root / f"bad-{len(str(bad))}"
+                root.mkdir()
+                skill, _ = build(root, dict(STANDARD, **{"04-bad": (CHECK_DONE, {"tools": bad})}))
+                m.find_scenarios(skill / "evals", [])
+
     def test_needs_skills_loads_sibling_skills_in_both_variants_with_the_skill_under_test_last(self):
         # A scenario that needs another skill gets it in the baseline too: only the skill under test is removed.
         scenarios = dict(STANDARD, **{"04-needs-helper": ('#!/usr/bin/env bash\n[ -f helper.txt ] || [ -f done.txt ]\n', {"needs_skills": ["helper"]})})
