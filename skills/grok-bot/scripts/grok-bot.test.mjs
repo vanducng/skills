@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { parseArgs, redactor, run } from "./grok-bot.mjs";
+import { botAssets, parseArgs, redactor, run } from "./grok-bot.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FAKE = path.join(here, "../evals/fake-sdk");
@@ -95,6 +95,27 @@ test("a token with a quote or a backslash is redacted in the serialised output t
     const text = JSON.stringify(out);
     assert.ok(!text.includes(token) && !text.includes(JSON.stringify(token).slice(1, -1)), `${argv[0]}: ${text}`);
   }
+});
+
+test("install is a dry run until --apply, then adds or updates only the bot-side assets", async () => {
+  const names = botAssets().map((a) => a.name);
+  assert.deepEqual(names, ["grokbot-format", "openrig-team"]);
+  const dry = (await run(["install", "Atlas"], { env })).out;
+  assert.equal(dry.applied, false);
+  assert.deepEqual(dry.skills.map((k) => k.action), ["add", "add"]);
+  assert.equal(calls().filter((c) => /AgentSkill$/.test(c.method) && c.method !== "listAgentSkills").length, 0);
+  await run(["install", "Atlas", "--apply"], { env });
+  const adds = calls().filter((c) => c.method === "addAgentSkill");
+  assert.deepEqual(adds.map((c) => c.args.name), names);
+  assert.ok(adds.every((c) => c.args.description && c.args.content.startsWith("---\n")));
+  assert.deepEqual((await run(["install", "Atlas", "--apply"], { env })).out.skills.map((k) => k.action), ["unchanged", "unchanged"]);
+  assert.ok(!calls().some((c) => c.method === "updateAgentSkill" || c.method === "removeAgentSkill"));
+  const state = JSON.parse(readFileSync(process.env.FAKE_GROK_STATE, "utf8"));
+  state.skills.find((k) => k.name === "openrig-team").body = "an older text";
+  writeFileSync(process.env.FAKE_GROK_STATE, JSON.stringify(state));
+  await run(["install", "Atlas", "--apply"], { env });
+  assert.deepEqual(calls().filter((c) => c.method === "updateAgentSkill").map((c) => c.args.name), ["openrig-team"]);
+  assert.ok(JSON.parse(readFileSync(process.env.FAKE_GROK_STATE, "utf8")).skills.some((k) => k.name === "notes"));
 });
 
 test("usage errors exit 2", async () => {

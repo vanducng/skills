@@ -56,6 +56,26 @@ export class GrokBotClient {
     save(s);
     return { botId, messageId: messageId ?? `server-${s.calls.length}`, delivery: "accepted-box", dispatched: true };
   }
+  async listAgentSkills(botId) {
+    const s = load();
+    log(s, "listAgentSkills", { botId });
+    save(s);
+    return { skills: s.skills ?? [{ id: "k1", name: "notes", description: "an unrelated skill", body: "keep me", source: "user" }] };
+  }
+  async addAgentSkill({ botId, name, description, content }) {
+    return this.#writeSkill("addAgentSkill", { botId, name, description, content });
+  }
+  async updateAgentSkill({ botId, name, description, content }) {
+    return this.#writeSkill("updateAgentSkill", { botId, name, description, content });
+  }
+  #writeSkill(method, args) {
+    const s = load();
+    log(s, method, args);
+    s.skills = (s.skills ?? [{ id: "k1", name: "notes", description: "an unrelated skill", body: "keep me", source: "user" }]).filter((k) => k.name !== args.name);
+    s.skills.push({ id: `k${s.calls.length}`, name: args.name, description: args.description, body: args.content, source: "user" });
+    save(s);
+    return { marketplace: { marketplaceId: "m", displayName: "Skills", description: "" }, plugins: [], skill: { name: args.name, description: args.description, sourcePath: "", sourceUrl: null, content: args.content, environments: [] } };
+  }
   async getSendStatus({ botId, messageId }) {
     const s = load();
     log(s, "getSendStatus", { botId, messageId });

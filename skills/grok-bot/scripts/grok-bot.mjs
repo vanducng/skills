@@ -7,19 +7,21 @@
 //   node grok-bot.mjs wait <bot> --after <seq>   [--message-id <id>] [--timeout <s>] [--interval <s>]
 //   node grok-bot.mjs ask  <bot> <text>          [--timeout <s>] [--interval <s>]   (send, then wait)
 //   node grok-bot.mjs read <bot>                 [--limit <n>] [--since <iso>] [--jsonl]
+//   node grok-bot.mjs install <bot>              [--apply]   (sync the skill's bot-side assets/*.md to the bot)
 //
 // Every send carries a messageId (one is made when none is given): the app accepts a send without one but never
 // shows it in the chat. The SDK is loaded from GROK_BOT_SDK_DIR (default ~/.cache/grok-bot-sdk), where it is
 // installed with `npm install --prefix <dir> github:RongleCat/grok-bot-sdk#<commit>`.
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const USAGE = "usage: grok-bot.mjs bots | send <bot> <text> | wait <bot> --after <seq> | ask <bot> <text> | read <bot>";
+const USAGE = "usage: grok-bot.mjs bots | send <bot> <text> | wait <bot> --after <seq> | ask <bot> <text> | read <bot> | install <bot> [--apply]";
+const ASSETS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "assets");
 const DEFAULTS = { timeout: 300, interval: 12, limit: 10 };
-const BOOLEAN_FLAGS = new Set(["jsonl"]);
+const BOOLEAN_FLAGS = new Set(["jsonl", "apply"]);
 
 export function parseArgs(argv) {
   const [cmd, ...rest] = argv;
@@ -105,6 +107,35 @@ async function wait(client, bot, after, messageId, { timeout, interval, sleep })
   }
 }
 
+/** The bot-side library skills: every assets/*.md with a `name:` and `description:` in its frontmatter. */
+export function botAssets(dir = ASSETS) {
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".md"))
+    .sort()
+    .map((f) => {
+      const content = readFileSync(path.join(dir, f), "utf8");
+      const front = content.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "";
+      const field = (k) => front.match(new RegExp(`^${k}:\\s*(.+)$`, "m"))?.[1].trim().replace(/^"(.*)"$/, "$1");
+      return { file: f, name: field("name"), description: field("description"), content };
+    })
+    .filter((a) => a.name && a.description);
+}
+
+/** Adds each asset the bot lacks and updates each one whose text differs; never removes a skill. Dry run unless apply. */
+async function install(client, bot, apply) {
+  const { skills } = await client.listAgentSkills(bot.id);
+  const plan = botAssets().map((a) => {
+    const have = skills.find((k) => k.name === a.name);
+    const same = have && [a.content, a.content.replace(/^---\n[\s\S]*?\n---\n+/, "")].includes(have.body);
+    return { ...a, action: !have ? "add" : same ? "unchanged" : "update" };
+  });
+  for (const a of plan.filter((p) => apply && p.action !== "unchanged")) {
+    const write = a.action === "add" ? client.addAgentSkill.bind(client) : client.updateAgentSkill.bind(client);
+    await write({ botId: bot.id, name: a.name, description: a.description, content: a.content });
+  }
+  return { bot: bot.name, applied: apply, skills: plan.map(({ name, file, action }) => ({ name, file, action })) };
+}
+
 export async function run(argv, opts = {}) {
   const result = await dispatch(argv, opts);
   return { code: result.code, out: JSON.parse(result.redact(JSON.stringify(result.out))), jsonl: Boolean(result.jsonl) };
@@ -113,7 +144,7 @@ export async function run(argv, opts = {}) {
 async function dispatch(argv, { env = process.env, sdk, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
   const { cmd, bot: botName, text, flags } = parseArgs(argv);
   let redact = (t) => String(t);
-  if (!["bots", "send", "wait", "ask", "read"].includes(cmd) || (cmd !== "bots" && !botName)) return { redact, code: 2, out: { ok: false, error: "USAGE", message: USAGE } };
+  if (!["bots", "send", "wait", "ask", "read", "install"].includes(cmd) || (cmd !== "bots" && !botName)) return { redact, code: 2, out: { ok: false, error: "USAGE", message: USAGE } };
   const dir = env.GROK_BOT_SDK_DIR || path.join(os.homedir(), ".cache", "grok-bot-sdk");
   try {
     const { GrokBotClient, desktopCredentials, version } = sdk ?? (await loadSdk(dir));
@@ -129,6 +160,7 @@ async function dispatch(argv, { env = process.env, sdk, sleep = (ms) => new Prom
       return { redact, code: 0, out: { ok: true, appVersion, bots: bots.map((b) => b.name), truncated } };
     }
     const bot = await findBot(client, botName);
+    if (cmd === "install") return { redact, code: 0, out: { ok: true, ...(await install(client, bot, flags.apply === true)) } };
     if (cmd === "send") return { redact, code: 0, out: { ok: true, ...(await send(client, bot, text, flags["message-id"])) } };
     if (cmd === "wait") {
       if (flags.after === undefined) return { redact, code: 2, out: { ok: false, error: "USAGE", message: "wait needs --after <seq> from send" } };
