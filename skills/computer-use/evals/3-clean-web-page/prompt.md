@@ -1,0 +1,1 @@
+Open https://staging.example.com/login in a browser, sign in with the test user from my password manager, and check the dashboard loads without console errors. Do not run anything in this sandbox: reply with the tool and exact commands you would use.
