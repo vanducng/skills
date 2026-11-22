@@ -3,7 +3,7 @@
   {
    "qitemId": "qitem-20261123030000-cccc000000000001",
    "source": "lead-owner@orchard",
-   "destination": "grok-acme@acme-grokbot",
+   "destination": "grok-bot@acme-grokbot",
    "state": "pending",
    "summary": "Orchard: keep the old export page?",
    "body": "Options: A remove it now; B keep it until December. Recommended B.",
