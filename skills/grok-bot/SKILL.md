@@ -1,6 +1,6 @@
 ---
 name: grok-bot
-description: "Writes for a person who reads their OpenRig team in the Grok Bot app, and gives Grok Bot bots a skill for using the team's OpenRig MCP connector. Seat side: a short status, one decision card per question (lettered options, one recommendation), links instead of local paths, questions raised through the front door's question tools, and only markdown that renders in Grok Bot; scripts/check-message.cjs lints a draft. Bot side: assets/bot-skill.md is installed into Grok Bot's private skill library: list the team's questions, record only the person's exact words, hand work to the team, show status, never claim authority. Use when an intake or front-door seat writes to a person in Grok Bot, when the user says 'write this for Grok Bot', 'decision card', 'send the person a status in Grok Bot', 'install the OpenRig skill in Grok Bot', or 'teach the Grok Bot bot to use OpenRig'. Not for seat-to-seat messages, Slack or email drafts, or reports in the operator's own terminal (exec-brief)."
+description: "Grok Bot and an OpenRig team. Seat side: write for a person reading in Grok Bot (a short status, one decision card per question with lettered options and one recommendation, links not local paths, only markdown that renders; scripts/check-message.cjs lints a draft). Bot side: two Grok Bot library skills, assets/openrig-team.md for the OpenRig connector (record only the person's exact words, never claim authority) and assets/grokbot-format.md for the layout of every reply. Operator side: scripts/grok-bot.mjs lists bots, sends with a messageId, waits for the reply and reads the chat from a shell. Use when the user says 'write this for Grok Bot', 'decision card', 'install the OpenRig skill in Grok Bot', 'message the bot', 'ask the bot from the terminal', 'read the Grok Bot chat' or 'list my Grok Bot bots'. Not for seat-to-seat messages, Slack or email drafts, or terminal reports (exec-brief)."
 license: MIT
 metadata:
   author: vanducng
@@ -29,11 +29,27 @@ The person reads the team on a phone, in Grok Bot, between other things. A messa
 5. **Only markdown that renders.** Verified in Grok Bot (desktop and iOS): headings, bulleted and numbered lists, bold, inline code, fenced code, links. UNVERIFIED, so do not use them until `references/unknowns.md` records an answer: tables, nested lists, blockquotes, raw HTML.
 6. **Lint before sending:** `node scripts/check-message.cjs message.md` exits 0 when the draft follows rules 1 to 5 (`--json` for the findings). A draft that passes is sent as it is; do not rewrite a good draft.
 
-## Bot side: the Grok Bot skill
+## Bot side: the Grok Bot skills
 
-`assets/bot-skill.md` is the skill a Grok Bot bot follows when it uses the team's OpenRig connector. The operator installs it: add the connector (Connect apps > Add a custom connector > Remote HTTPS, the front door's URL and its token header), then ask the bot to save `assets/bot-skill.md` as a private skill. The library is shared by every bot on the account, so the text names no team or seat.
+Each `assets/*.md` is a Grok Bot library skill, named by its frontmatter `name:`. The library is shared by every bot on the account, so the text names no team or seat.
 
-When you act as that bot here (or in a test), follow `assets/bot-skill.md` exactly. Its core rule: an answer is the person's choice of an option they were shown, or their exact words; a reply that adds a condition or changes an option is recorded as their words, never as the nearest option.
+- `assets/openrig-team.md` (`openrig-team`): how a bot uses the team's OpenRig connector.
+- `assets/grokbot-format.md` (`grokbot-format`), approved by the operator: the layout of every bot reply (status headline, what needs the person, all decisions in one question card). Keep its text as approved.
+
+## Install on a bot
+
+1. Add the connector once: Connect apps > Add a custom connector > Remote HTTPS, the front door's URL and its token header.
+2. On the operator's Mac: `node scripts/grok-bot.mjs install <bot>` shows what would change (`add`, `update` or `unchanged` per skill); add `--apply` to write it. It never removes a skill. Re-run it after an asset changes.
+
+When you act as that bot here (or in a test), follow `assets/openrig-team.md` exactly. Its core rule: an answer is the person's choice of an option they were shown, or their exact words; a reply that adds a condition or changes an option is recorded as their words, never as the nearest option.
+
+## Operator side: messaging a bot from a shell
+
+On the operator's Mac (the Grok Bot desktop app signed in), `scripts/grok-bot.mjs` lists bots, sends, waits for the reply and reads the chat, through grok-bot-sdk and the app's own session. For example: `node scripts/grok-bot.mjs ask Atlas "What is waiting on me?"`, or `read Atlas --since <iso> --jsonl`. Setup, every command and its output: `references/operator.md`.
+
+- Every send has a messageId (the script makes one): a send without one is accepted but never shows in the chat.
+- Never print the token; never use `gbot` (it fails on the current app).
+- Send only what you were asked to send; a draft stays a draft.
 
 ## Unknowns
 
