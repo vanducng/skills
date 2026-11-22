@@ -1,6 +1,6 @@
 ---
 name: grok-bot
-description: "Writes for a person who reads their OpenRig team in the Grok Bot app, and gives Grok Bot bots a skill for using the team's OpenRig MCP connector. Seat side: a short status, one decision card per question (lettered options, one recommendation), links instead of local paths, questions raised through the front door's question tools, and only markdown that renders in Grok Bot; scripts/check-message.cjs lints a draft. Bot side: assets/bot-skill.md is installed into Grok Bot's private skill library: list the team's questions, record only the person's exact words, hand work to the team, show status, never claim authority. Use when an intake or front-door seat writes to a person in Grok Bot, when the user says 'write this for Grok Bot', 'decision card', 'send the person a status in Grok Bot', 'install the OpenRig skill in Grok Bot', or 'teach the Grok Bot bot to use OpenRig'. Not for seat-to-seat messages, Slack or email drafts, or reports in the operator's own terminal (exec-brief)."
+description: "Grok Bot and an OpenRig team. Seat side: write for a person reading in Grok Bot (a short status, one decision card per question with lettered options and one recommendation, links not local paths, only markdown that renders; scripts/check-message.cjs lints a draft). Bot side: assets/bot-skill.md, a Grok Bot library skill for the OpenRig connector (record only the person's exact words, never claim authority). Operator side: scripts/grok-bot.mjs lists bots, sends with a messageId, waits for the reply and reads the chat from a shell. Use when the user says 'write this for Grok Bot', 'decision card', 'install the OpenRig skill in Grok Bot', 'message the CNB bot', 'ask the bot from the terminal', 'read the Grok Bot chat' or 'list my Grok Bot bots'. Not for seat-to-seat messages, Slack or email drafts, or terminal reports (exec-brief)."
 license: MIT
 metadata:
   author: vanducng
@@ -34,6 +34,14 @@ The person reads the team on a phone, in Grok Bot, between other things. A messa
 `assets/bot-skill.md` is the skill a Grok Bot bot follows when it uses the team's OpenRig connector. The operator installs it: add the connector (Connect apps > Add a custom connector > Remote HTTPS, the front door's URL and its token header), then ask the bot to save `assets/bot-skill.md` as a private skill. The library is shared by every bot on the account, so the text names no team or seat.
 
 When you act as that bot here (or in a test), follow `assets/bot-skill.md` exactly. Its core rule: an answer is the person's choice of an option they were shown, or their exact words; a reply that adds a condition or changes an option is recorded as their words, never as the nearest option.
+
+## Operator side: messaging a bot from a shell
+
+On the operator's Mac (the Grok Bot desktop app signed in), `scripts/grok-bot.mjs` lists bots, sends, waits for the reply and reads the chat, through grok-bot-sdk and the app's own session. For example: `node scripts/grok-bot.mjs ask CNB "What is waiting on me?"`, or `read CNB --since <iso> --jsonl`. Setup, every command and its output: `references/operator.md`.
+
+- Every send has a messageId (the script makes one): a send without one is accepted but never shows in the chat.
+- Never print the token; never use `gbot` (it fails on the current app).
+- Send only what you were asked to send; a draft stays a draft.
 
 ## Unknowns
 

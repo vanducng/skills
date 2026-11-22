@@ -28,6 +28,7 @@ jobs:
           python3 skills/create-skill/scripts/test_run_evals.py
           node --test skills/intake/scripts/contract.test.cjs
           node --test skills/grok-bot/scripts/check-message.test.cjs
+          node --test skills/grok-bot/scripts/grok-bot.test.mjs
           python3 skills/bi-dash/evals/test_checks.py
           python3 skills/confluence-publish/scripts/test_to_confluence.py
       - name: Run git skill helper tests
