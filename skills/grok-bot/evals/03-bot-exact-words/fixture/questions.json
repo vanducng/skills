@@ -1,0 +1,4 @@
+{"person": "person@external", "items": [{"qitemId": "qitem-20261122093000-1a2b3c4d5e6f7a8b", "revision": "r3",
+  "summary": "Merge window for the export slice",
+  "questions": [{"id": "q1", "question": "When should the export slice merge?",
+    "options": [{"id": "now", "label": "Merge now"}, {"id": "after-release", "label": "Merge after Friday's release", "recommended": true}, {"id": "fold", "label": "Fold it into the next slice"}]}]}]}
