@@ -1,12 +1,12 @@
 ---
 name: simplify
-description: "Reduce the complexity of existing code without changing behavior - deep nesting, long functions, dead code, unclear names, the wrong abstraction. Use after a feature works but reads heavier than it should, or to clean up code written under time pressure. Pass `--aggressive` to reshape a working feature into the form it should have had from day one (delete proven-dead compatibility paths). `--scan` lists aggressive candidates only. Triggers: 'simplify this', 'clean up this code', 'reduce complexity', 'zero tech debt', 'remove the compat layer', 'rebuild this as if from scratch'."
+description: "Reduce the complexity of existing code without changing behavior - deep nesting, long functions, dead code, unclear names, the wrong abstraction. Use after a feature works but reads heavier than it should, or to clean up code written under time pressure. Pass `--aggressive` to reshape a working feature into the form it should have had from day one (delete proven-dead compatibility paths). `--scan` lists aggressive candidates only. Every mode strips unnecessary comments and lint suppressions through a non-author reviewer so the code speaks for itself; `--comments` runs only that pass, `--comments --all <path>` sweeps existing code. Triggers: 'simplify this', 'clean up this code', 'reduce complexity', 'zero tech debt', 'remove the compat layer', 'rebuild this as if from scratch', 'strip the comments', 'remove unnecessary comments', 'the code should speak for itself', 'no comments', 'audit the eslint-disables'."
 license: MIT
-argument-hint: "[path or scope] [--aggressive | --scan] (defaults to recently changed code)"
+argument-hint: "[path or scope] [--aggressive | --scan | --comments [--all <path>]] (defaults to recently changed code)"
 metadata:
   author: vanducng
-  attribution: "Adapted from addyosmani/agent-skills code-simplification and the Claude code-simplifier plugin"
-  version: "0.3.0"
+  attribution: "Adapted from addyosmani/agent-skills code-simplification, the Claude code-simplifier plugin and cursor/plugins pstack no-comments"
+  version: "0.4.0"
 ---
 
 # simplify
@@ -22,10 +22,11 @@ Prefer simplify when the code is correct but cluttered. If the user invokes /sim
 | **default** | Reads heavy, shape is right | Behavior frozen; readability only |
 | `--aggressive` | Shape is historical (compat flags, dead aliases) | Follow [`references/aggressive.md`](references/aggressive.md) |
 | `--scan` | Want the candidate list first | Same as aggressive, no edits |
+| `--comments` | Only the comments and suppressions | The comment pass alone; `--all <path>` sweeps in batches |
 
 ## Hard rules
 
-1. **Behavior is frozen.** Same output for every input, same errors, same side effects and ordering. If you're unsure a change preserves behavior, don't make it.
+1. **Behavior is frozen.** Same output for every input, same errors, same side effects and ordering. If you're unsure a change preserves behavior, don't make it. The one exception is a comment-pass `RESHAPE` or suppression fix, committed alone as `fix:`.
 2. **Tests are the proof.** Run them after every single change. A simplification that needs a test edited to pass is a behavior change in disguise - stop and reconsider.
 3. **One change at a time.** Batching means you can't tell which edit broke something.
 4. **Refactor commits stand alone.** Never mix a `refactor:` with a `feat:`/`fix:`. Two concerns = two commits (or two PRs).
@@ -60,16 +61,12 @@ Can't answer? You're not ready. Read more context first.
 | Pattern | Signal | Simplification |
 |---|---|---|
 | Generic names (`data`, `tmp`, `result`) | Says nothing about content | Rename to the content (`validationErrors`) |
-| Comments | See the comment pass below | Kill or keep, one line each |
+| Comments, lint suppressions | See the comment pass below | Kill, reshape, encode or keep |
 | Duplicated logic (5+ lines, 2+ places) | - | Extract a shared function (Rule of Three) |
 | Dead code (unreachable, unused, commented-out) | - | Remove after confirming it's truly dead |
 | Wrong abstraction (factory-for-a-factory, 1-impl strategy) | Indirection with no payoff | Inline to the direct form |
 
-**Comment pass.** List every comment in scope as `kill` or `keep`, with the reason, before changing any:
-
-- **Kill** a comment that restates the code (`// increment` over `i++`), names an old behaviour the code no longer has, or narrates history ("was X", "added for Y"). The code and git carry those.
-- **Keep** only a comment about what the code cannot change or show: an outside constraint (an API's quirk, a spec clause, a platform bug) or a non-obvious why. Rewrite a keep that drifted from the code.
-- **Encode, then delete,** a "do not remove/change/reorder" comment when a test, type or lint can hold the rule cheaply: write that check, see it fail on the forbidden change, then drop the comment. When no cheap check exists, keep it as a keep.
+**Comment pass.** Every mode runs [`references/comments.md`](references/comments.md) on the scope (`--scan`: the review and report only, no edits): a non-author reviewer judges each comment and lint suppression against a five-clause keep list, then you kill, reshape the code, encode the constraint, or keep it (one line). End with one line per comment: what you did, `because <reason>`.
 
 ### 3. Apply incrementally
 
