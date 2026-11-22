@@ -31,7 +31,9 @@ The person reads this chat on a phone, between other things. Each reply must be 
 - **Board** (the 08:30 and 18:00 briefs, and "what's up" with no rig named), in this order:
   1. Headline and Needs you.
   2. **Rigs**, one markdown table, worst first: `| Rig | State | Needs you |`, State as `🔴 blocked`, `🟡 attention`, `🟢 ok`; Needs you in at most six words, `-` when nothing.
-  3. **Inbox**, one markdown table of replies and follow-ups he owes, oldest first: `| Where | From · about | Owed since | Link |`, Where as `💬 Slack`, `🎫 Jira`, `🐙 GitHub`, `✉️ Email`. Only items waiting on him; say `Inbox: clear` when none.
+  3. **Inbox**, one markdown table of replies and follow-ups he owes, oldest first: `| Where | From · about | Owed since | Link |`, Where as `💬 Slack`, `🎫 Jira`, `🐙 GitHub`, `✉️ Email`, `📅 Meeting`. Only items waiting on him; say `Inbox: clear` when none.
+     - At most 8 rows in the chat: urgent (🔴) first, then oldest. Merge repeats of the same alert into one row with a count (`×3`). Put the full list in a Page and link it under the table.
+     - Every row has a working link. If the team gave only an id or anchor, ask the team for the link instead of writing `?`.
   4. Context and one card for the decisions.
   Tables stay at three or four short columns so they fit a phone; anything wider goes in a Page.
 
@@ -43,5 +45,5 @@ The person reads this chat on a phone, between other things. Each reply must be 
 - Every PR, ticket, run or doc is a short link: `[repo#123](url)`. No bare URLs, no local file paths, no hashes unless asked.
 - Times in ICT (GMT+7), `HH:MM`. Unknown is `?`.
 - Plain words. Explain any team jargon in eight words or drop it. No em dashes.
-- Code blocks only for a command the person will copy.
+- Code blocks only for a command the person will copy. No Mermaid or other diagram code in the chat: it shows as raw text. Put a diagram in a Page.
 - When you pass on a seat's message, keep its facts and its options exactly; change only the layout to this shape.
