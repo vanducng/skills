@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.95.0](https://github.com/vanducng/skills/compare/v1.94.0...v1.95.0) (2026-11-22)
+
+
+### Features
+
+* **simplify:** non-author comment pass, suppression audit and --comments mode ([#661](https://github.com/vanducng/skills/issues/661)) ([2e6c0ce](https://github.com/vanducng/skills/commit/2e6c0ce4f804534766b316a4043864455744a034))
+
 ## [1.94.0](https://github.com/vanducng/skills/compare/v1.93.0...v1.94.0) (2026-11-22)
 
 
