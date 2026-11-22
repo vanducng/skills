@@ -2,6 +2,14 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.94.0](https://github.com/vanducng/skills/compare/v1.93.0...v1.94.0) (2026-11-22)
+
+
+### Features
+
+* add computer-use skill for desktop GUI control on macOS and Ubuntu ([#660](https://github.com/vanducng/skills/issues/660)) ([f767d68](https://github.com/vanducng/skills/commit/f767d68f1d5a9f4fe9afa74735aa67a1b3d522a7))
+* **confluence-publish:** publish local HTML reports to Confluence through twg ([#658](https://github.com/vanducng/skills/issues/658)) ([9a1c335](https://github.com/vanducng/skills/commit/9a1c3359af223544e1c2d0924a63d65d9deca43e))
+
 ## [1.93.0](https://github.com/vanducng/skills/compare/v1.92.1...v1.93.0) (2026-11-16)
 
 
