@@ -66,7 +66,7 @@ Can't answer? You're not ready. Read more context first.
 | Dead code (unreachable, unused, commented-out) | - | Remove after confirming it's truly dead |
 | Wrong abstraction (factory-for-a-factory, 1-impl strategy) | Indirection with no payoff | Inline to the direct form |
 
-**Comment pass.** Every mode runs [`references/comments.md`](references/comments.md) on the scope: a non-author reviewer judges each comment and lint suppression against a five-clause keep list, then you kill, reshape the code, encode the constraint, or keep it (one line). End with one line per comment: what you did, `because <reason>`.
+**Comment pass.** Every mode runs [`references/comments.md`](references/comments.md) on the scope (`--scan`: the review and report only, no edits): a non-author reviewer judges each comment and lint suppression against a five-clause keep list, then you kill, reshape the code, encode the constraint, or keep it (one line). End with one line per comment: what you did, `because <reason>`.
 
 ### 3. Apply incrementally
 
