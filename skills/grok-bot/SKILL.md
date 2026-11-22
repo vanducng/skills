@@ -1,6 +1,6 @@
 ---
 name: grok-bot
-description: "Grok Bot and an OpenRig team. Seat side: write for a person reading in Grok Bot (a short status, one decision card per question with lettered options and one recommendation, links not local paths, only markdown that renders; scripts/check-message.cjs lints a draft). Bot side: assets/bot-skill.md, a Grok Bot library skill for the OpenRig connector (record only the person's exact words, never claim authority). Operator side: scripts/grok-bot.mjs lists bots, sends with a messageId, waits for the reply and reads the chat from a shell. Use when the user says 'write this for Grok Bot', 'decision card', 'install the OpenRig skill in Grok Bot', 'message the CNB bot', 'ask the bot from the terminal', 'read the Grok Bot chat' or 'list my Grok Bot bots'. Not for seat-to-seat messages, Slack or email drafts, or terminal reports (exec-brief)."
+description: "Grok Bot and an OpenRig team. Seat side: write for a person reading in Grok Bot (a short status, one decision card per question with lettered options and one recommendation, links not local paths, only markdown that renders; scripts/check-message.cjs lints a draft). Bot side: assets/bot-skill.md, a Grok Bot library skill for the OpenRig connector (record only the person's exact words, never claim authority). Operator side: scripts/grok-bot.mjs lists bots, sends with a messageId, waits for the reply and reads the chat from a shell. Use when the user says 'write this for Grok Bot', 'decision card', 'install the OpenRig skill in Grok Bot', 'message the bot', 'ask the bot from the terminal', 'read the Grok Bot chat' or 'list my Grok Bot bots'. Not for seat-to-seat messages, Slack or email drafts, or terminal reports (exec-brief)."
 license: MIT
 metadata:
   author: vanducng
@@ -37,7 +37,7 @@ When you act as that bot here (or in a test), follow `assets/bot-skill.md` exact
 
 ## Operator side: messaging a bot from a shell
 
-On the operator's Mac (the Grok Bot desktop app signed in), `scripts/grok-bot.mjs` lists bots, sends, waits for the reply and reads the chat, through grok-bot-sdk and the app's own session. For example: `node scripts/grok-bot.mjs ask CNB "What is waiting on me?"`, or `read CNB --since <iso> --jsonl`. Setup, every command and its output: `references/operator.md`.
+On the operator's Mac (the Grok Bot desktop app signed in), `scripts/grok-bot.mjs` lists bots, sends, waits for the reply and reads the chat, through grok-bot-sdk and the app's own session. For example: `node scripts/grok-bot.mjs ask Atlas "What is waiting on me?"`, or `read Atlas --since <iso> --jsonl`. Setup, every command and its output: `references/operator.md`.
 
 - Every send has a messageId (the script makes one): a send without one is accepted but never shows in the chat.
 - Never print the token; never use `gbot` (it fails on the current app).

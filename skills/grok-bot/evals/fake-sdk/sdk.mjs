@@ -3,18 +3,18 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const BOTS = [
-  { id: "bot-cnb-1", name: "CNB", sessionId: "s-cnb" },
-  { id: "bot-abs-2", name: "ABS", sessionId: "s-abs" },
+  { id: "bot-atlas-1", name: "Atlas", sessionId: "s-atlas" },
+  { id: "bot-birch-2", name: "Birch", sessionId: "s-birch" },
 ];
 const SEED = {
-  "bot-cnb-1": [
+  "bot-atlas-1": [
     { seq: "40", entryKind: "user_message", body: { message: "morning", timestampMs: "1795600000000" } },
     { seq: "41", entryKind: "message", body: { role: "assistant", content: "Morning. Two PRs wait on you.", timestampMs: "1795600060000" } },
   ],
-  "bot-abs-2": Array.from({ length: 8 }, (_, i) => ({
+  "bot-birch-2": Array.from({ length: 8 }, (_, i) => ({
     seq: String(10 + i),
     entryKind: i % 2 ? "message" : "user_message",
-    body: i % 2 ? { role: "assistant", content: `abs reply ${i}`, timestampMs: String(1795600000000 + i * 1000) } : { message: `abs ask ${i}`, timestampMs: String(1795600000000 + i * 1000) },
+    body: i % 2 ? { role: "assistant", content: `birch reply ${i}`, timestampMs: String(1795600000000 + i * 1000) } : { message: `birch ask ${i}`, timestampMs: String(1795600000000 + i * 1000) },
   })),
 };
 
