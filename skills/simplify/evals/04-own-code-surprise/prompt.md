@@ -1,0 +1,1 @@
+Strip the unnecessary comments from `src/pricing.js` in this directory; the code should speak for itself. `node --test` must pass before and after. Do not touch `test/`. Leave your changes in the working tree and end your reply with what you did with each comment.

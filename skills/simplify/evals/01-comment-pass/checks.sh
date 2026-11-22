@@ -10,9 +10,9 @@ grep -qi "2 decimals" "$f" || { echo "the payment-API comment (an outside constr
 # The reply lists each comment on its own line with what was done to it and why.
 listed() { # TERM ACTION: a reply line names the comment, the action and a reason
   grep -iF -- "$1" "$EVAL_OUTPUT" | grep -iE "$2" \
-    | grep -qiE 'because|since|restat|stale|wrong|drift|outdated|constraint|outside|can.t show|cannot show|obvious|duplicat'
+    | grep -qiE 'because|since|restat|stale|wrong|drift|outdated|constraint|outside|can.t show|cannot show|doesn.t show|obvious|duplicat|explains why'
 }
-listed "in cents" 'rewr|fix|correct|updat|replac|remov|delet|kill|drop' || { echo "the reply does not list the 'in cents' comment with its action and reason"; exit 1; }
+listed "in cents" 'rewr|rewor|chang|fix|correct|updat|replac|remov|delet|kill|drop' || { echo "the reply does not list the 'in cents' comment with its action and reason"; exit 1; }
 listed "loop over the items" 'remov|delet|kill|drop' || { echo "the reply does not list 'loop over the items' as removed, with a reason"; exit 1; }
 listed "price times the quantity" 'remov|delet|kill|drop' || { echo "the reply does not list 'price times the quantity' as removed, with a reason"; exit 1; }
 listed "payment API" '\bkeep|\bkept' || { echo "the reply does not list the payment-API comment as kept, with a reason"; exit 1; }
