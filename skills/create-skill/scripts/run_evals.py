@@ -3,7 +3,7 @@
 
 Scenario layout and the check contract: references/eval-format.md. Stdlib only.
 
-  run_evals.py <skill-dir> --model M [--model M2] [--runs 3] [--jobs 2] [--out-dir D] [--scenario NAME]
+  run_evals.py <skill-dir> --model M [--model M2] [--runs 3] [--jobs 1] [--out-dir D] [--scenario NAME]
   run_evals.py <skill-dir> --before OLD --after NEW --model M --runs 3 [--margin 2] [--seed N]
 
 Exit 0 when the run completed and, in with/without mode, every non-clean scenario passes with the skill on every
@@ -33,9 +33,12 @@ PI_FLAGS = [
 ]  # fmt: skip
 
 
-def pi_argv(binary: str, model: str, skill: Path | None, prompt: str, needs: list[Path] = ()) -> list[str]:
-    """`needs` are other skills a scenario depends on: loaded in every variant, before the skill under test."""
-    argv = [binary, *PI_FLAGS, "--model", model]
+def pi_argv(
+    binary: str, model: str, skill: Path | None, prompt: str, needs: list[Path] = (), tools: list[str] | None = None
+) -> list[str]:
+    """`needs` are other skills a scenario depends on: loaded in every variant, before the skill under test. `tools` is
+    the agent's tool allowlist; without bash, ls, find and grep it cannot search the disk outside its run folder."""
+    argv = [binary, *PI_FLAGS, "--model", model, *(["--tools", ",".join(tools)] if tools else [])]
     for path in [*needs, *([skill] if skill is not None else [])]:
         argv += ["--skill", str(path)]
     return [*argv, prompt]
@@ -66,6 +69,9 @@ def find_scenarios(evals_dir: Path, only: list[str]) -> list[dict]:
             continue
         meta = json.loads((path / "scenario.json").read_text()) if (path / "scenario.json").is_file() else {}
         names = meta.get("needs_skills", [])
+        tools = meta.get("tools")
+        if tools is not None and (not isinstance(tools, list) or not tools or not all(isinstance(t, str) and SKILL_NAME.match(t) for t in tools)):
+            raise usage_error(f"{path.name}: tools takes a non-empty list of tool names")
         bad = [str(n) for n in names if not isinstance(n, str) or not SKILL_NAME.match(n)]
         if bad:
             raise usage_error(f"{path.name}: needs_skills takes skill names, not paths: {', '.join(bad)}")
@@ -80,6 +86,7 @@ def find_scenarios(evals_dir: Path, only: list[str]) -> list[dict]:
             "clean": bool(meta.get("clean", False)),
             "timeout": int(meta.get("timeout", DEFAULT_TIMEOUT)),
             "needs": needs,
+            "tools": tools,
         })  # fmt: skip
     return found
 
@@ -99,7 +106,7 @@ def run_one(job: dict, adapter, binary: str, out_dir: Path) -> dict:
         for target in (work, orig):
             if fixture.is_dir():
                 shutil.copytree(fixture, target, dirs_exist_ok=True)
-        argv = adapter(binary, model, variant["skill"], scenario["prompt"], scenario["needs"])
+        argv = adapter(binary, model, variant["skill"], scenario["prompt"], scenario["needs"], scenario["tools"])
         try:
             done = subprocess.run(argv, cwd=work, capture_output=True, text=True, timeout=scenario["timeout"], check=False)
             output, record["returncode"] = done.stdout, done.returncode
@@ -194,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("skill", type=Path, help="the skill directory under test (its evals/ holds the scenarios)")
     ap.add_argument("--model", action="append", required=True, help="provider/model, repeatable")
     ap.add_argument("--runs", type=int, default=3)
-    ap.add_argument("--jobs", type=int, default=2)
+    ap.add_argument("--jobs", type=int, default=1)  # one agent at a time: a run can load the host
     ap.add_argument("--runtime", choices=sorted(ADAPTERS), default="pi")
     ap.add_argument("--binary", default=None, help="the agent binary (default: the runtime name)")
     ap.add_argument("--evals", type=Path, help="evals directory (default: <skill>/evals)")
