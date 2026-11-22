@@ -1,0 +1,38 @@
+{
+ "items": [
+  {
+   "qitemId": "qitem-20261123010000-aaaa000000000001",
+   "source": "lead-owner@orchard",
+   "summary": "Merge orchard#931?",
+   "body": "PR orchard#931 (https://github.com/example/orchard/pull/931) adds the export button. CI green, review PASS. Options: A merge now; B wait for Friday's release. Recommended A: it is green and small.",
+   "options": [
+    "Merge now",
+    "Wait for Friday's release"
+   ],
+   "recommended": "Merge now"
+  },
+  {
+   "qitemId": "qitem-20261123010500-aaaa000000000002",
+   "source": "lead-owner@orchard",
+   "summary": "Which retention for the call logs?",
+   "body": "The call-log table grows 2 GB a week. Options: A keep 90 days; B keep 1 year; C keep everything. Recommended A: matches the contract.",
+   "options": [
+    "Keep 90 days",
+    "Keep 1 year",
+    "Keep everything"
+   ],
+   "recommended": "Keep 90 days"
+  },
+  {
+   "qitemId": "qitem-20261123011000-aaaa000000000003",
+   "source": "lead-owner@orchard",
+   "summary": "Deploy orchard to production tonight?",
+   "body": "Staging QA PASS at 00:40 ICT. Options: A deploy tonight 22:00; B deploy Monday. Recommended B: nobody is on call tonight.",
+   "options": [
+    "Deploy tonight 22:00",
+    "Deploy Monday"
+   ],
+   "recommended": "Deploy Monday"
+  }
+ ]
+}

@@ -1,0 +1,23 @@
+{
+ "questions": [
+  {
+   "qitemId": "qitem-20261123040000-dddd000000000001",
+   "revision": "r2",
+   "source": "lead-owner@billing",
+   "question": "Which invoice template?",
+   "options": [
+    {
+     "id": "opt-a",
+     "label": "A",
+     "text": "The current template"
+    },
+    {
+     "id": "opt-b",
+     "label": "B",
+     "text": "The new two-column template"
+    }
+   ],
+   "recommended": "opt-b"
+  }
+ ]
+}

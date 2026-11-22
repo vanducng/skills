@@ -1,0 +1,72 @@
+{
+ "org": "acme",
+ "generated_at": "2026-11-23T01:30:00Z",
+ "rigs": [
+  {
+   "rig": "orchard",
+   "host": "build-2",
+   "state": "blocked",
+   "status": "running",
+   "needs_you": 2,
+   "needs": "merge orchard#931 and retention",
+   "oldest": "2026-11-21T09:00:00Z",
+   "asks": []
+  },
+  {
+   "rig": "billing",
+   "host": "build-1",
+   "state": "attention",
+   "status": "running",
+   "needs_you": 1,
+   "needs": "pick the invoice template",
+   "oldest": "2026-11-22T20:00:00Z",
+   "asks": []
+  },
+  {
+   "rig": "intake",
+   "host": "build-1",
+   "state": "ok",
+   "status": "running",
+   "needs_you": 0,
+   "needs": null,
+   "oldest": null,
+   "asks": []
+  },
+  {
+   "rig": "reports",
+   "host": "build-2",
+   "state": "ok",
+   "status": "running",
+   "needs_you": 0,
+   "needs": null,
+   "oldest": null,
+   "asks": []
+  }
+ ],
+ "inbox": [
+  {
+   "where": "jira",
+   "from_about": "ACME-77 \u00b7 asked you to approve the rollout plan",
+   "since": "2026-11-20T08:00:00Z",
+   "over_24h": true,
+   "link": "https://acme.example/browse/ACME-77"
+  },
+  {
+   "where": "slack",
+   "from_about": "#ops \u00b7 vendor asked for the invoice export",
+   "since": "2026-11-22T22:10:00Z",
+   "over_24h": false,
+   "link": "https://acme.slack.example/archives/C01/p1795900000123456"
+  }
+ ],
+ "hosts": [
+  {
+   "host": "build-1",
+   "ok": true
+  },
+  {
+   "host": "build-2",
+   "ok": true
+  }
+ ]
+}

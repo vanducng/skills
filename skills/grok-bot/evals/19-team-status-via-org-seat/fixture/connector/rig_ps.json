@@ -1,0 +1,14 @@
+{
+ "rigs": [
+  {
+   "name": "acme-grokbot",
+   "status": "running",
+   "nodes": [
+    {
+     "session": "grok-acme@acme-grokbot",
+     "status": "idle"
+    }
+   ]
+  }
+ ]
+}

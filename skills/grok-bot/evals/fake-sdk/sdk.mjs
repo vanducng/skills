@@ -3,8 +3,8 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const BOTS = [
-  { id: "bot-atlas-1", name: "Atlas", sessionId: "s-atlas" },
-  { id: "bot-birch-2", name: "Birch", sessionId: "s-birch" },
+  { id: "bot-atlas-1", name: "Atlas", sessionId: "s-atlas", shared: false },
+  { id: "bot-birch-2", name: "Birch", sessionId: "s-birch", shared: true },
 ];
 const SEED = {
   "bot-atlas-1": [
@@ -50,8 +50,12 @@ export class GrokBotClient {
     const t = (s.transcripts[botId] ||= []);
     if (messageId) {
       const next = Number(t.at(-1)?.seq ?? 0) + 1;
+      // Like the real bots, a "save this as a skill" message saves the text below the line, shared or not.
+      const save = /^Save this as a skill named (\S+?),[\s\S]*?\n----- SKILL\.md -----\n([\s\S]*)$/.exec(text);
+      if (save) this.#store(s, save[1], save[2]);
+      const content = save ? `saved ${save[1]}` : `FAKE_REPLY to: ${text}`;
       t.push({ seq: String(next), entryKind: "user_message", body: { message: text, messageId, timestampMs: "1795600100000" } });
-      t.push({ seq: String(next + 1), entryKind: "message", body: { role: "assistant", content: `FAKE_REPLY to: ${text}`, timestampMs: "1795600160000" } });
+      t.push({ seq: String(next + 1), entryKind: "message", body: { role: "assistant", content, timestampMs: "1795600160000" } });
     }
     save(s);
     return { botId, messageId: messageId ?? `server-${s.calls.length}`, delivery: "accepted-box", dispatched: true };
@@ -60,6 +64,7 @@ export class GrokBotClient {
     const s = load();
     log(s, "listAgentSkills", { botId });
     save(s);
+    this.#shared(botId);
     return { skills: s.skills ?? [{ id: "k1", name: "notes", description: "an unrelated skill", body: "keep me", source: "user" }] };
   }
   async addAgentSkill({ botId, name, description, content }) {
@@ -68,11 +73,19 @@ export class GrokBotClient {
   async updateAgentSkill({ botId, name, description, content }) {
     return this.#writeSkill("updateAgentSkill", { botId, name, description, content });
   }
+  // The real SDK refuses skill reads and writes on a bot not shared with a team.
+  #shared(botId) {
+    if (!BOTS.find((b) => b.id === botId)?.shared) throw new SDKError("Share the bot with your team before managing its plugins");
+  }
+  #store(s, name, body) {
+    s.skills = (s.skills ?? [{ id: "k1", name: "notes", description: "an unrelated skill", body: "keep me", source: "user" }]).filter((k) => k.name !== name);
+    s.skills.push({ id: `k${s.calls.length}`, name, description: "", body, source: "user" });
+  }
   #writeSkill(method, args) {
     const s = load();
     log(s, method, args);
-    s.skills = (s.skills ?? [{ id: "k1", name: "notes", description: "an unrelated skill", body: "keep me", source: "user" }]).filter((k) => k.name !== args.name);
-    s.skills.push({ id: `k${s.calls.length}`, name: args.name, description: args.description, body: args.content, source: "user" });
+    this.#shared(args.botId);
+    this.#store(s, args.name, args.content);
     save(s);
     return { marketplace: { marketplaceId: "m", displayName: "Skills", description: "" }, plugins: [], skill: { name: args.name, description: args.description, sourcePath: "", sourceUrl: null, content: args.content, environments: [] } };
   }
