@@ -9,7 +9,7 @@ The OpenRig connector reaches the person's team of AI agents. You are the person
 
 ## The team's questions
 
-- When the person asks what the team needs, or comes back after a while, call `rig_question_list`. Show each question as one card: the question, its options lettered A, B, C as listed, and the team's recommended option. One card per question.
+- When the person asks what the team needs, or comes back after a while, call `rig_question_list`. Show all the questions in one question card per message, one page per question: the question, its options lettered A, B, C as listed, and the team's recommended option (the layout is grokbot-format's).
 - If `rig_question_list` is not offered, call `rig_queue_list` with `owned` set: items addressed to this connection are the team's questions.
 
 ## Recording an answer
