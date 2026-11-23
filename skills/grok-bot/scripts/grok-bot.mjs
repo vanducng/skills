@@ -7,7 +7,8 @@
 //   node grok-bot.mjs wait <bot> --after <seq>   [--message-id <id>] [--timeout <s>] [--interval <s>]
 //   node grok-bot.mjs ask  <bot> <text>          [--timeout <s>] [--interval <s>]   (send, then wait)
 //   node grok-bot.mjs read <bot>                 [--limit <n>] [--since <iso>] [--jsonl]
-//   node grok-bot.mjs install <bot>              [--apply]   (sync the skill's bot-side assets/*.md to the bot)
+//   node grok-bot.mjs install <bot>              [--apply] [--timeout <s>]   (save the bot-side assets/*.md as the
+//                                                bot's skills through its chat; verified when the bot is team-shared)
 //
 // Every send carries a messageId (one is made when none is given): the app accepts a send without one but never
 // shows it in the chat. The SDK is loaded from GROK_BOT_SDK_DIR (default ~/.cache/grok-bot-sdk), where it is
@@ -127,19 +128,46 @@ export function botAssets(dir = ASSETS) {
     .filter((a) => a.name && a.description);
 }
 
-/** Adds each asset the bot lacks and updates each one whose text differs; never removes a skill. Dry run unless apply. */
-async function install(client, bot, apply) {
-  const { skills } = await client.listAgentSkills(bot.id);
-  const plan = botAssets().map((a) => {
-    const have = skills.find((k) => k.name === a.name);
-    const same = have && [a.content, a.content.replace(/^---\n[\s\S]*?\n---\n+/, "")].includes(have.body);
-    return { ...a, action: !have ? "add" : same ? "unchanged" : "update" };
-  });
-  for (const a of plan.filter((p) => apply && p.action !== "unchanged")) {
-    const write = a.action === "add" ? client.addAgentSkill.bind(client) : client.updateAgentSkill.bind(client);
-    await write({ botId: bot.id, name: a.name, description: a.description, content: a.content });
+export const SKILL_MARK = "----- SKILL.md -----";
+
+/** The chat message that asks the bot to save one asset as a skill. */
+export const saveRequest = (a) =>
+  `Save this as a skill named ${a.name}, replacing any skill with that name. Use the text below the line exactly as given, ` +
+  `frontmatter included. When it is saved, reply with exactly: saved ${a.name}\n\n${SKILL_MARK}\n${a.content}`;
+
+/** The bot's skills by name, or null when the library cannot be read (the SDK refuses a bot not shared with a team). */
+async function library(client, bot) {
+  try {
+    return new Map((await client.listAgentSkills(bot.id)).skills.map((k) => [k.name, k.body]));
+  } catch {
+    return null;
   }
-  return { bot: bot.name, applied: apply, skills: plan.map(({ name, file, action }) => ({ name, file, action })) };
+}
+
+const sameText = (a, body) => body !== undefined && [a.content, a.content.replace(/^---\n[\s\S]*?\n---\n+/, "")].includes(body);
+
+/** Saves each bot-side asset as a skill through the bot's chat: the SDK's skill writes refuse a bot that is not shared
+ *  with a team, the chat works for every bot. Each save is one send with a messageId, then a wait for "saved <name>";
+ *  where the library can be read it skips an unchanged skill and checks each saved text. Dry run unless apply. */
+async function install(client, bot, apply, timing) {
+  const before = await library(client, bot);
+  const plan = botAssets().map((a) => ({ ...a, action: before && sameText(a, before.get(a.name)) ? "unchanged" : "send" }));
+  for (const a of plan.filter((p) => apply && p.action === "send")) {
+    const sent = await send(client, bot, saveRequest(a));
+    const { reply } = await wait(client, bot, sent.after, sent.messageId, timing).catch((e) => ({ reply: { text: `(${e.code || "ERROR"})` } }));
+    a.saved = reply.text.trim().toLowerCase().startsWith(`saved ${a.name}`.toLowerCase());
+    if (!a.saved) a.reply = reply.text.slice(0, 200);
+  }
+  const after = apply ? await library(client, bot) : before;
+  const skills = plan.map(({ name, file, action, saved, reply, ...a }) => ({
+    name,
+    file,
+    action,
+    ...(saved === undefined ? {} : { saved, verified: after ? sameText(a, after.get(name)) : null }),
+    ...(reply ? { reply } : {}),
+  }));
+  const failed = skills.filter((k) => k.saved === false || k.verified === false).map((k) => k.name);
+  return { failed, out: { bot: bot.name, applied: apply, shared: before !== null, skills } };
 }
 
 export async function run(argv, opts = {}) {
@@ -171,7 +199,11 @@ async function dispatch(argv, { env = process.env, sdk, sleep = (ms) => new Prom
       return { redact, code: 0, out: { ok: true, appVersion, bots: bots.map((b) => b.name), truncated } };
     }
     const bot = await findBot(client, botName);
-    if (cmd === "install") return { redact, code: 0, out: { ok: true, ...(await install(client, bot, flags.apply === true)) } };
+    if (cmd === "install") {
+      const { failed, out } = await install(client, bot, flags.apply === true, timing);
+      if (failed.length) return { redact, code: 1, out: { ok: false, error: "NOT_SAVED", message: `not saved or not matching: ${failed.join(", ")}`, ...out } };
+      return { redact, code: 0, out: { ok: true, ...out } };
+    }
     if (cmd === "send") return { redact, code: 0, out: { ok: true, ...(await send(client, bot, text, flags["message-id"])) } };
     if (cmd === "wait") {
       if (flags.after === undefined) return { redact, code: 2, out: { ok: false, error: "USAGE", message: "wait needs --after <seq> from send" } };

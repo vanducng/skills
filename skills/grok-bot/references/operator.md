@@ -21,7 +21,7 @@ All print JSON. Exit 0 means ok, 1 means an error (`{ok:false, error, message}`)
 | `node scripts/grok-bot.mjs wait <bot> --after <seq> [--message-id <id>]` | Waits for the bot's first finished message after `seq`. Prints `{reply: {seq, ts, from, text}}`. |
 | `node scripts/grok-bot.mjs ask <bot> "<text>"` | `send` then `wait`, in one command. |
 | `node scripts/grok-bot.mjs read <bot> [--limit 10] [--since <iso>] [--jsonl]` | The chat, oldest first. With `--jsonl`, one `{seq, ts, from, text}` per line; `from` is `bot` or `operator`. |
-| `node scripts/grok-bot.mjs install <bot> [--apply]` | Syncs the bot-side `assets/*.md` to the bot's skill library, by frontmatter name. Without `--apply` it only prints `{skills: [{name, file, action}]}`, `action` being `add`, `update` or `unchanged`. It never removes a skill. |
+| `node scripts/grok-bot.mjs install <bot> [--apply]` | Saves the bot-side `assets/*.md` as the bot's skills, by frontmatter name, through its chat: one send per asset ("Save this as a skill named <name> ...", with a messageId), then a wait for `saved <name>`. Prints `{shared, skills: [{name, file, action, saved, verified}]}`; `action` is `send` or `unchanged`, and `verified` is null when the bot is not team-shared. Exit 1 (`NOT_SAVED`) when a save is not confirmed or does not match. Without `--apply` it only lists. It never removes a skill. |
 
 `wait` and `ask` poll every `--interval` seconds (default 12) for up to `--timeout` seconds (default 300). A bot usually answers in 2 to 3 minutes. On a timeout, run `read` later; the reply still lands in the chat.
 
@@ -30,7 +30,7 @@ All print JSON. Exit 0 means ok, 1 means an error (`{ok:false, error, message}`)
 - **Every send has a messageId.** The script always passes one. A send without one is accepted, but the app never shows it in the chat and the bot never answers (checked with app 1.2.3). If you write your own SDK call, pass `messageId: crypto.randomUUID()`.
 - **Never print the token.** The script never prints the desktop session's token, and it redacts every credential string from its output and error messages. Do not log `desktopCredentials()`.
 - **Do not use `gbot`.** grok-bot-cli 0.12.5 fails on app 1.2.3 (upstream issue #171).
-- **Install writes the bot's library.** Run it without `--apply` first and apply only what the operator asked for. UNVERIFIED until the first live install: whether the app keeps the frontmatter in a skill's body (the script sends the whole file with its name and description, and counts either form as unchanged).
+- **Install writes the bot's library.** Run it without `--apply` first and apply only what the operator asked for. The SDK's `addAgentSkill` refuses a bot that is not shared with a team ("Share the bot with your team before managing its plugins"), so install goes through the chat, the way the operator installed the first three skills. UNVERIFIED until a live install on a team-shared bot: whether the app keeps the frontmatter in a skill's body (the script counts either form as the same text).
 - **Send only what you were asked to send.** A draft for the operator stays a draft. Each send is a message in the person's chat.
 
 ## Testing

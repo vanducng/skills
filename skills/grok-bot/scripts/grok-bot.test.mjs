@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { botAssets, parseArgs, redactor, run, seconds } from "./grok-bot.mjs";
+import { botAssets, parseArgs, redactor, run, seconds, SKILL_MARK } from "./grok-bot.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FAKE = path.join(here, "../evals/fake-sdk");
@@ -97,25 +97,51 @@ test("a token with a quote or a backslash is redacted in the serialised output t
   }
 });
 
-test("install is a dry run until --apply, then adds or updates only the bot-side assets", async () => {
+test("install saves each asset through the chat with a messageId, even on a bot not shared with a team", async () => {
   const names = botAssets().map((a) => a.name);
-  assert.deepEqual(names, ["grokbot-format", "openrig-team"]);
+  assert.deepEqual(names, ["grokbot-format", "openrig-host-rules", "openrig-team"]);
   const dry = (await run(["install", "Atlas"], { env })).out;
   assert.equal(dry.applied, false);
-  assert.deepEqual(dry.skills.map((k) => k.action), ["add", "add"]);
-  assert.equal(calls().filter((c) => /AgentSkill$/.test(c.method) && c.method !== "listAgentSkills").length, 0);
-  await run(["install", "Atlas", "--apply"], { env });
-  const adds = calls().filter((c) => c.method === "addAgentSkill");
-  assert.deepEqual(adds.map((c) => c.args.name), names);
-  assert.ok(adds.every((c) => c.args.description && c.args.content.startsWith("---\n")));
-  assert.deepEqual((await run(["install", "Atlas", "--apply"], { env })).out.skills.map((k) => k.action), ["unchanged", "unchanged"]);
-  assert.ok(!calls().some((c) => c.method === "updateAgentSkill" || c.method === "removeAgentSkill"));
+  assert.equal(dry.shared, false);
+  assert.deepEqual(dry.skills.map((k) => k.action), ["send", "send", "send"]);
+  assert.equal(calls().filter((c) => c.method === "sendMessage").length, 0);
+  const { code, out } = await run(["install", "Atlas", "--apply", "--interval", "0"], { env, sleep: noSleep });
+  assert.equal(code, 0, JSON.stringify(out));
+  assert.deepEqual(out.skills.map((k) => [k.name, k.saved, k.verified]), names.map((n) => [n, true, null]));
+  const sends = calls().filter((c) => c.method === "sendMessage");
+  assert.equal(sends.length, 3);
+  assert.ok(sends.every((c) => c.args.messageId && c.args.text.includes(SKILL_MARK)));
+  assert.ok(!calls().some((c) => /^(add|update|remove)AgentSkill$/.test(c.method)));
+});
+
+test("on a team-shared bot install skips an unchanged skill and verifies what it saved", async () => {
+  const first = await run(["install", "Birch", "--apply", "--interval", "0"], { env, sleep: noSleep });
+  assert.equal(first.out.shared, true);
+  assert.deepEqual(first.out.skills.map((k) => k.verified), [true, true, true]);
   const state = JSON.parse(readFileSync(process.env.FAKE_GROK_STATE, "utf8"));
   state.skills.find((k) => k.name === "openrig-team").body = "an older text";
   writeFileSync(process.env.FAKE_GROK_STATE, JSON.stringify(state));
-  await run(["install", "Atlas", "--apply"], { env });
-  assert.deepEqual(calls().filter((c) => c.method === "updateAgentSkill").map((c) => c.args.name), ["openrig-team"]);
+  const again = await run(["install", "Birch", "--apply", "--interval", "0"], { env, sleep: noSleep });
+  assert.deepEqual(again.out.skills.map((k) => k.action), ["unchanged", "unchanged", "send"]);
   assert.ok(JSON.parse(readFileSync(process.env.FAKE_GROK_STATE, "utf8")).skills.some((k) => k.name === "notes"));
+});
+
+test("install fails when the bot does not confirm the save", async () => {
+  const sdk = await import(path.join(FAKE, "sdk.mjs"));
+  class Mute extends sdk.GrokBotClient {
+    async sendMessage(args) {
+      return super.sendMessage({ ...args, text: "just chatting" });
+    }
+  }
+  const desktop = await import(path.join(FAKE, "desktop.mjs"));
+  const { code, out } = await run(["install", "Atlas", "--apply", "--interval", "0"], {
+    env,
+    sleep: noSleep,
+    sdk: { GrokBotClient: Mute, desktopCredentials: desktop.desktopCredentials, version: desktop.version },
+  });
+  assert.equal(code, 1);
+  assert.equal(out.error, "NOT_SAVED");
+  assert.match(out.skills[0].reply, /FAKE_REPLY/);
 });
 
 test("runs as a command through a symlinked skill folder", () => {

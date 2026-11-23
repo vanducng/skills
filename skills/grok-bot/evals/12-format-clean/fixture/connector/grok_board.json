@@ -1,0 +1,27 @@
+{
+ "org": "acme",
+ "generated_at": "2026-11-23T01:30:00Z",
+ "rigs": [
+  {
+   "rig": "intake",
+   "host": "build-1",
+   "state": "ok",
+   "status": "running",
+   "needs_you": 0,
+   "needs": null,
+   "oldest": null,
+   "asks": []
+  }
+ ],
+ "inbox": [],
+ "hosts": [
+  {
+   "host": "build-1",
+   "ok": true
+  },
+  {
+   "host": "build-2",
+   "ok": true
+  }
+ ]
+}
