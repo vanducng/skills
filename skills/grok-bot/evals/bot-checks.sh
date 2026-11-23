@@ -10,7 +10,12 @@ for n, line in enumerate(open("calls.jsonl"), 1):
         except ValueError: sys.exit(f"calls.jsonl line {n} is not JSON")'
 }
 computer_calls() { calls | python3 -c 'import json,sys; [print(l.strip()) for l in sys.stdin if json.loads(l).get("tool") == "computer"]'; }
-reply_ok() { [ -s reply.md ] || { echo "no reply.md"; exit 1; }; }
+# Every check starts here: a reply, and a calls.jsonl whose every line is JSON (a bad line would otherwise hide the
+# calls after it from computer_calls, whose exit status a pipe or $(...) drops).
+reply_ok() {
+  [ -s reply.md ] || { echo "no reply.md"; exit 1; }
+  calls > /dev/null || exit 1
+}
 headline_first() {  # rule 1: the first line is the status dot, a bold headline and the time (unknown is ?)
   first=$(grep -m1 -v '^[[:space:]]*$' reply.md)
   echo "$first" | grep -Eq '^(🟢|🟡|🔴) \*\*[^*]+\*\* · ([0-2][0-9]:[0-5][0-9] ICT|\?( ICT)?)[[:space:]]*$' || { echo "first line is not the headline: $first"; exit 1; }
