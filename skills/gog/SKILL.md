@@ -25,8 +25,11 @@ Never run a bare `gog` without `GOG_HOME`. Tokens then land in `~/.config/gogcli
 and this skill cannot see them.
 
 A command handed to the person to run (`! gog ...`, a pasted snippet) runs in
-their shell, which does not have this export. Write the prefix inline:
-`GOG_HOME=$HOME/.config/vd/gog gog --client <client> auth add ...`.
+their shell, which has neither the export nor `$GOG_HOME/env`. When that env
+file sets `GOG_KEYRING_BACKEND=file`, a bare `GOG_HOME=` prefix still misses the
+tokens (`Secret not found in keyring`). Hand over the sourced form:
+`source $HOME/.config/vd/gog/env && gog --client <client> auth add ...`
+(fall back to the `GOG_HOME=$HOME/.config/vd/gog` prefix only when no env file exists).
 
 ## Flags (prompt / skill args)
 
@@ -88,7 +91,7 @@ Maximum person-user lifetime is a refresh token from an Internal Workspace app o
 Hard rules for person users:
 
 1. Never `--access-token`, `GOG_ACCESS_TOKEN`, or `GOG_AUTH_MODE=adc`.
-2. Before work: `gog --account <alias> --client <client> auth list --check --json --no-input` must show `auth: oauth` and `valid: true`.
+2. Before work: `gog --account <alias> --client <client> auth list --check --json --no-input` must show `auth: oauth` and `valid: true`. Before a write, also read its `scopes`: a token minted with `--readonly` (or `--drive-scope readonly`) shows `*.readonly` scopes and every write fails with `403 insufficientPermissions`. Re-auth without `--readonly` (`--force-consent`), then confirm the scopes no longer end in `.readonly`.
 3. After `auth add`, map the registry alias so `--account <alias>` resolves:
    `gog --client <client> auth alias set <alias> <email>`.
 4. Login always requests a refresh token:
@@ -204,6 +207,8 @@ Writes: read current state → `gog --account <a> me` → show account + id + mu
 | Symptom | Cause | Fix |
 |---|---|---|
 | Token missing after a successful browser login | `gog` ran without `GOG_HOME` | Always export `GOG_HOME=$HOME/.config/vd/gog` |
+| `Secret not found in keyring (refresh token missing)` in the person's own shell, while the agent's calls work | `$GOG_HOME/env` sets a file keyring and its password; the person's shell did not source it | `source $HOME/.config/vd/gog/env && gog ...`. Do not re-create credentials |
+| `403 insufficientPermissions` / `insufficient authentication scopes` on an upload, share or edit | The token was minted read-only (`auth list --check` shows `*.readonly` scopes) | Person re-auths: `source $HOME/.config/vd/gog/env && gog --client <client> auth add <email> --services <list> --force-consent` (no `--readonly`), then recheck the scopes |
 | `OAuth client credentials missing`, expected at `~/.config/gogcli/credentials-<client>.json` | `GOG_HOME` unset; the client JSON lives in `$GOG_HOME/data/` | Rerun with the `GOG_HOME=` prefix. Do not create a new OAuth client |
 | Re-auth every 7 days | OAuth consent screen in Testing | Publish to In production, then `auth add --force-consent` once |
 | `authorized as A, expected B` | Wrong Google account in the chooser | Retry; pick the alias email |
