@@ -2,6 +2,13 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.99.0](https://github.com/vanducng/skills/compare/v1.98.0...v1.99.0) (2026-11-23)
+
+
+### Features
+
+* **grok-bot:** bot-side skills with evals, install through the chat ([#671](https://github.com/vanducng/skills/issues/671)) ([0754b2f](https://github.com/vanducng/skills/commit/0754b2f8416bbfcff965ca551dd0ff503bd1282a))
+
 ## [1.98.0](https://github.com/vanducng/skills/compare/v1.97.0...v1.98.0) (2026-11-22)
 
 
