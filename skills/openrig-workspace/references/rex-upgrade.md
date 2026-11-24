@@ -35,6 +35,22 @@ If either names the Rex unit, `rig down <rig>` first and `rig up <rig> --existin
 the daemon and tmux from their own unit (`systemd-run --user --unit=<name> ...`). On macOS the app's
 server does not take tmux down with it.
 
+The same holds for an ssh login: a tmux server or daemon started from an ssh shell lives in that
+login's cgroup (an `sshd` user unit or session scope), and a restart or memory kill of it ends every
+seat. The workspace's homelab overlay gives them their own user units in a `seats.slice` with a
+`MemoryHigh`; `fleet seat-units` says where they run now and prints the call that moves them there
+without a restart. Starting the units and moving the processes are the operator's.
+
+## Linux: systemd-oomd kills the whole user manager
+
+Ubuntu's `user@.service` ships `ManagedOOMMemoryPressure=kill`. Under memory pressure systemd-oomd
+then kills the busiest cgroup inside the user manager, and with the seats, the daemon, Rex and the
+desktop in one login that is all of them at once. The overlay ships a drop-in
+(`user@.service.d/90-fleet-oomd.conf`, `ManagedOOMMemoryPressure=auto`) that the operator installs
+with sudo once per host, after `fleet mem-guard` runs there (it warns, and at critical stops the single
+biggest dev server or build, never a seat, the daemon, tmux or Rex). The workspace's
+`docs/workspace/operations.md` has the install, the check and the undo.
+
 ## Debian and Ubuntu: the distro's `rex` is a different tool
 
 The distro package `rex` is a Perl deployment tool that owns `/usr/bin/rex`. An unattended upgrade or a software updater can install it over the Rex multiplexer even with an apt pin. Symptoms: `rex ls` prints "No Rexfile found", `rig terminal open --provider rex` says Rex is unavailable, and the running server's `/proc/<pid>/exe` ends in `(deleted)`. The server keeps running; the next restart or reboot would not bring it back.
@@ -63,7 +79,10 @@ the human, with the step 5 commands to run after.
    then restart the server the way it was started (`systemctl --user restart <unit>`, or
    `rex server stop` then `rex server start`). `rex server stop` waits for the save to finish.
 5. Check `rex -S <host> ls`, restore anything missing with rexurrect, then `rig ps --nodes` and
-   `rig terminal open <rig>` for each rig you were watching.
+   `rig terminal open <rig>` for each rig you were watching. After a host-level kill (memory, reboot)
+   with several rigs down, the operator runs `fleet host-recover <machine>` on that host instead: it
+   starts the daemon, brings back the rigs that were running before, reopens their Rex views under the
+   old labels and wakes each lead with open rows. A seat runs it only with `--dry-run`.
 6. Agents that ran directly in Rex panes need resuming: `pi -c`, `claude -c`, `codex resume --last`.
 
 ## rexurrect
@@ -73,6 +92,12 @@ through the `rex` CLI and never starts a server. Install it with
 `brew tap cemcatik/tap && brew install cemcatik/tap/rexurrect`, or the shell installer from its releases.
 On Linux a `rexurrect-autosave` timer may already save every 15 minutes; its unit file names the
 `REXURRECT_STATE_DIR` and `REX_SERVER` to use.
+
+Rex runs rexurrect on its own at server start when `~/.config/rex/init.lua` names its binary and
+config. That path must be where the binary is on this host: a Homebrew install lands in the brew
+prefix, a cargo install in `~/.cargo/bin`. `fleet-sync --check` warns when the named binary is missing
+(and names any other `rexurrect` on `PATH`) or the config does not resolve, so a server restart would
+restore no sessions.
 
 ```sh
 export REXURRECT_STATE_DIR=<dir>   # one dir per host keeps snapshots apart; mkdir -m 700 it first

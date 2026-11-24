@@ -4,7 +4,7 @@ description: Work inside the org/project/task projects workspace (`$PROJECTS_ROO
 license: MIT
 metadata:
   author: vanducng
-  version: "0.29.2"
+  version: "0.30.0"
 ---
 
 # OpenRig workspace
@@ -171,9 +171,9 @@ A hand run with no OpenRig seats still uses the same kind. Low, bugfix, and sop 
    - **Seat profile.** To add a lens to some seats only, such as a dashboard skill, set `env.PI_TUI_PROFILE: <profile>` on those members. The launcher adds that profile's skills and startup files from the role's `agent.yaml` (`profiles.<profile>`) to its `profiles.default`, each once. A profile the role does not define prints one line and keeps the default, and `fleet rig-lint` fails it. Relaunch an idle seat to pick up the change.
 3. **Launch.**
    ```bash
-   cd "$T" && rig up rig.yaml --plan && rig up rig.yaml
+   cd "$T" && rig up rig.yaml --plan && "$PROJECTS_ROOT/fleet/bin/rig-launch" up rig.yaml
    ```
-   Then check `rig ps --nodes --rig <name>` (every seat `run`) and `fleet/bin/pi-rig-check <name>`: each seat's footer shows its seat name and the intended model, with no gateway or launcher error. OpenRig reads no activity or model for a pi-tui seat, so its `unknown` there is expected. If a seat is at a shell, read the launcher's message in its pane before retrying.
+   `rig-launch` runs the fleet launch check, then `rig` with the same arguments; use it for `rig seat launch` too. It refuses a launch that would leave this machine under its memory budget (`memory_budget` in `fleet/machines.yaml`), printing the numbers and the biggest consumers. Only on the operator's word, `rig-launch --over-budget "<reason>" up rig.yaml` launches anyway and records why. Then check `rig ps --nodes --rig <name>` (every seat `run`) and `fleet/bin/pi-rig-check <name>`: each seat's footer shows its seat name and the intended model, with no gateway or launcher error. OpenRig reads no activity or model for a pi-tui seat, so its `unknown` there is expected. If a seat is at a shell, read the launcher's message in its pane before retrying.
 4. **Look at it.** Every seat runs in its own tmux session, so a rig works headless. To watch the seats as tiles, open them in [Rex](https://www.superlogical.com/rex) (`rig terminal open <name> --provider rex`) or [Herdr](https://herdr.dev) (`rig terminal open <name> --provider herdr`). Always name the provider: with none, OpenRig picks Rex only when the command runs inside a Rex block and otherwise falls back to Herdr. Run `rig tui` inside Rex for the same reason, since its `term ▸` link uses the same rule. Keep one view per rig: each open adds a new workspace, and a second viewer on the same seats stops the tmux hook from fitting each window to its tile. Closing a tile never stops a seat.
 5. **Talk to it.** A shell outside a seat has no sender identity: a plain `rig send` arrives as `From: <unknown sender>`, which seats treat as information only. The From line comes from `OPENRIG_SESSION_NAME`, so the operator and operator sessions sign as `captain@global` (workspace `AGENTS.md`, Captain):
    - A message: `fleet/bin/rig-say <seat> "<text>"` (signs, then checks the pane; do not resend what it reports delivered or queued).
