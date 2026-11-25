@@ -9,19 +9,19 @@ metadata:
 
 # travel-vlog
 
-A day of footage becomes several short videos, one topic each. The fragile steps are in `scripts/vlog.py`; run it, do not hand-roll ffmpeg. The craft rules below come from [research](references/research.md) and the [three source repos](references/sources.md).
+A day of footage becomes several short videos, one topic each. Run `scripts/vlog.py` for the fragile steps; do not hand-roll ffmpeg. Rules come from the [research](references/research.md) and [three source repos](references/sources.md).
 
 ## Rules
 
-1. **Originals are read-only.** Write renders, sheets and notes to a work folder outside the footage folder and outside any repo. `render` refuses an output folder that is the footage folder.
-2. **Look before cutting.** Run `index` on the proxies (`.lrv`, or the smallest copy), open every contact sheet, and write each clip's `<clip>.md`: one line per moment, `mm:ss-mm:ss` and what is seen, `*` on three to five key moments, `!` on anything private. A cut chosen from file names or chat alone is a guess.
-3. **One topic per video, 60 to 120 s.** Split the day where the place or activity changes. A memory film, not a log: cut hard, shots of 2 to 5 s, a long shot only when something happens in it. Over 2 minutes needs a reason.
-4. **Hook first.** The first 3 seconds show the best moment of the topic, with a `hook` line of a few words or a `title` naming the place. No logo, no slow intro: retention lost in the first 15 s does not come back.
+1. **Originals are read-only.** Work files go to a folder outside the footage and outside any repo.
+2. **Look before cutting.** Run `index` on the proxies, open every contact sheet, and write each `<clip>.md`: one line per moment (`mm:ss-mm:ss`, what is seen), `*` on three to five key moments, `!` on anything private.
+3. **One topic per video, 60 to 120 s.** Split where the place or activity changes. Cut hard: shots of 2 to 5 s, a long one only when something happens in it.
+4. **Hook first.** The first 3 seconds show the topic's best moment with a short `hook` or a `title` naming the place. No logo, no slow intro.
 5. **One name everywhere.** Stem `<series>-d<dd>-<nn>-<topic-slug>` (for example `tw26-d01-01-arrival`), title `<Series> · Day <d> · <Topic>`; the `.mp4`, the thumbnail `.jpg`, the edit list and the recipe share the stem. Check with `vlog.py name <stem> --title "..."`.
-6. **Thumbnail: one face or one strong frame, two to four big words, high contrast,** text clear of the lower-right corner (the duration badge). Same layout across the series. Look at the phone-size preview before you accept it.
-7. **Sound.** Every video has a music bed. Camera sound stays; music sits under it and ducks where people talk (`duck`), integrated loudness about -14 LUFS, true peak at or below -1 dBTP, fades in and out. Music only from a source YouTube will not claim (its Audio Library or music made for you); record the licence and credit line in the edit list.
-8. **Privacy, picture.** Cut or `blur` any frame with a card, receipt, booking number, passport, address, a live location or a person who has not agreed. None of it goes in the title or description, and links lose their tracking ids.
-9. **Privacy, sound.** Transcribe every clip before its sound is used (`transcribe`, local Whisper), then run `sound` on each edit list and read every audible line. Mute (`mute`) or cut passwords, card, bank and money details, booking or passport numbers, the hotel or an address, names of people who have not agreed (`private_names`), phone or bot calls, private or tense moments, strangers close to the mic. When unsure, cut. `sound` flags the obvious ones; reading the lines is still your job.
+6. **Thumbnail: a face or one strong frame, two to four big words, high contrast,** the lower-right corner clear (duration badge), one layout per series. Look at the phone-size preview.
+7. **Sound.** Camera sound stays; a music bed sits under it, ducked where people talk, about -14 LUFS, fades in and out. Only instrumental music YouTube will not claim (its Audio Library, or made for you); put the licence and credit in the edit list and the title in the description.
+8. **Privacy, picture.** Cut, crop or `blur` any card, receipt, booking, passport, address, phone or laptop screen, live location or person who has not agreed. None of it goes in the title or description.
+9. **Privacy, sound.** `transcribe` every clip, run `sound` on each edit list and read every audible line, listening to the ones marked doubtful. `mute` or cut passwords and PINs, money details, booking or passport numbers, the hotel or an address, names of people who have not agreed (`private_names`), phone or bot calls, private or tense moments, strangers close to the mic. When unsure, cut.
 10. **Verify pixels, not exit codes.** `verify` must print `ok`; then open `<stem>.sheet.jpg` and the thumbnail yourself.
 
 ## Workflow
@@ -38,11 +38,11 @@ python3 $V thumb  WORK/tw26-d01-01-arrival.json
 python3 $V verify WORK/tw26-d01-01-arrival.json           # exit 0 = ready to upload
 ```
 
-`--clock-offset-hours` is local time minus the camera clock, so sheets show the local time of day. Whisper's language detection reads the first 30 s only: pass `--language` for the language most spoken. `transcribe` uses `mlx_whisper` (Apple Silicon) or the command in `TRAVEL_VLOG_WHISPER`. Edit list fields: [references/edit-list.md](references/edit-list.md). 360 views (yaw, pitch, fov, pans, tiny planet) and the X5 file layout: [references/insta360-360.md](references/insta360-360.md).
+`--clock-offset-hours` is local time minus the camera clock. Pass `--language`: Whisper guesses from the first 30 s only. `transcribe` runs `mlx_whisper` or `TRAVEL_VLOG_WHISPER`. Edit list fields: [references/edit-list.md](references/edit-list.md). 360 views (yaw, pitch, fov, pans, tiny planet) and the X5 file layout: [references/insta360-360.md](references/insta360-360.md).
 
 ## Upload
 
-Upload as Private unless the owner names another privacy (Unlisted is public to anyone with the link), with the thumbnail, the title by the convention, a short description (places, the music credit) and the series playlist. Confirm the signed-in account and channel first. Making a video public, deleting one, or messaging anyone waits for the owner.
+Confirm the signed-in account and channel first. Upload Private unless the owner says otherwise (Unlisted is public to anyone with the link), with the thumbnail, the title, a short description (places, music credit) and the series playlist. Public, deleting and messages wait for the owner.
 
 ## Report
 
