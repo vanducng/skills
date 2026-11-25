@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Stub of the Aside CLI for evals: `aside repl --file <script>` runs nothing in a browser. It makes a session dir
 # under $ASIDE_SESSIONS, waits for 'ready', logs what the script was given to <run dir>/.aside-log.jsonl and answers
-# like YouTube Studio would. The signed-in channel is in <run dir>/.aside-account.
+# like YouTube Studio would, but only to the skill's own scripts; anything else gets "no browser". The signed-in channel is in <run dir>/.aside-account.
 set -u
 root=$(cd "$(dirname "$0")/.." && pwd)
 log="$root/.aside-log.jsonl"
 account=$(cat "$root/.aside-account" 2>/dev/null || echo none)
 [ "${1:-}" = repl ] && [ "${2:-}" = --file ] && [ -n "${3:-}" ] || { echo "aside stub: only 'aside repl --file <script>' works here" >&2; exit 1; }
 script=$(basename "$3")
+grep -q 'yt.sh stages' "$3" || script="other:$script"  # only the skill's own scripts reach the pretend browser
 sessions=${ASIDE_SESSIONS:-$HOME/.aside/u/0/sessions}
 mkdir -p "$sessions"
 dir="$sessions/2026-11-25_stub$$"
