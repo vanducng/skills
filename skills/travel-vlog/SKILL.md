@@ -42,7 +42,7 @@ python3 $V verify WORK/tw26-d01-01-arrival.json           # exit 0 = ready to up
 
 ## Upload
 
-Confirm the signed-in account and channel first. Upload Private unless the owner says otherwise (Unlisted is public to anyone with the link), with the thumbnail, the title, a short description (places, music credit) and the series playlist. Public, deleting and messages wait for the owner.
+Use the `youtube-upload` skill when it is installed. Confirm the signed-in account and channel first. Upload Private unless the owner says otherwise (Unlisted is public to anyone with the link), with the thumbnail, the title, a short description (places, music credit) and the series playlist. Public, deleting and messages wait for the owner.
 
 ## Report
 
