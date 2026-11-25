@@ -1,0 +1,79 @@
+{
+ "clip": "/media/vn26/VID_20261203_093000_00_051.mp4",
+ "language": "vi",
+ "model": "mlx-community/whisper-large-v3-turbo",
+ "segments": [
+  {
+   "start": 12,
+   "end": 15,
+   "text": "xe máy nhiều quá anh ơi",
+   "no_speech": 0.05,
+   "logprob": -0.3,
+   "doubtful": false
+  },
+  {
+   "start": 47,
+   "end": 50,
+   "text": "phở ở đây ngon lắm",
+   "no_speech": 0.05,
+   "logprob": -0.3,
+   "doubtful": false
+  },
+  {
+   "start": 52.5,
+   "end": 55,
+   "text": "nóng nóng, thổi đi",
+   "no_speech": 0.05,
+   "logprob": -0.3,
+   "doubtful": false
+  },
+  {
+   "start": 58.0,
+   "end": 61.5,
+   "text": "mã PIN thẻ của em là 0719 đó, nhớ nha",
+   "no_speech": 0.05,
+   "logprob": -0.3,
+   "doubtful": false
+  },
+  {
+   "start": 64,
+   "end": 67,
+   "text": "ha ha ngon thật",
+   "no_speech": 0.05,
+   "logprob": -0.3,
+   "doubtful": false
+  },
+  {
+   "start": 165,
+   "end": 168,
+   "text": "trà nóng nè",
+   "no_speech": 0.05,
+   "logprob": -0.3,
+   "doubtful": false
+  },
+  {
+   "start": 255,
+   "end": 258,
+   "text": "cầu đỏ đẹp quá",
+   "no_speech": 0.05,
+   "logprob": -0.3,
+   "doubtful": false
+  },
+  {
+   "start": 260.0,
+   "end": 262.5,
+   "text": "Minh ơi chụp giùm tụi mình một tấm",
+   "no_speech": 0.05,
+   "logprob": -0.3,
+   "doubtful": false
+  },
+  {
+   "start": 266,
+   "end": 269,
+   "text": "đẹp chưa",
+   "no_speech": 0.05,
+   "logprob": -0.3,
+   "doubtful": false
+  }
+ ]
+}

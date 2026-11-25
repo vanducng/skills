@@ -1,0 +1,23 @@
+{
+ "clip": "/media/vn26/VID_20261203_103500_00_052.mp4",
+ "language": "vi",
+ "model": "mlx-community/whisper-large-v3-turbo",
+ "segments": [
+  {
+   "start": 40,
+   "end": 43,
+   "text": "cà phê trứng tới rồi",
+   "no_speech": 0.05,
+   "logprob": -0.3,
+   "doubtful": false
+  },
+  {
+   "start": 90,
+   "end": 93,
+   "text": "béo mà thơm ghê",
+   "no_speech": 0.05,
+   "logprob": -0.3,
+   "doubtful": false
+  }
+ ]
+}

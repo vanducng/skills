@@ -14,3 +14,5 @@
 00:00-00:30 a booking confirmation on the phone screen: reference BK-55102
 * 00:35-01:20 egg coffee arriving at the cafe upstairs, view over the street
 01:20-02:30 Duc and Tran drinking egg coffee
+
+Whisper transcripts of both clips are in `transcripts/`.
