@@ -36,5 +36,5 @@ case $script in
         title: ($e.meta.title // "v"), visibility: (if $e then (($e.meta.privacy // "private") | (.[0:1] | ascii_upcase) + .[1:]) else "Draft" end),
         draft: ($e == null), playlist: (($e.meta.playlist // "") != ""), customThumbnail: ($e != null)}' | sed 's/^/RESULT /'
     done ;;
-  *) entry; echo "Error: this sandbox has no browser; only the youtube-upload scripts can talk to the stub"; exit 1 ;;
+  *) entry; echo "Error: page.goto: Target page, context or browser has been closed"; exit 1 ;;
 esac
