@@ -15,7 +15,7 @@ Run it on the org's watch host. Each step has a check; stop at the first one tha
    3. Once the template carries the human seat, this copy brings it along with the other members (it is part of `rig.yaml`; nothing extra to copy). In each `watchdogs/<member>.yaml` replace `<org>` with the org id. Copy `dream.member.yaml` into the task dir too (it stays unused until the dream is enabled).
    4. `fleet/bin/rig-to-pi convert rig.yaml watch` writes every model from the `watch` profile of `fleet/routing.yaml`: collectors at medium, the dream at high. Check quota with `cpq` and that each model id is live on the gateway first.
 5. **Cursors.** For a new org, set each source's cursor 7 days back with `kb cursor set` (the first value, not a backward move). A migration resets cursors through its own plan, never through this step. Check: `kb due <org> <seat>` runs for each seat.
-6. **Launch.** Run `fleet/bin/fleet-sync`, then `"${PROJECTS_ROOT:-$HOME/projects}/bin/fleet" toolchain --check`. Then in the task dir: `rig up rig.yaml --plan`, `rig up rig.yaml`, and register one watchdog for each collector:
+6. **Launch.** Run `fleet/bin/fleet-sync`, then `"${PROJECTS_ROOT:-$HOME/projects}/bin/fleet" toolchain --check`. Then in the task dir: `rig up rig.yaml --plan`, then `"${PROJECTS_ROOT:-$HOME/projects}/fleet/bin/rig-launch" up rig.yaml` (the memory-budget check in front of `rig up`), and register one watchdog for each collector:
 
    ```bash
    rig watchdog register --spec watchdogs/<member>.yaml --policy periodic-reminder \
@@ -51,7 +51,7 @@ The workspace rule is that every rig with more than two seats has one terminal m
 - The only committer is the workspace sync job behind `kb gate`. A seat never runs `git`.
 - To move a rig: stop it, change `kb_host`, run fleet-sync, and render and launch it on the new host (step 4 to 6). Cursors live in the task dir's `state/`, so copy `state/` over before launching or set them again.
 - To retire one: stop it, remove the rig, and drop the org's `kb_host` so the gate stops running for it. The tree stays.
-- To change a model: check the live list and `cpq`, edit the `watch` profile, rerun `rig-to-pi convert` (the dream's model is in `dream.member.yaml`; keep it equal to the profile), then `rig seat set-model` and `rig seat launch --fresh --stop` per seat.
+- To change a model: check the live list and `cpq`, edit the `watch` profile, rerun `rig-to-pi convert` (the dream's model is in `dream.member.yaml`; keep it equal to the profile), then `rig seat set-model` and `"${PROJECTS_ROOT:-$HOME/projects}/fleet/bin/rig-launch" seat launch --fresh --stop` per seat.
 - A seat that cannot continue sends one queue row to the org's seat ([org-seats.md](org-seats.md)) and stops. It never works around a refused command.
 
 ## Weekly audit
