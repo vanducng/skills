@@ -1,0 +1,11 @@
+{
+  "stem": "tw26-d02-01-market",
+  "title": "Taiwan 2026 · Day 2 · Market",
+  "description": "Morning at the market.",
+  "output_dir": ".",
+  "size": [1920, 1080],
+  "fps": 25,
+  "shots": [
+    {"src": "tw26-d02-01-market.mp4", "in": 0, "out": 20, "title": {"text": "Market", "sub": "08:00"}}
+  ]
+}
