@@ -709,6 +709,16 @@ FLAG_RE = re.compile(
     r"密碼|信用卡|護照|地址|飯店|房號", re.I)
 
 
+HALLUCINATION_RE = re.compile(r"subscribe|đăng ký kênh|ghiền mì gõ|thank you\.?$|the end$|cảm ơn các bạn đã theo dõi|字幕", re.I)
+
+
+def doubtful(sg: dict) -> bool:
+    """Whisper invents text on music, wind and silence: repeated tokens, low confidence, stock outro phrases."""
+    text = sg.get("text", "").strip()
+    return bool(float(sg.get("compression_ratio", 0)) > 2.4 or float(sg.get("avg_logprob", 0)) < -1.0
+                or float(sg.get("no_speech_prob", 0)) > 0.6 or HALLUCINATION_RE.search(text))
+
+
 def whisper_cmd() -> list[str]:
     env = os.environ.get("TRAVEL_VLOG_WHISPER")
     if env:
@@ -733,7 +743,8 @@ def cmd_transcribe(args) -> None:
             wav = Path(td) / f"{Path(src).stem}.wav"
             ffmpeg(["-i", src, "-vn", "-ac", "1", "-ar", "16000", str(wav)])
             cmd = whisper_cmd() + [str(wav), "--model", args.model, "--output-format", "json", "--output-dir", td,
-                                   "--condition-on-previous-text", "False", "--word-timestamps", "False"]
+                                   "--condition-on-previous-text", "False", "--word-timestamps", "True",
+                                   "--hallucination-silence-threshold", "2", "--verbose", "False"]
             if args.language:
                 cmd += ["--language", args.language]
             p = subprocess.run(cmd, capture_output=True, text=True)
@@ -742,7 +753,9 @@ def cmd_transcribe(args) -> None:
                 die(f"whisper failed on {src}: {p.stderr.strip()[-800:]}")
             raw = json.loads(js.read_text())
         segs = [{"start": round(float(sg["start"]), 2), "end": round(float(sg["end"]), 2), "text": sg["text"].strip(),
-                 "no_speech": round(float(sg.get("no_speech_prob", 0)), 2)} for sg in raw.get("segments", [])]
+                 "no_speech": round(float(sg.get("no_speech_prob", 0)), 2),
+                 "logprob": round(float(sg.get("avg_logprob", 0)), 2),
+                 "doubtful": doubtful(sg)} for sg in raw.get("segments", [])]
         dest.write_text(json.dumps({"clip": Path(src).name, "path": str(Path(src).resolve()), "model": args.model,
                                     "language": raw.get("language"), "segments": segs}, ensure_ascii=False, indent=1))
         print(f"transcribed {Path(src).name}: {len(segs)} segments, {raw.get('language')}")
@@ -777,7 +790,7 @@ def sound_report(e: dict, outdir: Path, names: list[str]) -> dict:
                     hit = FLAG_RE.search(sg["text"]) or (name_re.search(sg["text"]) if name_re else None)
                     row = {"shot": i + 1, "src": Path(s["src"]).name, "source": [sg["start"], sg["end"]],
                            "video": round(pos + (max(sg["start"], tin) - tin) / speed, 2), "text": sg["text"],
-                           "muted": muted, "flag": hit.group(0) if hit else ""}
+                           "muted": muted, "flag": hit.group(0) if hit else "", "doubtful": sg.get("doubtful", False)}
                     rows.append(row)
                     if hit and not muted:
                         flagged.append(row)
@@ -796,6 +809,8 @@ def cmd_sound(args) -> None:
           "| video | shot | source | heard | state |", "|---|---|---|---|---|"]
     for r in rep["lines"]:
         state = "muted" if r["muted"] else (f"CHECK ({r['flag']})" if r["flag"] else "audible")
+        if r.get("doubtful"):
+            state += ", doubtful: listen"
         md.append(f"| {fmt_t(r['video'])} | {r['shot']} | {r['src']} {fmt_t(r['source'][0])}-{fmt_t(r['source'][1])} "
                   f"| {r['text'].replace('|', '/')} | {state} |")
     md += ["", "Muted ranges (source seconds):", ""] + [f"- shot {m['shot']} {m['src']} {m['source']}" for m in rep["muted_ranges"]]
