@@ -31,7 +31,7 @@ cat /proc/$(tmux ${sock:+-S "$sock"} display -p '#{pid}')/cgroup   # must not na
 cat /proc/$(pgrep -f 'openrig.*daemon' | head -1)/cgroup
 ```
 
-If either names the Rex unit, `rig down <rig>` first and `rig up <rig> --existing` after, or start
+If either names the Rex unit, `rig down <rig>` first and `"$PROJECTS_ROOT/fleet/bin/rig-launch" up <rig> --existing` after, or start
 the daemon and tmux from their own unit (`systemd-run --user --unit=<name> ...`). On macOS the app's
 server does not take tmux down with it.
 
