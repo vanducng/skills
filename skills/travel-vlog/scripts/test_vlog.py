@@ -72,5 +72,12 @@ class Sound(unittest.TestCase):
         self.assertEqual(rep["lines"], [])
 
 
+class ThumbLines(unittest.TestCase):
+    def test_phrases_split_into_balanced_lines(self):
+        self.assertEqual(vlog.thumb_lines(["TAXI TO", "TAIPEI"]), ["TAXI TO", "TAIPEI"])
+        self.assertEqual(vlog.thumb_lines(["FIRST", "TIME", "TAIWAN"]), ["FIRST TIME", "TAIWAN"])
+        self.assertEqual(vlog.thumb_lines(["ZHONGSHAN", "WALK"]), ["ZHONGSHAN", "WALK"])
+
+
 if __name__ == "__main__":
     unittest.main()

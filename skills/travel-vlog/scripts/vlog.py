@@ -157,29 +157,37 @@ def view_filter(view: dict, proj: str, w: int, h: int) -> str:
             f"crop={w}:{h}:(iw-{w})*{cx}:(ih-{h})*{cy}")
 
 
-def pan_commands(view: dict, dur: float, fps: float, path: Path) -> bool:
-    """Write a sendcmd file for a yaw/pitch/fov move across the shot; False when the view is static."""
-    keys = [k for k in ("yaw", "pitch", "fov") if f"{k}_end" in (view or {})]
+def pan_filter(view: dict, w: int, h: int, dur: float, fps: float, path: Path) -> str | None:
+    """Filter chain for a yaw/pitch/fov move across a 360 shot, or None when the view is static.
+
+    v360 applies a yaw or pitch command as a step relative to the current view, and with both
+    axes in one instance the steps compose in the wrong order. So yaw turns the sphere in a
+    first equirect stage and pitch and fov aim the flat camera in a second one.
+    """
+    v = view or {}
+    keys = [k for k in ("yaw", "pitch", "fov") if f"{k}_end" in v]
     if not keys:
-        return False
-    # v360 applies yaw/pitch commands as a rotation relative to the current view, so send steps, not targets
-    lines, n = [], max(2, int(dur * fps))
-    prev = {k: float(view.get(k, 100 if k == "fov" else 0)) for k in keys}
+        return None
+    start = {"yaw": float(v.get("yaw", 0)), "pitch": float(v.get("pitch", 0)), "fov": float(v.get("fov", 100))}
+    stage = {"yaw": "v360@sphere yaw", "pitch": "v360@camera pitch", "fov": "v360@camera h_fov"}
+    lines, n, prev = [], max(2, int(dur * fps)), dict(start)
     for i in range(1, n + 1):
         f = i / n
         ease = f * f * (3 - 2 * f)
         cmds = []
         for k in keys:
-            a, b = float(view.get(k, 100 if k == "fov" else 0)), float(view[f"{k}_end"])
-            val = a + (b - a) * ease
-            if k == "fov":
-                cmds.append(f"v360 h_fov {val:.3f}")
-            else:
-                cmds.append(f"v360 {k} {val - prev[k]:.4f}")
+            val = start[k] + (float(v[f"{k}_end"]) - start[k]) * ease
+            cmds.append(f"{stage[k]} {val if k == 'fov' else val - prev[k]:.4f}")
             prev[k] = val
         lines.append(f"{f * dur:.4f} " + ",".join(cmds) + ";")
     path.write_text("\n".join(lines) + "\n")
-    return True
+    lens_fov = float(v.get("lens_fov", 200))
+    vfov = 2 * math.degrees(math.atan(math.tan(math.radians(start["fov"] / 2)) * h / w))
+    return (f"sendcmd=f='{path}',"
+            f"v360@sphere=input=dfisheye:output=equirect:ih_fov={lens_fov}:iv_fov={lens_fov}"
+            f":yaw={start['yaw']}:roll={float(v.get('roll', 0))}:w=4096:h=2048,"
+            f"v360@camera=input=equirect:output=flat:pitch={start['pitch']}:h_fov={start['fov']}"
+            f":v_fov={vfov:.3f}:w={w}:h={h}:interp=lanczos")
 
 
 # ---------- text overlays ----------
@@ -402,9 +410,8 @@ def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path,
     view = s.get("view", {})
     vf = []
     cmdfile = tmp / f"shot{i:02d}.cmd"
-    if proj in ("dfisheye", "insv") and pan_commands(view, dur * speed, info.get("fps", fps) or fps, cmdfile):
-        vf.append(f"sendcmd=f='{cmdfile}'")
-    vf.append(view_filter(view, proj, w, h))
+    pan = proj in ("dfisheye", "insv") and pan_filter(view, w, h, dur * speed, info.get("fps", fps) or fps, cmdfile)
+    vf.append(pan or view_filter(view, proj, w, h))
     if speed != 1:
         vf.append(f"setpts=PTS/{speed}")
     vf += [f"fps={fps}", "format=yuv420p", "setsar=1"]
@@ -538,6 +545,15 @@ def sha256(p: Path) -> str:
 
 # ---------- thumbnail ----------
 
+def thumb_lines(words: list[str]) -> list[str]:
+    """Two lines balanced by length, so each word stays big at phone size."""
+    tokens = " ".join(words).split()
+    if len(tokens) < 2:
+        return tokens
+    return min(([" ".join(tokens[:k]), " ".join(tokens[k:])] for k in range(1, len(tokens))),
+               key=lambda pair: max(len(pair[0]), len(pair[1])))
+
+
 def cmd_thumb(args) -> None:
     need_pillow()
     from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
@@ -566,8 +582,7 @@ def cmd_thumb(args) -> None:
         gd.line([(x, 0), (x, THUMB_H)], fill=int(170 * max(0, f - 0.25) / 0.75))
     img = Image.composite(Image.new("RGB", img.size, (0, 0, 0)), img, grad.filter(ImageFilter.GaussianBlur(30)))
     d = ImageDraw.Draw(img)
-    lines = th.get("lines") or [" ".join(words[:2]), " ".join(words[2:])]
-    lines = [ln for ln in lines if ln]
+    lines = [ln for ln in (th.get("lines") or thumb_lines(words)) if ln]
     colors = [tuple(c) for c in th.get("colors", [[255, 255, 255], [255, 214, 0]])]
     y = int(THUMB_H * float(th.get("y", 0.18)))
     for k, ln in enumerate(lines):
