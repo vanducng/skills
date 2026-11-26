@@ -102,6 +102,19 @@ class Stills(unittest.TestCase):
         self.assertEqual(vlog.planned_duration(e), 4.0)
         self.assertEqual(vlog.sound_report(e, tmp, [])["missing"], [])
 
+    def test_card_and_caption_limits(self):
+        vlog.use_style({})
+        shot = lambda **k: {"src": "x", "in": 0, "out": 12, **k}
+        ok = {"shots": [shot(title={"text": "Shifen"}), {"still": "m.png", "in": 0, "out": 3},
+                        shot(caption="Lanterns up, wishes written"), shot(caption={"text": "The train", "at": 2})]}
+        self.assertEqual(vlog.card_problems(ok), [])
+        bad = {"shots": [shot(caption="On the opener"), {"still": "m.png", "in": 0, "out": 6},
+                         {"still": "n.png", "in": 0, "out": 3}, shot(caption="x" * 43, title={"text": "T"}),
+                         shot(caption={"text": "Late", "at": 11})]}
+        probs = " | ".join(vlog.card_problems(bad))
+        for want in ("opening shot", "2.5 to 4 s", "over 42", "same shot", "ends after", "one map card"):
+            self.assertIn(want, probs)
+
 
 class ThumbLines(unittest.TestCase):
     def test_phrases_split_into_balanced_lines(self):
