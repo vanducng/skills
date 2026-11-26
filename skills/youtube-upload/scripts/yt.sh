@@ -76,7 +76,9 @@ publish() {
   up=$(repl upload.js "$video" v.mp4 "$meta" meta.json) || true
   echo "$up"
   id=$(sed -n 's/^RESULT //p' <<<"$up" | jq -r '.id // empty')
+  grep -q '^STEP channel ok' <<<"$up" || die "nothing was uploaded; fix the error above and run publish again"
   [ -n "$id" ] || die "upload gave no video id. The file may still have reached YouTube: look for a new draft on the channel and finish it with 'yt.sh edit' (add its id); do not upload again"
+  grep -q '^STEP upload complete' <<<"$up" || die "video $id did not finish uploading and shows \"Upload interrupted\" in Studio. Do not edit it. Tell the owner; a new upload makes a second copy, and only the owner deletes the broken one"
   m=$(mktemp); jq --arg id "$id" '. + {id: $id}' "$meta" >"$m"
   edit "$thumb" "$m"
 }
