@@ -319,6 +319,7 @@ def hook_png(text: str, w: int, h: int, out: Path) -> None:
 # ---------- index ----------
 
 def frame_grabs(src: str, proj: str, every: float, dur: float, tmp: Path, w: int) -> list[tuple[float, Path]]:
+    every = min(every, max(dur / 2, 0.05))  # a clip shorter than the step still gets frames
     h = w // 2 if proj in ("dfisheye", "insv") else int(w * 9 / 16)
     vf = (f"v360=input=dfisheye:output=equirect:ih_fov=200:iv_fov=200:w={w}:h={h}" if proj != "flat"
           else f"{square_pixels(media_info(src))}scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2")
