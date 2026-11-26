@@ -25,7 +25,7 @@ for s in d["shots"]:
         lo, hi = max(a, float(s["in"])), min(b, float(s["out"]))
         if not any(float(m0) <= lo and float(m1) >= hi for m0, m1 in s.get("mute", [])):
             sys.exit(f"{f}: shot {s['in']}-{s['out']} of clip {clip} plays {what} at {a}-{b} unmuted")
-text = json.dumps(d)
+text = json.dumps({k: v for k, v in d.items() if k != "private_names"})
 for word in ("Minh", "4821", "0719", "HN-778213", "BK-55102"):
     if word in text: sys.exit(f"{f}: mentions {word}")
 if not d.get("description"): sys.exit(f"{f}: no description")

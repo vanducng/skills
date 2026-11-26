@@ -147,6 +147,28 @@ def fov_problems(e: dict) -> list[str]:
     return out
 
 
+def holder_problems(e: dict) -> list[str]:
+    """The camera holder's face (shots tagged "holder": true) stays brief: at most `holder_max_s` in all (default 10 %
+    of the planned length, at least 4 s), no single stretch over `holder_stretch_s` (default 4 s), never the thumbnail."""
+    shots = e.get("shots", [])
+    durs = [(float(s["out"]) - float(s["in"])) / float(s.get("speed", 1)) for s in shots]
+    limit = float(e.get("holder_max_s", max(4.0, 0.1 * sum(durs))))
+    stretch_max = float(e.get("holder_stretch_s", 4))
+    out, total, run = [], 0.0, 0.0
+    for i, (s, d) in enumerate(zip(shots, durs)):
+        run = run + d if s.get("holder") else 0.0
+        total += d if s.get("holder") else 0.0
+        if run > stretch_max:
+            out.append(f"shot {i + 1}: the camera holder's face runs {run:.1f} s in a row (max {stretch_max:g} s); "
+                       "reframe toward what they look at")
+            run = 0.0
+    if total > limit:
+        out.append(f"the camera holder's face is on screen {total:.1f} s (max {limit:.1f} s)")
+    if (e.get("thumbnail") or {}).get("holder"):
+        out.append("thumbnail: features the camera holder's face; use the place or the moment")
+    return out
+
+
 STYLE_DEFAULT = {"font": None, "text": "#FFFFFF", "accent": "#FFD666", "rule": None, "badge": "#DC1E28",
                  "shade": "#000000", "stroke": "#000000"}
 STYLE = dict(STYLE_DEFAULT)
@@ -562,8 +584,8 @@ def cmd_render(args) -> None:
     need_pillow()
     e, outdir = load_edit(args.edit)
     use_style(e)
-    if fov_problems(e):
-        die("; ".join(fov_problems(e)))
+    if fov_problems(e) or holder_problems(e):
+        die("; ".join(fov_problems(e) + holder_problems(e)))
     outdir.mkdir(parents=True, exist_ok=True)
     w, h = e.get("size", [1920, 1080])
     fps = float(e.get("fps", 25))
@@ -744,7 +766,7 @@ def cmd_verify(args) -> None:
     fails, notes = [], []
     w, h = e.get("size", [1920, 1080])
     lo, hi = e.get("length_s", [180, 360])
-    fails += fov_problems(e)
+    fails += fov_problems(e) + holder_problems(e)
     if not video.is_file():
         die(f"no render at {video}", 1)
     info = media_info(video)

@@ -104,6 +104,16 @@ class Picture(unittest.TestCase):
         self.assertEqual(vlog.STYLE["accent"], "#FFD666")
         vlog.use_style({})
 
+    def test_camera_holder_screen_time(self):
+        shot = lambda d, h=False: {"in": 0, "out": d, **({"holder": True} if h else {})}
+        e = {"shots": [shot(3, True), shot(30), shot(3, True), shot(30), shot(30)]}
+        self.assertEqual(vlog.holder_problems(e), [])
+        e["shots"][1] = shot(3, True)
+        self.assertTrue(any("in a row" in p for p in vlog.holder_problems(e)))
+        e = {"shots": [shot(4, True), shot(1), shot(4, True), shot(1), shot(4, True), shot(10)]}
+        self.assertTrue(any("on screen 12.0 s" in p for p in vlog.holder_problems(e)))
+        self.assertTrue(vlog.holder_problems({"shots": [], "thumbnail": {"holder": True}}))
+
     def test_lens_filter(self):
         self.assertEqual(vlog.lens_filter(None, 1920, 1080), "")
         self.assertIn("lenscorrection", vlog.lens_filter("x5", 1920, 1080))

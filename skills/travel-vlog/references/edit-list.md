@@ -10,7 +10,7 @@ One JSON file per video, named `<stem>.json`. `render`, `thumb` and `verify` rea
   "output_dir": "/path/to/work/day1/out",
   "size": [1920, 1080],
   "fps": 25,
-  "length_s": [45, 150],
+  "length_s": [180, 360],
   "loudness_lufs": -14,
   "fade_s": 0.8,
   "music": [
@@ -38,13 +38,13 @@ One JSON file per video, named `<stem>.json`. `render`, `thumb` and `verify` rea
 | `stem`, `title` | Must pass `vlog.py name`. The day in the title matches the stem. |
 | `output_dir` | Never the footage folder. Defaults to the edit list's folder. |
 | `fps` | 25 for 50p sources (clean halving); 30 when most shots are 29.97 or 60. |
-| `length_s` | `verify` fails outside it. Default 45 to 150 s. |
 | `shots[].in/out` | Seconds on the source. `speed` above 1 makes a time-lapse (audio is sped up between 0.5 and 2, otherwise set `audio: 0`). |
 | `shots[].view` | See [insta360-360.md](insta360-360.md). 360 `fov` defaults to 85 and may not exceed 95. `projection` forces `flat` or `dfisheye` when the frame shape misleads. |
 | `shots[].view.fit` | `blur` places a portrait (or rotated) clip whole over a blurred copy of itself; `crop` fills 16:9 by cropping. Portrait defaults to `blur`. Clips stored with non-square pixels (an X5 portrait clip is 1920x1080 at SAR 81:256, really 608x1080) are resampled to square pixels first, always. With `roll`, a blur fit keeps the largest upright rectangle of the turned frame, so no black wedges show. |
 | `style` | The channel look from its written style guide: `font` (a .ttf path), `text`, `accent`, `rule`, `badge`, `shade`, `stroke` as `#RRGGBB`. Titles, hooks and the thumbnail draw with it; without it they draw white and yellow on black. |
 | `lens`, `shots[].lens` | Straighten a barrel-distorted flat clip before the view: `"x5"` (Insta360 X5 single-lens: k1 0.12, k2 0.015, 14% crop) or `{"k1", "k2", "crop"}`. Off by default; the shot's value wins. |
 | `grade` | One ffmpeg filter chain applied to every shot and the thumbnail, from the channel style guide. |
+| `shots[].holder`, `thumbnail.holder` | `true` when the camera holder's face is in the frame (a 360 selfie view, a turned-around flat clip). `verify` and `render` fail when tagged shots run over 4 s in a row (`holder_stretch_s`), over `holder_max_s` in all (default 10 % of the length, at least 4 s), or the thumbnail is tagged. |
 | `length_s` | Allowed length in seconds for `verify`; default `[180, 360]`. |
 | `shots[].hook` | Big centred words over the first seconds of the shot. Use on shot 1. |
 | `shots[].title` | Lower-left place and time; `at` and `hold` in seconds. |
