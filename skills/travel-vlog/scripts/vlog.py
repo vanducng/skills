@@ -78,7 +78,12 @@ def media_info(path: str | Path) -> dict:
     if v:
         num, den = (v.get("avg_frame_rate") or v.get("r_frame_rate") or "0/1").split("/")
         sn, sd = (v.get("sample_aspect_ratio") or "1:1").replace("0:1", "1:1").split(":")
-        info.update(width=int(v["width"]), height=int(v["height"]), codec=v.get("codec_name"),
+        rot = next((int(float(sd_.get("rotation", 0))) for sd_ in v.get("side_data_list", []) if "rotation" in sd_), 0)
+        w, h = int(v["width"]), int(v["height"])
+        # ffmpeg applies a display-matrix rotation on input, so filters see the rotated size.
+        if rot % 180:
+            w, h, sn, sd = h, w, sd, sn
+        info.update(width=w, height=h, codec=v.get("codec_name"), rotation=rot % 360,
                     fps=round(float(num) / float(den or 1), 3) if float(den or 1) else 0.0,
                     sar=(int(sn), int(sd) or 1))
     return info
@@ -274,6 +279,7 @@ def pan_filter(view: dict, w: int, h: int, dur: float, fps: float, path: Path) -
         return None
     start = {"yaw": float(v.get("yaw", 0)), "pitch": float(v.get("pitch", 0)), "fov": float(v.get("fov", DEFAULT_FOV))}
     stage = {"yaw": "v360@sphere yaw", "pitch": "v360@camera pitch", "fov": "v360@camera h_fov"}
+    vfov_of = lambda hf: 2 * math.degrees(math.atan(math.tan(math.radians(hf / 2)) * h / w))
     lines, n, prev = [], max(2, int(dur * fps)), dict(start)
     for i in range(1, n + 1):
         f = i / n
@@ -282,11 +288,13 @@ def pan_filter(view: dict, w: int, h: int, dur: float, fps: float, path: Path) -
         for k in keys:
             val = start[k] + (float(v[f"{k}_end"]) - start[k]) * ease
             cmds.append(f"{stage[k]} {val if k == 'fov' else val - prev[k]:.4f}")
+            if k == "fov":
+                cmds.append(f"v360@camera v_fov {vfov_of(val):.4f}")
             prev[k] = val
         lines.append(f"{f * dur:.4f} " + ",".join(cmds) + ";")
     path.write_text("\n".join(lines) + "\n")
     lens_fov = float(v.get("lens_fov", 200))
-    vfov = 2 * math.degrees(math.atan(math.tan(math.radians(start["fov"] / 2)) * h / w))
+    vfov = vfov_of(start["fov"])
     return (f"sendcmd=f='{path}',"
             f"v360@sphere=input=dfisheye:output=equirect:ih_fov={lens_fov}:iv_fov={lens_fov}"
             f":yaw={start['yaw']}:roll={float(v.get('roll', 0))}:w=4096:h=2048,"
@@ -553,8 +561,8 @@ def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path,
         last = f"v{k}"
         n_in += 1
     gain = float(s.get("audio", 1.0)) if 0.5 <= speed <= 2 else 0.0
-    if info["has_audio"]:
-        atempo = f"atempo={speed}," if speed != 1 and 0.5 <= speed <= 2 else ""
+    if info["has_audio"] and 0.5 <= speed <= 2:
+        atempo = f"atempo={speed}," if speed != 1 else ""
         mutes = "".join(
             f"volume=enable='between(t,{max(0.0, (float(a) - tin) / speed):.3f},{(float(b) - tin) / speed:.3f})':volume=0,"
             for a, b in s.get("mute", []) if float(b) > tin and float(a) < tout)
@@ -638,7 +646,8 @@ def cmd_render(args) -> None:
                 "-c:v", "libx264", "-preset", "ultrafast" if args.draft else "slow", "-crf", "26" if args.draft else "18",
                 "-pix_fmt", "yuv420p", "-c:a", "pcm_s16le", str(mixed)])
         meas = loudnorm_pass(mixed, target, tp)
-        ln = (f"loudnorm=I={target}:TP={tp}:LRA=11:measured_I={meas['input_i']}:measured_TP={meas['input_tp']}"
+        finite = all(math.isfinite(float(meas[k])) for k in ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset"))
+        ln = f"loudnorm=I={target}:TP={tp}:LRA=11" if not finite else (f"loudnorm=I={target}:TP={tp}:LRA=11:measured_I={meas['input_i']}:measured_TP={meas['input_tp']}"
               f":measured_LRA={meas['input_lra']}:measured_thresh={meas['input_thresh']}"
               f":offset={meas['target_offset']}:linear=true")
         ffmpeg(["-i", str(mixed), "-map", "0:v", "-map", "0:a", "-c:v", "copy", "-af", f"{ln},aresample=48000",
@@ -837,9 +846,9 @@ def cmd_verify(args) -> None:
 # ---------- sound: transcripts and sensitive speech ----------
 
 FLAG_RE = re.compile(
-    r"\d[\d .,-]{2,}\d|password|passcode|\bpin\b|m[aậ]t kh[aẩ]u|\bcard\b|\bthẻ\b|\bvisa\b|master|bank|ng[aâ]n h[aà]ng|"
-    r"t[aà]i kho[aả]n|account|ti[eề]n|dollar|NT\$|booking|[đd][aặ]t ph[oò]ng|passport|h[oộ] chi[eế]u|address|"
-    r"[đd][iị]a ch[iỉ]|hotel|kh[aá]ch s[aạ]n|ph[oò]ng s[oố]|room number|\balo\b|g[oọ]i|call|slack|"
+    r"\d[\d .,-]{2,}\d|password|passcode|\bpin\b|m[aậ]t kh[aẩ]u|\bcard\b|\bthẻ\b|\bvisa\b|mastercard|\bbank\b|ng[aâ]n h[aà]ng|"
+    r"t[aà]i kho[aả]n|\baccount\b|\bti[eề]n\b|dollar|NT\$|booking|[đd][aặ]t ph[oò]ng|passport|h[oộ] chi[eế]u|address|"
+    r"[đd][iị]a ch[iỉ]|hotel|kh[aá]ch s[aạ]n|ph[oò]ng s[oố]|room number|\balo\b|\bg[oọ]i\b|(?<!-)\bcall(ed|ing)?\b(?! market)|\bslack\b|"
     r"密碼|信用卡|護照|地址|飯店|房號", re.I)
 
 

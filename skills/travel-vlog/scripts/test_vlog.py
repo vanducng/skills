@@ -75,6 +75,13 @@ class Sound(unittest.TestCase):
         self.assertEqual([r["source"][0] for r in rep["flagged_unmuted"]], [3.0])
         self.assertEqual([r["source"][0] for r in rep["listen"]], [5.0])
 
+    def test_ordinary_speech_stays_audible(self):
+        for s in ("the view is nice", "we're going to the market", "locally famous", "a so-called night market",
+                  "a master shot", "in the river"):
+            self.assertIsNone(vlog.FLAG_RE.search(s), s)
+        for s in ("mật khẩu là 4821", "pay by Mastercard", "gọi cho anh", "call me", "đưa thẻ"):
+            self.assertIsNotNone(vlog.FLAG_RE.search(s), s)
+
     def test_timelapse_is_silent(self):
         e = self.edit()
         e["shots"][0]["speed"] = 10
