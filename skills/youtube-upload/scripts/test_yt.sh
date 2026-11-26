@@ -6,9 +6,11 @@ run=$(mktemp -d); trap 'rm -rf "$run"' EXIT
 mkdir -p "$run/bin" "$run/sessions"; cp "$here/../evals/stub/aside" "$run/bin/aside"
 echo UCq3Kp9VxL2mT8wR4nB6yZ1a >"$run/.aside-account"
 printf '%s' '{"channel":"UCq3Kp9VxL2mT8wR4nB6yZ1a","authuser":0,"title":"Kyoto 2027 · Day 2 · Tea","playlist":"Kyoto 2027","privacy":"private"}' >"$run/meta.json"
-ffmpeg -v error -f lavfi -i color=red:s=1280x720 -frames:v 1 "$run/t.jpg"
+# a stand-in ffprobe, so the test needs no ffmpeg: every image reads as 1280x720
+printf '#!/bin/sh\necho 1280x720\n' >"$run/bin/ffprobe"; chmod +x "$run/bin/ffprobe"
+head -c 2000 /dev/urandom >"$run/t.jpg"
 head -c 1000 /dev/urandom >"$run/v.mp4"
-yt() { ASIDE="$run/bin/aside" ASIDE_SESSIONS="$run/sessions" "$here/yt.sh" "$@"; }
+yt() { PATH="$run/bin:$PATH" ASIDE="$run/bin/aside" ASIDE_SESSIONS="$run/sessions" "$here/yt.sh" "$@"; }
 fail() { echo "FAIL $*"; exit 1; }
 
 yt publish "$run/v.mp4" "$run/t.jpg" "$run/meta.json" >/dev/null 2>&1 || fail "complete upload: publish failed"
