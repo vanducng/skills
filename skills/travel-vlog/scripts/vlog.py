@@ -175,7 +175,9 @@ def holder_problems(e: dict) -> list[str]:
 
 
 STYLE_DEFAULT = {"font": None, "text": "#FFFFFF", "accent": "#FFD666", "rule": None, "badge": "#DC1E28",
-                 "shade": "#000000", "stroke": "#000000"}
+                 "shade": "#000000", "stroke": "#000000", "card_fade": "#000000",
+                 "caption": {"font": None, "size": 54, "color": "#FFFFFF", "box": "#000000", "box_alpha": 0.6,
+                             "radius": 16, "pad": [28, 14], "bottom": 112, "fade": 0.2, "max_chars": 42}}
 STYLE = dict(STYLE_DEFAULT)
 
 
@@ -183,6 +185,7 @@ def use_style(e: dict) -> None:
     """Channel look from the edit list's `style` block (font and colours from the written style guide)."""
     STYLE.clear()
     STYLE.update(STYLE_DEFAULT, **(e.get("style") or {}))
+    STYLE["caption"] = {**STYLE_DEFAULT["caption"], **((e.get("style") or {}).get("caption") or {})}
     if STYLE["font"] and not Path(STYLE["font"]).is_file():
         die(f"style font {STYLE['font']} not found")
 
@@ -330,18 +333,61 @@ def title_png(title: dict, w: int, h: int, out: Path) -> None:
 
 
 def caption_png(text: str, w: int, h: int, out: Path) -> None:
-    """One short line centred low in the frame, in the style's text colour over a soft shadow."""
-    from PIL import Image, ImageDraw, ImageFilter
+    """One line centred low in the frame on a rounded translucent box (style.caption, sizes in 1080p pixels)."""
+    from PIL import Image, ImageDraw, ImageFont
+    c, k = STYLE["caption"], h / 1080
+    font = ImageFont.truetype(c["font"], int(c["size"] * k)) if c.get("font") and Path(c["font"]).is_file() \
+        else load_font(int(c["size"] * k))
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    font = load_font(int(h * 0.042))
     d = ImageDraw.Draw(img)
-    tw = d.textlength(text, font=font)
-    x, y = int((w - tw) / 2), int(h * 0.855)
-    shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).text((x + 2, y + 2), text, font=font, fill=(0, 0, 0, 220))
-    img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(5)))
-    ImageDraw.Draw(img).text((x, y), text, font=font, fill=rgb(STYLE["text"], 255))
+    left, top, right, bottom = d.textbbox((0, 0), text, font=font, anchor="ls")
+    px, py = int(c["pad"][0] * k), int(c["pad"][1] * k)
+    bw, bh = right - left + 2 * px, bottom - top + 2 * py
+    x0, y1 = (w - bw) // 2, h - int(c["bottom"] * k)
+    d.rounded_rectangle([x0, y1 - bh, x0 + bw, y1], int(c["radius"] * k), fill=rgb(c["box"], int(255 * float(c["box_alpha"]))))
+    d.text((x0 + px, y1 - bh + py - top), text, font=font, fill=rgb(c["color"], 255), anchor="ls")
     img.save(out)
+
+
+def caption_of(s: dict) -> dict | None:
+    c = s.get("caption")
+    if not c:
+        return None
+    c = dict(c) if isinstance(c, dict) else {"text": c}
+    n = len(c["text"])
+    c.setdefault("at", 0.5)
+    c.setdefault("dur", c.get("hold", min(3.0, max(2.0, 0.6 + 0.07 * n))))
+    return c
+
+
+def card_problems(e: dict) -> list[str]:
+    """Map cards and captions: the limits the style guide sets."""
+    probs, stills, pos, last_cap = [], 0, 0.0, None
+    max_chars = int(STYLE["caption"]["max_chars"])
+    for i, s in enumerate(e["shots"]):
+        dur = (float(s["out"]) - float(s["in"])) / float(s.get("speed", 1))
+        if s.get("still"):
+            stills += 1
+            if not 2.5 <= dur <= 4:
+                probs.append(f"shot {i + 1}: a card holds 2.5 to 4 s, not {dur:.1f}")
+        c = caption_of(s)
+        if c:
+            a, b = float(c["at"]), float(c["at"]) + float(c["dur"])
+            if i == 0:
+                probs.append("shot 1: no caption on the opening shot (the title is there)")
+            if len(c["text"]) > max_chars or "\n" in c["text"]:
+                probs.append(f"shot {i + 1}: caption over {max_chars} characters or more than one line")
+            if b > dur:
+                probs.append(f"shot {i + 1}: caption ends after the shot")
+            if s.get("title") or s.get("hook"):
+                probs.append(f"shot {i + 1}: caption and a title on the same shot")
+            if last_cap is not None and pos + a - last_cap < 10:
+                probs.append(f"shot {i + 1}: captions less than 10 s apart")
+            last_cap = pos + b
+        pos += dur
+    if stills > 1:
+        probs.append(f"{stills} cards; one map card per video")
+    return probs
 
 
 def hook_png(text: str, w: int, h: int, out: Path) -> None:
@@ -517,6 +563,8 @@ def load_edit(path: str, writing: bool = True) -> tuple[dict, Path]:
         die(f"{p}: no shots")
     outdir = Path(e.get("output_dir") or p.parent)
     for i, s in enumerate(e["shots"]):
+        if s.get("kind") == "still":
+            s["still"] = s["src"]
         if s.get("still"):
             # A card (map, title): a PNG held for dur seconds, silent, faded in and out.
             s.update(src=s["still"], **{"in": 0.0, "out": float(s.get("dur", 4))}, audio=0)
@@ -534,11 +582,15 @@ def planned_duration(e: dict) -> float:
 
 
 def render_still(i: int, s: dict, w: int, h: int, fps: float, tmp: Path, draft: bool) -> Path:
-    dur, fade = float(s["out"]), float(s.get("fade", 0.4))
-    vf = (f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,"
+    dur = float(s["out"])
+    fin, fout = float(s.get("fade_in", s.get("fade", 0.4))), float(s.get("fade_out", s.get("fade", 0.4)))
+    col = STYLE["card_fade"].replace("#", "0x")
+    vf = (f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:{col},setsar=1,"
           f"fps={fps},format=yuv420p")
-    if fade:
-        vf += f",fade=t=in:d={fade},fade=t=out:st={max(0.0, dur - fade)}:d={fade}"
+    if fin:
+        vf += f",fade=t=in:d={fin}:color={col}"
+    if fout:
+        vf += f",fade=t=out:st={max(0.0, dur - fout)}:d={fout}:color={col}"
     out = tmp / f"shot{i:02d}.mov"
     ffmpeg(["-loop", "1", "-t", f"{dur}", "-i", s["src"], "-f", "lavfi", "-t", f"{dur}", "-i", "anullsrc=r=48000:cl=stereo",
             "-vf", vf, "-map", "0:v", "-map", "1:a", "-t", f"{dur}", "-c:v", "libx264",
@@ -581,21 +633,21 @@ def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path,
     if s.get("hook"):
         hp = tmp / f"hook{i:02d}.png"
         hook_png(s["hook"], w, h, hp)
-        overlays.append((hp, 0.15, min(dur - 0.1, float(s.get("hook_s", 2.6)))))
+        overlays.append((hp, 0.15, min(dur - 0.1, float(s.get("hook_s", 2.6))), 0.35))
     if s.get("title"):
         tp = tmp / f"title{i:02d}.png"
         title_png(s["title"], w, h, tp)
         t0 = float(s["title"].get("at", 0.4))
-        overlays.append((tp, t0, min(dur - 0.1, t0 + float(s["title"].get("hold", 3.2)))))
-    if s.get("caption"):
-        c = s["caption"] if isinstance(s["caption"], dict) else {"text": s["caption"]}
+        overlays.append((tp, t0, min(dur - 0.1, t0 + float(s["title"].get("hold", 3.2))), 0.35))
+    c = caption_of(s)
+    if c:
         cp = tmp / f"caption{i:02d}.png"
         caption_png(c["text"], w, h, cp)
-        c0 = float(c.get("at", 0.5))
-        overlays.append((cp, c0, min(dur - 0.1, c0 + float(c.get("hold", 3.0)))))
-    for k, (png, a, b) in enumerate(overlays):
+        c0 = float(c["at"])
+        overlays.append((cp, c0, min(dur - 0.1, c0 + float(c["dur"])), float(STYLE["caption"]["fade"])))
+    for k, (png, a, b, fd) in enumerate(overlays):
         inputs += ["-loop", "1", "-t", f"{dur}", "-i", str(png)]
-        fc += (f";[{n_in}:v]format=rgba,fade=t=in:st={a}:d=0.35:alpha=1,fade=t=out:st={max(a, b - 0.35)}:d=0.35:alpha=1[o{k}]"
+        fc += (f";[{n_in}:v]format=rgba,fade=t=in:st={a}:d={fd}:alpha=1,fade=t=out:st={max(a, b - fd)}:d={fd}:alpha=1[o{k}]"
                f";[{last}][o{k}]overlay=0:0:shortest=1[v{k}]")
         last = f"v{k}"
         n_in += 1
@@ -631,8 +683,9 @@ def cmd_render(args) -> None:
     need_pillow()
     e, outdir = load_edit(args.edit)
     use_style(e)
-    if fov_problems(e) or holder_problems(e):
-        die("; ".join(fov_problems(e) + holder_problems(e)))
+    probs = fov_problems(e) + holder_problems(e) + card_problems(e)
+    if probs:
+        die("; ".join(probs))
     outdir.mkdir(parents=True, exist_ok=True)
     w, h = e.get("size", [1920, 1080])
     fps = float(e.get("fps", 25))
@@ -814,7 +867,8 @@ def cmd_verify(args) -> None:
     fails, notes = [], []
     w, h = e.get("size", [1920, 1080])
     lo, hi = e.get("length_s", [180, 360])
-    fails += fov_problems(e) + holder_problems(e)
+    use_style(e)
+    fails += fov_problems(e) + holder_problems(e) + card_problems(e)
     if not video.is_file():
         die(f"no render at {video}", 1)
     info = media_info(video)
