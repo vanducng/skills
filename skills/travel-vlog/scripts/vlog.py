@@ -147,10 +147,29 @@ def fov_problems(e: dict) -> list[str]:
     return out
 
 
+STYLE_DEFAULT = {"font": None, "text": "#FFFFFF", "accent": "#FFD666", "rule": None, "badge": "#DC1E28",
+                 "shade": "#000000", "stroke": "#000000"}
+STYLE = dict(STYLE_DEFAULT)
+
+
+def use_style(e: dict) -> None:
+    """Channel look from the edit list's `style` block (font and colours from the written style guide)."""
+    STYLE.clear()
+    STYLE.update(STYLE_DEFAULT, **(e.get("style") or {}))
+    if STYLE["font"] and not Path(STYLE["font"]).is_file():
+        die(f"style font {STYLE['font']} not found")
+
+
+def rgb(hex_or_list, alpha: int | None = None) -> tuple:
+    c = tuple(hex_or_list) if isinstance(hex_or_list, (list, tuple)) else \
+        tuple(int(hex_or_list.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
+    return c[:3] + ((alpha,) if alpha is not None else ())
+
+
 def load_font(size: int):
     from PIL import ImageFont
     env = os.environ.get("TRAVEL_VLOG_FONT")
-    for cand in ([env] if env else []) + FONT_CANDIDATES:
+    for cand in [STYLE["font"], env] + FONT_CANDIDATES:
         if cand and Path(cand).is_file():
             return ImageFont.truetype(cand, size)
     die("no bold TrueType font found; set TRAVEL_VLOG_FONT to a .ttf path")
@@ -200,12 +219,18 @@ def view_filter(view: dict, proj: str, w: int, h: int, portrait: bool = False) -
     roll = float(v.get("roll", 0))
     cx, cy = float(v.get("x", 0.5)), float(v.get("y", 0.5))
     zoom = float(v.get("zoom", 1.0))
+    fit = v.get("fit", "blur" if portrait else "crop")
     if roll:
-        # rotating needs extra zoom so the corners stay filled
         r = math.radians(abs(roll))
-        zoom *= math.cos(r) + math.sin(r) * max(w / h, h / w)
+        cover = f"(cos({r:.5f})+sin({r:.5f})*max(iw/ih,ih/iw))"
         pre += f"rotate={math.radians(roll):.5f}:fillcolor=black,"
-    if v.get("fit", "blur" if portrait else "crop") == "blur":
+        if fit == "blur":
+            # keep the largest upright rectangle of the rotated frame: no black wedges at the sides
+            pre += f"crop=w='iw/{cover}':h='ih/{cover}',"
+        else:
+            # rotating needs extra zoom so the corners stay filled
+            zoom *= math.cos(r) + math.sin(r) * max(w / h, h / w)
+    if fit == "blur":
         return (f"{pre}split[vfg][vbg];[vbg]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
                 f"gblur=sigma=40,eq=brightness=-0.08[vbgb];"
                 f"[vfg]scale={w}*{zoom:.4f}:{h}*{zoom:.4f}:force_original_aspect_ratio=decrease,"
@@ -267,8 +292,10 @@ def title_png(title: dict, w: int, h: int, out: Path) -> None:
     img.alpha_composite(shadow)
     d = ImageDraw.Draw(img)
     if sub:
-        d.text((x, y - int(h * 0.05)), sub.upper(), font=f2, fill=(255, 214, 102, 255))
-    d.text((x, y), main, font=f1, fill=(255, 255, 255, 255))
+        d.text((x, y - int(h * 0.05)), sub.upper(), font=f2, fill=rgb(STYLE["accent"], 255))
+    if STYLE["rule"]:
+        d.rectangle([x, y - int(h * 0.068), x + int(w * 0.045), y - int(h * 0.062)], fill=rgb(STYLE["rule"], 255))
+    d.text((x, y), main, font=f1, fill=rgb(STYLE["text"], 255))
     img.save(out)
 
 
@@ -284,8 +311,8 @@ def hook_png(text: str, w: int, h: int, out: Path) -> None:
         font = load_font(size)
     tw = d.textlength(text, font=font)
     x, y = (w - tw) / 2, h * 0.42
-    d.text((x, y), text, font=font, fill=(255, 255, 255, 255), stroke_width=max(3, size // 14),
-           stroke_fill=(0, 0, 0, 230))
+    d.text((x, y), text, font=font, fill=rgb(STYLE["text"], 255), stroke_width=max(3, size // 14),
+           stroke_fill=rgb(STYLE["stroke"], 230))
     img.save(out)
 
 
@@ -533,6 +560,7 @@ def loudnorm_pass(src: Path, target: float, tp: float) -> dict:
 def cmd_render(args) -> None:
     need_pillow()
     e, outdir = load_edit(args.edit)
+    use_style(e)
     if fov_problems(e):
         die("; ".join(fov_problems(e)))
     outdir.mkdir(parents=True, exist_ok=True)
@@ -621,6 +649,7 @@ def cmd_thumb(args) -> None:
     need_pillow()
     from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
     e, outdir = load_edit(args.edit)
+    use_style(e)
     th = e.get("thumbnail") or die("edit list has no 'thumbnail' block")
     words = th.get("words", "").split() if isinstance(th.get("words"), str) else th.get("words", [])
     if not 2 <= len(" ".join(words).split()) <= 4:
@@ -646,10 +675,10 @@ def cmd_thumb(args) -> None:
     for x in range(THUMB_W):
         f = x / THUMB_W if side == "right" else 1 - x / THUMB_W
         gd.line([(x, 0), (x, THUMB_H)], fill=int(170 * max(0, f - 0.25) / 0.75))
-    img = Image.composite(Image.new("RGB", img.size, (0, 0, 0)), img, grad.filter(ImageFilter.GaussianBlur(30)))
+    img = Image.composite(Image.new("RGB", img.size, rgb(STYLE["shade"])), img, grad.filter(ImageFilter.GaussianBlur(30)))
     d = ImageDraw.Draw(img)
     lines = [ln for ln in (th.get("lines") or thumb_lines(words)) if ln]
-    colors = [tuple(c) for c in th.get("colors", [[255, 255, 255], [255, 214, 0]])]
+    colors = [rgb(c) for c in th.get("colors", [STYLE["text"], STYLE["accent"]])]
     y = int(THUMB_H * float(th.get("y", 0.18)))
     for k, ln in enumerate(lines):
         size = 190
@@ -660,14 +689,14 @@ def cmd_thumb(args) -> None:
         tw = d.textlength(ln.upper(), font=font)
         x = int(THUMB_W * 0.05) if side == "left" else int(THUMB_W * 0.95 - tw)
         d.text((x, y), ln.upper(), font=font, fill=colors[k % len(colors)], stroke_width=max(6, size // 16),
-               stroke_fill=(0, 0, 0))
+               stroke_fill=rgb(STYLE["stroke"]))
         y += int(size * 1.08)
     if th.get("badge"):
         f = load_font(44)
         bw = d.textlength(th["badge"], font=f) + 36
         bx = THUMB_W - bw - 30 if side == "left" else 30
-        d.rounded_rectangle([bx, 28, bx + bw, 96], radius=14, fill=(220, 30, 40))
-        d.text((bx + 18, 38), th["badge"], font=f, fill=(255, 255, 255))
+        d.rounded_rectangle([bx, 28, bx + bw, 96], radius=14, fill=rgb(STYLE["badge"]))
+        d.text((bx + 18, 38), th["badge"], font=f, fill=rgb(STYLE["text"]))
     out = outdir / f"{e['stem']}.jpg"
     q = 92
     while True:

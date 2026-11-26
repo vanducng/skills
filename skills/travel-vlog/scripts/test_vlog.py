@@ -94,6 +94,15 @@ class Picture(unittest.TestCase):
         self.assertTrue(vlog.is_portrait({"width": 1920, "height": 1080, "sar": (1, 1)}, {"rotate": 90}))
         self.assertIn("gblur", vlog.view_filter({}, "flat", 1920, 1080, portrait=True))
         self.assertNotIn("gblur", vlog.view_filter({"fit": "crop"}, "flat", 1920, 1080, portrait=True))
+        rolled = vlog.view_filter({"roll": 10}, "flat", 1920, 1080, portrait=True)
+        self.assertLess(rolled.index("rotate="), rolled.index("crop=w='iw/"))
+
+    def test_style_block(self):
+        vlog.use_style({"style": {"text": "#F6F1E7", "badge": "#E8553D"}})
+        self.assertEqual(vlog.rgb(vlog.STYLE["text"]), (246, 241, 231))
+        self.assertEqual(vlog.rgb(vlog.STYLE["badge"], 255), (232, 85, 61, 255))
+        self.assertEqual(vlog.STYLE["accent"], "#FFD666")
+        vlog.use_style({})
 
     def test_lens_filter(self):
         self.assertEqual(vlog.lens_filter(None, 1920, 1080), "")
