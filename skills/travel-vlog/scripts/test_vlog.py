@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Unit tests for the parts of vlog.py that need no footage: naming, view filters, sound flags."""
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -77,10 +78,19 @@ class Sound(unittest.TestCase):
 
     def test_ordinary_speech_stays_audible(self):
         for s in ("the view is nice", "we're going to the market", "locally famous", "a so-called night market",
-                  "a master shot", "in the river"):
+                  "a master shot", "in the river", "in 2026", "meet at 10 30", "walk 12-15 minutes",
+                  "about 10.5 km"):
             self.assertIsNone(vlog.FLAG_RE.search(s), s)
         for s in ("mật khẩu là 4821", "pay by Mastercard", "gọi cho anh", "call me", "đưa thẻ"):
             self.assertIsNotNone(vlog.FLAG_RE.search(s), s)
+
+    def test_short_number_flags_only_beside_a_secret_word(self):
+        f = self.tmp / "LRV_20261125_080000_01_001.transcript.json"
+        f.write_text(json.dumps({"clip": "LRV_20261125_080000_01_001.lrv", "segments": [
+            {"start": 1.0, "end": 2.0, "text": "we landed in 2026"},
+            {"start": 3.0, "end": 4.0, "text": "the PIN is 4821"}]}))
+        rep = vlog.sound_report(self.edit(), self.tmp, [])
+        self.assertEqual([r["source"][0] for r in rep["flagged_unmuted"]], [3.0])
 
     def test_timelapse_is_silent(self):
         e = self.edit()
@@ -102,6 +112,23 @@ class Stills(unittest.TestCase):
         self.assertEqual(vlog.planned_duration(e), 4.0)
         self.assertEqual(vlog.sound_report(e, tmp, [])["missing"], [])
 
+    def test_card_keeps_its_own_in_and_out(self):
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "map.png").write_bytes(b"png")
+        p = tmp / "e.json"
+        p.write_text(json.dumps({"stem": "tw26-d02-01-test", "title": "Taiwan 2026 · Day 2 · Test", "output_dir": str(tmp),
+                                 "shots": [{"src": str(p), "in": 0, "out": 5, "title": {"text": "T"}},
+                                           {"still": str(tmp / "map.png"), "in": 0, "out": 6}]}))
+        e, _ = vlog.load_edit(str(p), writing=False)
+        vlog.use_style(e)
+        self.assertIn("2.5 to 4 s", " | ".join(vlog.card_problems(e)))
+
+    def test_silence_at_the_start_counts(self):
+        out = Path(tempfile.mkdtemp()) / "g.wav"
+        subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "anullsrc=d=4", "-f", "lavfi", "-i", "sine=d=4",
+                        "-filter_complex", "[0][1]concat=n=2:v=0:a=1", str(out)], check=True)
+        self.assertEqual(len(vlog.bed_gaps(out, 8.0)), 1)
+
     def test_card_and_caption_limits(self):
         vlog.use_style({})
         shot = lambda **k: {"src": "x", "in": 0, "out": 12, **k}
@@ -110,9 +137,9 @@ class Stills(unittest.TestCase):
         self.assertEqual(vlog.card_problems(ok), [])
         bad = {"shots": [shot(caption="On the opener"), {"still": "m.png", "in": 0, "out": 6},
                          {"still": "n.png", "in": 0, "out": 3}, shot(caption="x" * 43, title={"text": "T"}),
-                         shot(caption={"text": "Late", "at": 11})]}
+                         shot(caption={"text": "Late", "at": 11}), shot(caption="Close"), shot(caption="Too close")]}
         probs = " | ".join(vlog.card_problems(bad))
-        for want in ("opening shot", "2.5 to 4 s", "over 42", "same shot", "ends after", "one map card"):
+        for want in ("opening shot", "2.5 to 4 s", "over 42", "same shot", "ends after", "one map card", "less than 10 s apart"):
             self.assertIn(want, probs)
         card_text = {"shots": [shot(title={"text": "T"}), {"still": "m.png", "in": 0, "out": 3, "caption": "Shifen"}]}
         self.assertIn("a card draws no caption", " | ".join(vlog.card_problems(card_text)))

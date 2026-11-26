@@ -14,7 +14,7 @@ def face(v):
     return abs(((float(v["yaw"]) - 180) + 180) % 360 - 180) < 60
 total = run = 0.0
 for s in d["shots"]:
-    dur = (float(s["out"]) - float(s["in"])) / float(s.get("speed", 1))
+    dur = (float(s["dur"]) if "dur" in s and "src" not in s else (float(s["out"]) - float(s["in"])) / float(s.get("speed", 1)))
     on = face(s.get("view")) or s.get("holder")
     run = run + dur if on else 0.0
     total += dur if on else 0.0

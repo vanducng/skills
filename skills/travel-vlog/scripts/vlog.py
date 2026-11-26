@@ -579,7 +579,8 @@ def load_edit(path: str, writing: bool = True) -> tuple[dict, Path]:
             s["still"] = s["src"]
         if s.get("still"):
             # A card (map, title): a PNG held for dur seconds, silent, faded in and out.
-            s.update(src=s["still"], **{"in": 0.0, "out": float(s.get("dur", 4))}, audio=0)
+            dur = float(s["dur"]) if "dur" in s else float(s.get("out", 4)) - float(s.get("in", 0))
+            s.update(src=s["still"], **{"in": 0.0, "out": dur}, audio=0)
         if not Path(s["src"]).is_file():
             die(f"shot {i}: source not found: {s['src']}")
         if float(s["out"]) <= float(s["in"]):
@@ -885,6 +886,11 @@ def silent_gaps(video: Path, min_s: float = 1.0, floor_db: int = -45) -> list[tu
     return list(zip(starts, ends + [media_info(video)["duration"]] * (len(starts) - len(ends))))
 
 
+def bed_gaps(video: Path, dur: float) -> list[tuple[float, float]]:
+    """Silent stretches with at least 1 s inside the video's middle (the first and last 1.5 s may fade)."""
+    return [(a, b) for a, b in silent_gaps(video) if min(b, dur - 1.5) - max(a, 1.5) >= 1.0]
+
+
 def cmd_verify(args) -> None:
     need_pillow()
     from PIL import Image
@@ -909,10 +915,8 @@ def cmd_verify(args) -> None:
         fails.append(f"length {info['duration']:.1f}s differs from the edit list's {planned_duration(e):.1f}s")
     li, tpk = measure_loudness(video)
     if e.get("music"):
-        dur = info["duration"]
-        for a, b in silent_gaps(video):
-            if a > 1.5 and b < dur - 1.5:
-                fails.append(f"silent {a:.2f}-{b:.2f}s under the music bed: the music must play through")
+        for a, b in bed_gaps(video, info["duration"]):
+            fails.append(f"silent {a:.2f}-{b:.2f}s under the music bed: the music must play through")
     target = float(e.get("loudness_lufs", -14))
     if not abs(li - target) <= 1.0:
         fails.append(f"loudness {li} LUFS, target {target} +/- 1")
@@ -971,10 +975,14 @@ def cmd_verify(args) -> None:
 # ---------- sound: transcripts and sensitive speech ----------
 
 FLAG_RE = re.compile(
-    r"\d[\d .,-]{2,}\d|password|passcode|\bpin\b|m[aậ]t kh[aẩ]u|\bcard\b|\bthẻ\b|\bvisa\b|mastercard|\bbank\b|ng[aâ]n h[aà]ng|"
+    r"\d(?:[ .,-]?\d){5,}|password|passcode|\bpin\b|m[aậ]t kh[aẩ]u|\bcard\b|\bthẻ\b|\bvisa\b|mastercard|\bbank\b|ng[aâ]n h[aà]ng|"
     r"t[aà]i kho[aả]n|\baccount\b|\bti[eề]n\b|dollar|NT\$|booking|[đd][aặ]t ph[oò]ng|passport|h[oộ] chi[eế]u|address|"
     r"[đd][iị]a ch[iỉ]|hotel|kh[aá]ch s[aạ]n|ph[oò]ng s[oố]|room number|\balo\b|\bg[oọ]i\b|(?<!-)\bcall(ed|ing)?\b(?! market)|\bslack\b|"
     r"密碼|信用卡|護照|地址|飯店|房號", re.I)
+
+
+# a short number is a secret only next to one of these (a PIN, a card); a year or a time is not
+SECRET_WORD_RE = re.compile(r"\bpin\b|passcode|password|m[aậ]t kh[aẩ]u|\bm[aã] s[oố]\b|\bcard\b|\bthẻ\b|密碼", re.I)
 
 
 HALLUCINATION_RE = re.compile(r"subscribe|đăng ký kênh|ghiền mì gõ|thank you\.?$|the end$|cảm ơn các bạn đã theo dõi|字幕", re.I)
@@ -1037,7 +1045,7 @@ def clip_key(path: str) -> str:
 
 
 def sound_report(e: dict, outdir: Path, names: list[str]) -> dict:
-    tdir = Path(e.get("transcripts") or outdir)
+    tdir = Path(e.get("transcripts") or (outdir / "index" if (outdir / "index").is_dir() else outdir))
     trans = {}
     for f in tdir.glob("*.transcript.json"):
         d = json.loads(f.read_text())
@@ -1057,7 +1065,8 @@ def sound_report(e: dict, outdir: Path, names: list[str]) -> dict:
                         continue
                     muted = any(float(a) <= max(sg["start"], tin) and float(b) >= min(sg["end"], tout)
                                 for a, b in s.get("mute", []))
-                    hit = FLAG_RE.search(sg["text"]) or (name_re.search(sg["text"]) if name_re else None)
+                    hit = (FLAG_RE.search(sg["text"]) or (name_re.search(sg["text"]) if name_re else None)
+                           or (re.search(r"\b\d{4,5}\b", sg["text"]) if SECRET_WORD_RE.search(sg["text"]) else None))
                     row = {"shot": i + 1, "src": Path(s["src"]).name, "source": [sg["start"], sg["end"]],
                            "video": round(pos + (max(sg["start"], tin) - tin) / speed, 2), "text": sg["text"],
                            "muted": muted, "flag": hit.group(0) if hit else "", "doubtful": sg.get("doubtful", False)}

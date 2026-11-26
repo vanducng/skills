@@ -13,7 +13,7 @@ stem = pathlib.Path(f).stem
 if not re.fullmatch(r"jp27-d03-\d{2}-[a-z0-9]+(-[a-z0-9]+)*", stem): sys.exit(f"{f}: file name is not jp27-d03-<nn>-<slug>")
 if d.get("stem") != stem: sys.exit(f"{f}: stem field {d.get('stem')!r} differs from the file name")
 if not re.fullmatch(r"Jp27 · Day 3 · .+|JP27 · Day 3 · .+|Japan 2027 · Day 3 · .+", d.get("title", "")): sys.exit(f"{f}: title {d.get('title')!r} is not '<Series> · Day 3 · <Topic>'")
-total = sum((float(s["out"]) - float(s["in"])) / float(s.get("speed", 1)) for s in d["shots"])
+total = sum((float(s["dur"]) if "dur" in s and "src" not in s else (float(s["out"]) - float(s["in"])) / float(s.get("speed", 1))) for s in d["shots"])
 if not 180 <= total <= 360: sys.exit(f"{f}: {total:.0f} s is outside 3-6 min")
 first = d["shots"][0]
 if not (first.get("hook") or first.get("title")): sys.exit(f"{f}: shot 1 has no hook or title")
