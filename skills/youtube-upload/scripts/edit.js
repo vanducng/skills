@@ -12,7 +12,7 @@ try {
   console.log('STEP channel ok');
   const fill = async (name, text) => {
     await P.getByRole('textbox', { name }).click();
-    await P.keyboard.press('Meta+A'); await P.keyboard.press('Backspace');
+    await P.keyboard.press('ControlOrMeta+A'); await P.keyboard.press('Backspace');
     await P.keyboard.insertText(text);
   };
   await fill(/Add a title/, meta.title);
