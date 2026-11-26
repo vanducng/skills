@@ -131,6 +131,21 @@ class Stills(unittest.TestCase):
         self.assertEqual(inside.getextrema()[0][1], 255)
 
 
+class TitleShade(unittest.TestCase):
+    def test_shade_sits_in_the_lower_left_corner(self):
+        from PIL import Image
+        vlog.use_style({"style": {"title_shade": 0.55}})
+        out = Path(tempfile.mkdtemp()) / "t.png"
+        vlog.title_png({"text": ""}, 1920, 1080, out)
+        a = Image.open(out).getchannel("A")
+        self.assertGreater(a.getpixel((5, 1075)), 100)
+        for corner in ((5, 5), (1915, 1075), (1915, 5)):
+            self.assertEqual(a.getpixel(corner), 0, corner)
+        vlog.use_style({})
+        vlog.title_png({"text": ""}, 1920, 1080, out)
+        self.assertIsNone(Image.open(out).getchannel("A").getbbox())
+
+
 class ThumbLines(unittest.TestCase):
     def test_phrases_split_into_balanced_lines(self):
         self.assertEqual(vlog.thumb_lines(["TAXI TO", "TAIPEI"]), ["TAXI TO", "TAIPEI"])

@@ -311,6 +311,16 @@ def title_png(title: dict, w: int, h: int, out: Path) -> None:
     """Lower-left place/time title with a soft shadow, transparent PNG."""
     from PIL import Image, ImageDraw, ImageFilter
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    shade = float(STYLE.get("title_shade") or 0)
+    if shade:
+        # style.title_shade: the shade colour at this opacity in the lower-left corner, gone at 60 % of the width
+        # and 45 % of the height, so a pale background cannot wash out the title
+        from PIL import ImageChops
+        ramp = Image.linear_gradient("L")  # 0 at the top, 255 at the bottom
+        fy = ramp.resize((w, h)).point(lambda v: max(0, int((v - 255 * 0.55) / 0.45)))
+        fx = ramp.transpose(Image.Transpose.ROTATE_270).resize((w, h)).point(lambda v: max(0, int((v - 255 * 0.4) / 0.6)))
+        mask = ImageChops.darker(fx, fy).point(lambda v: int(v * shade)).filter(ImageFilter.GaussianBlur(60 * h / 1080))
+        img.paste(Image.new("RGBA", (w, h), rgb(STYLE["shade"], 255)), (0, 0), mask)
     main = title.get("text", "").strip()
     sub = title.get("sub", "").strip()
     f1, f2 = load_font(int(h * 0.062)), load_font(int(h * 0.034))
