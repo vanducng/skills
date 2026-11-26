@@ -1,5 +1,6 @@
 #!/bin/sh
-# A day becomes 2+ topic videos, each named <series>-d<dd>-<nn>-<slug>, titled '<Series> · Day <d> · <Topic>', 45-150 s, hook or title on shot 1.
+# A day becomes 2+ topic videos, each named <series>-d<dd>-<nn>-<slug>, titled '<Series> · Day <d> · <Topic>', 3-6 min, a title or hook on shot 1, which is held at least 4 s
+# (the establishing shot).
 . "$(dirname "$0")/../common.sh"
 lists=$(edit_lists)
 n=$(printf '%s\n' "$lists" | grep -c . || true)
@@ -13,8 +14,10 @@ if not re.fullmatch(r"jp27-d03-\d{2}-[a-z0-9]+(-[a-z0-9]+)*", stem): sys.exit(f"
 if d.get("stem") != stem: sys.exit(f"{f}: stem field {d.get('stem')!r} differs from the file name")
 if not re.fullmatch(r"Jp27 · Day 3 · .+|JP27 · Day 3 · .+|Japan 2027 · Day 3 · .+", d.get("title", "")): sys.exit(f"{f}: title {d.get('title')!r} is not '<Series> · Day 3 · <Topic>'")
 total = sum((float(s["out"]) - float(s["in"])) / float(s.get("speed", 1)) for s in d["shots"])
-if not 45 <= total <= 150: sys.exit(f"{f}: {total:.0f} s is outside 45-150 s")
-if not (d["shots"][0].get("hook") or d["shots"][0].get("title")): sys.exit(f"{f}: shot 1 has no hook or title")
+if not 180 <= total <= 360: sys.exit(f"{f}: {total:.0f} s is outside 3-6 min")
+first = d["shots"][0]
+if not (first.get("hook") or first.get("title")): sys.exit(f"{f}: shot 1 has no hook or title")
+if (float(first["out"]) - float(first["in"])) / float(first.get("speed", 1)) < 4: sys.exit(f"{f}: shot 1 is under 4 s; open on a held establishing shot")
 PY
 done
 echo ok

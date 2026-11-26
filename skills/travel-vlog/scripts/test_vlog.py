@@ -79,5 +79,17 @@ class ThumbLines(unittest.TestCase):
         self.assertEqual(vlog.thumb_lines(["ZHONGSHAN", "WALK"]), ["ZHONGSHAN", "WALK"])
 
 
+class Picture(unittest.TestCase):
+    def test_wide_360_view_is_refused(self):
+        e = {"shots": [{"view": {"fov": 110}}, {"view": {"fov": 85, "fov_end": 100}}, {"view": {"type": "tiny-planet", "fov": 160}}]}
+        self.assertEqual(len(vlog.fov_problems(e)), 2)
+        self.assertEqual(vlog.fov_problems({"shots": [{"view": {"fov": 85}}]}), [])
+
+    def test_lens_filter(self):
+        self.assertEqual(vlog.lens_filter(None, 1920, 1080), "")
+        self.assertIn("lenscorrection", vlog.lens_filter("x5", 1920, 1080))
+        self.assertIn("k1=0.2", vlog.lens_filter({"k1": 0.2, "k2": 0.0, "crop": 1.2}, 1920, 1080))
+
+
 if __name__ == "__main__":
     unittest.main()

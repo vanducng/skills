@@ -15,14 +15,15 @@ A day of footage becomes several short videos, one topic each. Run `scripts/vlog
 
 1. **Originals are read-only.** Work files go to a folder outside the footage and outside any repo.
 2. **Look before cutting.** Run `index` on the proxies, open every contact sheet, and write each `<clip>.md`: one line per moment (`mm:ss-mm:ss`, what is seen), `*` on three to five key moments, `!` on anything private.
-3. **One topic per video, 60 to 120 s.** Split where the place or activity changes. Cut hard: shots of 2 to 5 s, a long one only when something happens in it.
-4. **Hook first.** The first 3 seconds show the topic's best moment with a short `hook` or a `title` naming the place. No logo, no slow intro.
+3. **One topic per video, 3 to 6 minutes, one arc:** arrive, explore, a moment, leave. Shots of 3 to 8 s; a moment may run 10 to 20 s. The owner's taste overrides the platform averages in the research.
+4. **A taste of the place.** Open each scene on an establishing shot held 4 to 6 s with real ambient sound before the music; the video's first seconds may tease its best moment first. Design each topic for what it conveys (pacing, transitions, music mood, titles), not one template.
 5. **One name everywhere.** Stem `<series>-d<dd>-<nn>-<topic-slug>` (for example `tw26-d01-01-arrival`), title `<Series> · Day <d> · <Topic>`; the `.mp4`, the thumbnail `.jpg`, the edit list and the recipe share the stem. Check with `vlog.py name <stem> --title "..."`.
-6. **Thumbnail: a face or one strong frame, two to four big words, high contrast,** the lower-right corner clear (duration badge), one layout per series. Look at the phone-size preview.
-7. **Sound.** Camera sound stays; a music bed sits under it, ducked where people talk, about -14 LUFS, fades in and out. Only instrumental music YouTube will not claim (its Audio Library, or made for you); put the licence and credit in the edit list and the title in the description.
-8. **Privacy, picture.** Cut, crop or `blur` any card, receipt, booking, passport, address, phone or laptop screen, live location or person who has not agreed. None of it goes in the title or description.
-9. **Privacy, sound.** `transcribe` every clip, run `sound` on each edit list and read every audible line, listening to the ones marked doubtful. `mute` or cut passwords and PINs, money details, booking or passport numbers, the hotel or an address, names of people who have not agreed (`private_names`), phone or bot calls, private or tense moments, strangers close to the mic. When unsure, cut.
-10. **Verify pixels, not exit codes.** `verify` must print `ok`; then open `<stem>.sheet.jpg` and the thumbnail yourself.
+6. **Undistorted, one look.** 360 views at 75 to 90° (`render` refuses over 95°), level with `roll`. Straighten flat action-camera clips with `lens` (`"x5"`). Never stretch to fill; crop or cut a shot that still bends. One `grade` and palette from the channel's written style guide; write one first if there is none and show the owner. Look at a full-size still of every shot before the render.
+7. **Thumbnail: a face or one strong frame, two to four big words, high contrast,** the lower-right corner clear (duration badge), one layout per series. Look at the phone-size preview.
+8. **Sound.** Camera sound stays; a music bed sits under it, ducked where people talk, about -14 LUFS, fades in and out. Only instrumental music YouTube will not claim (its Audio Library, or made for you); put the licence and credit in the edit list and the title in the description.
+9. **Privacy, picture.** Cut, crop or `blur` any card, receipt, booking, passport, address, phone or laptop screen, live location or person who has not agreed. None of it goes in the title or description.
+10. **Privacy, sound.** `transcribe` every clip, run `sound` on each edit list and read every audible line, listening to the ones marked doubtful. `mute` or cut passwords and PINs, money details, booking or passport numbers, the hotel or an address, names of people who have not agreed (`private_names`), phone or bot calls, private or tense moments, strangers close to the mic. When unsure, cut.
+11. **Verify pixels, not exit codes.** `verify` must print `ok`; then open `<stem>.sheet.jpg` and the thumbnail yourself.
 
 ## Workflow
 

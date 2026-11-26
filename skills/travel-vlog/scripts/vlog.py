@@ -99,6 +99,37 @@ def clip_clock(path: str, offset_hours: float) -> dict:
     return {"clip_no": m["n"], "camera_start": cam.isoformat(), "local_start": local.isoformat()}
 
 
+DEFAULT_FOV = 85
+MAX_FOV = 95  # wider than this stretches the edges of a 360 reframe
+# X5 flat (single-lens) clips are barrel-distorted; this straightens them and crops away the bent edges
+LENS = {"x5": {"k1": 0.12, "k2": 0.015, "crop": 1.14}}
+
+
+def lens_filter(lens, w: int, h: int) -> str:
+    """Straighten a barrel-distorted flat clip and crop until no edge is empty; '' when lens is off."""
+    if not lens:
+        return ""
+    p = LENS[lens] if isinstance(lens, str) else lens
+    z = float(p["crop"])
+    return (f"lenscorrection=cx=0.5:cy=0.5:k1={p['k1']}:k2={p['k2']}:i=bilinear,"
+            f"scale=iw*{z}:ih*{z},crop=iw/{z}:ih/{z},")
+
+
+def fov_problems(e: dict) -> list[str]:
+    """360 views wider than MAX_FOV, per shot and thumbnail."""
+    out = []
+    views = [(f"shot {i + 1}", s.get("view") or {}) for i, s in enumerate(e.get("shots", []))]
+    if e.get("thumbnail"):
+        views.append(("thumbnail", e["thumbnail"].get("view") or {}))
+    for name, v in views:
+        if v.get("type") == "tiny-planet":
+            continue
+        for k in ("fov", "fov_end"):
+            if k in v and float(v[k]) > MAX_FOV:
+                out.append(f"{name}: {k} {v[k]} is over {MAX_FOV}; edges stretch")
+    return out
+
+
 def load_font(size: int):
     from PIL import ImageFont
     env = os.environ.get("TRAVEL_VLOG_FONT")
@@ -133,7 +164,7 @@ def view_filter(view: dict, proj: str, w: int, h: int) -> str:
     """ffmpeg filter that turns a source frame into a w x h flat frame."""
     v = view or {}
     if proj in ("dfisheye", "insv"):
-        fov = float(v.get("fov", 100))
+        fov = float(v.get("fov", DEFAULT_FOV))
         vfov = 2 * math.degrees(math.atan(math.tan(math.radians(fov / 2)) * h / w))
         lens_fov = float(v.get("lens_fov", 200))
         if v.get("type") == "tiny-planet":
@@ -168,7 +199,7 @@ def pan_filter(view: dict, w: int, h: int, dur: float, fps: float, path: Path) -
     keys = [k for k in ("yaw", "pitch", "fov") if f"{k}_end" in v]
     if not keys:
         return None
-    start = {"yaw": float(v.get("yaw", 0)), "pitch": float(v.get("pitch", 0)), "fov": float(v.get("fov", 100))}
+    start = {"yaw": float(v.get("yaw", 0)), "pitch": float(v.get("pitch", 0)), "fov": float(v.get("fov", DEFAULT_FOV))}
     stage = {"yaw": "v360@sphere yaw", "pitch": "v360@camera pitch", "fov": "v360@camera h_fov"}
     lines, n, prev = [], max(2, int(dur * fps)), dict(start)
     for i in range(1, n + 1):
@@ -411,7 +442,10 @@ def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path,
     vf = []
     cmdfile = tmp / f"shot{i:02d}.cmd"
     pan = proj in ("dfisheye", "insv") and pan_filter(view, w, h, dur * speed, info.get("fps", fps) or fps, cmdfile)
-    vf.append(pan or view_filter(view, proj, w, h))
+    lens = s.get("lens", e.get("lens")) if proj == "flat" else None
+    vf.append(lens_filter(lens, w, h) + (pan or view_filter(view, proj, w, h)))
+    if e.get("grade"):
+        vf.append(e["grade"])
     if speed != 1:
         vf.append(f"setpts=PTS/{speed}")
     vf += [f"fps={fps}", "format=yuv420p", "setsar=1"]
@@ -472,6 +506,8 @@ def loudnorm_pass(src: Path, target: float, tp: float) -> dict:
 def cmd_render(args) -> None:
     need_pillow()
     e, outdir = load_edit(args.edit)
+    if fov_problems(e):
+        die("; ".join(fov_problems(e)))
     outdir.mkdir(parents=True, exist_ok=True)
     w, h = e.get("size", [1920, 1080])
     fps = float(e.get("fps", 25))
@@ -569,7 +605,8 @@ def cmd_thumb(args) -> None:
     with tempfile.TemporaryDirectory() as td:
         fr = Path(td) / "f.png"
         ffmpeg(["-ss", f"{t}", "-i", src, "-frames:v", "1", "-filter_complex",
-                f"{video_in(proj)}{view_filter(th.get('view', {}), proj, THUMB_W, THUMB_H)}",
+                f"{video_in(proj)}{lens_filter(th.get('lens', e.get('lens')) if proj == 'flat' else None, THUMB_W, THUMB_H)}"
+                f"{view_filter(th.get('view', {}), proj, THUMB_W, THUMB_H)}" + (f",{e['grade']}" if e.get("grade") else ""),
                 str(fr)])
         img = Image.open(fr).convert("RGB")
     img = ImageEnhance.Contrast(img).enhance(float(th.get("contrast", 1.12)))
@@ -647,7 +684,8 @@ def cmd_verify(args) -> None:
     video = outdir / f"{stem}.mp4"
     fails, notes = [], []
     w, h = e.get("size", [1920, 1080])
-    lo, hi = e.get("length_s", [45, 150])
+    lo, hi = e.get("length_s", [180, 360])
+    fails += fov_problems(e)
     if not video.is_file():
         die(f"no render at {video}", 1)
     info = media_info(video)

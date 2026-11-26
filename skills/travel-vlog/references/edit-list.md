@@ -23,7 +23,7 @@ One JSON file per video, named `<stem>.json`. `render`, `thumb` and `verify` rea
                 "side": "left", "view": {"x": 0.6}, "badge": "DAY 1"},
   "shots": [
     {"src": "/footage/LRV_..._083.lrv", "in": 48.0, "out": 52.5,
-     "view": {"yaw": 0, "pitch": 5, "fov": 100, "yaw_end": 40},
+     "view": {"yaw": 0, "pitch": 5, "fov": 85, "yaw_end": 40},
      "hook": "First time in Taiwan"},
     {"src": "/footage/VID_..._084.mp4", "in": 12.0, "out": 15.0,
      "title": {"text": "Taoyuan Airport", "sub": "06:40"}, "audio": 0.8},
@@ -40,7 +40,10 @@ One JSON file per video, named `<stem>.json`. `render`, `thumb` and `verify` rea
 | `fps` | 25 for 50p sources (clean halving); 30 when most shots are 29.97 or 60. |
 | `length_s` | `verify` fails outside it. Default 45 to 150 s. |
 | `shots[].in/out` | Seconds on the source. `speed` above 1 makes a time-lapse (audio is sped up between 0.5 and 2, otherwise set `audio: 0`). |
-| `shots[].view` | See [insta360-360.md](insta360-360.md). `projection` forces `flat` or `dfisheye` when the frame shape misleads. |
+| `shots[].view` | See [insta360-360.md](insta360-360.md). 360 `fov` defaults to 85 and may not exceed 95. `projection` forces `flat` or `dfisheye` when the frame shape misleads. |
+| `lens`, `shots[].lens` | Straighten a barrel-distorted flat clip before the view: `"x5"` (Insta360 X5 single-lens: k1 0.12, k2 0.015, 14% crop) or `{"k1", "k2", "crop"}`. Off by default; the shot's value wins. |
+| `grade` | One ffmpeg filter chain applied to every shot and the thumbnail, from the channel style guide. |
+| `length_s` | Allowed length in seconds for `verify`; default `[180, 360]`. |
 | `shots[].hook` | Big centred words over the first seconds of the shot. Use on shot 1. |
 | `shots[].title` | Lower-left place and time; `at` and `hold` in seconds. |
 | `shots[].audio` | Camera sound gain, 0 to mute. |
