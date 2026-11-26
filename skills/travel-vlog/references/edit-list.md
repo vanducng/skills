@@ -55,4 +55,4 @@ One JSON file per video, named `<stem>.json`. `render`, `thumb` and `verify` rea
 | `shots[].blur` | Boxes as fractions of the frame, blurred for the whole shot. Prefer cutting the shot. |
 | `music[]` | `at` is where it starts in the video, `from` where in the track, `length` how long (default to the end). Several entries mix. `licence` and `credit` are required by `verify`. |
 | `duck` | Sidechain from the camera sound's speech band; `false` turns it off. |
-| `thumbnail` | `src` and `t` pick the frame; `view` as for a shot; `lines` overrides how the words break; `colors` per line. |
+| `thumbnail` | `src` and `t` pick the frame; `view` as for a shot; `lines` overrides how the words break; `colors` per line; `y` the top of the first line (share of the height); `width` the most a line may span (share of the width, default 0.5, so the face side stays clear). |

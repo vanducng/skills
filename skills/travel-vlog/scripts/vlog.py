@@ -683,7 +683,7 @@ def cmd_thumb(args) -> None:
     for k, ln in enumerate(lines):
         size = 190
         font = load_font(size)
-        while d.textlength(ln.upper(), font=font) > THUMB_W * 0.56 and size > 60:
+        while d.textlength(ln.upper(), font=font) > THUMB_W * float(th.get("width", 0.5)) and size > 60:
             size -= 6
             font = load_font(size)
         tw = d.textlength(ln.upper(), font=font)
