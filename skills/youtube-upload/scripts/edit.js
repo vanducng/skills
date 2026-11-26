@@ -64,7 +64,17 @@ try {
     await sleep(5000);
     console.log(`STEP ${privacy.toLowerCase()}`);
   } else {
-    console.log('STEP not a draft: visibility left as it is; status reads it back');
+    await P.locator('ytcp-video-metadata-visibility').first().click();
+    await sleep(1500);
+    const radio = P.locator(`tp-yt-paper-radio-button[name=${privacy}]`);
+    await radio.click();
+    await sleep(800);
+    if (await radio.getAttribute('aria-checked') !== 'true') throw new Error(`${privacy} did not stay selected; nothing saved`);
+    await P.getByRole('button', { name: 'Done' }).last().click();
+    await sleep(1500);
+    const save2 = P.getByRole('button', { name: 'Save' });
+    if (await save2.isEnabled()) { await save2.click(); await sleep(5000); }
+    console.log(`STEP ${privacy.toLowerCase()}`);
   }
 } finally {
   await closeTab(P);
