@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Unit tests for the parts of vlog.py that need no footage: naming, view filters, sound flags."""
+import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -9,6 +11,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import vlog  # noqa: E402
+
+needs_pil = unittest.skipUnless(importlib.util.find_spec("PIL"), "needs Pillow")
+needs_ffmpeg = unittest.skipUnless(shutil.which("ffmpeg"), "needs ffmpeg")
 
 
 class Naming(unittest.TestCase):
@@ -123,6 +128,7 @@ class Stills(unittest.TestCase):
         vlog.use_style(e)
         self.assertIn("2.5 to 4 s", " | ".join(vlog.card_problems(e)))
 
+    @needs_ffmpeg
     def test_silence_at_the_start_counts(self):
         out = Path(tempfile.mkdtemp()) / "g.wav"
         subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "anullsrc=d=4", "-f", "lavfi", "-i", "sine=d=4",
@@ -144,6 +150,7 @@ class Stills(unittest.TestCase):
         card_text = {"shots": [shot(title={"text": "T"}), {"still": "m.png", "in": 0, "out": 3, "caption": "Shifen"}]}
         self.assertIn("a card draws no caption", " | ".join(vlog.card_problems(card_text)))
 
+    @needs_pil
     def test_caption_box_is_centred_low_with_the_text_inside(self):
         from PIL import Image
         vlog.use_style({"style": {"caption": {"box": "#000000", "box_alpha": 1.0, "color": "#FFFFFF"}}})
@@ -159,6 +166,7 @@ class Stills(unittest.TestCase):
 
 
 class TitleShade(unittest.TestCase):
+    @needs_pil
     def test_shade_sits_in_the_lower_left_corner(self):
         from PIL import Image
         vlog.use_style({"style": {"title_shade": 0.55}})
