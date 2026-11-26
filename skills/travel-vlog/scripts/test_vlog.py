@@ -114,6 +114,21 @@ class Stills(unittest.TestCase):
         probs = " | ".join(vlog.card_problems(bad))
         for want in ("opening shot", "2.5 to 4 s", "over 42", "same shot", "ends after", "one map card"):
             self.assertIn(want, probs)
+        card_text = {"shots": [shot(title={"text": "T"}), {"still": "m.png", "in": 0, "out": 3, "caption": "Shifen"}]}
+        self.assertIn("a card draws no caption", " | ".join(vlog.card_problems(card_text)))
+
+    def test_caption_box_is_centred_low_with_the_text_inside(self):
+        from PIL import Image
+        vlog.use_style({"style": {"caption": {"box": "#000000", "box_alpha": 1.0, "color": "#FFFFFF"}}})
+        out = Path(tempfile.mkdtemp()) / "c.png"
+        vlog.caption_png("Lanterns up, wishes written", 1920, 1080, out)
+        alpha = Image.open(out).getchannel("A")
+        x0, y0, x1, y1 = alpha.getbbox()
+        self.assertLessEqual(abs((x0 + x1) / 2 - 960), 2)
+        self.assertEqual(y1 - 1, 1080 - 112)  # getbbox ends one past the last row
+        self.assertTrue(60 <= y1 - y0 <= 110, y1 - y0)
+        inside = Image.open(out).convert("RGB").crop((x0 + 30, y0 + 10, x1 - 30, y1 - 10))
+        self.assertEqual(inside.getextrema()[0][1], 255)
 
 
 class ThumbLines(unittest.TestCase):

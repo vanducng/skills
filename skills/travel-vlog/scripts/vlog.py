@@ -368,6 +368,8 @@ def card_problems(e: dict) -> list[str]:
         dur = (float(s["out"]) - float(s["in"])) / float(s.get("speed", 1))
         if s.get("still"):
             stills += 1
+            if s.get("caption") or s.get("title") or s.get("hook"):
+                probs.append(f"shot {i + 1}: a card draws no caption, title or hook; put it on a footage shot")
             if not 2.5 <= dur <= 4:
                 probs.append(f"shot {i + 1}: a card holds 2.5 to 4 s, not {dur:.1f}")
         c = caption_of(s)
