@@ -65,6 +65,16 @@ class Sound(unittest.TestCase):
         e["shots"][0]["src"] = "/x/VID_20261125_090000_00_002.mp4"
         self.assertTrue(vlog.sound_report(e, self.tmp, [])["missing"])
 
+    def test_english_the_is_not_a_card_and_doubtful_hits_are_listen(self):
+        f = self.tmp / "LRV_20261125_080000_01_001.transcript.json"
+        f.write_text(json.dumps({"clip": "LRV_20261125_080000_01_001.lrv", "segments": [
+            {"start": 1.0, "end": 2.0, "text": "look at the waterfall"},
+            {"start": 3.0, "end": 4.0, "text": "đưa thẻ đây"},
+            {"start": 5.0, "end": 6.0, "text": "1 2 3 4 5 6 7 8 9", "doubtful": True}]}))
+        rep = vlog.sound_report(self.edit(), self.tmp, [])
+        self.assertEqual([r["source"][0] for r in rep["flagged_unmuted"]], [3.0])
+        self.assertEqual([r["source"][0] for r in rep["listen"]], [5.0])
+
     def test_timelapse_is_silent(self):
         e = self.edit()
         e["shots"][0]["speed"] = 10

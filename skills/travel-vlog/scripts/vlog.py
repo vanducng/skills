@@ -837,7 +837,7 @@ def cmd_verify(args) -> None:
 # ---------- sound: transcripts and sensitive speech ----------
 
 FLAG_RE = re.compile(
-    r"\d[\d .,-]{2,}\d|password|passcode|pin\b|m[aậ]t kh[aẩ]u|\bcard\b|th[eẻ]\b|visa|master|bank|ng[aâ]n h[aà]ng|"
+    r"\d[\d .,-]{2,}\d|password|passcode|\bpin\b|m[aậ]t kh[aẩ]u|\bcard\b|\bthẻ\b|\bvisa\b|master|bank|ng[aâ]n h[aà]ng|"
     r"t[aà]i kho[aả]n|account|ti[eề]n|dollar|NT\$|booking|[đd][aặ]t ph[oò]ng|passport|h[oộ] chi[eế]u|address|"
     r"[đd][iị]a ch[iỉ]|hotel|kh[aá]ch s[aạ]n|ph[oò]ng s[oố]|room number|\balo\b|g[oọ]i|call|slack|"
     r"密碼|信用卡|護照|地址|飯店|房號", re.I)
@@ -859,8 +859,10 @@ def whisper_cmd() -> list[str]:
         return env.split()
     if shutil.which("mlx_whisper"):
         return ["mlx_whisper"]
-    if shutil.which("uvx"):
-        return ["uvx", "--from", "mlx-whisper", "mlx_whisper"]
+    uvx = shutil.which("uvx")
+    # A version-manager shim can exist on PATH and still fail outside its project, so run it once.
+    if uvx and subprocess.run([uvx, "--version"], capture_output=True).returncode == 0:
+        return [uvx, "--from", "mlx-whisper", "mlx_whisper"]
     die("no local Whisper: install mlx-whisper (Apple Silicon) or set TRAVEL_VLOG_WHISPER to a whisper CLI "
         "that takes '<audio> --output-format json --output-dir DIR'")
 
@@ -907,7 +909,7 @@ def sound_report(e: dict, outdir: Path, names: list[str]) -> dict:
         d = json.loads(f.read_text())
         trans[clip_key(d["clip"])] = d
     name_re = re.compile("|".join(re.escape(n) for n in names), re.I) if names else None
-    rows, missing, flagged, pos = [], [], [], 0.0
+    rows, missing, flagged, listen, pos = [], [], [], [], 0.0
     for i, s in enumerate(e["shots"]):
         tin, tout, speed = float(s["in"]), float(s["out"]), float(s.get("speed", 1))
         audible = float(s.get("audio", 1.0)) > 0 and 0.5 <= speed <= 2
@@ -926,12 +928,15 @@ def sound_report(e: dict, outdir: Path, names: list[str]) -> dict:
                            "video": round(pos + (max(sg["start"], tin) - tin) / speed, 2), "text": sg["text"],
                            "muted": muted, "flag": hit.group(0) if hit else "", "doubtful": sg.get("doubtful", False)}
                     rows.append(row)
-                    if hit and not muted:
+                    if hit and not muted and not row["doubtful"]:
                         flagged.append(row)
+                    elif hit and not muted:
+                        listen.append(row)
         pos += (tout - tin) / speed
     mutes = [{"shot": i + 1, "src": Path(s["src"]).name, "source": m} for i, s in enumerate(e["shots"])
              for m in s.get("mute", [])]
-    return {"stem": e["stem"], "lines": rows, "muted_ranges": mutes, "missing": missing, "flagged_unmuted": flagged}
+    return {"stem": e["stem"], "lines": rows, "muted_ranges": mutes, "missing": missing, "flagged_unmuted": flagged,
+            "listen": listen}
 
 
 def cmd_sound(args) -> None:
@@ -953,6 +958,9 @@ def cmd_sound(args) -> None:
         print(f"FAIL {m}")
     for r in rep["flagged_unmuted"]:
         print(f"FAIL shot {r['shot']} {r['src']} {r['source']}: '{r['text']}' ({r['flag']}): mute it or cut it")
+    for r in rep["listen"]:
+        print(f"LISTEN shot {r['shot']} {r['src']} {r['source']}: '{r['text'][:80]}' ({r['flag']}) is doubtful "
+              "(likely Whisper noise on music, wind or water): listen, then mute it or leave it")
     print(f"wrote {e['stem']}.sound.md: {len(rep['lines'])} audible lines; read every line before upload")
     sys.exit(1 if rep["missing"] or rep["flagged_unmuted"] else 0)
 
