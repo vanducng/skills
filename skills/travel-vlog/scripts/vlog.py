@@ -703,11 +703,12 @@ def cmd_render(args) -> None:
         ffmpeg(["-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(joined)])
         total = media_info(joined)["duration"]
         inputs = ["-i", str(joined)]
-        fc = f"[0:v]fade=t=in:d={fade},fade=t=out:st={max(0, total - fade)}:d={fade}[v];"
+        fc = ""
         music = e.get("music") or []
         if music:
-            cam_parts, mus_labels = "[0:a]asplit=2[cam][sc];", []
-            fc += cam_parts
+            duck = e.get("duck", {"threshold": 0.03, "ratio": 6, "attack": 80, "release": 600})
+            mus_labels = []
+            fc += "[0:a]asplit=2[cam][sc];" if duck else "[0:a]anull[cam];"
             for k, m in enumerate(music):
                 inputs += ["-stream_loop", "-1", "-i", m["file"]]
                 start = float(m.get("at", 0))
@@ -722,7 +723,6 @@ def cmd_render(args) -> None:
                 fc += "".join(mus_labels) + f"amix=inputs={len(mus_labels)}:normalize=0[mus];"
             else:
                 fc += f"{mus_labels[0]}anull[mus];"
-            duck = e.get("duck", {"threshold": 0.03, "ratio": 6, "attack": 80, "release": 600})
             if duck:
                 fc += ("[sc]highpass=f=250,lowpass=f=3500[scf];"
                        f"[mus][scf]sidechaincompress=threshold={duck.get('threshold', 0.03)}:ratio={duck.get('ratio', 6)}"
@@ -733,8 +733,14 @@ def cmd_render(args) -> None:
         else:
             fc += "[0:a]anull[mix];"
         fc += f"[mix]afade=t=in:d={fade / 2},afade=t=out:st={max(0, total - fade)}:d={fade}[am]"
+        # The audio is mixed in its own pass: in one graph with the video encode, ffmpeg 9 starved the looped
+        # music input behind a slow video chain and wrote seconds of digital silence under a card.
+        mix_wav = tmp / "mix.wav"
+        ffmpeg([*inputs, "-filter_complex", fc, "-map", "[am]", "-t", f"{total}", "-c:a", "pcm_s16le", str(mix_wav)])
         mixed = tmp / "mixed.mov"
-        ffmpeg([*inputs, "-filter_complex", fc, "-map", "[v]", "-map", "[am]", "-t", f"{total}",
+        ffmpeg(["-i", str(joined), "-i", str(mix_wav), "-filter_complex",
+                f"[0:v]fade=t=in:d={fade},fade=t=out:st={max(0, total - fade)}:d={fade}[v]",
+                "-map", "[v]", "-map", "1:a", "-t", f"{total}",
                 "-c:v", "libx264", "-preset", "ultrafast" if args.draft else "slow", "-crf", "26" if args.draft else "18",
                 "-pix_fmt", "yuv420p", "-c:a", "pcm_s16le", str(mixed)])
         meas = loudnorm_pass(mixed, target, tp)
@@ -858,6 +864,15 @@ def measure_loudness(video: Path) -> tuple[float, float]:
     return (float(i[-1]) if i else float("nan"), float(tpk[-1]) if tpk else float("nan"))
 
 
+def silent_gaps(video: Path, min_s: float = 1.0, floor_db: int = -45) -> list[tuple[float, float]]:
+    """Stretches of near-silence: with a music bed under the whole video there should be none."""
+    p = subprocess.run(["ffmpeg", "-hide_banner", "-nostdin", "-i", str(video), "-vn", "-af",
+                        f"silencedetect=n={floor_db}dB:d={min_s}", "-f", "null", "-"], capture_output=True, text=True)
+    starts = [float(x) for x in re.findall(r"silence_start: (-?[\d.]+)", p.stderr)]
+    ends = [float(x) for x in re.findall(r"silence_end: (-?[\d.]+)", p.stderr)]
+    return list(zip(starts, ends + [media_info(video)["duration"]] * (len(starts) - len(ends))))
+
+
 def cmd_verify(args) -> None:
     need_pillow()
     from PIL import Image
@@ -881,6 +896,11 @@ def cmd_verify(args) -> None:
     if abs(info["duration"] - planned_duration(e)) > 1.0:
         fails.append(f"length {info['duration']:.1f}s differs from the edit list's {planned_duration(e):.1f}s")
     li, tpk = measure_loudness(video)
+    if e.get("music"):
+        dur = info["duration"]
+        for a, b in silent_gaps(video):
+            if a > 1.5 and b < dur - 1.5:
+                fails.append(f"silent {a:.2f}-{b:.2f}s under the music bed: the music must play through")
     target = float(e.get("loudness_lufs", -14))
     if not abs(li - target) <= 1.0:
         fails.append(f"loudness {li} LUFS, target {target} +/- 1")
