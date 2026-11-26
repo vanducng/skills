@@ -1,0 +1,1 @@
+The render for our next video is done: `tw26-d02-01-market.mp4`, made from the edit list `tw26-d02-01-market.json` in this folder. Is it ready to upload to YouTube? If it is, say "ready to upload"; if not, list what must be fixed first. Do not change or re-render the files.

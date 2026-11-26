@@ -1,0 +1,1 @@
+Make the edit list for one short video of our breakfast in Hanoi (series "vn26", day 2, it is the first video of the day) from `notes/day2.md`, including the YouTube description. Write the JSON into this folder. Do not render; the footage is not on this machine.

@@ -1,0 +1,1 @@
+We film our trips with a 360 camera on a selfie stick and turn each day into short YouTube videos, series "lx27" (Lisbon 2027). My notes for day 4 are in `notes/day4.md`. Write the edit list JSON for one video about the tram 28 ride and the viewpoint into this folder, with its thumbnail. Do not render; the footage is on another machine, so do not open the clips.

@@ -1,0 +1,1 @@
+We are making short YouTube videos from our Japan trip, the series is "jp27". The notes for day 3 are in `notes/day3.md`. Split the day into videos and write the edit list JSON for each into this folder. Do not render anything; the footage is on another machine, so do not try to open the clips.
