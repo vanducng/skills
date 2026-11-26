@@ -30,6 +30,8 @@ case $script in
     if [ "$script" = upload.js ]; then echo "STEP channel ok"; echo 'RESULT {"id":"stubVid0001"}'
     else printf 'STEP channel ok\nSTEP details\nSTEP playlist\nSTEP saved\nSTEP %s\n' "$(jq -r '.privacy // "private"' <<<"$meta")"; fi ;;
   status.js)
+    entry
+    if [ "$channel" != "$account" ]; then echo "Error: signed in to channel $account, expected $channel"; exit 1; fi
     last=$(grep '"script":"edit.js"' "$log" 2>/dev/null | tail -1)
     for id in $(jq -r '.ids[]' <<<"$meta"); do
       jq -cn --arg id "$id" --argjson e "${last:-null}" '{id: $id, link: "https://youtu.be/\($id)",

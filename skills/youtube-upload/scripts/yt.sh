@@ -26,21 +26,22 @@ check() {
   channel=$(jq -r '.channel // ""' "$meta"); title=$(jq -r '.title // ""' "$meta")
   desc=$(jq -r '.description // ""' "$meta"); privacy=$(jq -r '.privacy // "private"' "$meta")
   playlist=$(jq -r '.playlist // ""' "$meta")
+  [[ $(jq -r '.authuser // 0' "$meta") =~ ^[0-9]+$ ]] || fails+=("authuser must be a whole number (the Google account index)")
   [[ $channel =~ ^UC[A-Za-z0-9_-]{22}$ ]] || fails+=("channel '$channel' is not a channel id (UC + 22 chars)")
   [ -n "$title" ] || fails+=("no title")
   [ "$(printf %s "$title" | wc -m)" -le 100 ] || fails+=("title over 100 characters")
   [ "$(printf %s "$desc" | wc -m)" -le 5000 ] || fails+=("description over 5000 characters")
   [[ "$title$desc" != *[\<\>]* ]] || fails+=("title or description has < or >, which YouTube rejects")
-  case $privacy in private | unlisted) ;; *) fails+=("privacy '$privacy': only private or unlisted; public waits for the owner") ;; esac
+  case "$privacy" in private | unlisted) ;; *) fails+=("privacy '$privacy': only private or unlisted; public waits for the owner") ;; esac
   [ -z "$playlist" ] || [ "$(printf %s "$playlist" | wc -m)" -le 150 ] || fails+=("playlist name over 150 characters")
   if [ -s "$thumb" ]; then
     local size dims
     size=$(wc -c <"$thumb" | tr -d ' ')
     [ "$size" -lt 2000000 ] || fails+=("thumbnail is $size bytes; keep it under 2 MB")
-    if command -v ffprobe >/dev/null; then
-      dims=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "$thumb" 2>/dev/null || true)
-      [ -z "$dims" ] || awk -F x -v d="$dims" '{exit !($1>=640 && $1*9==$2*16)}' <<<"$dims" || fails+=("thumbnail is $dims; use 16:9, at least 640 wide (1280x720)")
-    fi
+    dims=""
+    command -v ffprobe >/dev/null && dims=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "$thumb" 2>/dev/null || true)
+    if [ -z "$dims" ]; then fails+=("could not read the thumbnail size (is ffprobe installed?)")
+    else awk -F x '{exit !($1>=640 && $1*9==$2*16)}' <<<"$dims" || fails+=("thumbnail is $dims; use 16:9, at least 640 wide (1280x720)"); fi
   fi
   if [ ${#fails[@]} -gt 0 ]; then printf 'FAIL %s\n' "${fails[@]}"; return 1; fi
   echo "ok"
@@ -64,7 +65,7 @@ repl() {
   while [ $# -gt 1 ]; do cp "$1" "$dir/$2"; shift 2; done
   touch "$dir/ready"
   wait "$rp" || rc=$?
-  grep -E '^(STEP|RESULT|Error)' "$out" || cat "$out"
+  if [ "$rc" -ne 0 ]; then cat "$out"; else grep -E '^(STEP|RESULT|Error)' "$out" || cat "$out"; fi
   rm -f "$dir/v.mp4" "$out"
   return "$rc"
 }
@@ -72,10 +73,10 @@ repl() {
 publish() {
   local video=$1 thumb=$2 meta=$3 up id m
   check "$video" "$thumb" "$meta" || die "fix the FAIL lines first; nothing was uploaded"
-  up=$(repl upload.js "$video" v.mp4 "$meta" meta.json) || { echo "$up"; die "upload failed"; }
+  up=$(repl upload.js "$video" v.mp4 "$meta" meta.json) || true
   echo "$up"
   id=$(sed -n 's/^RESULT //p' <<<"$up" | jq -r '.id // empty')
-  [ -n "$id" ] || die "upload gave no video id"
+  [ -n "$id" ] || die "upload gave no video id. The file may still have reached YouTube: look for a new draft on the channel and finish it with 'yt.sh edit' (add its id); do not upload again"
   m=$(mktemp); jq --arg id "$id" '. + {id: $id}' "$meta" >"$m"
   edit "$thumb" "$m"
 }
@@ -92,7 +93,9 @@ status() {
   local meta=$1; shift
   local m; m=$(mktemp)
   jq --argjson ids "$(printf '%s\n' "$@" | jq -R . | jq -s .)" '. + {ids: $ids}' "$meta" >"$m"
-  repl status.js "$m" meta.json
+  local out; out=$(repl status.js "$m" meta.json) || { echo "$out"; die "status failed"; }
+  echo "$out"
+  ! grep -q '"visibility":"Public"' <<<"$out" || die "a video reads back as Public; tell the owner now"
 }
 
 cmd=${1:-}; shift || true

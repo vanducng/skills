@@ -5,18 +5,23 @@ for (const id of meta.ids) {
   const P = await openTab(`https://studio.youtube.com/video/${id}/edit?authuser=${meta.authuser ?? 0}`);
   try {
     await sleep(7000);
+    const channel = await P.evaluate(() => ytcfg.get('CHANNEL_ID'));
+    if (channel !== meta.channel) throw new Error(`signed in to channel ${channel}, expected ${meta.channel}`);
     const text = await P.evaluate(() => document.body.innerText);
+    // Only the playlist control counts: the title on the same page usually carries the series name too.
+    const playlists = await P.evaluate(() => document.querySelector('ytcp-video-metadata-playlists')?.innerText ?? null);
+    const kids = await P.getByRole('radio', { name: "Yes, it's made for kids" }).getAttribute('aria-checked').catch(() => null);
     console.log('RESULT', JSON.stringify({
       id,
       link: `https://youtu.be/${id}`,
-      channel: await P.evaluate(() => ytcfg.get('CHANNEL_ID')),
+      channel,
       title: await P.getByRole('textbox', { name: /Add a title/ }).innerText(),
       // Pending means YouTube's checks have not run yet; the chosen privacy applies after them.
       visibility: (text.match(/Visibility\n(\w+)/) || [])[1] || 'unknown',
       draft: /draft state/.test(text),
-      playlist: meta.playlist ? text.includes(meta.playlist) : null,
+      playlist: meta.playlist && playlists !== null ? playlists.includes(meta.playlist) : null,
       customThumbnail: await P.getByRole('button', { name: 'Uploaded thumbnail' }).count() === 1,
-      madeForKids: !/not made for kids/.test(text),
+      ...(kids === null ? {} : { madeForKids: kids === 'true' }),
     }));
   } finally {
     await closeTab(P);

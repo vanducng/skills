@@ -11,11 +11,10 @@ try {
   await dlg.locator('input[type=file]').first().setInputFiles('v.mp4');
   const link = dlg.locator('a[href*="youtu.be/"]').first();
   await link.waitFor({ timeout: 60000 });
-  const id = (await link.getAttribute('href')).split('/').pop();
-  for (let i = 0; i < 90; i++) {
-    if (/Upload complete|Checks complete|Processing|No issues found/.test(await dlg.innerText())) break;
-    await sleep(1000);
-  }
+  const href = await link.getAttribute('href');
+  const id = href.split(/[?#]/)[0].split('/').filter(Boolean).pop() || '';
+  if (!/^[A-Za-z0-9_-]{11}$/.test(id)) throw new Error(`could not read a video id from ${href}`);
+  // The video exists from here on: print the id before anything else can time out.
   console.log('RESULT', JSON.stringify({ id }));
 } finally {
   await closeTab(P);

@@ -32,8 +32,9 @@ try {
         .filter(r => r.querySelector('.label-text')?.textContent.trim() === name);
       if (rows.length !== 1) return `found ${rows.length} times`;
       const box = rows[0].querySelector('#checkbox');
+      if (!box) return 'found without a checkbox';
       if (click && box.getAttribute('aria-checked') !== 'true') box.click();
-      return box.getAttribute('aria-checked');
+      return String(box.getAttribute('aria-checked'));
     };
     const found = await pick.evaluate(toggle, [meta.playlist, true]);
     if (found.startsWith('found')) throw new Error(`playlist "${meta.playlist}" ${found}; create it once in Studio first`);
@@ -54,12 +55,17 @@ try {
     await dlg.locator('#next-button').waitFor({ timeout: 30000 });
     await sleep(2000);
     for (let i = 0; i < 3; i++) { await dlg.locator('#next-button').click(); await sleep(1500); }
-    await dlg.locator(`tp-yt-paper-radio-button[name=${privacy}]`).click();
+    const radio = dlg.locator(`tp-yt-paper-radio-button[name=${privacy}]`);
+    await radio.click();
     await sleep(1000);
+    // A locator click on these custom elements can report success and change nothing: read it back.
+    if (await radio.getAttribute('aria-checked') !== 'true') throw new Error(`${privacy} did not stay selected; nothing saved`);
     await dlg.locator('#done-button').click();
     await sleep(5000);
+    console.log(`STEP ${privacy.toLowerCase()}`);
+  } else {
+    console.log('STEP not a draft: visibility left as it is; status reads it back');
   }
-  console.log(`STEP ${privacy.toLowerCase()}`);
 } finally {
   await closeTab(P);
 }

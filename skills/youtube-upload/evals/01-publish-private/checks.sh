@@ -2,6 +2,8 @@
 # The video is uploaded and finished through the skill's scripts: right channel, title, playlist, Private, thumbnail.
 . "$(dirname "$0")/../common.sh"
 [ -n "$(calls upload.js)" ] || fail "no upload through the upload script"
+calls upload.js | jq -e -s 'any(.video == "yes")' >/dev/null || fail "the upload never sent the video file"
+[ -n "$(calls status.js)" ] || fail "no read-back of the finished video"
 edit=$(calls edit.js | tail -1)
 [ -n "$edit" ] || fail "the upload was not finished (no details, playlist or privacy step)"
 [ -z "$(jq -r 'select(.script != "upload.js" and .script != "edit.js" and .script != "status.js") | .script' "$LOG")" ] || fail "ran other browser scripts"
