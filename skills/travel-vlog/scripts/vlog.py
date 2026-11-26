@@ -77,9 +77,26 @@ def media_info(path: str | Path) -> dict:
             "has_audio": a is not None, "video_streams": sum(1 for s in j["streams"] if s.get("codec_type") == "video")}
     if v:
         num, den = (v.get("avg_frame_rate") or v.get("r_frame_rate") or "0/1").split("/")
+        sn, sd = (v.get("sample_aspect_ratio") or "1:1").replace("0:1", "1:1").split(":")
         info.update(width=int(v["width"]), height=int(v["height"]), codec=v.get("codec_name"),
-                    fps=round(float(num) / float(den or 1), 3) if float(den or 1) else 0.0)
+                    fps=round(float(num) / float(den or 1), 3) if float(den or 1) else 0.0,
+                    sar=(int(sn), int(sd) or 1))
     return info
+
+
+def square_pixels(info: dict) -> str:
+    """Resample non-square pixels to square ones: a portrait clip stored squeezed in a 16:9 grid (SAR 81:256) is
+    really 608x1080, and filters that read iw/ih would stretch it 3.2x wide."""
+    n, d = info.get("sar", (1, 1))
+    return "" if n == d else f"scale=trunc(iw*{n}/{d}/2)*2:ih,setsar=1,"
+
+
+def is_portrait(info: dict, view: dict | None = None) -> bool:
+    n, d = info.get("sar", (1, 1))
+    w, h = info.get("width", 0) * n / d, info.get("height", 0)
+    if int((view or {}).get("rotate", 0)) % 180:
+        w, h = h, w
+    return bool(h) and w < h
 
 
 def projection_of(info: dict, path: str) -> str:
@@ -160,8 +177,12 @@ def video_in(proj: str) -> str:
     return f"{INSV_JOIN}," if proj == "insv" else "[0:v]"
 
 
-def view_filter(view: dict, proj: str, w: int, h: int) -> str:
-    """ffmpeg filter that turns a source frame into a w x h flat frame."""
+def view_filter(view: dict, proj: str, w: int, h: int, portrait: bool = False) -> str:
+    """ffmpeg filter that turns a source frame into a w x h flat frame.
+
+    A portrait frame is fitted whole over a blurred, darkened copy of itself (`fit: blur`, the default for portrait)
+    rather than cropped to 16:9, which would upscale a third of it; `fit: crop` forces the crop.
+    """
     v = view or {}
     if proj in ("dfisheye", "insv"):
         fov = float(v.get("fov", DEFAULT_FOV))
@@ -184,6 +205,11 @@ def view_filter(view: dict, proj: str, w: int, h: int) -> str:
         r = math.radians(abs(roll))
         zoom *= math.cos(r) + math.sin(r) * max(w / h, h / w)
         pre += f"rotate={math.radians(roll):.5f}:fillcolor=black,"
+    if v.get("fit", "blur" if portrait else "crop") == "blur":
+        return (f"{pre}split[vfg][vbg];[vbg]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
+                f"gblur=sigma=40,eq=brightness=-0.08[vbgb];"
+                f"[vfg]scale={w}*{zoom:.4f}:{h}*{zoom:.4f}:force_original_aspect_ratio=decrease,"
+                f"crop='min(iw,{w})':'min(ih,{h})'[vfgs];[vbgb][vfgs]overlay=(W-w)/2:(H-h)/2")
     return (f"{pre}scale={w}*{zoom:.4f}:{h}*{zoom:.4f}:force_original_aspect_ratio=increase,"
             f"crop={w}:{h}:(iw-{w})*{cx}:(ih-{h})*{cy}")
 
@@ -268,7 +294,7 @@ def hook_png(text: str, w: int, h: int, out: Path) -> None:
 def frame_grabs(src: str, proj: str, every: float, dur: float, tmp: Path, w: int) -> list[tuple[float, Path]]:
     h = w // 2 if proj in ("dfisheye", "insv") else int(w * 9 / 16)
     vf = (f"v360=input=dfisheye:output=equirect:ih_fov=200:iv_fov=200:w={w}:h={h}" if proj != "flat"
-          else f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2")
+          else f"{square_pixels(media_info(src))}scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2")
     pattern = tmp / "f_%05d.jpg"
     ffmpeg(["-i", src, "-filter_complex", f"{video_in(proj)}fps=1/{every},{vf}", "-q:v", "4", str(pattern)])
     frames = sorted(tmp.glob("f_*.jpg"))
@@ -443,7 +469,8 @@ def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path,
     cmdfile = tmp / f"shot{i:02d}.cmd"
     pan = proj in ("dfisheye", "insv") and pan_filter(view, w, h, dur * speed, info.get("fps", fps) or fps, cmdfile)
     lens = s.get("lens", e.get("lens")) if proj == "flat" else None
-    vf.append(lens_filter(lens, w, h) + (pan or view_filter(view, proj, w, h)))
+    flat = square_pixels(info) + lens_filter(lens, w, h) if proj == "flat" else ""
+    vf.append(flat + (pan or view_filter(view, proj, w, h, is_portrait(info, view))))
     if e.get("grade"):
         vf.append(e["grade"])
     if speed != 1:
@@ -605,8 +632,10 @@ def cmd_thumb(args) -> None:
     with tempfile.TemporaryDirectory() as td:
         fr = Path(td) / "f.png"
         ffmpeg(["-ss", f"{t}", "-i", src, "-frames:v", "1", "-filter_complex",
-                f"{video_in(proj)}{lens_filter(th.get('lens', e.get('lens')) if proj == 'flat' else None, THUMB_W, THUMB_H)}"
-                f"{view_filter(th.get('view', {}), proj, THUMB_W, THUMB_H)}" + (f",{e['grade']}" if e.get("grade") else ""),
+                f"{video_in(proj)}"
+                + (square_pixels(info) + lens_filter(th.get('lens', e.get('lens')), THUMB_W, THUMB_H) if proj == 'flat' else "")
+                + view_filter(th.get('view', {}), proj, THUMB_W, THUMB_H, is_portrait(info, th.get('view')))
+                + (f",{e['grade']}" if e.get("grade") else ""),
                 str(fr)])
         img = Image.open(fr).convert("RGB")
     img = ImageEnhance.Contrast(img).enhance(float(th.get("contrast", 1.12)))

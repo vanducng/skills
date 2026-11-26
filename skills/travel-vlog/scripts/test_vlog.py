@@ -85,6 +85,16 @@ class Picture(unittest.TestCase):
         self.assertEqual(len(vlog.fov_problems(e)), 2)
         self.assertEqual(vlog.fov_problems({"shots": [{"view": {"fov": 85}}]}), [])
 
+    def test_non_square_pixels(self):
+        portrait = {"width": 1920, "height": 1080, "sar": (81, 256)}
+        self.assertIn("scale=trunc(iw*81/256/2)*2:ih,setsar=1", vlog.square_pixels(portrait))
+        self.assertTrue(vlog.is_portrait(portrait))
+        self.assertEqual(vlog.square_pixels({"width": 1920, "height": 1080, "sar": (1, 1)}), "")
+        self.assertFalse(vlog.is_portrait({"width": 1920, "height": 1080, "sar": (1, 1)}))
+        self.assertTrue(vlog.is_portrait({"width": 1920, "height": 1080, "sar": (1, 1)}, {"rotate": 90}))
+        self.assertIn("gblur", vlog.view_filter({}, "flat", 1920, 1080, portrait=True))
+        self.assertNotIn("gblur", vlog.view_filter({"fit": "crop"}, "flat", 1920, 1080, portrait=True))
+
     def test_lens_filter(self):
         self.assertEqual(vlog.lens_filter(None, 1920, 1080), "")
         self.assertIn("lenscorrection", vlog.lens_filter("x5", 1920, 1080))
