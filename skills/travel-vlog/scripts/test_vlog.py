@@ -89,6 +89,20 @@ class Sound(unittest.TestCase):
         self.assertEqual(rep["lines"], [])
 
 
+class Stills(unittest.TestCase):
+    def test_still_shot_is_a_silent_card(self):
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "map.png").write_bytes(b"png")
+        p = tmp / "e.json"
+        p.write_text(json.dumps({"stem": "tw26-d02-01-test", "title": "Taiwan 2026 · Day 2 · Test",
+                                 "output_dir": str(tmp), "shots": [{"still": str(tmp / "map.png"), "dur": 4}]}))
+        e, _ = vlog.load_edit(str(p))
+        s = e["shots"][0]
+        self.assertEqual((s["src"], s["in"], s["out"], s["audio"]), (str(tmp / "map.png"), 0.0, 4.0, 0))
+        self.assertEqual(vlog.planned_duration(e), 4.0)
+        self.assertEqual(vlog.sound_report(e, tmp, [])["missing"], [])
+
+
 class ThumbLines(unittest.TestCase):
     def test_phrases_split_into_balanced_lines(self):
         self.assertEqual(vlog.thumb_lines(["TAXI TO", "TAIPEI"]), ["TAXI TO", "TAIPEI"])

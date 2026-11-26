@@ -44,6 +44,8 @@ One JSON file per video, named `<stem>.json`. `render`, `thumb` and `verify` rea
 | `style` | The channel look from its written style guide: `font` (a .ttf path), `text`, `accent`, `rule`, `badge`, `shade`, `stroke` as `#RRGGBB`. Titles, hooks and the thumbnail draw with it; without it they draw white and yellow on black. |
 | `lens`, `shots[].lens` | Straighten a barrel-distorted flat clip before the view: `"x5"` (Insta360 X5 single-lens: k1 0.12, k2 0.015, 14% crop) or `{"k1", "k2", "crop"}`. Off by default; the shot's value wins. |
 | `grade` | One ffmpeg filter chain applied to every shot and the thumbnail, from the channel style guide. |
+| `shots[].still`, `dur`, `fade` | A card instead of footage: `{"still": "map.png", "dur": 4, "fade": 0.4}`. The PNG is fitted into the frame, held `dur` s (default 4), faded in and out, silent; music plays on. Use it for a map card or a chapter card; no `src`, `in` or `out`. |
+| `shots[].caption` | A short line low in the frame: `"caption": "Lanterns go up"` or `{"text": "...", "at": 0.5, "hold": 3}`. One line, a few words, in the style's text colour. |
 | `shots[].holder`, `thumbnail.holder` | `true` when the camera holder's face is in the frame (a 360 selfie view, a turned-around flat clip). `verify` and `render` fail when tagged shots run over 4 s in a row (`holder_stretch_s`), over `holder_max_s` in all (default 10 % of the length, at least 4 s), or the thumbnail is tagged. |
 | `length_s` | Allowed length in seconds for `verify`; default `[180, 360]`. |
 | `shots[].hook` | Big centred words over the first seconds of the shot. Use on shot 1. |

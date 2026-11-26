@@ -329,6 +329,21 @@ def title_png(title: dict, w: int, h: int, out: Path) -> None:
     img.save(out)
 
 
+def caption_png(text: str, w: int, h: int, out: Path) -> None:
+    """One short line centred low in the frame, in the style's text colour over a soft shadow."""
+    from PIL import Image, ImageDraw, ImageFilter
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    font = load_font(int(h * 0.042))
+    d = ImageDraw.Draw(img)
+    tw = d.textlength(text, font=font)
+    x, y = int((w - tw) / 2), int(h * 0.855)
+    shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).text((x + 2, y + 2), text, font=font, fill=(0, 0, 0, 220))
+    img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(5)))
+    ImageDraw.Draw(img).text((x, y), text, font=font, fill=rgb(STYLE["text"], 255))
+    img.save(out)
+
+
 def hook_png(text: str, w: int, h: int, out: Path) -> None:
     """Big centred hook line for the first seconds."""
     from PIL import Image, ImageDraw
@@ -502,11 +517,14 @@ def load_edit(path: str, writing: bool = True) -> tuple[dict, Path]:
         die(f"{p}: no shots")
     outdir = Path(e.get("output_dir") or p.parent)
     for i, s in enumerate(e["shots"]):
+        if s.get("still"):
+            # A card (map, title): a PNG held for dur seconds, silent, faded in and out.
+            s.update(src=s["still"], **{"in": 0.0, "out": float(s.get("dur", 4))}, audio=0)
         if not Path(s["src"]).is_file():
             die(f"shot {i}: source not found: {s['src']}")
         if float(s["out"]) <= float(s["in"]):
             die(f"shot {i}: out must be after in")
-        if writing and outdir.resolve() == Path(s["src"]).resolve().parent:
+        if writing and not s.get("still") and outdir.resolve() == Path(s["src"]).resolve().parent:
             die("output_dir is the footage folder; originals stay read-only, write elsewhere")
     return e, outdir
 
@@ -515,7 +533,22 @@ def planned_duration(e: dict) -> float:
     return sum((float(s["out"]) - float(s["in"])) / float(s.get("speed", 1)) for s in e["shots"])
 
 
+def render_still(i: int, s: dict, w: int, h: int, fps: float, tmp: Path, draft: bool) -> Path:
+    dur, fade = float(s["out"]), float(s.get("fade", 0.4))
+    vf = (f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,"
+          f"fps={fps},format=yuv420p")
+    if fade:
+        vf += f",fade=t=in:d={fade},fade=t=out:st={max(0.0, dur - fade)}:d={fade}"
+    out = tmp / f"shot{i:02d}.mov"
+    ffmpeg(["-loop", "1", "-t", f"{dur}", "-i", s["src"], "-f", "lavfi", "-t", f"{dur}", "-i", "anullsrc=r=48000:cl=stereo",
+            "-vf", vf, "-map", "0:v", "-map", "1:a", "-t", f"{dur}", "-c:v", "libx264",
+            "-preset", "ultrafast" if draft else "medium", "-crf", "26" if draft else "17", "-c:a", "pcm_s16le", str(out)])
+    return out
+
+
 def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path, draft: bool) -> Path:
+    if s.get("still"):
+        return render_still(i, s, w, h, fps, tmp, draft)
     src = s["src"]
     info = media_info(src)
     proj = s.get("projection") or projection_of(info, src)
@@ -554,6 +587,12 @@ def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path,
         title_png(s["title"], w, h, tp)
         t0 = float(s["title"].get("at", 0.4))
         overlays.append((tp, t0, min(dur - 0.1, t0 + float(s["title"].get("hold", 3.2)))))
+    if s.get("caption"):
+        c = s["caption"] if isinstance(s["caption"], dict) else {"text": s["caption"]}
+        cp = tmp / f"caption{i:02d}.png"
+        caption_png(c["text"], w, h, cp)
+        c0 = float(c.get("at", 0.5))
+        overlays.append((cp, c0, min(dur - 0.1, c0 + float(c.get("hold", 3.0)))))
     for k, (png, a, b) in enumerate(overlays):
         inputs += ["-loop", "1", "-t", f"{dur}", "-i", str(png)]
         fc += (f";[{n_in}:v]format=rgba,fade=t=in:st={a}:d=0.35:alpha=1,fade=t=out:st={max(a, b - 0.35)}:d=0.35:alpha=1[o{k}]"
@@ -650,7 +689,7 @@ def cmd_render(args) -> None:
         ln = f"loudnorm=I={target}:TP={tp}:LRA=11" if not finite else (f"loudnorm=I={target}:TP={tp}:LRA=11:measured_I={meas['input_i']}:measured_TP={meas['input_tp']}"
               f":measured_LRA={meas['input_lra']}:measured_thresh={meas['input_thresh']}"
               f":offset={meas['target_offset']}:linear=true")
-        ffmpeg(["-i", str(mixed), "-map", "0:v", "-map", "0:a", "-c:v", "copy", "-af", f"{ln},aresample=48000",
+        ffmpeg(["-i", str(mixed), "-map", "0:v", "-map", "0:a", "-c:v", "copy", "-af", f"{ln},aresample=48000,apad", "-shortest",
                 "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart",
                 "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", str(final)])
     recipe = {"tool": "travel-vlog/scripts/vlog.py render", "rendered": dt.datetime.now().isoformat(timespec="seconds"),
