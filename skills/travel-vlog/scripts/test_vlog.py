@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -224,6 +225,95 @@ class Picture(unittest.TestCase):
         e = {"shots": [{"view": {"fov": 110}}, {"view": {"fov": 85, "fov_end": 100}}, {"view": {"type": "tiny-planet", "fov": 160}}]}
         self.assertEqual(len(vlog.fov_problems(e)), 2)
         self.assertEqual(vlog.fov_problems({"shots": [{"view": {"fov": 85}}]}), [])
+
+    @needs_pil
+    def test_upright_turns_a_photo_by_its_exif_orientation(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as td:
+            src = Path(td) / "p.jpg"
+            ex = Image.Exif()
+            ex[0x0112] = 6
+            Image.new("RGB", (40, 30)).save(src, exif=ex)
+            with Image.open(vlog.upright(src, Path(td))) as im:
+                self.assertEqual(im.size, (30, 40))
+            plain = Path(td) / "q.jpg"
+            Image.new("RGB", (40, 30)).save(plain)
+            self.assertEqual(vlog.upright(plain, Path(td)), plain)
+
+    def test_pose_at_follows_a_pan_and_a_track(self):
+        pan = {"yaw": 0, "yaw_end": 90, "pitch": -10, "fov": 85}
+        self.assertEqual(vlog.pose_at(pan, 0, 4)["yaw"], 0)
+        self.assertAlmostEqual(vlog.pose_at(pan, 2, 4)["yaw"], 45)
+        self.assertEqual(vlog.pose_at(pan, 4, 4)["yaw"], 90)
+        self.assertNotIn("yaw_end", vlog.pose_at(pan, 2, 4))
+        tr = {"track": [[0, 170, 0], [2, -170, 0]], "fov": 85}
+        self.assertAlmostEqual(vlog.pose_at(tr, 1, 2)["yaw"], 180)
+
+    def test_stitched_builds_the_command_once_and_caches_it(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as td:
+            src = Path(td) / "VID_x.insv"
+            src.write_bytes(b"x")
+            home = Path(td) / "home"
+
+            def fake_run(cmd, **kw):
+                calls.append(cmd)
+                Path(cmd[cmd.index(str(vlog.STITCH)) + 4]).write_bytes(b"mp4")
+
+            with mock.patch.object(vlog, "run", fake_run), \
+                    mock.patch.object(vlog, "media_info", lambda p: {}), \
+                    mock.patch.object(vlog, "projection_of", lambda i, p: "insv"), \
+                    mock.patch.object(vlog.shutil, "which", lambda n: "/usr/bin/" + n), \
+                    mock.patch.object(vlog.Path, "home", lambda: home):
+                shot = {"src": str(src), "in": 90, "out": 96}
+                view = {"yaw": -100, "pitch": -30, "fov": 95, "stitch": "flow", "lens_fov": 195}
+                a = vlog.stitched(shot, view, 1920, 1080, 25)
+                b = vlog.stitched(shot, view, 1920, 1080, 25)
+                c = vlog.stitched(shot, {**view, "yaw": -90}, 1920, 1080, 25)
+            self.assertEqual(a, b)
+            self.assertNotEqual(a, c)
+            self.assertEqual(len(calls), 2)
+            cmd = calls[0]
+            self.assertEqual(cmd[cmd.index("--yaw") + 1], "-100.0")
+            self.assertEqual(cmd[cmd.index("--lens-fov") + 1], "195.0")
+            with mock.patch.object(vlog, "projection_of", lambda i, p: "insv"), \
+                    mock.patch.object(vlog, "media_info", lambda p: {}):
+                with self.assertRaises(SystemExit):
+                    vlog.stitched(shot, {**view, "yaw_end": 0}, 1920, 1080, 25)
+
+    def test_subject_problems_cut_subject_and_short_sign(self):
+        cut = {"people": 1, "sign": 0, "object": 0}
+        whole = {"people": 0, "sign": 0, "object": 0}
+        rep = {"shots": {
+            "1": {"samples": [{"t": 0, "cut": cut, "words": 0}, {"t": 1, "cut": cut, "words": 0}]},
+            "2": {"samples": [{"t": 0, "cut": cut, "words": 0}, {"t": 1, "cut": whole, "words": 0}]},
+            "3": {"samples": [{"t": 0, "cut": whole, "words": 9}]}}}
+        e = {"shots": [{"in": 0, "out": 2}, {"in": 0, "out": 2}, {"in": 0, "out": 3, "subject": "sign"}]}
+        probs = vlog.subject_problems(e, rep)
+        self.assertEqual([p.split(":")[0] for p in probs], ["shot 1", "shot 3"])
+        self.assertIn("4.7 s", probs[1])
+
+    def test_edge_cuts_sees_a_face_past_the_edge_in_the_wider_look(self):
+        wide = {"faces": [[0.8, 0.4, 0.1, 0.1]], "people": [], "text": [], "objects": []}
+        around = vlog.in_view(wide, 2.0)  # 0.8-0.9 in the wide look is 1.1-1.3 in the view: outside it
+        self.assertEqual(vlog.edge_cuts({}, around)["people"], 0)
+        wide["faces"] = [[0.7, 0.4, 0.1, 0.1]]  # 0.9-1.1: half out
+        self.assertEqual(vlog.edge_cuts({}, vlog.in_view(wide, 2.0))["people"], 1)
+        self.assertEqual(vlog.edge_cuts({"people": [[0.3, 0.5, 0.2, 0.6]]})["people"], 0)  # body out at the bottom
+
+    def test_fit_step_aims_at_the_boxes_and_sizes_the_view(self):
+        v = vlog.fit_step({"yaw": 0, "pitch": 0, "fov": 90}, [[0.7, 0.4, 0.2, 0.2]])
+        self.assertGreater(v["yaw"], 20)
+        self.assertLessEqual(v["fov"], vlog.MAX_FOV)
+
+    @needs_ffmpeg
+    def test_seam_problems_flags_a_view_on_the_lens_join(self):
+        e = {"shots": [{"view": {"yaw": -110, "pitch": -30, "fov": 95}},  # the Duc flies 1:08 view
+                       {"view": {"yaw": 0, "pitch": -30, "fov": 95}},
+                       {"view": {"yaw": 170, "fov": 85, "yaw_end": 120}},
+                       {"view": {"x": 0.5}},
+                       {"view": {"fov": 85, "yaw_end": -90}}]}
+        self.assertEqual([p.split(":")[0] for p in vlog.seam_problems(e)], ["shot 1", "shot 3", "shot 5"])
 
     def test_non_square_pixels(self):
         portrait = {"width": 1920, "height": 1080, "sar": (81, 256)}

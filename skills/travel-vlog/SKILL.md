@@ -9,22 +9,24 @@ metadata:
 
 # travel-vlog
 
-A day of footage becomes short videos, one topic each. `scripts/vlog.py` runs the fragile steps; do not hand-roll ffmpeg. Sources: [research](references/research.md), [source repos](references/sources.md).
+A day of footage becomes short videos, one topic each. `scripts/vlog.py` runs the fragile steps. Sources: [research](references/research.md), [source repos](references/sources.md).
 
 ## Rules
 
-1. **Originals are read-only.** Work files go to a folder outside the footage and outside any repo.
-2. **Look before cutting.** `index` the proxies, open every sheet, write each `<clip>.md`: one line per moment (`mm:ss-mm:ss`), `*` on key moments, `!` on anything private.
-3. **One topic per video, 3 to 6 minutes, one arc:** arrive, explore, a moment, leave. Shots of 3 to 8 s; a moment may run 10 to 20 s. The owner's taste overrides the platform averages in the research.
-4. **A taste of the place.** Open each scene on an establishing shot held 4 to 6 s with real ambient sound before the music; the video's first seconds may tease its best moment first. Design each topic for what it conveys, not one template.
+1. **Originals are read-only.** Work files go outside the footage and any repo.
+2. **Look before cutting.** `index` the proxies, open every sheet, write each `<clip>.md`: one line per moment, `*` on key moments, `!` on private ones.
+3. **One topic per video, 3 to 6 minutes, one arc:** arrive, explore, a moment, leave. Shots of 3 to 8 s. Owner taste beats the research.
+4. **A taste of the place.** Open each scene on an establishing shot held 4 to 6 s with real ambient sound; the first seconds may tease the best moment.
 5. **One name everywhere.** Stem `<series>-d<dd>-<nn>-<topic-slug>` (for example `tw26-d01-01-arrival`), title `<Series> · Day <d> · <Topic>`; the `.mp4`, the thumbnail `.jpg`, the edit list and the recipe share the stem. Check with `vlog.py name <stem> --title "..."`.
-6. **Undistorted, one look.** 360 views at 75 to 90° (over 95° is refused), level with `roll`; straighten flat clips with `lens` (`"x5"`); portrait clips fit over a blur. Never stretch. One `grade` and one `style` from the channel's written style guide (write one first). Look at a full-size still of every shot before the render.
-7. **Point the view at the people of the story.** A shot faces the kids, the partner, the family, or a named `landmark` when nobody is there; never a wall of trees while the people are elsewhere. On 360, follow them with `view.track`; on flat footage, pick the ranges `find-people` lists. `people` and `verify` fail a view with nobody in it for over 3 s. **The camera holder stays behind the camera:** their face only where it carries a moment, a few seconds at most. Tag those shots `holder`; `verify` caps the total and any stretch over 4 s. A map card is a `still` shot; a short `caption` names a place or a moment.
-8. **Thumbnail: the place or the moment, not the camera holder, two to four big words, high contrast,** the lower-right corner clear (duration badge), one layout per series. Look at the phone-size preview.
-9. **Sound.** Camera sound stays over a ducked music bed, about -14 LUFS. Only instrumental music YouTube will not claim (its Audio Library); licence and credit in the edit list, title in the description.
-10. **Privacy, picture.** Cut, crop or `blur` any card, receipt, booking, passport, address, phone or laptop screen, live location or person who has not agreed. None of it goes in the title or description.
-11. **Privacy, sound.** `transcribe` every clip, run `sound` on each edit list and read every audible line, listening to the ones marked doubtful (`LISTEN`: Whisper invents words over music and water). `mute` or cut passwords and PINs, money details, booking or passport numbers, the hotel or an address, names of people who have not agreed (`private_names`), phone or bot calls, private or tense moments, strangers close to the mic. When unsure, cut.
-12. **Verify pixels, not exit codes.** `verify` must print `ok`; then open `<stem>.sheet.jpg` and the thumbnail yourself.
+6. **Undistorted, one look.** 360 views at 75 to 90° (over 95° is refused), level with `roll`; straighten flat clips with `lens` (`"x5"`); portrait clips fit over a blur. One `grade` and one `style` from the channel's written style guide. Look at a full-size still of every shot.
+7. **No seam.** The two lenses meet at yaw ±90. A subject within 50° of it is shot with `view.stitch: "flow"` (the `.insv` master; aligns the join, then blends), aimed straight at it: aiming away cuts it. `verify` refuses an unstitched view on the join.
+8. **Point the view at the people of the story,** or a named `landmark` when nobody is there. On 360, follow them with `view.track`; on flat footage, pick the ranges `find-people` lists. **The camera holder stays behind the camera:** tag their few seconds `holder`; `verify` caps them. A map card is a `still`; a `caption` names a place or a moment.
+9. **Frame the whole subject.** Each shot names its `subject` (people, sign or object) and is aimed at its middle with fov = its width + 15% (`fit` finds it on 360). No face or head touches an edge; a sign is whole, level and held 2 s + 0.3 s a word (max 5 s). Too wide for 95°: faces or text first, the rest by a pan. `verify` fails an empty view, a cut subject and a short sign.
+10. **Thumbnail: the place or the moment, not the camera holder, two to four big words,** the lower-right corner clear, one layout per series. Look at the phone-size preview.
+11. **Sound.** Camera sound stays over a ducked music bed, about -14 LUFS. Only instrumental music YouTube will not claim (its Audio Library); licence and credit in the edit list, title in the description.
+12. **Privacy, picture.** Cut or `blur` any card, receipt, booking, passport, address, screen, live location or person who has not agreed, and keep it out of the title and description.
+13. **Privacy, sound.** `transcribe` every clip, run `sound` on each edit list and read every audible line, listening to the ones marked doubtful (`LISTEN`: Whisper invents words over music and water). `mute` or cut passwords, money, booking or passport numbers, the hotel or an address, names of people who have not agreed (`private_names`), calls, private or tense moments, strangers close to the mic. When unsure, cut.
+14. **Verify pixels.** `verify` must print `ok`; then open `<stem>.sheet.jpg` and the thumbnail.
 
 ## Workflow
 
@@ -37,18 +39,19 @@ python3 $V transcribe /footage/LRV_*.lrv --out WORK/index --language vi   # once
 python3 $V find-people /footage/VID_*.mp4             # source ranges with people, for picking shots
 python3 $V name tw26-d01-01-arrival --title "Taiwan 2026 · Day 1 · Arrival"
 python3 $V sound  WORK/tw26-d01-01-arrival.json            # every audible line; exit 1 on an unmuted flag
-python3 $V people WORK/tw26-d01-01-arrival.json           # who is in each view; exit 1 on an empty one (Apple Vision)
+python3 $V people WORK/tw26-d01-01-arrival.json           # people, signs, cut subjects per view (Apple Vision)
+python3 $V fit /footage/VID_x.insv 258 --yaw -110 --pitch -30   # a 360 view holding the whole subject
 python3 $V render WORK/tw26-d01-01-arrival.json --draft   # quick look, then without --draft
 python3 $V thumb  WORK/tw26-d01-01-arrival.json
 python3 $V verify WORK/tw26-d01-01-arrival.json           # exit 0 = ready to upload
 ```
 
-`--clock-offset-hours` is local time minus the camera clock. Pass `--language` (Whisper guesses from 30 s). Edit list fields: [references/edit-list.md](references/edit-list.md). 360 views (yaw, pitch, fov, pans, tiny planet) and the X5 file layout: [references/insta360-360.md](references/insta360-360.md).
+`--clock-offset-hours` is local time minus the camera clock. Edit list fields: [references/edit-list.md](references/edit-list.md). 360 views (yaw, pitch, fov, pans, tiny planet) and the X5 file layout: [references/insta360-360.md](references/insta360-360.md).
 
 ## Upload
 
-Use the `youtube-upload` skill when it is installed. Confirm the signed-in account and channel first. Upload Private unless the owner says otherwise (Unlisted is public to anyone with the link), with the thumbnail, the title, a short description (places, music credit) and the series playlist. Public, deleting and messages wait for the owner.
+Use the `youtube-upload` skill. Confirm the signed-in account and channel first. Upload Private unless the owner says otherwise (Unlisted is public to anyone with the link), with the thumbnail, title, a short description (places, music credit) and the series playlist. Public, deleting and messages wait for the owner.
 
 ## Report
 
-Per video: stem, length, loudness, music and licence, privacy cuts, link.
+Per video: stem, length, loudness, music, privacy cuts, link.
