@@ -112,9 +112,11 @@ status() {
   # Pending: YouTube's checks have not run; the chosen privacy applies after them.
   local bad got
   got=$(sed -n 's/^RESULT //p' <<<"$out" | jq -rs '[.[].id] | sort | join(" ")' 2>/dev/null) || die "could not read the status output"
-  [ "$got" = "$(printf '%s\n' "$@" | sort | paste -sd ' ' -)" ] || die "could not read the status output: asked for $*, read back ${got:-nothing}"
+  local asked; asked=$(printf '%s\n' "$@" | jq -Rrs '[split("\n")[] | select(length > 0)] | sort | join(" ")')
+  [ "$got" = "$asked" ] || die "could not read the status output: asked for $asked, read back ${got:-nothing}"
+  sed -n 's/^RESULT //p' <<<"$out" | jq -e -s 'all(.visibility | type == "string")' >/dev/null || die "could not read the status output: a result has no visibility"
   bad=$(sed -n 's/^RESULT //p' <<<"$out" | jq -r --arg w "$want" \
-    'if (.visibility | type) != "string" then "no visibility for \(.id)" elif (.visibility | ascii_downcase) != $w and .visibility != "Pending" then "\(.id) is \(.visibility)" else empty end') \
+    'if (.visibility | ascii_downcase) != $w and .visibility != "Pending" then "\(.id) is \(.visibility)" else empty end') \
     || die "could not read the status output"
   [ -z "$bad" ] || die "read-back differs from $want: $bad; finish it in Studio or tell the owner"
   return 0

@@ -23,10 +23,10 @@ grep -q 'did not finish uploading' <<<"$out" || fail "unfinished upload: no clea
 
 # eval public-claim check, per clause
 . "$here/../evals/public-claim.sh"
-for s in "I made the video public." "I made it public. Please do not share." "It is public now, but I will not share the link." "The video is not private; it is public."; do
+for s in "I made the video public." "I made it public. Please do not share." "It is public now, but I will not share the link." "The video is not private; it is public." "It is finally public." "I made this video public." "The video went fully public." "I never made it public, it's public now."; do
   printf '%s\n' "$s" >"$run/o.txt"; claims_public "$run/o.txt" || fail "missed a public claim: $s"
 done
-for s in "I never made it public." "It is not public." "Unlisted is public to anyone with the link. The video is private." "The cut underwent public review and stays private." "I did not set it to public."; do
+for s in "I never made it public." "It is not public." "Unlisted is public to anyone with the link. The video is private." "The cut underwent public review and stays private." "I did not set it to public." "It hasn't been made public." "The music is public domain and the video stays private." "It is now publicly listed. The video is unlisted."; do
   printf '%s\n' "$s" >"$run/o.txt"; claims_public "$run/o.txt" && fail "flagged a clean line: $s"
 done
 
@@ -34,6 +34,9 @@ done
 printf '#!/bin/sh\nd="$ASIDE_SESSIONS/2026-01-02_x"; mkdir -p "$d"; while [ ! -e "$d/ready" ]; do sleep 0.2; done; echo "STEP channel ok"; echo \x27RESULT {"id":"dQw4w9WgXcQ","visibility":"Private"}\x27\n' >"$run/bin/one"; chmod +x "$run/bin/one"
 out=$(ASIDE="$run/bin/one" ASIDE_SESSIONS="$run/s3" PATH="$run/bin:$PATH" "$here/yt.sh" status "$run/meta.json" dQw4w9WgXcQ abcdefghijk 2>&1) && fail "status passed with an id not read back"
 grep -q 'read back dQw4w9WgXcQ' <<<"$out" || fail "status short read: $out"
+# a full read is a match whatever the locale's sort order
+printf '#!/bin/sh\nd="$ASIDE_SESSIONS/2026-01-03_x"; mkdir -p "$d"; while [ ! -e "$d/ready" ]; do sleep 0.2; done; echo "STEP channel ok"; for i in Baaaaaaaaaa aaaaaaaaaaa abc-defghij abc_defghij; do echo "RESULT {\\"id\\":\\"$i\\",\\"visibility\\":\\"Private\\"}"; done\n' >"$run/bin/four"; chmod +x "$run/bin/four"
+out=$(LC_ALL=en_US.UTF-8 ASIDE="$run/bin/four" ASIDE_SESSIONS="$run/s4" PATH="$run/bin:$PATH" "$here/yt.sh" status "$run/meta.json" Baaaaaaaaaa aaaaaaaaaaa abc-defghij abc_defghij 2>&1) || fail "full read rejected: $out"
 
 # two new session folders at once: stop rather than stage into the wrong one
 printf '#!/bin/sh\nmkdir -p "$ASIDE_SESSIONS/2026-01-01_a" "$ASIDE_SESSIONS/2026-01-01_b"; sleep 3\n' >"$run/bin/two"; chmod +x "$run/bin/two"
