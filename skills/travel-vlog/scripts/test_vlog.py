@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -233,10 +234,52 @@ class Picture(unittest.TestCase):
             ex = Image.Exif()
             ex[0x0112] = 6
             Image.new("RGB", (40, 30)).save(src, exif=ex)
-            self.assertEqual(Image.open(vlog.upright(src, Path(td))).size, (30, 40))
+            with Image.open(vlog.upright(src, Path(td))) as im:
+                self.assertEqual(im.size, (30, 40))
             plain = Path(td) / "q.jpg"
             Image.new("RGB", (40, 30)).save(plain)
             self.assertEqual(vlog.upright(plain, Path(td)), plain)
+
+    def test_pose_at_follows_a_pan_and_a_track(self):
+        pan = {"yaw": 0, "yaw_end": 90, "pitch": -10, "fov": 85}
+        self.assertEqual(vlog.pose_at(pan, 0, 4)["yaw"], 0)
+        self.assertAlmostEqual(vlog.pose_at(pan, 2, 4)["yaw"], 45)
+        self.assertEqual(vlog.pose_at(pan, 4, 4)["yaw"], 90)
+        self.assertNotIn("yaw_end", vlog.pose_at(pan, 2, 4))
+        tr = {"track": [[0, 170, 0], [2, -170, 0]], "fov": 85}
+        self.assertAlmostEqual(vlog.pose_at(tr, 1, 2)["yaw"], 180)
+
+    def test_stitched_builds_the_command_once_and_caches_it(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as td:
+            src = Path(td) / "VID_x.insv"
+            src.write_bytes(b"x")
+            home = Path(td) / "home"
+
+            def fake_run(cmd, **kw):
+                calls.append(cmd)
+                Path(cmd[cmd.index(str(vlog.STITCH)) + 4]).write_bytes(b"mp4")
+
+            with mock.patch.object(vlog, "run", fake_run), \
+                    mock.patch.object(vlog, "media_info", lambda p: {}), \
+                    mock.patch.object(vlog, "projection_of", lambda i, p: "insv"), \
+                    mock.patch.object(vlog.shutil, "which", lambda n: "/usr/bin/" + n), \
+                    mock.patch.object(vlog.Path, "home", lambda: home):
+                shot = {"src": str(src), "in": 90, "out": 96}
+                view = {"yaw": -100, "pitch": -30, "fov": 95, "stitch": "flow", "lens_fov": 195}
+                a = vlog.stitched(shot, view, 1920, 1080, 25)
+                b = vlog.stitched(shot, view, 1920, 1080, 25)
+                c = vlog.stitched(shot, {**view, "yaw": -90}, 1920, 1080, 25)
+            self.assertEqual(a, b)
+            self.assertNotEqual(a, c)
+            self.assertEqual(len(calls), 2)
+            cmd = calls[0]
+            self.assertEqual(cmd[cmd.index("--yaw") + 1], "-100.0")
+            self.assertEqual(cmd[cmd.index("--lens-fov") + 1], "195.0")
+            with mock.patch.object(vlog, "projection_of", lambda i, p: "insv"), \
+                    mock.patch.object(vlog, "media_info", lambda p: {}):
+                with self.assertRaises(SystemExit):
+                    vlog.stitched(shot, {**view, "yaw_end": 0}, 1920, 1080, 25)
 
     def test_subject_problems_cut_subject_and_short_sign(self):
         cut = {"people": 1, "sign": 0, "object": 0}
@@ -268,8 +311,9 @@ class Picture(unittest.TestCase):
         e = {"shots": [{"view": {"yaw": -110, "pitch": -30, "fov": 95}},  # the Duc flies 1:08 view
                        {"view": {"yaw": 0, "pitch": -30, "fov": 95}},
                        {"view": {"yaw": 170, "fov": 85, "yaw_end": 120}},
-                       {"view": {"x": 0.5}}]}
-        self.assertEqual([p.split(":")[0] for p in vlog.seam_problems(e)], ["shot 1", "shot 3"])
+                       {"view": {"x": 0.5}},
+                       {"view": {"fov": 85, "yaw_end": -90}}]}
+        self.assertEqual([p.split(":")[0] for p in vlog.seam_problems(e)], ["shot 1", "shot 3", "shot 5"])
 
     def test_non_square_pixels(self):
         portrait = {"width": 1920, "height": 1080, "sar": (81, 256)}

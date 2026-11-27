@@ -388,7 +388,8 @@ def seam_problems(e: dict) -> list[str]:
     out = []
     for i, s in enumerate(e.get("shots", [])):
         v = s.get("view") or {}
-        if v.get("type") == "tiny-planet" or v.get("stitch") == "flow" or ("yaw" not in v and not v.get("track")):
+        moves = any(f"{k}_end" in v for k in ("yaw", "pitch", "fov"))
+        if v.get("type") == "tiny-planet" or v.get("stitch") == "flow" or ("yaw" not in v and not v.get("track") and not moves):
             continue
         if any(join_in_view(sv, two) for sv, two in view_samples(v)):
             out.append(f"shot {i + 1}: the lens join shows in the view (yaw {v.get('yaw')}); "
@@ -428,6 +429,22 @@ def detect_people(images: list[Path]) -> list[dict]:
     return [found.get(str(p), {"people": [], "faces": []}) for p in images]
 
 
+def pose_at(view: dict, t: float, dur: float) -> dict:
+    """The static view a 360 shot shows t seconds into its dur-second range: along its track, or eased along
+    yaw_end, pitch_end and fov_end the way pan_filter moves it."""
+    v = {k: val for k, val in view.items() if not k.endswith("_end")}
+    if view.get("track"):
+        v["yaw"], v["pitch"] = track_at(view["track"], t)
+        return v
+    f = min(max(t / max(dur, 1e-6), 0.0), 1.0)
+    e = f * f * (3 - 2 * f)
+    for k, d in (("yaw", 0.0), ("pitch", 0.0), ("fov", float(DEFAULT_FOV))):
+        if f"{k}_end" in view:
+            a = float(view.get(k, d))
+            v[k] = a + (float(view[f"{k}_end"]) - a) * e
+    return v
+
+
 def shot_people(s: dict, e: dict, tmp: Path, every: float) -> dict:
     """Sample a footage shot every `every` s: who is in the view, and for a 360 shot who is anywhere in the sphere
     (as yaw and pitch), so a view that misses the people can be told from a shot with nobody in it."""
@@ -442,9 +459,7 @@ def shot_people(s: dict, e: dict, tmp: Path, every: float) -> dict:
     wfov = min(150.0, fov + 45)
     for k, t in enumerate(times):
         if proj in ("dfisheye", "insv"):
-            v = dict(view)
-            if v.get("track"):
-                v["yaw"], v["pitch"] = track_at(v["track"], t - tin)
+            v = pose_at(view, t - tin, tout - tin)
             vf = view_filter(v, proj, w, h)
             sp, wp = tmp / f"s{k:04d}.jpg", tmp / f"w{k:04d}.jpg"
             ffmpeg(["-ss", f"{t}", "-i", s["src"], "-frames:v", "1", "-filter_complex",

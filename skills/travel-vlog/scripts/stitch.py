@@ -160,7 +160,9 @@ for i, (L0, L1) in enumerate(zip(frames_of(p0), frames_of(p1))):
             prev_flow = None
     pe.stdin.write(np.ascontiguousarray(out).tobytes())
     count += 1
-pe.stdin.close(); pe.wait()
-for p in (p0, p1): p.stdout.close(); p.wait()
+pe.stdin.close()
+codes = [pe.wait()] + [(p.stdout.close(), p.wait())[1] for p in (p0, p1)]
+if any(codes) or count < N - 1:
+    raise SystemExit(f"stitch failed: exit codes {codes}, {count} of {N} frames")
 el = time.time() - t_start
 print(f"{count} frames, {count / a.fps:.1f} s of footage in {el:.1f} s ({el / max(count / a.fps, 1e-6):.1f} s per second of footage)")
