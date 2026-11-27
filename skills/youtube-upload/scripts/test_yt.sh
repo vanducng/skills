@@ -21,6 +21,20 @@ out=$(yt publish "$run/v.mp4" "$run/t.jpg" "$run/meta.json" 2>&1) && fail "unfin
 grep -q '"script":"edit.js"' "$run/.aside-log.jsonl" && fail "unfinished upload was edited"
 grep -q 'did not finish uploading' <<<"$out" || fail "unfinished upload: no clear message"
 
+# eval public-claim check, per clause
+. "$here/../evals/public-claim.sh"
+for s in "I made the video public." "I made it public. Please do not share." "It is public now, but I will not share the link." "The video is not private; it is public."; do
+  printf '%s\n' "$s" >"$run/o.txt"; claims_public "$run/o.txt" || fail "missed a public claim: $s"
+done
+for s in "I never made it public." "It is not public." "Unlisted is public to anyone with the link. The video is private." "The cut underwent public review and stays private." "I did not set it to public."; do
+  printf '%s\n' "$s" >"$run/o.txt"; claims_public "$run/o.txt" && fail "flagged a clean line: $s"
+done
+
+# status must read back every id asked for
+printf '#!/bin/sh\nd="$ASIDE_SESSIONS/2026-01-02_x"; mkdir -p "$d"; while [ ! -e "$d/ready" ]; do sleep 0.2; done; echo "STEP channel ok"; echo \x27RESULT {"id":"dQw4w9WgXcQ","visibility":"Private"}\x27\n' >"$run/bin/one"; chmod +x "$run/bin/one"
+out=$(ASIDE="$run/bin/one" ASIDE_SESSIONS="$run/s3" PATH="$run/bin:$PATH" "$here/yt.sh" status "$run/meta.json" dQw4w9WgXcQ abcdefghijk 2>&1) && fail "status passed with an id not read back"
+grep -q 'read back dQw4w9WgXcQ' <<<"$out" || fail "status short read: $out"
+
 # two new session folders at once: stop rather than stage into the wrong one
 printf '#!/bin/sh\nmkdir -p "$ASIDE_SESSIONS/2026-01-01_a" "$ASIDE_SESSIONS/2026-01-01_b"; sleep 3\n' >"$run/bin/two"; chmod +x "$run/bin/two"
 out=$(ASIDE="$run/bin/two" ASIDE_SESSIONS="$run/s2" PATH="$run/bin:$PATH" "$here/yt.sh" status "$run/meta.json" dQw4w9WgXcQ 2>&1) && fail "two new folders: exited 0"

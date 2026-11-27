@@ -66,7 +66,7 @@ repl() {
     new=""
     sleep 0.5
   done
-  [ "$(grep -c . <<<"$new")" -eq 1 ] || { kill "$rp" 2>/dev/null; cat "$out" >&2; die "expected one new Aside session folder under $ASIDE_SESSIONS, found: ${new:-none}"; }
+  [ "$(grep -c . <<<"$new")" -eq 1 ] || { kill "$rp" 2>/dev/null; cat "$out" >&2; die "expected one new Aside session folder under $ASIDE_SESSIONS, found: $(paste -sd , - <<<"${new:-none}")"; }
   dir="$ASIDE_SESSIONS/$new"
   [ -d "$dir" ] || { kill "$rp" 2>/dev/null; die "$dir is not a folder"; }
   while [ $# -gt 1 ]; do
@@ -110,7 +110,9 @@ status() {
   ! grep -q '"visibility":"Public"' <<<"$out" || die "a video reads back as Public; tell the owner now"
   local want; want=$(jq -r '(.privacy // "private") | ascii_downcase' "$meta")
   # Pending: YouTube's checks have not run; the chosen privacy applies after them.
-  local bad
+  local bad got
+  got=$(sed -n 's/^RESULT //p' <<<"$out" | jq -rs '[.[].id] | sort | join(" ")' 2>/dev/null) || die "could not read the status output"
+  [ "$got" = "$(printf '%s\n' "$@" | sort | paste -sd ' ' -)" ] || die "could not read the status output: asked for $*, read back ${got:-nothing}"
   bad=$(sed -n 's/^RESULT //p' <<<"$out" | jq -r --arg w "$want" \
     'if (.visibility | type) != "string" then "no visibility for \(.id)" elif (.visibility | ascii_downcase) != $w and .visibility != "Pending" then "\(.id) is \(.visibility)" else empty end') \
     || die "could not read the status output"
