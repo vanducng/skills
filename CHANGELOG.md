@@ -2,6 +2,36 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.100.0](https://github.com/vanducng/skills/compare/v1.99.0...v1.100.0) (2026-11-27)
+
+
+### Features
+
+* **travel-vlog:** caption boxes and card limits from the style block ([029a53c](https://github.com/vanducng/skills/commit/029a53c6d0ad1349451b97d07caf4d18ff9922fa))
+* **travel-vlog:** optional shade behind place titles ([029a53c](https://github.com/vanducng/skills/commit/029a53c6d0ad1349451b97d07caf4d18ff9922fa))
+* **travel-vlog:** point the view at the people of the story and fail empty views ([029a53c](https://github.com/vanducng/skills/commit/029a53c6d0ad1349451b97d07caf4d18ff9922fa))
+* **travel-vlog:** turn a day of 360 and action-camera footage into 3-6 min topic videos ([74cc198](https://github.com/vanducng/skills/commit/74cc198fc06aa5cbe43189d09307a96ed8085128))
+* **youtube-upload:** set Private or Unlisted on a finished video ([982ece7](https://github.com/vanducng/skills/commit/982ece7cec632d9268bb1fa4ef02de4b3e6bbb15))
+* **youtube-upload:** upload and finish a video on YouTube through Aside, Private by default ([673d0be](https://github.com/vanducng/skills/commit/673d0be1f29d50a908c7bf58bf469a54e6611a11))
+
+
+### Bug Fixes
+
+* **gog:** hand the person a sourced command and check for read-only scopes before writes ([#673](https://github.com/vanducng/skills/issues/673)) ([a3f891d](https://github.com/vanducng/skills/commit/a3f891d010c2eea95431d4966336a46697c1d296))
+* **travel-vlog:** evals read a card's dur in every documented form ([0afb77b](https://github.com/vanducng/skills/commit/0afb77baeb2edbdc74ed911c8b10216f6160350d))
+* **travel-vlog:** mix the audio in its own pass so music plays under cards ([029a53c](https://github.com/vanducng/skills/commit/029a53c6d0ad1349451b97d07caf4d18ff9922fa))
+* **travel-vlog:** time cards the same way everywhere in the evals ([ebd6e15](https://github.com/vanducng/skills/commit/ebd6e15f3b9fbb719d46b8ada95b34cc625714aa))
+* **travel-vlog:** years and times stay audible; transcripts found in the index folder ([029a53c](https://github.com/vanducng/skills/commit/029a53c6d0ad1349451b97d07caf4d18ff9922fa))
+* **youtube-upload:** a negation cancels 'public' only across filler words ([d91bbce](https://github.com/vanducng/skills/commit/d91bbce583be6c18524c1205598daac85535e18e))
+* **youtube-upload:** broad public check, clean up on every staging failure ([b184d0e](https://github.com/vanducng/skills/commit/b184d0e70744eff8399d821ff897d2b48fd0958f))
+* **youtube-upload:** edit a fresh upload once more when it stays a draft ([a1d2614](https://github.com/vanducng/skills/commit/a1d26140ca5b6f7f28e16a81846546495d85602c))
+* **youtube-upload:** find the Aside session folder safely and report failures honestly ([ee3f325](https://github.com/vanducng/skills/commit/ee3f325260e59779db83d74b1bdb844989031b8b))
+* **youtube-upload:** judge each 'public' alone in the eval claim check ([13ea6a7](https://github.com/vanducng/skills/commit/13ea6a74425451a1a95d038698cbee2b35a7c8f8))
+* **youtube-upload:** negation only near the word, keep the Aside log on failure ([a400def](https://github.com/vanducng/skills/commit/a400defeff17a389a8ac52db3d71340a994adee5))
+* **youtube-upload:** pick the run's own session folder and check the read-back ([982ece7](https://github.com/vanducng/skills/commit/982ece7cec632d9268bb1fa4ef02de4b3e6bbb15))
+* **youtube-upload:** retry only a draft read-back, document YT_RETRY_WAIT ([bc9f5a6](https://github.com/vanducng/skills/commit/bc9f5a69d36fa5590e38838cb16d1f82db764042))
+* **youtube-upload:** wait for Upload complete before closing the tab ([982ece7](https://github.com/vanducng/skills/commit/982ece7cec632d9268bb1fa4ef02de4b3e6bbb15))
+
 ## [1.99.0](https://github.com/vanducng/skills/compare/v1.98.0...v1.99.0) (2026-11-23)
 
 
