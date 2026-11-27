@@ -12,6 +12,7 @@ head -c 2000 /dev/urandom >"$run/t.jpg"
 head -c 1000 /dev/urandom >"$run/v.mp4"
 yt() { PATH="$run/bin:$PATH" ASIDE="$run/bin/aside" ASIDE_SESSIONS="$run/sessions" "$here/yt.sh" "$@"; }
 fail() { echo "FAIL $*"; exit 1; }
+export YT_RETRY_WAIT=0
 
 yt publish "$run/v.mp4" "$run/t.jpg" "$run/meta.json" >/dev/null 2>&1 || fail "complete upload: publish failed"
 grep -q '"script":"edit.js"' "$run/.aside-log.jsonl" || fail "complete upload was not finished with edit.js"
@@ -20,6 +21,12 @@ grep -q '"script":"edit.js"' "$run/.aside-log.jsonl" || fail "complete upload wa
 out=$(yt publish "$run/v.mp4" "$run/t.jpg" "$run/meta.json" 2>&1) && fail "unfinished upload: publish exited 0"
 grep -q '"script":"edit.js"' "$run/.aside-log.jsonl" && fail "unfinished upload was edited"
 grep -q 'did not finish uploading' <<<"$out" || fail "unfinished upload: no clear message"
+
+# a fresh upload the first edit leaves a draft: publish edits it once more and succeeds
+echo draft-once >"$run/.aside-upload"; : >"$run/.aside-log.jsonl"
+yt publish "$run/v.mp4" "$run/t.jpg" "$run/meta.json" >/dev/null 2>&1 || fail "draft-once: publish failed"
+[ "$(grep -c '"script":"edit.js"' "$run/.aside-log.jsonl")" -eq 2 ] || fail "draft-once: expected two edits"
+rm -f "$run/.aside-upload"
 
 # eval public-claim check, per clause
 . "$here/../evals/public-claim.sh"

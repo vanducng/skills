@@ -37,6 +37,8 @@ case $script in
     entry
     if [ "$channel" != "$account" ]; then echo "Error: signed in to channel $account, expected $channel"; exit 1; fi
     last=$(grep '"script":"edit.js"' "$log" 2>/dev/null | tail -1)
+    # .aside-upload holding "draft-once" plays a fresh upload that the first edit leaves a draft
+    [ "$(cat "$root/.aside-upload" 2>/dev/null)" = draft-once ] && [ "$(grep -c '"script":"edit.js"' "$log")" -lt 2 ] && last=""
     for id in $(jq -r '.ids[]' <<<"$meta"); do
       jq -cn --arg id "$id" --argjson e "${last:-null}" '{id: $id, link: "https://youtu.be/\($id)",
         title: ($e.meta.title // "v"), visibility: (if $e then (($e.meta.privacy // "private") | (.[0:1] | ascii_upcase) + .[1:]) else "Draft" end),

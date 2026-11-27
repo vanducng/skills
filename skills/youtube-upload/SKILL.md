@@ -35,7 +35,7 @@ $S/yt.sh edit    thumb.jpg meta-with-id.json      # finish an uploaded video
 $S/yt.sh status  meta.json <id> [<id>...]         # read back any videos
 ```
 
-`ASIDE` overrides the Aside binary; `ASIDE_SESSIONS` only changes where `yt.sh` looks for Aside's session folder (default `~/.aside/u/0/sessions`; Aside itself does not read it). Each repl call has a 120 s limit, so the upload and the details run as separate calls. Aside closes the call's tab when it ends, and a tab closed before "Upload complete" leaves "Upload interrupted" in Studio, so `upload.js` waits for it (about 105 s at most) and `publish` never edits an unfinished upload.
+`ASIDE` overrides the Aside binary; `ASIDE_SESSIONS` only changes where `yt.sh` looks for Aside's session folder (default `~/.aside/u/0/sessions`; Aside itself does not read it). Each repl call has a 120 s limit, so the upload and the details run as separate calls. Aside closes the call's tab when it ends, and a tab closed before "Upload complete" leaves "Upload interrupted" in Studio, so `upload.js` waits for it (about 105 s at most) and `publish` never edits an unfinished upload. A video edited seconds after its upload can stay a draft, so `publish` edits it once more when the read-back says draft.
 
 ## Report
 

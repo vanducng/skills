@@ -90,7 +90,10 @@ publish() {
   [ -n "$id" ] || die "upload gave no video id. The file was handed to YouTube and may have arrived: look for a new draft on the channel and finish it with 'yt.sh edit' (add its id); do not upload again"
   grep -q '^STEP upload complete' <<<"$up" || die "video $id did not finish uploading and shows \"Upload interrupted\" in Studio. Do not edit it. Tell the owner; a new upload makes a second copy, and only the owner deletes the broken one"
   m=$(mktemp); jq --arg id "$id" '. + {id: $id}' "$meta" >"$m"
-  edit "$thumb" "$m"
+  # A video edited seconds after its upload can stay a draft (seen twice live); a second edit finishes it.
+  (edit "$thumb" "$m") && return 0
+  echo "yt: $id is not finished yet; editing it once more" >&2
+  sleep "${YT_RETRY_WAIT:-20}"; edit "$thumb" "$m"
 }
 
 edit() {
