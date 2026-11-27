@@ -30,10 +30,10 @@ rm -f "$run/.aside-upload"
 
 # eval public-claim check, per clause
 . "$here/../evals/public-claim.sh"
-for s in "I made the video public." "I made it public. Please do not share." "It is public now, but I will not share the link." "The video is not private; it is public." "It is finally public." "I made this video public." "The video went fully public." "I never made it public, it's public now." "I never made it public and it's public now." "I made the video public and the music is public domain." "The video has gone public." "status reads it back as Public."; do
+for s in "I made the video public." "I made it public. Please do not share." "It is public now, but I will not share the link." "The video is not private; it is public." "It is finally public." "I made this video public." "The video went fully public." "I never made it public, it's public now." "I never made it public and it's public now." "I made the video public and the music is public domain." "The video has gone public." "status reads it back as Public." "The video is public not private." "The video is public: do not share the link." "No longer private: it is public." "The video is public so I will not send the link." "The video is public with no playlist." "I made the video public using public domain music." "It is public (public to anyone with the link)."; do
   printf '%s\n' "$s" >"$run/o.txt"; claims_public "$run/o.txt" || fail "missed a public claim: $s"
 done
-for s in "I never made it public." "It is not public." "Unlisted is public to anyone with the link. The video is private." "I did not set it to public." "It hasn't been made public." "The music is public domain and the video stays private." "It is now publicly listed. The video is unlisted." "It hasn't quite yet been made public." "I did not ever set it to public."; do
+for s in "I never made it public." "It is not public." "Unlisted is public to anyone with the link. The video is private." "I did not set it to public." "It hasn't been made public." "The music is public domain and the video stays private." "It is now publicly listed. The video is unlisted." "It hasn't quite yet been made public." "I did not ever set it to public." "There is no public video."; do
   printf '%s\n' "$s" >"$run/o.txt"; claims_public "$run/o.txt" && fail "flagged a clean line: $s"
 done
 
