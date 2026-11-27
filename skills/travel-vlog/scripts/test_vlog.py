@@ -225,6 +225,19 @@ class Picture(unittest.TestCase):
         self.assertEqual(len(vlog.fov_problems(e)), 2)
         self.assertEqual(vlog.fov_problems({"shots": [{"view": {"fov": 85}}]}), [])
 
+    @needs_pil
+    def test_upright_turns_a_photo_by_its_exif_orientation(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as td:
+            src = Path(td) / "p.jpg"
+            ex = Image.Exif()
+            ex[0x0112] = 6
+            Image.new("RGB", (40, 30)).save(src, exif=ex)
+            self.assertEqual(Image.open(vlog.upright(src, Path(td))).size, (30, 40))
+            plain = Path(td) / "q.jpg"
+            Image.new("RGB", (40, 30)).save(plain)
+            self.assertEqual(vlog.upright(plain, Path(td)), plain)
+
     def test_subject_problems_cut_subject_and_short_sign(self):
         cut = {"people": 1, "sign": 0, "object": 0}
         whole = {"people": 0, "sign": 0, "object": 0}

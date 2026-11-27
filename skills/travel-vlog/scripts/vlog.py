@@ -944,6 +944,21 @@ def planned_duration(e: dict) -> float:
     return sum((float(s["out"]) - float(s["in"])) / float(s.get("speed", 1)) for s in e["shots"])
 
 
+def upright(img: Path, tmp: Path) -> Path:
+    """A phone photo as it is meant to be seen: ffmpeg reads the stored pixels and ignores the EXIF orientation, so a
+    portrait photo comes out on its side or, squeezed into a frame, stretched."""
+    try:
+        from PIL import Image, ImageOps
+    except ImportError:
+        return img
+    with Image.open(img) as im:
+        if im.getexif().get(0x0112, 1) == 1:
+            return img
+        out = tmp / f"upright-{img.stem}.png"
+        ImageOps.exif_transpose(im).save(out)
+        return out
+
+
 def render_still(i: int, s: dict, w: int, h: int, fps: float, tmp: Path, draft: bool) -> Path:
     dur = float(s["out"])
     fin, fout = float(s.get("fade_in", s.get("fade", 0.4))), float(s.get("fade_out", s.get("fade", 0.4)))
@@ -955,7 +970,7 @@ def render_still(i: int, s: dict, w: int, h: int, fps: float, tmp: Path, draft: 
     if fout:
         vf += f",fade=t=out:st={max(0.0, dur - fout)}:d={fout}:color={col}"
     out = tmp / f"shot{i:02d}.mov"
-    ffmpeg(["-loop", "1", "-t", f"{dur}", "-i", s["src"], "-f", "lavfi", "-t", f"{dur}", "-i", "anullsrc=r=48000:cl=stereo",
+    ffmpeg(["-loop", "1", "-t", f"{dur}", "-i", str(upright(Path(s["src"]), tmp)), "-f", "lavfi", "-t", f"{dur}", "-i", "anullsrc=r=48000:cl=stereo",
             "-vf", vf, "-map", "0:v", "-map", "1:a", "-t", f"{dur}", "-c:v", "libx264",
             "-preset", "ultrafast" if draft else "medium", "-crf", "26" if draft else "17", "-c:a", "pcm_s16le", str(out)])
     return out
