@@ -53,7 +53,7 @@ repl() {
   local js=$1; shift
   local out dir="" rp rc=0 before new staged=()
   mkdir -p "$ASIDE_SESSIONS"
-  dirs() { find "$ASIDE_SESSIONS" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort; }
+  dirs() { find "$ASIDE_SESSIONS" -mindepth 1 -maxdepth 1 -type d | sed 's#.*/##' | sort; }
   before=$(dirs)
   out=$(mktemp)
   "$ASIDE" repl --file "$here/$js" >"$out" 2>&1 & rp=$!
@@ -61,7 +61,8 @@ repl() {
   for _ in $(seq 1 60); do
     new=$(comm -13 <(echo "$before") <(dirs))
     # take it only when a second look, a moment later, still finds that one folder and no other
-    [ -n "$new" ] && { sleep 0.5; [ "$(comm -13 <(echo "$before") <(dirs))" = "$new" ] && break; }
+    [ -n "$new" ] && { sleep 0.5; [ "$(comm -13 <(echo "$before") <(dirs))" = "$new" ] && [ -d "$ASIDE_SESSIONS/$new" ] && break; }
+    new=""
     sleep 0.5
   done
   [ "$(grep -c . <<<"$new")" -eq 1 ] || { kill "$rp" 2>/dev/null; cat "$out" >&2; die "expected one new Aside session folder under $ASIDE_SESSIONS, found: ${new:-none}"; }
