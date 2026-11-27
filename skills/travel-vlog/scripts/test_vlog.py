@@ -225,6 +225,31 @@ class Picture(unittest.TestCase):
         self.assertEqual(len(vlog.fov_problems(e)), 2)
         self.assertEqual(vlog.fov_problems({"shots": [{"view": {"fov": 85}}]}), [])
 
+    def test_subject_problems_cut_subject_and_short_sign(self):
+        cut = {"people": 1, "sign": 0, "object": 0}
+        whole = {"people": 0, "sign": 0, "object": 0}
+        rep = {"shots": {
+            "1": {"samples": [{"t": 0, "cut": cut, "words": 0}, {"t": 1, "cut": cut, "words": 0}]},
+            "2": {"samples": [{"t": 0, "cut": cut, "words": 0}, {"t": 1, "cut": whole, "words": 0}]},
+            "3": {"samples": [{"t": 0, "cut": whole, "words": 9}]}}}
+        e = {"shots": [{"in": 0, "out": 2}, {"in": 0, "out": 2}, {"in": 0, "out": 3, "subject": "sign"}]}
+        probs = vlog.subject_problems(e, rep)
+        self.assertEqual([p.split(":")[0] for p in probs], ["shot 1", "shot 3"])
+        self.assertIn("4.7 s", probs[1])
+
+    def test_edge_cuts_sees_a_face_past_the_edge_in_the_wider_look(self):
+        wide = {"faces": [[0.8, 0.4, 0.1, 0.1]], "people": [], "text": [], "objects": []}
+        around = vlog.in_view(wide, 2.0)  # 0.8-0.9 in the wide look is 1.1-1.3 in the view: outside it
+        self.assertEqual(vlog.edge_cuts({}, around)["people"], 0)
+        wide["faces"] = [[0.7, 0.4, 0.1, 0.1]]  # 0.9-1.1: half out
+        self.assertEqual(vlog.edge_cuts({}, vlog.in_view(wide, 2.0))["people"], 1)
+        self.assertEqual(vlog.edge_cuts({"people": [[0.3, 0.5, 0.2, 0.6]]})["people"], 0)  # body out at the bottom
+
+    def test_fit_step_aims_at_the_boxes_and_sizes_the_view(self):
+        v = vlog.fit_step({"yaw": 0, "pitch": 0, "fov": 90}, [[0.7, 0.4, 0.2, 0.2]])
+        self.assertGreater(v["yaw"], 20)
+        self.assertLessEqual(v["fov"], vlog.MAX_FOV)
+
     def test_seam_problems_flags_a_view_on_the_lens_join(self):
         e = {"shots": [{"view": {"yaw": -110, "pitch": -30, "fov": 95}},  # the Duc flies 1:08 view
                        {"view": {"yaw": 0, "pitch": -30, "fov": 95}},

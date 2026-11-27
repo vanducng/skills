@@ -384,11 +384,11 @@ def join_in_view(v: dict, two_stage: bool, w: int = 192, h: int = 108) -> bool:
 
 def seam_problems(e: dict) -> list[str]:
     """360 shots on the dual-fisheye path whose view holds the join between the lenses: a person or the horizon
-    breaks along it. Aim so the subject sits inside one lens, or reframe from a stitched equirect."""
+    breaks along it. Aim so the subject sits inside one lens, or set `view.stitch: "flow"`."""
     out = []
     for i, s in enumerate(e.get("shots", [])):
         v = s.get("view") or {}
-        if v.get("type") == "tiny-planet" or ("yaw" not in v and not v.get("track")):
+        if v.get("type") == "tiny-planet" or v.get("stitch") == "flow" or ("yaw" not in v and not v.get("track")):
             continue
         if any(join_in_view(sv, two) for sv, two in view_samples(v)):
             out.append(f"shot {i + 1}: the lens join shows in the view (yaw {v.get('yaw')}); "
@@ -398,6 +398,7 @@ def seam_problems(e: dict) -> list[str]:
 # ---------- people in the frame ----------
 
 PEOPLE_SWIFT = Path(__file__).with_name("people.swift")
+STITCH = Path(__file__).with_name("stitch.py")
 
 
 def people_cmd() -> list[str]:
@@ -436,17 +437,22 @@ def shot_people(s: dict, e: dict, tmp: Path, every: float) -> dict:
     view = s.get("view", {})
     times = [tin + k * every for k in range(int((tout - tin) / every) + 1) if tin + k * every < tout]
     w, h = 640, 360
-    views, spheres = [], []
+    views, spheres, wides = [], [], []
+    fov = float(view.get("fov", DEFAULT_FOV))
+    wfov = min(150.0, fov + 45)
     for k, t in enumerate(times):
         if proj in ("dfisheye", "insv"):
             v = dict(view)
             if v.get("track"):
                 v["yaw"], v["pitch"] = track_at(v["track"], t - tin)
             vf = view_filter(v, proj, w, h)
-            sp = tmp / f"s{k:04d}.jpg"
+            sp, wp = tmp / f"s{k:04d}.jpg", tmp / f"w{k:04d}.jpg"
             ffmpeg(["-ss", f"{t}", "-i", s["src"], "-frames:v", "1", "-filter_complex",
                     f"{video_in(proj)}v360=input=dfisheye:output=equirect:ih_fov=200:iv_fov=200:w=2048:h=1024", str(sp)])
+            ffmpeg(["-ss", f"{t}", "-i", s["src"], "-frames:v", "1", "-filter_complex",
+                    f"{video_in(proj)}{view_filter({**v, 'fov': wfov}, proj, w * 3 // 2, h * 3 // 2)}", str(wp)])
             spheres.append(sp)
+            wides.append(wp)
         else:
             lens = s.get("lens", e.get("lens"))
             vf = square_pixels(info) + lens_filter(lens, w, h) + view_filter(view, proj, w, h, is_portrait(info, view))
@@ -455,14 +461,83 @@ def shot_people(s: dict, e: dict, tmp: Path, every: float) -> dict:
         views.append(vp)
     seen = detect_people(views)
     around = detect_people(spheres) if spheres else [None] * len(views)
+    wide = detect_people(wides) if wides else [{}] * len(views)
+    k = math.tan(math.radians(wfov / 2)) / math.tan(math.radians(fov / 2))
     samples = []
-    for t, v, a in zip(times, seen, around):
-        row = {"t": round(t - tin, 2), "in_view": len(v.get("people", [])) + len(v.get("faces", []))}
+    for t, v, wd in zip(times, seen, wide):
+        row = {"t": round(t - tin, 2), "in_view": len(v.get("people", [])) + len(v.get("faces", [])),
+               "cut": edge_cuts(v, in_view(wd, k)), "words": sum(len(x["text"].split()) for x in v.get("text", []))}
+        a = around[len(samples)]
         if a is not None:
             row["sphere"] = [[round((b[0] + b[2] / 2 - 0.5) * 360, 1), round((0.5 - b[1] - b[3] / 2) * 180, 1)]
                              for b in a.get("people", [])]
         samples.append(row)
     return {"projection": proj, "every": every, "samples": samples}
+
+
+EDGE = 0.01  # a box this close to the frame edge is cut by it
+
+
+def touches(b: list) -> bool:
+    x, y, w, h = b
+    return x <= EDGE or y <= EDGE or x + w >= 1 - EDGE or y + h >= 1 - EDGE
+
+
+def in_view(wide: dict, k: float) -> dict:
+    """Boxes found in a wider look around the same view, in the view's own 0-1 frame (they may run past it): a
+    subject cut by the view's edge is often not found inside the view at all."""
+    def m(b):
+        x0, y0, x1, y1 = (0.5 + (c - 0.5) * k for c in (b[0], b[1], b[0] + b[2], b[1] + b[3]))
+        return [x0, y0, x1 - x0, y1 - y0]
+
+    def seen(b):
+        return b[0] < 1 and b[1] < 1 and b[0] + b[2] > 0 and b[1] + b[3] > 0
+
+    out = {key: [m(b) for b in wide.get(key, []) if seen(m(b))] for key in ("people", "faces", "objects")}
+    out["text"] = [{**x, "box": m(x["box"])} for x in wide.get("text", []) if seen(m(x["box"]))]
+    return out
+
+
+def edge_cuts(found: dict, around: dict | None = None) -> dict:
+    """What the frame edge cuts in one view: a face at any edge, a person at the top or the sides (a body may run
+    out at the bottom), text, and the largest salient object; `around` adds what a wider look saw."""
+    around = around or {}
+    faces = found.get("faces", []) + around.get("faces", [])
+    bodies = found.get("people", []) + around.get("people", [])
+    texts = [x["box"] for x in found.get("text", []) + around.get("text", [])]
+    objs = sorted(found.get("objects", []), key=lambda b: b[2] * b[3], reverse=True)[:1]
+    side = lambda b: b[3] > 0.25 and (b[0] <= EDGE or b[1] <= EDGE or b[0] + b[2] >= 1 - EDGE)
+    return {"people": sum(touches(b) for b in faces) + sum(side(b) for b in bodies),
+            "sign": sum(touches(b) for b in texts),
+            "object": sum(touches(b) for b in objs)}
+
+
+def read_time(words: int) -> float:
+    """Seconds a viewer needs to read a sign: 2 s plus 0.3 s a word, at most 5 s."""
+    return min(5.0, 2 + 0.3 * words)
+
+
+def subject_problems(e: dict, rep: dict | None) -> list[str]:
+    """The shot's `subject` (people, by default; or sign, object) whole in the frame for all but one sample, and a
+    sign held long enough to read."""
+    if rep is None:
+        return []
+    probs = []
+    for i, s in enumerate(e["shots"]):
+        r = rep["shots"].get(str(i + 1))
+        if s.get("still") or not r or "cut" not in (r["samples"] or [{}])[0]:
+            continue
+        kind = s.get("subject", "people")
+        cut = [sm["t"] for sm in r["samples"] if sm["cut"].get(kind)]
+        if len(cut) > 1:
+            probs.append(f"shot {i + 1}: the frame edge cuts the {kind} at {', '.join(f'{t:g}' for t in cut[:4])} s; "
+                         "frame all of it with a margin (`vlog.py fit` for a 360 view)")
+        if kind == "sign":
+            words = max((sm["words"] for sm in r["samples"]), default=0)
+            held = (float(s["out"]) - float(s["in"])) / float(s.get("speed", 1))
+            if held < read_time(words):
+                probs.append(f"shot {i + 1}: a sign of {words} words needs {read_time(words):.1f} s; it is held {held:.1f} s")
+    return probs
 
 
 def empty_runs(samples: list[dict], every: float, need_elsewhere: bool) -> float:
@@ -493,6 +568,56 @@ def people_problems(e: dict, rep: dict | None) -> list[str]:
     return probs
 
 
+def subject_boxes(found: dict, subject: str) -> list:
+    """Boxes of the shot's subject in one view: people are their faces and heads (the top of a body box)."""
+    if subject == "people":
+        return found.get("faces", []) + [[x, y, w, min(h, w)] for x, y, w, h in found.get("people", [])]
+    if subject == "sign":
+        return [t["box"] for t in found.get("text", [])]
+    return sorted(found.get("objects", []), key=lambda b: b[2] * b[3], reverse=True)[:1]
+
+
+def fit_step(view: dict, boxes: list, margin: float = 0.08, w: int = 16, h: int = 9) -> dict:
+    """The next view: aim at the middle of the boxes and widen (at most MAX_FOV) or narrow so they fill the frame
+    inside the margin. Small-angle steps; `fit` repeats it on a fresh look."""
+    x0, y0 = min(b[0] for b in boxes), min(b[1] for b in boxes)
+    x1, y1 = max(b[0] + b[2] for b in boxes), max(b[1] + b[3] for b in boxes)
+    fov = float(view.get("fov", DEFAULT_FOV))
+    vfov = 2 * math.degrees(math.atan(math.tan(math.radians(fov / 2)) * h / w))
+    need = max((x1 - x0) * fov, 2 * math.degrees(math.atan(math.tan(math.radians((y1 - y0) * vfov / 2)) * w / h)))
+    return {**view, "yaw": round(float(view.get("yaw", 0)) + ((x0 + x1) / 2 - 0.5) * fov, 1),
+            "pitch": round(float(view.get("pitch", 0)) - ((y0 + y1) / 2 - 0.5) * vfov, 1),
+            "fov": round(min(MAX_FOV, max(50.0, need * (1 + 2 * margin) * 1.1)), 1)}
+
+
+def cmd_fit(args) -> None:
+    """Suggest a 360 view that holds the whole subject at one moment: start from --yaw/--pitch/--fov, look, aim at
+    the subject and size the view to it, and repeat until it sits inside the margin."""
+    info = media_info(args.src)
+    proj = projection_of(info, args.src)
+    if proj not in ("dfisheye", "insv"):
+        die("fit is for 360 footage; on flat footage pick a crop that keeps the subject whole")
+    view = {"yaw": args.yaw, "pitch": args.pitch, "fov": args.fov, "roll": args.roll}
+    with tempfile.TemporaryDirectory() as td:
+        for k in range(6):
+            vp = Path(td) / f"v{k}.jpg"
+            ffmpeg(["-ss", f"{args.t}", "-i", args.src, "-frames:v", "1", "-filter_complex",
+                    f"{video_in(proj)}{view_filter(view, proj, 640, 360)}", str(vp)])
+            boxes = subject_boxes(detect_people([vp])[0], args.subject)
+            if not boxes:
+                die(f"no {args.subject} in the view at {args.t} s: aim nearer with --yaw/--pitch")
+            whole = not any(touches(b) for b in boxes)
+            inside = all(b[0] >= 0.08 and b[1] >= 0.08 and b[0] + b[2] <= 0.92 and b[1] + b[3] <= 0.92 for b in boxes)
+            if inside or (whole and k):
+                break
+            view = fit_step(view, boxes)
+    print(json.dumps({"t": args.t, **view, "whole": whole}))
+    if not whole:
+        print(f"the {args.subject} does not fit at fov {MAX_FOV}: frame the faces (or the text) first and show the "
+              "rest with a pan or a second angle", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_people(args) -> None:
     e, outdir = load_edit(args.edit, writing=False)
     shots = {}
@@ -506,10 +631,10 @@ def cmd_people(args) -> None:
     rep = {"edit_sha256": sha256(Path(args.edit)), "every_s": args.every, "shots": shots}
     outdir.mkdir(parents=True, exist_ok=True)
     (outdir / f"{e['stem']}.people.json").write_text(json.dumps(rep, indent=1))
-    probs = people_problems(e, rep)
+    probs = people_problems(e, rep) + subject_problems(e, rep)
     for p in probs:
         print(f"FAIL {p}")
-    print(f"wrote {e['stem']}.people.json: {len(shots)} shots; {len(probs)} empty views")
+    print(f"wrote {e['stem']}.people.json: {len(shots)} shots; {len(probs)} problems")
     sys.exit(1 if probs else 0)
 
 
@@ -836,6 +961,36 @@ def render_still(i: int, s: dict, w: int, h: int, fps: float, tmp: Path, draft: 
     return out
 
 
+def stitched(s: dict, view: dict, w: int, h: int, fps: float) -> Path:
+    """A 360 shot with `view.stitch: "flow"` as a flat clip whose lens join is flow-aligned (stitch.py), cached by its
+    inputs: the view never splits along the join, even with a person on it."""
+    if projection_of(media_info(s["src"]), s["src"]) != "insv":
+        die(f"{s['src']}: stitch needs the .insv master (two fisheye streams)")
+    args = [s["src"], f"{float(s['in'])}", f"{float(s['out'])}"]
+    opts = ["--yaw", f"{float(view.get('yaw', 0))}", "--pitch", f"{float(view.get('pitch', 0))}",
+            "--roll", f"{float(view.get('roll', 0))}", "--fov", f"{float(view.get('fov', DEFAULT_FOV))}",
+            "--size", f"{w}x{h}", "--fps", f"{fps}"]
+    key = hashlib.sha256(json.dumps([args, opts, view.get("track"), view.get("roll_track"),
+                                     STITCH.read_bytes().hex()]).encode()).hexdigest()[:16]
+    cache = Path.home() / ".cache" / "travel-vlog" / "stitch"
+    out = cache / f"{key}.mp4"
+    if out.is_file():
+        return out
+    cache.mkdir(parents=True, exist_ok=True)
+    for k, flag in (("track", "--track"), ("roll_track", "--roll-track")):
+        if view.get(k):
+            jf = cache / f"{key}.{k}.json"
+            jf.write_text(json.dumps(view[k]))
+            opts += [flag, str(jf)]
+    if not shutil.which("uv"):
+        die("stitch needs uv (it runs stitch.py with numpy and opencv)")
+    part = cache / f"{key}.part.mp4"
+    run(["uv", "run", "--no-project", "--with", "numpy", "--with", "opencv-python-headless", "python3",
+         str(STITCH), *args, str(part), *opts])
+    part.rename(out)
+    return out
+
+
 def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path, draft: bool) -> Path:
     if s.get("still"):
         return render_still(i, s, w, h, fps, tmp, draft)
@@ -846,10 +1001,14 @@ def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path,
     speed = float(s.get("speed", 1))
     dur = (tout - tin) / speed
     view = s.get("view", {})
+    lens = s.get("lens", e.get("lens")) if proj == "flat" else None
+    if view.get("stitch") == "flow" and proj in ("dfisheye", "insv"):
+        src, proj, view, lens = str(stitched(s, view, w, h, fps)), "flat", {}, None
+        tin, tout = 0.0, tout - tin
+        info = media_info(src)
     vf = []
     cmdfile = tmp / f"shot{i:02d}.cmd"
     pan = proj in ("dfisheye", "insv") and pan_filter(view, w, h, dur * speed, info.get("fps", fps) or fps, cmdfile)
-    lens = s.get("lens", e.get("lens")) if proj == "flat" else None
     flat = square_pixels(info) + lens_filter(lens, w, h) if proj == "flat" else ""
     vf.append(flat + (pan or view_filter(view, proj, w, h, is_portrait(info, view))))
     if e.get("grade"):
@@ -1131,7 +1290,7 @@ def cmd_verify(args) -> None:
     prep = json.loads(pj.read_text()) if pj.is_file() else None
     if prep and prep.get("edit_sha256") != sha256(Path(args.edit)):
         prep = None
-    fails += people_problems(e, prep)
+    fails += people_problems(e, prep) + subject_problems(e, prep)
     if not video.is_file():
         die(f"no render at {video}", 1)
     info = media_info(video)
@@ -1390,6 +1549,13 @@ def main() -> None:
     p.add_argument("edit")
     p.add_argument("--every", type=float, default=1.0)
     p.set_defaults(fn=cmd_people)
+    p = sub.add_parser("fit", help="a 360 view (yaw, pitch, fov) that holds the whole subject at one moment")
+    p.add_argument("src")
+    p.add_argument("t", type=float)
+    for k, d in (("yaw", 0.0), ("pitch", 0.0), ("roll", 0.0), ("fov", float(DEFAULT_FOV))):
+        p.add_argument(f"--{k}", type=float, default=d, help="the view to start from")
+    p.add_argument("--subject", choices=["people", "sign", "object"], default="people")
+    p.set_defaults(fn=cmd_fit)
     p = sub.add_parser("find-people", help="source ranges where people are in whole clips, for picking shots")
     p.add_argument("clips", nargs="+")
     p.add_argument("--every", type=float, default=1.0)
