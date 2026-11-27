@@ -7,6 +7,10 @@ lists=$(edit_lists)
 for f in $lists; do
   python3 - "$f" <<'PY' || exit 1
 import json, sys
+def length(s):
+    if s.get("still") or s.get("kind") == "still":
+        return float(s["dur"]) if "dur" in s else (float(s.get("out", 4)) - float(s.get("in", 0))) / float(s.get("speed", 1))
+    return (float(s["out"]) - float(s["in"])) / float(s.get("speed", 1))
 f = sys.argv[1]; d = json.load(open(f))
 def face(v):
     v = v or {}
@@ -14,7 +18,7 @@ def face(v):
     return abs(((float(v["yaw"]) - 180) + 180) % 360 - 180) < 60
 total = run = 0.0
 for s in d["shots"]:
-    dur = (float(s["dur"]) if "dur" in s and "src" not in s else (float(s["out"]) - float(s["in"])) / float(s.get("speed", 1)))
+    dur = length(s)
     on = face(s.get("view")) or s.get("holder")
     run = run + dur if on else 0.0
     total += dur if on else 0.0

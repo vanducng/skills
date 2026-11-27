@@ -57,7 +57,7 @@ One JSON file per video, named `<stem>.json`. `render`, `thumb` and `verify` rea
 | `shots[].title` | Lower-left place and time; `at` and `hold` in seconds. |
 | `shots[].audio` | Camera sound gain, 0 to mute. |
 | `shots[].mute` | `[[a, b], ...]` source seconds where the camera sound is silenced (the music keeps playing). |
-| `transcripts` | Folder of `<clip>.transcript.json` from `transcribe`; default the output folder. |
+| `transcripts` | Folder of `<clip>.transcript.json` from `transcribe`; default `<output_dir>/index` when it exists, else the output folder. |
 | `private_names` | Names that must not be heard; `sound` and `verify` flag them. |
 | `shots[].blur` | Boxes as fractions of the frame, blurred for the whole shot. Prefer cutting the shot. |
 | `music[]` | `at` is where it starts in the video, `from` where in the track, `length` how long (default to the end). Several entries mix. `licence` and `credit` are required by `verify`. |
