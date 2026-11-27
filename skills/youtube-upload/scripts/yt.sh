@@ -29,11 +29,11 @@ check() {
   [[ $(jq -r '.authuser // 0' "$meta") =~ ^[0-9]+$ ]] || fails+=("authuser must be a whole number (the Google account index)")
   [[ $channel =~ ^UC[A-Za-z0-9_-]{22}$ ]] || fails+=("channel '$channel' is not a channel id (UC + 22 chars)")
   [ -n "$title" ] || fails+=("no title")
-  [ "$(printf %s "$title" | wc -m)" -le 100 ] || fails+=("title over 100 characters")
-  [ "$(printf %s "$desc" | wc -m)" -le 5000 ] || fails+=("description over 5000 characters")
+  [ "$(jq '.title // "" | length' "$meta")" -le 100 ] || fails+=("title over 100 characters")
+  [ "$(jq '.description // "" | length' "$meta")" -le 5000 ] || fails+=("description over 5000 characters")
   [[ "$title$desc" != *[\<\>]* ]] || fails+=("title or description has < or >, which YouTube rejects")
   case "$privacy" in private | unlisted) ;; *) fails+=("privacy '$privacy': only private or unlisted; public waits for the owner") ;; esac
-  [ -z "$playlist" ] || [ "$(printf %s "$playlist" | wc -m)" -le 150 ] || fails+=("playlist name over 150 characters")
+  [ -z "$playlist" ] || [ "$(jq '.playlist | length' "$meta")" -le 150 ] || fails+=("playlist name over 150 characters")
   if [ -s "$thumb" ]; then
     local size dims
     size=$(wc -c <"$thumb" | tr -d ' ')
@@ -51,22 +51,23 @@ check() {
 # appears when the run starts, so wait for it, copy the files in, then touch 'ready' (the script waits on it).
 repl() {
   local js=$1; shift
-  local marker out dir="" rp rc=0
+  local out dir="" rp rc=0 before new staged=()
   mkdir -p "$ASIDE_SESSIONS"
-  marker=$(mktemp); sleep 1
+  before=$(ls -1 "$ASIDE_SESSIONS")
   out=$(mktemp)
   "$ASIDE" repl --file "$here/$js" >"$out" 2>&1 & rp=$!
+  # The run's folder is the one session folder that was not there before; with two new ones, stop rather than guess.
   for _ in $(seq 1 60); do
-    dir=$(find "$ASIDE_SESSIONS" -maxdepth 1 -type d -newer "$marker" -name '20*' | head -1)
-    [ -n "$dir" ] && break; sleep 0.5
+    new=$(comm -13 <(sort <<<"$before") <(ls -1 "$ASIDE_SESSIONS" | sort))
+    [ -n "$new" ] && break; sleep 0.5
   done
-  rm -f "$marker"
-  [ -n "$dir" ] || { kill "$rp" 2>/dev/null; cat "$out" >&2; die "no Aside session dir appeared under $ASIDE_SESSIONS"; }
-  while [ $# -gt 1 ]; do cp "$1" "$dir/$2"; shift 2; done
+  [ "$(grep -c . <<<"$new")" -eq 1 ] || { kill "$rp" 2>/dev/null; cat "$out" >&2; die "expected one new Aside session folder under $ASIDE_SESSIONS, found: ${new:-none}"; }
+  dir="$ASIDE_SESSIONS/$new"
+  while [ $# -gt 1 ]; do cp "$1" "$dir/$2"; staged+=("$dir/$2"); shift 2; done
   touch "$dir/ready"
   wait "$rp" || rc=$?
   if [ "$rc" -ne 0 ]; then cat "$out"; else grep -E '^(STEP|RESULT|Error)' "$out" || cat "$out"; fi
-  rm -f "$dir/v.mp4" "$out"
+  rm -f "${staged[@]}" "$dir/ready" "$out"
   return "$rc"
 }
 
@@ -76,14 +77,16 @@ publish() {
   up=$(repl upload.js "$video" v.mp4 "$meta" meta.json) || true
   echo "$up"
   id=$(sed -n 's/^RESULT //p' <<<"$up" | jq -r '.id // empty')
+  grep -q '^STEP channel ok' <<<"$up" || die "nothing was uploaded; fix the error above and run publish again"
   [ -n "$id" ] || die "upload gave no video id. The file may still have reached YouTube: look for a new draft on the channel and finish it with 'yt.sh edit' (add its id); do not upload again"
+  grep -q '^STEP upload complete' <<<"$up" || die "video $id did not finish uploading and shows \"Upload interrupted\" in Studio. Do not edit it. Tell the owner; a new upload makes a second copy, and only the owner deletes the broken one"
   m=$(mktemp); jq --arg id "$id" '. + {id: $id}' "$meta" >"$m"
   edit "$thumb" "$m"
 }
 
 edit() {
   local thumb=$1 meta=$2
-  jq -e '.id | strings' "$meta" >/dev/null || die "$meta has no \"id\""
+  jq -e '.id | strings | test("^[A-Za-z0-9_-]{11}$")' "$meta" >/dev/null || die "$meta has no video \"id\" (11 characters)"
   check none "$thumb" "$meta" || die "fix the FAIL lines first"
   repl edit.js "$thumb" thumb.jpg "$meta" meta.json
   status "$meta" "$(jq -r .id "$meta")"
@@ -96,6 +99,11 @@ status() {
   local out; out=$(repl status.js "$m" meta.json) || { echo "$out"; die "status failed"; }
   echo "$out"
   ! grep -q '"visibility":"Public"' <<<"$out" || die "a video reads back as Public; tell the owner now"
+  local want; want=$(jq -r '(.privacy // "private") | ascii_downcase' "$meta")
+  # Pending: YouTube's checks have not run; the chosen privacy applies after them.
+  sed -n 's/^RESULT //p' <<<"$out" | jq -e --arg w "$want" 'select((.visibility | ascii_downcase) != $w and .visibility != "Pending")' >/dev/null \
+    && die "a video reads back with another visibility than $want; finish it in Studio or tell the owner"
+  return 0
 }
 
 cmd=${1:-}; shift || true

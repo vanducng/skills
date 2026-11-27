@@ -27,7 +27,11 @@ case $script in
   upload.js | edit.js)
     entry
     if [ "$channel" != "$account" ]; then echo "Error: signed in to channel $account, expected $channel"; exit 1; fi
-    if [ "$script" = upload.js ]; then echo "STEP channel ok"; echo 'RESULT {"id":"stubVid0001"}'
+    if [ "$script" = upload.js ]; then
+      echo "STEP channel ok"; echo 'RESULT {"id":"stubVid0001"}'
+      # .aside-upload holding "interrupted" plays a file that did not finish sending
+      if [ "$(cat "$root/.aside-upload" 2>/dev/null)" = interrupted ]; then echo "Error: upload of stubVid0001 not complete (34%)"; exit 1; fi
+      echo "STEP upload complete"
     else printf 'STEP channel ok\nSTEP details\nSTEP playlist\nSTEP saved\nSTEP %s\n' "$(jq -r '.privacy // "private"' <<<"$meta")"; fi ;;
   status.js)
     entry

@@ -32,6 +32,8 @@ jobs:
           python3 skills/bi-dash/evals/test_checks.py
           python3 skills/confluence-publish/scripts/test_to_confluence.py
           python3 skills/travel-vlog/scripts/test_vlog.py
+      - name: Run youtube-upload helper tests
+        run: bash skills/youtube-upload/scripts/test_yt.sh
       - name: Run git skill helper tests
         run: bash skills/git/scripts/wait-for-checks.test.sh
       - name: Run computer-use helper tests

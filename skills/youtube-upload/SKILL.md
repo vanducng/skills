@@ -14,9 +14,9 @@ metadata:
 ## Rules
 
 1. **The owner's channel only.** Put the channel id (`UC...`) and the Google account index (`authuser`) in the meta file. Every script stops when the browser is signed in to another channel. Then stop and tell the owner; never point the upload at the channel that happens to be signed in.
-2. **Private by default, never Public.** `privacy` is `private` or `unlisted` (Unlisted is public to anyone with the link). Making a video Public, deleting one, or messaging anyone waits for the owner's word.
+2. **Private by default, never Public.** `edit` changes Private and Unlisted on a finished video too. `privacy` is `private` or `unlisted` (Unlisted is public to anyone with the link). Making a video Public, deleting one, or messaging anyone waits for the owner's word.
 3. **Check before upload.** `yt.sh check` fails on a title over 100 characters, a description over 5000, `<` or `>` in either, a thumbnail that is not 16:9 or is 2 MB or more, and a bad channel id. Fix the file or the text, keeping the series name at the start of the title, and run it again. Nothing uploads while a `FAIL` line remains.
-4. **One upload per video.** If a run fails after `upload.js` printed an id, finish that video with `yt.sh edit` (add `"id"` to the meta file). If it failed with no id, the file may still have arrived: look for a new draft on the channel and finish that one. A second upload makes a duplicate, and only the owner may delete one. If the file changed after the upload, say so; do not upload again on your own.
+4. **One upload per video.** If a run fails after `upload.js` printed an id, finish that video with `yt.sh edit` (add `"id"` to the meta file). If it failed with no id, the file may still have arrived: look for a new draft on the channel and finish that one. If it printed an id but not `STEP upload complete`, the video shows "Upload interrupted": tell the owner, who decides whether to delete it before you upload again. A second upload makes a duplicate, and only the owner may delete one. If the file changed after the upload, say so; do not upload again on your own.
 5. **The playlist must exist once.** The script refuses a missing or duplicated playlist name. Creating a playlist is a one-time step in Studio, as Private unless the owner says otherwise.
 6. **Read back.** `publish` and `edit` end with `status`: title, visibility, draft, playlist, custom thumbnail; it fails when a video reads back as Public. Report what Studio shows. "Pending" means checks are still running; run `status` again later.
 
@@ -35,7 +35,7 @@ $S/yt.sh edit    thumb.jpg meta-with-id.json      # finish an uploaded video
 $S/yt.sh status  meta.json <id> [<id>...]         # read back any videos
 ```
 
-`ASIDE` and `ASIDE_SESSIONS` override the Aside binary and its session folder (default `~/.aside/u/0/sessions`). Each repl call has a 120 s limit, so the upload and the details run as separate calls.
+`ASIDE` and `ASIDE_SESSIONS` override the Aside binary and its session folder (default `~/.aside/u/0/sessions`). Each repl call has a 120 s limit, so the upload and the details run as separate calls. Aside closes the call's tab when it ends, and a tab closed before "Upload complete" leaves "Upload interrupted" in Studio, so `upload.js` waits for it (about 105 s at most) and `publish` never edits an unfinished upload.
 
 ## Report
 
