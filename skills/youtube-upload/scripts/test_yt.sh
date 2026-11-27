@@ -20,4 +20,10 @@ grep -q '"script":"edit.js"' "$run/.aside-log.jsonl" || fail "complete upload wa
 out=$(yt publish "$run/v.mp4" "$run/t.jpg" "$run/meta.json" 2>&1) && fail "unfinished upload: publish exited 0"
 grep -q '"script":"edit.js"' "$run/.aside-log.jsonl" && fail "unfinished upload was edited"
 grep -q 'did not finish uploading' <<<"$out" || fail "unfinished upload: no clear message"
+
+# two new session folders at once: stop rather than stage into the wrong one
+printf '#!/bin/sh\nmkdir -p "$ASIDE_SESSIONS/2026-01-01_a" "$ASIDE_SESSIONS/2026-01-01_b"; sleep 3\n' >"$run/bin/two"; chmod +x "$run/bin/two"
+out=$(ASIDE="$run/bin/two" ASIDE_SESSIONS="$run/s2" PATH="$run/bin:$PATH" "$here/yt.sh" status "$run/meta.json" dQw4w9WgXcQ 2>&1) && fail "two new folders: exited 0"
+grep -q 'expected one new Aside session folder' <<<"$out" || fail "two new folders: $out"
+ls "$run/s2"/*/meta.json >/dev/null 2>&1 && fail "two new folders: staged a file anyway"
 echo ok
