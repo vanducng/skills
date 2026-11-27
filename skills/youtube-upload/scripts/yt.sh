@@ -66,11 +66,11 @@ repl() {
     new=""
     sleep 0.5
   done
-  [ "$(grep -c . <<<"$new")" -eq 1 ] || { kill "$rp" 2>/dev/null; cat "$out" >&2; die "expected one new Aside session folder under $ASIDE_SESSIONS, found: $(paste -sd , - <<<"${new:-none}")"; }
+  [ "$(grep -c . <<<"$new")" -eq 1 ] || { kill "$rp" 2>/dev/null; rm -f "$out" ${staged[@]+"${staged[@]}"}; cat "$out" >&2; die "expected one new Aside session folder under $ASIDE_SESSIONS, found: $(paste -sd , - <<<"${new:-none}")"; }
   dir="$ASIDE_SESSIONS/$new"
-  [ -d "$dir" ] || { kill "$rp" 2>/dev/null; die "$dir is not a folder"; }
+  [ -d "$dir" ] || { kill "$rp" 2>/dev/null; rm -f "$out" ${staged[@]+"${staged[@]}"}; die "$dir is not a folder"; }
   while [ $# -gt 1 ]; do
-    cp "$1" "$dir/$2" || { kill "$rp" 2>/dev/null; die "could not stage $1"; }
+    cp "$1" "$dir/$2" || { kill "$rp" 2>/dev/null; rm -f "$out" ${staged[@]+"${staged[@]}"}; die "could not stage $1"; }
     staged+=("$dir/$2"); shift 2
   done
   touch "$dir/ready"
