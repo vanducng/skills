@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Unit tests for the parts of vlog.py that need no footage: naming, view filters, sound flags."""
+import importlib.util
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -8,6 +11,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import vlog  # noqa: E402
+
+needs_pil = unittest.skipUnless(importlib.util.find_spec("PIL"), "needs Pillow")
+needs_ffmpeg = unittest.skipUnless(shutil.which("ffmpeg"), "needs ffmpeg")
 
 
 class Naming(unittest.TestCase):
@@ -77,10 +83,19 @@ class Sound(unittest.TestCase):
 
     def test_ordinary_speech_stays_audible(self):
         for s in ("the view is nice", "we're going to the market", "locally famous", "a so-called night market",
-                  "a master shot", "in the river"):
+                  "a master shot", "in the river", "in 2026", "meet at 10 30", "walk 12-15 minutes",
+                  "about 10.5 km"):
             self.assertIsNone(vlog.FLAG_RE.search(s), s)
         for s in ("mật khẩu là 4821", "pay by Mastercard", "gọi cho anh", "call me", "đưa thẻ"):
             self.assertIsNotNone(vlog.FLAG_RE.search(s), s)
+
+    def test_short_number_flags_only_beside_a_secret_word(self):
+        f = self.tmp / "LRV_20261125_080000_01_001.transcript.json"
+        f.write_text(json.dumps({"clip": "LRV_20261125_080000_01_001.lrv", "segments": [
+            {"start": 1.0, "end": 2.0, "text": "we landed in 2026"},
+            {"start": 3.0, "end": 4.0, "text": "the PIN is 4821"}]}))
+        rep = vlog.sound_report(self.edit(), self.tmp, [])
+        self.assertEqual([r["source"][0] for r in rep["flagged_unmuted"]], [3.0])
 
     def test_timelapse_is_silent(self):
         e = self.edit()
@@ -101,6 +116,100 @@ class Stills(unittest.TestCase):
         self.assertEqual((s["src"], s["in"], s["out"], s["audio"]), (str(tmp / "map.png"), 0.0, 4.0, 0))
         self.assertEqual(vlog.planned_duration(e), 4.0)
         self.assertEqual(vlog.sound_report(e, tmp, [])["missing"], [])
+
+    def test_card_keeps_its_own_in_and_out(self):
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "map.png").write_bytes(b"png")
+        p = tmp / "e.json"
+        p.write_text(json.dumps({"stem": "tw26-d02-01-test", "title": "Taiwan 2026 · Day 2 · Test", "output_dir": str(tmp),
+                                 "shots": [{"src": str(p), "in": 0, "out": 5, "title": {"text": "T"}},
+                                           {"still": str(tmp / "map.png"), "in": 0, "out": 6}]}))
+        e, _ = vlog.load_edit(str(p), writing=False)
+        vlog.use_style(e)
+        self.assertIn("2.5 to 4 s", " | ".join(vlog.card_problems(e)))
+
+    @needs_ffmpeg
+    def test_silence_at_the_start_counts(self):
+        out = Path(tempfile.mkdtemp()) / "g.wav"
+        subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "anullsrc=d=4", "-f", "lavfi", "-i", "sine=d=4",
+                        "-filter_complex", "[0][1]concat=n=2:v=0:a=1", str(out)], check=True)
+        self.assertEqual(len(vlog.bed_gaps(out, 8.0)), 1)
+
+    def test_card_and_caption_limits(self):
+        vlog.use_style({})
+        shot = lambda **k: {"src": "x", "in": 0, "out": 12, **k}
+        ok = {"shots": [shot(title={"text": "Shifen"}), {"still": "m.png", "in": 0, "out": 3},
+                        shot(caption="Lanterns up, wishes written"), shot(caption={"text": "The train", "at": 2})]}
+        self.assertEqual(vlog.card_problems(ok), [])
+        bad = {"shots": [shot(caption="On the opener"), {"still": "m.png", "in": 0, "out": 6},
+                         {"still": "n.png", "in": 0, "out": 3}, shot(caption="x" * 43, title={"text": "T"}),
+                         shot(caption={"text": "Late", "at": 11}), shot(caption="Close"), shot(caption="Too close")]}
+        probs = " | ".join(vlog.card_problems(bad))
+        for want in ("opening shot", "2.5 to 4 s", "over 42", "same shot", "ends after", "one map card", "less than 10 s apart"):
+            self.assertIn(want, probs)
+        card_text = {"shots": [shot(title={"text": "T"}), {"still": "m.png", "in": 0, "out": 3, "caption": "Shifen"}]}
+        self.assertIn("a card draws no caption", " | ".join(vlog.card_problems(card_text)))
+
+    @needs_pil
+    def test_caption_box_is_centred_low_with_the_text_inside(self):
+        from PIL import Image
+        vlog.use_style({"style": {"caption": {"box": "#000000", "box_alpha": 1.0, "color": "#FFFFFF"}}})
+        out = Path(tempfile.mkdtemp()) / "c.png"
+        vlog.caption_png("Lanterns up, wishes written", 1920, 1080, out)
+        alpha = Image.open(out).getchannel("A")
+        x0, y0, x1, y1 = alpha.getbbox()
+        self.assertLessEqual(abs((x0 + x1) / 2 - 960), 2)
+        self.assertEqual(y1 - 1, 1080 - 112)  # getbbox ends one past the last row
+        self.assertTrue(60 <= y1 - y0 <= 110, y1 - y0)
+        inside = Image.open(out).convert("RGB").crop((x0 + 30, y0 + 10, x1 - 30, y1 - 10))
+        self.assertEqual(inside.getextrema()[0][1], 255)
+
+
+class TitleShade(unittest.TestCase):
+    @needs_pil
+    def test_shade_sits_in_the_lower_left_corner(self):
+        from PIL import Image
+        vlog.use_style({"style": {"title_shade": 0.55}})
+        out = Path(tempfile.mkdtemp()) / "t.png"
+        vlog.title_png({"text": ""}, 1920, 1080, out)
+        a = Image.open(out).getchannel("A")
+        self.assertGreater(a.getpixel((5, 1075)), 100)
+        for corner in ((5, 5), (1915, 1075), (1915, 5)):
+            self.assertEqual(a.getpixel(corner), 0, corner)
+        vlog.use_style({})
+        vlog.title_png({"text": ""}, 1920, 1080, out)
+        self.assertIsNone(Image.open(out).getchannel("A").getbbox())
+
+
+class People(unittest.TestCase):
+    def test_track_eases_the_short_way_round(self):
+        track = [[0, 170, 0], [2, -170, 10]]
+        self.assertEqual(vlog.track_at(track, 0), (170.0, 0.0))
+        y, p = vlog.track_at(track, 1)
+        self.assertAlmostEqual(y, 180.0)
+        self.assertAlmostEqual(p, 5.0)
+        self.assertEqual(vlog.track_at(track, 5), (-170.0, 10.0))
+
+    def test_empty_view_fails_only_with_people_elsewhere_or_flat(self):
+        e = {"shots": [{"src": "a"}, {"src": "b"}, {"src": "c", "landmark": "waterfall"}, {"src": "d"}]}
+        nobody = [{"t": t, "in_view": 0} for t in range(6)]
+        missed = [{"t": t, "in_view": 0, "sphere": [[90.0, 0.0]]} for t in range(6)]
+        empty360 = [{"t": t, "in_view": 0, "sphere": []} for t in range(6)]
+        rep = {"shots": {"1": {"projection": "insv", "every": 1, "samples": missed},
+                         "2": {"projection": "flat", "every": 1, "samples": nobody},
+                         "3": {"projection": "flat", "every": 1, "samples": nobody},
+                         "4": {"projection": "insv", "every": 1, "samples": empty360}}}
+        probs = vlog.people_problems(e, rep)
+        self.assertEqual([p.split(":")[0] for p in probs], ["shot 1", "shot 2"])
+        self.assertIn("view.track", probs[0])
+        self.assertTrue(vlog.people_problems(e, None))
+
+    def test_track_filter_sends_relative_steps(self):
+        out = Path(tempfile.mkdtemp()) / "c.cmd"
+        f = vlog.track_filter({"track": [[0, 0, 0], [1, 90, 0]]}, 1920, 1080, 1.0, 10, out)
+        self.assertIn("yaw=0.0", f)
+        steps = [float(l.split("yaw ")[1].split(",")[0]) for l in out.read_text().splitlines()]
+        self.assertAlmostEqual(sum(steps), 90.0, places=3)
 
 
 class ThumbLines(unittest.TestCase):

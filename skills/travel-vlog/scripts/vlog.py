@@ -175,7 +175,9 @@ def holder_problems(e: dict) -> list[str]:
 
 
 STYLE_DEFAULT = {"font": None, "text": "#FFFFFF", "accent": "#FFD666", "rule": None, "badge": "#DC1E28",
-                 "shade": "#000000", "stroke": "#000000"}
+                 "shade": "#000000", "stroke": "#000000", "card_fade": "#000000",
+                 "caption": {"font": None, "size": 54, "color": "#FFFFFF", "box": "#000000", "box_alpha": 0.6,
+                             "radius": 16, "pad": [28, 14], "bottom": 112, "fade": 0.2, "max_chars": 42}}
 STYLE = dict(STYLE_DEFAULT)
 
 
@@ -183,6 +185,7 @@ def use_style(e: dict) -> None:
     """Channel look from the edit list's `style` block (font and colours from the written style guide)."""
     STYLE.clear()
     STYLE.update(STYLE_DEFAULT, **(e.get("style") or {}))
+    STYLE["caption"] = {**STYLE_DEFAULT["caption"], **((e.get("style") or {}).get("caption") or {})}
     if STYLE["font"] and not Path(STYLE["font"]).is_file():
         die(f"style font {STYLE['font']} not found")
 
@@ -274,6 +277,8 @@ def pan_filter(view: dict, w: int, h: int, dur: float, fps: float, path: Path) -
     first equirect stage and pitch and fov aim the flat camera in a second one.
     """
     v = view or {}
+    if v.get("track"):
+        return track_filter(v, w, h, dur, fps, path)
     keys = [k for k in ("yaw", "pitch", "fov") if f"{k}_end" in v]
     if not keys:
         return None
@@ -302,12 +307,192 @@ def pan_filter(view: dict, w: int, h: int, dur: float, fps: float, path: Path) -
             f":v_fov={vfov:.3f}:w={w}:h={h}:interp=lanczos")
 
 
+def track_at(track: list, t: float) -> tuple[float, float]:
+    """Yaw and pitch at t (seconds into the source range) along [[t, yaw, pitch], ...], eased between keys,
+    turning the short way round."""
+    pts = sorted((float(k[0]), float(k[1]), float(k[2]) if len(k) > 2 else 0.0) for k in track)
+    if t <= pts[0][0]:
+        return pts[0][1], pts[0][2]
+    for (t0, y0, p0), (t1, y1, p1) in zip(pts, pts[1:]):
+        if t <= t1:
+            f = (t - t0) / max(t1 - t0, 1e-6)
+            e = f * f * (3 - 2 * f)
+            dy = (y1 - y0 + 180) % 360 - 180
+            return y0 + dy * e, p0 + (p1 - p0) * e
+    return pts[-1][1], pts[-1][2]
+
+
+def track_filter(v: dict, w: int, h: int, dur: float, fps: float, path: Path) -> str:
+    """A 360 view that follows a subject: `view.track` keys of [t, yaw, pitch], t in seconds from the shot's in."""
+    fov = float(v.get("fov", DEFAULT_FOV))
+    vfov = 2 * math.degrees(math.atan(math.tan(math.radians(fov / 2)) * h / w))
+    y0, p0 = track_at(v["track"], 0)
+    lines, n, prev = [], max(2, int(dur * fps)), (y0, p0)
+    for i in range(1, n + 1):
+        t = i / n * dur
+        y, p = track_at(v["track"], t)
+        lines.append(f"{t:.4f} v360@sphere yaw {(y - prev[0]):.4f},v360@camera pitch {(p - prev[1]):.4f};")
+        prev = (y, p)
+    path.write_text("\n".join(lines) + "\n")
+    lens_fov = float(v.get("lens_fov", 200))
+    return (f"sendcmd=f='{path}',"
+            f"v360@sphere=input=dfisheye:output=equirect:ih_fov={lens_fov}:iv_fov={lens_fov}"
+            f":yaw={y0}:roll={float(v.get('roll', 0))}:w=4096:h=2048,"
+            f"v360@camera=input=equirect:output=flat:pitch={p0}:h_fov={fov}"
+            f":v_fov={vfov:.3f}:w={w}:h={h}:interp=lanczos")
+
+
+# ---------- people in the frame ----------
+
+PEOPLE_SWIFT = Path(__file__).with_name("people.swift")
+
+
+def people_cmd() -> list[str]:
+    """Apple Vision person and face finder, compiled once into the cache (macOS); TRAVEL_VLOG_PEOPLE overrides it
+    with any command that takes image paths and prints the same JSON lines."""
+    env = os.environ.get("TRAVEL_VLOG_PEOPLE")
+    if env:
+        return env.split()
+    src = PEOPLE_SWIFT.read_bytes()
+    exe = Path.home() / ".cache" / "travel-vlog" / f"people-{hashlib.sha256(src).hexdigest()[:12]}"
+    if not exe.exists():
+        if not shutil.which("swiftc"):
+            die("finding people needs macOS with swiftc (Apple Vision), or TRAVEL_VLOG_PEOPLE set to a detector")
+        exe.parent.mkdir(parents=True, exist_ok=True)
+        run(["swiftc", "-O", str(PEOPLE_SWIFT), "-o", str(exe)])
+    return [str(exe)]
+
+
+def detect_people(images: list[Path]) -> list[dict]:
+    if not images:
+        return []
+    out = run(people_cmd() + [str(p) for p in images], capture=True).stdout
+    found = {}
+    for line in out.splitlines():
+        d = json.loads(line)
+        found[d["image"]] = d
+    return [found.get(str(p), {"people": [], "faces": []}) for p in images]
+
+
+def shot_people(s: dict, e: dict, tmp: Path, every: float) -> dict:
+    """Sample a footage shot every `every` s: who is in the view, and for a 360 shot who is anywhere in the sphere
+    (as yaw and pitch), so a view that misses the people can be told from a shot with nobody in it."""
+    info = media_info(s["src"])
+    proj = s.get("projection") or projection_of(info, s["src"])
+    tin, tout = float(s["in"]), float(s["out"])
+    view = s.get("view", {})
+    times = [tin + k * every for k in range(int((tout - tin) / every) + 1) if tin + k * every < tout]
+    w, h = 640, 360
+    views, spheres = [], []
+    for k, t in enumerate(times):
+        if proj in ("dfisheye", "insv"):
+            v = dict(view)
+            if v.get("track"):
+                v["yaw"], v["pitch"] = track_at(v["track"], t - tin)
+            vf = view_filter(v, proj, w, h)
+            sp = tmp / f"s{k:04d}.jpg"
+            ffmpeg(["-ss", f"{t}", "-i", s["src"], "-frames:v", "1", "-filter_complex",
+                    f"{video_in(proj)}v360=input=dfisheye:output=equirect:ih_fov=200:iv_fov=200:w=2048:h=1024", str(sp)])
+            spheres.append(sp)
+        else:
+            lens = s.get("lens", e.get("lens"))
+            vf = square_pixels(info) + lens_filter(lens, w, h) + view_filter(view, proj, w, h, is_portrait(info, view))
+        vp = tmp / f"v{k:04d}.jpg"
+        ffmpeg(["-ss", f"{t}", "-i", s["src"], "-frames:v", "1", "-filter_complex", f"{video_in(proj)}{vf}", str(vp)])
+        views.append(vp)
+    seen = detect_people(views)
+    around = detect_people(spheres) if spheres else [None] * len(views)
+    samples = []
+    for t, v, a in zip(times, seen, around):
+        row = {"t": round(t - tin, 2), "in_view": len(v.get("people", [])) + len(v.get("faces", []))}
+        if a is not None:
+            row["sphere"] = [[round((b[0] + b[2] / 2 - 0.5) * 360, 1), round((0.5 - b[1] - b[3] / 2) * 180, 1)]
+                             for b in a.get("people", [])]
+        samples.append(row)
+    return {"projection": proj, "every": every, "samples": samples}
+
+
+def empty_runs(samples: list[dict], every: float, need_elsewhere: bool) -> float:
+    """Longest stretch (s) with nobody in the view; for 360 only while somebody is elsewhere in the sphere."""
+    best = cur = 0.0
+    for sm in samples:
+        empty = sm["in_view"] == 0 and (not need_elsewhere or bool(sm.get("sphere")))
+        cur = cur + every if empty else 0.0
+        best = max(best, cur)
+    return best
+
+
+def people_problems(e: dict, rep: dict | None) -> list[str]:
+    """A shot may show nobody only when it says what it shows instead (`landmark`)."""
+    if rep is None:
+        return ["no people check: run `vlog.py people` on the edit list"]
+    probs = []
+    for i, s in enumerate(e["shots"]):
+        r = rep["shots"].get(str(i + 1))
+        if s.get("still") or s.get("landmark") or not r:
+            continue
+        is360 = r["projection"] in ("dfisheye", "insv")
+        run_s = empty_runs(r["samples"], r["every"], need_elsewhere=is360)
+        if run_s > 3:
+            where = "while people are elsewhere in the sphere: aim the view at them (view.track)" if is360 \
+                else "with nobody in it: pick a range with the people, or name the `landmark` it shows"
+            probs.append(f"shot {i + 1}: {run_s:.1f} s of view {where}")
+    return probs
+
+
+def cmd_people(args) -> None:
+    e, outdir = load_edit(args.edit, writing=False)
+    shots = {}
+    with tempfile.TemporaryDirectory() as td:
+        for i, s in enumerate(e["shots"]):
+            if s.get("still"):
+                continue
+            d = Path(td) / f"{i:03d}"
+            d.mkdir()
+            shots[str(i + 1)] = shot_people(s, e, d, args.every)
+    rep = {"edit_sha256": sha256(Path(args.edit)), "every_s": args.every, "shots": shots}
+    outdir.mkdir(parents=True, exist_ok=True)
+    (outdir / f"{e['stem']}.people.json").write_text(json.dumps(rep, indent=1))
+    probs = people_problems(e, rep)
+    for p in probs:
+        print(f"FAIL {p}")
+    print(f"wrote {e['stem']}.people.json: {len(shots)} shots; {len(probs)} empty views")
+    sys.exit(1 if probs else 0)
+
+
+def cmd_find_people(args) -> None:
+    """Where the people are in whole clips, as source ranges, for picking shots."""
+    for src in args.clips:
+        dur = media_info(src)["duration"]
+        with tempfile.TemporaryDirectory() as td:
+            r = shot_people({"src": src, "in": 0, "out": dur}, {}, Path(td), args.every)
+        ranges, start = [], None
+        for sm in r["samples"] + [{"t": dur, "in_view": 0}]:
+            on = sm["in_view"] > 0 or bool(sm.get("sphere"))
+            if on and start is None:
+                start = sm["t"]
+            if not on and start is not None:
+                ranges.append((start, sm["t"]))
+                start = None
+        print(f"{Path(src).name}: people at " + (", ".join(f"{a:.0f}-{b:.0f}" for a, b in ranges if b - a >= args.every) or "none"))
+
+
 # ---------- text overlays ----------
 
 def title_png(title: dict, w: int, h: int, out: Path) -> None:
     """Lower-left place/time title with a soft shadow, transparent PNG."""
     from PIL import Image, ImageDraw, ImageFilter
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    shade = float(STYLE.get("title_shade") or 0)
+    if shade:
+        # style.title_shade: the shade colour at this opacity in the lower-left corner, gone at 60 % of the width
+        # and 45 % of the height, so a pale background cannot wash out the title
+        from PIL import ImageChops
+        ramp = Image.linear_gradient("L")  # 0 at the top, 255 at the bottom
+        fy = ramp.resize((w, h)).point(lambda v: max(0, int((v - 255 * 0.55) / 0.45)))
+        fx = ramp.transpose(Image.Transpose.ROTATE_270).resize((w, h)).point(lambda v: max(0, int((v - 255 * 0.4) / 0.6)))
+        mask = ImageChops.darker(fx, fy).point(lambda v: int(v * shade)).filter(ImageFilter.GaussianBlur(60 * h / 1080))
+        img.paste(Image.new("RGBA", (w, h), rgb(STYLE["shade"], 255)), (0, 0), mask)
     main = title.get("text", "").strip()
     sub = title.get("sub", "").strip()
     f1, f2 = load_font(int(h * 0.062)), load_font(int(h * 0.034))
@@ -330,18 +515,63 @@ def title_png(title: dict, w: int, h: int, out: Path) -> None:
 
 
 def caption_png(text: str, w: int, h: int, out: Path) -> None:
-    """One short line centred low in the frame, in the style's text colour over a soft shadow."""
-    from PIL import Image, ImageDraw, ImageFilter
+    """One line centred low in the frame on a rounded translucent box (style.caption, sizes in 1080p pixels)."""
+    from PIL import Image, ImageDraw, ImageFont
+    c, k = STYLE["caption"], h / 1080
+    font = ImageFont.truetype(c["font"], int(c["size"] * k)) if c.get("font") and Path(c["font"]).is_file() \
+        else load_font(int(c["size"] * k))
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    font = load_font(int(h * 0.042))
     d = ImageDraw.Draw(img)
-    tw = d.textlength(text, font=font)
-    x, y = int((w - tw) / 2), int(h * 0.855)
-    shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).text((x + 2, y + 2), text, font=font, fill=(0, 0, 0, 220))
-    img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(5)))
-    ImageDraw.Draw(img).text((x, y), text, font=font, fill=rgb(STYLE["text"], 255))
+    left, top, right, bottom = d.textbbox((0, 0), text, font=font, anchor="ls")
+    px, py = int(c["pad"][0] * k), int(c["pad"][1] * k)
+    bw, bh = right - left + 2 * px, bottom - top + 2 * py
+    x0, y1 = (w - bw) // 2, h - int(c["bottom"] * k)
+    d.rounded_rectangle([x0, y1 - bh, x0 + bw, y1], int(c["radius"] * k), fill=rgb(c["box"], int(255 * float(c["box_alpha"]))))
+    d.text((x0 + px, y1 - bh + py - top), text, font=font, fill=rgb(c["color"], 255), anchor="ls")
     img.save(out)
+
+
+def caption_of(s: dict) -> dict | None:
+    c = s.get("caption")
+    if not c:
+        return None
+    c = dict(c) if isinstance(c, dict) else {"text": c}
+    n = len(c["text"])
+    c.setdefault("at", 0.5)
+    c.setdefault("dur", c.get("hold", min(3.0, max(2.0, 0.6 + 0.07 * n))))
+    return c
+
+
+def card_problems(e: dict) -> list[str]:
+    """Map cards and captions: the limits the style guide sets."""
+    probs, stills, pos, last_cap = [], 0, 0.0, None
+    max_chars = int(STYLE["caption"]["max_chars"])
+    for i, s in enumerate(e["shots"]):
+        dur = (float(s["out"]) - float(s["in"])) / float(s.get("speed", 1))
+        if s.get("still"):
+            stills += 1
+            if s.get("caption") or s.get("title") or s.get("hook"):
+                probs.append(f"shot {i + 1}: a card draws no caption, title or hook; put it on a footage shot")
+            if not 2.5 <= dur <= 4:
+                probs.append(f"shot {i + 1}: a card holds 2.5 to 4 s, not {dur:.1f}")
+        c = caption_of(s)
+        if c:
+            a, b = float(c["at"]), float(c["at"]) + float(c["dur"])
+            if i == 0:
+                probs.append("shot 1: no caption on the opening shot (the title is there)")
+            if len(c["text"]) > max_chars or "\n" in c["text"]:
+                probs.append(f"shot {i + 1}: caption over {max_chars} characters or more than one line")
+            if b > dur:
+                probs.append(f"shot {i + 1}: caption ends after the shot")
+            if s.get("title") or s.get("hook"):
+                probs.append(f"shot {i + 1}: caption and a title on the same shot")
+            if last_cap is not None and pos + a - last_cap < 10:
+                probs.append(f"shot {i + 1}: captions less than 10 s apart")
+            last_cap = pos + b
+        pos += dur
+    if stills > 1:
+        probs.append(f"{stills} cards; one map card per video")
+    return probs
 
 
 def hook_png(text: str, w: int, h: int, out: Path) -> None:
@@ -517,9 +747,12 @@ def load_edit(path: str, writing: bool = True) -> tuple[dict, Path]:
         die(f"{p}: no shots")
     outdir = Path(e.get("output_dir") or p.parent)
     for i, s in enumerate(e["shots"]):
+        if s.get("kind") == "still":
+            s["still"] = s["src"]
         if s.get("still"):
             # A card (map, title): a PNG held for dur seconds, silent, faded in and out.
-            s.update(src=s["still"], **{"in": 0.0, "out": float(s.get("dur", 4))}, audio=0)
+            dur = float(s["dur"]) if "dur" in s else float(s.get("out", 4)) - float(s.get("in", 0))
+            s.update(src=s["still"], **{"in": 0.0, "out": dur}, audio=0)
         if not Path(s["src"]).is_file():
             die(f"shot {i}: source not found: {s['src']}")
         if float(s["out"]) <= float(s["in"]):
@@ -534,11 +767,15 @@ def planned_duration(e: dict) -> float:
 
 
 def render_still(i: int, s: dict, w: int, h: int, fps: float, tmp: Path, draft: bool) -> Path:
-    dur, fade = float(s["out"]), float(s.get("fade", 0.4))
-    vf = (f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,"
+    dur = float(s["out"])
+    fin, fout = float(s.get("fade_in", s.get("fade", 0.4))), float(s.get("fade_out", s.get("fade", 0.4)))
+    col = STYLE["card_fade"].replace("#", "0x")
+    vf = (f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:{col},setsar=1,"
           f"fps={fps},format=yuv420p")
-    if fade:
-        vf += f",fade=t=in:d={fade},fade=t=out:st={max(0.0, dur - fade)}:d={fade}"
+    if fin:
+        vf += f",fade=t=in:d={fin}:color={col}"
+    if fout:
+        vf += f",fade=t=out:st={max(0.0, dur - fout)}:d={fout}:color={col}"
     out = tmp / f"shot{i:02d}.mov"
     ffmpeg(["-loop", "1", "-t", f"{dur}", "-i", s["src"], "-f", "lavfi", "-t", f"{dur}", "-i", "anullsrc=r=48000:cl=stereo",
             "-vf", vf, "-map", "0:v", "-map", "1:a", "-t", f"{dur}", "-c:v", "libx264",
@@ -581,21 +818,21 @@ def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path,
     if s.get("hook"):
         hp = tmp / f"hook{i:02d}.png"
         hook_png(s["hook"], w, h, hp)
-        overlays.append((hp, 0.15, min(dur - 0.1, float(s.get("hook_s", 2.6)))))
+        overlays.append((hp, 0.15, min(dur - 0.1, float(s.get("hook_s", 2.6))), 0.35))
     if s.get("title"):
         tp = tmp / f"title{i:02d}.png"
         title_png(s["title"], w, h, tp)
         t0 = float(s["title"].get("at", 0.4))
-        overlays.append((tp, t0, min(dur - 0.1, t0 + float(s["title"].get("hold", 3.2)))))
-    if s.get("caption"):
-        c = s["caption"] if isinstance(s["caption"], dict) else {"text": s["caption"]}
+        overlays.append((tp, t0, min(dur - 0.1, t0 + float(s["title"].get("hold", 3.2))), 0.35))
+    c = caption_of(s)
+    if c:
         cp = tmp / f"caption{i:02d}.png"
         caption_png(c["text"], w, h, cp)
-        c0 = float(c.get("at", 0.5))
-        overlays.append((cp, c0, min(dur - 0.1, c0 + float(c.get("hold", 3.0)))))
-    for k, (png, a, b) in enumerate(overlays):
+        c0 = float(c["at"])
+        overlays.append((cp, c0, min(dur - 0.1, c0 + float(c["dur"])), float(STYLE["caption"]["fade"])))
+    for k, (png, a, b, fd) in enumerate(overlays):
         inputs += ["-loop", "1", "-t", f"{dur}", "-i", str(png)]
-        fc += (f";[{n_in}:v]format=rgba,fade=t=in:st={a}:d=0.35:alpha=1,fade=t=out:st={max(a, b - 0.35)}:d=0.35:alpha=1[o{k}]"
+        fc += (f";[{n_in}:v]format=rgba,fade=t=in:st={a}:d={fd}:alpha=1,fade=t=out:st={max(a, b - fd)}:d={fd}:alpha=1[o{k}]"
                f";[{last}][o{k}]overlay=0:0:shortest=1[v{k}]")
         last = f"v{k}"
         n_in += 1
@@ -631,8 +868,9 @@ def cmd_render(args) -> None:
     need_pillow()
     e, outdir = load_edit(args.edit)
     use_style(e)
-    if fov_problems(e) or holder_problems(e):
-        die("; ".join(fov_problems(e) + holder_problems(e)))
+    probs = fov_problems(e) + holder_problems(e) + card_problems(e)
+    if probs:
+        die("; ".join(probs))
     outdir.mkdir(parents=True, exist_ok=True)
     w, h = e.get("size", [1920, 1080])
     fps = float(e.get("fps", 25))
@@ -650,11 +888,12 @@ def cmd_render(args) -> None:
         ffmpeg(["-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(joined)])
         total = media_info(joined)["duration"]
         inputs = ["-i", str(joined)]
-        fc = f"[0:v]fade=t=in:d={fade},fade=t=out:st={max(0, total - fade)}:d={fade}[v];"
+        fc = ""
         music = e.get("music") or []
         if music:
-            cam_parts, mus_labels = "[0:a]asplit=2[cam][sc];", []
-            fc += cam_parts
+            duck = e.get("duck", {"threshold": 0.03, "ratio": 6, "attack": 80, "release": 600})
+            mus_labels = []
+            fc += "[0:a]asplit=2[cam][sc];" if duck else "[0:a]anull[cam];"
             for k, m in enumerate(music):
                 inputs += ["-stream_loop", "-1", "-i", m["file"]]
                 start = float(m.get("at", 0))
@@ -669,7 +908,6 @@ def cmd_render(args) -> None:
                 fc += "".join(mus_labels) + f"amix=inputs={len(mus_labels)}:normalize=0[mus];"
             else:
                 fc += f"{mus_labels[0]}anull[mus];"
-            duck = e.get("duck", {"threshold": 0.03, "ratio": 6, "attack": 80, "release": 600})
             if duck:
                 fc += ("[sc]highpass=f=250,lowpass=f=3500[scf];"
                        f"[mus][scf]sidechaincompress=threshold={duck.get('threshold', 0.03)}:ratio={duck.get('ratio', 6)}"
@@ -680,8 +918,14 @@ def cmd_render(args) -> None:
         else:
             fc += "[0:a]anull[mix];"
         fc += f"[mix]afade=t=in:d={fade / 2},afade=t=out:st={max(0, total - fade)}:d={fade}[am]"
+        # The audio is mixed in its own pass: in one graph with the video encode, ffmpeg 9 starved the looped
+        # music input behind a slow video chain and wrote seconds of digital silence under a card.
+        mix_wav = tmp / "mix.wav"
+        ffmpeg([*inputs, "-filter_complex", fc, "-map", "[am]", "-t", f"{total}", "-c:a", "pcm_s16le", str(mix_wav)])
         mixed = tmp / "mixed.mov"
-        ffmpeg([*inputs, "-filter_complex", fc, "-map", "[v]", "-map", "[am]", "-t", f"{total}",
+        ffmpeg(["-i", str(joined), "-i", str(mix_wav), "-filter_complex",
+                f"[0:v]fade=t=in:d={fade},fade=t=out:st={max(0, total - fade)}:d={fade}[v]",
+                "-map", "[v]", "-map", "1:a", "-t", f"{total}",
                 "-c:v", "libx264", "-preset", "ultrafast" if args.draft else "slow", "-crf", "26" if args.draft else "18",
                 "-pix_fmt", "yuv420p", "-c:a", "pcm_s16le", str(mixed)])
         meas = loudnorm_pass(mixed, target, tp)
@@ -805,6 +1049,20 @@ def measure_loudness(video: Path) -> tuple[float, float]:
     return (float(i[-1]) if i else float("nan"), float(tpk[-1]) if tpk else float("nan"))
 
 
+def silent_gaps(video: Path, min_s: float = 1.0, floor_db: int = -45) -> list[tuple[float, float]]:
+    """Stretches of near-silence: with a music bed under the whole video there should be none."""
+    p = subprocess.run(["ffmpeg", "-hide_banner", "-nostdin", "-i", str(video), "-vn", "-af",
+                        f"silencedetect=n={floor_db}dB:d={min_s}", "-f", "null", "-"], capture_output=True, text=True)
+    starts = [float(x) for x in re.findall(r"silence_start: (-?[\d.]+)", p.stderr)]
+    ends = [float(x) for x in re.findall(r"silence_end: (-?[\d.]+)", p.stderr)]
+    return list(zip(starts, ends + [media_info(video)["duration"]] * (len(starts) - len(ends))))
+
+
+def bed_gaps(video: Path, dur: float) -> list[tuple[float, float]]:
+    """Silent stretches with at least 1 s inside the video's middle (the first and last 1.5 s may fade)."""
+    return [(a, b) for a, b in silent_gaps(video) if min(b, dur - 1.5) - max(a, 1.5) >= 1.0]
+
+
 def cmd_verify(args) -> None:
     need_pillow()
     from PIL import Image
@@ -814,7 +1072,13 @@ def cmd_verify(args) -> None:
     fails, notes = [], []
     w, h = e.get("size", [1920, 1080])
     lo, hi = e.get("length_s", [180, 360])
-    fails += fov_problems(e) + holder_problems(e)
+    use_style(e)
+    fails += fov_problems(e) + holder_problems(e) + card_problems(e)
+    pj = outdir / f"{stem}.people.json"
+    prep = json.loads(pj.read_text()) if pj.is_file() else None
+    if prep and prep.get("edit_sha256") != sha256(Path(args.edit)):
+        prep = None
+    fails += people_problems(e, prep)
     if not video.is_file():
         die(f"no render at {video}", 1)
     info = media_info(video)
@@ -827,6 +1091,9 @@ def cmd_verify(args) -> None:
     if abs(info["duration"] - planned_duration(e)) > 1.0:
         fails.append(f"length {info['duration']:.1f}s differs from the edit list's {planned_duration(e):.1f}s")
     li, tpk = measure_loudness(video)
+    if e.get("music"):
+        for a, b in bed_gaps(video, info["duration"]):
+            fails.append(f"silent {a:.2f}-{b:.2f}s under the music bed: the music must play through")
     target = float(e.get("loudness_lufs", -14))
     if not abs(li - target) <= 1.0:
         fails.append(f"loudness {li} LUFS, target {target} +/- 1")
@@ -885,10 +1152,14 @@ def cmd_verify(args) -> None:
 # ---------- sound: transcripts and sensitive speech ----------
 
 FLAG_RE = re.compile(
-    r"\d[\d .,-]{2,}\d|password|passcode|\bpin\b|m[aậ]t kh[aẩ]u|\bcard\b|\bthẻ\b|\bvisa\b|mastercard|\bbank\b|ng[aâ]n h[aà]ng|"
+    r"\d(?:[ .,-]?\d){5,}|password|passcode|\bpin\b|m[aậ]t kh[aẩ]u|\bcard\b|\bthẻ\b|\bvisa\b|mastercard|\bbank\b|ng[aâ]n h[aà]ng|"
     r"t[aà]i kho[aả]n|\baccount\b|\bti[eề]n\b|dollar|NT\$|booking|[đd][aặ]t ph[oò]ng|passport|h[oộ] chi[eế]u|address|"
     r"[đd][iị]a ch[iỉ]|hotel|kh[aá]ch s[aạ]n|ph[oò]ng s[oố]|room number|\balo\b|\bg[oọ]i\b|(?<!-)\bcall(ed|ing)?\b(?! market)|\bslack\b|"
     r"密碼|信用卡|護照|地址|飯店|房號", re.I)
+
+
+# a short number is a secret only next to one of these (a PIN, a card); a year or a time is not
+SECRET_WORD_RE = re.compile(r"\bpin\b|passcode|password|m[aậ]t kh[aẩ]u|\bm[aã] s[oố]\b|\bcard\b|\bthẻ\b|密碼", re.I)
 
 
 HALLUCINATION_RE = re.compile(r"subscribe|đăng ký kênh|ghiền mì gõ|thank you\.?$|the end$|cảm ơn các bạn đã theo dõi|字幕", re.I)
@@ -951,7 +1222,7 @@ def clip_key(path: str) -> str:
 
 
 def sound_report(e: dict, outdir: Path, names: list[str]) -> dict:
-    tdir = Path(e.get("transcripts") or outdir)
+    tdir = Path(e.get("transcripts") or (outdir / "index" if (outdir / "index").is_dir() else outdir))
     trans = {}
     for f in tdir.glob("*.transcript.json"):
         d = json.loads(f.read_text())
@@ -971,7 +1242,8 @@ def sound_report(e: dict, outdir: Path, names: list[str]) -> dict:
                         continue
                     muted = any(float(a) <= max(sg["start"], tin) and float(b) >= min(sg["end"], tout)
                                 for a, b in s.get("mute", []))
-                    hit = FLAG_RE.search(sg["text"]) or (name_re.search(sg["text"]) if name_re else None)
+                    hit = (FLAG_RE.search(sg["text"]) or (name_re.search(sg["text"]) if name_re else None)
+                           or (re.search(r"\b\d{4,5}\b", sg["text"]) if SECRET_WORD_RE.search(sg["text"]) else None))
                     row = {"shot": i + 1, "src": Path(s["src"]).name, "source": [sg["start"], sg["end"]],
                            "video": round(pos + (max(sg["start"], tin) - tin) / speed, 2), "text": sg["text"],
                            "muted": muted, "flag": hit.group(0) if hit else "", "doubtful": sg.get("doubtful", False)}
@@ -1061,6 +1333,14 @@ def main() -> None:
     p.add_argument("edit")
     p.add_argument("--names", nargs="*", help="names that must not be heard (also 'private_names' in the edit list)")
     p.set_defaults(fn=cmd_sound)
+    p = sub.add_parser("people", help="who is in each shot's view (and the 360 sphere); fail empty views over 3 s")
+    p.add_argument("edit")
+    p.add_argument("--every", type=float, default=1.0)
+    p.set_defaults(fn=cmd_people)
+    p = sub.add_parser("find-people", help="source ranges where people are in whole clips, for picking shots")
+    p.add_argument("clips", nargs="+")
+    p.add_argument("--every", type=float, default=1.0)
+    p.set_defaults(fn=cmd_find_people)
     p = sub.add_parser("sheet", help="contact sheet of any video")
     p.add_argument("video")
     p.add_argument("--out", required=True)

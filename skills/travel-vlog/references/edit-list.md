@@ -8,6 +8,7 @@ One JSON file per video, named `<stem>.json`. `render`, `thumb` and `verify` rea
   "title": "Taiwan 2026 · Day 1 · Arrival",
   "description": "Landing at Taoyuan on our first morning in Taiwan.\n\nMusic: <title> by <artist> (YouTube Audio Library)",
   "output_dir": "/path/to/work/day1/out",
+  "transcripts": "/path/to/work/day1/index",
   "size": [1920, 1080],
   "fps": 25,
   "length_s": [180, 360],
@@ -43,9 +44,13 @@ One JSON file per video, named `<stem>.json`. `render`, `thumb` and `verify` rea
 | `shots[].view.fit` | `blur` places a portrait (or rotated) clip whole over a blurred copy of itself; `crop` fills 16:9 by cropping. Portrait defaults to `blur`. Clips stored with non-square pixels (an X5 portrait clip is 1920x1080 at SAR 81:256, really 608x1080) are resampled to square pixels first, always. With `roll`, a blur fit keeps the largest upright rectangle of the turned frame, so no black wedges show. |
 | `style` | The channel look from its written style guide: `font` (a .ttf path), `text`, `accent`, `rule`, `badge`, `shade`, `stroke` as `#RRGGBB`. Titles, hooks and the thumbnail draw with it; without it they draw white and yellow on black. |
 | `lens`, `shots[].lens` | Straighten a barrel-distorted flat clip before the view: `"x5"` (Insta360 X5 single-lens: k1 0.12, k2 0.015, 14% crop) or `{"k1", "k2", "crop"}`. Off by default; the shot's value wins. |
-| `grade` | One ffmpeg filter chain applied to every shot and the thumbnail, from the channel style guide. |
-| `shots[].still`, `dur`, `fade` | A card instead of footage: `{"still": "map.png", "dur": 4, "fade": 0.4}`. The PNG is fitted into the frame, held `dur` s (default 4), faded in and out, silent; music plays on. Use it for a map card or a chapter card; no `src`, `in` or `out`. |
-| `shots[].caption` | A short line low in the frame: `"caption": "Lanterns go up"` or `{"text": "...", "at": 0.5, "hold": 3}`. One line, a few words, in the style's text colour. |
+| `grade` | One ffmpeg filter chain applied to every footage shot and the thumbnail (not to a `still` card), from the channel style guide. |
+| `shots[].still`, `dur`, `fade_in`, `fade_out` | A card instead of footage: `{"still": "map.png", "dur": 3}` (or `{"kind": "still", "src": ...}`). The PNG (send it at the output size) is fitted, held `dur` s, ungraded, silent, faded in and out through `style.card_fade` (0.4 s); the music plays on. One card per video, 2.5 to 4 s. |
+| `shots[].caption` | A short line low in the frame: `"caption": "Lanterns up"` or `{"text": "...", "at": 0.5, "dur": 2.5}`. `dur` defaults to 0.6 s + 0.07 s per character, 2 to 3 s. `render` and `verify` fail a caption on shot 1, on a shot with a title or hook, over `style.caption.max_chars` (42), ending after its shot, or less than 10 s after the last one. |
+| `style.title_shade` | Opacity (0 to 1, default 0) of a `style.shade` gradient in the lower-left corner behind place titles, gone at 60 % of the width and 45 % of the height; it fades with the title. Use it when titles wash out over pale ground. |
+| `style.caption`, `style.card_fade` | Caption look in 1080p pixels: `font`, `size` (54), `color`, `box`, `box_alpha`, `radius`, `pad` [x, y], `bottom` (box bottom above the frame edge), `fade` (0.2), `max_chars`. `card_fade`: the colour a card fades through (default black). |
+| `shots[].view.track` | A 360 view that follows its subject: `[[t, yaw, pitch], ...]`, `t` in seconds from the shot's `in`, eased between keys, the short way round. Take the yaw and pitch from `vlog.py people` (the `sphere` positions of each sample). Replaces `yaw`, `yaw_end`, `pitch`, `pitch_end`. |
+| `shots[].landmark` | What a shot shows when nobody is in it on purpose (`"waterfall"`, `"lanterns"`, `"barrels"`). Without it, `verify` fails a view with nobody in it for over 3 s: on 360, while people are elsewhere in the sphere; on flat footage, at all. |
 | `shots[].holder`, `thumbnail.holder` | `true` when the camera holder's face is in the frame (a 360 selfie view, a turned-around flat clip). `verify` and `render` fail when tagged shots run over 4 s in a row (`holder_stretch_s`), over `holder_max_s` in all (default 10 % of the length, at least 4 s), or the thumbnail is tagged. |
 | `length_s` | Allowed length in seconds for `verify`; default `[180, 360]`. |
 | `shots[].hook` | Big centred words over the first seconds of the shot. Use on shot 1. |
