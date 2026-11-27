@@ -60,6 +60,7 @@ repl() {
   # The run's folder is the one session folder that was not there before; with two new ones, stop rather than guess.
   for _ in $(seq 1 60); do
     new=$(comm -13 <(echo "$before") <(dirs))
+    [ "$(grep -c . <<<"$new")" -gt 1 ] && break
     # take it only when a second look, a moment later, still finds that one folder and no other
     [ -n "$new" ] && { sleep 0.5; [ "$(comm -13 <(echo "$before") <(dirs))" = "$new" ] && [ -d "$ASIDE_SESSIONS/$new" ] && break; }
     new=""
