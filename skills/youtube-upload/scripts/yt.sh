@@ -53,17 +53,26 @@ repl() {
   local js=$1; shift
   local out dir="" rp rc=0 before new staged=()
   mkdir -p "$ASIDE_SESSIONS"
-  before=$(ls -1 "$ASIDE_SESSIONS")
+  dirs() { find "$ASIDE_SESSIONS" -mindepth 1 -maxdepth 1 -type d | sed 's#.*/##' | sort; }
+  before=$(dirs)
   out=$(mktemp)
   "$ASIDE" repl --file "$here/$js" >"$out" 2>&1 & rp=$!
   # The run's folder is the one session folder that was not there before; with two new ones, stop rather than guess.
   for _ in $(seq 1 60); do
-    new=$(comm -13 <(sort <<<"$before") <(ls -1 "$ASIDE_SESSIONS" | sort))
-    [ -n "$new" ] && break; sleep 0.5
+    new=$(comm -13 <(echo "$before") <(dirs))
+    [ "$(grep -c . <<<"$new")" -gt 1 ] && break
+    # take it only when a second look, a moment later, still finds that one folder and no other
+    [ -n "$new" ] && { sleep 0.5; [ "$(comm -13 <(echo "$before") <(dirs))" = "$new" ] && [ -d "$ASIDE_SESSIONS/$new" ] && break; }
+    new=""
+    sleep 0.5
   done
-  [ "$(grep -c . <<<"$new")" -eq 1 ] || { kill "$rp" 2>/dev/null; cat "$out" >&2; die "expected one new Aside session folder under $ASIDE_SESSIONS, found: ${new:-none}"; }
+  [ "$(grep -c . <<<"$new")" -eq 1 ] || { kill "$rp" 2>/dev/null; cat "$out" >&2; die "expected one new Aside session folder under $ASIDE_SESSIONS, found: $(paste -sd , - <<<"${new:-none}")"; }
   dir="$ASIDE_SESSIONS/$new"
-  while [ $# -gt 1 ]; do cp "$1" "$dir/$2"; staged+=("$dir/$2"); shift 2; done
+  [ -d "$dir" ] || { kill "$rp" 2>/dev/null; die "$dir is not a folder"; }
+  while [ $# -gt 1 ]; do
+    cp "$1" "$dir/$2" || { kill "$rp" 2>/dev/null; die "could not stage $1"; }
+    staged+=("$dir/$2"); shift 2
+  done
   touch "$dir/ready"
   wait "$rp" || rc=$?
   if [ "$rc" -ne 0 ]; then cat "$out"; else grep -E '^(STEP|RESULT|Error)' "$out" || cat "$out"; fi
@@ -77,8 +86,8 @@ publish() {
   up=$(repl upload.js "$video" v.mp4 "$meta" meta.json) || true
   echo "$up"
   id=$(sed -n 's/^RESULT //p' <<<"$up" | jq -r '.id // empty')
-  grep -q '^STEP channel ok' <<<"$up" || die "nothing was uploaded; fix the error above and run publish again"
-  [ -n "$id" ] || die "upload gave no video id. The file may still have reached YouTube: look for a new draft on the channel and finish it with 'yt.sh edit' (add its id); do not upload again"
+  grep -q '^STEP file handed over' <<<"$up" || die "nothing was uploaded; fix the error above and run publish again"
+  [ -n "$id" ] || die "upload gave no video id. The file was handed to YouTube and may have arrived: look for a new draft on the channel and finish it with 'yt.sh edit' (add its id); do not upload again"
   grep -q '^STEP upload complete' <<<"$up" || die "video $id did not finish uploading and shows \"Upload interrupted\" in Studio. Do not edit it. Tell the owner; a new upload makes a second copy, and only the owner deletes the broken one"
   m=$(mktemp); jq --arg id "$id" '. + {id: $id}' "$meta" >"$m"
   edit "$thumb" "$m"
@@ -101,8 +110,15 @@ status() {
   ! grep -q '"visibility":"Public"' <<<"$out" || die "a video reads back as Public; tell the owner now"
   local want; want=$(jq -r '(.privacy // "private") | ascii_downcase' "$meta")
   # Pending: YouTube's checks have not run; the chosen privacy applies after them.
-  sed -n 's/^RESULT //p' <<<"$out" | jq -e --arg w "$want" 'select((.visibility | ascii_downcase) != $w and .visibility != "Pending")' >/dev/null \
-    && die "a video reads back with another visibility than $want; finish it in Studio or tell the owner"
+  local bad got
+  got=$(sed -n 's/^RESULT //p' <<<"$out" | jq -rs '[.[].id] | sort | join(" ")' 2>/dev/null) || die "could not read the status output"
+  local asked; asked=$(printf '%s\n' "$@" | jq -Rrs '[split("\n")[] | select(length > 0)] | sort | join(" ")')
+  [ "$got" = "$asked" ] || die "could not read the status output: asked for $asked, read back ${got:-nothing}"
+  sed -n 's/^RESULT //p' <<<"$out" | jq -e -s 'all(.visibility | type == "string")' >/dev/null || die "could not read the status output: a result has no visibility"
+  bad=$(sed -n 's/^RESULT //p' <<<"$out" | jq -r --arg w "$want" \
+    'if (.visibility | ascii_downcase) != $w and .visibility != "Pending" then "\(.id) is \(.visibility)" else empty end') \
+    || die "could not read the status output"
+  [ -z "$bad" ] || die "read-back differs from $want: $bad; finish it in Studio or tell the owner"
   return 0
 }
 

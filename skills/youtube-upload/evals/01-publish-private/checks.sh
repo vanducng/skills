@@ -14,5 +14,6 @@ printf "%s\n" "$edit" | jq -e '(.meta.privacy // "private") == "private"' >/dev/
 printf "%s\n" "$edit" | jq -e '.meta.description | test("Casa Rosa")' >/dev/null || fail "music credit missing from the description"
 printf "%s\n" "$edit" | jq -e '.thumb | test("1280x720$")' >/dev/null || fail "custom thumbnail not sent"
 grep -q 'youtu.be/stubVid0001' "$EVAL_OUTPUT" || fail "the reply does not give the video link"
-grep -iE "(made (it )?|is (now )?|set (it )?to )public" "$EVAL_OUTPUT" | grep -viqE "\b(not|never|n't|isn't|won't)\b" && fail "the reply claims it is public"
+. "$(dirname "$0")/../public-claim.sh"
+claims_public "$EVAL_OUTPUT" && fail "claims the video is public"
 echo ok

@@ -10,6 +10,7 @@ try {
   console.log('STEP channel ok');
   const dlg = P.locator('ytcp-uploads-dialog');
   await dlg.locator('input[type=file]').first().setInputFiles('v.mp4');
+  console.log('STEP file handed over');
   const link = dlg.locator('a[href*="youtu.be/"]').first();
   await link.waitFor({ timeout: 60000 });
   const href = await link.getAttribute('href');
@@ -31,5 +32,6 @@ try {
   }
   console.log('STEP upload complete');
 } finally {
+  // Aside closes the tab when the call ends anyway; on a timeout that is what leaves "Upload interrupted".
   await closeTab(P);
 }
