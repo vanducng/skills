@@ -8,7 +8,8 @@
 #
 # meta.json: {"channel": "UC...", "authuser": 1, "title": "...", "description": "...",
 #             "playlist": "...", "privacy": "private" | "unlisted"}
-# Env: ASIDE (default aside), ASIDE_SESSIONS (default ~/.aside/u/0/sessions).
+# Env: ASIDE (default aside), ASIDE_SESSIONS (default ~/.aside/u/0/sessions),
+#      YT_RETRY_WAIT (seconds before publish edits a video still a draft once more, default 20).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 ASIDE=${ASIDE:-aside}
@@ -91,8 +92,12 @@ publish() {
   grep -q '^STEP upload complete' <<<"$up" || die "video $id did not finish uploading and shows \"Upload interrupted\" in Studio. Do not edit it. Tell the owner; a new upload makes a second copy, and only the owner deletes the broken one"
   m=$(mktemp); jq --arg id "$id" '. + {id: $id}' "$meta" >"$m"
   # A video edited seconds after its upload can stay a draft (seen twice live); a second edit finishes it.
-  (edit "$thumb" "$m") && return 0
-  echo "yt: $id is not finished yet; editing it once more" >&2
+  local first rc=0
+  first=$( (edit "$thumb" "$m") 2>&1 ) || rc=$?
+  echo "$first"
+  [ "$rc" -eq 0 ] && return 0
+  grep -q '"draft":true' <<<"$first" || exit "$rc"
+  echo "yt: $id is still a draft; editing it once more" >&2
   sleep "${YT_RETRY_WAIT:-20}"; edit "$thumb" "$m"
 }
 

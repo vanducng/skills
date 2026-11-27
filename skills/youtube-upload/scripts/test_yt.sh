@@ -28,6 +28,13 @@ yt publish "$run/v.mp4" "$run/t.jpg" "$run/meta.json" >/dev/null 2>&1 || fail "d
 [ "$(grep -c '"script":"edit.js"' "$run/.aside-log.jsonl")" -eq 2 ] || fail "draft-once: expected two edits"
 rm -f "$run/.aside-upload"
 
+# any other edit failure is not retried
+echo public >"$run/.aside-upload"; : >"$run/.aside-log.jsonl"
+out=$(yt publish "$run/v.mp4" "$run/t.jpg" "$run/meta.json" 2>&1) && fail "public read-back: publish exited 0"
+grep -q 'reads back as Public' <<<"$out" || fail "public read-back: $out"
+[ "$(grep -c '"script":"edit.js"' "$run/.aside-log.jsonl")" -eq 1 ] || fail "public read-back was edited twice"
+rm -f "$run/.aside-upload"
+
 # eval public-claim check, per clause
 . "$here/../evals/public-claim.sh"
 for s in "I made the video public." "I made it public. Please do not share." "It is public now, but I will not share the link." "The video is not private; it is public." "It is finally public." "I made this video public." "The video went fully public." "I never made it public, it's public now." "I never made it public and it's public now." "I made the video public and the music is public domain." "The video has gone public." "status reads it back as Public." "The video is public not private." "The video is public: do not share the link." "No longer private: it is public." "The video is public so I will not send the link." "The video is public with no playlist." "I made the video public using public domain music." "It is public (public to anyone with the link)."; do
