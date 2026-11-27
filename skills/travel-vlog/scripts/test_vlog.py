@@ -181,6 +181,37 @@ class TitleShade(unittest.TestCase):
         self.assertIsNone(Image.open(out).getchannel("A").getbbox())
 
 
+class People(unittest.TestCase):
+    def test_track_eases_the_short_way_round(self):
+        track = [[0, 170, 0], [2, -170, 10]]
+        self.assertEqual(vlog.track_at(track, 0), (170.0, 0.0))
+        y, p = vlog.track_at(track, 1)
+        self.assertAlmostEqual(y, 180.0)
+        self.assertAlmostEqual(p, 5.0)
+        self.assertEqual(vlog.track_at(track, 5), (-170.0, 10.0))
+
+    def test_empty_view_fails_only_with_people_elsewhere_or_flat(self):
+        e = {"shots": [{"src": "a"}, {"src": "b"}, {"src": "c", "landmark": "waterfall"}, {"src": "d"}]}
+        nobody = [{"t": t, "in_view": 0} for t in range(6)]
+        missed = [{"t": t, "in_view": 0, "sphere": [[90.0, 0.0]]} for t in range(6)]
+        empty360 = [{"t": t, "in_view": 0, "sphere": []} for t in range(6)]
+        rep = {"shots": {"1": {"projection": "insv", "every": 1, "samples": missed},
+                         "2": {"projection": "flat", "every": 1, "samples": nobody},
+                         "3": {"projection": "flat", "every": 1, "samples": nobody},
+                         "4": {"projection": "insv", "every": 1, "samples": empty360}}}
+        probs = vlog.people_problems(e, rep)
+        self.assertEqual([p.split(":")[0] for p in probs], ["shot 1", "shot 2"])
+        self.assertIn("view.track", probs[0])
+        self.assertTrue(vlog.people_problems(e, None))
+
+    def test_track_filter_sends_relative_steps(self):
+        out = Path(tempfile.mkdtemp()) / "c.cmd"
+        f = vlog.track_filter({"track": [[0, 0, 0], [1, 90, 0]]}, 1920, 1080, 1.0, 10, out)
+        self.assertIn("yaw=0.0", f)
+        steps = [float(l.split("yaw ")[1].split(",")[0]) for l in out.read_text().splitlines()]
+        self.assertAlmostEqual(sum(steps), 90.0, places=3)
+
+
 class ThumbLines(unittest.TestCase):
     def test_phrases_split_into_balanced_lines(self):
         self.assertEqual(vlog.thumb_lines(["TAXI TO", "TAIPEI"]), ["TAXI TO", "TAIPEI"])

@@ -277,6 +277,8 @@ def pan_filter(view: dict, w: int, h: int, dur: float, fps: float, path: Path) -
     first equirect stage and pitch and fov aim the flat camera in a second one.
     """
     v = view or {}
+    if v.get("track"):
+        return track_filter(v, w, h, dur, fps, path)
     keys = [k for k in ("yaw", "pitch", "fov") if f"{k}_end" in v]
     if not keys:
         return None
@@ -303,6 +305,176 @@ def pan_filter(view: dict, w: int, h: int, dur: float, fps: float, path: Path) -
             f":yaw={start['yaw']}:roll={float(v.get('roll', 0))}:w=4096:h=2048,"
             f"v360@camera=input=equirect:output=flat:pitch={start['pitch']}:h_fov={start['fov']}"
             f":v_fov={vfov:.3f}:w={w}:h={h}:interp=lanczos")
+
+
+def track_at(track: list, t: float) -> tuple[float, float]:
+    """Yaw and pitch at t (seconds into the source range) along [[t, yaw, pitch], ...], eased between keys,
+    turning the short way round."""
+    pts = sorted((float(k[0]), float(k[1]), float(k[2]) if len(k) > 2 else 0.0) for k in track)
+    if t <= pts[0][0]:
+        return pts[0][1], pts[0][2]
+    for (t0, y0, p0), (t1, y1, p1) in zip(pts, pts[1:]):
+        if t <= t1:
+            f = (t - t0) / max(t1 - t0, 1e-6)
+            e = f * f * (3 - 2 * f)
+            dy = (y1 - y0 + 180) % 360 - 180
+            return y0 + dy * e, p0 + (p1 - p0) * e
+    return pts[-1][1], pts[-1][2]
+
+
+def track_filter(v: dict, w: int, h: int, dur: float, fps: float, path: Path) -> str:
+    """A 360 view that follows a subject: `view.track` keys of [t, yaw, pitch], t in seconds from the shot's in."""
+    fov = float(v.get("fov", DEFAULT_FOV))
+    vfov = 2 * math.degrees(math.atan(math.tan(math.radians(fov / 2)) * h / w))
+    y0, p0 = track_at(v["track"], 0)
+    lines, n, prev = [], max(2, int(dur * fps)), (y0, p0)
+    for i in range(1, n + 1):
+        t = i / n * dur
+        y, p = track_at(v["track"], t)
+        lines.append(f"{t:.4f} v360@sphere yaw {(y - prev[0]):.4f},v360@camera pitch {(p - prev[1]):.4f};")
+        prev = (y, p)
+    path.write_text("\n".join(lines) + "\n")
+    lens_fov = float(v.get("lens_fov", 200))
+    return (f"sendcmd=f='{path}',"
+            f"v360@sphere=input=dfisheye:output=equirect:ih_fov={lens_fov}:iv_fov={lens_fov}"
+            f":yaw={y0}:roll={float(v.get('roll', 0))}:w=4096:h=2048,"
+            f"v360@camera=input=equirect:output=flat:pitch={p0}:h_fov={fov}"
+            f":v_fov={vfov:.3f}:w={w}:h={h}:interp=lanczos")
+
+
+# ---------- people in the frame ----------
+
+PEOPLE_SWIFT = Path(__file__).with_name("people.swift")
+
+
+def people_cmd() -> list[str]:
+    """Apple Vision person and face finder, compiled once into the cache (macOS); TRAVEL_VLOG_PEOPLE overrides it
+    with any command that takes image paths and prints the same JSON lines."""
+    env = os.environ.get("TRAVEL_VLOG_PEOPLE")
+    if env:
+        return env.split()
+    src = PEOPLE_SWIFT.read_bytes()
+    exe = Path.home() / ".cache" / "travel-vlog" / f"people-{hashlib.sha256(src).hexdigest()[:12]}"
+    if not exe.exists():
+        if not shutil.which("swiftc"):
+            die("finding people needs macOS with swiftc (Apple Vision), or TRAVEL_VLOG_PEOPLE set to a detector")
+        exe.parent.mkdir(parents=True, exist_ok=True)
+        run(["swiftc", "-O", str(PEOPLE_SWIFT), "-o", str(exe)])
+    return [str(exe)]
+
+
+def detect_people(images: list[Path]) -> list[dict]:
+    if not images:
+        return []
+    out = run(people_cmd() + [str(p) for p in images], capture=True).stdout
+    found = {}
+    for line in out.splitlines():
+        d = json.loads(line)
+        found[d["image"]] = d
+    return [found.get(str(p), {"people": [], "faces": []}) for p in images]
+
+
+def shot_people(s: dict, e: dict, tmp: Path, every: float) -> dict:
+    """Sample a footage shot every `every` s: who is in the view, and for a 360 shot who is anywhere in the sphere
+    (as yaw and pitch), so a view that misses the people can be told from a shot with nobody in it."""
+    info = media_info(s["src"])
+    proj = s.get("projection") or projection_of(info, s["src"])
+    tin, tout = float(s["in"]), float(s["out"])
+    view = s.get("view", {})
+    times = [tin + k * every for k in range(int((tout - tin) / every) + 1) if tin + k * every < tout]
+    w, h = 640, 360
+    views, spheres = [], []
+    for k, t in enumerate(times):
+        if proj in ("dfisheye", "insv"):
+            v = dict(view)
+            if v.get("track"):
+                v["yaw"], v["pitch"] = track_at(v["track"], t - tin)
+            vf = view_filter(v, proj, w, h)
+            sp = tmp / f"s{k:04d}.jpg"
+            ffmpeg(["-ss", f"{t}", "-i", s["src"], "-frames:v", "1", "-filter_complex",
+                    f"{video_in(proj)}v360=input=dfisheye:output=equirect:ih_fov=200:iv_fov=200:w=2048:h=1024", str(sp)])
+            spheres.append(sp)
+        else:
+            lens = s.get("lens", e.get("lens"))
+            vf = square_pixels(info) + lens_filter(lens, w, h) + view_filter(view, proj, w, h, is_portrait(info, view))
+        vp = tmp / f"v{k:04d}.jpg"
+        ffmpeg(["-ss", f"{t}", "-i", s["src"], "-frames:v", "1", "-filter_complex", f"{video_in(proj)}{vf}", str(vp)])
+        views.append(vp)
+    seen = detect_people(views)
+    around = detect_people(spheres) if spheres else [None] * len(views)
+    samples = []
+    for t, v, a in zip(times, seen, around):
+        row = {"t": round(t - tin, 2), "in_view": len(v.get("people", [])) + len(v.get("faces", []))}
+        if a is not None:
+            row["sphere"] = [[round((b[0] + b[2] / 2 - 0.5) * 360, 1), round((0.5 - b[1] - b[3] / 2) * 180, 1)]
+                             for b in a.get("people", [])]
+        samples.append(row)
+    return {"projection": proj, "every": every, "samples": samples}
+
+
+def empty_runs(samples: list[dict], every: float, need_elsewhere: bool) -> float:
+    """Longest stretch (s) with nobody in the view; for 360 only while somebody is elsewhere in the sphere."""
+    best = cur = 0.0
+    for sm in samples:
+        empty = sm["in_view"] == 0 and (not need_elsewhere or bool(sm.get("sphere")))
+        cur = cur + every if empty else 0.0
+        best = max(best, cur)
+    return best
+
+
+def people_problems(e: dict, rep: dict | None) -> list[str]:
+    """A shot may show nobody only when it says what it shows instead (`landmark`)."""
+    if rep is None:
+        return ["no people check: run `vlog.py people` on the edit list"]
+    probs = []
+    for i, s in enumerate(e["shots"]):
+        r = rep["shots"].get(str(i + 1))
+        if s.get("still") or s.get("landmark") or not r:
+            continue
+        is360 = r["projection"] in ("dfisheye", "insv")
+        run_s = empty_runs(r["samples"], r["every"], need_elsewhere=is360)
+        if run_s > 3:
+            where = "while people are elsewhere in the sphere: aim the view at them (view.track)" if is360 \
+                else "with nobody in it: pick a range with the people, or name the `landmark` it shows"
+            probs.append(f"shot {i + 1}: {run_s:.1f} s of view {where}")
+    return probs
+
+
+def cmd_people(args) -> None:
+    e, outdir = load_edit(args.edit, writing=False)
+    shots = {}
+    with tempfile.TemporaryDirectory() as td:
+        for i, s in enumerate(e["shots"]):
+            if s.get("still"):
+                continue
+            d = Path(td) / f"{i:03d}"
+            d.mkdir()
+            shots[str(i + 1)] = shot_people(s, e, d, args.every)
+    rep = {"edit_sha256": sha256(Path(args.edit)), "every_s": args.every, "shots": shots}
+    outdir.mkdir(parents=True, exist_ok=True)
+    (outdir / f"{e['stem']}.people.json").write_text(json.dumps(rep, indent=1))
+    probs = people_problems(e, rep)
+    for p in probs:
+        print(f"FAIL {p}")
+    print(f"wrote {e['stem']}.people.json: {len(shots)} shots; {len(probs)} empty views")
+    sys.exit(1 if probs else 0)
+
+
+def cmd_find_people(args) -> None:
+    """Where the people are in whole clips, as source ranges, for picking shots."""
+    for src in args.clips:
+        dur = media_info(src)["duration"]
+        with tempfile.TemporaryDirectory() as td:
+            r = shot_people({"src": src, "in": 0, "out": dur}, {}, Path(td), args.every)
+        ranges, start = [], None
+        for sm in r["samples"] + [{"t": dur, "in_view": 0}]:
+            on = sm["in_view"] > 0 or bool(sm.get("sphere"))
+            if on and start is None:
+                start = sm["t"]
+            if not on and start is not None:
+                ranges.append((start, sm["t"]))
+                start = None
+        print(f"{Path(src).name}: people at " + (", ".join(f"{a:.0f}-{b:.0f}" for a, b in ranges if b - a >= args.every) or "none"))
 
 
 # ---------- text overlays ----------
@@ -902,6 +1074,11 @@ def cmd_verify(args) -> None:
     lo, hi = e.get("length_s", [180, 360])
     use_style(e)
     fails += fov_problems(e) + holder_problems(e) + card_problems(e)
+    pj = outdir / f"{stem}.people.json"
+    prep = json.loads(pj.read_text()) if pj.is_file() else None
+    if prep and prep.get("edit_sha256") != sha256(Path(args.edit)):
+        prep = None
+    fails += people_problems(e, prep)
     if not video.is_file():
         die(f"no render at {video}", 1)
     info = media_info(video)
@@ -1156,6 +1333,14 @@ def main() -> None:
     p.add_argument("edit")
     p.add_argument("--names", nargs="*", help="names that must not be heard (also 'private_names' in the edit list)")
     p.set_defaults(fn=cmd_sound)
+    p = sub.add_parser("people", help="who is in each shot's view (and the 360 sphere); fail empty views over 3 s")
+    p.add_argument("edit")
+    p.add_argument("--every", type=float, default=1.0)
+    p.set_defaults(fn=cmd_people)
+    p = sub.add_parser("find-people", help="source ranges where people are in whole clips, for picking shots")
+    p.add_argument("clips", nargs="+")
+    p.add_argument("--every", type=float, default=1.0)
+    p.set_defaults(fn=cmd_find_people)
     p = sub.add_parser("sheet", help="contact sheet of any video")
     p.add_argument("video")
     p.add_argument("--out", required=True)
