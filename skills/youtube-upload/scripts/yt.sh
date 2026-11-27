@@ -8,7 +8,8 @@
 #
 # meta.json: {"channel": "UC...", "authuser": 1, "title": "...", "description": "...",
 #             "playlist": "...", "privacy": "private" | "unlisted"}
-# Env: ASIDE (default aside), ASIDE_SESSIONS (default ~/.aside/u/0/sessions).
+# Env: ASIDE (default aside), ASIDE_SESSIONS (default ~/.aside/u/0/sessions),
+#      YT_RETRY_WAIT (seconds before publish edits a video still a draft once more, default 20).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 ASIDE=${ASIDE:-aside}
@@ -66,11 +67,11 @@ repl() {
     new=""
     sleep 0.5
   done
-  [ "$(grep -c . <<<"$new")" -eq 1 ] || { kill "$rp" 2>/dev/null; cat "$out" >&2; die "expected one new Aside session folder under $ASIDE_SESSIONS, found: $(paste -sd , - <<<"${new:-none}")"; }
+  [ "$(grep -c . <<<"$new")" -eq 1 ] || { kill "$rp" 2>/dev/null; cat "$out" >&2; rm -f "$out" ${staged[@]+"${staged[@]}"}; die "expected one new Aside session folder under $ASIDE_SESSIONS, found: $(paste -sd , - <<<"${new:-none}")"; }
   dir="$ASIDE_SESSIONS/$new"
-  [ -d "$dir" ] || { kill "$rp" 2>/dev/null; die "$dir is not a folder"; }
+  [ -d "$dir" ] || { kill "$rp" 2>/dev/null; rm -f "$out" ${staged[@]+"${staged[@]}"}; die "$dir is not a folder"; }
   while [ $# -gt 1 ]; do
-    cp "$1" "$dir/$2" || { kill "$rp" 2>/dev/null; die "could not stage $1"; }
+    cp "$1" "$dir/$2" || { kill "$rp" 2>/dev/null; rm -f "$out" "$dir/$2" ${staged[@]+"${staged[@]}"}; die "could not stage $1"; }
     staged+=("$dir/$2"); shift 2
   done
   touch "$dir/ready"
@@ -90,7 +91,14 @@ publish() {
   [ -n "$id" ] || die "upload gave no video id. The file was handed to YouTube and may have arrived: look for a new draft on the channel and finish it with 'yt.sh edit' (add its id); do not upload again"
   grep -q '^STEP upload complete' <<<"$up" || die "video $id did not finish uploading and shows \"Upload interrupted\" in Studio. Do not edit it. Tell the owner; a new upload makes a second copy, and only the owner deletes the broken one"
   m=$(mktemp); jq --arg id "$id" '. + {id: $id}' "$meta" >"$m"
-  edit "$thumb" "$m"
+  # A video edited seconds after its upload can stay a draft (seen twice live); a second edit finishes it.
+  local first rc=0
+  first=$( (edit "$thumb" "$m") 2>&1 ) || rc=$?
+  echo "$first"
+  [ "$rc" -eq 0 ] && return 0
+  grep -q '"draft":true' <<<"$first" || exit "$rc"
+  echo "yt: $id is still a draft; editing it once more" >&2
+  sleep "${YT_RETRY_WAIT:-20}"; edit "$thumb" "$m"
 }
 
 edit() {
