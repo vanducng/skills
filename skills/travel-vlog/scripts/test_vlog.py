@@ -250,6 +250,7 @@ class Picture(unittest.TestCase):
         self.assertGreater(v["yaw"], 20)
         self.assertLessEqual(v["fov"], vlog.MAX_FOV)
 
+    @needs_ffmpeg
     def test_seam_problems_flags_a_view_on_the_lens_join(self):
         e = {"shots": [{"view": {"yaw": -110, "pitch": -30, "fov": 95}},  # the Duc flies 1:08 view
                        {"view": {"yaw": 0, "pitch": -30, "fov": 95}},
