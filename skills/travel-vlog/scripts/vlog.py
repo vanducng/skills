@@ -342,6 +342,59 @@ def track_filter(v: dict, w: int, h: int, dur: float, fps: float, path: Path) ->
             f":v_fov={vfov:.3f}:w={w}:h={h}:interp=lanczos")
 
 
+
+def view_samples(v: dict) -> list[tuple[dict, bool]]:
+    """Static views a 360 shot passes through: (view, two_stage), two_stage for a move or a track, which
+    turn the sphere first and aim the camera second."""
+    if v.get("track"):
+        ts = sorted(float(k[0]) for k in v["track"])
+        ts += [(a + b) / 2 for a, b in zip(ts, ts[1:])]
+        return [({**v, "yaw": y, "pitch": p}, True) for y, p in (track_at(v["track"], t) for t in ts)]
+    if any(f"{k}_end" in v for k in ("yaw", "pitch", "fov")):
+        out = []
+        for f in (0, 0.5, 1):
+            s = dict(v)
+            for k in ("yaw", "pitch", "fov"):
+                if f"{k}_end" in v:
+                    a = float(v.get(k, DEFAULT_FOV if k == "fov" else 0))
+                    s[k] = a + (float(v[f"{k}_end"]) - a) * f
+            out.append((s, True))
+        return out
+    return [(v, False)]
+
+
+def join_in_view(v: dict, two_stage: bool, w: int = 192, h: int = 108) -> bool:
+    """True when the line where the two lenses meet shows in this view: a red and a blue half-frame are
+    reframed by the same filter as the render, and both colours turn up."""
+    vfov = 2 * math.degrees(math.atan(math.tan(math.radians(float(v.get("fov", DEFAULT_FOV)) / 2)) * h / w))
+    lf, fov = float(v.get("lens_fov", 200)), float(v.get("fov", DEFAULT_FOV))
+    if two_stage:
+        vf = (f"v360=input=dfisheye:output=equirect:ih_fov={lf}:iv_fov={lf}:yaw={float(v.get('yaw', 0))}"
+              f":roll={float(v.get('roll', 0))}:w=1024:h=512,v360=input=equirect:output=flat"
+              f":pitch={float(v.get('pitch', 0))}:h_fov={fov}:v_fov={vfov:.3f}:w={w}:h={h}")
+    else:
+        vf = view_filter({**v, "type": None}, "dfisheye", w, h)
+    src = "color=red:s=512x512:d=0.04[a];color=blue:s=512x512:d=0.04[b];[a][b]hstack"
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-filter_complex", f"{src},{vf},format=rgb24", "-frames:v", "1",
+                          "-f", "rawvideo", "-"], capture_output=True, check=True).stdout
+    red = sum(1 for i in range(0, len(raw), 3) if raw[i] > 128 and raw[i + 2] < 100)
+    blue = sum(1 for i in range(0, len(raw), 3) if raw[i + 2] > 128 and raw[i] < 100)
+    return min(red, blue) > w * h * 0.01
+
+
+def seam_problems(e: dict) -> list[str]:
+    """360 shots on the dual-fisheye path whose view holds the join between the lenses: a person or the horizon
+    breaks along it. Aim so the subject sits inside one lens, or reframe from a stitched equirect."""
+    out = []
+    for i, s in enumerate(e.get("shots", [])):
+        v = s.get("view") or {}
+        if v.get("type") == "tiny-planet" or ("yaw" not in v and not v.get("track")):
+            continue
+        if any(join_in_view(sv, two) for sv, two in view_samples(v)):
+            out.append(f"shot {i + 1}: the lens join shows in the view (yaw {v.get('yaw')}); "
+                       "the frame splits along it")
+    return out
+
 # ---------- people in the frame ----------
 
 PEOPLE_SWIFT = Path(__file__).with_name("people.swift")
@@ -868,7 +921,7 @@ def cmd_render(args) -> None:
     need_pillow()
     e, outdir = load_edit(args.edit)
     use_style(e)
-    probs = fov_problems(e) + holder_problems(e) + card_problems(e)
+    probs = fov_problems(e) + seam_problems(e) + holder_problems(e) + card_problems(e)
     if probs:
         die("; ".join(probs))
     outdir.mkdir(parents=True, exist_ok=True)
@@ -1073,7 +1126,7 @@ def cmd_verify(args) -> None:
     w, h = e.get("size", [1920, 1080])
     lo, hi = e.get("length_s", [180, 360])
     use_style(e)
-    fails += fov_problems(e) + holder_problems(e) + card_problems(e)
+    fails += fov_problems(e) + seam_problems(e) + holder_problems(e) + card_problems(e)
     pj = outdir / f"{stem}.people.json"
     prep = json.loads(pj.read_text()) if pj.is_file() else None
     if prep and prep.get("edit_sha256") != sha256(Path(args.edit)):

@@ -225,6 +225,13 @@ class Picture(unittest.TestCase):
         self.assertEqual(len(vlog.fov_problems(e)), 2)
         self.assertEqual(vlog.fov_problems({"shots": [{"view": {"fov": 85}}]}), [])
 
+    def test_seam_problems_flags_a_view_on_the_lens_join(self):
+        e = {"shots": [{"view": {"yaw": -110, "pitch": -30, "fov": 95}},  # the Duc flies 1:08 view
+                       {"view": {"yaw": 0, "pitch": -30, "fov": 95}},
+                       {"view": {"yaw": 170, "fov": 85, "yaw_end": 120}},
+                       {"view": {"x": 0.5}}]}
+        self.assertEqual([p.split(":")[0] for p in vlog.seam_problems(e)], ["shot 1", "shot 3"])
+
     def test_non_square_pixels(self):
         portrait = {"width": 1920, "height": 1080, "sar": (81, 256)}
         self.assertIn("scale=trunc(iw*81/256/2)*2:ih,setsar=1", vlog.square_pixels(portrait))
