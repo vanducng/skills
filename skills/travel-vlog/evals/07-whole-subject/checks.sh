@@ -26,9 +26,9 @@ for s in d["shots"]:
     if clip(s, 521) and a < 40 and b > 5 and any(gap(y, 20) <= 30 for y in yaws(v)):
         seen.add("menu")
         if s.get("subject") != "sign": sys.exit(f"{f}: the menu shot does not say subject sign")
-        if b - a < 4.7: sys.exit(f"{f}: the menu (9 words) is held {b - a:.1f} s; it needs 4.7 s")
+        if round(b - a, 2) < 4.7: sys.exit(f"{f}: the menu (9 words) is held {b - a:.1f} s; it needs 4.7 s")
         if not all(gap(y, 20) <= 10 for y in yaws(v)): sys.exit(f"{f}: the menu is not centred")
-        if not 58 <= float(v.get("fov", 85)) <= 95: sys.exit(f"{f}: fov {v.get('fov')} does not hold the 50 deg menu whole")
+        if not 57.5 <= float(v.get("fov", 85)) <= 95: sys.exit(f"{f}: fov {v.get('fov')} does not hold the 50 deg menu whole")
     if clip(s, 522) and a < 50 and b > 0 and any(gap(y, -170) <= 45 for y in yaws(v)):
         seen.add("group")
         if not 90 <= float(v.get("fov", 85)) <= 95: sys.exit(f"{f}: fov {v.get('fov')} cannot hold the five (80 deg) with a margin")

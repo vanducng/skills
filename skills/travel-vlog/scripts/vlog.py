@@ -535,7 +535,7 @@ def subject_problems(e: dict, rep: dict | None) -> list[str]:
         if kind == "sign":
             words = max((sm["words"] for sm in r["samples"]), default=0)
             held = (float(s["out"]) - float(s["in"])) / float(s.get("speed", 1))
-            if held < read_time(words):
+            if round(held, 2) < round(read_time(words), 2):
                 probs.append(f"shot {i + 1}: a sign of {words} words needs {read_time(words):.1f} s; it is held {held:.1f} s")
     return probs
 
@@ -981,11 +981,14 @@ def stitched(s: dict, view: dict, w: int, h: int, fps: float) -> Path:
     inputs: the view never splits along the join, even with a person on it."""
     if projection_of(media_info(s["src"]), s["src"]) != "insv":
         die(f"{s['src']}: stitch needs the .insv master (two fisheye streams)")
+    if any(f"{k}_end" in view for k in ("yaw", "pitch", "fov")):
+        die(f"{s['src']}: a stitched shot moves by `track` and `roll_track`, not yaw_end/pitch_end/fov_end")
     args = [s["src"], f"{float(s['in'])}", f"{float(s['out'])}"]
     opts = ["--yaw", f"{float(view.get('yaw', 0))}", "--pitch", f"{float(view.get('pitch', 0))}",
             "--roll", f"{float(view.get('roll', 0))}", "--fov", f"{float(view.get('fov', DEFAULT_FOV))}",
-            "--size", f"{w}x{h}", "--fps", f"{fps}"]
-    key = hashlib.sha256(json.dumps([args, opts, view.get("track"), view.get("roll_track"),
+            "--size", f"{w}x{h}", "--fps", f"{fps}", "--lens-fov", f"{float(view.get('lens_fov', 200))}"]
+    st = Path(s["src"]).stat()
+    key = hashlib.sha256(json.dumps([args, opts, st.st_size, st.st_mtime_ns, view.get("track"), view.get("roll_track"),
                                      STITCH.read_bytes().hex()]).encode()).hexdigest()[:16]
     cache = Path.home() / ".cache" / "travel-vlog" / "stitch"
     out = cache / f"{key}.mp4"
@@ -1017,8 +1020,10 @@ def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path,
     dur = (tout - tin) / speed
     view = s.get("view", {})
     lens = s.get("lens", e.get("lens")) if proj == "flat" else None
+    mute = [(float(a), float(b)) for a, b in s.get("mute", [])]
     if view.get("stitch") == "flow" and proj in ("dfisheye", "insv"):
         src, proj, view, lens = str(stitched(s, view, w, h, fps)), "flat", {}, None
+        mute = [(a - tin, b - tin) for a, b in mute]
         tin, tout = 0.0, tout - tin
         info = media_info(src)
     vf = []
@@ -1067,8 +1072,8 @@ def render_shot(i: int, s: dict, e: dict, w: int, h: int, fps: float, tmp: Path,
     if info["has_audio"] and 0.5 <= speed <= 2:
         atempo = f"atempo={speed}," if speed != 1 else ""
         mutes = "".join(
-            f"volume=enable='between(t,{max(0.0, (float(a) - tin) / speed):.3f},{(float(b) - tin) / speed:.3f})':volume=0,"
-            for a, b in s.get("mute", []) if float(b) > tin and float(a) < tout)
+            f"volume=enable='between(t,{max(0.0, (a - tin) / speed):.3f},{(b - tin) / speed:.3f})':volume=0,"
+            for a, b in mute if b > tin and a < tout)
         fc += (f";[0:a]{atempo}aresample=48000,aformat=channel_layouts=stereo,volume={gain},{mutes}"
                f"afade=t=in:d=0.04,afade=t=out:st={max(0, dur - 0.06)}:d=0.06[a]")
     else:

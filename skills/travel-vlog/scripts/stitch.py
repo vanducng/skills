@@ -31,11 +31,16 @@ ap.add_argument("--flow-smooth", type=float, default=0.5)
 ap.add_argument("--seam-only", action="store_true")
 ap.add_argument("--crf", type=int, default=12)
 ap.add_argument("--roll-track", help="json list of [t, roll]")
+ap.add_argument("--lens-fov", type=float, default=200, help="each lens's field of view, as v360 ih_fov")
 a = ap.parse_args()
 W, H = (int(v) for v in a.size.split("x"))
 DUR = a.tout - a.tin
 N = int(round(DUR * a.fps))
-LENS = 2880
+_probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+                         "-of", "csv=p=0", a.src], capture_output=True, text=True, check=True).stdout.split(",")
+LENS, _lh = int(_probe[0]), int(_probe[1])
+if LENS != _lh:
+    raise SystemExit(f"{a.src}: lens stream is {LENS}x{_lh}, not square; this is not a dual-fisheye .insv")
 rad = math.radians
 
 
@@ -47,7 +52,7 @@ def interp(track, t):
             f = (t - p[0]) / max(q[0] - p[0], 1e-6); e = f * f * (3 - 2 * f)
             out = []
             for i in range(1, len(p)):
-                d = q[i] - p[i]
+                d = (q[i] - p[i] + 180) % 360 - 180
                 out.append(p[i] + d * e)
             return tuple(out)
     return pts[-1][1:]
@@ -74,7 +79,7 @@ def maps(yaw, pitch, roll):
     ph1 = np.arctan2(w[..., 1], -w[..., 0])
     R0 = LENS / 2
     def mp(th, ph):
-        r = th / rad(100) * R0
+        r = th / rad(a.lens_fov / 2) * R0
         return (np.ascontiguousarray(R0 + r * np.cos(ph), np.float32), np.ascontiguousarray(R0 - r * np.sin(ph), np.float32))
     return th0, mp(th0, ph0), mp(th1, ph1)
 
