@@ -2,6 +2,54 @@
 
 All notable changes to this repo are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [1.101.0](https://github.com/vanducng/skills/compare/v1.100.0...v1.101.0) (2026-11-28)
+
+
+### Features
+
+* **travel-vlog:** a place subject for streets and crowds ([faf75dc](https://github.com/vanducng/skills/commit/faf75dc430b9295c6d54d20eac62e4e8d3575357))
+* **travel-vlog:** a place subject for streets and crowds ([dfd5c51](https://github.com/vanducng/skills/commit/dfd5c51c18d210cdff7b9ee274a69bc586a8e20e))
+* **travel-vlog:** a place subject for streets and crowds ([ccb3bdc](https://github.com/vanducng/skills/commit/ccb3bdcd5a09d76582a0f0376fafde7b7cbb82bc))
+* **travel-vlog:** a place subject for streets and crowds ([5f687d3](https://github.com/vanducng/skills/commit/5f687d3c9dd17593461876fb68e64bd6d817c941))
+* **travel-vlog:** a place subject for streets and crowds ([ac354ef](https://github.com/vanducng/skills/commit/ac354ef546892ff199837443cf9fe59882914fc0))
+* **travel-vlog:** fail a cut subject or a sign held too short to read, and add a fit command ([55eb410](https://github.com/vanducng/skills/commit/55eb410958a57ce1eac05df867640eb9da1eb32b))
+* **travel-vlog:** fail a cut subject or a sign held too short to read, and add a fit command ([f3d7710](https://github.com/vanducng/skills/commit/f3d7710c18de69c27e99068717a850d943f2baaa))
+* **travel-vlog:** fail a cut subject or a sign held too short to read, and add a fit command ([2598790](https://github.com/vanducng/skills/commit/25987907ab3b85b275f19aa1eaeb8ddf79e7f3c0))
+* **travel-vlog:** fail a cut subject or a sign held too short to read, and add a fit command ([de0e4cf](https://github.com/vanducng/skills/commit/de0e4cf212e10dcdcd45013c65df6f2fdc0ade33))
+* **travel-vlog:** fail a cut subject or a sign held too short to read, and add a fit command ([5e649e5](https://github.com/vanducng/skills/commit/5e649e55aaf340ad5cf9d596afc3ce9c04c93bee))
+* **travel-vlog:** fail a cut subject or a sign held too short to read, and add a fit command ([657e55e](https://github.com/vanducng/skills/commit/657e55e4de8141cb7076d66aa62d7d306ba60c0a))
+* **travel-vlog:** fail a cut subject or a sign held too short to read, and add a fit command ([e906542](https://github.com/vanducng/skills/commit/e90654260515e56c371a5877a310c3d7e0341a7f))
+* **travel-vlog:** record a checked edge instead of recutting ([faf75dc](https://github.com/vanducng/skills/commit/faf75dc430b9295c6d54d20eac62e4e8d3575357))
+* **travel-vlog:** record a checked edge instead of recutting ([dfd5c51](https://github.com/vanducng/skills/commit/dfd5c51c18d210cdff7b9ee274a69bc586a8e20e))
+* **travel-vlog:** record a checked edge instead of recutting ([ccb3bdc](https://github.com/vanducng/skills/commit/ccb3bdcd5a09d76582a0f0376fafde7b7cbb82bc))
+* **travel-vlog:** record a checked edge instead of recutting ([5f687d3](https://github.com/vanducng/skills/commit/5f687d3c9dd17593461876fb68e64bd6d817c941))
+* **travel-vlog:** record a checked edge instead of recutting ([ac354ef](https://github.com/vanducng/skills/commit/ac354ef546892ff199837443cf9fe59882914fc0))
+* **travel-vlog:** stitch the lens join with a flow-aligned blend (view.stitch) ([55eb410](https://github.com/vanducng/skills/commit/55eb410958a57ce1eac05df867640eb9da1eb32b))
+* **travel-vlog:** stitch the lens join with a flow-aligned blend (view.stitch) ([f3d7710](https://github.com/vanducng/skills/commit/f3d7710c18de69c27e99068717a850d943f2baaa))
+* **travel-vlog:** stitch the lens join with a flow-aligned blend (view.stitch) ([2598790](https://github.com/vanducng/skills/commit/25987907ab3b85b275f19aa1eaeb8ddf79e7f3c0))
+* **travel-vlog:** stitch the lens join with a flow-aligned blend (view.stitch) ([de0e4cf](https://github.com/vanducng/skills/commit/de0e4cf212e10dcdcd45013c65df6f2fdc0ade33))
+* **travel-vlog:** stitch the lens join with a flow-aligned blend (view.stitch) ([5e649e5](https://github.com/vanducng/skills/commit/5e649e55aaf340ad5cf9d596afc3ce9c04c93bee))
+* **travel-vlog:** stitch the lens join with a flow-aligned blend (view.stitch) ([657e55e](https://github.com/vanducng/skills/commit/657e55e4de8141cb7076d66aa62d7d306ba60c0a))
+* **travel-vlog:** stitch the lens join with a flow-aligned blend (view.stitch) ([e906542](https://github.com/vanducng/skills/commit/e90654260515e56c371a5877a310c3d7e0341a7f))
+
+
+### Bug Fixes
+
+* **travel-vlog:** refuse a 360 view that holds the lens join ([55eb410](https://github.com/vanducng/skills/commit/55eb410958a57ce1eac05df867640eb9da1eb32b))
+* **travel-vlog:** refuse a 360 view that holds the lens join ([f3d7710](https://github.com/vanducng/skills/commit/f3d7710c18de69c27e99068717a850d943f2baaa))
+* **travel-vlog:** refuse a 360 view that holds the lens join ([2598790](https://github.com/vanducng/skills/commit/25987907ab3b85b275f19aa1eaeb8ddf79e7f3c0))
+* **travel-vlog:** refuse a 360 view that holds the lens join ([de0e4cf](https://github.com/vanducng/skills/commit/de0e4cf212e10dcdcd45013c65df6f2fdc0ade33))
+* **travel-vlog:** refuse a 360 view that holds the lens join ([5e649e5](https://github.com/vanducng/skills/commit/5e649e55aaf340ad5cf9d596afc3ce9c04c93bee))
+* **travel-vlog:** refuse a 360 view that holds the lens join ([657e55e](https://github.com/vanducng/skills/commit/657e55e4de8141cb7076d66aa62d7d306ba60c0a))
+* **travel-vlog:** refuse a 360 view that holds the lens join ([e906542](https://github.com/vanducng/skills/commit/e90654260515e56c371a5877a310c3d7e0341a7f))
+* **travel-vlog:** turn a still by its EXIF orientation ([55eb410](https://github.com/vanducng/skills/commit/55eb410958a57ce1eac05df867640eb9da1eb32b))
+* **travel-vlog:** turn a still by its EXIF orientation ([f3d7710](https://github.com/vanducng/skills/commit/f3d7710c18de69c27e99068717a850d943f2baaa))
+* **travel-vlog:** turn a still by its EXIF orientation ([2598790](https://github.com/vanducng/skills/commit/25987907ab3b85b275f19aa1eaeb8ddf79e7f3c0))
+* **travel-vlog:** turn a still by its EXIF orientation ([de0e4cf](https://github.com/vanducng/skills/commit/de0e4cf212e10dcdcd45013c65df6f2fdc0ade33))
+* **travel-vlog:** turn a still by its EXIF orientation ([5e649e5](https://github.com/vanducng/skills/commit/5e649e55aaf340ad5cf9d596afc3ce9c04c93bee))
+* **travel-vlog:** turn a still by its EXIF orientation ([657e55e](https://github.com/vanducng/skills/commit/657e55e4de8141cb7076d66aa62d7d306ba60c0a))
+* **travel-vlog:** turn a still by its EXIF orientation ([e906542](https://github.com/vanducng/skills/commit/e90654260515e56c371a5877a310c3d7e0341a7f))
+
 ## [1.100.0](https://github.com/vanducng/skills/compare/v1.99.0...v1.100.0) (2026-11-27)
 
 
