@@ -546,7 +546,7 @@ def subject_problems(e: dict, rep: dict | None) -> list[str]:
         if kind == "place":  # a street, a crowd, a view: strangers at the edge are part of it
             continue
         cut = [sm["t"] for sm in r["samples"] if sm["cut"].get(kind)]
-        if len(cut) > 1:
+        if len(cut) > 1 and not s.get("edge_checked"):
             probs.append(f"shot {i + 1}: the frame edge cuts the {kind} at {', '.join(f'{t:g}' for t in cut[:4])} s; "
                          "frame all of it with a margin (`vlog.py fit` for a 360 view)")
         if kind == "sign":
