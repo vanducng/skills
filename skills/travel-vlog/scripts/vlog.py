@@ -534,7 +534,7 @@ def read_time(words: int) -> float:
 
 def subject_problems(e: dict, rep: dict | None) -> list[str]:
     """The shot's `subject` (people, by default; or sign, object) whole in the frame for all but one sample, and a
-    sign held long enough to read. A `place` shot (or one naming its `landmark`) is not checked for cuts."""
+    sign held long enough to read. A `place` shot is not checked for cuts."""
     if rep is None:
         return []
     probs = []
@@ -542,8 +542,8 @@ def subject_problems(e: dict, rep: dict | None) -> list[str]:
         r = rep["shots"].get(str(i + 1))
         if s.get("still") or not r or "cut" not in (r["samples"] or [{}])[0]:
             continue
-        kind = s.get("subject") or ("place" if s.get("landmark") else "people")
-        if kind == "place":  # a street, a crowd, a view: strangers at the edge are part of it
+        kind = s.get("subject", "people")
+        if kind == "place":  # a street, a crowd, a view: strangers, shop signs and stalls at the edge belong to it
             continue
         cut = [sm["t"] for sm in r["samples"] if sm["cut"].get(kind)]
         if len(cut) > 1 and not s.get("edge_checked"):

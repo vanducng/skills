@@ -291,10 +291,12 @@ class Picture(unittest.TestCase):
         e = {"shots": [{"in": 0, "out": 2}, {"in": 0, "out": 2}, {"in": 0, "out": 3, "subject": "sign"}]}
         probs = vlog.subject_problems(e, rep)
         self.assertEqual([p.split(":")[0] for p in probs], ["shot 1", "shot 3"])
-        for place in ({"subject": "place"}, {"landmark": "the old street"},
+        for place in ({"subject": "place"},
                       {"edge_checked": "a stranger at the next table; the family is whole (qa, craft)"}):
             e["shots"][0] = {"in": 0, "out": 2, **place}
             self.assertEqual([p.split(":")[0] for p in vlog.subject_problems(e, rep)], ["shot 3"])
+        e["shots"][0] = {"in": 0, "out": 2, "landmark": "the old street"}  # a landmark alone keeps the people check
+        self.assertEqual([p.split(":")[0] for p in vlog.subject_problems(e, rep)], ["shot 1", "shot 3"])
         self.assertIn("4.7 s", probs[1])
 
     def test_edge_cuts_sees_a_face_past_the_edge_in_the_wider_look(self):
